@@ -23,6 +23,11 @@ public class PyApiTest {
     }
 
     @Test
+    public void testTwoExecutionOneWorkflow() {
+        pythonContext.context().evalAndAssertScenarioResult("two_execution_one_wf");
+    }
+
+    @Test
     public void testSimpleCatboostGraph() {
         /* This scenario checks for:
                 1. Importing external modules (catboost)

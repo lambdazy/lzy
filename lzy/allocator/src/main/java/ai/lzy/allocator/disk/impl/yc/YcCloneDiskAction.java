@@ -18,11 +18,13 @@ import yandex.cloud.api.compute.v1.SnapshotServiceOuterClass;
 import yandex.cloud.api.operation.OperationOuterClass;
 import yandex.cloud.api.operation.OperationServiceOuterClass;
 
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.function.Supplier;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
     private static final Logger LOG = LogManager.getLogger(YcCloneDiskAction.class);
@@ -35,7 +37,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
     private boolean snapshotRemoved;
 
     public YcCloneDiskAction(DiskManager.OuterOperation op, YcCloneDiskState state, YcDiskManager diskManager) {
-        super(op, state, diskManager);
+        super(op, "[YcCloneDisk]", state, diskManager);
 
         this.ycCreateSnapshotOpIdSaved = !state.ycCreateSnapshotOperationId().isEmpty();
         this.snapshotIdSaved = state.snapshotId() != null;
@@ -43,82 +45,35 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
         this.newDiskIdSaved = state.newDiskId() != null;
         this.ycDeleteSnapshotOpIdSaved = !state.ycDeleteSnapshotOperationId().isEmpty();
         this.snapshotRemoved = false;
-    }
 
-    @Override
-    public void run() {
         LOG.info("Clone disk {}; clone name={} size={}Gb zone={}, outerOp={}",
             state.originDisk().spec().name(), state.newDiskSpec().name(), state.newDiskSpec().sizeGb(),
             state.newDiskSpec().zone(), opId());
-
-        var now = Instant.now();
-
-        // TODO: remove snapshot on error
-
-        if (op.deadline().isBefore(now)) {
-            LOG.error("YcCloneDisk operation {} expired", opId());
-            try {
-                withRetries(LOG, () -> {
-                    try (var tx = TransactionHandle.create(storage())) {
-                        operationsDao().fail(opId(), toProto(Status.DEADLINE_EXCEEDED), tx);
-                        diskOpDao().deleteDiskOp(opId(), tx);
-                        tx.commit();
-                    }
-                });
-
-                metrics().cloneDiskError.inc();
-                metrics().cloneDiskTimeout.inc();
-            } catch (Exception e) {
-                metrics().cloneDiskRetryableError.inc();
-                LOG.error("Error while expiring YcCloneDisk op {}: {}. Reschedule...", opId(), e.getMessage());
-                restart();
-            }
-            return;
-        }
-
-
-        // CreateSnapshot operation
-        if (!ycCreateSnapshotOpIdSaved) {
-            startCreateSnapshot();
-            return;
-        }
-
-        // Wait snapshot creation
-        if (!snapshotIdSaved) {
-            waitSnapshot();
-            if (!snapshotIdSaved) {
-                return;
-            }
-        }
-
-        // CreateDisk operation
-        if (!ycCreateDiskOpIdSaved) {
-            startCreateDisk();
-            return;
-        }
-
-        // Wait disk creation
-        if (!newDiskIdSaved) {
-            waitDisk();
-            if (!newDiskIdSaved) {
-                return;
-            }
-        }
-
-        // DeleteSnapshot operation
-        if (!ycDeleteSnapshotOpIdSaved) {
-            deleteSnapshot();
-            return;
-        }
-
-        // Wait snapshot removal
-        if (!snapshotRemoved) {
-            waitCleanup();
-        }
     }
 
-    private void startCreateSnapshot() {
-        assert !ycCreateSnapshotOpIdSaved;
+    @Override
+    protected void notifyExpired() {
+        metrics().cloneDiskError.inc();
+        metrics().cloneDiskTimeout.inc();
+    }
+
+    @Override
+    protected void onExpired(TransactionHandle tx) throws SQLException {
+        diskOpDao().deleteDiskOp(opId(), tx);
+        // TODO: remove snapshot on error
+    }
+
+    @Override
+    protected List<Supplier<StepResult>> steps() {
+        return List.of(this::startCreateSnapshot, this::waitSnapshot, this::startCreateDisk, this::waitDisk,
+            // TODO: emit new operation
+            this::startDeleteSnapshot, this::waitCleanup);
+    }
+
+    private StepResult startCreateSnapshot() {
+        if (ycCreateSnapshotOpIdSaved) {
+            return StepResult.ALREADY_DONE;
+        }
 
         if (state.ycCreateSnapshotOperationId().isEmpty()) {
             try {
@@ -139,7 +94,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                 try {
                     withRetries(LOG, () -> {
                         try (var tx = TransactionHandle.create(storage())) {
-                            operationsDao().fail(opId(), toProto(e.getStatus()), tx);
+                            failOperation(e.getStatus(), tx);
                             diskOpDao().deleteDiskOp(opId(), tx);
                             tx.commit();
                         }
@@ -150,10 +105,10 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     metrics().cloneDiskRetryableError.inc();
                     LOG.error("Error while failing YcCloneDisk::CreateSnapshot op {}: {}. Reschedule...",
                         opId(), e.getMessage());
-                    restart();
+                    return StepResult.RESTART;
                 }
 
-                return;
+                return StepResult.FINISH;
             }
         }
 
@@ -166,16 +121,17 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
             metrics().cloneDiskRetryableError.inc();
             LOG.debug("Cannot save new state for YcCloneDisk::CreateSnapshot {}/{}, reschedule...",
                 opId(), state.ycCreateSnapshotOperationId());
-            restart();
-            return;
+            return StepResult.RESTART;
         }
 
         LOG.info("Wait YC at YcCloneDisk::CreateSnapshot {}/{}...", opId(), state.ycCreateSnapshotOperationId());
-        restart();
+        return StepResult.RESTART;
     }
 
-    private void waitSnapshot() {
-        assert !snapshotIdSaved;
+    private StepResult waitSnapshot() {
+        if (snapshotIdSaved) {
+            return StepResult.ALREADY_DONE;
+        }
 
         if (state.snapshotId() == null) {
             LOG.info("Test status of YcCloneDisk::CreateSnapshot operation {}/{}",
@@ -192,15 +148,13 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                 LOG.error("Error while getting YcCloneDisk::CreateSnapshot op {}/{} state: [{}] {}. Reschedule...",
                     opId(), state.ycCreateSnapshotOperationId(), e.getStatus().getCode(),
                     e.getStatus().getDescription());
-                restart();
-                return;
+                return StepResult.RESTART;
             }
 
             if (!ycGetSnapshotOp.getDone()) {
                 LOG.info("YcCloneDisk::CreateSnapshot {}/{} not completed yet, reschedule...",
                     opId(), state.ycCreateSnapshotOperationId());
-                restart();
-                return;
+                return StepResult.RESTART;
             }
 
             if (ycGetSnapshotOp.hasError()) {
@@ -210,7 +164,10 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     withRetries(LOG, () -> {
                         try (var tx = TransactionHandle.create(storage())) {
                             diskOpDao().deleteDiskOp(opId(), tx);
-                            operationsDao().fail(opId(), ycGetSnapshotOp.getError(), tx);
+                            failOperation(
+                                Status.fromCodeValue(ycGetSnapshotOp.getError().getCode())
+                                    .withDescription(ycGetSnapshotOp.getError().getMessage()),
+                                tx);
                             tx.commit();
                         }
                     });
@@ -218,12 +175,11 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     metrics().cloneDiskRetryableError.inc();
                     LOG.error("Cannot complete failed YcCloneDisk::CreateSnapshot operation {}/{}: {}. Reschedule...",
                         opId(), state.ycCreateSnapshotOperationId(), e.getMessage());
-                    restart();
-                    return;
+                    return StepResult.RESTART;
                 }
 
                 // don't restart
-                return;
+                return StepResult.FINISH;
             }
 
             assert ycGetSnapshotOp.hasResponse();
@@ -242,7 +198,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     withRetries(LOG, () -> {
                         try (var tx = TransactionHandle.create(storage())) {
                             diskOpDao().failDiskOp(opId(), e.getMessage(), tx);
-                            operationsDao().fail(opId(), toProto(Status.INTERNAL.withDescription(e.getMessage())), tx);
+                            failOperation(Status.INTERNAL.withDescription(e.getMessage()), tx);
                             tx.commit();
                         }
                     });
@@ -250,29 +206,32 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     metrics().cloneDiskRetryableError.inc();
                     LOG.error("Cannot complete failed YcCloneDisk::CreateSnapshot op {}/{}: {}. Reschedule...",
                         opId(), state.ycCreateSnapshotOperationId(), e.getMessage());
-                    restart();
-                    return;
+                    return StepResult.RESTART;
                 }
 
                 metrics().cloneDiskError.inc();
                 // don't restart
-                return;
+                return StepResult.FINISH;
             }
+        }
 
-            try {
-                withRetries(LOG, () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
-                snapshotIdSaved = true;
-            } catch (Exception e) {
-                metrics().cloneDiskRetryableError.inc();
-                LOG.debug("Cannot save new state for YcCloneDisk::CreateSnapshot op {}/{} ({}), reschedule...",
-                    opId(), state.ycCreateSnapshotOperationId(), state.snapshotId());
-                restart();
-            }
+        try {
+            withRetries(LOG, () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
+            snapshotIdSaved = true;
+            return StepResult.CONTINUE;
+        } catch (Exception e) {
+            metrics().cloneDiskRetryableError.inc();
+            LOG.debug("Cannot save new state for YcCloneDisk::CreateSnapshot op {}/{} ({}), reschedule...",
+                opId(), state.ycCreateSnapshotOperationId(), state.snapshotId());
+            return StepResult.RESTART;
         }
     }
 
-    private void startCreateDisk() {
-        assert !ycCreateDiskOpIdSaved;
+    private StepResult startCreateDisk() {
+        if (ycCreateDiskOpIdSaved) {
+            return StepResult.ALREADY_DONE;
+        }
+
         assert state.snapshotId() != null;
 
         if (state.ycCreateDiskOperationId().isEmpty()) {
@@ -299,7 +258,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                 try {
                     withRetries(LOG, () -> {
                         try (var tx = TransactionHandle.create(storage())) {
-                            operationsDao().fail(opId(), toProto(e.getStatus()), tx);
+                            failOperation(e.getStatus(), tx);
                             diskOpDao().deleteDiskOp(opId(), tx);
                             tx.commit();
                         }
@@ -310,10 +269,10 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     metrics().cloneDiskRetryableError.inc();
                     LOG.error("Error while failing YcCloneDisk::CreateDisk op {}: {}. Reschedule...",
                         opId(), e.getMessage());
-                    restart();
+                    return StepResult.RESTART;
                 }
 
-                return;
+                return StepResult.FINISH;
             }
         }
 
@@ -326,16 +285,17 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
             metrics().cloneDiskRetryableError.inc();
             LOG.debug("Cannot save new state for YcCloneDisk::CreateDisk {}/{}, reschedule...",
                 opId(), state.ycCreateDiskOperationId());
-            restart();
-            return;
+            return StepResult.RESTART;
         }
 
         LOG.info("Wait YC at YcCloneDisk::CreateDisk {}/{}...", opId(), state.ycCreateDiskOperationId());
-        restart();
+        return StepResult.RESTART;
     }
 
-    private void waitDisk() {
-        assert !newDiskIdSaved;
+    private StepResult waitDisk() {
+        if (newDiskIdSaved) {
+            return StepResult.ALREADY_DONE;
+        }
 
         LOG.info("Test status of YcCloneDisk::CreateDisk operation {}/{}", opId(), state.ycCreateDiskOperationId());
 
@@ -349,15 +309,13 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
             metrics().cloneDiskRetryableError.inc();
             LOG.error("Error while getting YcCloneDisk::CreateDisk operation {}/{} state: [{}] {}. Reschedule...",
                 opId(), state.ycCreateDiskOperationId(), e.getStatus().getCode(), e.getStatus().getDescription());
-            restart();
-            return;
+            return StepResult.RESTART;
         }
 
         if (!ycOp.getDone()) {
             LOG.debug("YcCloneDisk::CreateDisk {}/{} not completed yet, reschedule...",
                 opId(), state.ycCreateDiskOperationId());
-            restart();
-            return;
+            return StepResult.RESTART;
         }
 
         if (ycOp.hasResponse()) {
@@ -377,7 +335,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     withRetries(LOG, () -> {
                         try (var tx = TransactionHandle.create(storage())) {
                             diskOpDao().failDiskOp(opId(), e.getMessage(), tx);
-                            operationsDao().fail(opId(), toProto(Status.INTERNAL.withDescription(e.getMessage())), tx);
+                            failOperation(Status.INTERNAL.withDescription(e.getMessage()), tx);
                             tx.commit();
                         }
                     });
@@ -385,31 +343,30 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     metrics().cloneDiskRetryableError.inc();
                     LOG.error("Cannot complete failed YcCloneDisk::CreateSnapshot op {}/{}: {}. Reschedule...",
                         opId(), state.ycCreateSnapshotOperationId(), e.getMessage());
-                    restart();
-                    return;
+                    return StepResult.RESTART;
                 }
 
                 metrics().cloneDiskError.inc();
                 // don't restart
-                return;
+                return StepResult.FINISH;
             }
 
             var meta = Any.pack(
-                    DiskServiceApi.CloneDiskMetadata.newBuilder()
-                        .setDiskId(newDisk.id())
-                        .build());
+                DiskServiceApi.CloneDiskMetadata.newBuilder()
+                    .setDiskId(newDisk.id())
+                    .build());
 
             var resp = Any.pack(
-                    DiskServiceApi.CloneDiskResponse.newBuilder()
-                        .setDisk(newDisk.toProto())
-                        .build());
+                DiskServiceApi.CloneDiskResponse.newBuilder()
+                    .setDisk(newDisk.toProto())
+                    .build());
 
             try {
                 withRetries(LOG, () -> {
                     try (var tx = TransactionHandle.create(storage())) {
                         diskOpDao().updateDiskOp(opId(), toJson(state), tx);
                         diskDao().insert(newDisk, tx);
-                        operationsDao().complete(opId(), meta, resp, tx);
+                        completeOperation(meta, resp, tx);
                         tx.commit();
                     }
                 });
@@ -419,15 +376,14 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                 metrics().cloneDiskRetryableError.inc();
                 LOG.error("Cannot complete successful YcCloneDisk::CreateDisk operation {}/{}: {}. Reschedule...",
                     opId(), state.ycCreateDiskOperationId(), e.getMessage());
-                restart();
-                return;
+                return StepResult.RESTART;
             }
 
             metrics().cloneDiskFinish.inc();
             metrics().cloneDiskDuration.observe(Duration.between(op.startedAt(), Instant.now()).getSeconds());
 
             // don't restart
-            return;
+            return StepResult.FINISH;
         }
 
         // CreateDisk failed
@@ -439,23 +395,31 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage())) {
                     diskOpDao().deleteDiskOp(opId(), tx);
-                    operationsDao().fail(opId(), ycOp.getError(), tx);
+                    failOperation(
+                        Status.fromCodeValue(ycOp.getError().getCode())
+                            .withDescription(ycOp.getError().getMessage()),
+                        tx);
                     tx.commit();
                 }
             });
 
             metrics().cloneDiskError.inc();
             // don't restart
+            return StepResult.FINISH;
         } catch (Exception e) {
             metrics().cloneDiskRetryableError.inc();
             LOG.error("Cannot complete failed ycCreateDisk operation {}/{}: {}. Reschedule...",
                 opId(), state.ycCreateDiskOperationId(), e.getMessage());
-            restart();
+            return StepResult.RESTART;
         }
     }
 
-    private void deleteSnapshot() {
-        assert !ycDeleteSnapshotOpIdSaved;
+    private StepResult startDeleteSnapshot() {
+        if (ycDeleteSnapshotOpIdSaved) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        assert state.snapshotId() != null;
 
         if (state.ycDeleteSnapshotOperationId().isEmpty()) {
             try {
@@ -473,7 +437,7 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                 try {
                     withRetries(LOG, () -> {
                         try (var tx = TransactionHandle.create(storage())) {
-                            operationsDao().fail(opId(), toProto(e.getStatus()), tx);
+                            failOperation(e.getStatus(), tx);
                             diskOpDao().deleteDiskOp(opId(), tx);
                             tx.commit();
                         }
@@ -484,10 +448,10 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
                     metrics().cloneDiskRetryableError.inc();
                     LOG.error("Error while failing YcCloneDisk::DeleteSnapshot op {}: {}. Reschedule...",
                         opId(), e.getMessage());
-                    restart();
+                    return StepResult.RESTART;
                 }
 
-                return;
+                return StepResult.FINISH;
             }
         }
 
@@ -499,16 +463,17 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
         } catch (Exception e) {
             LOG.debug("Cannot save new state for YcCloneDisk::DeleteSnapshot {}/{}, reschedule...",
                 opId(), state.ycDeleteSnapshotOperationId());
-            restart();
-            return;
+            return StepResult.RESTART;
         }
 
         LOG.info("Wait YC at YcCloneDisk::DeleteSnapshot {}/{}...", opId(), state.ycDeleteSnapshotOperationId());
-        restart();
+        return StepResult.RESTART;
     }
 
-    private void waitCleanup() {
-        assert !snapshotRemoved;
+    private StepResult waitCleanup() {
+        if (snapshotRemoved) {
+            return StepResult.FINISH;
+        }
 
         LOG.info("Test status of YcCloneDisk::DeleteSnapshot operation {}/{}",
             opId(), state.ycDeleteSnapshotOperationId());
@@ -523,15 +488,13 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
             LOG.error("Error while getting YcCloneDisk::DeleteSnapshot op {}/{} state: [{}] {}. Reschedule...",
                 opId(), state.ycDeleteSnapshotOperationId(), e.getStatus().getCode(),
                 e.getStatus().getDescription());
-            restart();
-            return;
+            return StepResult.RESTART;
         }
 
         if (!ycOp.getDone()) {
             LOG.info("YcCloneDisk::DeleteSnapshot {}/{} not completed yet, reschedule...",
                 opId(), state.ycDeleteSnapshotOperationId());
-            restart();
-            return;
+            return StepResult.RESTART;
         }
 
         if (ycOp.hasError()) {
@@ -542,12 +505,11 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
             } catch (Exception e) {
                 LOG.error("Cannot complete failed YcCloneDisk::DeleteSnapshot operation {}/{}: {}. Reschedule...",
                     opId(), state.ycDeleteSnapshotOperationId(), e.getMessage());
-                restart();
-                return;
+                return StepResult.RESTART;
             }
 
             // don't restart
-            return;
+            return StepResult.FINISH;
         }
 
         assert ycOp.hasResponse();
@@ -558,10 +520,11 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
         try {
             withRetries(LOG, () -> diskOpDao().deleteDiskOp(opId(), null));
             snapshotRemoved = true;
+            return StepResult.FINISH;
         } catch (Exception e) {
             LOG.debug("Cannot save new state for YcCloneDisk::DeleteSnapshot op {}/{} ({}), reschedule...",
                 opId(), state.ycDeleteSnapshotOperationId(), state.snapshotId());
-            restart();
+            return StepResult.RESTART;
         }
     }
 }

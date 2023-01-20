@@ -4,7 +4,7 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.storage.config.StorageConfig;
@@ -81,7 +81,7 @@ public class StorageTest extends BaseTestWithIam {
         var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        var operationService = new OperationService(storageCtx.getBean(OperationDao.class,
+        var operationService = new OperationsService(storageCtx.getBean(OperationDao.class,
             Qualifiers.byName("StorageOperationDao")));
 
         storageServer = App.createServer(HostAndPort.fromString(storageConfig.getAddress()), authInterceptor,

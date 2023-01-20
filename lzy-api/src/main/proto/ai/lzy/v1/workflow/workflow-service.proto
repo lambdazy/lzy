@@ -5,15 +5,20 @@ package ai.lzy.v1.workflow;
 import "ai/lzy/v1/common/storage.proto";
 import "ai/lzy/v1/workflow/workflow.proto";
 import "ai/lzy/v1/common/data-scheme.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
 
 option java_outer_classname = "LWFS";
 option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowService {
-  rpc CreateWorkflow (CreateWorkflowRequest) returns (CreateWorkflowResponse);
-  rpc AttachWorkflow (AttachWorkflowRequest) returns (AttachWorkflowResponse);
-  rpc FinishWorkflow (FinishWorkflowRequest) returns (FinishWorkflowResponse);
-  rpc DeleteWorkflow (DeleteWorkflowRequest) returns (DeleteWorkflowResponse);
+  rpc StartWorkflow (StartWorkflowRequest) returns (StartWorkflowResponse);
+  rpc FinishWorkflow (FinishWorkflowRequest) returns (ai.lzy.v1.Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "FinishWorkflowResponse";
+    };
+  }
 
   rpc ExecuteGraph (ExecuteGraphRequest) returns (ExecuteGraphResponse);
   rpc GraphStatus (GraphStatusRequest) returns (GraphStatusResponse);
@@ -24,24 +29,16 @@ service LzyWorkflowService {
   rpc GetAvailablePools (GetAvailablePoolsRequest) returns (GetAvailablePoolsResponse);
 }
 
-message CreateWorkflowRequest {
+message StartWorkflowRequest {
   string workflowName = 1;
 
   // if not set then internal SnapshotStorage is created
   /* optional */ ai.lzy.v1.common.StorageConfig snapshotStorage = 2;
 }
 
-message CreateWorkflowResponse {
+message StartWorkflowResponse {
   string executionId = 1;
   /* optional */ ai.lzy.v1.common.StorageConfig internalSnapshotStorage = 2;
-}
-
-message AttachWorkflowRequest {
-  string workflowName = 1;
-  string executionId = 2;
-}
-
-message AttachWorkflowResponse {
 }
 
 message FinishWorkflowRequest {
@@ -50,15 +47,7 @@ message FinishWorkflowRequest {
   string reason = 3;
 }
 
-message FinishWorkflowResponse {
-}
-
-message DeleteWorkflowRequest {
-  string workflowName = 1;
-}
-
-message DeleteWorkflowResponse {
-}
+message FinishWorkflowResponse {}
 
 // ==================== ExecuteGraph =====================
 

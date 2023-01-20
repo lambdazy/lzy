@@ -1,4 +1,4 @@
-package ai.lzy.allocator.alloc.exceptions;
+package ai.lzy.allocator.exceptions;
 
 public class InvalidConfigurationException extends Exception {
 

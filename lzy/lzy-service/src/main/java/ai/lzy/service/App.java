@@ -2,7 +2,7 @@ package ai.lzy.service;
 
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -32,14 +32,14 @@ public class App {
     private final ExecutorService workersPool;
     private final Server server;
 
-    public App(LzyServiceConfig config, LzyService lzyService,
+    public App(LzyServiceConfig config, LzyService lzyService, LzyServicePrivateApi lzyServicePrivateApi,
                @Named("LzyServiceOperationDao") OperationDao operationDao,
                @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
         var authInterceptor = new AuthServerInterceptor(
             new AuthenticateServiceGrpcClient("LzyService", config.getIam().getAddress()));
 
-        var operationService = new OperationService(operationDao);
+        var operationService = new OperationsService(operationDao);
 
         this.workersPool = workersPool;
 
@@ -53,6 +53,7 @@ public class App {
                 }
             },
             lzyService,
+            lzyServicePrivateApi,
             operationService);
     }
 

@@ -6,6 +6,7 @@ import com.google.protobuf.Message;
 import com.google.protobuf.Timestamp;
 import io.grpc.Status;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
@@ -47,18 +48,21 @@ public class Operation {
             meta != null ? Any.pack(meta) : null, now, true, Any.pack(response), null);
     }
 
-    public static Operation create(String createdBy, String description, @Nullable Instant deadline,
+    public static Operation create(String createdBy, String description, @Nullable Duration duration,
                                    @Nullable IdempotencyKey idempotencyKey, @Nullable Message meta)
     {
         var now = Instant.now();
-        return new Operation(UUID.randomUUID().toString(), createdBy, now, description, deadline, idempotencyKey,
-            meta != null ? Any.pack(meta) : null, now, false, null, null);
+        return new Operation(UUID.randomUUID().toString(), createdBy, now, description,
+            duration != null ? now.plus(duration) : null, idempotencyKey, meta != null ? Any.pack(meta) : null,
+            now, false, null, null);
     }
 
     public static Operation create(String createdBy, String description, @Nullable Instant deadline,
                                    @Nullable Message meta)
     {
-        return create(createdBy, description, deadline, null, meta);
+        var now = Instant.now();
+        return new Operation(UUID.randomUUID().toString(), createdBy, now, description, deadline, null,
+            meta != null ? Any.pack(meta) : null, now, false, null, null);
     }
 
     public Operation(String id, String createdBy, Instant createdAt, String description, Instant deadline,

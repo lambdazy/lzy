@@ -65,7 +65,7 @@ public class LzyIAM {
             iamServer.getListenSockets().stream().map(Object::toString).collect(Collectors.joining()));
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("gRPC server is shutting down!");
+            System.out.println("IAM gRPC server is shutting down!");
             iamServer.shutdown();
         }));
     }

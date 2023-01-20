@@ -4,10 +4,12 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.*;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.disk.dao.DiskOpDao;
+import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ProtoPrinter;
@@ -23,14 +25,13 @@ import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
+import lombok.Lombok;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
 import javax.annotation.Nullable;
 import javax.annotation.PreDestroy;
 import javax.inject.Named;
@@ -51,12 +52,12 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
     private final DiskDao diskDao;
     private final DiskOpDao diskOpDao;
     private final AllocatorDataSource storage;
-    private final ScheduledExecutorService executor;
+    private final OperationsExecutor executor;
     private final DiskMetrics metrics;
 
     public DiskService(ServiceConfig config, DiskManager diskManager, DiskDao diskDao, DiskOpDao diskOpDao,
                        AllocatorDataSource storage, @Named("AllocatorOperationDao") OperationDao operationDao,
-                       @Named("AllocatorExecutor") ScheduledExecutorService executor, DiskMetrics metrics)
+                       @Named("AllocatorOperationsExecutor") OperationsExecutor executor, DiskMetrics metrics)
     {
         this.config = config;
         this.diskManager = diskManager;
@@ -117,19 +118,16 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                 (request.hasExistingDisk()
                     ? "from " + request.getExistingDisk().getDiskId()
                     : "new " + request.getDiskSpec()),
-            /* deadline */ null,
+            Duration.ofHours(1),
             idempotencyKey,
             DiskServiceApi.CreateDiskMetadata.newBuilder().build());
-
-        final var startedAt = Instant.now();
-        final var deadline = startedAt.plus(Duration.ofHours(1));
 
         try {
             var diskOperation = withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     operationsDao.create(createDiskOperation, tx);
 
-                    var ctx = new DiskManager.OuterOperation(createDiskOperation.id(), startedAt, deadline);
+                    var ctx = DiskManager.OuterOperation.from(createDiskOperation);
 
                     switch (request.getDiskDescriptionCase()) {
                         case DISK_SPEC -> {
@@ -183,6 +181,8 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                     }
 
                     return null;
+                } catch (InvalidConfigurationException e) {
+                    throw Lombok.sneakyThrow(e);
                 }
             });
 
@@ -190,6 +190,11 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                 InjectedFailures.failCreateDisk0();
                 executor.submit(diskOperation.deferredAction());
             }
+        } catch (InvalidConfigurationException e) {
+            LOG.error("Cannot create disk for owner {}: {}", request.getUserId(), e.getMessage());
+            metrics.createDiskError.inc();
+            response.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
+            return;
         } catch (Exception e) {
             if (idempotencyKey != null &&
                 handleIdempotencyKeyConflict(idempotencyKey, e, operationsDao, response, LOG))
@@ -223,12 +228,9 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         final var cloneDiskOperation = Operation.create(
             request.getUserId(),
             "CloneDisk: " + request.getDiskId(),
-            /* deadline */ null,
+            Duration.ofDays(1),
             idempotencyKey,
             DiskServiceApi.CloneDiskMetadata.newBuilder().build());
-
-        final var startedAt = Instant.now();
-        final var deadline = startedAt.plus(Duration.ofDays(30));
 
         try {
             var diskOperation = withRetries(LOG, () -> {
@@ -257,7 +259,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                         return null;
                     }
 
-                    var ctx = new DiskManager.OuterOperation(cloneDiskOperation.id(), startedAt, deadline);
+                    var ctx = DiskManager.OuterOperation.from(cloneDiskOperation);
 
                     final DiskOperation action;
                     try {
@@ -315,12 +317,9 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         final var deleteDiskOperation = Operation.create(
             "internal",
             "DeleteDisk: " + request.getDiskId(),
-            /* deadline */ null,
+            Duration.ofDays(1),
             idempotencyKey,
             DiskServiceApi.DeleteDiskMetadata.newBuilder().build());
-
-        final var startedAt = Instant.now();
-        final var deadline = startedAt.plus(Duration.ofHours(1));
 
         try {
             var diskOperation = withRetries(LOG, () -> {
@@ -349,7 +348,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                         return null;
                     }
 
-                    var ctx = new DiskManager.OuterOperation(deleteDiskOperation.id(), startedAt, deadline);
+                    var ctx = DiskManager.OuterOperation.from(deleteDiskOperation);
                     var diskOp = diskManager.newDeleteDiskOperation(ctx, request.getDiskId());
                     diskOpDao.createDiskOp(diskOp, tx);
 

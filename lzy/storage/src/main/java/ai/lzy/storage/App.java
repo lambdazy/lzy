@@ -3,7 +3,7 @@ package ai.lzy.storage;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -51,7 +51,7 @@ public class App {
         var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        var operationService = new OperationService(operationDao);
+        var operationService = new OperationsService(operationDao);
         this.workersPool = workersPool;
 
         server = createServer(
@@ -126,7 +126,7 @@ public class App {
             var main = context.getBean(App.class);
             main.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                System.out.println("gRPC server is shutting down!");
+                System.out.println("Storage gRPC server is shutting down!");
                 main.close(false);
             }));
             main.awaitTermination();

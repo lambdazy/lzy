@@ -7,9 +7,9 @@ import ai.lzy.portal.services.PortalSlotsService;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.annotation.Requires;
-import io.micronaut.inject.qualifiers.Qualifiers;
 import io.micronaut.runtime.Micronaut;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -19,27 +19,37 @@ import java.security.spec.InvalidKeySpecException;
 import java.util.Map;
 import java.util.Objects;
 
-@Requires
+@Singleton
 public class App {
     private static final Logger LOG = LogManager.getLogger(App.class);
 
     public static final String ENV_PORTAL_PKEY = "LZY_PORTAL_PKEY";
 
     private final ApplicationContext context;
-    private final Server mainServer;
+    private final PortalConfig config;
 
-    public App(ApplicationContext context) {
+    private final Server mainServer;
+    private final Server slotsServer;
+
+    private final PortalSlotsService slotsService;
+    private final AllocatorAgent allocatorAgent;
+
+    public App(ApplicationContext context, PortalConfig config,
+               @Named("PortalGrpcServer") Server mainServer,
+               @Named("PortalSlotsGrpcServer") Server slotsServer,
+               @Named("PortalSlotsService") PortalSlotsService slotsService,
+               @Named("PortalAllocatorAgent") AllocatorAgent allocatorAgent)
+    {
         this.context = context;
-        this.mainServer = context.getBean(Server.class, Qualifiers.byName("PortalGrpcServer"));
+        this.config = config;
+        this.mainServer = mainServer;
+        this.slotsServer = slotsServer;
+        this.slotsService = slotsService;
+        this.allocatorAgent = allocatorAgent;
     }
 
     public void start() throws AllocatorAgent.RegisterException, IOException {
-        var config = context.getBean(PortalConfig.class);
         LOG.info("Executing portal application with config: {}", config.toSafeString());
-
-        var slotsService = context.getBean(PortalSlotsService.class, Qualifiers.byName("PortalSlotsService"));
-        var allocatorAgent = context.getBean(AllocatorAgent.class, Qualifiers.byName("PortalAllocatorAgent"));
-        var slotsServer = context.getBean(Server.class, Qualifiers.byName("PortalSlotsGrpcServer"));
 
         slotsService.start();
         allocatorAgent.start(Map.of(
@@ -52,6 +62,8 @@ public class App {
     }
 
     public void stop() {
+        LOG.info("Stop portal main application: {}", config.toSafeString());
+        mainServer.shutdownNow();
         context.stop();
     }
 
@@ -83,7 +95,7 @@ public class App {
         Objects.requireNonNull(config.getAllocatorToken());
         Objects.requireNonNull(config.getIamPrivateKey());
 
-        var main = new App(context);
+        var main = context.getBean(App.class);
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("Stopping portal service");

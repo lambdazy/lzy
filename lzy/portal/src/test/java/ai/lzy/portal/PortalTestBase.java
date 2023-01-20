@@ -70,13 +70,9 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.LockSupport;
 
-import static ai.lzy.channelmanager.ProtoConverter.makeChannelStatusCommand;
-import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
-import static ai.lzy.channelmanager.ProtoConverter.makeDestroyChannelCommand;
+import static ai.lzy.channelmanager.ProtoConverter.*;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
-import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 
 public class PortalTestBase {
     private static final Logger LOG = LogManager.getLogger(PortalTestBase.class);
@@ -204,7 +200,7 @@ public class PortalTestBase {
         config.setStdoutChannelId(stdoutChannelId);
         config.setStderrChannelId(stderrChannelId);
 
-        portal = new App(context);
+        portal = context.getBean(App.class);
         portal.start();
 
         var internalUserCredentials = iamTestContext.getClientConfig().createRenewableToken();
@@ -462,7 +458,7 @@ public class PortalTestBase {
     public record User(
         String id,
         IamClient.GeneratedCredentials credentials
-    ) { }
+    ) {}
 
     public static class IamClient implements AutoCloseable {
 
@@ -523,7 +519,7 @@ public class PortalTestBase {
             String publicKey,
             String privateKey,
             JwtCredentials credentials
-        ) { }
+        ) {}
 
     }
 

@@ -30,5 +30,5 @@ Configuration:
       - name: io.zonky.test
         level: warn
 
-      - name: AllocatorExecutor
+      - name: ai.lzy.longrunning.OperationsExecutor
         level: debug

@@ -5,10 +5,10 @@ import ai.lzy.allocator.alloc.AllocatorMetrics;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
-import ai.lzy.allocator.alloc.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
+import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
@@ -17,6 +17,7 @@ import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
@@ -47,7 +48,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 
 import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
@@ -69,7 +69,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final TunnelAllocator tunnelAllocator;
     private final ServiceConfig config;
     private final AllocatorDataSource storage;
-    private final ScheduledExecutorService executor;
+    private final OperationsExecutor executor;
     private final AllocatorMetrics metrics;
     private final SubjectServiceGrpcClient subjectClient;
 
@@ -77,7 +77,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
                             TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
-                            AllocatorMetrics metrics, @Named("AllocatorExecutor") ScheduledExecutorService executor,
+                            AllocatorMetrics metrics, @Named("AllocatorOperationsExecutor") OperationsExecutor executor,
                             @Named("AllocatorSubjectServiceClient") SubjectServiceGrpcClient subjectClient)
     {
         this.vmDao = vmDao;
@@ -224,8 +224,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         }
 
         LOG.info("Allocation request {}", ProtoPrinter.safePrinter().shortDebugString(request));
-        final var startedAt = Instant.now();
-        final var allocDeadline = startedAt.plus(config.getAllocationTimeout());
 
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(operationsDao, idempotencyKey, responseObserver, LOG)) {
@@ -267,7 +265,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         final var op = Operation.create(
             session.owner(),
             "AllocateVM: pool=%s, zone=%s".formatted(request.getPoolLabel(), request.getZone()),
-            allocDeadline,
+            config.getAllocationTimeout(),
             idempotencyKey,
             AllocateMetadata.getDefaultInstance());
 
@@ -348,7 +346,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                         metrics.allocateVmFromCache.inc();
                         metrics.allocateFromCacheDuration.observe(
-                            Duration.between(startedAt, Instant.now()).getSeconds());
+                            Duration.between(op.createdAt(), Instant.now()).getSeconds());
 
                         responseObserver.onNext(op.toProto());
                         responseObserver.onCompleted();
@@ -360,7 +358,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     final var vmOtt = UUID.randomUUID().toString();
 
                     operationsDao.create(op, tx);
-                    final var newVm = vmDao.create(vmSpec, op.id(), startedAt, allocDeadline, vmOtt,
+                    final var newVm = vmDao.create(vmSpec, op.id(), op.createdAt(), op.deadline(), vmOtt,
                         config.getInstanceId(), tx);
 
                     var meta = Any.pack(AllocateMetadata.newBuilder()
