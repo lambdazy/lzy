@@ -1,13 +1,13 @@
 import asyncio
-import os
 import uuid
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple
 from unittest import TestCase, skip
 
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
 from lzy.api.v1 import Lzy, op, LocalRuntime
+from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.utils.proxy_adapter import materialized
 from lzy.storage.api import Storage, S3Credentials
 from tests.api.v1.utils import create_bucket
@@ -36,6 +36,11 @@ def boo(a: str, b: str) -> str:
 @op
 def inc(numb: int) -> int:
     return numb + 1
+
+
+@op
+def return_list() -> List[dict]:
+    return [{}, {}, {}]
 
 
 def entry_id(lazy_proxy):
@@ -70,6 +75,61 @@ class LzyWorkflowTests(TestCase):
             some_list = [1, 2, 3]
             result = list2list(some_list)
             self.assertEqual([str(i) for i in some_list], result)
+
+    def test_tuple_type(self):
+        @op
+        def returns_tuple() -> Tuple[str, int]:
+            return "str", 42
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual("str", a)
+        self.assertEqual(42, b)
+
+    def test_tuple_type_of_lists(self):
+        @op
+        def returns_tuple() -> Tuple[List, List]:
+            return [1], [2]
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual([1], a)
+        self.assertEqual([2], b)
+
+    def test_tuple_type_of_typed_lists(self):
+        @op
+        def returns_tuple() -> Tuple[List[int], List[int]]:
+            return [1], [2]
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual([1], a)
+        self.assertEqual([2], b)
+
+    def test_tuple_with_ellipses(self):
+        @op
+        def returns_tuple() -> Tuple[List[int], ...]:
+            return [1], [2]
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual([1], a)
+        self.assertEqual([2], b)
+
+    def test_tuple_type_short(self):
+        @op
+        def returns_tuple() -> (str, int):
+            return "str", 42
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual("str", a)
+        self.assertEqual(42, b)
 
     def test_optional_return(self):
         @op
@@ -160,10 +220,6 @@ class LzyWorkflowTests(TestCase):
 
     def test_return_accept_list(self):
         @op
-        def return_list() -> List[dict]:
-            return [{}, {}, {}]
-
-        @op
         def accept_list(lst: List[dict]) -> int:
             return len(lst)
 
@@ -172,6 +228,17 @@ class LzyWorkflowTests(TestCase):
             i = accept_list(a)
 
         self.assertEqual(3, i)
+
+    def test_return_accept_unspecified_list(self):
+        # noinspection PyUnusedLocal
+        @op
+        def accept_list(lst: List, bst: List) -> int:
+            return len(lst)
+
+        with self.assertRaises(LzyExecutionException):
+            with self.lzy.workflow("test"):
+                a = return_list()
+                accept_list(a, [{}])
 
     @skip("WIP")
     def test_barrier(self):
