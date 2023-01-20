@@ -59,9 +59,9 @@ else
     USER_TEST_BASE="$(deployment/latest-docker-image-on-branches.sh user-test-base $BRANCH master)"
   else
     if [[ -z "$STORED_WORKER_BASE_TAG" ]]; then
-      REMOTE_BASE_TAG="$STORED_WORKER_BASE_TAG"
-    else
       REMOTE_BASE_TAG="$BRANCH-$CUSTOM_TAG"
+    else
+      REMOTE_BASE_TAG="$STORED_WORKER_BASE_TAG"
     fi
     WORKER_BASE="$DOCKER_REGISTRY/worker-base:$REMOTE_BASE_TAG"
     USER_DEFAULT_BASE="$DOCKER_REGISTRY/user-default-base:$REMOTE_BASE_TAG"
