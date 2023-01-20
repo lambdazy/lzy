@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import tempfile
+from json import JSONDecodeError
 from typing import Optional, Sequence, cast, AsyncIterable, BinaryIO
 
 from google.protobuf.json_format import MessageToJson, Parse, ParseDict
@@ -223,6 +224,9 @@ class WhiteboardIndexedManager(WhiteboardManager):
         with tempfile.TemporaryFile() as f:
             await storage_client.read(wb_meta_uri, cast(BinaryIO, f))
             f.seek(0)
-            wb = ParseDict(json.load(f), Whiteboard())
+            try:
+                wb = ParseDict(json.load(f), Whiteboard())
+            except JSONDecodeError as e:
+                raise RuntimeError("Whiteboard corrupted, failed to load")
 
         return wb
