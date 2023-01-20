@@ -24,6 +24,8 @@ import io.grpc.Status;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.time.Instant;
+
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 public class DestroyAction extends ChannelAction {
@@ -32,20 +34,26 @@ public class DestroyAction extends ChannelAction {
 
     private final DestroyActionState state;
 
-    public DestroyAction(String operationId, DestroyActionState state,
+    public DestroyAction(String operationId, Instant deadline, DestroyActionState state,
                          ObjectMapper objectMapper, ChannelOperationExecutor executor,
                          ChannelManagerDataSource storage, ChannelDao channelDao, OperationDao operationDao,
                          ChannelOperationDao channelOperationDao, ChannelController channelController,
                          SlotConnectionManager slotConnectionManager, GrainedLock lockManager,
                          LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub workflowPrivateApi)
     {
-        super(operationId, objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
+        super(operationId, deadline, objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
             channelController, slotConnectionManager, lockManager, workflowPrivateApi);
         this.state = state;
     }
 
     @Override
     public void run() {
+        if (deadline.isBefore(Instant.now())) {
+            LOG.info("Async operation (operationId={}) stopped, deadline exceeded", operationId);
+            this.failOperation(state.executionId(), Status.DEADLINE_EXCEEDED);
+            return;
+        }
+
         LOG.info("Async operation (operationId={}) resumed. channelsToDestroy:{} {}, already destroyed:{} {}",
             operationId, state.toDestroyChannels().size(), state.toDestroyChannels(),
             state.destroyedChannels().size(), state.destroyedChannels());

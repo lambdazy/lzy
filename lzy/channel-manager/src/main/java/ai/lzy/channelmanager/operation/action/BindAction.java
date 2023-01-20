@@ -30,6 +30,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
+import java.time.Instant;
 import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -41,14 +42,14 @@ public class BindAction extends ChannelAction {
     private BindActionState localState;
     private BindActionState state;
 
-    public BindAction(String operationId, BindActionState state,
+    public BindAction(String operationId, Instant deadline, BindActionState state,
                       ObjectMapper objectMapper, ChannelOperationExecutor executor,
                       ChannelManagerDataSource storage, ChannelDao channelDao, OperationDao operationDao,
                       ChannelOperationDao channelOperationDao, ChannelController channelController,
                       SlotConnectionManager slotConnectionManager, GrainedLock lockManager,
                       LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub workflowPrivateApi)
     {
-        super(operationId, objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
+        super(operationId, deadline, objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
             channelController, slotConnectionManager, lockManager, workflowPrivateApi);
         this.state = state;
         this.localState = BindActionState.copyOf(state);
@@ -56,6 +57,13 @@ public class BindAction extends ChannelAction {
 
     @Override
     public void run() {
+        if (deadline.isBefore(Instant.now())) {
+            LOG.info("Async operation (operationId={}) stopped, deadline exceeded, channelId={}",
+                operationId, state.channelId());
+            this.failOperation(state.executionId(), Status.DEADLINE_EXCEEDED);
+            return;
+        }
+
         LOG.info("Async operation (operationId={}) resumed, channelId={}", operationId, state.channelId());
         operationStopped = false;
 
