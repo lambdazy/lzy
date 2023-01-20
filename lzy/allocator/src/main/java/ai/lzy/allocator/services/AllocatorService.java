@@ -328,13 +328,19 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                                 .setVmId(existingVm.vmId())
                                 .build());
 
-                        op.setResponse(
-                            AllocateResponse.newBuilder()
-                                .setSessionId(existingVm.sessionId())
-                                .setPoolId(existingVm.poolLabel())
-                                .setVmId(existingVm.vmId())
-                                .putAllMetadata(requireNonNull(existingVm.runState()).vmMeta())
-                                .build());
+                        var endpoints = allocator.getVmEndpoints(existingVm.vmId(), tx);
+
+                        var builder = AllocateResponse.newBuilder()
+                            .setSessionId(existingVm.sessionId())
+                            .setPoolId(existingVm.poolLabel())
+                            .setVmId(existingVm.vmId())
+                            .putAllMetadata(requireNonNull(existingVm.runState()).vmMeta());
+
+                        for (var endpoint: endpoints) {
+                            builder.addEndpoints(endpoint.toProto());
+                        }
+
+                        op.setResponse(builder.build());
 
                         operationsDao.create(op, tx);
 

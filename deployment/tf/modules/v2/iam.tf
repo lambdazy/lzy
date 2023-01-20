@@ -140,6 +140,11 @@ resource "kubernetes_service" "iam" {
   metadata {
     name   = "${local.iam-k8s-name}-service"
     labels = local.iam-labels
+
+    annotations = {
+      "yandex.cloud/load-balancer-type": "internal"
+      "yandex.cloud/subnet-id": yandex_vpc_subnet.custom-subnet.id
+    }
   }
   spec {
     selector = local.iam-labels
@@ -147,6 +152,6 @@ resource "kubernetes_service" "iam" {
       port        = local.iam-port
       target_port = local.iam-port
     }
-    type = "ClusterIP"
+    type = "LoadBalancer"
   }
 }

@@ -65,7 +65,9 @@ public class Allocate extends WorkflowJobProvider<TaskState> {
         try {
             vmId = allocateDesc.allocationOp().getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
         } catch (InvalidProtocolBufferException e) {
-            logger.error("Error while getting vmId from op for task {}", task.id(), e);
+            logger.error("Error while getting vmId from meta {} for task {}",
+                allocateDesc.allocationOp().getMetadata(),
+                task.id(), e);
             fail(Status.newBuilder()
                 .setCode(Code.INTERNAL.value())
                 .setMessage("Internal exception")

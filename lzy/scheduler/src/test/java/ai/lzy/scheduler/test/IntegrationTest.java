@@ -11,7 +11,6 @@ import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskScheduleRequest;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
-import ai.lzy.v1.scheduler.SchedulerPrivateGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
@@ -38,7 +37,6 @@ public class IntegrationTest extends BaseTestWithIam {
     private ApplicationContext context;
     private SchedulerApi api;
     private SchedulerGrpc.SchedulerBlockingStub stub;
-    ManagedChannel privateChan;
     ManagedChannel chan;
 
     @Before
@@ -58,8 +56,6 @@ public class IntegrationTest extends BaseTestWithIam {
         chan = newGrpcChannel("localhost", 2392, SchedulerGrpc.SERVICE_NAME);
         stub = newBlockingClient(SchedulerGrpc.newBlockingStub(chan), "Test", () -> credentials.get().token());
 
-        privateChan = newGrpcChannel("localhost", 2392, SchedulerPrivateGrpc.SERVICE_NAME);
-
         Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
     }
 
@@ -67,7 +63,6 @@ public class IntegrationTest extends BaseTestWithIam {
     public void tearDown() throws InterruptedException {
         api.close();
         api.awaitTermination();
-        GrpcChannels.awaitTermination(privateChan, Duration.ofSeconds(15), getClass());
         GrpcChannels.awaitTermination(chan, Duration.ofSeconds(15), getClass());
         context.close();
         super.after();

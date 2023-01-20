@@ -15,7 +15,8 @@ CREATE TABLE operation
     created_at      TIMESTAMP NOT NULL,
     modified_at     TIMESTAMP NOT NULL,
     description     TEXT      NOT NULL,
-    done            bool      NOT NULL,
+    deadline        TIMESTAMP NULL,
+    done            BOOLEAN   NOT NULL,
 
     meta            BYTEA     NULL,
     response        BYTEA     NULL,
@@ -29,4 +30,4 @@ CREATE TABLE operation
 );
 
 CREATE UNIQUE INDEX idempotency_key_to_operation_index ON operation (idempotency_key);
-CREATE INDEX active_operation_index ON operation (id) WHERE done = FALSE;
+CREATE UNIQUE INDEX failed_operations_index ON operation (id) WHERE done = TRUE AND error IS NOT NULL;

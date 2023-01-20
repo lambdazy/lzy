@@ -64,9 +64,44 @@ resource "kubernetes_deployment" "scheduler" {
             name  = "SCHEDULER_DATABASE_ENABLED"
             value = "true"
           }
+
+          env {
+            name  = "SCHEDULER_USER_DEFAULT_IMAGE"
+            value = "default"
+          }
+
+          env {
+            name  = "JOBS_DATABASE_USERNAME"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.db_secret["scheduler"].metadata[0].name
+                key = "username"
+              }
+            }
+          }
+          env {
+            name  = "JOBS_DATABASE_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.db_secret["scheduler"].metadata[0].name
+                key = "password"
+              }
+            }
+          }
+
+          env {
+            name  = "JOBS_DATABASE_URL"
+            value = "jdbc:postgresql://${yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn}:6432/scheduler"
+          }
+
+          env {
+            name  = "JOBS_DATABASE_ENABLED"
+            value = "true"
+          }
+
           env {
             name = "SCHEDULER_IAM_ADDRESS"
-            value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+            value = "${kubernetes_service.iam.status[0].load_balancer[0].ingress[0]["ip"]}:${local.iam-port}"
           }
           env {
             name = "SCHEDULER_IAM_INTERNAL_USER_NAME"
@@ -112,7 +147,7 @@ resource "kubernetes_deployment" "scheduler" {
 
           env {
             name = "SCHEDULER_SCHEDULER_ADDRESS"
-            value = "${kubernetes_service.scheduler_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.scheduler-port}"
+            value = "${kubernetes_service.scheduler_service.spec[0].cluster_ip}:${local.scheduler-port}"
           }
 
           env {
@@ -188,10 +223,6 @@ resource "kubernetes_service" "scheduler_service" {
   metadata {
     name   = "${local.scheduler-k8s-name}-load-balancer"
     labels = local.scheduler-labels
-    annotations = {
-      "yandex.cloud/load-balancer-type": "internal"
-      "yandex.cloud/subnet-id": yandex_vpc_subnet.custom-subnet.id
-    }
   }
   spec {
     selector = local.scheduler-labels
@@ -199,6 +230,6 @@ resource "kubernetes_service" "scheduler_service" {
       port = local.scheduler-port
       target_port = local.scheduler-port
     }
-    type = "LoadBalancer"
+    type = "ClusterIP"
   }
 }

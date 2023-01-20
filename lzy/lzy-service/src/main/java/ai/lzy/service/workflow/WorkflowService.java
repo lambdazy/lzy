@@ -454,6 +454,7 @@ public class WorkflowService {
             LOG.error("Cannot deserialize allocate response from operation: " + e.getMessage());
             state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
         } catch (Exception e) {
+            LOG.error("Cannot start portal", e);
             state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
         }
     }

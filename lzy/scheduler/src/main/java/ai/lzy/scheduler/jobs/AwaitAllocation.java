@@ -6,6 +6,7 @@ import ai.lzy.jobsutils.providers.WorkflowJobProvider;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.util.grpc.GrpcUtils;
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse.VmEndpoint.VmEndpointType;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -63,6 +64,9 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
             }
 
             var vmDesc = res.getResponse().unpack(VmAllocatorApi.AllocateResponse.class);
+
+            logger.info("Vm allocated. Description is {}", JsonUtils.printRequest(vmDesc));
+
             var address = vmDesc.getEndpointsList()
                 .stream()
                 .filter(e -> e.getType().equals(VmEndpointType.INTERNAL_IP))

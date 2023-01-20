@@ -56,7 +56,7 @@ public class Operation {
     }
 
     public static Operation create(String createdBy, String description, @Nullable Instant deadline,
-                                   @Nullable Any meta)
+                                   @Nullable Message meta)
     {
         return create(createdBy, description, deadline, null, meta);
     }

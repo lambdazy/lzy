@@ -86,9 +86,11 @@ public class Worker {
             Duration allocatorHeartbeatPeriod, int apiPort, int fsPort,
             String fsRoot, String channelManagerAddress, String host, String allocatorToken, String defaultUserImage)
     {
-        LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, host);
-
         var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
+
+        LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, realHost);
+
+
         if (realHost == null) {
             if (USE_LOCALHOST_AS_HOST) {
                 realHost = "localhost";  // For tests
@@ -191,9 +193,12 @@ public class Worker {
 
             var allocHeartbeat = parse.getOptionValue("allocator-heartbeat-period");
 
+            var vmId = parse.getOptionValue("vm-id");
+            vmId = vmId == null ? System.getenv(AllocatorAgent.VM_ID_KEY) : vmId;
+
             final var worker = new Worker(
-                parse.getOptionValue("vm-id"), parse.getOptionValue("allocator-address"),
-                parse.getOptionValue("iam"), allocHeartbeat == null ? null : Duration.parse(allocHeartbeat),
+                vmId, parse.getOptionValue("allocator-address"), parse.getOptionValue("iam"),
+                allocHeartbeat == null ? null : Duration.parse(allocHeartbeat),
                 Integer.parseInt(parse.getOptionValue('p')), Integer.parseInt(parse.getOptionValue('q')),
                 parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),
                 parse.getOptionValue("allocator-token"), parse.getOptionValue("user-default-image"));

@@ -15,6 +15,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.*;
 
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
@@ -72,7 +73,7 @@ public class JobsTest {
             "test",
             Instant.now(),
             "",
-            Instant.MAX,
+            Instant.now().plus(Duration.ofDays(10)),
             null,
             null,
             Instant.now(),
@@ -130,7 +131,7 @@ public class JobsTest {
                 "test",
                 Instant.now(),
                 "",
-                Instant.MAX,
+                Instant.now().plus(Duration.ofDays(10)),
                 null,
                 null,
                 Instant.now(),
