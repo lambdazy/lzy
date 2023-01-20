@@ -95,15 +95,15 @@ public class ChannelOperationManager {
 
     public ChannelAction getAction(ChannelOperation operation) {
         return switch (operation.type()) {
-            case BIND -> new BindAction(operation.id(),
+            case BIND -> new BindAction(operation.id(), operation.deadline(),
                 fromJson(operation.stateJson(), BindActionState.class),
                 objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
                 channelController, slotConnectionManager, lockManager, workflowPrivateApi);
-            case UNBIND -> new UnbindAction(operation.id(),
+            case UNBIND -> new UnbindAction(operation.id(), operation.deadline(),
                 fromJson(operation.stateJson(), UnbindActionState.class),
                 objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
                 channelController, slotConnectionManager, lockManager, workflowPrivateApi);
-            case DESTROY -> new DestroyAction(operation.id(),
+            case DESTROY -> new DestroyAction(operation.id(), operation.deadline(),
                 fromJson(operation.stateJson(), DestroyActionState.class),
                 objectMapper, executor, storage, channelDao, operationDao, channelOperationDao,
                 channelController, slotConnectionManager, lockManager, workflowPrivateApi);

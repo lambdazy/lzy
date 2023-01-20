@@ -29,7 +29,7 @@ public final class ChannelManagerConfig {
     @Override
     public String toString() {
         return "ChannelManagerConfig{" +
-               "address='" + address + '\'' +
+               "address=" + address +
                ", lzyServiceAddress=" + lzyServiceAddress +
                ", stubSlotApiAddress=" + stubSlotApiAddress +
                ", lockBucketsCount=" + lockBucketsCount +
