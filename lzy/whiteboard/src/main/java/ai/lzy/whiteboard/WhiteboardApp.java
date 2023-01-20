@@ -63,7 +63,7 @@ public class WhiteboardApp {
         );
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            System.out.println("gRPC server is shutting down!");
+            System.out.println("WB gRPC server is shutting down!");
             stop();
         }));
     }

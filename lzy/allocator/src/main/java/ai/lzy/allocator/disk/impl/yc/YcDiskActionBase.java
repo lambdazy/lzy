@@ -4,48 +4,34 @@ import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskMetrics;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.disk.dao.DiskOpDao;
+import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
-import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.longrunning.OperationRunnerBase;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import io.grpc.Status;
 import yandex.cloud.api.compute.v1.DiskServiceGrpc;
 import yandex.cloud.api.compute.v1.SnapshotServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceGrpc;
 
-import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
-
-import static ai.lzy.util.grpc.ProtoConverter.toProto;
-
-abstract class YcDiskActionBase<S> implements Runnable {
+abstract class YcDiskActionBase<S> extends OperationRunnerBase {
 
     protected final DiskManager.OuterOperation op;
     protected S state;
     protected final YcDiskManager diskManager;
 
-    protected YcDiskActionBase(DiskManager.OuterOperation op, S state, YcDiskManager diskManager) {
+    protected YcDiskActionBase(DiskManager.OuterOperation op, String cmd, S state, YcDiskManager dm) {
+        super(op.opId(), cmd + " " + op.descr(), dm.storage(), dm.operationsDao(), dm.executor());
         this.op = op;
         this.state = state;
-        this.diskManager = diskManager;
+        this.diskManager = dm;
     }
 
-    @Nullable
-    final Exception failOp(Status status) {
-        return failOp(toProto(status));
+    @Override
+    protected final boolean isInjectedError(Error e) {
+        return e instanceof InjectedFailures.TerminateException;
     }
-
-    @Nullable
-    Exception failOp(com.google.rpc.Status status) {
-        throw new RuntimeException("sss");
-    }
-
 
     protected final String opId() {
         return op.opId();
-    }
-
-    protected final void restart() {
-        diskManager.executor().schedule(this, 1, TimeUnit.SECONDS);
     }
 
     protected final String toJson(Object obj) {
@@ -66,10 +52,6 @@ abstract class YcDiskActionBase<S> implements Runnable {
 
     protected final DiskOpDao diskOpDao() {
         return diskManager.diskOpDao();
-    }
-
-    protected final OperationDao operationsDao() {
-        return diskManager.operationsDao();
     }
 
     protected final DiskMetrics metrics() {

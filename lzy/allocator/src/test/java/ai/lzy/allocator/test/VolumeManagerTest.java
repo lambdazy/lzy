@@ -14,7 +14,7 @@ import ai.lzy.allocator.services.DiskService;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.allocator.volume.VolumeManager;
-import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.OperationsService;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.DiskServiceApi;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -47,7 +47,7 @@ public class VolumeManagerTest {
     private DiskManager diskManager;
     private DiskService diskService;
     private VolumeManager volumeManager;
-    private OperationService operations;
+    private OperationsService operations;
 
     @Before
     public void before() throws IOException {
@@ -56,7 +56,7 @@ public class VolumeManagerTest {
         ApplicationContext context = ApplicationContext.run(PropertySource.of(properties));
         diskManager = context.getBean(DiskManager.class);
         diskService = context.getBean(DiskService.class);
-        operations = context.getBean(OperationService.class);
+        operations = context.getBean(OperationsService.class);
         final ServiceConfig serviceConfig = context.getBean(ServiceConfig.class);
         final ClusterRegistry clusterRegistry = context.getBean(ClusterRegistry.class);
         final String clusterId = serviceConfig.getUserClusters().stream().findFirst().orElse(null);

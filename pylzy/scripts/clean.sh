@@ -12,7 +12,7 @@ rm -rvf *.egg-info dist/ build/
 rm -rvf target/
 
 # generated proto files
-[ ! -v 1 ] || rm -rvf "ai/"
+[ ! -v 1 ] || rm -rvf "ai/" "google/"
 
 # coverage report
 rm -vf ./.coverage ./coverage.svg

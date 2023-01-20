@@ -2,8 +2,7 @@ package ai.lzy.service.graph;
 
 import ai.lzy.model.slot.Slot;
 import ai.lzy.service.data.dao.ExecutionDao;
-import ai.lzy.service.data.dao.WorkflowDao;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
@@ -27,7 +26,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.model.grpc.ProtoConverter.*;
 import static ai.lzy.portal.grpc.ProtoConverter.*;
@@ -36,14 +34,10 @@ import static ai.lzy.portal.services.PortalService.PORTAL_SLOT_PREFIX;
 class GraphBuilder {
     private static final Logger LOG = LogManager.getLogger(GraphBuilder.class);
 
-    private final WorkflowDao workflowDao;
     private final ExecutionDao executionDao;
-    private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
+    private final LzyChannelManagerPrivateBlockingStub channelManagerClient;
 
-    public GraphBuilder(WorkflowDao workflowDao, ExecutionDao executionDao,
-                        LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient)
-    {
-        this.workflowDao = workflowDao;
+    public GraphBuilder(ExecutionDao executionDao, LzyChannelManagerPrivateBlockingStub channelManagerClient) {
         this.executionDao = executionDao;
         this.channelManagerClient = channelManagerClient;
     }
@@ -55,7 +49,6 @@ class GraphBuilder {
         var dataFlow = state.getDataFlowGraph().getDataflow();
         var slot2description = state.getDescriptions().stream()
             .collect(Collectors.toMap(LWF.DataDescription::getStorageUri, Function.identity()));
-
 
         Map<String, String> slot2channelId;
         try {
@@ -117,7 +110,7 @@ class GraphBuilder {
 
         LMST.StorageConfig storageConfig;
         try {
-            storageConfig = withRetries(LOG, () -> workflowDao.getStorageConfig(executionId));
+            storageConfig = withRetries(LOG, () -> executionDao.getStorageConfig(executionId));
         } catch (Exception e) {
             LOG.error("Cannot obtain information about snapshots storage for execution: { executionId: {} } " +
                 e.getMessage(), executionId);
@@ -156,7 +149,7 @@ class GraphBuilder {
                 var unknownFromPortal = withRetries(LOG, () ->
                     executionDao.retainNonExistingSlots(executionId, slotsUriAsOutput));
 
-                withRetries(defaultRetryPolicy(), LOG, () -> executionDao.saveSlots(executionId, unknownFromPortal));
+                withRetries(LOG, () -> executionDao.saveSlots(executionId, unknownFromPortal, null));
             } catch (Exception e) {
                 LOG.error("Cannot save information to internal storage: " + e.getMessage());
                 throw new RuntimeException(e);
@@ -187,7 +180,7 @@ class GraphBuilder {
             }
 
             try {
-                withRetries(defaultRetryPolicy(), LOG, () -> executionDao.saveChannels(newChannels));
+                withRetries(LOG, () -> executionDao.saveChannels(newChannels, null));
             } catch (Exception e) {
                 LOG.error("Cannot save information about channels for execution: { executionId: {} } " +
                     e.getMessage(), executionId);
@@ -210,7 +203,7 @@ class GraphBuilder {
 
         try {
             var slotsUriAsOutput = fromOutput.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
-            withRetries(defaultRetryPolicy(), LOG, () -> executionDao.saveSlots(executionId, slotsUriAsOutput));
+            withRetries(LOG, () -> executionDao.saveSlots(executionId, slotsUriAsOutput, null));
         } catch (Exception e) {
             LOG.error("Cannot save information to internal storage: " + e.getMessage());
             throw new RuntimeException(e);

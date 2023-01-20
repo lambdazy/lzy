@@ -18,8 +18,8 @@ class AzureSasCredentials:
 @dataclasses.dataclass
 class S3Credentials:
     endpoint: str
-    access_token: str
-    secret_token: str
+    access_key_id: str
+    secret_access_key: str
 
 
 StorageCredentials = Union[
@@ -35,25 +35,19 @@ class Storage:
     uri: str
 
     @staticmethod
-    def yc_object_storage(
-        bucket: str, access_token: str, secret_token: str
-    ) -> "Storage":
+    def yc_object_storage(uri: str, access_key_id: str, secret_access_key: str) -> "Storage":
         return Storage(
-            S3Credentials(
-                "https://storage.yandexcloud.net", access_token, secret_token
-            ),
-            bucket,
+            S3Credentials("https://storage.yandexcloud.net", access_key_id, secret_access_key),
+            uri
         )
 
     @staticmethod
-    def azure_blob_storage(container: str, connection_string: str) -> "Storage":
-        return Storage(AzureCredentials(connection_string), container)
+    def azure_blob_storage(uri: str, connection_string: str) -> "Storage":
+        return Storage(AzureCredentials(connection_string), uri)
 
     @staticmethod
-    def azure_blob_storage_sas(
-        container: str, endpoint: str, signature: str
-    ) -> "Storage":
-        return Storage(AzureSasCredentials(endpoint, signature), container)
+    def azure_blob_storage_sas(uri: str, endpoint: str, signature: str) -> "Storage":
+        return Storage(AzureSasCredentials(endpoint, signature), uri)
 
 
 class AsyncStorageClient(ABC):

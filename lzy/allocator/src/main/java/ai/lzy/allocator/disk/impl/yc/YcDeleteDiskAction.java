@@ -6,89 +6,103 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.DiskServiceApi;
 import com.google.protobuf.Any;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import yandex.cloud.api.compute.v1.DiskServiceOuterClass;
 import yandex.cloud.api.operation.OperationOuterClass;
 import yandex.cloud.api.operation.OperationServiceOuterClass;
 
+import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.function.Supplier;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
-    private static final Logger LOG = LogManager.getLogger(YcDeleteDiskAction.class);
-
     private boolean ycOpIdSaved;
 
     public YcDeleteDiskAction(DiskManager.OuterOperation op, YcDeleteDiskState state, YcDiskManager diskManager) {
-        super(op, state, diskManager);
+        super(op, "[YcDeleteDisk]", state, diskManager);
 
         this.ycOpIdSaved = !state.ycOperationId().isEmpty();
+        log().info("Deleting disk with id {}, outerOp {}", state.diskId(), opId());
     }
 
     @Override
-    public void run() {
-        LOG.info("Deleting disk with id {}, outerOp {}", state.diskId(), opId());
+    protected void notifyExpired() {
+        metrics().deleteDiskError.inc();
+    }
 
-        if (!ycOpIdSaved) {
-            if (state.ycOperationId().isEmpty()) {
-                try {
-                    var ycDeleteDiskOperation = ycDiskService()
-                        .withInterceptors(ClientHeaderInterceptor.idempotencyKey(this::opId))
-                        .delete(
-                            DiskServiceOuterClass.DeleteDiskRequest.newBuilder()
-                                .setDiskId(state.diskId())
-                                .build());
+    @Override
+    protected void onExpired(TransactionHandle tx) throws SQLException {
+        diskOpDao().deleteDiskOp(opId(), tx);
+    }
 
-                    state = state.withYcOperationId(ycDeleteDiskOperation.getId());
-                } catch (StatusRuntimeException e) {
-                    LOG.error("Error while running YcDeleteDisk op {} state: [{}] {}. Reschedule...",
-                        opId(), e.getStatus().getCode(), e.getStatus().getDescription());
+    @Override
+    protected List<Supplier<StepResult>> steps() {
+        return List.of(this::startDeleteDisk, this::waitDeleteDisk);
+    }
 
-                    try {
-                        withRetries(LOG, () -> {
-                            try (var tx = TransactionHandle.create(storage())) {
-                                operationsDao().fail(opId(), toProto(e.getStatus()), tx);
-                                diskOpDao().deleteDiskOp(opId(), tx);
-                                tx.commit();
-                            }
-                        });
-
-                        metrics().deleteDiskError.inc();
-                    } catch (Exception ex) {
-                        metrics().deleteDiskRetryableError.inc();
-                        LOG.error("Error while failing YcDeleteDisk op {}: {}. Reschedule...", opId(), e.getMessage());
-                        restart();
-                    }
-
-                    return;
-                }
-            }
-
-            InjectedFailures.failDeleteDisk1();
-
-            try {
-                withRetries(LOG, () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
-                ycOpIdSaved = true;
-            } catch (Exception e) {
-                metrics().deleteDiskRetryableError.inc();
-                LOG.debug("Cannot save new state for YcDeleteDisk {}/{}, reschedule...", opId(), state.ycOperationId());
-                restart();
-                return;
-            }
-
-            InjectedFailures.failDeleteDisk2();
-
-            LOG.info("Wait YC at YcDeleteDisk {}/{}...", opId(), state.ycOperationId());
-            restart();
-            return;
+    private StepResult startDeleteDisk() {
+        if (ycOpIdSaved) {
+            return StepResult.ALREADY_DONE;
         }
 
-        LOG.info("Test status of YcDeleteDisk operation {}/{}", opId(), state.ycOperationId());
+        if (state.ycOperationId().isEmpty()) {
+            try {
+                var ycDeleteDiskOperation = ycDiskService()
+                    .withInterceptors(ClientHeaderInterceptor.idempotencyKey(this::opId))
+                    .delete(
+                        DiskServiceOuterClass.DeleteDiskRequest.newBuilder()
+                            .setDiskId(state.diskId())
+                            .build());
+
+                state = state.withYcOperationId(ycDeleteDiskOperation.getId());
+            } catch (StatusRuntimeException e) {
+                log().error("Error while running YcDeleteDisk op {} state: [{}] {}. Reschedule...",
+                    opId(), e.getStatus().getCode(), e.getStatus().getDescription());
+
+                try {
+                    withRetries(log(), () -> {
+                        try (var tx = TransactionHandle.create(storage())) {
+                            failOperation(e.getStatus(), tx);
+                            diskOpDao().deleteDiskOp(opId(), tx);
+                            tx.commit();
+                        }
+                    });
+
+                    metrics().deleteDiskError.inc();
+                } catch (Exception ex) {
+                    metrics().deleteDiskRetryableError.inc();
+                    log().error("Error while failing YcDeleteDisk op {}: {}. Reschedule...", opId(), e.getMessage());
+                    return StepResult.RESTART;
+                }
+
+                return StepResult.FINISH;
+            }
+        }
+
+        InjectedFailures.failDeleteDisk1();
+
+        try {
+            withRetries(log(), () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
+            ycOpIdSaved = true;
+        } catch (Exception e) {
+            metrics().deleteDiskRetryableError.inc();
+            log().debug("Cannot save new state for YcDeleteDisk {}/{}, reschedule...", opId(), state.ycOperationId());
+            return StepResult.RESTART;
+        }
+
+        InjectedFailures.failDeleteDisk2();
+
+        log().info("Wait YC at YcDeleteDisk {}/{}...", opId(), state.ycOperationId());
+        return StepResult.RESTART.after(Duration.ofMillis(500));
+    }
+
+    private StepResult waitDeleteDisk() {
+        log().info("Test status of YcDeleteDisk operation {}/{}", opId(), state.ycOperationId());
 
         final OperationOuterClass.Operation ycOp;
         try {
@@ -98,30 +112,28 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                     .build());
         } catch (StatusRuntimeException e) {
             metrics().deleteDiskRetryableError.inc();
-            LOG.error("Error while getting YcDeleteDisk operation {}/{} state: [{}] {}. Reschedule...",
+            log().error("Error while getting YcDeleteDisk operation {}/{} state: [{}] {}. Reschedule...",
                 opId(), state.ycOperationId(), e.getStatus().getCode(), e.getStatus().getDescription());
-            restart();
-            return;
+            return StepResult.RESTART;
         }
 
         if (!ycOp.getDone()) {
-            LOG.debug("YcDeleteDisk {}/{} not completed yet, reschedule...", opId(), state.ycOperationId());
-            restart();
-            return;
+            log().debug("YcDeleteDisk {}/{} not completed yet, reschedule...", opId(), state.ycOperationId());
+            return StepResult.RESTART;
         }
 
         if (ycOp.hasResponse()) {
-            LOG.info("YcDeleteDisk succeeded, removed disk {}", state.diskId());
+            log().info("YcDeleteDisk succeeded, removed disk {}", state.diskId());
 
             var meta = Any.pack(DiskServiceApi.DeleteDiskMetadata.newBuilder().build());
             var resp = Any.pack(DiskServiceApi.DeleteDiskResponse.newBuilder().build());
 
             try {
-                withRetries(LOG, () -> {
+                withRetries(log(), () -> {
                     try (var tx = TransactionHandle.create(storage())) {
                         diskOpDao().deleteDiskOp(opId(), tx);
                         diskDao().remove(state.diskId(), tx);
-                        operationsDao().complete(opId(), meta, resp, tx);
+                        completeOperation(meta, resp, tx);
                         tx.commit();
                     }
                 });
@@ -130,30 +142,34 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
                 metrics().deleteDiskDuration.observe(Duration.between(op.startedAt(), Instant.now()).getSeconds());
             } catch (Exception e) {
                 metrics().deleteDiskRetryableError.inc();
-                LOG.error("Cannot complete successful YcDeleteDisk operation {}/{}: {}. Reschedule...",
+                log().error("Cannot complete successful YcDeleteDisk operation {}/{}: {}. Reschedule...",
                     opId(), state.ycOperationId(), e.getMessage());
-                restart();
+                return StepResult.RESTART;
             }
-            return;
+            return StepResult.FINISH;
         }
 
         try {
-            LOG.warn("YcDeleteDisk failed with error {}", ycOp.getError());
+            log().warn("YcDeleteDisk failed with error {}", ycOp.getError());
 
-            withRetries(LOG, () -> {
+            withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(storage())) {
                     diskOpDao().failDiskOp(opId(), ycOp.getError().getMessage(), tx);
-                    operationsDao().fail(opId(), ycOp.getError(), tx);
+                    failOperation(
+                        Status.fromCodeValue(ycOp.getError().getCode())
+                            .withDescription(ycOp.getError().getMessage()),
+                        tx);
                     tx.commit();
                 }
             });
 
             metrics().deleteDiskError.inc();
+            return StepResult.FINISH;
         } catch (Exception e) {
             metrics().deleteDiskRetryableError.inc();
-            LOG.error("Cannot complete failed YcDeleteDisk operation {}/{}: {}. Reschedule...",
+            log().error("Cannot complete failed YcDeleteDisk operation {}/{}: {}. Reschedule...",
                 opId(), state.ycOperationId(), e.getMessage());
-            restart();
+            return StepResult.RESTART;
         }
     }
 }

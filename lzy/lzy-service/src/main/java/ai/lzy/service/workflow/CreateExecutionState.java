@@ -10,6 +10,10 @@ final class CreateExecutionState {
     private final String userId;
     private final String workflowName;
     private final String executionId;
+    private String sessionId;
+    private String stdoutChannelId;
+    private String stderrChannelId;
+    private String portalId;
 
     private StorageType storageType;
     private LMST.StorageConfig storageConfig;
@@ -32,6 +36,38 @@ final class CreateExecutionState {
 
     public String getExecutionId() {
         return executionId;
+    }
+
+    public String getSessionId() {
+        return sessionId;
+    }
+
+    public void setSessionId(String sessionId) {
+        this.sessionId = sessionId;
+    }
+
+    public String getStdoutChannelId() {
+        return stdoutChannelId;
+    }
+
+    public void setStdoutChannelId(String stdoutChannelId) {
+        this.stdoutChannelId = stdoutChannelId;
+    }
+
+    public String getStderrChannelId() {
+        return stderrChannelId;
+    }
+
+    public void setStderrChannelId(String stderrChannelId) {
+        this.stderrChannelId = stderrChannelId;
+    }
+
+    public String getPortalId() {
+        return portalId;
+    }
+
+    public void setPortalId(String portalId) {
+        this.portalId = portalId;
     }
 
     public void setStorageType(boolean internalStorage) {

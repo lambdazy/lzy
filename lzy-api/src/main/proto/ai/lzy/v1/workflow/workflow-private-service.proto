@@ -9,16 +9,20 @@ option java_outer_classname = "LWFPS";
 option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowPrivateService {
-  rpc StopWorkflow (StopWorkflowRequest) returns (StopWorkflowResponse);
+  rpc StopExecution (StopExecutionRequest) returns (StopExecutionResponse);
+
+  rpc DeleteWorkflow (DeleteWorkflowRequest) returns (DeleteWorkflowResponse);
 }
 
-
-// ==================== StopWorkflow =====================
-
-message StopWorkflowRequest {
+message StopExecutionRequest {
   string executionId = 1;
   string reason = 2;
 }
 
-message StopWorkflowResponse {
+message StopExecutionResponse {}
+
+message DeleteWorkflowRequest {
+  string workflowName = 1;
 }
+
+message DeleteWorkflowResponse {}
