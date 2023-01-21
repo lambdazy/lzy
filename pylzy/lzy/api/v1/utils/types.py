@@ -1,3 +1,4 @@
+import inspect
 from typing import (
     Callable,
     Optional,
@@ -5,7 +6,7 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    get_type_hints, List,
+    get_type_hints, List, Dict, Any,
 )
 
 from typing_extensions import get_origin, get_args
@@ -40,3 +41,12 @@ def infer_return_type(func: Callable) -> TypeInferResult:
         return Just(typ)
 
     return Just(tuple((typ,)))
+
+
+def get_default_args(func: Callable) -> Dict[str, Any]:
+    signature = inspect.signature(func)
+    return {
+        k: v.default
+        for k, v in signature.parameters.items()
+        if v.default is not inspect.Parameter.empty
+    }
