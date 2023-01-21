@@ -1,6 +1,6 @@
 import re
 
-name_valid_symbols = "[alphanumeric characters,_,-]"
+NAME_VALID_SYMBOLS = "[alphanumeric characters,_,-]"
 
 
 def is_name_valid(s: str) -> bool:

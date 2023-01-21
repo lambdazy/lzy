@@ -349,3 +349,9 @@ class WhiteboardTests(TestCase):
         self.assertEqual(entry_wb_num, entry_concat_num)
         self.assertEqual(entry_wb_desc, entry_concat_desc)
         self.assertEqual("42str", res)
+
+    def test_invalid_type_assignment(self):
+        with self.assertRaisesRegex(TypeError, "Incompatible types"):
+            with self.lzy.workflow(self.workflow_name) as wf:
+                wb = wf.create_whiteboard(WhiteboardWithDefaults)
+                wb.desc = 2
