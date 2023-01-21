@@ -336,3 +336,8 @@ class LzyCallsTests(TestCase):
             @op
             def no_hint():
                 pass
+
+    def test_invalid_workflow_name(self):
+        with self.assertRaisesRegex(ValueError, "Invalid workflow name. Name can contain only"):
+            with self.lzy.workflow("test test"):
+                pass

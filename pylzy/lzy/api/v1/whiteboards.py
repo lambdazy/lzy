@@ -12,6 +12,7 @@ from serialzy.types import get_type
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, Storage
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy
+from lzy.api.v1.utils.validation import is_name_valid, name_valid_symbols
 from lzy.proxy.result import Just
 from lzy.utils.event_loop import LzyEventLoop
 
@@ -28,10 +29,13 @@ class DeclaredWhiteboardMeta:
 
 def whiteboard_(cls: Type, name: str):
     if not name:
-        raise ValueError("name attribute must be specified")
+        raise ValueError("Name attribute must be specified")
 
     if not isinstance(name, str):
-        raise TypeError("name attribute is required to be a string")
+        raise TypeError("Name attribute is required to be a string")
+
+    if not is_name_valid(name):
+        raise ValueError(f"Invalid workflow name. Name can contain only {name_valid_symbols}")
 
     setattr(cls, WB_NAME_FIELD_NAME, name)
     return cls
@@ -72,7 +76,6 @@ class WritableWhiteboard:
         tags: Sequence[str],
         workflow: "LzyWorkflow"
     ):
-        self.__workflow = workflow
         declaration_meta = fetch_whiteboard_meta(typ)
         if declaration_meta is None:
             raise TypeError(
@@ -133,6 +136,7 @@ class WritableWhiteboard:
 
         self.__model = whiteboard
         self.__fields_assigned: Set[str] = set()
+        self.__workflow = workflow
 
     def __setattr__(self, key: str, value: Any):
         if key in WritableWhiteboard.__internal_fields:  # To complete constructor

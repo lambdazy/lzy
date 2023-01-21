@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 import tempfile
 import uuid
 from concurrent import futures
@@ -13,7 +12,9 @@ from unittest import TestCase
 import grpc
 # noinspection PyPackageRequirements
 from Crypto.PublicKey import RSA
-from google.protobuf.json_format import MessageToJson, Parse, ParseDict
+# noinspection PyPackageRequirements
+from google.protobuf.json_format import MessageToJson, ParseDict
+# noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
 # noinspection PyPackageRequirements
@@ -146,9 +147,6 @@ class WhiteboardTests(TestCase):
             self.lzy.whiteboard(id_=wb.id)
 
     def test_whiteboard_missing_id(self):
-        with self.lzy.workflow(self.workflow_name) as wf:
-            wb = wf.create_whiteboard(Whiteboard)
-
         with self.assertRaisesRegex(ValueError, "Neither id nor uri are set"):
             self.lzy.whiteboard(id_=None)
 
@@ -210,15 +208,22 @@ class WhiteboardTests(TestCase):
 
     # noinspection PyTypeChecker,PyUnusedLocal
     def test_invalid_name(self):
-        with self.assertRaisesRegex(ValueError, "name attribute must be specified"):
+        with self.assertRaisesRegex(ValueError, "Name attribute must be specified"):
             @whiteboard(name=None)
             @dataclass
             class Wb:
                 num: int
                 desc: str
 
-        with self.assertRaisesRegex(TypeError, "name attribute is required to be a string"):
+        with self.assertRaisesRegex(TypeError, "Name attribute is required to be a string"):
             @whiteboard(name=1)
+            @dataclass
+            class Wb:
+                num: int
+                desc: str
+
+        with self.assertRaisesRegex(ValueError, "Invalid workflow name. Name can contain only"):
+            @whiteboard(name="test test")
             @dataclass
             class Wb:
                 num: int
