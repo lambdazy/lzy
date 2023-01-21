@@ -25,7 +25,7 @@ from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.storage.api import Storage, S3Credentials
 from lzy.utils.event_loop import LzyEventLoop
 from tests.api.v1.mocks import SerializerRegistryMock, NotStablePrimitiveSerializer, NotAvailablePrimitiveSerializer, \
-    WhiteboardIndexServiceMock
+    WhiteboardIndexServiceMock, EnvProviderMock
 from tests.api.v1.utils import create_bucket
 
 
@@ -44,27 +44,45 @@ class WhiteboardWithDefaults:
 
 
 class WhiteboardTests(TestCase):
-    def setUp(self) -> None:
-        self.grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-        self.mock = WhiteboardIndexServiceMock()
-        add_LzyWhiteboardServiceServicer_to_server(self.mock, self.grpc_server)
-        wb_service_url = "localhost:12346"
-        self.grpc_server.add_insecure_port(wb_service_url)
-        self.grpc_server.start()
+    endpoint_url = None
+    wb_service_url = None
+    key_path = None
+    mock = None
+    lzy = None
+    grpc_server = None
+    storage_uri = None
+    s3_service = None
 
-        self.s3_service = ThreadedMotoServer(port=12345)
-        self.s3_service.start()
-        self.endpoint_url = "http://localhost:12345"
-        asyncio.run(create_bucket(self.endpoint_url))
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.s3_service = ThreadedMotoServer(port=12345)
+        cls.s3_service.start()
+        cls.endpoint_url = "http://localhost:12345"
+        asyncio.run(create_bucket(cls.endpoint_url))
+
+        cls.grpc_server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+        cls.mock = WhiteboardIndexServiceMock()
+        add_LzyWhiteboardServiceServicer_to_server(cls.mock, cls.grpc_server)
+        cls.wb_service_url = "localhost:12346"
+        cls.grpc_server.add_insecure_port(cls.wb_service_url)
+        cls.grpc_server.start()
 
         key = RSA.generate(2048)
-        fd, name = tempfile.mkstemp()
-        with open(name, "wb") as f:
+        fd, cls.key_path = tempfile.mkstemp()
+        with open(cls.key_path, "wb") as f:
             f.write(key.export_key("PEM"))
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.s3_service.stop()
+        cls.grpc_server.stop(10)
+        cls.grpc_server.wait_for_termination()
+
+    def setUp(self) -> None:
         self.workflow_name = "workflow_" + str(uuid.uuid4())
-        self.lzy = Lzy(runtime=LocalRuntime())
-        self.lzy.auth(user="test_user", key_path=name, whiteboards_endpoint=wb_service_url, endpoint="endpoint")
+        self.lzy = Lzy(runtime=LocalRuntime(), py_env_provider=EnvProviderMock())
+        self.lzy.auth(user="test_user", key_path=self.key_path, whiteboards_endpoint=self.wb_service_url,
+                      endpoint="endpoint")
 
         self.storage_uri = "s3://bucket/prefix"
         storage_config = Storage(
@@ -74,9 +92,7 @@ class WhiteboardTests(TestCase):
         self.lzy.storage_registry.register_storage('default', storage_config, True)
 
     def tearDown(self) -> None:
-        self.grpc_server.stop(10)
-        self.grpc_server.wait_for_termination()
-        self.s3_service.stop()
+        self.mock.clear_all()
 
     def test_whiteboard_attributes(self):
         with self.lzy.workflow(self.workflow_name) as wf:

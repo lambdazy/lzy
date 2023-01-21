@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from api.v1.mocks import RuntimeMock, StorageRegistryMock
+from api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
 from lzy.api.v1 import Lzy, op, Env, DockerPullPolicy
 from lzy.api.v1.provisioning import GpuType, Provisioning, CpuType
 from lzy.api.v1.call import LzyCall
@@ -14,7 +14,9 @@ def func() -> None:
 
 class LzyOpParamsTests(TestCase):
     def setUp(self):
-        self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock())
+        self.lzy = Lzy(runtime=RuntimeMock(),
+                       storage_registry=StorageRegistryMock(),
+                       py_env_provider=EnvProviderMock({"pylzy": "0.0.0"}, ["local_module_path"]))
 
     def test_description(self):
         description = "my favourite func"

@@ -1,9 +1,11 @@
 import datetime
+import sys
 import uuid
 from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Sequence, AsyncIterable, Dict
 
 # noinspection PyPackageRequirements
 import grpc
+# noinspection PyPackageRequirements
 from google.protobuf.any_pb2 import Any
 from serialzy.serializers.primitive import PrimitiveSerializer
 
@@ -20,6 +22,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartW
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
 from lzy.api.v1.runtime import ProgressStep
+from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
 from lzy.whiteboards.api import WhiteboardIndexClient
@@ -240,3 +243,16 @@ class WhiteboardIndexServiceMock(LzyWhiteboardServiceServicer):
 
             whiteboards.append(whiteboard)
         return ListResponse(whiteboards=whiteboards)
+
+    def clear_all(self) -> None:
+        self.__whiteboards.clear()
+
+
+class EnvProviderMock(PyEnvProvider):
+    def __init__(self, libraries: Optional[Dict[str, str]] = None, local_modules_path: Optional[Sequence[str]] = None):
+        self.__libraries = libraries if libraries else {}
+        self.__local_modules_path = local_modules_path if local_modules_path else []
+
+    def provide(self, namespace: Dict[str, Any]) -> PyEnv:
+        info = sys.version_info
+        return PyEnv(f"{info.major}.{info.minor}.{info.micro}", self.__libraries, self.__local_modules_path)

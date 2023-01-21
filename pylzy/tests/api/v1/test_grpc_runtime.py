@@ -15,7 +15,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
 from ai.lzy.v1.long_running.operation_pb2_grpc import (
     add_LongRunningServiceServicer_to_server,
 )
-from api.v1.mocks import WorkflowServiceMock, WhiteboardIndexClientMock, OperationsServiceMock
+from api.v1.mocks import WorkflowServiceMock, WhiteboardIndexClientMock, OperationsServiceMock, EnvProviderMock
 from lzy.api.v1 import Lzy
 from lzy.logs.config import get_logger
 
@@ -46,7 +46,7 @@ class GrpcRuntimeTests(TestCase):
         self.server.wait_for_termination()
 
     def test_start(self):
-        lzy = Lzy(whiteboard_client=WhiteboardIndexClientMock())
+        lzy = Lzy(whiteboard_client=WhiteboardIndexClientMock(), py_env_provider=EnvProviderMock())
         lzy.auth(user="ArtoLord", key_path=self.__key_path, endpoint="localhost:12345")
 
         with lzy.workflow("some_name"):
@@ -54,7 +54,7 @@ class GrpcRuntimeTests(TestCase):
             self.assertTrue(self.mock.created)
 
     def test_error(self):
-        lzy = Lzy(whiteboard_client=WhiteboardIndexClientMock())
+        lzy = Lzy(whiteboard_client=WhiteboardIndexClientMock(), py_env_provider=EnvProviderMock())
         lzy.auth(user="ArtoLord", key_path=self.__key_path, endpoint="localhost:12345")
 
         self.mock.fail = True
