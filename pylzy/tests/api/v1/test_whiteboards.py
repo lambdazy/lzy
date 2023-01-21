@@ -1,26 +1,31 @@
 import asyncio
+import json
 import os
 import tempfile
 import uuid
 from concurrent import futures
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from typing import cast, BinaryIO
 from unittest import TestCase
 
 # noinspection PyPackageRequirements
 import grpc
 # noinspection PyPackageRequirements
 from Crypto.PublicKey import RSA
-# noinspection PyPackageRequirements
+from google.protobuf.json_format import MessageToJson, Parse, ParseDict
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
+# noinspection PyPackageRequirements
+from ai.lzy.v1.whiteboard import whiteboard_pb2
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import add_LzyWhiteboardServiceServicer_to_server
-from api.v1.mocks import WhiteboardIndexServiceMock, SerializerRegistryMock, NotAvailablePrimitiveSerializer, \
-    NotStablePrimitiveSerializer
-from api.v1.utils import create_bucket
 from lzy.api.v1 import Lzy, whiteboard, WhiteboardStatus, MISSING_WHITEBOARD_FIELD, op
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.storage.api import Storage, S3Credentials
+from lzy.utils.event_loop import LzyEventLoop
+from tests.api.v1.mocks import SerializerRegistryMock, NotStablePrimitiveSerializer, NotAvailablePrimitiveSerializer, \
+    WhiteboardIndexServiceMock
+from tests.api.v1.utils import create_bucket
 
 
 @whiteboard(name="whiteboard_name")
@@ -92,6 +97,68 @@ class WhiteboardTests(TestCase):
         fetched_wb = self.lzy.whiteboard(id_=wb.id)
         self.assertEqual(1, fetched_wb.num)
         self.assertEqual("str", fetched_wb.desc)
+
+    def test_whiteboard_storage_meta(self):
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb = wf.create_whiteboard(Whiteboard)
+
+        fetched_wb = self.lzy.whiteboard(id_=None, storage_uri=wb.storage_uri)
+        self.assertEqual(fetched_wb.id, wb.id)
+        self.assertEqual(WhiteboardStatus.FINALIZED, fetched_wb.status)
+
+    def test_whiteboard_manual_change(self):
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb = wf.create_whiteboard(Whiteboard)
+
+        wb_meta_uri = f"{wb.storage_uri}/.whiteboard"
+
+        with tempfile.TemporaryFile() as f:
+            LzyEventLoop.run_async(wf.owner.storage_client.read(wb_meta_uri, cast(BinaryIO, f)))
+            f.seek(0)
+            storage_wb = ParseDict(json.load(f), whiteboard_pb2.Whiteboard())
+
+        changed_wb = whiteboard_pb2.Whiteboard(id=storage_wb.id, name="changed", tags=storage_wb.tags,
+                                               fields=storage_wb.fields, storage=storage_wb.storage,
+                                               namespace=storage_wb.namespace, status=storage_wb.status,
+                                               createdAt=storage_wb.createdAt)
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(MessageToJson(changed_wb).encode('UTF-8'))
+            f.seek(0)
+            LzyEventLoop.run_async(wf.owner.storage_client.write(wb_meta_uri, cast(BinaryIO, f)))
+
+        fetched_wb = self.lzy.whiteboard(id_=wb.id)
+        self.assertNotEqual(fetched_wb.name, wb.name)
+        self.assertEqual(fetched_wb.name, "changed")
+
+    def test_whiteboard_manual_corrupt(self):
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb = wf.create_whiteboard(Whiteboard)
+
+        wb_meta_uri = f"{wb.storage_uri}/.whiteboard"
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write("not-whiteboard".encode('UTF-8'))
+            f.seek(0)
+            LzyEventLoop.run_async(wf.owner.storage_client.write(wb_meta_uri, cast(BinaryIO, f)))
+
+        with self.assertRaisesRegex(RuntimeError, "Whiteboard corrupted"):
+            self.lzy.whiteboard(id_=wb.id)
+
+    def test_whiteboard_missing_id(self):
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb = wf.create_whiteboard(Whiteboard)
+
+        with self.assertRaisesRegex(ValueError, "Neither id nor uri are set"):
+            self.lzy.whiteboard(id_=None)
+
+    def test_whiteboard_mismatched_id(self):
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb1 = wf.create_whiteboard(Whiteboard)
+            wb2 = wf.create_whiteboard(Whiteboard)
+
+        with self.assertRaisesRegex(ValueError, "Id mismatch"):
+            self.lzy.whiteboard(id_=wb1.id, storage_uri=wb2.storage_uri)
 
     def test_whiteboard_missing_field(self):
         with self.lzy.workflow(self.workflow_name) as wf:

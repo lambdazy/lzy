@@ -198,7 +198,7 @@ class RemoteRuntime(Runtime):
                 file.seek(0)
                 client = self.__workflow.owner.storage_registry.default_client()
                 if client is None:
-                    raise RuntimeError("No default storage config")
+                    raise RuntimeError("No default storage client")
 
                 conf = self.__workflow.owner.storage_registry.default_config()
                 if conf is None:
