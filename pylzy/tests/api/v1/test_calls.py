@@ -8,7 +8,7 @@ from pure_protobuf.types import int32
 from lzy.api.v1 import Lzy, op
 from lzy.api.v1.signatures import FuncSignature
 from lzy.api.v1.utils.proxy_adapter import materialized
-from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock
+from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
 
 
 @op
@@ -58,7 +58,7 @@ def call_custom_class(arg: A) -> A:
 
 class LzyCallsTests(TestCase):
     def setUp(self):
-        self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock())
+        self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock(), py_env_provider=EnvProviderMock())
 
     def test_no_args(self):
         with self.assertRaisesRegex(KeyError, "is required but not provided"):
