@@ -117,6 +117,10 @@ class LzyWorkflow:
     def call_queue(self) -> List["LzyCall"]:
         return self.__call_queue
 
+    @property
+    def eager(self) -> bool:
+        return self.__eager
+
     def register_call(self, call: "LzyCall") -> Any:
         self.__call_queue.append(call)
         if self.__eager:

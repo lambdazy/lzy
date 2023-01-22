@@ -25,9 +25,11 @@ from lzy.storage.api import StorageRegistry, AsyncStorageClient
 from lzy.storage.registry import DefaultStorageRegistry
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.whiteboards.api import WhiteboardManager, WhiteboardIndexClient
-from lzy.whiteboards.wrapper import WhiteboardStatus, MISSING_WHITEBOARD_FIELD
 from lzy.whiteboards.index import WhiteboardIndexedManager, RemoteWhiteboardIndexClient, WB_USER_ENV, WB_KEY_PATH_ENV, \
     WB_ENDPOINT_ENV
+# noinspection PyUnresolvedReferences
+from lzy.whiteboards.wrapper import WhiteboardStatus, MISSING_WHITEBOARD_FIELD
+from lzy.api.v1.utils.proxy_adapter import materialize
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 

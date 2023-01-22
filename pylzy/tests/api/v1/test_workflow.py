@@ -7,9 +7,9 @@ from unittest import TestCase, skip
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
 from api.v1.mocks import EnvProviderMock
-from lzy.api.v1 import Lzy, op, LocalRuntime
+from lzy.api.v1 import Lzy, op, LocalRuntime, materialize
 from lzy.api.v1.exceptions import LzyExecutionException
-from lzy.api.v1.utils.proxy_adapter import materialized
+from lzy.api.v1.utils.proxy_adapter import materialized, is_lzy_proxy
 from lzy.storage.api import Storage, S3Credentials
 from tests.api.v1.utils import create_bucket
 
@@ -234,8 +234,7 @@ class LzyWorkflowTests(TestCase):
             a = return_list()
             i = accept_list(a)
 
-        # TODO (tomato): fix unexpected materialization
-        # self.assertFalse(materialized(a))
+        self.assertFalse(materialized(a))
         self.assertFalse(materialized(i))
         self.assertEqual(3, i)
 
@@ -249,6 +248,56 @@ class LzyWorkflowTests(TestCase):
             with self.lzy.workflow("test"):
                 a = return_list()
                 accept_list(a, [{}])
+
+    def test_lazy(self):
+        with self.lzy.workflow("test") as wf:
+            f = foo()
+            b1 = bar(f)
+            i = inc(1)
+            b2 = baz(b1, i)
+            queue_len = len(wf.call_queue)
+
+        self.assertEqual(4, queue_len)
+        self.assertFalse(materialized(f))
+        self.assertFalse(materialized(b1))
+        self.assertFalse(materialized(i))
+        self.assertFalse(materialized(b2))
+        self.assertEqual("Foo: Bar: Baz(2):", b2)
+
+    def test_eager(self):
+        with self.lzy.workflow("test", eager=True) as wf:
+            f = foo()
+            b1 = bar(f)
+            i = inc(1)
+            b2 = baz(b1, i)
+            queue_len = len(wf.call_queue)
+
+        self.assertEqual(0, queue_len)
+        self.assertFalse(is_lzy_proxy(f))
+        self.assertEqual(str, type(f))
+        self.assertFalse(is_lzy_proxy(b1))
+        self.assertEqual(str, type(b1))
+        self.assertFalse(is_lzy_proxy(i))
+        self.assertEqual(int, type(i))
+        self.assertFalse(is_lzy_proxy(b2))
+        self.assertEqual(str, type(b2))
+        self.assertEqual("Foo: Bar: Baz(2):", b2)
+
+    def test_materialize(self):
+        with self.lzy.workflow("test") as wf:
+            f = foo()
+            b1 = bar(f)
+            i = materialize(inc(1))
+            b2 = baz(b1, i)
+            queue_len = len(wf.call_queue)
+
+        self.assertEqual(1, queue_len)
+        self.assertFalse(materialized(f))
+        self.assertFalse(materialized(b1))
+        self.assertFalse(materialized(b2))
+        self.assertFalse(is_lzy_proxy(i))
+        self.assertEqual(int, type(i))
+        self.assertEqual("Foo: Bar: Baz(2):", b2)
 
     @skip("WIP")
     def test_barrier(self):

@@ -14,7 +14,7 @@ from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
-from lzy.api.v1.utils.proxy_adapter import lzy_proxy
+from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize
 from lzy.api.v1.utils.types import infer_real_types, get_default_args
 from lzy.api.v1.workflow import LzyWorkflow
 
@@ -159,14 +159,14 @@ def wrap_call(
             if inspect.isclass(output_types[0]) and issubclass(output_types[0], type(None)):
                 return None
             # noinspection PyTypeChecker
-            return lzy_proxy(
-                lzy_call.entry_ids[0],
-                infer_real_types(lzy_call.signature.func.output_types[0]),
-                lzy_call.parent_wflow,
-            )
+            proxy = lzy_proxy(lzy_call.entry_ids[0], infer_real_types(lzy_call.signature.func.output_types[0]),
+                              lzy_call.parent_wflow)
+            if active_workflow.eager:
+                return materialize(proxy)
+            return proxy
 
         # noinspection PyTypeChecker
-        return tuple(
+        proxies = tuple(
             lzy_proxy(
                 lzy_call.entry_ids[i],
                 infer_real_types(lzy_call.signature.func.output_types[i]),
@@ -174,6 +174,9 @@ def wrap_call(
             )
             for i in range(len(lzy_call.entry_ids))
         )
+        if active_workflow.eager:
+            return tuple(materialize(p) for p in proxies)
+        return proxies
 
     return lazy
 
