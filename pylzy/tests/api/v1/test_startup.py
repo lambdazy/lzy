@@ -1,7 +1,7 @@
 import tempfile
 from unittest import TestCase
 
-import lzy.api.v1.startup_model
+from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.pickle import pickle
 from lzy.logs.config import get_logging_config
 
@@ -35,7 +35,7 @@ class StartupTests(TestCase):
 
         startup._lzy_mount = ""
 
-        req = lzy.api.v1.startup_model.ProcessingRequest(
+        req = ProcessingRequest(
             get_logging_config(),
             serializers=ser.imports(),
             op=test,

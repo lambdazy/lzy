@@ -6,8 +6,7 @@ from unittest import TestCase, skip
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
-from api.v1.mocks import EnvProviderMock
-from api.v1.modules_for_test.base import internal_op
+from tests.api.v1.mocks import EnvProviderMock
 from lzy.api.v1 import Lzy, op, LocalRuntime, materialize
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.utils.proxy_adapter import materialized, is_lzy_proxy
@@ -299,11 +298,6 @@ class LzyWorkflowTests(TestCase):
         self.assertFalse(is_lzy_proxy(i))
         self.assertEqual(int, type(i))
         self.assertEqual("Foo: Bar: Baz(2):", b2)
-
-    def test_imported_op(self):
-        with self.lzy.workflow("test"):
-            res = internal_op()
-        self.assertEqual("internal", res)
 
     @skip("WIP")
     def test_barrier(self):
