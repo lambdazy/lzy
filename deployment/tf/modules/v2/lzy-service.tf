@@ -64,7 +64,7 @@ resource "kubernetes_deployment" "lzy-service" {
 
           env {
             name = "LZY_SERVICE_GRAPH_EXECUTOR_ADDRESS"
-            value = "${kubernetes_service.graph_executor_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.graph-port}"
+            value = "${kubernetes_service.graph_executor_service.spec[0].cluster_ip}:${local.graph-port}"
           }
 
           env {
@@ -85,6 +85,16 @@ resource "kubernetes_deployment" "lzy-service" {
           env {
             name = "LZY_SERVICE_PORTAL_SLOTS_API_PORT"
             value = 9877
+          }
+
+          env {
+            name = "LZY_SERVICE_PORTAL_POOL_LABEL"
+            value = "portals"
+          }
+
+          env {
+            name = "LZY_SERVICE_PORTAL_POOL_ZONE"
+            value = "ru-central1-a"
           }
 
           env {

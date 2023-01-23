@@ -49,7 +49,7 @@ resource "kubernetes_deployment" "graph-executor" {
 
           env {
             name = "GRAPH_EXECUTOR_SCHEDULER_HOST"
-            value = kubernetes_service.scheduler_service.status[0].load_balancer[0].ingress[0]["ip"]
+            value = kubernetes_service.scheduler_service.spec[0].cluster_ip
           }
 
           env {
@@ -86,11 +86,11 @@ resource "kubernetes_deployment" "graph-executor" {
             value = "true"
           }
           env {
-            name = "GRAPH_EXECUTOR_AUTH_ADDRESS"
+            name = "GRAPH_EXECUTOR_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
-            name = "GRAPH_EXECUTOR_AUTH_INTERNAL_USER_NAME"
+            name = "GRAPH_EXECUTOR_IAM_INTERNAL_USER_NAME"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
@@ -99,7 +99,7 @@ resource "kubernetes_deployment" "graph-executor" {
             }
           }
           env {
-            name = "GRAPH_EXECUTOR_AUTH_INTERNAL_USER_PRIVATE_KEY"
+            name = "GRAPH_EXECUTOR_IAM_INTERNAL_USER_PRIVATE_KEY"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
@@ -136,10 +136,6 @@ resource "kubernetes_service" "graph_executor_service" {
   metadata {
     name   = "${local.graph-k8s-name}-load-balancer"
     labels = local.graph-labels
-    annotations = {
-      "yandex.cloud/load-balancer-type": "internal"
-      "yandex.cloud/subnet-id": yandex_vpc_subnet.custom-subnet.id
-    }
   }
   spec {
     selector = local.graph-labels
@@ -147,6 +143,6 @@ resource "kubernetes_service" "graph_executor_service" {
       port = local.graph-port
       target_port = local.graph-port
     }
-    type = "LoadBalancer"
+    type = "ClusterIP"
   }
 }
