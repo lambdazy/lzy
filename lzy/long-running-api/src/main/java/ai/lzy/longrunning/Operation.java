@@ -58,7 +58,7 @@ public class Operation {
     }
 
     public static Operation create(String createdBy, String description, @Nullable Instant deadline,
-                                   @Nullable Any meta)
+                                   @Nullable Message meta)
     {
         var now = Instant.now();
         return new Operation(UUID.randomUUID().toString(), createdBy, now, description, deadline, null,

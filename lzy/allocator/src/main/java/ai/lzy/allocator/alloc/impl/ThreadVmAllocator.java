@@ -145,6 +145,8 @@ public class ThreadVmAllocator implements VmAllocator {
 
     @Override
     public List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction) {
-        return List.of(new VmEndpoint(VmEndpointType.HOST_NAME, "localhost"));
+        return List.of(
+            new VmEndpoint(VmEndpointType.HOST_NAME, "localhost"),
+            new VmEndpoint(VmEndpointType.INTERNAL_IP, "127.0.0.1"));
     }
 }
