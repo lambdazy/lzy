@@ -10,13 +10,13 @@ option java_outer_classname = "LCMS";
 option java_package = "ai.lzy.v1.channel";
 
 service LzyChannelManager {
-  rpc Bind (BindRequest) returns (Operation) {
+  rpc Bind (BindRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       response: "BindResponse"
       metadata: "BindMetadata"
     };
   }
-  rpc Unbind (UnbindRequest) returns (Operation) {
+  rpc Unbind (UnbindRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       response: "UnbindResponse"
       metadata: "UnbindMetadata"
@@ -25,7 +25,7 @@ service LzyChannelManager {
 }
 
 message BindRequest {
-  SlotInstance slotInstance = 1;
+  ai.lzy.v1.common.SlotInstance slotInstance = 1;
   SlotOwner slotOwner = 2;
 
   enum SlotOwner {

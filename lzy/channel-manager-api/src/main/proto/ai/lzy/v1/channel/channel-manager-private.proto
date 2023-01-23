@@ -12,14 +12,14 @@ option java_package = "ai.lzy.v1.channel";
 service LzyChannelManagerPrivate {
   rpc Create (ChannelCreateRequest) returns (ChannelCreateResponse);
 
-  rpc Destroy (ChannelDestroyRequest) returns (Operation) {
+  rpc Destroy (ChannelDestroyRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       response: "ChannelDestroyResponse"
       metadata: "ChannelDestroyMetadata"
     };
   }
 
-  rpc DestroyAll (ChannelDestroyAllRequest) returns (Operation) {
+  rpc DestroyAll (ChannelDestroyAllRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       response: "ChannelDestroyAllResponse"
       metadata: "ChannelDestroyAllMetadata"

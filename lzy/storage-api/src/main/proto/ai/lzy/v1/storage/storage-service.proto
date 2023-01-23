@@ -10,7 +10,7 @@ option java_outer_classname = "LSS";
 option java_package = "ai.lzy.v1.storage";
 
 service LzyStorageService {
-  rpc CreateS3Bucket (CreateS3BucketRequest) returns (Operation) {
+  rpc CreateS3Bucket (CreateS3BucketRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       response: "CreateS3BucketResponse"
     };
@@ -29,8 +29,8 @@ message CreateS3BucketRequest {
 
 message CreateS3BucketResponse {
   oneof credentials {
-    S3Credentials s3 = 1;
-    AzureBlobStorageCredentials azure = 2;
+    ai.lzy.v1.common.S3Credentials s3 = 1;
+    ai.lzy.v1.common.AzureBlobStorageCredentials azure = 2;
   }
 }
 
@@ -48,7 +48,7 @@ message GetS3BucketCredentialsRequest {
 
 message GetS3BucketCredentialsResponse {
   oneof credentials {
-    S3Credentials amazon = 1;
-    AzureBlobStorageCredentials azure = 2;
+    ai.lzy.v1.common.S3Credentials amazon = 1;
+    ai.lzy.v1.common.AzureBlobStorageCredentials azure = 2;
   }
 }

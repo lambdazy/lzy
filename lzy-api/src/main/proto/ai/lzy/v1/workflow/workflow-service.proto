@@ -13,7 +13,7 @@ option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowService {
   rpc StartWorkflow (StartWorkflowRequest) returns (StartWorkflowResponse);
-  rpc FinishWorkflow (FinishWorkflowRequest) returns (ai.lzy.v1.Operation) {
+  rpc FinishWorkflow (FinishWorkflowRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       // metadata: null
       response: "FinishWorkflowResponse";
@@ -33,12 +33,12 @@ message StartWorkflowRequest {
   string workflowName = 1;
 
   // if not set then internal SnapshotStorage is created
-  /* optional */ StorageConfig snapshotStorage = 2;
+  /* optional */ ai.lzy.v1.common.StorageConfig snapshotStorage = 2;
 }
 
 message StartWorkflowResponse {
   string executionId = 1;
-  /* optional */ StorageConfig internalSnapshotStorage = 2;
+  /* optional */ ai.lzy.v1.common.StorageConfig internalSnapshotStorage = 2;
 }
 
 message FinishWorkflowRequest {

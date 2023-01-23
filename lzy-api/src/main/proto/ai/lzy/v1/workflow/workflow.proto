@@ -43,7 +43,7 @@ message Operation {
 
 message DataDescription {
   string storageUri = 1;
-  /* optional */ DataScheme dataScheme = 2;  // If not set, using plain scheme
+  /* optional */ ai.lzy.v1.common.DataScheme dataScheme = 2;  // If not set, using plain scheme
 }
 
 message Graph {
@@ -74,6 +74,6 @@ message WhiteboardField {
 
   message DefaultFieldDesc {
     string uri = 2;
-    DataScheme dataScheme = 3;
+    ai.lzy.v1.common.DataScheme dataScheme = 3;
   }
 }
