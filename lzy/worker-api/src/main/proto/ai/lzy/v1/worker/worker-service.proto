@@ -17,7 +17,7 @@ service WorkerApi {
 // ========== Configure ============
 
 message ConfigureRequest {
-  EnvSpec env = 1;
+  ai.lzy.v1.common.EnvSpec env = 1;
 }
 
 message ConfigureResponse {}
@@ -25,7 +25,7 @@ message ConfigureResponse {}
 // ========== Execute ============
 
 message ExecuteRequest {
-  TaskDesc taskDesc = 1;
+  ai.lzy.v1.common.TaskDesc taskDesc = 1;
   string taskId = 2;
   string executionId = 3;
 }
