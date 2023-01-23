@@ -3,7 +3,7 @@ package ai.lzy.jobutils;
 import ai.lzy.jobsutils.JobService;
 import ai.lzy.jobsutils.db.JobsOperationDao;
 import ai.lzy.longrunning.Operation;
-import ai.lzy.longrunning.OperationService;
+import ai.lzy.longrunning.OperationsService;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.grpc.GrpcUtils;
 import com.google.rpc.Status;
@@ -61,7 +61,7 @@ public class JobsTest {
 
     @Test
     public void testOp() throws Exception {
-        var operationService = new OperationService(opDao);
+        var operationService = new OperationsService(opDao);
         var server = newGrpcServer("0.0.0.0", 19234, GrpcUtils.NO_AUTH)
             .addService(operationService)
             .build();
@@ -119,7 +119,7 @@ public class JobsTest {
 
     @Test
     public void testFailOp() throws Exception {
-        var operationService = new OperationService(opDao);
+        var operationService = new OperationsService(opDao);
         var server = newGrpcServer("0.0.0.0", 19234, GrpcUtils.NO_AUTH)
                 .addService(operationService)
                 .build();

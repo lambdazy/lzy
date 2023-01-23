@@ -95,7 +95,7 @@ public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
         }
 
         if (!op.getDone()) {
-            reschedule(Duration.ofSeconds(10));
+            reschedule(Duration.ofSeconds(1));
             return null;
         }
 

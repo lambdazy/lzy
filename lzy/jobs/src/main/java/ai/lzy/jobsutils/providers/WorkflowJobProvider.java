@@ -3,6 +3,7 @@ package ai.lzy.jobsutils.providers;
 import ai.lzy.jobsutils.JobService;
 import ai.lzy.jobsutils.db.JobsOperationDao;
 import ai.lzy.jobsutils.providers.JobSerializer.SerializationException;
+import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
 import com.google.rpc.Status;
 import io.grpc.Status.Code;
@@ -20,7 +21,7 @@ import javax.annotation.Nullable;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJobProvider.WorkflowJobArg> {
-    private static final List<Code> RETRYABLE_CODES = List.of(
+    protected static final List<Code> RETRYABLE_CODES = List.of(
         Code.UNAVAILABLE,
         Code.UNKNOWN
     );
@@ -175,7 +176,13 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
     }
 
     private void failOp(WorkflowJobArg arg, Status error) throws Exception {
-        withRetries(logger, () -> dao.failOperation(arg.operationId, error, null, logger));
+        withRetries(logger, () -> {
+            try {
+                dao.failOperation(arg.operationId, error, null, logger);
+            } catch (OperationCompletedException e) {
+                // ignored
+            }
+        });
     }
 
     private void reschedule(WorkflowJobArg arg, @Nullable Duration startAfter) {

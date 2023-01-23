@@ -16,7 +16,7 @@ public abstract class StorageImpl implements Storage {
     private volatile Consumer<Storage> onClose = null;
 
     protected StorageImpl(DatabaseConfiguration dbConfig, String migrationsPath) {
-        this(dbConfig, migrationsPath, "flyway_schema_history", "default");
+        this(dbConfig, migrationsPath, "flyway_schema_history", "public");
     }
 
     protected StorageImpl(DatabaseConfiguration dbConfig, String migrationsPath, String historyTable, String schema) {

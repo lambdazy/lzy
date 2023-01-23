@@ -78,7 +78,7 @@ public class AllocatorImpl implements WorkersAllocator {
                 .setDescription("Worker allocation")
                 .setCachePolicy(
                     VmAllocatorApi.CachePolicy.newBuilder()
-                        .setIdleTimeout(Durations.fromMinutes(10))
+                        .setIdleTimeout(Durations.fromMinutes(2))
                         .build())
                 .build());
 

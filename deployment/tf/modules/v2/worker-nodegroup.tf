@@ -74,9 +74,9 @@ resource "yandex_kubernetes_node_group" "workers-s" {
 
   scale_policy {
     auto_scale {
-      initial = 2
+      initial = 5
       max     = 10
-      min     = 2
+      min     = 5
     }
   }
 }

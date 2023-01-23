@@ -13,7 +13,7 @@ option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowService {
   rpc StartWorkflow (StartWorkflowRequest) returns (StartWorkflowResponse);
-  rpc FinishWorkflow (FinishWorkflowRequest) returns (ai.lzy.v1.Operation) {
+  rpc FinishWorkflow (FinishWorkflowRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       // metadata: null
       response: "FinishWorkflowResponse";
