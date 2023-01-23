@@ -37,9 +37,9 @@ jobs:
 
       - name: 'Build and push dockers'
         run: |
-          FLAGS=""
+          FLAGS="--install"
           if [[ ${{ github.event.inputs.worker-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
-          bash deployment/build-images.sh "${{ github.ref_name }}" "${{ github.event.inputs.tag }}" $FLAGS
+          bash deployment/build-worker-images.sh "${{ github.ref_name }}" lzydock "${{ github.event.inputs.tag }}" "" $FLAGS
 
       - name: 'Clean docker files'
         run: |
