@@ -1,4 +1,4 @@
-package ai.lzy.jobsutils.providers;
+package ai.lzy.scheduler.providers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

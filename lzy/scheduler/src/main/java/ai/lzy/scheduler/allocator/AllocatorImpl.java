@@ -5,7 +5,6 @@ import ai.lzy.model.operation.Operation;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.configs.WorkerEventProcessorConfig;
 import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.AllocatorGrpc;
@@ -39,16 +38,14 @@ public class AllocatorImpl implements WorkersAllocator {
     public static final AtomicBoolean randomWorkerPorts = new AtomicBoolean(false);
 
     private final ServiceConfig config;
-    private final WorkerEventProcessorConfig processorConfig;
     private final AllocatorGrpc.AllocatorBlockingStub allocator;
     private final AtomicInteger testWorkerCounter = new AtomicInteger(0);
     private final ManagedChannel iamChannel;
     private final ManagedChannel allocatorChannel;
     private final ManagedChannel opChannel;
 
-    public AllocatorImpl(ServiceConfig config, WorkerEventProcessorConfig processorConfig) {
+    public AllocatorImpl(ServiceConfig config) {
         this.config = config;
-        this.processorConfig = processorConfig;
         IamClientConfiguration authConfig = config.getIam();
         this.iamChannel = newGrpcChannel(authConfig.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
 

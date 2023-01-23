@@ -1,9 +1,9 @@
-package ai.lzy.jobsutils.db;
+package ai.lzy.scheduler.db;
 
-import ai.lzy.jobsutils.JobService;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.scheduler.JobService;
 import jakarta.inject.Singleton;
 
 import java.sql.PreparedStatement;
@@ -19,7 +19,7 @@ public class JobDaoImpl implements JobDao {
 
     private final Storage storage;
 
-    public JobDaoImpl(JobsDataSource storage) {
+    public JobDaoImpl(SchedulerDataSource storage) {
         this.storage = storage;
     }
 

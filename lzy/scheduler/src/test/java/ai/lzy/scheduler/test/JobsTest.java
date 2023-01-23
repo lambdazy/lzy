@@ -1,7 +1,7 @@
-package ai.lzy.jobutils;
+package ai.lzy.scheduler.test;
 
-import ai.lzy.jobsutils.JobService;
-import ai.lzy.jobsutils.db.JobsOperationDao;
+import ai.lzy.scheduler.JobService;
+import ai.lzy.scheduler.db.JobsOperationDao;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationsService;
 import ai.lzy.model.db.test.DatabaseTestUtils;

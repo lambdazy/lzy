@@ -1,7 +1,7 @@
 package ai.lzy.scheduler;
 
-import ai.lzy.jobsutils.db.JobsOperationDao;
-import ai.lzy.jobsutils.providers.JobSerializer;
+import ai.lzy.scheduler.db.JobsOperationDao;
+import ai.lzy.scheduler.providers.JobSerializer;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.ReturnCodes;

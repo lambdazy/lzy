@@ -1,6 +1,6 @@
-package ai.lzy.jobsutils.db;
+package ai.lzy.scheduler.db;
 
-import ai.lzy.jobsutils.JobService;
+import ai.lzy.scheduler.JobService;
 import ai.lzy.model.db.TransactionHandle;
 
 import java.sql.SQLException;

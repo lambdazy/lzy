@@ -1,9 +1,9 @@
-package ai.lzy.jobsutils;
+package ai.lzy.scheduler;
 
-import ai.lzy.jobsutils.db.JobDao;
-import ai.lzy.jobsutils.providers.JobProvider;
-import ai.lzy.jobsutils.providers.JobSerializer;
 import ai.lzy.model.db.DbHelper;
+import ai.lzy.scheduler.db.JobDao;
+import ai.lzy.scheduler.providers.JobProvider;
+import ai.lzy.scheduler.providers.JobSerializer;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;

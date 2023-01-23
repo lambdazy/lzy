@@ -16,12 +16,8 @@ public abstract class StorageImpl implements Storage {
     private volatile Consumer<Storage> onClose = null;
 
     protected StorageImpl(DatabaseConfiguration dbConfig, String migrationsPath) {
-        this(dbConfig, migrationsPath, "flyway_schema_history", "public");
-    }
-
-    protected StorageImpl(DatabaseConfiguration dbConfig, String migrationsPath, String historyTable, String schema) {
         dataSource = new ComboPooledDataSource();
-        dataSource.setJdbcUrl(dbConfig.getUrl() + "?currentSchema=" + schema);
+        dataSource.setJdbcUrl(dbConfig.getUrl());
         dataSource.setUser(dbConfig.getUsername());
         dataSource.setPassword(dbConfig.getPassword());
 
@@ -32,8 +28,6 @@ public abstract class StorageImpl implements Storage {
         dataSource.setPreferredTestQuery(VALIDATION_QUERY_SQL);
 
         var flyway = Flyway.configure()
-            .defaultSchema(schema)
-            .table(historyTable)
             .dataSource(dbConfig.getUrl(), dbConfig.getUsername(), dbConfig.getPassword())
             .locations(migrationsPath)
             .load();

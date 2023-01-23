@@ -3,7 +3,6 @@ package ai.lzy.scheduler;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.jobsutils.JobService;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;

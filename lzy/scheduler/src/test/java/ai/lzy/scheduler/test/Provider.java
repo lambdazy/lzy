@@ -1,8 +1,8 @@
-package ai.lzy.jobutils;
+package ai.lzy.scheduler.test;
 
-import ai.lzy.jobsutils.JobService;
-import ai.lzy.jobsutils.providers.JobProviderBase;
-import ai.lzy.jobsutils.providers.JsonJobSerializer;
+import ai.lzy.scheduler.JobService;
+import ai.lzy.scheduler.providers.JobProviderBase;
+import ai.lzy.scheduler.providers.JsonJobSerializer;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;

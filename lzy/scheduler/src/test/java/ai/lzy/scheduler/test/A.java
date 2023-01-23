@@ -1,8 +1,8 @@
-package ai.lzy.jobutils;
+package ai.lzy.scheduler.test;
 
-import ai.lzy.jobsutils.JobService;
-import ai.lzy.jobsutils.db.JobsOperationDao;
-import ai.lzy.jobsutils.providers.WorkflowJobProvider;
+import ai.lzy.scheduler.JobService;
+import ai.lzy.scheduler.db.JobsOperationDao;
+import ai.lzy.scheduler.providers.WorkflowJobProvider;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -10,15 +10,16 @@ import jakarta.inject.Singleton;
 import java.util.function.Function;
 
 @Singleton
-public class B extends WorkflowJobProvider<Provider.Data> {
+public class A extends WorkflowJobProvider<Provider.Data> {
+
     public static Function<Provider.Data, Provider.Data> onExecute = (a) -> a;
     public static Function<Provider.Data, Provider.Data> onClear = (a) -> a;
 
     @Inject
-    public B(JobService jobService, Provider.DataSerializer serializer,
+    public A(JobService jobService, Provider.DataSerializer serializer,
              JobsOperationDao dao, ApplicationContext context)
     {
-        super(jobService, serializer, dao, A.class, null, context);
+        super(jobService, serializer, dao, null, B.class, context);
     }
 
     @Override

@@ -1,8 +1,8 @@
 package ai.lzy.scheduler.jobs;
 
-import ai.lzy.jobsutils.JobService;
-import ai.lzy.jobsutils.db.JobsOperationDao;
-import ai.lzy.jobsutils.providers.WorkflowJobProvider;
+import ai.lzy.scheduler.JobService;
+import ai.lzy.scheduler.db.JobsOperationDao;
+import ai.lzy.scheduler.providers.WorkflowJobProvider;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.scheduler.allocator.WorkersAllocator;

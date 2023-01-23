@@ -1,4 +1,4 @@
-package ai.lzy.jobsutils.providers;
+package ai.lzy.scheduler.providers;
 
 import javax.annotation.Nullable;
 

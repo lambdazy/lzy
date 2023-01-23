@@ -1,8 +1,8 @@
-package ai.lzy.jobsutils.providers;
+package ai.lzy.scheduler.providers;
 
-import ai.lzy.jobsutils.JobService;
-import ai.lzy.jobsutils.db.JobsOperationDao;
-import ai.lzy.jobsutils.providers.JobSerializer.SerializationException;
+import ai.lzy.scheduler.JobService;
+import ai.lzy.scheduler.db.JobsOperationDao;
+import ai.lzy.scheduler.providers.JobSerializer.SerializationException;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
 import com.google.rpc.Status;

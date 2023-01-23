@@ -1,4 +1,4 @@
-package ai.lzy.jobsutils.providers;
+package ai.lzy.scheduler.providers;
 
 public interface JobSerializer {
     String serialize(Object arg) throws SerializationException;

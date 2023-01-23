@@ -1,7 +1,7 @@
-package ai.lzy.jobsutils.providers;
+package ai.lzy.scheduler.providers;
 
-import ai.lzy.jobsutils.JobService;
-import ai.lzy.jobsutils.providers.JobSerializer.SerializationException;
+import ai.lzy.scheduler.JobService;
+import ai.lzy.scheduler.providers.JobSerializer.SerializationException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

@@ -1,4 +1,4 @@
-package ai.lzy.jobsutils.providers;
+package ai.lzy.scheduler.providers;
 
 public abstract class JobSerializerBase<T> implements JobSerializer {
     protected final Class<T> dataClass;
