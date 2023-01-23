@@ -318,6 +318,15 @@ class LzyWorkflowTests(TestCase):
             res = is_arg_type_str("str")
         self.assertTrue(res)
 
+    def test_return_argument(self):
+        @op
+        def return_argument(arg: str) -> str:
+            return arg
+
+        with self.lzy.workflow("test"):
+            res = return_argument("str")
+        self.assertEqual("str", res)
+
     @skip("WIP")
     def test_barrier(self):
         with self.lzy.workflow(self.workflow_name, False) as workflow:

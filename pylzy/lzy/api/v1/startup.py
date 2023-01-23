@@ -2,13 +2,12 @@ import dataclasses
 import os
 import sys
 import time
+from logging import Logger
 from typing import Any, Callable, Mapping, Sequence, Tuple, Type, Optional, cast, Dict
 
 from serialzy.api import SerializerRegistry
 
 from lzy.api.v1.utils.pickle import unpickle
-from logging import Logger
-
 from lzy.api.v1.utils.types import infer_real_types
 from lzy.logs.config import configure_logging, get_remote_logger
 from lzy.proxy import proxy
@@ -16,6 +15,7 @@ from lzy.serialization.registry import LzySerializerRegistry, SerializerImport
 
 NAME = __name__
 _lzy_mount: Optional[str] = None  # for tests only
+__lzy_lazy_argument = "__lzy_lazy_argument__"
 
 
 def read_data(path: str, typ: Type, serializers: SerializerRegistry, logger: Logger) -> Any:
@@ -47,6 +47,9 @@ def write_data(path: str, typ: Type, data: Any, serializers: SerializerRegistry,
         raise ValueError(
             f'Serializer for type {typ} is not available, please install {ser.requirements()}')
 
+    if hasattr(data, __lzy_lazy_argument):  # if input argument is a return value
+        data = data.__lzy_origin__  # type: ignore
+
     name = path.split('/')[-1]
     logger.info(f"Writing {name} with serializer {type(ser)}")
     with open(mount + path, "wb") as out_handle:
@@ -71,11 +74,12 @@ def process_execution(
     try:
         args = [
             proxy(lambda path=path, typ=typ: read_data(path, typ, serializers, logger),  # type: ignore
-                  infer_real_types(typ)) if lazy_arguments else read_data(
+                  infer_real_types(typ), cls_attrs={__lzy_lazy_argument: True}) if lazy_arguments else read_data(
                 path, typ, serializers, logger) for typ, path in args_paths]
         kwargs = {
             name: proxy(lambda path=path, typ=typ: read_data(path, typ, serializers, logger),  # type: ignore
-                        infer_real_types(typ)) if lazy_arguments else read_data(path, typ, serializers, logger)
+                        infer_real_types(typ), cls_attrs={__lzy_lazy_argument: True}) if lazy_arguments else read_data(
+                path, typ, serializers, logger)
             for name, (typ, path) in kwargs_paths.items()
         }
     except Exception as e:
