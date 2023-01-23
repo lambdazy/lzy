@@ -11,7 +11,7 @@ import "ai/lzy/v1/common/operation.proto";
 // TODO: merge with common.TaskDesc (if it's necessary)
 message TaskDesc {
   string id = 1;
-  Operation operation = 2;
+  ai.lzy.v1.common.Operation operation = 2;
   repeated SlotToChannelAssignment slotAssignments = 3;
 }
 

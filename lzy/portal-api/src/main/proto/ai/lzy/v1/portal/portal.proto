@@ -9,12 +9,12 @@ option java_outer_classname = "LzyPortal";
 option java_package = "ai.lzy.v1.portal";
 
 message PortalSlotDesc {
-  Slot slot = 1;
+  ai.lzy.v1.common.Slot slot = 1;
   string channelId = 2;
 
   message Snapshot {
     // external s3 storage
-    StorageConfig storageConfig = 1;
+    ai.lzy.v1.common.StorageConfig storageConfig = 1;
   }
 
   message StdOut {

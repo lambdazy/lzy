@@ -16,7 +16,7 @@ service LzyPortal {
   rpc Stop (google.protobuf.Empty) returns (google.protobuf.Empty);
   rpc Status (PortalStatusRequest) returns (PortalStatusResponse);
   rpc OpenSlots (OpenSlotsRequest) returns (OpenSlotsResponse);
-  rpc Finish (FinishRequest) returns (Operation) {
+  rpc Finish (FinishRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       // meta: null
       response: "FinishResponse"
@@ -25,9 +25,9 @@ service LzyPortal {
 }
 
 message PortalSlotStatus {
-  Slot slot = 1;
+  ai.lzy.v1.common.Slot slot = 1;
   string connectedTo = 2;
-  SlotStatus.State state = 3;
+  ai.lzy.v1.common.SlotStatus.State state = 3;
   SnapshotSlotStatus snapshotStatus = 4;
 
   enum SnapshotSlotStatus {
