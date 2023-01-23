@@ -311,7 +311,6 @@ public class GraphExecutionService {
                     }
 
                     switch (status.getProgress().getStatusCase()) {
-                        case QUEUE -> waitingTaskIds.add(taskId);
                         case EXECUTING -> executingTaskIds.add(taskId);
                         case SUCCESS, ERROR -> completedTaskIds.add(taskId);
                     }

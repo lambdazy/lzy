@@ -10,6 +10,7 @@ import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.Constants;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMST;
@@ -40,16 +41,22 @@ final class StartExecutionCompanion {
     private final LWFS.StartWorkflowRequest request;
     private final CreateExecutionState state;
     private final WorkflowService owner;
+    private final LzyServiceConfig.StartupPortalConfig cfg;
 
-    StartExecutionCompanion(LWFS.StartWorkflowRequest request, CreateExecutionState initial, WorkflowService owner) {
+    StartExecutionCompanion(LWFS.StartWorkflowRequest request, CreateExecutionState initial,
+                            WorkflowService owner, LzyServiceConfig.StartupPortalConfig cfg)
+    {
         this.request = request;
         this.state = initial;
         this.owner = owner;
+        this.cfg = cfg;
     }
 
-    static StartExecutionCompanion of(LWFS.StartWorkflowRequest request, WorkflowService owner) {
+    static StartExecutionCompanion of(LWFS.StartWorkflowRequest request, WorkflowService owner,
+                                      LzyServiceConfig.StartupPortalConfig cfg)
+    {
         var initState = new CreateExecutionState(currentSubject().id(), request.getWorkflowName());
-        return new StartExecutionCompanion(request, initState, owner);
+        return new StartExecutionCompanion(request, initState, owner, cfg);
     }
 
     public boolean isInvalid() {
@@ -339,8 +346,8 @@ final class StartExecutionCompanion {
         return withIdempotencyKey(owner.allocatorClient, "portal-" + state.getExecutionId()).allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()
                 .setSessionId(state.getSessionId())
-                .setPoolLabel("portals")
-                .setZone("default")
+                .setPoolLabel(cfg.getPoolLabel())
+                .setZone(cfg.getPoolZone())
                 .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.SYSTEM)
                 .addWorkload(
                     VmAllocatorApi.AllocateRequest.Workload.newBuilder()

@@ -128,7 +128,7 @@ public class WorkflowService {
     }
 
     public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> response) {
-        var newExecution = StartExecutionCompanion.of(request, this);
+        var newExecution = StartExecutionCompanion.of(request, this, startupPortalConfig);
 
         LOG.info("Start new execution: " + newExecution.getState());
 
