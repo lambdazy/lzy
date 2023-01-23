@@ -6,7 +6,7 @@ from unittest import TestCase, skip
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
-from api.v1.mocks import EnvProviderMock
+from tests.api.v1.mocks import EnvProviderMock
 from lzy.api.v1 import Lzy, op, LocalRuntime, materialize
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.utils.proxy_adapter import materialized, is_lzy_proxy
