@@ -58,7 +58,8 @@ def op(
     gpu_count: Optional[int] = None,
     ram_size_gb: Optional[int] = None,
     env: Env = Env(),
-    description: str = ""
+    description: str = "",
+    lazy_arguments: bool = True
 ):
     def deco(f):
         """
@@ -91,7 +92,7 @@ def op(
 
         # yep, create lazy constructor and return it
         # instead of function
-        return wrap_call(f, output_types, provisioning, env, description)
+        return wrap_call(f, output_types, provisioning, env, description, lazy_arguments)
 
     if func is None:
         return deco

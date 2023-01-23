@@ -114,6 +114,7 @@ class LocalRuntime(Runtime):
                 args_paths=arg_descriptions,
                 kwargs_paths=kwarg_descriptions,
                 output_paths=ret_descriptions,
+                lazy_arguments=call.lazy_arguments
             )
 
             directory = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))

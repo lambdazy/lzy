@@ -31,7 +31,7 @@ def inject_catboost() -> None:
                 self._init_params["task_type"] = "CPU"
                 self._init_params["devices"] = None
 
-            @op
+            @op(lazy_arguments=False)
             def train(holder: UnfitCatboostModel, x, *fit_args, **fit_kwargs) -> CatBoostClassifier:
                 # noinspection PyUnresolvedReferences
                 holder.model.fit(x, *fit_args, **fit_kwargs)
