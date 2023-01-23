@@ -7,10 +7,13 @@ import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.OperationRunnerBase;
+import ai.lzy.model.db.TransactionHandle;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import yandex.cloud.api.compute.v1.DiskServiceGrpc;
 import yandex.cloud.api.compute.v1.SnapshotServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceGrpc;
+
+import java.sql.SQLException;
 
 abstract class YcDiskActionBase<S> extends OperationRunnerBase {
 
@@ -28,6 +31,11 @@ abstract class YcDiskActionBase<S> extends OperationRunnerBase {
     @Override
     protected final boolean isInjectedError(Error e) {
         return e instanceof InjectedFailures.TerminateException;
+    }
+
+    @Override
+    protected void onExpired(TransactionHandle tx) throws SQLException {
+        diskOpDao().deleteDiskOp(opId(), tx);
     }
 
     protected final String opId() {
