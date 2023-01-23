@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Optional, Type, Dict, Any, Iterable, Set, TYPE_CHECKING, Sequence
 
+from beartype.door import is_subhint
 # noinspection PyPackageRequirements
 from google.protobuf.timestamp_pb2 import Timestamp
 from serialzy.api import Schema
@@ -12,6 +13,7 @@ from serialzy.types import get_type
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, Storage
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy
+from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
 from lzy.proxy.result import Just
 from lzy.utils.event_loop import LzyEventLoop
 
@@ -28,10 +30,13 @@ class DeclaredWhiteboardMeta:
 
 def whiteboard_(cls: Type, name: str):
     if not name:
-        raise ValueError("name attribute must be specified")
+        raise ValueError("Name attribute must be specified")
 
     if not isinstance(name, str):
-        raise TypeError("name attribute is required to be a string")
+        raise TypeError("Name attribute is required to be a string")
+
+    if not is_name_valid(name):
+        raise ValueError(f"Invalid workflow name. Name can contain only {NAME_VALID_SYMBOLS}")
 
     setattr(cls, WB_NAME_FIELD_NAME, name)
     return cls
@@ -64,6 +69,7 @@ class WritableWhiteboard:
     __internal_fields = {
         "_WritableWhiteboard__fields_dict", "_WritableWhiteboard__fields_assigned",
         "_WritableWhiteboard__model", "_WritableWhiteboard__workflow", "_WritableWhiteboard__fields",
+        "_WritableWhiteboard__validate_types"
     }
 
     def __init__(
@@ -72,7 +78,6 @@ class WritableWhiteboard:
         tags: Sequence[str],
         workflow: "LzyWorkflow"
     ):
-        self.__workflow = workflow
         declaration_meta = fetch_whiteboard_meta(typ)
         if declaration_meta is None:
             raise TypeError(
@@ -133,6 +138,7 @@ class WritableWhiteboard:
 
         self.__model = whiteboard
         self.__fields_assigned: Set[str] = set()
+        self.__workflow = workflow
 
     def __setattr__(self, key: str, value: Any):
         if key in WritableWhiteboard.__internal_fields:  # To complete constructor
@@ -146,14 +152,18 @@ class WritableWhiteboard:
             raise AttributeError("Whiteboard field can be assigned only once")
 
         storage_uri = f"{self.__model.storage.uri}/{key}"
+        key_type = self.__fields_dict[key].type
         if self.__workflow.entry_index.has_entry_id(value):
             entry = self.__workflow.snapshot.get(self.__workflow.entry_index.get_entry_id(value))
+            self.__validate_types(entry.typ, key_type, key)
             if entry.id in self.__workflow.filled_entry_ids:
                 LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(entry.storage_uri, storage_uri))
             else:
                 self.__workflow.snapshot.update_entry(entry.id, storage_uri)
         else:
-            entry = self.__workflow.snapshot.create_entry(self.__model.name + "." + key, get_type(value), storage_uri)
+            typ = get_type(value)
+            self.__validate_types(typ, key_type, key)
+            entry = self.__workflow.snapshot.create_entry(self.__model.name + "." + key, typ, storage_uri)
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
             self.__workflow.entry_index.add_entry_id(value, entry.id)
             self.__workflow.filled_entry_ids.add(entry.id)
@@ -167,6 +177,13 @@ class WritableWhiteboard:
         elif item not in self.__fields:
             raise AttributeError(f"Whiteboard field {item} is not assigned")
         return self.__fields[item]
+
+    @staticmethod
+    def __validate_types(value_type: Type, field_type: Type, field_name: str) -> None:
+        if not is_subhint(value_type, field_type):
+            raise TypeError(
+                f"Incompatible types: whiteboard field {field_name} has type {field_type}, "
+                f"but assigning value has type {value_type}")
 
     @property
     def id(self) -> str:

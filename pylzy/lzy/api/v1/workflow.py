@@ -15,6 +15,7 @@ from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy
+from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
 from lzy.api.v1.whiteboards import WritableWhiteboard
 from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnv
@@ -48,6 +49,9 @@ class LzyWorkflow:
         eager: bool = False,
         interactive: bool = True
     ):
+        if not is_name_valid(name):
+            raise ValueError(f"Invalid workflow name. Name can contain only {NAME_VALID_SYMBOLS}")
+
         self.__name = name
         self.__eager = eager
         self.__owner = owner
@@ -112,6 +116,10 @@ class LzyWorkflow:
     @property
     def call_queue(self) -> List["LzyCall"]:
         return self.__call_queue
+
+    @property
+    def eager(self) -> bool:
+        return self.__eager
 
     def register_call(self, call: "LzyCall") -> Any:
         self.__call_queue.append(call)

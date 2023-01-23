@@ -27,6 +27,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -41,6 +42,7 @@ public abstract class ChannelAction implements Runnable {
     private final LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub workflowPrivateApi;
 
     protected final String operationId;
+    protected final Instant deadline;
     protected final ChannelManagerDataSource storage;
     protected final ChannelDao channelDao;
     protected final OperationDao operationDao;
@@ -51,13 +53,15 @@ public abstract class ChannelAction implements Runnable {
 
     protected boolean operationStopped = false;
 
-    protected ChannelAction(String operationId, ObjectMapper objectMapper, ChannelOperationExecutor executor,
-                            ChannelManagerDataSource storage, ChannelDao channelDao, OperationDao operationDao,
+    protected ChannelAction(String operationId, Instant deadline, ObjectMapper objectMapper,
+                            ChannelOperationExecutor executor, ChannelManagerDataSource storage,
+                            ChannelDao channelDao, OperationDao operationDao,
                             ChannelOperationDao channelOperationDao, ChannelController channelController,
                             SlotConnectionManager slotConnectionManager, GrainedLock lockManager,
                             LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub workflowPrivateApi)
     {
         this.operationId = operationId;
+        this.deadline = deadline;
         this.objectMapper = objectMapper;
         this.workflowPrivateApi = workflowPrivateApi;
         this.executor = executor;

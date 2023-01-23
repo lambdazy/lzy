@@ -4,12 +4,11 @@ from unittest import TestCase
 
 from pure_protobuf.dataclasses_ import message, field
 from pure_protobuf.types import int32
-from pydantic import ValidationError
 
 from lzy.api.v1 import Lzy, op
 from lzy.api.v1.signatures import FuncSignature
 from lzy.api.v1.utils.proxy_adapter import materialized
-from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock
+from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
 
 
 @op
@@ -59,12 +58,26 @@ def call_custom_class(arg: A) -> A:
 
 class LzyCallsTests(TestCase):
     def setUp(self):
-        self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock())
+        self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock(), py_env_provider=EnvProviderMock())
 
     def test_no_args(self):
-        with self.assertRaisesRegex(ValidationError, "field required"):
+        with self.assertRaisesRegex(KeyError, "is required but not provided"):
             with self.lzy.workflow("test"):
                 one_arg()
+
+    def test_no_args_default(self):
+        # noinspection PyUnusedLocal
+        @op
+        def one_arg_default(arg: int = 1) -> str:
+            pass
+
+        with self.lzy.workflow("test") as wf:
+            one_arg_default()
+
+        # noinspection PyUnresolvedReferences
+        func1: FuncSignature = wf.owner.runtime.calls[0].signature.func
+        self.assertEqual(str, func1.output_types[0])
+        self.assertEqual(0, len(func1.input_types))
 
     def test_proxy(self):
         with self.lzy.workflow("test") as wf:
@@ -99,14 +112,19 @@ class LzyCallsTests(TestCase):
         self.assertEqual(int, func.input_types['arg'])
 
     def test_too_much_args(self):
-        with self.assertRaisesRegex(ValidationError, "positional arguments expected but"):
+        with self.assertRaisesRegex(KeyError, "Unexpected argument"):
             with self.lzy.workflow("test"):
                 one_arg(1, "s", 2)
 
     def test_only_varargs(self):
-        with self.assertRaisesRegex(ValidationError, "unexpected keyword arguments"):
+        with self.assertRaisesRegex(KeyError, "Unexpected key argument"):
             with self.lzy.workflow("test"):
                 varargs_only(k=1, s="s", p=2)
+
+    def test_invalid_kwarg(self):
+        with self.assertRaisesRegex(KeyError, "Unexpected key argument"):
+            with self.lzy.workflow("test"):
+                one_arg(invalid_arg=1)
 
     def test_list_inference(self):
         with self.lzy.workflow("test") as wf:
@@ -126,7 +144,17 @@ class LzyCallsTests(TestCase):
         func: FuncSignature = wf.owner.runtime.calls[0].signature.func
         self.assertEqual(str, func.output_types[0])
         self.assertEqual(1, len(func.input_types))
-        self.assertEqual(Tuple[int], func.input_types['arg'])
+        self.assertEqual(Tuple[int, int, int], func.input_types['arg'])
+
+    def test_large_tuple_inference(self):
+        with self.lzy.workflow("test") as wf:
+            call_no_arg_hint(tuple(i for i in range(1000)))
+
+        # noinspection PyUnresolvedReferences
+        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+        self.assertEqual(str, func.output_types[0])
+        self.assertEqual(1, len(func.input_types))
+        self.assertEqual(Tuple[int, ...], func.input_types['arg'])
 
     def test_arg_hint(self):
         # noinspection PyUnusedLocal
@@ -136,13 +164,24 @@ class LzyCallsTests(TestCase):
 
         with self.lzy.workflow("test") as wf:
             # noinspection PyTypeChecker
-            call_arg_hint([1, 2, 3])
+            call_arg_hint(["1", "2", "3"])
 
         # noinspection PyUnresolvedReferences
         func: FuncSignature = wf.owner.runtime.calls[0].signature.func
         self.assertEqual(str, func.output_types[0])
         self.assertEqual(1, len(func.input_types))
         self.assertEqual(List[str], func.input_types['arg'])
+
+    def test_arg_hint_invalid_list_arg(self):
+        # noinspection PyUnusedLocal
+        @op
+        def call_arg_hint(arg: List[str]) -> str:
+            pass
+
+        with self.assertRaisesRegex(TypeError, "Invalid types"):
+            with self.lzy.workflow("test"):
+                # noinspection PyTypeChecker
+                call_arg_hint([1, 2, 3])
 
     def test_optional_inference(self):
         # noinspection PyUnusedLocal
@@ -205,10 +244,17 @@ class LzyCallsTests(TestCase):
         class B:
             pass
 
-        with self.assertRaisesRegex(ValidationError, "instance of A expected"):
+        with self.assertRaisesRegex(TypeError, "Invalid types"):
             with self.lzy.workflow("test"):
                 # noinspection PyTypeChecker
                 call_custom_class(B())
+
+    def test_call_argument_invalid(self):
+        with self.assertRaisesRegex(TypeError, "Invalid types"):
+            with self.lzy.workflow("test"):
+                i = returns_int()
+                # noinspection PyTypeChecker
+                call_custom_class(i)
 
     def test_type_from_arg(self):
         @op
@@ -325,4 +371,9 @@ class LzyCallsTests(TestCase):
         with self.assertRaisesRegex(TypeError, "return type is not annotated*"):
             @op
             def no_hint():
+                pass
+
+    def test_invalid_workflow_name(self):
+        with self.assertRaisesRegex(ValueError, "Invalid workflow name. Name can contain only"):
+            with self.lzy.workflow("test test"):
                 pass

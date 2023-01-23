@@ -126,11 +126,13 @@ class LocalRuntime(Runtime):
 
             env_vars = os.environ.copy()
             env_vars["LZY_MOUNT"] = folder
-            main_dir_path = cast(str, os.path.dirname(cast(str, sys.modules['__main__'].__file__)))
-            if "PYTHONPATH" in env_vars:
-                env_vars["PYTHONPATH"] = f"{env_vars['PYTHONPATH']}:{main_dir_path}"
-            else:
-                env_vars["PYTHONPATH"] = main_dir_path
+            main_module = sys.modules['__main__']
+            if hasattr(main_module, '__file__'):
+                main_dir_path = cast(str, os.path.dirname(cast(str, getattr(main_module, '__file__'))))
+                if "PYTHONPATH" in env_vars:
+                    env_vars["PYTHONPATH"] = f"{env_vars['PYTHONPATH']}:{main_dir_path}"
+                else:
+                    env_vars["PYTHONPATH"] = main_dir_path
             result = subprocess.Popen(command, env=env_vars, stdout=subprocess.PIPE)
             out = cast(IO[bytes], result.stdout)
             for line in iter(out.readline, b''):
