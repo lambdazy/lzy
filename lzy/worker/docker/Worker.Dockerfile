@@ -18,4 +18,6 @@ RUN chmod a+rx /entrypoint.sh
 COPY docker/test_entrypoint.sh /
 RUN chmod a+rx /test_entrypoint.sh
 
+ENV LZY_CONDA_ENVS_LIST="py37,py38,py39"
+
 ENTRYPOINT ["/entrypoint.sh"]

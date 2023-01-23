@@ -10,12 +10,14 @@ import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import com.google.common.net.HostAndPort;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.time.Duration;
@@ -29,6 +31,7 @@ import javax.annotation.Nullable;
 import static ai.lzy.channelmanager.ProtoConverter.makeBindSlotCommand;
 import static ai.lzy.channelmanager.ProtoConverter.makeUnbindSlotCommand;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.SUSPENDED;
 
@@ -46,11 +49,19 @@ public class SlotsManager implements AutoCloseable {
 
     public SlotsManager(LzyChannelManagerGrpc.LzyChannelManagerBlockingStub channelManager,
                         LongRunningServiceGrpc.LongRunningServiceBlockingStub operationService,
-                        URI localLzyFsUri, boolean isPortal)
+                        HostAndPort localLzyFsAddress, boolean isPortal)
     {
         this.channelManager = channelManager;
         this.operationService = operationService;
-        this.localLzyFsUri = localLzyFsUri;
+        try {
+            this.localLzyFsUri = new URI(
+                LzyFs.scheme(), null, localLzyFsAddress.getHost(),
+                localLzyFsAddress.getPort(), null, null, null);
+
+        } catch (URISyntaxException e) {
+            LOG.error("Cannot build fs uri", e);
+            throw new RuntimeException(e);
+        }
         this.isPortal = isPortal;
     }
 

@@ -6,10 +6,13 @@ import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
 import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyScript;
+import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -20,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.FuseException;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,21 +38,24 @@ public class LzyFsServer {
     public static final AtomicInteger mounted = new AtomicInteger(); //for tests
 
     private final Path mountPoint;
-    private final URI selfUri;
+    private final HostAndPort selfUri;
     private final ManagedChannel channelManagerChannel;
     private final SlotsManager slotsManager;
     private final LzyFSManager fsManager;
     private final SlotsService slotsService;
     private final Server localServer;
     private final AtomicBoolean finished = new AtomicBoolean(false);
+    private final ManagedChannel iamChannel;
 
-    public LzyFsServer(String agentId, Path mountPoint, URI selfUri, HostAndPort channelManagerAddress,
-                       RenewableJwt token, LocalOperationService operationService, boolean isPortal)
+    public LzyFsServer(String agentId, Path mountPoint, HostAndPort selfAddress, HostAndPort channelManagerAddress,
+                       HostAndPort iamAddress, RenewableJwt token, LocalOperationService operationService,
+                       boolean isPortal)
     {
         this.mountPoint = mountPoint;
-        this.selfUri = selfUri;
+        this.selfUri = selfAddress;
 
         this.channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerGrpc.SERVICE_NAME);
+        this.iamChannel = GrpcUtils.newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
         final var channelManagerClient = newBlockingClient(
             LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel),
@@ -60,7 +65,8 @@ public class LzyFsServer {
             LongRunningServiceGrpc.newBlockingStub(channelManagerChannel),
             "LzyFs.ChannelManagerOperationClient", () -> token.get().token());
 
-        this.slotsManager = new SlotsManager(channelManagerClient, channelManagerOperationClient, selfUri, isPortal);
+        this.slotsManager = new SlotsManager(channelManagerClient, channelManagerOperationClient,
+            selfAddress, isPortal);
 
         if (SystemUtils.IS_OS_MAC) {
             this.fsManager = new LzyMacosFsManagerImpl();
@@ -70,9 +76,10 @@ public class LzyFsServer {
             throw new RuntimeException(SystemUtils.OS_NAME + " is not supported");
         }
 
-        this.slotsService = new SlotsService(agentId, operationService, slotsManager, fsManager);
+        this.slotsService = new SlotsService(agentId, operationService, slotsManager, fsManager, token);
 
-        this.localServer = newGrpcServer(selfUri.getHost(), selfUri.getPort(), GrpcUtils.NO_AUTH)
+        this.localServer = newGrpcServer(selfAddress.getHost(), selfAddress.getPort(),
+            new AuthServerInterceptor(new AuthenticateServiceGrpcClient(agentId, iamChannel)))
             .addService(slotsService.getSlotsApi())
             .addService(slotsService.getLongrunningApi())
             .build();

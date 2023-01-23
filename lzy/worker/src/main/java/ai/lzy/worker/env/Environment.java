@@ -1,9 +1,18 @@
 package ai.lzy.worker.env;
 
+import ai.lzy.worker.StreamQueue;
+
 import java.io.InputStream;
 import java.io.OutputStream;
 
 public interface Environment extends AutoCloseable {
+
+    /**
+     * Install environment. Must be called before execution
+     * Consumes stream queues to add stdout and stderr to
+     */
+    void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException;
+
     LzyProcess runProcess(String... command);
 
     LzyProcess runProcess(String[] command, String[] envp);
@@ -13,6 +22,32 @@ public interface Environment extends AutoCloseable {
     }
 
     interface LzyProcess {
+
+        LzyProcess EMPTY = new LzyProcess() {
+            @Override
+            public OutputStream in() {
+                return OutputStream.nullOutputStream();
+            }
+
+            @Override
+            public InputStream out() {
+                return InputStream.nullInputStream();
+            }
+
+            @Override
+            public InputStream err() {
+                return InputStream.nullInputStream();
+            }
+
+            @Override
+            public int waitFor() {
+                return 0;
+            }
+
+            @Override
+            public void signal(int sigValue) {}
+        };
+
         OutputStream in();
 
         InputStream out();
