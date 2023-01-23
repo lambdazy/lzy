@@ -28,8 +28,10 @@ class LzyCall:
         sign: CallSignature,
         provisioning: Provisioning,
         env: Env,
-        description: str = ""
+        description: str = "",
+        lazy_arguments: bool = True
     ):
+        self.__lazy_arguments = lazy_arguments
         self.__id = str(uuid.uuid4())
         self.__wflow = workflow
         self.__sign = sign
@@ -112,13 +114,18 @@ class LzyCall:
     def description(self) -> str:
         return self.__description
 
+    @property
+    def lazy_arguments(self) -> bool:
+        return self.__lazy_arguments
+
 
 def wrap_call(
     f: Callable[..., Any],
     output_types: Sequence[type],
     provisioning: Provisioning,
     env: Env,
-    description: str = ""
+    description: str = "",
+    lazy_arguments: bool = True
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
@@ -141,7 +148,7 @@ def wrap_call(
 
         signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot,
                                                       active_workflow.entry_index, *args, **kwargs)
-        lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description)
+        lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description, lazy_arguments)
         active_workflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return
