@@ -43,10 +43,11 @@ public class Allocate extends WorkflowJobProvider<TaskState> {
                     var s = dao.getAllocatorSession(task.workflowName(), task.userId(), tx);
 
                     if (s == null) {
-                        s = allocator.createSession(task.userId(), task.workflowName());
+                        s = allocator.createSession(task.userId(), task.workflowName(), operationId);
                         dao.insertAllocatorSession(task.workflowName(), task.userId(), s, tx);
                     }
 
+                    tx.commit();
                     return s;
                 }
             });

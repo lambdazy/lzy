@@ -52,12 +52,27 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
 
     @Override
     protected void executeJob(WorkflowJobArg arg) {
+        final T prevState;
+
         try {
-            final T prevState = serializer.deserializeArg(arg.serializedState);
+            prevState = serializer.deserializeArg(arg.serializedState);
+        } catch (SerializationException e) {
+            try {
+                failOp(arg, Status.newBuilder()
+                    .setCode(Code.INTERNAL.value())
+                    .setMessage("Error while executing operation")
+                    .build()
+                );
+            } catch (Exception ex) {
+                logger.error("Cannot fail operation");
+            }
+            return;
+        }
 
-            final T state;
-            final boolean failed;
+        final T state;
+        final boolean failed;
 
+        try {
             if (!validateOp(arg)) {
                 failed = true;
                 state = clear(prevState, arg.operationId());
@@ -67,37 +82,6 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
                 state = exec(prevState, arg.operationId());
             }
 
-            final String serializedState = serializer.serializeArg(state);
-
-            final WorkflowJobArg nextJobArg = new WorkflowJobArg(
-                    arg.operationId,
-                    serializedState,
-                    failed ? null : arg.deadline
-            );
-
-            if (failed && prev != null) {
-
-                var provider = context.getBean(prev);
-                provider.schedule(nextJobArg, null);
-
-            } else if (!failed && next != null) {
-
-                var provider = context.getBean(next);
-                provider.schedule(nextJobArg, null);
-
-            }
-        } catch (SerializationException e) {
-            logger.error("Cannot serialize or deserialize job argument in op {}: ", arg.operationId, e);
-            try {
-                failOp(arg, Status.newBuilder()
-                    .setCode(Code.INTERNAL.value())
-                    .setMessage("Error while executing operation")
-                    .build()
-                );
-            } catch (Exception ex) {
-                logger.error("Cannot fail operation, rescheduling... ");
-                reschedule(arg, Duration.ofSeconds(1));
-            }
         } catch (JobProviderException e) {
             logger.error("Rescheduling job for op {}", arg.operationId);
             if (e.status() != null) {
@@ -107,8 +91,8 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
                     logger.error("Cannot fail operation, rescheduling... ");
                 }
             }
-
             reschedule(arg, e.after);
+            return;
         } catch (StatusRuntimeException e) {
             logger.error("Grpc exception while executing operation {}: ", arg.operationId, e);
             if (!RETRYABLE_CODES.contains(e.getStatus().getCode())) {
@@ -122,6 +106,7 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
                 }
             }
             reschedule(arg, Duration.ofSeconds(1));
+            return;
         } catch (Exception e) {
             logger.error("Unexpected error while executing op {}. ", arg.operationId, e);
             try {
@@ -133,6 +118,39 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
                 logger.error("Cannot fail operation, rescheduling... ");
             }
             reschedule(arg, Duration.ofSeconds(1));
+            return;
+        }
+
+        try {
+            final String serializedState = serializer.serializeArg(state);
+
+            final WorkflowJobArg nextJobArg = new WorkflowJobArg(
+                arg.operationId,
+                serializedState,
+                failed ? null : arg.deadline
+            );
+
+            if (failed && prev != null) {
+
+                var provider = context.getBean(prev);
+                provider.schedule(nextJobArg, null);
+
+            } else if (!failed && next != null) {
+
+                var provider = context.getBean(next);
+                provider.schedule(nextJobArg, null);
+            }
+
+        } catch (SerializationException e) {
+            try {
+                failOp(arg, Status.newBuilder()
+                    .setCode(Code.INTERNAL.value())
+                    .setMessage("Error while executing operation")
+                    .build()
+                );
+            } catch (Exception ex) {
+                logger.error("Cannot fail operation");
+            }
         }
 
     }

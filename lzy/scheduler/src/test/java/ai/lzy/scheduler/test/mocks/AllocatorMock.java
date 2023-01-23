@@ -81,7 +81,7 @@ public class AllocatorMock implements WorkersAllocator {
     }
 
     @Override
-    public String createSession(String userId, String workflowName) {
+    public String createSession(String userId, String workflowName, String idempotencyKey) {
         return "session-id";
     }
 

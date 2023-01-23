@@ -68,9 +68,9 @@ public class AllocatorImpl implements WorkersAllocator {
     }
 
     @Override
-    public String createSession(String userId, String workflowName) {
+    public String createSession(String userId, String workflowName, String idempotencyKey) {
 
-        var stub = GrpcUtils.withIdempotencyKey(allocator, workflowName);
+        var stub = GrpcUtils.withIdempotencyKey(allocator, idempotencyKey);
 
         final var createSessionOp = stub.createSession(
             CreateSessionRequest.newBuilder()
@@ -78,7 +78,7 @@ public class AllocatorImpl implements WorkersAllocator {
                 .setDescription("Worker allocation")
                 .setCachePolicy(
                     VmAllocatorApi.CachePolicy.newBuilder()
-                        .setIdleTimeout(Durations.fromMinutes(2))
+                        .setIdleTimeout(Durations.fromMinutes(10))
                         .build())
                 .build());
 

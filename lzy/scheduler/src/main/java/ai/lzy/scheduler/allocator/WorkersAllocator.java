@@ -8,7 +8,7 @@ public interface WorkersAllocator {
     AllocateResult allocate(String userId, String workflowName,
                                    String sessionId, Operation.Requirements requirements);
 
-    String createSession(String userId, String workflowName);
+    String createSession(String userId, String workflowName, String idempotencyKey);
 
     void free(String vmId);
 
