@@ -64,10 +64,12 @@ public class IntegrationTest extends BaseTestWithIam {
         super.setUp(preparePostgresConfig("iam", iamDb.getConnectionInfo()));
 
         context = ApplicationContext.run(preparePostgresConfig("scheduler", db.getConnectionInfo()));
+        var config = context.getBean(ServiceConfig.class);
+        config.getIam().setAddress("localhost:" + super.getPort());
 
         SchedulerApiImpl impl = context.getBean(SchedulerApiImpl.class);
         PrivateSchedulerApiImpl privateApi = context.getBean(PrivateSchedulerApiImpl.class);
-        ServiceConfig config = context.getBean(ServiceConfig.class);
+
         final var dao = context.getBean(WorkerDao.class);
         var auth = config.getIam();
         api = new SchedulerApi(impl, privateApi, config, new BeanFactory().iamChannel(config), dao);

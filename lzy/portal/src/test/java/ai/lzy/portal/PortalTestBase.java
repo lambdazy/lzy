@@ -111,8 +111,9 @@ public class PortalTestBase {
         var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
 
-        var channelManagerDbConfig = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
-        channelManagerTestContext.setUp(channelManagerDbConfig);
+        var channelManagerCfgOverrides = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
+        channelManagerCfgOverrides.put("channel-manager.iam.address", "localhost:" + iamTestContext.getPort());
+        channelManagerTestContext.setUp(channelManagerCfgOverrides);
         channelManagerPrivateClient = channelManagerTestContext.getOrCreatePrivateClient(
             iamTestContext.getClientConfig().createRenewableToken());
 
