@@ -12,7 +12,7 @@ option java_package = "ai.lzy.v1.slots";
 service LzySlotsApi {
   rpc CreateSlot (CreateSlotRequest) returns (CreateSlotResponse);
 
-  rpc ConnectSlot (ConnectSlotRequest) returns (Operation) {
+  rpc ConnectSlot (ConnectSlotRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       metadata: "ConnectSlotMetadata"
       response: "ConnectSlotResponse"
@@ -30,7 +30,7 @@ service LzySlotsApi {
 
 message CreateSlotRequest {
   string taskId = 1;
-  Slot slot = 2;
+  ai.lzy.v1.common.Slot slot = 2;
   string channelId = 3;
 }
 
@@ -38,8 +38,8 @@ message CreateSlotResponse {
 }
 
 message ConnectSlotRequest {
-  SlotInstance from = 1;
-  SlotInstance to = 2;
+  ai.lzy.v1.common.SlotInstance from = 1;
+  ai.lzy.v1.common.SlotInstance to = 2;
 }
 
 message ConnectSlotResponse {
@@ -49,29 +49,29 @@ message ConnectSlotMetadata {
 }
 
 message DisconnectSlotRequest {
-  SlotInstance slotInstance = 1;
+  ai.lzy.v1.common.SlotInstance slotInstance = 1;
 }
 
 message DisconnectSlotResponse {
 }
 
 message StatusSlotRequest {
-  SlotInstance slotInstance = 1;
+  ai.lzy.v1.common.SlotInstance slotInstance = 1;
 }
 
 message StatusSlotResponse {
-  SlotStatus status = 1;
+  ai.lzy.v1.common.SlotStatus status = 1;
 }
 
 message DestroySlotRequest {
-  SlotInstance slotInstance = 1;
+  ai.lzy.v1.common.SlotInstance slotInstance = 1;
 }
 
 message DestroySlotResponse {
 }
 
 message SlotDataRequest {
-  SlotInstance slotInstance = 1;
+  ai.lzy.v1.common.SlotInstance slotInstance = 1;
   int64 offset = 2;
 }
 

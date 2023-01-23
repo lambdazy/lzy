@@ -18,15 +18,15 @@ message Channel {
 
 message ChannelSpec {
   string channelName = 1;
-  DataScheme scheme = 2;
+  ai.lzy.v1.common.DataScheme scheme = 2;
 }
 
 message ChannelSenders {
-  /* optional */ SlotInstance workerSlot = 1;
-  /* optional */ SlotInstance portalSlot = 2;
+  /* optional */ ai.lzy.v1.common.SlotInstance workerSlot = 1;
+  /* optional */ ai.lzy.v1.common.SlotInstance portalSlot = 2;
 }
 
 message ChannelReceivers {
-  repeated SlotInstance workerSlots = 1;
-  /* optional */ SlotInstance portalSlot = 2;
+  repeated ai.lzy.v1.common.SlotInstance workerSlots = 1;
+  /* optional */ ai.lzy.v1.common.SlotInstance portalSlot = 2;
 }

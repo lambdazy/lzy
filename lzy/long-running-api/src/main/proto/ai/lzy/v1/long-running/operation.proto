@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package ai.lzy.v1;
+package ai.lzy.v1.longrunning;
 
 option java_outer_classname = "LongRunning";
 option java_package = "ai.lzy.v1.longrunning";

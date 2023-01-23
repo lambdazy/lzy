@@ -27,7 +27,7 @@ message Whiteboard {
 
 message WhiteboardField {
   string name = 1;
-  DataScheme scheme = 2;
+  ai.lzy.v1.common.DataScheme scheme = 2;
 }
 
 message Storage {
