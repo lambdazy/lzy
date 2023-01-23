@@ -71,5 +71,6 @@ setuptools.setup(
         "google/rpc"
     ],
     python_requires=">=3.7",
-    long_description_content_type='text/markdown'
+    long_description_content_type='text/markdown',
+    long_description=read_readme()
 )
