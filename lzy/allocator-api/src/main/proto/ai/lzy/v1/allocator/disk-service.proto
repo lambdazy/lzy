@@ -11,21 +11,21 @@ import "ai/lzy/v1/long-running/option.proto";
 
 
 service DiskService {
-  rpc CreateDisk (CreateDiskRequest) returns (Operation) {
+  rpc CreateDisk (CreateDiskRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       metadata: "CreateDiskMetadata"
       response: "CreateDiskResponse"
     };
   }
 
-  rpc CloneDisk (CloneDiskRequest) returns (Operation) {
+  rpc CloneDisk (CloneDiskRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       metadata: "CloneDiskMetadata"
       response: "CloneDiskResponse"
     };
   }
 
-  rpc DeleteDisk (DeleteDiskRequest) returns (Operation) {
+  rpc DeleteDisk (DeleteDiskRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       metadata: "DeleteDiskMetadata"
       response: "DeleteDiskResponse"
