@@ -4,20 +4,26 @@ set -e
 DOCKER_BUILDKIT=1
 MAJOR=1
 
-if [[ $# -lt 2 ]]; then
-  echo "Usage: $0 <git-branch-name> <custom-tag> [--rebuild [--base [--update [--major]]]]"
+if [[ $# -lt 4 ]]; then
+  echo "Usage: $0 <git-branch-name> <docker-registry-prefix> <custom-tag> <stored-worker-base-tag> [--base [--install]]"
   exit
 fi
 
 BRANCH=$(echo "$1" | awk '{print tolower($0)}')
-CUSTOM_TAG=$2
+DOCKER_REGISTRY=$2
+CUSTOM_TAG=$3
+STORED_WORKER_BASE_TAG=$4
 
 BASE=false
+INSTALL=false
 
 for ARG in "$@"; do
   case "$ARG" in
   --base)
     BASE=true
+    ;;
+  --install)
+    INSTALL=true
     ;;
   esac
 done
@@ -29,31 +35,45 @@ if [[ $BASE = true ]]; then
 fi
 
 cd pylzy/ && ./scripts/gen_proto.sh && cd ..
-mvn clean install -DskipTests
+if [[ $INSTALL = true ]]; then
+  mvn clean install -DskipTests
+fi
 
 cd lzy/worker/
 if [[ $BASE = true ]]; then
   echo "Building image worker-base"
-  docker build -t worker-base -t lzydock/worker-base:local -f docker/Worker.Base.Dockerfile .
+  docker build -t worker-base -t "$DOCKER_REGISTRY/worker-base:local" -f docker/Worker.Base.Dockerfile .
   WORKER_BASE_TAG="local"
 
   echo "Building image user-default-base"
-  docker build -t user-default-base -t lzydock/user-default-base:local -f docker/UserDefault.Base.Dockerfile .
+  docker build -t user-default-base -t "$DOCKER_REGISTRY/user-default-base:local" -f docker/UserDefault.Base.Dockerfile .
   USER_DEFAULT_BASE_TAG="local"
 
   echo "Building image user-test-base"
-  docker build -t user-test-base -t lzydock/user-test-base:local -f docker/UserTest.Base.Dockerfile .
+  docker build -t user-test-base -t "$DOCKER_REGISTRY/user-test-base:local" -f docker/UserTest.Base.Dockerfile .
   USER_TEST_BASE_TAG="local"
 else
-  WORKER_BASE="$(deployment/latest-docker-image-on-branches.sh worker-base $BRANCH master)"
+  if [[ -z "$CUSTOM_TAG" ]]; then
+    WORKER_BASE="$(deployment/latest-docker-image-on-branches.sh worker-base $BRANCH master)"
+    USER_DEFAULT_BASE="$(deployment/latest-docker-image-on-branches.sh user-default-base $BRANCH master)"
+    USER_TEST_BASE="$(deployment/latest-docker-image-on-branches.sh user-test-base $BRANCH master)"
+  else
+    if [[ -z "$STORED_WORKER_BASE_TAG" ]]; then
+      REMOTE_BASE_TAG="$BRANCH-$CUSTOM_TAG"
+    else
+      REMOTE_BASE_TAG="$STORED_WORKER_BASE_TAG"
+    fi
+    WORKER_BASE="$DOCKER_REGISTRY/worker-base:$REMOTE_BASE_TAG"
+    USER_DEFAULT_BASE="$DOCKER_REGISTRY/user-default-base:$REMOTE_BASE_TAG"
+    USER_TEST_BASE="$DOCKER_REGISTRY/user-test-base:$REMOTE_BASE_TAG"
+  fi
+
   docker pull "$WORKER_BASE"
   WORKER_BASE_TAG="$(echo $WORKER_BASE | awk -F: '{print $2}')"
 
-  USER_DEFAULT_BASE="$(deployment/latest-docker-image-on-branches.sh user-default-base $BRANCH master)"
   docker pull "$USER_DEFAULT_BASE"
   USER_DEFAULT_BASE_TAG="$(echo $USER_DEFAULT_BASE | awk -F: '{print $2}')"
 
-  USER_TEST_BASE="$(deployment/latest-docker-image-on-branches.sh user-test-base $BRANCH master)"
   docker pull "$USER_TEST_BASE"
   USER_TEST_BASE_TAG="$(echo $USER_TEST_BASE | awk -F: '{print $2}')"
 fi
@@ -62,13 +82,13 @@ mkdir -p docker/tmp-for-context
 cp -R ../../pylzy docker/tmp-for-context/pylzy
 
 echo "Building image worker with base tag $WORKER_BASE_TAG"
-docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t worker -f docker/Worker.Dockerfile .
+docker build --build-arg "REGISTRY=$DOCKER_REGISTRY" --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t worker -f docker/Worker.Dockerfile .
 
 echo "Building image user-default with base tag $USER_DEFAULT_BASE_TAG"
-docker build --build-arg "USER_DEFAULT_BASE_TAG=$USER_DEFAULT_BASE_TAG" -t user-default -f docker/UserDefault.Dockerfile .
+docker build --build-arg "REGISTRY=$DOCKER_REGISTRY" --build-arg "USER_DEFAULT_BASE_TAG=$USER_DEFAULT_BASE_TAG" -t user-default -f docker/UserDefault.Dockerfile .
 
 echo "Building image user-test with base tag $USER_TEST_BASE_TAG"
-docker build --build-arg "USER_TEST_BASE_TAG=$USER_TEST_BASE_TAG" -t user-test -f docker/UserTest.Dockerfile .
+docker build --build-arg "REGISTRY=$DOCKER_REGISTRY" --build-arg "USER_TEST_BASE_TAG=$USER_TEST_BASE_TAG" -t user-test -f docker/UserTest.Dockerfile .
 
 rm -rf docker/tmp-for-context
 cd ../..
@@ -98,7 +118,7 @@ for IMAGE in $IMAGES; do
   else
     NEW_TAG="$CUSTOM_TAG"
   fi
-  NEW_NAME="lzydock/$IMAGE:$BRANCH-$NEW_TAG"
+  NEW_NAME="$DOCKER_REGISTRY/$IMAGE:$BRANCH-$NEW_TAG"
 
   docker tag "$IMAGE" "$NEW_NAME" && docker image rm "$IMAGE"
   echo "Pushing image $IMAGE: $NEW_NAME"

@@ -1,5 +1,6 @@
+ARG REGISTRY=lzydock
 ARG WORKER_BASE_TAG
-FROM lzydock/worker-base:${WORKER_BASE_TAG}
+FROM ${REGISTRY}/worker-base:${WORKER_BASE_TAG}
 
 RUN mkdir -p /tmp/lzy-log/worker \
     && mkdir -p /tmp/resources
