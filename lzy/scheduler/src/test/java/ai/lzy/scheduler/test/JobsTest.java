@@ -33,7 +33,7 @@ public class JobsTest {
 
     @Before
     public void setUp() {
-        context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("jobs", db.getConnectionInfo()));
+        context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("scheduler", db.getConnectionInfo()));
         service = context.getBean(JobService.class);
         provider = context.getBean(Provider.class);
         opDao = context.getBean(JobsOperationDao.class);

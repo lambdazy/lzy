@@ -355,34 +355,30 @@ public class VmDaoImpl implements VmDao {
 
     @Nullable
     @Override
-    public Vm acquire(Vm.Spec vmSpec, @Nullable TransactionHandle outerTransaction) throws SQLException {
+    public Vm acquire(Vm.Spec vmSpec, @Nullable TransactionHandle transaction) throws SQLException {
         final Vm[] vm = {null};
-        try (final var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {
-            DbOperation.execute(transaction, storage, con -> {
-                try (PreparedStatement s = con.prepareStatement(QUERY_ACQUIRE_VM)) {
-                    s.setString(1, vmSpec.sessionId());
-                    s.setString(2, vmSpec.poolLabel());
-                    s.setString(3, vmSpec.zone());
-                    s.setString(4, objectMapper.writeValueAsString(vmSpec.workloads()));
-                    s.setString(5, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
-                    s.setString(6, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
-                    s.setString(7, vmSpec.proxyV6Address() != null ? vmSpec.proxyV6Address().getHostAddress() : "");
+        DbOperation.execute(transaction, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_ACQUIRE_VM)) {
+                s.setString(1, vmSpec.sessionId());
+                s.setString(2, vmSpec.poolLabel());
+                s.setString(3, vmSpec.zone());
+                s.setString(4, objectMapper.writeValueAsString(vmSpec.workloads()));
+                s.setString(5, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
+                s.setString(6, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
+                s.setString(7, vmSpec.proxyV6Address() != null ? vmSpec.proxyV6Address().getHostAddress() : "");
 
-                    final var res = s.executeQuery();
-                    if (!res.next()) {
-                        return;
-                    }
-
-                    vm[0] = readVm(res);
-
-                    Objects.requireNonNull(vm[0].runState());
-                } catch (JsonProcessingException e) {
-                    throw new RuntimeException("Cannot dump values", e);
+                final var res = s.executeQuery();
+                if (!res.next()) {
+                    return;
                 }
-            });
 
-            transaction.commit();
-        }
+                vm[0] = readVm(res);
+
+                Objects.requireNonNull(vm[0].runState());
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump values", e);
+            }
+        });
 
         return vm[0];
     }
