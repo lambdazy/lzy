@@ -75,8 +75,10 @@ public enum IdempotencyUtils {
             throw new RuntimeException("Some of concurrent call was failed");
         }
 
-        if (!results.stream().allMatch(result -> result.equals(results.get(0)))) {
-            throw new RuntimeException("All concurrent calls must be equal");
+        var firstUncommon = results.stream().filter(result -> !result.equals(results.get(0))).findFirst();
+        if (firstUncommon.isPresent()) {
+            throw new RuntimeException("All concurrent calls must be equal. Some call has result: "
+                + results.get(0) + ", another one: " + firstUncommon.get());
         }
 
         asserting.accept(results.get(0));

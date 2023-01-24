@@ -19,17 +19,12 @@ import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
-import ai.lzy.util.grpc.GrpcLogsInterceptor;
-import ai.lzy.util.grpc.RequestIdInterceptor;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.netty.NettyServerBuilder;
 import io.jsonwebtoken.Claims;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
@@ -41,10 +36,8 @@ import org.junit.Before;
 import org.junit.Rule;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
@@ -73,8 +66,6 @@ public class BaseTest {
 
     protected ApplicationContext context;
     protected LzyServiceConfig config;
-
-    private Server whiteboardServer;
 
     private Server lzyServer;
 
@@ -146,18 +137,6 @@ public class BaseTest {
             context.getBean(LzyServicePrivateApi.class), opService);
         lzyServer.start();
 
-        var whiteboardAddress = HostAndPort.fromString(config.getWhiteboardAddress());
-        whiteboardServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(whiteboardAddress.getHost(), whiteboardAddress.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .intercept(authInterceptor)
-            .intercept(GrpcLogsInterceptor.server())
-            .intercept(RequestIdInterceptor.server(true))
-            .intercept(GrpcHeadersServerInterceptor.create())
-            .build();
-        whiteboardServer.start();
-
         lzyServiceChannel = newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
         unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel);
 
@@ -180,8 +159,6 @@ public class BaseTest {
         lzyServiceChannel.shutdown();
         lzyServer.shutdown();
         lzyServer.awaitTermination();
-        whiteboardServer.shutdown();
-        whiteboardServer.awaitTermination();
         context.stop();
     }
 
