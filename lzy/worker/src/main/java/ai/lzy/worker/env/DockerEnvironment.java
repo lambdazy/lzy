@@ -163,12 +163,9 @@ public class DockerEnvironment implements BaseEnvironment {
             }
 
             @Override
-            public int waitFor() {
+            public int waitFor() throws InterruptedException {
                 try {
                     return exitCode.get().intValue();
-                } catch (InterruptedException e) {
-                    LOG.error("LzyProcess was interrupted, failed to get exit code", e);
-                    throw new RuntimeException(e);
                 } catch (ExecutionException e) {
                     LOG.error("LzyProcess was failed with ExecutionException, failed to get exit code", e);
                     throw new RuntimeException(e);

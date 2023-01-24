@@ -54,7 +54,7 @@ public interface Environment extends AutoCloseable {
 
         InputStream err();
 
-        int waitFor();
+        int waitFor() throws InterruptedException;
 
         void signal(int sigValue);
     }

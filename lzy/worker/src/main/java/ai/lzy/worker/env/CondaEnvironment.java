@@ -108,7 +108,12 @@ public class CondaEnvironment implements AuxEnvironment {
                 out.add(lzyProcess.out());
                 err.add(lzyProcess.err());
 
-                final int rc = lzyProcess.waitFor();
+                final int rc;
+                try {
+                    rc = lzyProcess.waitFor();
+                } catch (InterruptedException e) {
+                    throw new EnvironmentInstallationException("Environment installation cancelled");
+                }
                 if (rc != 0) {
                     String errorMessage = "Failed to create/update conda env\n"
                         + "  ReturnCode: " + rc + "\n"
