@@ -32,16 +32,16 @@ def search_best_model(data_set: Bunch) -> GridSearchCV:
 
 
 lzy = Lzy()
-with lzy.workflow("training_whiteboard") as wf:
+with lzy.workflow("training") as wf:
     wb = wf.create_whiteboard(BestModel)
     data = dataset()
     search = search_best_model(data)
     wb.model = search.best_estimator_
-    wb.score = search.best_score_
-    print(wb.__id__)
+    wb.score = float(search.best_score_)
+    print(wb.id)
 
 loaded_wb = lzy.whiteboard(id_=wb.id)
-print(loaded_wb.params["max_depth"])
+print(loaded_wb.score)
 
-wbs = lzy.whiteboards(name="best_model")
-print(wbs)
+wbs = list(lzy.whiteboards(name="best_model"))
+print(len(wbs))
