@@ -67,13 +67,14 @@ public class DiskApiTest extends BaseTestWithIam {
 
         final var props = DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo());
         context = ApplicationContext.run(props);
+        var config = context.getBean(ServiceConfig.class);
+        config.getIam().setAddress("localhost:" + super.getPort());
 
         allocatorApp = context.getBean(AllocatorMain.class);
         allocatorApp.start();
 
         diskManager = context.getBean(DiskManager.class);
 
-        final var config = context.getBean(ServiceConfig.class);
         channel = newGrpcChannel(config.getAddress(), LongRunningServiceGrpc.SERVICE_NAME,
             DiskServiceGrpc.SERVICE_NAME);
 

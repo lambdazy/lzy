@@ -45,9 +45,11 @@ public class IntegrationTest extends BaseTestWithIam {
 
         var props = preparePostgresConfig("scheduler", db.getConnectionInfo());
         props.putAll(preparePostgresConfig("jobs", db.getConnectionInfo()));
+        var config = context.getBean(ServiceConfig.class);
+        config.getIam().setAddress("localhost:" + super.getPort());
 
         context = ApplicationContext.run(props);
-        ServiceConfig config = context.getBean(ServiceConfig.class);
+
         api = context.getBean(SchedulerApi.class);
         var auth = config.getIam();
 

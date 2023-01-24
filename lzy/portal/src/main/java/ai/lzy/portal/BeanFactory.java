@@ -27,11 +27,7 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -62,13 +58,9 @@ public class BeanFactory {
     public Supplier<String> tokenFactory(PortalConfig config)
         throws IOException, NoSuchAlgorithmException, InvalidKeySpecException
     {
-        if (config.getIamPrivateKey() != null) {
-            var privateKey = CredentialsUtils.readPrivateKey(config.getIamPrivateKey());
-            var slotsJwt = new RenewableJwt(config.getPortalId(), "INTERNAL", Duration.ofHours(1), privateKey);
-            return () -> slotsJwt.get().token();
-        } else {
-            return () -> "portal-token";
-        }
+        var privateKey = CredentialsUtils.readPrivateKey(config.getIamPrivateKey());
+        var slotsJwt = new RenewableJwt(config.getPortalId(), "INTERNAL", Duration.ofHours(1), privateKey);
+        return () -> slotsJwt.get().token();
     }
 
     @Bean(preDestroy = "shutdown")

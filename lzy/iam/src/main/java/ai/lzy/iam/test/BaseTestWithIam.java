@@ -9,6 +9,7 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.impl.DbSubjectService;
+import ai.lzy.test.GrpcUtils;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
@@ -25,6 +26,8 @@ public class BaseTestWithIam {
     private ApplicationContext iamCtx;
     private LzyIAM iamApp;
 
+    private int port;
+
     public void before() throws IOException, InterruptedException {
         setUp(Map.of());
     }
@@ -34,6 +37,11 @@ public class BaseTestWithIam {
             .read("iam", new FileInputStream("../iam/src/main/resources/application-test.yml"));
         iamProps.putAll(overrides);
         iamCtx = ApplicationContext.run(PropertySource.of(iamProps));
+
+        var config = iamCtx.getBean(ServiceConfig.class);
+        port = GrpcUtils.rollPort();
+        config.setServerPort(port);
+
         iamApp = iamCtx.getBean(LzyIAM.class);
         iamApp.start();
     }
@@ -44,7 +52,7 @@ public class BaseTestWithIam {
     }
 
     public int getPort() {
-        return this.iamApp.port();
+        return this.port;
     }
 
     @Nullable
@@ -58,11 +66,10 @@ public class BaseTestWithIam {
     }
 
     public IamClientConfiguration getClientConfig() {
-        var serviceConfig = iamCtx.getBean(ServiceConfig.class);
         var internalUserConfig = iamCtx.getBean(InternalUserConfig.class);
         var iamClientConfiguration = new IamClientConfiguration();
 
-        iamClientConfiguration.setAddress("localhost:" + serviceConfig.getServerPort());
+        iamClientConfiguration.setAddress("localhost:" + port);
         iamClientConfiguration.setInternalUserName(internalUserConfig.userName());
         iamClientConfiguration.setInternalUserPrivateKey(internalUserConfig.credentialPrivateKey());
 

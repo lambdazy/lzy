@@ -348,7 +348,7 @@ class WhiteboardTests(TestCase):
         # noinspection PyUnusedLocal
         @op
         def concat(num: int, desc: str) -> str:
-            return str(num) + desc
+            return str(num) + str(desc)
 
         with self.lzy.workflow(self.workflow_name) as wf:
             wb = wf.create_whiteboard(Whiteboard, tags=["a"])

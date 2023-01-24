@@ -91,20 +91,25 @@ public class BaseTest {
     public void setUp() throws IOException, InterruptedException {
         var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
+        var iamAddress = "localhost:" + iamTestContext.getPort();
 
-        var storageDbConfig = preparePostgresConfig("storage", storageDb.getConnectionInfo());
-        storageTestContext.setUp(storageDbConfig);
+        var storageCfgOverrides = preparePostgresConfig("storage", storageDb.getConnectionInfo());
+        storageCfgOverrides.put("storage.iam.address", iamAddress);
+        storageTestContext.setUp(storageCfgOverrides);
 
-        var channelManagerDbConfig = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
-        channelManagerTestContext.setUp(channelManagerDbConfig);
+        var channelManagerCfgOverrides = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
+        channelManagerCfgOverrides.put("channel-manager.iam.address", iamAddress);
+        channelManagerTestContext.setUp(channelManagerCfgOverrides);
 
-        var graphExecDbConfig = preparePostgresConfig("graph-executor", graphExecutorDb.getConnectionInfo());
-        graphExecutorTestContext.setUp(graphExecDbConfig);
+        var graphExecCfgOverrides = preparePostgresConfig("graph-executor", graphExecutorDb.getConnectionInfo());
+        graphExecCfgOverrides.put("graph-executor.iam.address", iamAddress);
+        graphExecutorTestContext.setUp(graphExecCfgOverrides);
 
-        var allocatorConfigOverrides = preparePostgresConfig("allocator", allocatorDb.getConnectionInfo());
-        allocatorConfigOverrides.put("allocator.thread-allocator.enabled", true);
-        allocatorConfigOverrides.put("allocator.thread-allocator.vm-class-name", "ai.lzy.portal.App");
-        allocatorTestContext.setUp(allocatorConfigOverrides);
+        var allocatorCfgOverrides = preparePostgresConfig("allocator", allocatorDb.getConnectionInfo());
+        allocatorCfgOverrides.put("allocator.thread-allocator.enabled", true);
+        allocatorCfgOverrides.put("allocator.thread-allocator.vm-class-name", "ai.lzy.portal.App");
+        allocatorCfgOverrides.put("allocator.iam.address", iamAddress);
+        allocatorTestContext.setUp(allocatorCfgOverrides);
 
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
 
@@ -112,6 +117,7 @@ public class BaseTest {
 
         context = ApplicationContext.run(PropertySource.of(lzyConfigOverrides), "test-mock");
         config = context.getBean(LzyServiceConfig.class);
+        config.getIam().setAddress(iamAddress);
 
         config.setGraphExecutorAddress("localhost:" + graphExecutorTestContext.getPort());
         config.getStorage().setAddress("localhost:" + storageTestContext.getPort());

@@ -370,6 +370,7 @@ class RemoteRuntime(Runtime):
                 args_paths=arg_descriptions,
                 kwargs_paths=kwarg_descriptions,
                 output_paths=ret_descriptions,
+                lazy_arguments=call.lazy_arguments
             )
 
             _com = "".join(

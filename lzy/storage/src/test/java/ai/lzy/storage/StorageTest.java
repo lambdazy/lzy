@@ -75,6 +75,7 @@ public class StorageTest extends BaseTestWithIam {
 
         storageCtx = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("storage", db.getConnectionInfo()));
         storageConfig = storageCtx.getBean(StorageConfig.class);
+        storageConfig.getIam().setAddress("localhost:" + super.getPort());
 
         iamChannel = newGrpcChannel(storageConfig.getIam().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
 

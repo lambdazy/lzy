@@ -242,6 +242,7 @@ class LzyWorkflowTests(TestCase):
         # noinspection PyUnusedLocal
         @op
         def accept_list(lst: List, bst: List) -> int:
+            print(bst)
             return len(lst)
 
         with self.assertRaises(LzyExecutionException):
@@ -298,6 +299,33 @@ class LzyWorkflowTests(TestCase):
         self.assertFalse(is_lzy_proxy(i))
         self.assertEqual(int, type(i))
         self.assertEqual("Foo: Bar: Baz(2):", b2)
+
+    def test_lazy_args_loading(self):
+        @op
+        def is_arg_type_str(a: str) -> bool:
+            return type(a) == str
+
+        with self.lzy.workflow("test"):
+            res = is_arg_type_str("str")
+        self.assertFalse(res)
+
+    def test_eager_args_loading(self):
+        @op(lazy_arguments=False)
+        def is_arg_type_str(a: str) -> bool:
+            return type(a) == str
+
+        with self.lzy.workflow("test"):
+            res = is_arg_type_str("str")
+        self.assertTrue(res)
+
+    def test_return_argument(self):
+        @op
+        def return_argument(arg: str) -> str:
+            return arg
+
+        with self.lzy.workflow("test"):
+            res = return_argument("str")
+        self.assertEqual("str", res)
 
     @skip("WIP")
     def test_barrier(self):
