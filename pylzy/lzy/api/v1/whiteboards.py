@@ -4,7 +4,6 @@ import uuid
 from dataclasses import dataclass
 from typing import Optional, Type, Dict, Any, Iterable, Set, TYPE_CHECKING, Sequence
 
-from beartype.door import is_subhint
 # noinspection PyPackageRequirements
 from google.protobuf.timestamp_pb2 import Timestamp
 from serialzy.api import Schema
@@ -163,7 +162,7 @@ class WritableWhiteboard:
         else:
             typ = get_type(value)
             self.__validate_types(typ, key_type, key)
-            entry = self.__workflow.snapshot.create_entry(self.__model.name + "." + key, typ, storage_uri)
+            entry = self.__workflow.snapshot.create_entry(self.__model.name + "." + key, key_type, storage_uri)
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
             self.__workflow.entry_index.add_entry_id(value, entry.id)
             self.__workflow.filled_entry_ids.add(entry.id)
@@ -180,7 +179,7 @@ class WritableWhiteboard:
 
     @staticmethod
     def __validate_types(value_type: Type, field_type: Type, field_name: str) -> None:
-        if not is_subhint(value_type, field_type):
+        if value_type != field_type:
             raise TypeError(
                 f"Incompatible types: whiteboard field {field_name} has type {field_type}, "
                 f"but assigning value has type {value_type}")
