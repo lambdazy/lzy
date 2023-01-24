@@ -67,7 +67,6 @@ setuptools.setup(
         "ai/lzy/v1/long_running",
         "ai/lzy/v1/whiteboard",
         "ai/lzy/v1/workflow",
-	"google",
         "google/protobuf",
         "google/rpc"
     ],
