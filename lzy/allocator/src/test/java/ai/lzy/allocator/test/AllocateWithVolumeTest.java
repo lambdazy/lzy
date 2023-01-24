@@ -66,6 +66,8 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         var properties = new YamlPropertySourceLoader()
             .read("allocator", new FileInputStream("../allocator/src/main/resources/application-test-manual.yml"));
         context = ApplicationContext.run(PropertySource.of(properties));
+        var config = context.getBean(ServiceConfig.class);
+        config.getIam().setAddress("localhost:" + super.getPort());
 
         diskManager = context.getBean(DiskManager.class);
         final ServiceConfig serviceConfig = context.getBean(ServiceConfig.class);
@@ -79,8 +81,6 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
 
         allocatorApp = context.getBean(AllocatorMain.class);
         allocatorApp.start();
-
-        final var config = context.getBean(ServiceConfig.class);
 
         channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME);
 

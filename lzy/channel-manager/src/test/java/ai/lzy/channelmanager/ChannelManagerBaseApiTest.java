@@ -100,10 +100,12 @@ public class ChannelManagerBaseApiTest {
 
         var channelManagerDbConfig = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
         context = ApplicationContext.run(channelManagerDbConfig);
+        config = context.getBean(ChannelManagerConfig.class);
+        config.getIam().setAddress("localhost:" + iamTestContext.getPort());
+
         app = context.getBean(ChannelManagerApp.class);
         app.start();
 
-        config = context.getBean(ChannelManagerConfig.class);
         channel = newGrpcChannel(config.getAddress(), LzyChannelManagerPrivateGrpc.SERVICE_NAME);
 
         workflowName = "wfName";

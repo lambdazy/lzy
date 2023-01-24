@@ -105,10 +105,11 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             () -> kubernetesServer.getKubernetesMockServer().createClient()
         );
 
+        var config = allocatorCtx.getBean(ServiceConfig.class);
+        config.getIam().setAddress("localhost:" + super.getPort());
+
         allocatorApp = allocatorCtx.getBean(AllocatorMain.class);
         allocatorApp.start();
-
-        final var config = allocatorCtx.getBean(ServiceConfig.class);
 
         channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME, AllocatorPrivateGrpc.SERVICE_NAME,
             LongRunningServiceGrpc.SERVICE_NAME, DiskServiceGrpc.SERVICE_NAME);

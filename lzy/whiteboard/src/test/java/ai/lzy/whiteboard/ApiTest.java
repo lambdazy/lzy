@@ -76,7 +76,8 @@ public class ApiTest extends BaseTestWithIam {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
 
         context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("whiteboard", db.getConnectionInfo()));
-        final var config = context.getBean(AppConfig.class);
+        var config = context.getBean(AppConfig.class);
+        config.getIam().setAddress("localhost:" + super.getPort());
         var address = HostAndPort.fromString(config.getAddress());
 
         var iamChannel = context.getBean(ManagedChannel.class, Qualifiers.byName("WhiteboardIamGrpcChannel"));
