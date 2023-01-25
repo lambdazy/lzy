@@ -81,10 +81,9 @@ public class Worker {
     private final EnvironmentFactory envFactory;
     private final Server server;
 
-    public Worker(
-            String vmId, String allocatorAddress, String iamAddress,
-            Duration allocatorHeartbeatPeriod, int apiPort, int fsPort,
-            String fsRoot, String channelManagerAddress, String host, String allocatorToken, String defaultUserImage)
+    public Worker(String vmId, String allocatorAddress, String iamAddress, Duration allocatorHeartbeatPeriod,
+                  int apiPort, int fsPort, String fsRoot, String channelManagerAddress, String host,
+                  String allocatorToken, String defaultUserImage)
     {
         var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
 
@@ -369,24 +368,11 @@ public class Worker {
             }
 
             var op = Operation.create(request.getTaskId(), "Execute worker", null, idempotencyKey, null);
-            OperationSnapshot opSnapshot = operationService.registerOperation(op);
+
+            OperationSnapshot opSnapshot = operationService.execute(op, () -> executeOp(request));
 
             response.onNext(opSnapshot.toProto());
             response.onCompleted();
-
-            ExecuteResponse resp;
-            try {
-                resp = executeOp(request);
-            } catch (Exception e) {
-                LOG.error("Error while executing task {}: ", request.getTaskId(), e);
-                resp = ExecuteResponse.newBuilder()
-                    .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
-                    .setDescription("Internal error")
-                    .build();
-            }
-
-            operationService.updateResponse(op.id(), resp);
-
         }
 
         private boolean loadExistingOpResult(Operation.IdempotencyKey key,

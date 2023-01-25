@@ -356,8 +356,7 @@ public class VmDaoImpl implements VmDao {
     @Nullable
     @Override
     public Vm acquire(Vm.Spec vmSpec, @Nullable TransactionHandle transaction) throws SQLException {
-        final Vm[] vm = {null};
-        DbOperation.execute(transaction, storage, con -> {
+        return DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_ACQUIRE_VM)) {
                 s.setString(1, vmSpec.sessionId());
                 s.setString(2, vmSpec.poolLabel());
@@ -369,18 +368,15 @@ public class VmDaoImpl implements VmDao {
 
                 final var res = s.executeQuery();
                 if (!res.next()) {
-                    return;
+                    return null;
                 }
 
-                vm[0] = readVm(res);
+                return readVm(res);
 
-                Objects.requireNonNull(vm[0].runState());
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
             }
         });
-
-        return vm[0];
     }
 
     @Override

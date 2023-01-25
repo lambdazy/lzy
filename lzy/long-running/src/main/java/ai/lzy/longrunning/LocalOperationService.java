@@ -218,6 +218,8 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         }
 
         LOG.info(" Operation {} cancelled", request.getOperationId());
+        response.onNext(op.operation.toProto());
+        response.onCompleted();
     }
 
     @SuppressWarnings("BooleanMethodIsAlwaysInverted")

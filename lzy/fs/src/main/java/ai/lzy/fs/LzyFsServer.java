@@ -38,7 +38,7 @@ public class LzyFsServer {
     public static final AtomicInteger mounted = new AtomicInteger(); //for tests
 
     private final Path mountPoint;
-    private final HostAndPort selfUri;
+    private final HostAndPort selfService;
     private final ManagedChannel channelManagerChannel;
     private final SlotsManager slotsManager;
     private final LzyFSManager fsManager;
@@ -52,7 +52,7 @@ public class LzyFsServer {
                        boolean isPortal)
     {
         this.mountPoint = mountPoint;
-        this.selfUri = selfAddress;
+        this.selfService = selfAddress;
 
         this.channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerGrpc.SERVICE_NAME);
         this.iamChannel = GrpcUtils.newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
@@ -95,12 +95,12 @@ public class LzyFsServer {
             throw e;
         }
 
-        LOG.info("Starting LzyFs gRPC server at {}.", selfUri);
+        LOG.info("Starting LzyFs gRPC server at {}.", selfService);
         localServer.start();
 
         LOG.info("Registering lzy cat command...");
         registerCatCommand();
-        LOG.info("LzyFs started on {}.", selfUri);
+        LOG.info("LzyFs started on {}.", selfService);
     }
 
     private void registerCatCommand() {
@@ -129,7 +129,7 @@ public class LzyFsServer {
     }
 
     public void stop() {
-        LOG.info("LzyFs shutdown request at {}, path {}", selfUri, mountPoint);
+        LOG.info("LzyFs shutdown request at {}, path {}", selfService, mountPoint);
         if (finished.compareAndSet(false, true)) {
             try {
                 slotsService.shutdown();
@@ -146,13 +146,13 @@ public class LzyFsServer {
     }
 
     public void awaitTermination() throws InterruptedException, IOException {
-        LOG.info("LzyFs awaiting termination at {}.", selfUri);
+        LOG.info("LzyFs awaiting termination at {}.", selfService);
         try {
             slotsManager.close();
         } finally {
             stop();
         }
-        LOG.info("LzyFs at {} terminated.", selfUri);
+        LOG.info("LzyFs at {} terminated.", selfService);
     }
 
     public SlotsManager getSlotsManager() {

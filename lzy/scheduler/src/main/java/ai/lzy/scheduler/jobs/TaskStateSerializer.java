@@ -1,7 +1,7 @@
 package ai.lzy.scheduler.jobs;
 
-import ai.lzy.scheduler.providers.JsonJobSerializer;
 import ai.lzy.scheduler.models.TaskState;
+import ai.lzy.scheduler.providers.JsonJobSerializer;
 import jakarta.inject.Singleton;
 
 

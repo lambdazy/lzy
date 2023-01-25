@@ -1,13 +1,13 @@
 package ai.lzy.scheduler.jobs;
 
-import ai.lzy.scheduler.JobService;
-import ai.lzy.scheduler.db.JobsOperationDao;
-import ai.lzy.scheduler.providers.WorkflowJobProvider;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.DbHelper;
+import ai.lzy.scheduler.JobService;
 import ai.lzy.scheduler.allocator.WorkersAllocator;
 import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.scheduler.db.JobsOperationDao;
 import ai.lzy.scheduler.models.TaskState;
+import ai.lzy.scheduler.providers.WorkflowJobProvider;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
@@ -167,7 +167,41 @@ public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
 
     @Override
     protected TaskState clear(TaskState state, String operationId) {
-        return state;
+        LongRunningServiceBlockingStub client;
+
+        var address = state.workerHost();
+        var port = state.workerPort();
+
+        var addr = HostAndPort.fromParts(address, port);
+
+        if (clients.containsKey(addr)) {
+            client = clients.get(addr);
+        } else {
+
+            var workerChannel = GrpcUtils.newGrpcChannel(addr, LongRunningServiceGrpc.SERVICE_NAME);
+            client = GrpcUtils.newBlockingClient(
+                LongRunningServiceGrpc.newBlockingStub(workerChannel),
+                "worker", () -> credentials.get().token());
+
+            clients.put(addr, client);
+            try {
+                channels.put(workerChannel);
+            } catch (InterruptedException e) {
+                // ignored
+            }
+        }
+
+        try {
+            client.cancel(LongRunning.CancelOperationRequest.newBuilder()
+                .setOperationId(state.workerOperationId())
+                .build());
+        } catch (Exception e) {
+            logger.error("Cannot cancel operation on worker: ", e);
+        }
+
+        return state.copy()
+            .workerOperationId(null)
+            .build();
     }
 
     @PreDestroy

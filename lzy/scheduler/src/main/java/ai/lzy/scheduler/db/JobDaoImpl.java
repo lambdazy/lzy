@@ -84,8 +84,10 @@ public class JobDaoImpl implements JobDao {
     public List<JobService.Job> listToRestore(@Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, (conn) -> {
             try (PreparedStatement ps = conn.prepareStatement(String.format("""
-                SELECT %s FROM job
+                UPDATE job
+                SET status = 'CREATED'
                 WHERE status != 'DONE'
+                RETURNING %s
                 """, FIELDS)))
             {
                 var rs = ps.executeQuery();

@@ -22,7 +22,7 @@ service WorkerApi {
 // ========== Execute ============
 
 message ExecuteRequest {
-  lzy.v1.common.TaskDesc taskDesc = 1;
+  lzy.v1.common.TaskDesc task_desc = 1;
   string task_id = 2;
   string execution_id = 3;
 }

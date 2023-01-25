@@ -1,16 +1,17 @@
 package ai.lzy.scheduler;
 
-import ai.lzy.scheduler.db.JobsOperationDao;
-import ai.lzy.scheduler.providers.JobSerializer;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.model.db.DbHelper;
+import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.scheduler.db.JobsOperationDao;
 import ai.lzy.scheduler.db.SchedulerDataSource;
 import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.jobs.Allocate;
 import ai.lzy.scheduler.models.TaskState;
+import ai.lzy.scheduler.providers.JobSerializer;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import ai.lzy.v1.scheduler.SchedulerApi.*;
@@ -112,8 +113,13 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         );
 
         try {
-            DbHelper.withRetries(LOG, () -> opDao.create(op, null));
-            DbHelper.withRetries(LOG, () -> dao.insertTaskDesc(taskDesc, null));
+            DbHelper.withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    opDao.create(op, tx);
+                    dao.insertTaskDesc(taskDesc, tx);
+                    tx.commit();
+                }
+            });
         } catch (Exception e) {
             LOG.error("Error while scheduling task", e);
             responseObserver.onError(Status.INTERNAL.asException());

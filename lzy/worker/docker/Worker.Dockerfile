@@ -6,7 +6,6 @@ RUN mkdir -p /tmp/lzy-log/worker \
     && mkdir -p /tmp/resources
 
 COPY docker/tmp-for-context/pylzy/ pylzy
-COPY target/worker-1.0-SNAPSHOT.jar pylzy/lzy/lzy-worker.jar
 RUN ./conda_prepare.sh pylzy_install 'pylzy'
 
 COPY target/worker-1.0-SNAPSHOT.jar app/app.jar
