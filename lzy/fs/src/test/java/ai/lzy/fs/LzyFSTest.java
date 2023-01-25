@@ -14,7 +14,6 @@ import org.apache.commons.lang3.SystemUtils;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.File;
@@ -53,7 +52,12 @@ public class LzyFSTest {
         FileUtils.deleteDirectory(new File(LZY_MOUNT));
     }
 
-    @Ignore
+    @Test
+    public void testFuseConfiguration() {
+        // fusermount: option allow_other only allowed if 'user_allow_other' is set in /etc/fuse.conf
+        System.out.println("Ok");
+    }
+
     @Test
     public void testWaitForSlot() throws IOException, InterruptedException, URISyntaxException {
         //Arrange
@@ -86,7 +90,7 @@ public class LzyFSTest {
                 },
                 "taskId",
                 "channelId",
-                new URI("slot://", "host", "path", null)
+                new URI("slot", "host", "/path", null)
             ), tempFile);
         lzyFS.addSlot(slot);
         stream.write(ByteString.copyFromUtf8("kek\n").toByteArray());

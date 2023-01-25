@@ -85,7 +85,7 @@ public class LzyFsServer {
             mounted.incrementAndGet();
         } catch (FuseException e) {
             fsManager.umount();
-            throw e;
+            throw new IOException("Cannot mount %s".formatted(mountPoint.toAbsolutePath()), e);
         }
 
         LOG.info("Starting LzyFs gRPC server at {}.", selfUri);
