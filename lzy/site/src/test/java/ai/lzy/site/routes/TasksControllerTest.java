@@ -106,7 +106,7 @@ public class TasksControllerTest extends BaseTestWithIam {
                     final Scheduler.TaskStatus.Builder taskBuilder = Scheduler.TaskStatus.newBuilder()
                         .setWorkflowId(taskStatus.workflowId())
                         .setTaskId(taskStatus.taskId())
-                        .setZygoteName(taskStatus.operationName());
+                        .setOperationName(taskStatus.operationName());
                     switch (taskStatus.status()) {
                         case "SUCCESS" -> taskBuilder.setSuccess(
                             Scheduler.TaskStatus.Success.newBuilder().setRc(0).build());

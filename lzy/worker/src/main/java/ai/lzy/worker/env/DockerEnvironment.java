@@ -1,5 +1,6 @@
 package ai.lzy.worker.env;
 
+import ai.lzy.worker.StreamQueue;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerCmd;
@@ -67,6 +68,11 @@ public class DockerEnvironment implements BaseEnvironment {
         LOG.info("Starting env container with id {} ...", container.getId());
         DOCKER.startContainerCmd(container.getId()).exec();
         LOG.info("Starting env container with id {} done", container.getId());
+    }
+
+    @Override
+    public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
+        // TODO(artolord) add stdout/stderr to std streams
     }
 
     @Override
@@ -157,12 +163,9 @@ public class DockerEnvironment implements BaseEnvironment {
             }
 
             @Override
-            public int waitFor() {
+            public int waitFor() throws InterruptedException {
                 try {
                     return exitCode.get().intValue();
-                } catch (InterruptedException e) {
-                    LOG.error("LzyProcess was interrupted, failed to get exit code", e);
-                    throw new RuntimeException(e);
                 } catch (ExecutionException e) {
                     LOG.error("LzyProcess was failed with ExecutionException, failed to get exit code", e);
                     throw new RuntimeException(e);

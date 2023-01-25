@@ -151,7 +151,7 @@ public class WorkflowService {
         if (previousActiveExecutionId != null) {
             Status errorStatus = Status.INTERNAL.withDescription("Cancelled by new execution start");
             if (cleanExecutionCompanion.markExecutionAsBroken(newExecution.getOwner(), request.getWorkflowName(),
-                executionId, errorStatus))
+                previousActiveExecutionId, errorStatus))
             {
                 cleanExecutionCompanion.cleanExecution(previousActiveExecutionId);
             }

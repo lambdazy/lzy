@@ -20,7 +20,7 @@ public class EnvironmentFactory {
         this.isDockerSupported = true;
     }
 
-    public Environment create(String fsRoot, Env env) throws EnvironmentInstallationException {
+    public Environment create(String fsRoot, Env env) {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");

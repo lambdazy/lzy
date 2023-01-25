@@ -2,10 +2,12 @@ package ai.lzy.longrunning;
 
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunning.CancelOperationRequest;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Any;
 import com.google.protobuf.Message;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,6 +16,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import javax.annotation.Nullable;
 
 public class LocalOperationService extends LongRunningServiceGrpc.LongRunningServiceImplBase {
@@ -21,7 +24,7 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
 
     private final String name;
 
-    private final Map<String, Operation> operations = new ConcurrentHashMap<>();
+    private final Map<String, OperationDesc> operations = new ConcurrentHashMap<>();
     private final Map<String, Operation> idempotencyKey2Operation = new ConcurrentHashMap<>();
 
     /**
@@ -36,13 +39,17 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
      * which should be considered as operation's state snapshot.
      */
     public OperationSnapshot registerOperation(Operation operation) {
+        return registerOperation(operation, null);
+    }
+
+    private OperationSnapshot registerOperation(Operation operation, @Nullable Thread thread) {
         LOG.debug("[{}] Attempt to register operation {}", name, operation.toShortString());
 
         Operation.IdempotencyKey idempotencyKey = operation.idempotencyKey();
 
         if (idempotencyKey != null) {
             var currentAssocOp = idempotencyKey2Operation.computeIfAbsent(idempotencyKey.token(), ik -> {
-                operations.putIfAbsent(operation.id(), operation);
+                operations.putIfAbsent(operation.id(), new OperationDesc(operation, null));
                 return operation;
             });
 
@@ -57,13 +64,33 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         }
 
         LOG.info("[{}] Register new operation {}", name, operation.toShortString());
-        var op = operations.computeIfAbsent(operation.id(), id -> operation);
+        var op = operations.computeIfAbsent(operation.id(), id -> new OperationDesc(operation, thread));
 
-        if (!op.id().equals(operation.id())) {
+        if (!op.operation.id().equals(operation.id())) {
             LOG.warn("[{}] Operation with id {} already exists.", name, operation.id());
         }
 
-        return OperationSnapshot.of(op);
+        return OperationSnapshot.of(op.operation);
+    }
+
+    /**
+     * Execute operation in new Thread and complete it on response or error
+     */
+    public OperationSnapshot execute(Operation op, Supplier<Message> runnable) {
+        final var thread = new Thread(null, () -> {
+            try {
+                final var response = runnable.get();
+                updateResponse(op.id(), response);
+            } catch (StatusRuntimeException e) {
+                updateError(op.id(), e.getStatus());
+            } catch (Exception e) {
+                LOG.error("Error while executing op {}: ", op.id(), e);
+                updateError(op.id(), Status.INTERNAL.withDescription(e.getMessage()));
+            }
+        }, "operation-" + op.id());
+
+        thread.start();
+        return registerOperation(op, thread);
     }
 
     /**
@@ -92,10 +119,10 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         if (op != null) {
             LOG.info("[{}] Update operation response: { opId: {} }", name, opId);
 
-            synchronized (op.id()) {
-                op.setResponse(response);
-                op.id().notifyAll();
-                return OperationSnapshot.of(op);
+            synchronized (op.operation.id()) {
+                op.operation.setResponse(response);
+                op.operation.id().notifyAll();
+                return OperationSnapshot.of(op.operation);
             }
         }
         LOG.error("[{}] Operation not found: { opId: {} }", name, opId);
@@ -111,10 +138,10 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         if (op != null) {
             LOG.info("[{}] Update operation error: { opId: {} }", name, opId);
 
-            synchronized (op.id()) {
-                op.setError(error);
-                op.id().notifyAll();
-                return OperationSnapshot.of(op);
+            synchronized (op.operation.id()) {
+                op.operation.setError(error);
+                op.operation.id().notifyAll();
+                return OperationSnapshot.of(op.operation);
             }
         }
         LOG.error("[{}] Operation not found: { opId: {} }", name, opId);
@@ -127,8 +154,8 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         if (op != null) {
             LOG.debug("[{}] Got operation: { opId: {} }", name, opId);
 
-            synchronized (op.id()) {
-                return OperationSnapshot.of(op);
+            synchronized (op.operation.id()) {
+                return OperationSnapshot.of(op.operation);
             }
         }
         LOG.error("[{}] Operation not found: { opId: {} }", name, opId);
@@ -147,23 +174,51 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
 
         LongRunning.Operation protoOp;
 
-        synchronized (op.id()) {
-            if (op.done()) {
-                if (op.response() != null) {
-                    LOG.info("[{}] Got operation is successfully completed: { opId: {} }", name, op.id());
-                } else if (op.error() != null) {
-                    LOG.info("[{}] Got operation is failed: { opId: {}, error: {} }", name, op.id(), op.error());
+        synchronized (op.operation.id()) {
+            if (op.operation.done()) {
+                if (op.operation.response() != null) {
+                    LOG.info("[{}] Got operation is successfully completed: { opId: {} }", name, op.operation.id());
+                } else if (op.operation.error() != null) {
+                    LOG.info("[{}] Got operation is failed: { opId: {}, error: {} }", name, op.operation.id(),
+                        op.operation.error());
                 } else {
                     LOG.error("[{}] Got completed operation is in unknown state: { opId: {}, state: {} }", name,
-                        op.id(), op.toString());
+                        op.operation.id(), op.toString());
                 }
             } else {
-                LOG.info("[{}] Got operation is in progress: { opId: {} }", name, op.id());
+                LOG.info("[{}] Got operation is in progress: { opId: {} }", name, op.operation.id());
             }
-            protoOp = op.toProto();
+            protoOp = op.operation.toProto();
         }
 
         response.onNext(protoOp);
+        response.onCompleted();
+    }
+
+    @Override
+    public void cancel(CancelOperationRequest request, StreamObserver<LongRunning.Operation> response) {
+        LOG.info("Cancelling operation {} with message {}", request.getOperationId(), request.getMessage());
+
+        var op = operations.get(request.getOperationId());
+        if (op == null) {
+            var errorMessage = "Operation %s not found".formatted(request.getOperationId());
+            LOG.error("[{}] Got error: {}", name, errorMessage);
+            response.onError(Status.NOT_FOUND.withDescription(errorMessage).asException());
+            return;
+        }
+
+        synchronized (op.operation.id()) {
+
+            op.operation.setError(Status.CANCELLED.withDescription(request.getMessage()));
+            op.operation.id().notifyAll();
+
+            if (op.thread != null) {
+                op.thread.interrupt();
+            }
+        }
+
+        LOG.info(" Operation {} cancelled", request.getOperationId());
+        response.onNext(op.operation.toProto());
         response.onCompleted();
     }
 
@@ -180,11 +235,11 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
 
         var waited = false;
         try {
-            synchronized (op.id()) {
-                while (!op.done() && (nanos = deadline - System.nanoTime()) > 0L) {
-                    op.id().wait(Duration.ofNanos(nanos).toMillis());
+            synchronized (op.operation.id()) {
+                while (!op.operation.done() && (nanos = deadline - System.nanoTime()) > 0L) {
+                    op.operation.id().wait(Duration.ofNanos(nanos).toMillis());
                 }
-                waited = op.done();
+                waited = op.operation.done();
             }
         } catch (InterruptedException e) {
             LOG.warn("[{}] Was interrupted while waiting operation completed: { opId: {}, error: {} }", name, opId,
@@ -267,4 +322,9 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
             return builder.build();
         }
     }
+
+    private record OperationDesc(
+        Operation operation,
+        @Nullable Thread thread
+    ) {}
 }

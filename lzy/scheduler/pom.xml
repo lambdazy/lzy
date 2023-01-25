@@ -32,6 +32,12 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>jobs</artifactId>
+            <version>1.0-SNAPSHOT</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>scheduler-api</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
