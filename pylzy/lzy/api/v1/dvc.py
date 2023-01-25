@@ -1,6 +1,10 @@
 import sys
 from collections import namedtuple
 import os
+from typing import Optional
+
+from dvc.repo import Repo
+import yaml
 
 from lzy.logs.config import get_logger
 from lzy.types import File
@@ -9,6 +13,7 @@ from . import LzyWorkflow
 _LOG = get_logger(__name__)
 
 dvc_file_name = 'dvc.yaml'
+dvc_lock_file_name = 'dvc.lock'
 params_file_name = 'params.yaml'
 requirements_file_name = 'dvc_requirements.txt'
 
@@ -26,7 +31,10 @@ def generate_dvc_files(wf: LzyWorkflow) -> None:
     cwd = os.getcwd()
 
     deps = [requirements_file_name] + [
-        _get_relative_path(cwd, module_path) for module_path in wf.auto_py_env.local_modules_path
+        rel_path for rel_path in [
+            _get_relative_path(cwd, module_path) for module_path in wf.auto_py_env.local_modules_path
+        ]
+        if rel_path
     ]
 
     args = []
@@ -70,37 +78,35 @@ def generate_dvc_files(wf: LzyWorkflow) -> None:
         else:
             raise ValueError('you can use only File or primitive types in @op\'s using DVC')
 
-    dvc_yaml = {
-        'stages': {
-            'main': {
-                'cmd': ' '.join(['python'] + sys.argv),  # TODO: think about stable cmd
-                'deps': deps + input_file_paths,
-                'params': [param.name for param in params],
-            }
-        }
-    }
     params_yaml = {param.name: param.value for param in params}
 
-    import yaml
-    with open(dvc_file_name, 'w') as f:
-        f.write(yaml.dump(dvc_yaml))
     with open(params_file_name, 'w') as f:
         f.write(yaml.dump(params_yaml))
+
+    repo = Repo()
+
+    stage = repo.stage.add(
+        name='main',
+        cmd=' '.join(['python'] + sys.argv),  # TODO: think about stable cmd
+        deps=deps + input_file_paths,
+        params=[param.name for param in params],
+        force=True,
+    )
+    stage.save()  # will calculate file hashes
+    stage.dump(update_lock=True)
 
     # TODO: whiteboard output
 
 
-def _get_relative_path(cwd: str, module_path: str) -> str:
+def _get_relative_path(cwd: str, module_path: str) -> Optional[str]:
     if not module_path.startswith(cwd):
-        _LOG.warning(f'local module path "{module_path}" doesn\'t start with working directory path "{cwd}"')
-        common_prefix_len = 0
-        for c1, c2 in zip(module_path, cwd):
-            if c1 != c2:
-                break
-            common_prefix_len += 1
-        path = module_path[common_prefix_len:]
-    else:
-        path = module_path[len(cwd) + 1:]
+        _LOG.warning(f'skipping local module "{module_path}" - it is not in the cwd and cannot be tracked by DVC')
+        return None
+
+    path = module_path[len(cwd) + 1:]
+
     if len(path) == 0:
-        path = '.'
+        _LOG.warning(f'skipping local module "{module_path} - it is matched cwd')
+        return None
+
     return path
