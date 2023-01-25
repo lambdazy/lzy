@@ -512,12 +512,6 @@
                 <scope>provided</scope>
             </dependency>
             <dependency>
-                <groupId>com.h2database</groupId>
-                <artifactId>h2</artifactId>
-                <version>${h2database.version}</version>
-                <scope>test</scope>
-            </dependency>
-            <dependency>
                 <groupId>io.findify</groupId>
                 <artifactId>s3mock_2.13</artifactId>
                 <version>${s3mock_2.13.version}</version>

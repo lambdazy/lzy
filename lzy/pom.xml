@@ -12,7 +12,6 @@
         <module>allocator-api</module>
         <module>channel-manager</module>
         <module>channel-manager-api</module>
-        <module>disk-service</module>
         <module>fs</module>
         <module>graph-executor</module>
         <module>graph-executor-api</module>

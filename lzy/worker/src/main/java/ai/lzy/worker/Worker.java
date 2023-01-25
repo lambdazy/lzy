@@ -128,7 +128,6 @@ public class Worker {
             server.start();
         } catch (IOException e) {
             LOG.error(e);
-            stop();
             throw new RuntimeException(e);
         }
 
@@ -151,7 +150,7 @@ public class Worker {
             lzyFs.start();
         } catch (IOException e) {
             LOG.error("Error while building uri", e);
-            stop();
+            server.shutdown();
             throw new RuntimeException(e);
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             throw new RuntimeException(e);
