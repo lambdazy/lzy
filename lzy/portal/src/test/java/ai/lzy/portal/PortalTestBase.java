@@ -138,7 +138,7 @@ public class PortalTestBase {
         mocksServer = new MocksServer(mocksPort);
         mocksServer.start();
         this.workerKeys = RsaUtils.generateRsaKeys();
-        Worker.RSA_KEYS = this.workerKeys;
+        Worker.setRsaKeysForTests(this.workerKeys);
 
         userId = "uid";
         workflowName = "wf";

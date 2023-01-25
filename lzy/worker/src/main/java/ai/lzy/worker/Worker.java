@@ -46,14 +46,15 @@ import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import javax.annotation.Nullable;
 
 import static ai.lzy.util.auth.credentials.CredentialsUtils.readPrivateKey;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
-    public static boolean USE_LOCALHOST_AS_HOST = false;
-    public static RsaUtils.RsaKeys RSA_KEYS = null;  // only for tests
+    private static boolean USE_LOCALHOST_AS_HOST = false;
+    private static RsaUtils.RsaKeys RSA_KEYS = null;  // only for tests
 
     private static final Options options = new Options();
 
@@ -221,6 +222,16 @@ public class Worker {
                 // ignored
             }
         }
+    }
+
+    @VisibleForTesting
+    public static void setRsaKeysForTests(@Nullable RsaUtils.RsaKeys keys) {
+        RSA_KEYS = keys;
+    }
+
+    @VisibleForTesting
+    public static void useLocalhostAsHost(boolean use) {
+        USE_LOCALHOST_AS_HOST = use;
     }
 
     public static void main(String[] args) {

@@ -19,7 +19,7 @@ public class PyApiTest {
 
     static {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
-        CondaEnvironment.RECONFIGURE_CONDA = false;  // To optimize conda configuration
+        CondaEnvironment.reconfigureConda(false);  // To optimize conda configuration
     }
 
     @Test
@@ -43,18 +43,18 @@ public class PyApiTest {
 
     @Test
     public void testEnvFail() {
-        CondaEnvironment.RECONFIGURE_CONDA = true;
+        CondaEnvironment.reconfigureConda(true);
         pythonContext.context().evalAndAssertScenarioResult("env_fail");
-        CondaEnvironment.RECONFIGURE_CONDA = false;
+        CondaEnvironment.reconfigureConda(false);
     }
 
     @Test
     public void testCustomCondaAndSerializer() {
-        CondaEnvironment.RECONFIGURE_CONDA = true;
+        CondaEnvironment.reconfigureConda(true);
         try {
             pythonContext.context().evalAndAssertScenarioResult("custom_conda_and_serializer");
         } finally {
-            CondaEnvironment.RECONFIGURE_CONDA = false;
+            CondaEnvironment.reconfigureConda(false);
         }
     }
 
@@ -63,9 +63,9 @@ public class PyApiTest {
         /* This scenario checks for:
                 1. Importing local file package 
          */
-        CondaEnvironment.RECONFIGURE_CONDA = true;
+        CondaEnvironment.reconfigureConda(true);
         pythonContext.context().evalAndAssertScenarioResult("import");
-        CondaEnvironment.RECONFIGURE_CONDA = false;
+        CondaEnvironment.reconfigureConda(false);
     }
 
     @Test
