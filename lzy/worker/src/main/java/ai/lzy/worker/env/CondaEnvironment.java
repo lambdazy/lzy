@@ -4,6 +4,7 @@ import ai.lzy.logs.MetricEvent;
 import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.model.graph.PythonEnv;
 import ai.lzy.worker.StreamQueue;
+import com.google.common.annotations.VisibleForTesting;
 import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,7 +24,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class CondaEnvironment implements AuxEnvironment {
-    public static boolean RECONFIGURE_CONDA = true;  // Only for tests
+    private static boolean RECONFIGURE_CONDA = true;  // Only for tests
 
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private static final Lock lockForMultithreadingTests = new ReentrantLock();
@@ -33,6 +34,11 @@ public class CondaEnvironment implements AuxEnvironment {
     private final String localModulesDir;
     private final String envName;
     private final String resourcesPath;
+
+    @VisibleForTesting
+    public static void reconfigureConda(boolean reconfigure) {
+        RECONFIGURE_CONDA = reconfigure;
+    }
 
     public CondaEnvironment(
         PythonEnv pythonEnv,
