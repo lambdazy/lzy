@@ -8,17 +8,19 @@ import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.portal.exceptions.CreateSlotException;
 import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.slots.LSA;
 import com.google.protobuf.ByteString;
-import org.apache.commons.collections4.queue.CircularFifoQueue;
+import io.grpc.Status;
+import io.grpc.stub.ServerCallStreamObserver;
+import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
 import java.util.*;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -27,7 +29,9 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
 
     private final Map<String, StdoutInputSlot> task2slot = new HashMap<>();
     private final Map<String, String> slot2task = new HashMap<>();
-    private final CircularFifoQueue<String> buffer = new CircularFifoQueue<>(1024);
+
+    // TODO(artolord) replace this buffer with persistent queue or file to prevent OOM
+    private final LinkedBlockingQueue<String> buffer = new LinkedBlockingQueue<>(1024);
     private final AtomicBoolean finished = new AtomicBoolean(false);
     private final AtomicBoolean finishing = new AtomicBoolean(false);
 
@@ -83,7 +87,12 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
         var taskId = slot2task.get(slot);
         if (taskId != null) {
             if (!line.isEmpty()) {
-                buffer.offer("[LZY-REMOTE-" + taskId + "] - " + line.toStringUtf8());
+                try {
+                    buffer.put("[LZY-REMOTE-" + taskId + "] - " + line.toStringUtf8());
+                } catch (InterruptedException e) {
+                    LOG.error("Interrupted while blocked on data writing");
+                    throw new RuntimeException("Interrupted");
+                }
             }
             notifyAll();
         } else {
@@ -105,55 +114,52 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     }
 
     @Override
-    public synchronized Stream<ByteString> readFromPosition(long offset) {
-        assert offset == 0;
+    public void readFromPosition(long offset, StreamObserver<LSA.SlotDataChunk> responseObserver) {
+        assert offset == 0;  // This is stream slot
 
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<>() {
-            private ByteString line = null;
+        while (true) {
 
-            @Override
-            public boolean hasNext() {
-                synchronized (StdoutSlot.this) {
-                    while (true) {
-                        var l = buffer.poll();
-                        if (l != null) {
-                            line = ByteString.copyFromUtf8(l);
-                            return true;
-                        }
-
-                        task2slot.values().forEach(slot -> LOG.debug(" ::: slot {} -> {}", slot.name(), slot.state()));
-
-                        if (finished.get()) {
-                            return false;
-                        }
-
-                        try {
-                            StdoutSlot.this.wait();
-                        } catch (InterruptedException e) {
-                            // ignored
-                        }
-                    }
-                }
+            if (((ServerCallStreamObserver<LSA.SlotDataChunk>) responseObserver).isCancelled()) {
+                LOG.error("Stream cancelled, returning...");
+                return;
             }
 
-            @Override
-            public ByteString next() {
-                if (line == null) {
-                    throw new IllegalStateException();
+            var l = buffer.peek();
+            while (l != null) {
+                if (((ServerCallStreamObserver<LSA.SlotDataChunk>) responseObserver).isCancelled()) {
+                    LOG.error("Stream cancelled, returning...");
+                    return;
                 }
                 try {
-                    LOG.debug("Send from slot {} some data: {}", name(), line.toStringUtf8());
-                    return line;
-                } finally {
-                    try {
-                        onChunk(line);
-                    } catch (Exception re) {
-                        LOG.warn("Error in traffic tracker", re);
-                    }
-                    line = null;
+                    responseObserver.onNext(LSA.SlotDataChunk.newBuilder()
+                        .setChunk(ByteString.copyFromUtf8(l))
+                        .build());
+                    buffer.poll();
+                } catch (Exception e) {
+                    LOG.error("Error while sending data from slot {}", name(), e);
+                    responseObserver.onError(Status.INTERNAL.asException());
+                    return;
                 }
+                l = buffer.peek();
             }
-        }, Spliterator.IMMUTABLE | Spliterator.ORDERED), /* parallel */ false);
+
+            if (finished.get()) {
+                break;
+            }
+
+            try {
+                synchronized (StdoutSlot.this) {
+                    StdoutSlot.this.wait();
+                }
+            } catch (InterruptedException e) {
+                // ignored
+            }
+        }
+
+        responseObserver.onNext(LSA.SlotDataChunk.newBuilder()
+            .setControl(LSA.SlotDataChunk.Control.EOS)
+            .build());
+        responseObserver.onCompleted();
     }
 
     public synchronized void finish() {

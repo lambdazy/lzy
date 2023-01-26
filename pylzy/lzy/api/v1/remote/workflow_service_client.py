@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
 # noinspection PyPackageRequirements
+from ai.lzy.v1.workflow import workflow_service_pb2_grpc, workflow_service_pb2
 from grpc.aio import Channel
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
@@ -29,7 +30,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials
-from lzy.utils.grpc import add_headers_interceptor, build_channel, retry
+from lzy.utils.grpc import add_headers_interceptor, build_channel, retry, RetryConfig
 
 
 @dataclass
@@ -95,7 +96,9 @@ class WorkflowServiceClient:
     @staticmethod
     async def create(address: str, token: str) -> "WorkflowServiceClient":
         channel = build_channel(
-            address, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
+            address, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"}),
+            service_names=("LzyWorkflowService", "LongRunningService"),
+            enable_retry=True
         )
         await channel.channel_ready()
         stub = LzyWorkflowServiceStub(channel)
@@ -174,7 +177,12 @@ class WorkflowServiceClient:
 
         return res.graphId
 
-    @retry()
+    @retry(config=RetryConfig(
+        initial_backoff_ms=1000,
+        max_retry=120,
+        backoff_multiplier=1,
+        max_backoff_ms=10000
+    ), action_name="getting graph status")
     async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
         res: GraphStatusResponse = await self.__stub.GraphStatus(
             GraphStatusRequest(executionId=execution_id, graphId=graph_id)
