@@ -249,7 +249,7 @@ class Lzy:
         )
 
     def whiteboard(self, *,
-                   id_: Optional[str],
+                   id_: Optional[str] = None,
                    storage_uri: Optional[str] = None,
                    storage_name: Optional[str] = None) -> Optional[Any]:
         return LzyEventLoop.run_async(

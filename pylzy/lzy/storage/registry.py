@@ -38,7 +38,7 @@ class DefaultStorageRegistry(StorageRegistry):
             self.__default_client = None
 
     def config(self, storage_name: str) -> Optional[Storage]:
-        return self.__credentials_map[storage_name]
+        return self.__credentials_map.get(storage_name)
 
     def default_config(self) -> Optional[Storage]:
         return self.__default_config
@@ -47,7 +47,7 @@ class DefaultStorageRegistry(StorageRegistry):
         return self.__default_name
 
     def client(self, storage_name: str) -> Optional[AsyncStorageClient]:
-        return self.__clients_map[storage_name]
+        return self.__clients_map.get(storage_name)
 
     def default_client(self) -> Optional[AsyncStorageClient]:
         return self.__default_client

@@ -119,7 +119,7 @@ class WhiteboardTests(TestCase):
         with self.lzy.workflow(self.workflow_name) as wf:
             wb = wf.create_whiteboard(Whiteboard)
 
-        fetched_wb = self.lzy.whiteboard(id_=None, storage_uri=wb.storage_uri)
+        fetched_wb = self.lzy.whiteboard(storage_uri=wb.storage_uri)
         self.assertEqual(fetched_wb.id, wb.id)
         self.assertEqual(WhiteboardStatus.FINALIZED, fetched_wb.status)
 
@@ -164,7 +164,7 @@ class WhiteboardTests(TestCase):
 
     def test_whiteboard_missing_id(self):
         with self.assertRaisesRegex(ValueError, "Neither id nor uri are set"):
-            self.lzy.whiteboard(id_=None)
+            self.lzy.whiteboard()
 
     def test_whiteboard_mismatched_id(self):
         with self.lzy.workflow(self.workflow_name) as wf:
