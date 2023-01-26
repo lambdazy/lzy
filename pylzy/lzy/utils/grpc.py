@@ -221,7 +221,7 @@ def build_token(username: str, key_path: str) -> str:
 
 def retry(config: RetryConfig, action_name: str):
 
-    def decorator(f: Callable[[Any], T]):
+    def decorator(f: Callable[[Any], Awaitable[T]]):
 
         @functools.wraps(f)
         async def inner(*args: Any, **kwargs: Any) -> T:
