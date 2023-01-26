@@ -1,19 +1,14 @@
 package ai.lzy.allocator.vmpool;
 
-public enum ProvisioningValues {
-    ICE_LAKE("Intel Ice Lake"),
+public enum CpuTypes {
     CASCADE_LAKE("Intel Cascade Lake"),
     BROADWELL("Intel Broadwell"),
     AMD_EPYC("AMD EPYC"),
-    NO_GPU("<none>"),
-    V100("V100"),
-    A100("A100"),
-    T4("T4")
+    ICE_LAKE("Intel Ice Lake");
 
-    ;
     private final String value;
 
-    ProvisioningValues(String name) {
+    CpuTypes(String name) {
         this.value = name;
     }
 

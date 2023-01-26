@@ -1,4 +1,4 @@
-package ai.lzy.iam;
+package ai.lzy.iam.test;
 
 import ai.lzy.iam.LzyIAM;
 import ai.lzy.iam.config.IamClientConfiguration;

@@ -2,10 +2,7 @@ package ai.lzy.allocator.vmpool.yc;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.allocator.vmpool.ProvisioningValues;
-import ai.lzy.allocator.vmpool.VmPoolRegistry;
-import ai.lzy.allocator.vmpool.VmPoolSpec;
+import ai.lzy.allocator.vmpool.*;
 import com.google.common.net.HostAndPort;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
@@ -248,32 +245,32 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
 
             switch (platform) {
                 case "standard-v1" -> {
-                    cpuType = ProvisioningValues.BROADWELL.value();
-                    gpuType = ProvisioningValues.NO_GPU.value();
+                    cpuType = CpuTypes.BROADWELL.value();
+                    gpuType = GpuTypes.NO_GPU.value();
                 }
                 case "standard-v2" -> {
-                    cpuType = ProvisioningValues.CASCADE_LAKE.value();
-                    gpuType = ProvisioningValues.NO_GPU.value();
+                    cpuType = CpuTypes.CASCADE_LAKE.value();
+                    gpuType = GpuTypes.NO_GPU.value();
                 }
                 case "standard-v3" -> {
-                    cpuType = ProvisioningValues.ICE_LAKE.value();
-                    gpuType = ProvisioningValues.NO_GPU.value();
+                    cpuType = CpuTypes.ICE_LAKE.value();
+                    gpuType = GpuTypes.NO_GPU.value();
                 }
                 case "gpu-standard-v1" -> {
-                    cpuType = ProvisioningValues.BROADWELL.value();
-                    gpuType = ProvisioningValues.V100.value();
+                    cpuType = CpuTypes.BROADWELL.value();
+                    gpuType = GpuTypes.V100.value();
                 }
                 case "gpu-standard-v2" -> {
-                    cpuType = ProvisioningValues.CASCADE_LAKE.value();
-                    gpuType = ProvisioningValues.V100.value();
+                    cpuType = CpuTypes.CASCADE_LAKE.value();
+                    gpuType = GpuTypes.V100.value();
                 }
                 case "standard-v3-t4" -> {
-                    cpuType = ProvisioningValues.ICE_LAKE.value();
-                    gpuType = ProvisioningValues.T4.value();
+                    cpuType = CpuTypes.ICE_LAKE.value();
+                    gpuType = GpuTypes.T4.value();
                 }
                 case "gpu-standard-v3" -> {
-                    cpuType = ProvisioningValues.AMD_EPYC.value();
-                    gpuType = ProvisioningValues.A100.value();
+                    cpuType = CpuTypes.AMD_EPYC.value();
+                    gpuType = GpuTypes.A100.value();
                 }
                 default -> {
                     LOG.error("Cannot resolve platform {} for pool {}", platform, label);
