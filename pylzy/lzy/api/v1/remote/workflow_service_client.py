@@ -29,7 +29,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials
-from lzy.utils.grpc import add_headers_interceptor, build_channel
+from lzy.utils.grpc import add_headers_interceptor, build_channel, retry
 
 
 @dataclass
@@ -174,6 +174,7 @@ class WorkflowServiceClient:
 
         return res.graphId
 
+    @retry()
     async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
         res: GraphStatusResponse = await self.__stub.GraphStatus(
             GraphStatusRequest(executionId=execution_id, graphId=graph_id)

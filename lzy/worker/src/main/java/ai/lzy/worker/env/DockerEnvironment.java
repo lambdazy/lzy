@@ -22,9 +22,6 @@ import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
 public class DockerEnvironment implements BaseEnvironment {
@@ -94,57 +91,58 @@ public class DockerEnvironment implements BaseEnvironment {
             throw new RuntimeException(e);
         }
 
-        final CompletableFuture<Long> exitCode = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> {
-            try {
-                LOG.info("Creating cmd {}", String.join(" ", command));
-                final ExecCreateCmd execCmd = DOCKER.execCreateCmd(container.getId())
-                    .withCmd(command)
-                    .withAttachStdout(true)
-                    .withAttachStderr(true);
-                if (envp != null && envp.length > 0) {
-                    execCmd.withEnv(List.of(envp));
+        LOG.info("Creating cmd {}", String.join(" ", command));
+        final ExecCreateCmd execCmd = DOCKER.execCreateCmd(container.getId())
+            .withCmd(command)
+            .withAttachStdout(true)
+            .withAttachStderr(true);
+
+        if (envp != null && envp.length > 0) {
+            execCmd.withEnv(List.of(envp));
+        }
+        final ExecCreateCmdResponse exec = execCmd.exec();
+        LOG.info("Executing cmd {}", String.join(" ", command));
+
+        var startCmd = DOCKER.execStartCmd(exec.getId())
+            .exec(new ResultCallbackTemplate<>() {
+                @Override
+                public void onComplete() {
+                    LOG.info("Closing stdout, stderr of cmd {}", String.join(" ", command));
+                    try {
+                        stdout.close();
+                        stderr.close();
+                    } catch (IOException e) {
+                        LOG.error("Cannot close stderr/stdout slots", e);
+                    }
                 }
-                final ExecCreateCmdResponse exec = execCmd.exec();
-                LOG.info("Executing cmd {}", String.join(" ", command));
-                DOCKER.execStartCmd(exec.getId())
-                    .exec(new ResultCallbackTemplate<>() {
-                        @Override
-                        public void onNext(Frame item) {
-                            switch (item.getStreamType()) {
-                                case STDOUT:
-                                    try {
-                                        stdout.write(item.getPayload());
-                                        stdout.flush();
-                                    } catch (IOException e) {
-                                        LOG.error("Error while write into stdout log", e);
-                                    }
-                                    break;
-                                case STDERR:
-                                    try {
-                                        stderr.write(item.getPayload());
-                                        stderr.flush();
-                                    } catch (IOException e) {
-                                        LOG.error("Error while write into stderr log", e);
-                                    }
-                                    break;
-                                default:
-                                    LOG.info("Got frame "
-                                        + new String(item.getPayload(), StandardCharsets.UTF_8)
-                                        + " from unknown stream type "
-                                        + item.getStreamType());
+
+                @Override
+                public void onNext(Frame item) {
+                    switch (item.getStreamType()) {
+                        case STDOUT:
+                            try {
+                                stdout.write(item.getPayload());
+                                stdout.flush();
+                            } catch (IOException e) {
+                                LOG.error("Error while write into stdout log", e);
                             }
-                        }
-                    }).awaitCompletion();
-                LOG.info("Closing stdout, stderr of cmd {}", String.join(" ", command));
-                stdout.close();
-                stderr.close();
-                exitCode.complete(DOCKER.inspectExecCmd(exec.getId()).exec().getExitCodeLong());
-            } catch (InterruptedException | IOException e) {
-                LOG.error("Job container with id=" + container.getId() + " image= " + sourceImage
-                    + " was interrupted");
-            }
-        });
+                            break;
+                        case STDERR:
+                            try {
+                                stderr.write(item.getPayload());
+                                stderr.flush();
+                            } catch (IOException e) {
+                                LOG.error("Error while write into stderr log", e);
+                            }
+                            break;
+                        default:
+                            LOG.info("Got frame "
+                                + new String(item.getPayload(), StandardCharsets.UTF_8)
+                                + " from unknown stream type "
+                                + item.getStreamType());
+                    }
+                }
+            });
 
         return new LzyProcess() {
             @Override
@@ -165,10 +163,15 @@ public class DockerEnvironment implements BaseEnvironment {
             @Override
             public int waitFor() throws InterruptedException {
                 try {
-                    return exitCode.get().intValue();
-                } catch (ExecutionException e) {
-                    LOG.error("LzyProcess was failed with ExecutionException, failed to get exit code", e);
-                    throw new RuntimeException(e);
+                    startCmd.awaitCompletion();
+                    return Math.toIntExact(DOCKER.inspectExecCmd(exec.getId()).exec().getExitCodeLong());
+                } catch (InterruptedException e) {
+                    try {
+                        startCmd.close();
+                    } catch (IOException ex) {
+                        LOG.error("Error while closing cmd: ", ex);
+                    }
+                    throw e;
                 }
             }
 

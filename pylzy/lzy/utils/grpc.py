@@ -1,6 +1,9 @@
+import asyncio
 import dataclasses
+import functools
 import json
 import time
+import typing
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -21,13 +24,19 @@ import grpc.aio as aio
 # Copy from util/util-grpc/src/main/java/ai/lzy/util/grpc/ChannelBuilder.java
 import jwt
 # noinspection PyPackageRequirements
-from grpc.aio import ClientCallDetails, ClientInterceptor
+from grpc import StatusCode
+from grpc.aio import ClientCallDetails, ClientInterceptor, AioRpcError
 # noinspection PyPackageRequirements,PyProtectedMember
 from grpc.aio._typing import RequestType, ResponseType
+
+from lzy.logs.config import get_logger
 
 KEEP_ALIVE_TIME_MINS = 3
 IDLE_TIMEOUT_MINS = 5
 KEEP_ALIVE_TIMEOUT_SECS = 10
+
+
+_LOG = get_logger(__name__)
 
 
 @dataclass
@@ -209,3 +218,28 @@ def build_token(username: str, key_path: str) -> str:
                 algorithm="PS256",
             )
         )
+
+
+def retry(max_retry_count: int = 60,
+          retryable_codes: Sequence[StatusCode] = (StatusCode.UNKNOWN, StatusCode.UNAVAILABLE),
+          retry_period_seconds: float = 1):
+
+    def decorator(f: Callable[[Any], T]):
+
+        @functools.wraps(f)
+        async def inner(*args: Any, **kwargs: Any) -> T:
+            for i in range(max_retry_count):
+                try:
+                    return await f(*args, **kwargs)
+                except AioRpcError as e:
+                    if e.code() in retryable_codes:
+                        _LOG.warning(f"Lost connection. Retrying {i}/{max_retry_count}...")
+                        await asyncio.sleep(retry_period_seconds)
+                        continue
+                    raise e
+            raise RuntimeError("Lost connection to lzy servers. Please check your network connection and ty again.")
+
+        return inner
+
+    return decorator
+

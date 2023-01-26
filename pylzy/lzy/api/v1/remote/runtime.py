@@ -46,7 +46,7 @@ from lzy.api.v1.utils.files import fileobj_hash, zipdir
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_color
-from lzy.utils.grpc import build_token
+from lzy.utils.grpc import build_token, retry
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
 KEY_PATH_ENV = "LZY_KEY_PATH"
@@ -242,6 +242,7 @@ class RemoteRuntime(Runtime):
             )
         return self.__workflow_client
 
+    @retry()
     async def __listen_to_std_slots(self, execution_id: str):
         client = await self.__get_client()
         async for data in client.read_std_slots(execution_id):
