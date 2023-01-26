@@ -25,8 +25,7 @@ class SnapshotTests(TestCase):
             uri="s3://bucket/prefix",
             credentials=storage.S3Credentials(self.endpoint_url, access_key_id="", secret_access_key="")
         )
-        self.storages = DefaultStorageRegistry()
-        self.storages.register_storage("storage", storage_config, True)
+        self.storages = DefaultStorageRegistry("storage", storage_config)
 
         serializers = LzySerializerRegistry()
         self.snapshot = DefaultSnapshot(serializers, self.storages.client("storage"), "storage")

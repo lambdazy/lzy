@@ -23,6 +23,7 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import add_LzyWhiteboardSe
 from lzy.api.v1 import Lzy, whiteboard, WhiteboardStatus, MISSING_WHITEBOARD_FIELD, op
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.storage.api import Storage, S3Credentials
+from lzy.storage.registry import DefaultStorageRegistry
 from lzy.utils.event_loop import LzyEventLoop
 from tests.api.v1.mocks import SerializerRegistryMock, NotStablePrimitiveSerializer, NotAvailablePrimitiveSerializer, \
     WhiteboardIndexServiceMock, EnvProviderMock
@@ -80,16 +81,18 @@ class WhiteboardTests(TestCase):
 
     def setUp(self) -> None:
         self.workflow_name = "workflow_" + str(uuid.uuid4())
-        self.lzy = Lzy(runtime=LocalRuntime(), py_env_provider=EnvProviderMock())
-        self.lzy.auth(user="test_user", key_path=self.key_path, whiteboards_endpoint=self.wb_service_url,
-                      endpoint="endpoint")
-
         self.storage_uri = "s3://bucket/prefix"
         storage_config = Storage(
             uri=self.storage_uri,
             credentials=S3Credentials(self.endpoint_url, access_key_id="", secret_access_key="")
         )
-        self.lzy.storage_registry.register_storage('default', storage_config, True)
+
+        self.lzy = Lzy(runtime=LocalRuntime(),
+                       py_env_provider=EnvProviderMock(),
+                       storage_registry=DefaultStorageRegistry("default", storage_config))
+
+        self.lzy.auth(user="test_user", key_path=self.key_path, whiteboards_endpoint=self.wb_service_url,
+                      endpoint="endpoint")
 
     def tearDown(self) -> None:
         self.mock.clear_all()

@@ -78,9 +78,11 @@ class AsyncStorageClient(ABC):
 
 class StorageRegistry:
     @abstractmethod
-    def register_storage(
-        self, name: str, storage: Storage, default: bool = False
-    ) -> None:
+    def register_default_storage(self, default_storage: Storage) -> None:
+        pass
+
+    @abstractmethod
+    def register_storage(self, name: str, storage: Storage) -> None:
         pass
 
     @abstractmethod
