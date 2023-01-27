@@ -20,7 +20,7 @@ from lzy.logs.config import get_logger
 from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
     FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
-from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
+from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient
 from lzy.api.v1.runtime import ProgressStep
 from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.serialization.registry import LzySerializerRegistry
@@ -36,6 +36,9 @@ _LOG = get_logger(__name__)
 class RuntimeMock(Runtime):
     def __init__(self):
         self.calls: List[LzyCall] = []
+
+    def workflow_client(self) -> Optional["WorkflowServiceClient"]:
+        return None
 
     async def start(self, workflow: "LzyWorkflow") -> str:
         return str(uuid.uuid4())
