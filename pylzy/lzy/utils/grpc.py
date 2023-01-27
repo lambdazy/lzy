@@ -30,8 +30,7 @@ from grpc.aio._typing import RequestType, ResponseType
 
 from lzy.logs.config import get_logger
 
-KEEP_ALIVE_TIME_MS = 1000
-IDLE_TIMEOUT_MS = 1000
+KEEP_ALIVE_TIME_MS = 3 * 60 * 1000  # 3 minutes
 KEEP_ALIVE_TIMEOUT_MS = 1000
 
 
@@ -57,13 +56,13 @@ def build_channel(
     retry_config: RetryConfig = RetryConfig(),
     tls: bool = False,
     interceptors: Optional[Sequence[aio.ClientInterceptor]] = None,
+    keepalive_ms: int = KEEP_ALIVE_TIME_MS
 ) -> aio.Channel:
     options: List[Tuple[str, Any]] = [
         ("grpc.enable_retries", 1 if enable_retry else 0),
         ("grpc.keepalive_permit_without_calls", 1),
-        ("grpc.keepalive_time_ms", KEEP_ALIVE_TIME_MS),
+        ("grpc.keepalive_time_ms", keepalive_ms),
         ("grpc.keepalive_timeout_ms", KEEP_ALIVE_TIMEOUT_MS),
-        ("grpc.client_idle_timeout_ms", IDLE_TIMEOUT_MS),
     ]
 
     if enable_retry:

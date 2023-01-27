@@ -110,11 +110,14 @@ public class VmDaoImpl implements VmDao {
     private static final String QUERY_ACQUIRE_VM = """
         UPDATE vm
         SET status = 'RUNNING'
-        WHERE
-            session_id = ? AND pool_label = ? AND zone = ? AND status = 'IDLE'
-            AND workloads_json = ? AND init_workloads_json = ?
-            AND volume_requests_json = ?
-            AND COALESCE(v6_proxy_address, '') = ?
+        WHERE id = (
+            SELECT id FROM vm
+            WHERE session_id = ? AND pool_label = ? AND zone = ? AND status = 'IDLE'
+                AND workloads_json = ? AND init_workloads_json = ?
+                AND volume_requests_json = ?
+                AND COALESCE(v6_proxy_address, '') = ?
+            LIMIT 1
+            )
         RETURNING %s
         """.formatted(ALL_FIELDS);
 

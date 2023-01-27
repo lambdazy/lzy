@@ -98,7 +98,8 @@ class WorkflowServiceClient:
         channel = build_channel(
             address, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"}),
             service_names=("LzyWorkflowService", "LongRunningService"),
-            enable_retry=True
+            enable_retry=True,
+            keepalive_ms=1000
         )
         await channel.channel_ready()
         stub = LzyWorkflowServiceStub(channel)
