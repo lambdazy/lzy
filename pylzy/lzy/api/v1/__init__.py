@@ -31,6 +31,8 @@ from lzy.whiteboards.index import WhiteboardIndexedManager, RemoteWhiteboardInde
 from lzy.whiteboards.wrapper import WhiteboardStatus, MISSING_WHITEBOARD_FIELD
 from lzy.api.v1.utils.proxy_adapter import materialize
 
+configure_logging()
+
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 FuncT = TypeVar(
@@ -130,8 +132,6 @@ class Lzy:
         storage_registry: StorageRegistry = DefaultStorageRegistry(),
         serializer_registry: LzySerializerRegistry = LzySerializerRegistry()
     ):
-        configure_logging()
-
         self.__env_provider = py_env_provider
         self.__serializer_registry = serializer_registry
         self.__storage_registry = storage_registry
