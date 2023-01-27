@@ -148,7 +148,7 @@ class LzyWorkflow:
         try:
             if not self.__started:
                 raise RuntimeError("Workflow not started")
-            if exc_type != LzyExecutionException:
+            if exc_type is None:
                 LzyEventLoop.run_async(self._barrier())
         finally:
             self.__destroy()
