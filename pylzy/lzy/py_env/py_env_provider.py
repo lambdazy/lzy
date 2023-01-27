@@ -38,9 +38,14 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         self.__pypi_cache_file_path = pypi_cache_file_path
 
         cache_path = Path(pypi_cache_file_path)
-        modification_seconds_diff = time.time() - os.path.getmtime(cache_path)
-        modification_hours_diff, _ = divmod(modification_seconds_diff, 3600)
-        if cache_path.exists() and modification_hours_diff < cache_invalidation_period_hours:
+        build_cache: bool = True
+        if cache_path.exists():
+            modification_seconds_diff = time.time() - os.path.getmtime(cache_path)
+            modification_hours_diff, _ = divmod(modification_seconds_diff, 3600)
+            if modification_hours_diff < cache_invalidation_period_hours:
+                build_cache = False
+
+        if not build_cache:
             _LOG.info("Loading pypi packages cache")
             try:
                 with open(cache_path, "r") as file:
