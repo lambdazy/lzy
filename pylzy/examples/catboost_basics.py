@@ -21,8 +21,6 @@ def train(data_set: Bunch) -> CatBoostClassifier:
 
 
 lzy = Lzy()
-lzy.auth(user="mrMakaronka", key_path="/Users/tomato/Work/keys/private.pem", endpoint="158.160.44.118:8122",
-         whiteboards_endpoint="158.160.34.24:8122")
 with lzy.workflow("training"):
     data = dataset()
     model = train(data)
