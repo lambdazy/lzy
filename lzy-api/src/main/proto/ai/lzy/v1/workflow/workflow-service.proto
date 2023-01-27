@@ -19,6 +19,7 @@ service LzyWorkflowService {
       response: "FinishWorkflowResponse";
     };
   }
+  rpc AbortWorkflow (AbortWorkflowRequest) returns (AbortWorkflowResponse);
 
   rpc ExecuteGraph (ExecuteGraphRequest) returns (ExecuteGraphResponse);
   rpc GraphStatus (GraphStatusRequest) returns (GraphStatusResponse);
@@ -49,11 +50,20 @@ message FinishWorkflowRequest {
 
 message FinishWorkflowResponse {}
 
+message AbortWorkflowRequest {
+  string workflowName = 1;
+  string executionId = 2;
+  string reason = 3;
+}
+
+message AbortWorkflowResponse {}
+
 // ==================== ExecuteGraph =====================
 
 message ExecuteGraphRequest {
-  string executionId = 1;
-  Graph graph = 2;
+  string workflowName = 1;
+  string executionId = 2;
+  Graph graph = 3;
 }
 
 message ExecuteGraphResponse {

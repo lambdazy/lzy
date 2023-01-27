@@ -14,9 +14,12 @@ import io.grpc.StatusRuntimeException;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -78,7 +81,7 @@ public class WorkflowTest extends BaseTest {
         assertTrue(finishOp.getDone());
         assertTrue(finishOp.hasResponse());
 
-        // assertEquals(executionId, destroyedExecutionChannels[0]);
+        assertEquals(executionId, destroyedExecutionChannels[0]);
         assertTrue(deleteSessionFlag.get());
         assertTrue(freeVmFlag.get());
 
@@ -88,15 +91,15 @@ public class WorkflowTest extends BaseTest {
                 .setExecutionId(executionId)
                 .build()));
 
-        var thrownUnknownWorkflow = assertThrows(StatusRuntimeException.class, () ->
+        var thrownUnknownWorkflowExecution = assertThrows(StatusRuntimeException.class, () ->
             authorizedWorkflowClient.finishWorkflow(
                 LWFS.FinishWorkflowRequest.newBuilder()
                     .setWorkflowName(workflowName)
                     .setExecutionId("execution_id")
                     .build()));
 
-        assertEquals(Status.INVALID_ARGUMENT.getCode(), thrownAlreadyFinished.getStatus().getCode());
-        assertEquals(Status.NOT_FOUND.getCode(), thrownUnknownWorkflow.getStatus().getCode());
+        assertEquals(Status.FAILED_PRECONDITION.getCode(), thrownAlreadyFinished.getStatus().getCode());
+        assertEquals(Status.FAILED_PRECONDITION.getCode(), thrownUnknownWorkflowExecution.getStatus().getCode());
     }
 
     @Test
@@ -165,9 +168,150 @@ public class WorkflowTest extends BaseTest {
         assertTrue(finishOp.getDone());
         assertTrue(finishOp.hasResponse());
 
-        //assertEquals(executionId, destroyedExecutionChannels[0]);
+        assertEquals(executionId, destroyedExecutionChannels[0]);
         assertTrue(deleteSessionFlag.get());
         assertTrue(freeVmFlag.get());
+        assertEquals(expectedGraphId, stopGraphId[0]);
+    }
+
+    @Test
+    public void startAndAbortWorkflowExecutionWithGraphs() {
+        var workflowName = "workflow_1";
+        var execution = authorizedWorkflowClient.startWorkflow(
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
+        );
+
+        var executionId = execution.getExecutionId();
+        var storageConfig = execution.getInternalSnapshotStorage();
+
+        var graphs = IntStream.range(0, 10).boxed().map(i -> {
+                var output1 = LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_worker_1/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_" + i, storageConfig))
+                    .build();
+                var input2 = LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_worker_2/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_" + i, storageConfig))
+                    .build();
+                var output2 = LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_worker_2/b")
+                    .setStorageUri(buildSlotUri("snapshot_b_" + i, storageConfig))
+                    .build();
+
+                var operations = List.of(
+                    LWF.Operation.newBuilder()
+                        .setName("first task prints string 'i-am-hacker' to variable")
+                        .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_worker_1/a")
+                        .addOutputSlots(output1)
+                        .setPoolSpecName("s")
+                        .build(),
+                    LWF.Operation.newBuilder()
+                        .setName("second task reads string 'i-am-hacker' from variable and prints it to another one")
+                        .setCommand("/tmp/lzy_worker_2/sbin/cat /tmp/lzy_worker_2/a > /tmp/lzy_worker_2/b")
+                        .addInputSlots(input2)
+                        .addOutputSlots(output2)
+                        .setPoolSpecName("s")
+                        .build()
+                );
+
+                return LWF.Graph.newBuilder()
+                    .setName("simple-graph-" + i)
+                    .setZone("ru-central1-a")
+                    .addAllOperations(operations)
+                    .build();
+            }
+        ).toList();
+
+        var graphIds = graphs.stream().map(graph -> authorizedWorkflowClient.executeGraph(
+            LWFS.ExecuteGraphRequest.newBuilder().setExecutionId(executionId).setGraph(graph).build()).getGraphId()
+        ).collect(Collectors.toSet());
+
+        var stoppedGraphs = new HashSet<String>(10);
+        onStopGraph(stoppedGraphs::add);
+
+        authorizedWorkflowClient.abortWorkflow(LWFS.AbortWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).setExecutionId(executionId).build());
+
+        assertTrue(stoppedGraphs.containsAll(graphIds));
+        assertTrue(graphIds.containsAll(stoppedGraphs));
+    }
+
+    @Test
+    public void failToAbortUnknownWorkflowExecutions() {
+        var workflowName = "workflow_1";
+        var execution = authorizedWorkflowClient.startWorkflow(
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
+        );
+
+        var executionId = execution.getExecutionId();
+        var storageConfig = execution.getInternalSnapshotStorage();
+
+        var operations = List.of(
+            LWF.Operation.newBuilder()
+                .setName("first task prints string 'i-am-hacker' to variable")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_worker_1/a")
+                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_worker_1/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
+                    .build())
+                .setPoolSpecName("s")
+                .build(),
+            LWF.Operation.newBuilder()
+                .setName("second task reads string 'i-am-hacker' from variable and prints it to another one")
+                .setCommand("/tmp/lzy_worker_2/sbin/cat /tmp/lzy_worker_2/a > /tmp/lzy_worker_2/b")
+                .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_worker_2/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
+                    .build())
+                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_worker_2/b")
+                    .setStorageUri(buildSlotUri("snapshot_b_1", storageConfig))
+                    .build())
+                .setPoolSpecName("s")
+                .build()
+        );
+
+        var graph = LWF.Graph.newBuilder()
+            .setName("simple-graph")
+            .setZone("ru-central1-a")
+            .addAllOperations(operations)
+            .build();
+
+        var expectedGraphId = authorizedWorkflowClient.executeGraph(
+            LWFS.ExecuteGraphRequest.newBuilder().setExecutionId(executionId).setGraph(graph).build()).getGraphId();
+
+        String[] destroyedExecutionChannels = {null};
+        onChannelsDestroy(exId -> destroyedExecutionChannels[0] = exId);
+
+        var deleteSessionFlag = new AtomicBoolean(false);
+        onDeleteSession(() -> deleteSessionFlag.set(true));
+
+        var freeVmFlag = new AtomicBoolean(false);
+        onFreeVm(() -> freeVmFlag.set(true));
+
+        String[] stopGraphId = {null};
+        onStopGraph(actualGraphId -> stopGraphId[0] = actualGraphId);
+
+        var thrown1 = assertThrows(StatusRuntimeException.class, () -> authorizedWorkflowClient.abortWorkflow(
+            LWFS.AbortWorkflowRequest.newBuilder()
+                .setWorkflowName(workflowName)
+                .setExecutionId("invalid_execution_id")
+                .build()));
+
+        var thrown2 = assertThrows(StatusRuntimeException.class, () -> authorizedWorkflowClient.abortWorkflow(
+            LWFS.AbortWorkflowRequest.newBuilder()
+                .setWorkflowName("invalid_wf_name")
+                .setExecutionId(executionId)
+                .build()));
+
+        authorizedWorkflowClient.abortWorkflow(
+            LWFS.AbortWorkflowRequest.newBuilder()
+                .setWorkflowName(workflowName)
+                .setExecutionId(executionId)
+                .build());
+
+        assertSame(Status.FAILED_PRECONDITION.getCode(), thrown1.getStatus().getCode());
+        assertSame(Status.NOT_FOUND.getCode(), thrown2.getStatus().getCode());
         assertEquals(expectedGraphId, stopGraphId[0]);
     }
 

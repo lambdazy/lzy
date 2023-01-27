@@ -2,27 +2,23 @@ syntax = "proto3";
 
 package ai.lzy.v1.workflow;
 
-import "ai/lzy/v1/common/storage.proto";
-import "ai/lzy/v1/workflow/workflow.proto";
-
 option java_outer_classname = "LWFPS";
 option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowPrivateService {
-  rpc StopExecution (StopExecutionRequest) returns (StopExecutionResponse);
-
   rpc DeleteWorkflow (DeleteWorkflowRequest) returns (DeleteWorkflowResponse);
+  rpc AbortExecution (AbortExecutionRequest) returns (AbortExecutionResponse);
 }
-
-message StopExecutionRequest {
-  string executionId = 1;
-  string reason = 2;
-}
-
-message StopExecutionResponse {}
 
 message DeleteWorkflowRequest {
   string workflowName = 1;
 }
 
 message DeleteWorkflowResponse {}
+
+message AbortExecutionRequest {
+  string executionId = 1;
+  string reason = 2;
+}
+
+message AbortExecutionResponse {}
