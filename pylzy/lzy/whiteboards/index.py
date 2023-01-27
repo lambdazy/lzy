@@ -31,7 +31,7 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
         self.__stub = None
         self.__is_started = False
 
-    def __start(self) -> None:
+    async def __start(self) -> None:
         if self.__is_started:
             return
         self.__is_started = True
@@ -49,10 +49,12 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
         self.__channel = build_channel(
             endpoint, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
         )
+        await self.__channel.channel_ready()
+
         self.__stub = LzyWhiteboardServiceStub(self.__channel)
 
     async def get(self, id_: str) -> Optional[Whiteboard]:
-        self.__start()
+        await self.__start()
         resp: GetResponse = await self.__stub.Get(GetRequest(
             whiteboardId=id_
         ))
@@ -65,7 +67,7 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
         not_before: Optional[datetime.datetime] = None,
         not_after: Optional[datetime.datetime] = None
     ) -> AsyncIterable[Whiteboard]:
-        self.__start()
+        await self.__start()
         if not_before is not None:
             from_ = Timestamp()
             from_.FromDatetime(not_before)
@@ -93,11 +95,11 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
             yield wb
 
     async def register(self, wb: Whiteboard) -> None:
-        self.__start()
+        await self.__start()
         await self.__stub.RegisterWhiteboard(RegisterWhiteboardRequest(whiteboard=wb))
 
     async def update(self, wb: Whiteboard):
-        self.__start()
+        await self.__start()
         await self.__stub.UpdateWhiteboard(UpdateWhiteboardRequest(whiteboard=wb))
 
 

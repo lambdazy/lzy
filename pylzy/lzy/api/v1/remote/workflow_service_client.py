@@ -1,4 +1,5 @@
 import asyncio
+import os
 from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
@@ -29,7 +30,11 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials
-from lzy.utils.grpc import add_headers_interceptor, build_channel
+from lzy.utils.grpc import add_headers_interceptor, build_channel, build_token
+
+KEY_PATH_ENV = "LZY_KEY_PATH"
+USER_ENV = "LZY_USER"
+ENDPOINT_ENV = "LZY_ENDPOINT"
 
 
 @dataclass
@@ -92,24 +97,38 @@ Message = Union[StderrMessage, StdoutMessage]
 
 
 class WorkflowServiceClient:
-    @staticmethod
-    async def create(address: str, token: str) -> "WorkflowServiceClient":
-        channel = build_channel(
-            address, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
-        )
-        await channel.channel_ready()
-        stub = LzyWorkflowServiceStub(channel)
-        ops_stub = LongRunningServiceStub(channel)
-        return WorkflowServiceClient(stub, ops_stub, channel)
+    def __init__(self):
+        self.__stub = None
+        self.__ops_stub = None
+        self.__channel = None
+        self.__is_started = False
 
-    def __init__(self, stub: LzyWorkflowServiceStub, ops_stub: LongRunningServiceStub, channel: Channel):
-        self.__stub = stub
-        self.__ops_stub = ops_stub
-        self.__channel = channel
+    async def __start(self):
+        if self.__is_started:
+            return
+        self.__is_started = True
+
+        user = os.getenv(USER_ENV)
+        key_path = os.getenv(KEY_PATH_ENV)
+        if user is None:
+            raise ValueError(f"User must be specified by env variable {USER_ENV} or `user` argument")
+        if key_path is None:
+            raise ValueError(f"Key path must be specified by env variable {KEY_PATH_ENV} or `key_path` argument")
+
+        address = os.getenv(ENDPOINT_ENV, "api.lzy.ai:8899")
+        token = build_token(user, key_path)
+        interceptors = add_headers_interceptor({"authorization": f"Bearer {token}"})
+        self.__channel = build_channel(address, interceptors=interceptors)
+        await self.__channel.channel_ready()
+
+        self.__stub = LzyWorkflowServiceStub(self.__channel)
+        self.__ops_stub = LongRunningServiceStub(self.__channel)
 
     async def start_workflow(
             self, name: str, storage: Optional[Storage] = None
     ) -> Tuple[str, Optional[Storage]]:
+        await self.__start()
+
         s: Optional[StorageConfig] = None
 
         if storage is not None:
@@ -146,6 +165,7 @@ class WorkflowServiceClient:
             execution_id: str,
             reason: str,
     ) -> None:
+        await self.__start()
         request = FinishWorkflowRequest(
             workflowName=workflow_name,
             executionId=execution_id,
@@ -168,6 +188,8 @@ class WorkflowServiceClient:
                     yield StdoutMessage(line)
 
     async def execute_graph(self, execution_id: str, graph: Graph) -> str:
+        await self.__start()
+
         res: ExecuteGraphResponse = await self.__stub.ExecuteGraph(
             ExecuteGraphRequest(executionId=execution_id, graph=graph)
         )
@@ -175,6 +197,8 @@ class WorkflowServiceClient:
         return res.graphId
 
     async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
+        await self.__start()
+
         res: GraphStatusResponse = await self.__stub.GraphStatus(
             GraphStatusRequest(executionId=execution_id, graphId=graph_id)
         )
@@ -196,11 +220,14 @@ class WorkflowServiceClient:
         )
 
     async def graph_stop(self, execution_id: str, graph_id: str):
+        await self.__start()
         await self.__stub.StopGraph(
             StopGraphRequest(executionId=execution_id, graphId=graph_id)
         )
 
     async def get_pool_specs(self, execution_id: str) -> Sequence[VmPoolSpec]:
+        await self.__start()
+
         pools: GetAvailablePoolsResponse = await self.__stub.GetAvailablePools(
             GetAvailablePoolsRequest(executionId=execution_id)
         )
