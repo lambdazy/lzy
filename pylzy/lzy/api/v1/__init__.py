@@ -8,7 +8,7 @@ from lzy.api.v1.env import DockerPullPolicy, Env
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.api.v1.provisioning import Provisioning, GpuType, CpuType
 from lzy.api.v1.remote.runtime import RemoteRuntime
-from lzy.api.v1.remote.workflow_service_client import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV
+from lzy.api.v1.remote.workflow_service_client import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV, WorkflowServiceClient
 from lzy.api.v1.runtime import Runtime
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.api.v1.utils.conda import generate_conda_yaml
@@ -138,7 +138,7 @@ class Lzy:
         self.__storage_registry = DefaultStorageRegistry("default_storage") \
             if storage_registry is None else storage_registry
         self.__serializer_registry = LzySerializerRegistry() if serializer_registry is None else serializer_registry
-        self.__whiteboard_manager = WhiteboardIndexedManager(whiteboard_index_client,
+        self.__whiteboard_manager = WhiteboardIndexedManager(self.__runtime.workflow_client(), whiteboard_index_client,
                                                              self.__storage_registry, self.__serializer_registry)
 
         self.__storage_client: Optional[AsyncStorageClient] = None

@@ -15,6 +15,7 @@ from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, TimeBounds
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import GetRequest, GetResponse, ListResponse, ListRequest, \
     RegisterWhiteboardRequest, UpdateWhiteboardRequest
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceStub
+from lzy.api.v1 import WorkflowServiceClient
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
 from lzy.utils.grpc import build_channel, add_headers_interceptor, build_token
 from lzy.whiteboards.api import WhiteboardIndexClient, WhiteboardManager
@@ -105,15 +106,17 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
 
 class WhiteboardIndexedManager(WhiteboardManager):
     def __init__(self,
+                 workflow_client: Optional[WorkflowServiceClient],
                  index_client: WhiteboardIndexClient,
                  storage_registry: StorageRegistry,
                  serializer_registry: SerializerRegistry):
-        self.__serializer_registry = serializer_registry
+        self.__workflow_client = workflow_client
         self.__index_client = index_client
         self.__storage_registry = storage_registry
+        self.__serializer_registry = serializer_registry
 
     async def write_meta(self, wb: Whiteboard, uri: str, storage_name: Optional[str] = None) -> None:
-        storage_client = self.__resolve_storage_client(storage_name)
+        storage_client = await self.__resolve_storage_client(storage_name)
         with tempfile.NamedTemporaryFile() as f:
             f.write(MessageToJson(wb).encode('UTF-8'))
             f.seek(0)
@@ -122,7 +125,7 @@ class WhiteboardIndexedManager(WhiteboardManager):
         await self.__index_client.register(wb)
 
     async def update_meta(self, wb: Whiteboard, uri: str, storage_name: Optional[str] = None) -> None:
-        storage_client = self.__resolve_storage_client(storage_name)
+        storage_client = await self.__resolve_storage_client(storage_name)
         wb_meta_uri = f"{uri}/.whiteboard"
 
         full_wb = await self.__get_meta_from_storage(storage_client, wb_meta_uri)
@@ -169,7 +172,7 @@ class WhiteboardIndexedManager(WhiteboardManager):
         else:
             index_client_wb = None
 
-        storage_client = self.__resolve_storage_client(storage_name)
+        storage_client = await self.__resolve_storage_client(storage_name)
         wb_meta_uri = f"{storage_uri}/.whiteboard"
 
         wb = await self.__get_meta_from_storage(storage_client, wb_meta_uri)
@@ -200,10 +203,12 @@ class WhiteboardIndexedManager(WhiteboardManager):
         if storage_uri is not None or storage_name is not None:
             raise NotImplementedError("Fetching whiteboard by storage uri is not supported yet")
 
+        await self.__update_default_storage()
+
         async for whiteboard in self.__index_client.query(name, tags, not_before, not_after):
             yield WhiteboardWrapper(self.__storage_registry, self.__serializer_registry, whiteboard)
 
-    def __resolve_storage_client(self, storage_name: Optional[str]) -> AsyncStorageClient:
+    async def __resolve_storage_client(self, storage_name: Optional[str]) -> AsyncStorageClient:
         if storage_name is not None:
             storage_client = self.__storage_registry.client(storage_name)
             if storage_client is None:
@@ -211,9 +216,17 @@ class WhiteboardIndexedManager(WhiteboardManager):
         else:
             storage_client = self.__storage_registry.default_client()
             if storage_client is None:
-                raise RuntimeError("No default storage client")
+                await self.__update_default_storage()
+                storage_client = self.__storage_registry.default_client()
+                if storage_client is None:
+                    raise RuntimeError("No default storage client")
 
         return storage_client
+
+    async def __update_default_storage(self):
+        if self.__workflow_client is not None:
+            storage_creds = await self.__workflow_client.get_default_storage()
+            self.__storage_registry.register_default_storage(storage_creds)
 
     async def __get_meta_from_storage(self,
                                       storage_client: AsyncStorageClient,

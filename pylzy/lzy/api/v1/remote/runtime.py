@@ -78,6 +78,9 @@ class RemoteRuntime(Runtime):
         self.__std_slots_listener: Optional[Task] = None
         self.__running = False
 
+    def workflow_client(self) -> Optional[WorkflowServiceClient]:
+        return self.__workflow_client
+
     async def start(self, workflow: LzyWorkflow) -> str:
         self.__running = True
         self.__workflow = workflow

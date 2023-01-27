@@ -24,7 +24,9 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     GetAvailablePoolsRequest,
     GetAvailablePoolsResponse,
     ReadStdSlotsRequest,
-    ReadStdSlotsResponse
+    ReadStdSlotsResponse,
+    GetStorageRequest,
+    GetStorageResponse,
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
@@ -63,13 +65,8 @@ class Failed:
 GraphStatus = Union[Waiting, Executing, Completed, Failed]
 
 
-def _create_storage_endpoint(
-        response: StartWorkflowResponse,
-) -> Storage:
+def _create_storage_endpoint(store: StorageConfig) -> Storage:
     error_msg = "no storage credentials provided"
-
-    assert response.HasField("internalSnapshotStorage"), error_msg
-    store: StorageConfig = response.internalSnapshotStorage
 
     grpc_creds: converter.storage_creds.grpc_STORAGE_CREDS
     if store.HasField("azure"):
@@ -142,8 +139,8 @@ class WorkflowServiceClient:
         )
         exec_id = res.executionId
 
-        if res.internalSnapshotStorage is not None and res.internalSnapshotStorage.uri != "":
-            return exec_id, _create_storage_endpoint(res)
+        if res.HasField("internalSnapshotStorage"):
+            return exec_id, _create_storage_endpoint(res.internalSnapshotStorage)
 
         return exec_id, None
 
@@ -233,6 +230,13 @@ class WorkflowServiceClient:
         )
 
         return pools.poolSpecs
+
+    async def get_default_storage(self) -> Optional[Storage]:
+        await self.__start()
+        response: GetStorageResponse = await self.__stub.GetStorage(GetStorageRequest())
+        if response.HasField("storage"):
+            return _create_storage_endpoint(response.storage)
+        return None
 
     async def stop(self):
         await self.__channel.close()

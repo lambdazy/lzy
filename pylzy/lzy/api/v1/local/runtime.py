@@ -15,7 +15,7 @@ from lzy.logs.config import get_logging_config, COLOURS, get_color, RESET_COLOR
 from lzy.storage.api import AsyncStorageClient
 
 if TYPE_CHECKING:
-    from lzy.api.v1 import LzyWorkflow
+    from lzy.api.v1 import LzyWorkflow, WorkflowServiceClient
 
 from lzy.api.v1.call import LzyCall
 from lzy.api.v1.runtime import (
@@ -27,6 +27,9 @@ from lzy.api.v1.runtime import (
 class LocalRuntime(Runtime):
     def __init__(self):
         self.__workflow: Optional["LzyWorkflow"] = None
+
+    def workflow_client(self) -> Optional["WorkflowServiceClient"]:
+        return None
 
     async def start(self, workflow: "LzyWorkflow") -> str:
         self.__workflow = workflow
