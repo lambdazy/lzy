@@ -15,7 +15,7 @@ class DefaultStorageRegistry(StorageRegistry):
         self.__clients_map: Dict[str, Optional[AsyncStorageClient]] = defaultdict(
             lambda: None
         )
-        self.__default_name: Optional[str] = default_storage_name
+        self.__default_name: str = default_storage_name
         self.__default_config: Optional[Storage] = None
         self.__default_client: Optional[AsyncStorageClient] = None
         if default_storage is not None:
