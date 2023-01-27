@@ -144,7 +144,11 @@ public class WorkflowTest extends BaseTest {
             .build();
 
         var expectedGraphId = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder().setExecutionId(executionId).setGraph(graph).build()).getGraphId();
+            LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
+                .setExecutionId(executionId)
+                .setGraph(graph)
+                .build()).getGraphId();
 
         String[] destroyedExecutionChannels = {null};
         onChannelsDestroy(exId -> destroyedExecutionChannels[0] = exId);
@@ -223,7 +227,11 @@ public class WorkflowTest extends BaseTest {
         ).toList();
 
         var graphIds = graphs.stream().map(graph -> authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder().setExecutionId(executionId).setGraph(graph).build()).getGraphId()
+            LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
+                .setExecutionId(executionId)
+                .setGraph(graph)
+                .build()).getGraphId()
         ).collect(Collectors.toSet());
 
         var stoppedGraphs = new HashSet<String>(10);
@@ -278,7 +286,11 @@ public class WorkflowTest extends BaseTest {
             .build();
 
         var expectedGraphId = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder().setExecutionId(executionId).setGraph(graph).build()).getGraphId();
+            LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
+                .setExecutionId(executionId)
+                .setGraph(graph)
+                .build()).getGraphId();
 
         String[] destroyedExecutionChannels = {null};
         onChannelsDestroy(exId -> destroyedExecutionChannels[0] = exId);

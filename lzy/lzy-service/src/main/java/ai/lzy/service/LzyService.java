@@ -240,8 +240,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         List<LWF.Operation> operations = request.getGraph().getOperationsList();
         List<LWF.DataDescription> descriptions = request.getGraph().getDataDescriptionsList();
 
-        var state = new GraphExecutionState(executionId, op.id(), parentGraphId, userId, zone, descriptions,
-            operations);
+        var state = new GraphExecutionState(workflowName, executionId, op.id(), parentGraphId, userId, zone,
+            descriptions, operations);
 
         try (var tx = TransactionHandle.create(storage)) {
             operationDao.create(op, tx);
