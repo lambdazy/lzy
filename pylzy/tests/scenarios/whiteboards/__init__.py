@@ -51,6 +51,7 @@ print(f"Attempt 2: Value wb.b: {whiteboard.b}")
 print(f"Attempt 2: Value wb2.a: {whiteboard2.a}")
 print(f"Attempt 2: Value wb2.b: {whiteboard2.b}")
 
+lzy = Lzy()
 whiteboards = list(lzy.whiteboards(
     name="SimpleWhiteboard"
 ))
