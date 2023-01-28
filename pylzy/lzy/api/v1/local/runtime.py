@@ -154,6 +154,9 @@ class LocalRuntime(Runtime):
                 data_to_put.append(self.__from_file_to_storage(entry.storage_uri, folder + "/" + eid))
             await asyncio.gather(*data_to_put)
 
+    async def abort(self) -> None:
+        pass
+
     async def destroy(self) -> None:
         pass
 
