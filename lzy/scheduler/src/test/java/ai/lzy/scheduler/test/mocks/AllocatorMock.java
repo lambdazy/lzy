@@ -22,8 +22,8 @@ import javax.inject.Singleton;
 @Singleton
 @Primary // for tests only
 public class AllocatorMock implements WorkersAllocator {
-    public static OnAllocatedRequest onAllocate = (a, b, c) -> "localhost:9090";
-    public static Consumer<String> onDestroy = (a) -> {};
+    public static volatile OnAllocatedRequest onAllocate = (a, b, c) -> "localhost:9090";
+    public static volatile Consumer<String> onDestroy = (a) -> {};
 
     private final LocalOperationService opService;
     private final Server server;
