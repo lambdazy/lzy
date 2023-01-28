@@ -10,7 +10,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class AuthenticationContext {
-    public static Context.Key<AuthenticationContext> KEY = Context.key("authentication-context");
+    public static final Context.Key<AuthenticationContext> KEY = Context.key("authentication-context");
 
     private final TokenParser.Token token;
     private final Credentials credentials;
