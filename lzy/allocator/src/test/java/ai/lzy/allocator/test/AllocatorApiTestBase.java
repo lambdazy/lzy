@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
@@ -252,6 +253,25 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         kubernetesServer.expect().post()
             .withPath(POD_PATH)
             .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+                final var pod = Serialization.unmarshal(
+                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
+                future.complete(pod.getMetadata().getName());
+                return pod;
+            })
+            .once();
+        return future;
+    }
+
+    protected Future<String> awaitAllocationRequest(CountDownLatch latch) {
+        final var future = new CompletableFuture<String>();
+        kubernetesServer.expect().post()
+            .withPath(POD_PATH)
+            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+                try {
+                    latch.await();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
                 final var pod = Serialization.unmarshal(
                     new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
                 future.complete(pod.getMetadata().getName());

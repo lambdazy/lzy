@@ -165,7 +165,8 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
     }
 
     private String allocateVm() throws Exception {
-        var awaitAllocFuture = awaitAllocationRequest();
+        var latch = new CountDownLatch(1);
+        var awaitAllocFuture = awaitAllocationRequest(latch);
 
         var allocOp = authorizedAllocatorBlockingStub.allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()
@@ -178,12 +179,14 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
         Assert.assertFalse(allocOp.getDone());
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
-        var podName = awaitAllocFuture.get();
-        mockGetPod(podName);
-
         Assert.assertEquals(1, (int) metrics.runningAllocations.labels("S").get());
         Assert.assertEquals(0, (int) metrics.runningVms.labels("S").get());
         Assert.assertEquals(0, (int) metrics.cachedVms.labels("S").get());
+
+        latch.countDown();
+
+        var podName = awaitAllocFuture.get();
+        mockGetPod(podName);
 
         var clusterId = requireNonNull(clusterRegistry.findCluster("S", "test-zone", CLUSTER_TYPE)).clusterId();
         registerVm(vmId, clusterId);
