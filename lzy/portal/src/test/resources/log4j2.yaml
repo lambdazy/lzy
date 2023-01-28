@@ -23,3 +23,6 @@ Configuration:
 
       - name: io.zonky.test
         level: warn
+
+      - name: ai.lzy
+        level: debug

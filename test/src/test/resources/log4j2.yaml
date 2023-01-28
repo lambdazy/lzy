@@ -30,7 +30,7 @@ Configuration:
         level: info
 
       - name: "ai.lzy.worker"
-        level: info
+        level: debug
 
       - name: "ai.lzy.channelmanager"
         level: info

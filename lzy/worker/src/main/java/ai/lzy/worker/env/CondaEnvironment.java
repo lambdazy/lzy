@@ -3,6 +3,8 @@ package ai.lzy.worker.env;
 import ai.lzy.logs.MetricEvent;
 import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.model.graph.PythonEnv;
+import ai.lzy.worker.StreamQueue;
+import com.google.common.annotations.VisibleForTesting;
 import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,43 +24,37 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class CondaEnvironment implements AuxEnvironment {
-    public static boolean RECONFIGURE_CONDA = true;  // Only for tests
+    private static boolean RECONFIGURE_CONDA = true;  // Only for tests
 
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private static final Lock lockForMultithreadingTests = new ReentrantLock();
 
     private final PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
-    private final String resourcesPath;
     private final String localModulesDir;
     private final String envName;
+    private final String resourcesPath;
+
+    @VisibleForTesting
+    public static void reconfigureConda(boolean reconfigure) {
+        RECONFIGURE_CONDA = reconfigure;
+    }
 
     public CondaEnvironment(
         PythonEnv pythonEnv,
         BaseEnvironment baseEnv,
         String resourcesPath
-    ) throws EnvironmentInstallationException
+    )
     {
+        this.resourcesPath = resourcesPath;
         this.pythonEnv = pythonEnv;
         this.baseEnv = baseEnv;
-        this.resourcesPath = resourcesPath;
         this.localModulesDir = Path.of("/", "tmp", "local_modules" + UUID.randomUUID()).toString();
 
         var yaml = new Yaml();
         Map<String, Object> data = yaml.load(pythonEnv.yaml());
 
         envName = (String) data.getOrDefault("name", "default");
-
-        final long pyEnvInstallStart = System.currentTimeMillis();
-        installPyenv();
-        final long pyEnvInstallFinish = System.currentTimeMillis();
-        MetricEventLogger.log(
-            new MetricEvent(
-                "time for installing py env millis",
-                Map.of("metric_type", "task_metric"),
-                pyEnvInstallFinish - pyEnvInstallStart
-            )
-        );
     }
 
     @Override
@@ -89,7 +85,7 @@ public class CondaEnvironment implements AuxEnvironment {
         return localModulesDir;
     }
 
-    private void installPyenv() throws EnvironmentInstallationException {
+    public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
         try {
             if (RECONFIGURE_CONDA) {
@@ -114,28 +110,20 @@ public class CondaEnvironment implements AuxEnvironment {
                         condaFile.getAbsolutePath(),
                         condaFile.getAbsolutePath())
                 );
-                final StringBuilder stdout = new StringBuilder();
-                final StringBuilder stderr = new StringBuilder();
-                try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.out()))) {
-                    reader.lines().forEach(s -> {
-                        LOG.info(s);
-                        stdout.append(s);
-                        stdout.append("\n");
-                    });
+
+                out.add(lzyProcess.out());
+                err.add(lzyProcess.err());
+
+                final int rc;
+                try {
+                    rc = lzyProcess.waitFor();
+                } catch (InterruptedException e) {
+                    throw new EnvironmentInstallationException("Environment installation cancelled");
                 }
-                try (LineNumberReader reader = new LineNumberReader(new InputStreamReader(lzyProcess.err()))) {
-                    reader.lines().forEach(s -> {
-                        LOG.error(s);
-                        stderr.append(s);
-                        stderr.append("\n");
-                    });
-                }
-                final int rc = lzyProcess.waitFor();
                 if (rc != 0) {
                     String errorMessage = "Failed to create/update conda env\n"
                         + "  ReturnCode: " + rc + "\n"
-                        + "  Stdout: " + stdout + "\n\n"
-                        + "  Stderr: " + stderr + "\n";
+                        + "See your stdout/stderr to see more info";
                     LOG.error(errorMessage);
                     throw new EnvironmentInstallationException(errorMessage);
                 }

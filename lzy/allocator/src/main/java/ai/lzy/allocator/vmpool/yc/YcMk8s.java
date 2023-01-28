@@ -241,9 +241,9 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             var nodeTemplate = nodeGroup.getNodeTemplate();
             var spec = nodeTemplate.getResourcesSpec();
 
-            var parts = nodeTemplate.getPlatformId().split(" with ", 2);
-            var cpuType = parts[0];
-            var gpuType = parts.length > 1 ? parts[1] : "<none>";
+            var platform = nodeTemplate.getPlatformId();
+            var cpuType = spec.getGpus() > 0 && platform.startsWith("gpu-") ? platform.substring(4) : platform;
+            var gpuType = spec.getGpus() > 0 ? nodeTemplate.getPlatformId() : "<none>";
 
             LOG.info("""
                 Resolved node group {} ({}):

@@ -1,37 +1,21 @@
 package ai.lzy.scheduler.allocator;
 
 import ai.lzy.iam.config.IamClientConfiguration;
-import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.iam.resources.AccessBinding;
-import ai.lzy.iam.resources.Role;
-import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.impl.Workflow;
-import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.CredentialsType;
-import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.model.operation.Operation;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.scheduler.configs.WorkerEventProcessorConfig;
-import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcChannels;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
 import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
 import io.grpc.ManagedChannel;
-import io.gsonfire.builders.JsonObjectBuilder;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -40,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 import javax.annotation.PreDestroy;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -51,34 +34,19 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 public class AllocatorImpl implements WorkersAllocator {
     private static final Logger LOG = LogManager.getLogger(AllocatorImpl.class);
 
-    public static final String ENV_WORKER_PKEY = "LZY_WORKER_PKEY"; // same as at ai.lzy.worker.Worker
-    public static final String ENV_RESOURCE_TYPE = "RESOURCE_TYPE";
-    public static final String RESOURCE_TYPE = "lzy.worker";
-    public static final String ENV_RESOURCE_ID = "RESOURCE_ID";
-
 
     public static final AtomicBoolean randomWorkerPorts = new AtomicBoolean(false);
 
     private final ServiceConfig config;
-    private final WorkerEventProcessorConfig processorConfig;
-    private final WorkerMetaStorage metaStorage;
     private final AllocatorGrpc.AllocatorBlockingStub allocator;
-    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operations;
     private final AtomicInteger testWorkerCounter = new AtomicInteger(0);
-    private final IamClientConfiguration authConfig;
-    private final SubjectServiceGrpcClient subjectClient;
-    private final AccessBindingServiceGrpcClient abClient;
     private final ManagedChannel iamChannel;
     private final ManagedChannel allocatorChannel;
     private final ManagedChannel opChannel;
 
-    public AllocatorImpl(ServiceConfig config, WorkerEventProcessorConfig processorConfig,
-                         WorkerMetaStorage metaStorage)
-    {
+    public AllocatorImpl(ServiceConfig config) {
         this.config = config;
-        this.processorConfig = processorConfig;
-        this.metaStorage = metaStorage;
-        this.authConfig = config.getIam();
+        IamClientConfiguration authConfig = config.getIam();
         this.iamChannel = newGrpcChannel(authConfig.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
         allocatorChannel = newGrpcChannel(config.getAllocatorAddress(), AllocatorGrpc.SERVICE_NAME);
@@ -87,11 +55,6 @@ public class AllocatorImpl implements WorkersAllocator {
             () -> credentials.get().token());
 
         opChannel = newGrpcChannel(config.getAllocatorAddress(), LongRunningServiceGrpc.SERVICE_NAME);
-        operations = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(opChannel), SchedulerApi.APP,
-            () -> credentials.get().token());
-
-        subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
-        abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
     }
 
     @PreDestroy
@@ -102,30 +65,17 @@ public class AllocatorImpl implements WorkersAllocator {
     }
 
     @Override
-    public void allocate(String userId, String workflowName, String workerId, Operation.Requirements requirements) {
-        String privateKey;
-        try {
-            var workerKeys = RsaUtils.generateRsaKeys();
-            privateKey = workerKeys.privateKey();
+    public String createSession(String userId, String workflowName, String idempotencyKey) {
 
-            final var subj = subjectClient.createSubject(AuthProvider.INTERNAL, workerId, SubjectType.WORKER,
-                new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
+        var stub = GrpcUtils.withIdempotencyKey(allocator, idempotencyKey);
 
-            abClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
-                List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
-        } catch (Exception e) {
-            LOG.error("Cannot build credentials for worker", e);
-            throw new RuntimeException(e);
-        }
-
-        // TODO: use allocator_session_id from LzyWorker
-        final var createSessionOp = allocator.createSession(
+        final var createSessionOp = stub.createSession(
             CreateSessionRequest.newBuilder()
                 .setOwner(userId)
-                .setDescription("Worker allocation, wf='%s', w='%s'".formatted(workflowName, workerId))
+                .setDescription("Worker allocation")
                 .setCachePolicy(
                     VmAllocatorApi.CachePolicy.newBuilder()
-                        .setIdleTimeout(Durations.ZERO)
+                        .setIdleTimeout(Durations.fromMinutes(10))
                         .build())
                 .build());
 
@@ -142,6 +92,14 @@ public class AllocatorImpl implements WorkersAllocator {
             throw new RuntimeException(e);
         }
 
+        return sessionId;
+
+    }
+
+    @Override
+    public AllocateResult allocate(String userId, String workflowName,
+                                          String sessionId, Operation.Requirements requirements)
+    {
         final int port;
         final int fsPort;
         final String mountPoint;
@@ -162,22 +120,17 @@ public class AllocatorImpl implements WorkersAllocator {
         );
 
         final var args = List.of(
-            "--workflow-name", workflowName,
-            "--port", String.valueOf(port),
-            "--fs-port", String.valueOf(fsPort),
-            "--scheduler-address", config.getSchedulerAddress(),
+            "-p", String.valueOf(port),
+            "-q", String.valueOf(fsPort),
             "--channel-manager", config.getChannelManagerAddress(),
+            "-i", config.getIam().getAddress(),
             "--lzy-mount", mountPoint,
-            "--worker-id", workerId,
-            "--user-default-image", config.getUserDefaultImage(),
-            "--scheduler-heartbeat-period", processorConfig.executingHeartbeatPeriod().toString()
+            "--user-default-image", config.getUserDefaultImage()
         );
+
         final var workload = Workload.newBuilder()
-            .setName(workerId)
+            .setName("worker")
             .setImage(config.getWorkerImage())
-            .putEnv(ENV_WORKER_PKEY, privateKey)
-            .putEnv(ENV_RESOURCE_TYPE, RESOURCE_TYPE)
-            .putEnv(ENV_RESOURCE_ID, workerId)
             .addAllArgs(args)
             .putAllPortBindings(ports)
             .build();
@@ -190,64 +143,13 @@ public class AllocatorImpl implements WorkersAllocator {
             .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)
             .build();
 
-        final var op = allocator.allocate(request);
-        metaStorage.saveMeta(workflowName, workerId, new KuberMeta(sessionId, op.getId()).toJson());
+        return new AllocateResult(allocator.allocate(request), port, fsPort);
     }
 
     @Override
-    public void free(String workflowName, String workerId) throws Exception {
-        subjectClient.removeSubject(new Worker(workerId));
-        final var s = metaStorage.getMeta(workflowName, workerId);
-        if (s == null) {
-            LOG.error("Cannot get meta. WfName: {}, workerId: {}", workflowName, workerId);
-            throw new Exception("Cannot get meta.");
-        }
-
-        final var meta = KuberMeta.fromJson(s);
-        if (meta == null) {
-            LOG.error("Cannot parse meta {}", s);
-            throw new Exception("Cannot parse meta");
-        }
-
-        final var op = operations.get(LongRunning.GetOperationRequest.newBuilder()
-            .setOperationId(meta.opId)
-            .build()
-        );
-
-        if (!op.getDone()) {
-            operations.cancel(LongRunning.CancelOperationRequest.newBuilder()
-                .setOperationId(op.getId())
-                .build());
-            return;
-        }
-        final var req = VmAllocatorApi.FreeRequest.newBuilder()
-            .setVmId(op.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId())
-            .build();
-        allocator.free(req);
-
-        allocator.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
-            .setSessionId(meta.sessionId)
+    public void free(String vmId) {
+        allocator.free(VmAllocatorApi.FreeRequest.newBuilder()
+            .setVmId(vmId)
             .build());
-    }
-
-    private record KuberMeta(String sessionId, String opId) {
-        String toJson() {
-            return new JsonObjectBuilder()
-                .set("sessionId", sessionId)
-                .set("opId", opId)
-                .build()
-                .toString();
-        }
-
-        @Nullable
-        static KuberMeta fromJson(String json) {
-            final JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            final JsonElement namespace = obj.get("sessionId");
-            final JsonElement podName = obj.get("opId");
-            if (namespace == null || podName == null) {
-                return null;
-            }
-            return new KuberMeta(namespace.getAsString(), podName.getAsString());
-        }
     }
 }

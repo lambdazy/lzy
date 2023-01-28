@@ -19,6 +19,11 @@
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>iam-api</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>channel-manager-api</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>

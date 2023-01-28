@@ -5,21 +5,21 @@ import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.PythonContext;
 import ai.lzy.worker.env.CondaEnvironment;
-import org.junit.Rule;
+import org.junit.ClassRule;
 import org.junit.Test;
 
 import java.util.List;
 
 public class PyApiTest {
-    @Rule
-    public final ApplicationContextRule ctx = new ApplicationContextRule();
+    @ClassRule
+    public static final ApplicationContextRule ctx = new ApplicationContextRule();
 
-    @Rule
-    public final ContextRule<PythonContext> pythonContext = new ContextRule<>(ctx, PythonContext.class);
+    @ClassRule
+    public static final ContextRule<PythonContext> pythonContext = new ContextRule<>(ctx, PythonContext.class);
 
     static {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
-        CondaEnvironment.RECONFIGURE_CONDA = false;  // To optimize conda configuration
+        CondaEnvironment.reconfigureConda(false);  // To optimize conda configuration
     }
 
     @Test
@@ -43,16 +43,19 @@ public class PyApiTest {
 
     @Test
     public void testEnvFail() {
-        CondaEnvironment.RECONFIGURE_CONDA = true;
+        CondaEnvironment.reconfigureConda(true);
         pythonContext.context().evalAndAssertScenarioResult("env_fail");
-        CondaEnvironment.RECONFIGURE_CONDA = false;
+        CondaEnvironment.reconfigureConda(false);
     }
 
     @Test
     public void testCustomCondaAndSerializer() {
-        CondaEnvironment.RECONFIGURE_CONDA = true;
-        pythonContext.context().evalAndAssertScenarioResult("custom_conda_and_serializer");
-        CondaEnvironment.RECONFIGURE_CONDA = false;
+        CondaEnvironment.reconfigureConda(true);
+        try {
+            pythonContext.context().evalAndAssertScenarioResult("custom_conda_and_serializer");
+        } finally {
+            CondaEnvironment.reconfigureConda(false);
+        }
     }
 
     @Test
@@ -60,9 +63,9 @@ public class PyApiTest {
         /* This scenario checks for:
                 1. Importing local file package 
          */
-        CondaEnvironment.RECONFIGURE_CONDA = true;
+        CondaEnvironment.reconfigureConda(true);
         pythonContext.context().evalAndAssertScenarioResult("import");
-        CondaEnvironment.RECONFIGURE_CONDA = false;
+        CondaEnvironment.reconfigureConda(false);
     }
 
     @Test

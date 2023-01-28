@@ -32,7 +32,7 @@ import java.util.stream.Stream;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.v1.scheduler.Scheduler.TaskStatus.StatusCase.ERROR;
-import static ai.lzy.v1.scheduler.Scheduler.TaskStatus.StatusCase.QUEUE;
+import static ai.lzy.v1.scheduler.Scheduler.TaskStatus.StatusCase.EXECUTING;
 
 public class GraphExecutorTest {
 
@@ -59,7 +59,7 @@ public class GraphExecutorTest {
         scheduler = new SchedulerApiMock((a, b, sch) -> {
             sch.changeStatus(b.id(), TaskStatus.newBuilder()
                 .setTaskId(b.id())
-                .setQueue(TaskStatus.Queue.newBuilder().build())
+                .setExecuting(TaskStatus.Executing.newBuilder().build())
                 .build()
             );
             return b.id();
@@ -105,22 +105,22 @@ public class GraphExecutorTest {
         try (var tester = new GraphTester(graph)) {
 
             // Step 1
-            tester.waitForStatus(QUEUE, "1", "3", "5", "7", "9");
+            tester.waitForStatus(EXECUTING, "1", "3", "5", "7", "9");
             tester.awaitExecutingNow("1", "3", "5", "7", "9");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "5", "7", "9");
 
             // Step 2
-            tester.waitForStatus(QUEUE, "3", "6", "10");
+            tester.waitForStatus(EXECUTING, "3", "6", "10");
             tester.awaitExecutingNow("3", "10", "6");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "6", "10");
 
             // Step 3
-            tester.waitForStatus(QUEUE, "3", "8");
+            tester.waitForStatus(EXECUTING, "3", "8");
             tester.awaitExecutingNow("3", "8");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "8");
 
             // Step 4
-            tester.waitForStatus(QUEUE, "2", "4");
+            tester.waitForStatus(EXECUTING, "2", "4");
             tester.awaitExecutingNow("2", "4");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "2", "4");
 
@@ -141,12 +141,12 @@ public class GraphExecutorTest {
 
         try (var tester = new GraphTester(graph)) {
             // Step 1
-            tester.waitForStatus(QUEUE, "1");
+            tester.waitForStatus(EXECUTING, "1");
             tester.awaitExecutingNow("1");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step 2
-            tester.waitForStatus(QUEUE, "2", "3");
+            tester.waitForStatus(EXECUTING, "2", "3");
             tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "3");
 
             // Step 3
@@ -166,12 +166,12 @@ public class GraphExecutorTest {
 
         try (var tester = new GraphTester(graph)) {
             // Step 1
-            tester.waitForStatus(QUEUE, "1");
+            tester.waitForStatus(EXECUTING, "1");
             tester.awaitExecutingNow("1");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step 2
-            tester.waitForStatus(QUEUE, "2", "3");
+            tester.waitForStatus(EXECUTING, "2", "3");
             tester.changeStatus(SchedulerApiMock.EXECUTING, "2", "3");
 
             tester.queue.stopGraph("", tester.state.id(), "Stopped from test");
@@ -196,7 +196,7 @@ public class GraphExecutorTest {
 
         try (var tester = new GraphTester(graph)) {
             // Step 1
-            tester.waitForStatus(QUEUE, "1", "2");
+            tester.waitForStatus(EXECUTING, "1", "2");
             tester.awaitExecutingNow("1", "2");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "2");
 
@@ -205,7 +205,7 @@ public class GraphExecutorTest {
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step 3
-            tester.waitForStatus(QUEUE, "3", "4", "5");
+            tester.waitForStatus(EXECUTING, "3", "4", "5");
             tester.awaitExecutingNow("3", "4", "5");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "4", "5");
 
@@ -235,17 +235,17 @@ public class GraphExecutorTest {
             workflowId = tester.state.workflowId();
             graphId = tester.state.id();
 
-            tester.waitForStatus(QUEUE, "1", "3", "5", "7", "9");
+            tester.waitForStatus(EXECUTING, "1", "3", "5", "7", "9");
             tester.awaitExecutingNow("1", "3", "5", "7", "9");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1", "5", "7", "9");
 
             // Step 2
-            tester.waitForStatus(QUEUE, "3", "6", "10");
+            tester.waitForStatus(EXECUTING, "3", "6", "10");
             tester.awaitExecutingNow("3", "6", "10");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "6", "10");
 
             // Step 3
-            tester.waitForStatus(QUEUE, "3", "8");
+            tester.waitForStatus(EXECUTING, "3", "8");
             tester.awaitExecutingNow("3", "8");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "3", "8");
         }
@@ -253,7 +253,7 @@ public class GraphExecutorTest {
         try (var tester = new GraphTester(workflowId, graphId)) {
 
             // Step 4
-            tester.waitForStatus(QUEUE, "2", "4");
+            tester.waitForStatus(EXECUTING, "2", "4");
             tester.awaitExecutingNow("2", "4");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "2", "4");
 
@@ -272,7 +272,7 @@ public class GraphExecutorTest {
         try (var tester = new GraphTester(graph)) {
 
             // Step 1
-            tester.waitForStatus(QUEUE, "1");
+            tester.waitForStatus(EXECUTING, "1");
             tester.awaitExecutingNow("1");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
@@ -295,22 +295,22 @@ public class GraphExecutorTest {
         try (var tester = new GraphTester(graph)) {
 
             // Step 1
-            tester.waitForStatus(QUEUE, "1");
+            tester.waitForStatus(EXECUTING, "1");
             tester.awaitExecutingNow("1");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "1");
 
             // Step 2
-            tester.waitForStatus(QUEUE, "2", "3");
+            tester.waitForStatus(EXECUTING, "2", "3");
             tester.awaitExecutingNow("2", "3");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "3");
 
             // Step 3
-            tester.waitForStatus(QUEUE, "2");
+            tester.waitForStatus(EXECUTING, "2");
             tester.awaitExecutingNow("2");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "2");
 
             // Step 4
-            tester.waitForStatus(QUEUE, "4");
+            tester.waitForStatus(EXECUTING, "4");
             tester.changeStatus(SchedulerApiMock.COMPLETED, "4");
 
             // Step 2
@@ -328,7 +328,7 @@ public class GraphExecutorTest {
         try (var tester = new GraphTester(graph)) {
 
             // Step 1
-            tester.waitForStatus(QUEUE, "1");
+            tester.waitForStatus(EXECUTING, "1");
             tester.awaitExecutingNow("1");
             tester.raiseSchedulerException("1");
 
