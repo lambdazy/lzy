@@ -1,22 +1,23 @@
 package ai.lzy.allocator.model;
 
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import jakarta.annotation.Nullable;
 
 import java.net.Inet6Address;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 public record Vm(
     Spec spec,
     Status status,
     AllocateState allocateState,
-    @Nullable RunState runState
+    @Nullable RunState runState,
+    @Nullable IdleState idleState
 ) {
     public Vm(Spec spec, Status status, AllocateState allocateState) {
-        this(spec, status, allocateState, null);
+        this(spec, status, allocateState, null, null);
     }
 
     @Override
@@ -88,6 +89,10 @@ public record Vm(
         @Nullable Instant deadline
     ) {}
 
+    public record IdleState(
+        Instant idleSice
+    ) {}
+
     public enum Status {
         // Vm is allocating
         ALLOCATING,
@@ -137,11 +142,10 @@ public record Vm(
     }
 
     public Vm withVmSubjId(String vmSubjId) {
-        return new Vm(spec, status, allocateState.withVmSubjId(vmSubjId), runState);
+        return new Vm(spec, status, allocateState.withVmSubjId(vmSubjId), runState, idleState);
     }
 
     public Vm withTunnelPod(String tunnelPod) {
-        return new Vm(spec, status, allocateState.withTunnelPod(tunnelPod), runState);
+        return new Vm(spec, status, allocateState.withTunnelPod(tunnelPod), runState, idleState);
     }
-
 }

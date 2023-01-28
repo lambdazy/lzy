@@ -206,18 +206,20 @@ public class DaoTest {
         Assert.assertEquals(List.of(volumeRequest), vm1.volumeRequests());
 
         vmDao.setVmRunning(vm1.vmId(), Map.of(), now().plus(Duration.ofDays(1)), null);
-        vmDao.setStatus(vm1.vmId(), Vm.Status.IDLE, null);
+        vmDao.release(vm1.vmId(), now().plus(Duration.ofHours(1)), null);
 
-        final var vm2 = vmDao.acquire(vmSpec, null);
+        var vm2 = vmDao.acquire(vmSpec, null);
         Assert.assertNotNull(vm2);
         Assert.assertEquals(vm1.vmId(), vm2.vmId());
+        Assert.assertEquals(Vm.Status.IDLE, vm2.status()); // `acquire` returns previous state
+
+        vm2 = vmDao.get(vm2.vmId(), null);
         Assert.assertEquals(Vm.Status.RUNNING, vm2.status());
 
         final var vms = vmDao.list(session.sessionId());
         Assert.assertEquals(List.of(vm2), vms);
 
-        vmDao.setStatus(vm2.vmId(), Vm.Status.IDLE, null);
-        vmDao.setDeadline(vm2.vmId(), now().minus(Duration.ofSeconds(10)));
+        vmDao.release(vm2.vmId(), now().minus(Duration.ofSeconds(10)), null);
 
         final var vms2 = vmDao.listVmsToClean(100);
         Assert.assertEquals(1, vms2.size());

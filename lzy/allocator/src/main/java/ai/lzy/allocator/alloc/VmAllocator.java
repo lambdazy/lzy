@@ -9,14 +9,45 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 public interface VmAllocator {
+
+    class AllocateResult {
+        public enum Code {
+            SUCCESS,
+            RETRY_LATER,
+            FAILED
+        }
+
+        private final Code code;
+        private final String reason;
+
+        public static final AllocateResult SUCCESS = new AllocateResult(Code.SUCCESS, "");
+        public static final AllocateResult RETRY_LATER = new AllocateResult(Code.RETRY_LATER, "");
+        public static final AllocateResult FAILED = new AllocateResult(Code.FAILED, "");
+
+        private AllocateResult(Code code, String reason) {
+            this.code = code;
+            this.reason = reason;
+        }
+
+        public Code code() {
+            return code;
+        }
+
+        public String message() {
+            return reason;
+        }
+
+        public AllocateResult withReason(String reason) {
+            return new AllocateResult(code, reason);
+        }
+    }
+
     /**
      * Start vm allocation.
      *
-     * @return <code>true</code> on success, <code>false</code> - retry later
      * @throws InvalidConfigurationException on invalid spec
-     * @throws RuntimeException on any fatal error
      */
-    boolean allocate(Vm vm) throws InvalidConfigurationException;
+    AllocateResult allocate(Vm vm) throws InvalidConfigurationException;
 
     /**
      * Idempotent operation to destroy vm
