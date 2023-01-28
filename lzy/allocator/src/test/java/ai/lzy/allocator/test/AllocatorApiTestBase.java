@@ -19,6 +19,7 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -28,12 +29,15 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.Assert;
 import org.junit.Rule;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
@@ -229,4 +233,51 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         }, TIMEOUT_SEC, TimeUnit.SECONDS);
     }
 
+    protected <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath) {
+        final var future = new CompletableFuture<T>();
+        kubernetesServer.expect().post()
+            .withPath(resourcePath)
+            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+                final var resource = Serialization.unmarshal(
+                    new ByteArrayInputStream(req.getBody().readByteArray()), resourceType, Map.of());
+                future.complete(resource);
+                return resource;
+            })
+            .once();
+        return future;
+    }
+
+    protected Future<String> awaitAllocationRequest() {
+        final var future = new CompletableFuture<String>();
+        kubernetesServer.expect().post()
+            .withPath(POD_PATH)
+            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+                final var pod = Serialization.unmarshal(
+                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
+                future.complete(pod.getMetadata().getName());
+                return pod;
+            })
+            .once();
+        return future;
+    }
+
+    protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete, int responseCode) {
+        kubernetesServer.expect().delete()
+            .withPath(resourcePath + "/" + resourceName)
+            .andReply(responseCode, (req) -> {
+                onDelete.run();
+                return new StatusDetails();
+            }).once();
+    }
+
+    protected void mockDeletePod(String podName, Runnable onDelete, int responseCode) {
+        mockDeleteResource(POD_PATH, podName, onDelete, responseCode);
+        kubernetesServer.expect().delete()
+            // "lzy.ai/vm-id"=<VM id>
+            .withPath(POD_PATH + "?labelSelector=lzy.ai%2Fvm-id%3D" + podName.substring(VM_POD_NAME_PREFIX.length()))
+            .andReply(responseCode, (req) -> {
+                onDelete.run();
+                return new StatusDetails();
+            }).once();
+    }
 }

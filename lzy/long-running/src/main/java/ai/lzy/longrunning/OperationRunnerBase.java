@@ -64,17 +64,24 @@ public abstract class OperationRunnerBase implements Runnable {
                                 executor.schedule(this, update.delay().toMillis(), TimeUnit.MILLISECONDS);
                                 return;
                             }
-                            case FINISH -> { return; }
+                            case FINISH -> {
+                                notifyFinished();
+                                return;
+                            }
                         }
                     }
                     case RESTART -> {
                         executor.schedule(this, stepResult.delay().toMillis(), TimeUnit.MILLISECONDS);
                         return;
                     }
-                    case FINISH -> { return; }
+                    case FINISH -> {
+                        notifyFinished();
+                        return;
+                    }
                 }
             }
         } catch (Error e) {
+            notifyFinished();
             if (isInjectedError(e)) {
                 log.error("Terminate action by InjectedFailure exception: {}", e.getMessage());
             } else {
@@ -86,24 +93,31 @@ public abstract class OperationRunnerBase implements Runnable {
     private boolean loadOperation() {
         try {
             op = withRetries(log, () -> operationsDao.get(id, null));
-            if (op == null) {
-                log.error("Operation {} ({}) not found", id, descr);
-                return false;
-            }
-            if (op.done()) {
-                if (op.response() != null) {
-                    log.warn("Operation {} ({}) already successfully completed", id, descr);
-                } else {
-                    log.warn("Operation {} ({}) already completed with error: {}", id, descr, op.error());
-                }
-                return false;
-            }
-            return true;
         } catch (Exception e) {
+            op = null;
             log.error("Cannot load operation {} ({}): {}. Retry later...", id, descr, e.getMessage());
             executor.schedule(this, 1, TimeUnit.SECONDS);
             return false;
         }
+
+        if (op == null) {
+            log.error("Operation {} ({}) not found", id, descr);
+            notifyFinished();
+            return false;
+        }
+
+        if (op.done()) {
+            if (op.response() != null) {
+                log.warn("Operation {} ({}) already successfully completed", id, descr);
+            } else {
+                log.warn("Operation {} ({}) already completed with error: {}", id, descr, op.error());
+            }
+
+            notifyFinished();
+            return false;
+        }
+
+        return true;
     }
 
     private boolean expireOperation() {
@@ -113,19 +127,23 @@ public abstract class OperationRunnerBase implements Runnable {
         }
 
         log.warn("Allocation operation {} ({}) is expired", id, descr);
-        notifyExpired();
         try {
-            withRetries(log, () -> {
+            op = withRetries(log, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
-                    operationsDao.fail(id, toProto(Status.DEADLINE_EXCEEDED), tx);
+                    var operation = operationsDao.fail(id, toProto(Status.DEADLINE_EXCEEDED), tx);
                     onExpired(tx);
                     tx.commit();
+                    return operation;
                 }
             });
+            notifyExpired();
         } catch (OperationCompletedException ex) {
             log.error("Cannot fail operation {} ({}): already completed", id, descr);
+            notifyFinished();
         } catch (NotFoundException e) {
             log.error("Cannot fail operation {} ({}): not found", id, descr);
+            op = null;
+            notifyFinished();
         } catch (Exception e) {
             log.error("Cannot fail operation {} ({}): {}. Retry later...", id, descr, e.getMessage());
             executor.schedule(this, 1, TimeUnit.SECONDS);
@@ -163,6 +181,9 @@ public abstract class OperationRunnerBase implements Runnable {
     }
 
     protected void onExpired(TransactionHandle tx) throws SQLException {
+    }
+
+    protected void notifyFinished() {
     }
 
     protected final void failOperation(Status status, TransactionHandle tx) throws SQLException {

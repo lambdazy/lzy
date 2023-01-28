@@ -19,6 +19,7 @@ import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.StatusDetails;
 import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -73,7 +74,7 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public boolean allocate(Vm vm) throws InvalidConfigurationException {
+    public AllocateResult allocate(Vm vm) throws InvalidConfigurationException {
         var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone(), vm.spec().clusterType());
 
         if (cluster == null) {
@@ -101,17 +102,17 @@ public class KuberVmAllocator implements VmAllocator {
                 } catch (Exception ex) {
                     LOG.error("Cannot save allocator meta for operation {} (VM {}): {}",
                         vm.allocOpId(), vm.vmId(), ex.getMessage());
-                    return false; // retry later
+                    return AllocateResult.RETRY_LATER.withReason("Database error: %s".formatted(ex.getMessage()));
                 }
 
                 try {
                     withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
                 } catch (OperationCompletedException e) {
                     LOG.error("Cannot update operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
-                    return true;
+                    return AllocateResult.FAILED.withReason("Operation already completed");
                 } catch (Exception ex) {
                     LOG.error("Cannot update operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), ex.getMessage());
-                    return false;
+                    return AllocateResult.RETRY_LATER.withReason("Database error: %s".formatted(ex.getMessage()));
                 }
             } else {
                 LOG.info("Found exising allocator meta {} for VM {}", allocState.allocatorMeta(), vmSpec.vmId());
@@ -136,17 +137,17 @@ public class KuberVmAllocator implements VmAllocator {
                 } catch (Exception ex) {
                     LOG.error("Cannot save volume claims for operation {} (VM {}): {}",
                         vm.allocOpId(), vm.vmId(), ex.getMessage());
-                    return false; // retry later
+                    return AllocateResult.RETRY_LATER.withReason("Database error: %s".formatted(ex.getMessage()));
                 }
 
                 try {
                     withRetries(LOG, () -> operationsDao.update(vm.allocOpId(), null));
                 } catch (OperationCompletedException e) {
                     LOG.error("Cannot update operation {} (VM {}): already completed", vm.allocOpId(), vm.vmId());
-                    return true;
+                    return AllocateResult.FAILED.withReason("Operation already completed");
                 } catch (Exception ex) {
                     LOG.error("Cannot update operation {} (VM {}): {}", vm.allocOpId(), vm.vmId(), ex.getMessage());
-                    return false;
+                    return AllocateResult.RETRY_LATER.withReason("Database error: %s".formatted(ex.getMessage()));
                 }
             } else {
                 LOG.info("Found existing volumes claims for VM {}: {}",
@@ -192,23 +193,22 @@ public class KuberVmAllocator implements VmAllocator {
             } catch (Exception e) {
                 if (KuberUtils.isResourceAlreadyExist(e)) {
                     LOG.warn("Allocation request for VM {} already exist", vmSpec.vmId());
-                    return true;
+                    return AllocateResult.SUCCESS.withReason("K8s request already exists");
                 }
 
                 LOG.error("Failed to allocate vm pod: {}", e.getMessage(), e);
 
-                throw new RuntimeException(
-                    "Failed to allocate vm (vmId: %s) pod: %s".formatted(vmSpec.vmId(), e.getMessage()), e);
+                return AllocateResult.FAILED.withReason(
+                    "Failed to allocate vm (vmId: %s) pod: %s".formatted(vmSpec.vmId(), e.getMessage()));
             }
             LOG.debug("Created vm pod in Kuber: {}", pod);
 
             InjectedFailures.failAllocateVm9();
 
-            return true;
-        } catch (RuntimeException e) {
-            throw e;
+            return AllocateResult.SUCCESS;
         } catch (Exception e) {
-            throw new RuntimeException("Allocation error: " + e.getMessage(), e);
+            LOG.error("Failed to allocate vm (vmId: {}) pod: {}", vmSpec.vmId(), e.getMessage(), e);
+            return AllocateResult.FAILED.withReason("Allocation error: " + e.getMessage());
         }
     }
 
@@ -279,9 +279,9 @@ public class KuberVmAllocator implements VmAllocator {
 
         try (final var client = factory.build(credentials)) {
             List<StatusDetails> statusDetails = client.pods()
-                    .inNamespace(ns)
-                    .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
-                    .delete();
+                .inNamespace(ns)
+                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
+                .delete();
             if (statusDetails.isEmpty()) {
                 LOG.warn("No delete status details were provided by k8s client after deleting pods with vm {}", vmId);
             }
@@ -290,6 +290,16 @@ public class KuberVmAllocator implements VmAllocator {
             if (!claims.isEmpty()) {
                 KuberVolumeManager.freeVolumes(client, claims);
             }
+        } catch (KubernetesClientException e) {
+            LOG.error("Cannot remove pod for vm {}: [{}] {}", vmId, e.getCode(), e.getMessage());
+            if (e.getCode() == 0) {
+                // it must be a test
+                throw new RuntimeException("Cannot delete Pod", e);
+            }
+            if (e.getCode() / 100 != 4) {
+                throw new RuntimeException("Cannot delete Pod", e);
+            }
+            // continue on NOT_FOUND and other HTTP 4xx codes
         } catch (SQLException e) {
             LOG.error("Cannot read volume claims for vm {}: {}", vmId, e.getMessage());
             throw new RuntimeException(e.getMessage());
