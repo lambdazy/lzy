@@ -18,7 +18,6 @@
         <module>iam</module>
         <module>jupyter-kernel</module>
         <module>long-running</module>
-        <module>long-running-api</module>
         <module>lzy-service</module>
         <module>portal</module>
         <module>portal-api</module>
