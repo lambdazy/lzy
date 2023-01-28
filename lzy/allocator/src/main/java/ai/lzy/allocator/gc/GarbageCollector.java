@@ -202,6 +202,7 @@ public class GarbageCollector {
                     LOG.info("Clean VM {}: try to fail allocation operation {}...", vm.vmId(), allocOp.id());
                     var status = toProto(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired"));
                     operationsDao.fail(vm.allocOpId(), status, null);
+                    return;
                 }
 
                 var vmSubjectId = vm.allocateState().vmSubjectId();
