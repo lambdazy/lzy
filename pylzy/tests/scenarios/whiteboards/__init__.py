@@ -36,9 +36,22 @@ with lzy.workflow(name="wf", interactive=False) as wf:
     wb.a = a
 
 whiteboard = lzy.whiteboard(id_=wb.id)
-print(f"Value wb.a: {whiteboard.a}")
-print(f"Value wb.b: {whiteboard.b}")
+print(f"Attempt 1: Value wb.a: {whiteboard.a}")
+print(f"Attempt 1: Value wb.b: {whiteboard.b}")
 
+lzy = Lzy()
+with lzy.workflow(name="wf2", interactive=False) as wf:
+    wb2 = wf.create_whiteboard(SimpleWhiteboard)
+    wb2.a = returns_int()
+
+whiteboard = lzy.whiteboard(id_=wb.id)
+whiteboard2 = lzy.whiteboard(storage_uri=wb2.storage_uri)
+print(f"Attempt 2: Value wb.a: {whiteboard.a}")
+print(f"Attempt 2: Value wb.b: {whiteboard.b}")
+print(f"Attempt 2: Value wb2.a: {whiteboard2.a}")
+print(f"Attempt 2: Value wb2.b: {whiteboard2.b}")
+
+lzy = Lzy()
 whiteboards = list(lzy.whiteboards(
     name="SimpleWhiteboard"
 ))
