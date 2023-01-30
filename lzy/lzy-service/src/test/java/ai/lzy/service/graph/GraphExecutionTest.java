@@ -91,18 +91,21 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
 
         LWFS.ExecuteGraphResponse firstGraphExecution = authorizedWorkflowClient.executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .setGraph(firstGraph)
                 .build());
 
         LWFS.ExecuteGraphResponse secondGraphExecution = authorizedWorkflowClient.executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .setGraph(secondGraph)
                 .build());
 
         LWFS.ExecuteGraphResponse thirdGraphExecution = authorizedWorkflowClient.executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .setGraph(thirdGraph)
                 .build());
@@ -143,7 +146,9 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
 
     @Test
     public void failedWithAlreadyUsedSlotUri() {
-        LWFS.StartWorkflowResponse workflow = startExecution(authorizedWorkflowClient);
+        var workflowName = "workflow_1";
+        LWFS.StartWorkflowResponse workflow = authorizedWorkflowClient.startWorkflow(
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build());
         LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
         var firstOperation =
@@ -191,6 +196,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
         var firstGraphId =
             authorizedWorkflowClient.executeGraph(
                 LWFS.ExecuteGraphRequest.newBuilder()
+                    .setWorkflowName(workflowName)
                     .setExecutionId(executionId)
                     .setGraph(firstGraph)
                     .build()).getGraphId();
@@ -199,6 +205,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
                 //noinspection ResultOfMethodCallIgnored
                 authorizedWorkflowClient.executeGraph(
                     LWFS.ExecuteGraphRequest.newBuilder()
+                        .setWorkflowName(workflowName)
                         .setExecutionId(executionId)
                         .setGraph(secondGraph)
                         .build());
@@ -210,7 +217,9 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
 
     @Test
     public void failedWithUnknownExecutionId() {
-        LWFS.StartWorkflowResponse workflow = startExecution(authorizedWorkflowClient);
+        var workflowName = "workflow_1";
+        LWFS.StartWorkflowResponse workflow = authorizedWorkflowClient.startWorkflow(
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build());
         LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
 
         var operations = List.of(
@@ -235,6 +244,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
         var thrown = assertThrows(StatusRuntimeException.class, () -> {
             //noinspection ResultOfMethodCallIgnored
             authorizedWorkflowClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
                 .setExecutionId(invalidExecutionId)
                 .setGraph(graph)
                 .build());

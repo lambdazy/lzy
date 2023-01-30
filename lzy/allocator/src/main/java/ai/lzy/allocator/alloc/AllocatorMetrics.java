@@ -14,6 +14,7 @@ public class AllocatorMetrics {
 
     private static final String ALLOCATOR = "allocator";
     private static final String ALLOCATOR_PRIVATE = "allocator_private";
+    private static final String VM_POOL_LABEL = "pool";
 
     public final Gauge activeSessions = Gauge
         .build("active_sessions", "Active Allocator Sessions")
@@ -95,4 +96,32 @@ public class AllocatorMetrics {
         .build("hb_fail", "Heartbeat failures")
         .subsystem(ALLOCATOR_PRIVATE)
         .register();
+
+
+    // summary
+
+    public final Gauge runningVms = Gauge
+        .build("running_vms", "Running VMs")
+        .subsystem(ALLOCATOR)
+        .labelNames(VM_POOL_LABEL)
+        .register();
+
+    public final Gauge runningAllocations = Gauge
+        .build("running_allocations", "Running Allocations")
+        .subsystem(ALLOCATOR)
+        .labelNames(VM_POOL_LABEL)
+        .register();
+
+    public final Gauge cachedVms = Gauge
+        .build("cached_vms", "Cached VMs")
+        .subsystem(ALLOCATOR)
+        .labelNames(VM_POOL_LABEL)
+        .register();
+
+    public final Counter cachedVmsTime = Counter
+        .build("cached_vms_time", "Cached VMs Time")
+        .subsystem(ALLOCATOR)
+        .labelNames(VM_POOL_LABEL)
+        .register();
+
 }

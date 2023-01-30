@@ -21,6 +21,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     StopGraphRequest,
     FinishWorkflowRequest,
     FinishWorkflowResponse,
+    AbortWorkflowRequest,
     GetAvailablePoolsRequest,
     GetAvailablePoolsResponse,
     ReadStdSlotsRequest,
@@ -171,6 +172,16 @@ class WorkflowServiceClient:
         finish_op: Operation = await self.__stub.FinishWorkflow(request)
         await self._await_op_done(finish_op.id)
 
+    async def abort_workflow(
+            self,
+            workflow_name: str,
+            execution_id: str,
+            reason: str,
+    ) -> None:
+        await self.__stub.AbortWorkflow(
+            AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
+        )
+
     async def read_std_slots(self, execution_id: str) -> AsyncIterator[Message]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
             ReadStdSlotsRequest(executionId=execution_id)
@@ -184,11 +195,11 @@ class WorkflowServiceClient:
                 for line in msg.stdout.data:
                     yield StdoutMessage(line)
 
-    async def execute_graph(self, execution_id: str, graph: Graph) -> str:
+    async def execute_graph(self, workflow_name: str, execution_id: str, graph: Graph) -> str:
         await self.__start()
 
         res: ExecuteGraphResponse = await self.__stub.ExecuteGraph(
-            ExecuteGraphRequest(executionId=execution_id, graph=graph)
+            ExecuteGraphRequest(workflowName=workflow_name, executionId=execution_id, graph=graph)
         )
 
         return res.graphId

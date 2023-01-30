@@ -293,9 +293,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             }
         }
 
-        final Vm vm;
+        Runnable allocateCont = null;
         try {
-            vm = withRetries(LOG, () -> {
+            allocateCont = withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     final var volumes = prepareVolumeRequests(request.getVolumesList(), tx);
 
@@ -344,9 +344,14 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                         tx.commit();
 
+                        var now = Instant.now();
+
                         metrics.allocateVmFromCache.inc();
-                        metrics.allocateFromCacheDuration.observe(
-                            Duration.between(op.createdAt(), Instant.now()).getSeconds());
+                        metrics.allocateFromCacheDuration.observe(Duration.between(op.createdAt(), now).getSeconds());
+
+                        metrics.cachedVms.labels(existingVm.poolLabel()).dec();
+                        metrics.cachedVmsTime.labels(existingVm.poolLabel())
+                            .inc(Duration.between(existingVm.idleState().idleSice(), now).getSeconds());
 
                         responseObserver.onNext(op.toProto());
                         responseObserver.onCompleted();
@@ -372,10 +377,14 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                     metrics.allocateVmNew.inc();
 
+                    // we should create this action here to inc `runningAllocation` counter before return the result
+                    var cont = new AllocateVmAction(newVm, storage, operationsDao, vmDao, executor, subjectClient,
+                        allocator, tunnelAllocator, metrics, false);
+
                     responseObserver.onNext(op.toProto());
                     responseObserver.onCompleted();
 
-                    return newVm;
+                    return cont;
                 } catch (StatusException e) {
                     metrics.allocationError.inc();
                     responseObserver.onError(e);
@@ -393,25 +402,18 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             LOG.error("Cannot create allocate vm operation for session {}: {}",
                 request.getSessionId(), ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
-            return;
         }
 
-        if (vm == null) {
-            // either use existing vm or smth went wrong
-            return;
+        if (allocateCont != null) {
+            InjectedFailures.failAllocateVm0();
+            executor.submit(allocateCont);
         }
-
-        InjectedFailures.failAllocateVm0();
-
-        executor.submit(new AllocateVmAction(vm, storage, operationsDao, vmDao, executor, subjectClient, allocator,
-            tunnelAllocator, metrics, false));
     }
 
     @Override
     public void free(FreeRequest request, StreamObserver<FreeResponse> responseObserver) {
         LOG.info("Free request {}", ProtoPrinter.safePrinter().shortDebugString(request));
 
-        final Instant[] cacheDeadline = {null};
         Status status;
         try {
             status = withRetries(
@@ -436,14 +438,17 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                             return Status.INTERNAL.withDescription("Session %s not found".formatted(vm.sessionId()));
                         }
 
-                        cacheDeadline[0] = Instant.now().plus(session.cachePolicy().minIdleTimeout());
+                        var cacheDeadline = Instant.now().plus(session.cachePolicy().minIdleTimeout());
 
-                        vmDao.release(vm.vmId(), cacheDeadline[0], tx);
+                        vmDao.release(vm.vmId(), cacheDeadline, tx);
 
                         tx.commit();
 
                         LOG.info("VM {} released to session {} cache until {}",
-                            vm.vmId(), vm.sessionId(), cacheDeadline[0]);
+                            vm.vmId(), vm.sessionId(), cacheDeadline);
+
+                        metrics.runningVms.labels(vm.poolLabel()).dec();
+                        metrics.cachedVms.labels(vm.poolLabel()).inc();
 
                         return Status.OK;
                     }

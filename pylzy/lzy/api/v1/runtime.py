@@ -33,5 +33,9 @@ class Runtime(ABC):
         pass
 
     @abstractmethod
+    async def abort(self) -> None:
+        pass
+
+    @abstractmethod
     async def destroy(self) -> None:
         pass

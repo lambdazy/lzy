@@ -18,7 +18,8 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServic
 from lzy.logs.config import get_logger
 
 from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
-    FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse
+    FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse, \
+    AbortWorkflowRequest, AbortWorkflowResponse
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient
 from lzy.api.v1.runtime import ProgressStep
@@ -45,6 +46,9 @@ class RuntimeMock(Runtime):
 
     async def exec(self, calls: List[LzyCall], progress: Callable[[ProgressStep], None]) -> None:
         self.calls = calls
+
+    async def abort(self) -> None:
+        pass
 
     async def destroy(self) -> None:
         pass
@@ -111,6 +115,18 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
                 s3=S3Credentials(endpoint="", accessToken="", secretToken=""),
             ),
         )
+
+    def AbortWorkflow(self, request: AbortWorkflowRequest, context) -> AbortWorkflowResponse:
+        _LOG.info(f"Aborting wf {request}")
+
+        if self.fail:
+            self.fail = False
+            context.abort(grpc.StatusCode.INTERNAL, "some_error")
+
+        assert request.workflowName == "some_name"
+        assert request.executionId == "exec_id"
+
+        return AbortWorkflowResponse()
 
     def FinishWorkflow(
         self, request: FinishWorkflowRequest, context: grpc.ServicerContext
