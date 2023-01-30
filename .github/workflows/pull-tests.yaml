@@ -6,11 +6,44 @@ on:
   workflow_dispatch:
 
 jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ '3.7', '3.8', '3.9', '3.10' ]
+    timeout-minutes: 15
 
-  #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
-  all-tests:
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v3
+
+      - name: "Set up Python ${{ matrix.python-version }}"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: python -m pip install tox tox-gh-actions
+
+      - name: Build protobuf
+        run: cd pylzy && ./scripts/gen_proto.sh && cd ..
+
+      - name: Test
+        run: cp readme.md pylzy && cd pylzy && tox && cd ..
+
+      - name: 'upload coverage badge'
+        uses: exuanbo/actions-deploy-gist@v1
+        if: github.ref == 'refs/heads/master' && matrix.python-version == '3.9'
+        with:
+          token: ${{ secrets.GIST_SECRET }}
+          gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
+          file_path: pylzy/coverage.svg
+          file_type: binary
+          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
+
+  java-unit-tests:
     runs-on: self-hosted
-    timeout-minutes: 60
+    timeout-minutes: 20
     defaults:
       run:
         shell: bash -l {0}
@@ -28,40 +61,7 @@ jobs:
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
 
-      - name: 'python-test'
-        timeout-minutes: 20
-        run: |
-          cd pylzy/
-          ./scripts/run_tests.sh
-
-      - name: 'upload coverage badge'
-        uses: exuanbo/actions-deploy-gist@v1
-        if: github.ref == 'refs/heads/master'
-        with:
-          token: ${{ secrets.GIST_SECRET }}
-          gist_id: 0095e900fb0fcbe5575ddc3c717fb65b
-          file_path: pylzy/coverage.svg
-          file_type: binary
-          gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
-
-      - name: 'clean after python-test'
-        run: |
-          cd pylzy/
-          ./scripts/clean.sh
-
-      - name: 'install python test env'
-        run: |
-          eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r lzy/worker/docker/requirements.txt
-
-      - name: 'install pylzy'
-        run: |
-          cd pylzy/
-          eval "$(conda shell.bash hook)" && ./scripts/build.sh
-          eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
-          cd ..
-
-      - name: 'java unit tests and install'
-        timeout-minutes: 20
+      - name: Tests
         run: mvn clean install
 
       - name: 'generate java coverage badge'
@@ -83,6 +83,47 @@ jobs:
           file_path: coverage/target/site/jacoco-aggregate/jacoco.svg
           file_type: binary
           gist_file_name: ${{ (github.head_ref || github.ref_name) }}-java-coverage.svg
+
+      - name: 'Publish Test Report'
+        uses: EnricoMi/publish-unit-test-result-action@v1
+        if: always()
+        with:
+          files: "**/surefire-reports/TEST-*.xml"
+
+  integration-tests:
+    runs-on: self-hosted
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash -l {0}
+    steps:
+      - name: "Chown for checkout"
+        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
+
+      - name: "Checkout"
+        uses: actions/checkout@v3
+
+      - name: 'Clear before tests'
+        run: |
+          sudo umount -f /tmp/lzy*
+          sudo umount -f /tmp/term*
+          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker*
+          sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
+
+      - name: 'install python test env'
+        run: |
+          eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r lzy/worker/docker/requirements.txt
+
+      - name: 'install pylzy'
+        run: |
+          cd pylzy/
+          eval "$(conda shell.bash hook)" && ./scripts/build.sh
+          eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
+          cd ..
+
+      - name: 'java unit tests and install'
+        timeout-minutes: 5
+        run: mvn clean install -DskipTests
 
       - name: 'SchedulerTest'
         timeout-minutes: 5
@@ -140,10 +181,4 @@ jobs:
         run: |
           cd pylzy/
           eval "$(conda shell.bash hook)" && ./scripts/clean.sh
-          cd ..
-
-      - name: 'Publish Test Report'
-        uses: EnricoMi/publish-unit-test-result-action@v1
-        if: always()
-        with:
-          files: "**/surefire-reports/TEST-*.xml"
+          cd ..      
