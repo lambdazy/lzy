@@ -42,7 +42,7 @@ jobs:
           gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
 
   java-unit-tests:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     timeout-minutes: 20
     defaults:
       run:
