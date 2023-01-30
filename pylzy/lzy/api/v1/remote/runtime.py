@@ -165,8 +165,6 @@ class RemoteRuntime(Runtime):
             self.__std_slots_listener = None
 
         finally:
-            await client.stop()
-            self.__workflow_client = None
             self.__running = False
 
     async def destroy(self):
@@ -188,8 +186,6 @@ class RemoteRuntime(Runtime):
             self.__std_slots_listener = None
 
         finally:
-            await client.stop()
-            self.__workflow_client = None
             self.__running = False
 
     async def __load_local_modules(self, module_paths: Iterable[str]) -> Sequence[str]:
