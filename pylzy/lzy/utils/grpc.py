@@ -1,6 +1,9 @@
+import asyncio
 import dataclasses
+import functools
 import json
 import time
+import warnings
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -21,57 +24,62 @@ import grpc.aio as aio
 # Copy from util/util-grpc/src/main/java/ai/lzy/util/grpc/ChannelBuilder.java
 import jwt
 # noinspection PyPackageRequirements
-from grpc.aio import ClientCallDetails, ClientInterceptor
+from grpc import StatusCode
+from grpc.aio import ClientCallDetails, ClientInterceptor, AioRpcError
 # noinspection PyPackageRequirements,PyProtectedMember
 from grpc.aio._typing import RequestType, ResponseType
 
-KEEP_ALIVE_TIME_MINS = 3
-IDLE_TIMEOUT_MINS = 5
-KEEP_ALIVE_TIMEOUT_SECS = 10
+from lzy.logs.config import get_logger
+
+KEEP_ALIVE_TIME_MS = 3 * 60 * 1000  # 3 minutes
+KEEP_ALIVE_TIMEOUT_MS = 1000
+
+
+_LOG = get_logger(__name__)
 
 
 @dataclass
 class RetryConfig:
-    max_retry: int = 3
-    initial_backoff: str = "0.5s"  # in duration format
-    max_backoff: str = "2s"  # in duration format
+    max_retry: int = 5
+    initial_backoff_ms: int = 1000
+    max_backoff_ms: int = 64000
     backoff_multiplier: int = 2
-    retryable_status_codes: Sequence[str] = dataclasses.field(
-        default_factory=lambda: ["UNAVAILABLE", "CANCELLED"]
+    retryable_status_codes: Sequence[StatusCode] = dataclasses.field(
+        default_factory=lambda: [StatusCode.UNAVAILABLE, StatusCode.CANCELLED]
     )
 
 
 def build_channel(
     address: str,
     *,
-    service_name: Optional[str] = None,
+    service_names: Optional[Sequence[str]] = None,
     enable_retry: bool = False,
     retry_config: RetryConfig = RetryConfig(),
     tls: bool = False,
     interceptors: Optional[Sequence[aio.ClientInterceptor]] = None,
+    keepalive_ms: int = KEEP_ALIVE_TIME_MS
 ) -> aio.Channel:
     options: List[Tuple[str, Any]] = [
-        ("grpc.enable_retries", 1),
+        ("grpc.enable_retries", 1 if enable_retry else 0),
         ("grpc.keepalive_permit_without_calls", 1),
-        ("grpc.keepalive_time_ms", KEEP_ALIVE_TIME_MINS * 60 * 1000),
-        ("grpc.keepalive_timeout_ms", KEEP_ALIVE_TIMEOUT_SECS * 1000),
-        ("grpc.client_idle_timeout_ms", IDLE_TIMEOUT_MINS * 60 * 1000),
+        ("grpc.keepalive_time_ms", keepalive_ms),
+        ("grpc.keepalive_timeout_ms", KEEP_ALIVE_TIMEOUT_MS),
     ]
 
     if enable_retry:
-        assert service_name is not None, "Service name must be specified"
+        assert service_names is not None, "Service name must be specified"
         service_config = {
             "methodConfig": [
                 {
-                    "name": [{"service": service_name}],
+                    "name": [{"service": name}],
                     "retryPolicy": {
                         "maxAttempts": retry_config.max_retry,
-                        "initialBackoff": retry_config.initial_backoff,
-                        "maxBackoff": retry_config.max_backoff,
+                        "initialBackoff": f"{retry_config.initial_backoff_ms / 1000}s",
+                        "maxBackoff": f"{retry_config.max_backoff_ms / 1000}s",
                         "backoffMultiplier": retry_config.backoff_multiplier,
-                        "retryableStatusCodes": retry_config.retryable_status_codes,
+                        "retryableStatusCodes": [code.name for code in retry_config.retryable_status_codes],
                     },
-                }
+                } for name in service_names
             ]
         }
         options.append(
@@ -209,3 +217,32 @@ def build_token(username: str, key_path: str) -> str:
                 algorithm="PS256",
             )
         )
+
+
+def retry(config: RetryConfig, action_name: str):
+
+    def decorator(f: Callable[[Any], Awaitable[T]]):
+
+        @functools.wraps(f)
+        async def inner(*args: Any, **kwargs: Any) -> T:
+            retry_count = 0
+            current_backoff = config.initial_backoff_ms
+
+            while retry_count <= config.max_retry and current_backoff <= config.max_backoff_ms:
+                try:
+                    return await f(*args, **kwargs)
+                except AioRpcError as e:
+                    if e.code() in config.retryable_status_codes:
+                        warnings.warn(
+                            f"Lost connection while {action_name}. Retrying, attempt {retry_count}/{config.max_retry}")
+
+                        await asyncio.sleep(current_backoff / 1000)
+                        retry_count += 1
+                        current_backoff *= config.backoff_multiplier
+                        continue
+                    raise e
+            raise RuntimeError("Lost connection to lzy servers. Please check your network connection and ty again.")
+
+        return inner
+
+    return decorator

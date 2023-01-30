@@ -6,7 +6,10 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.slots.LSA;
 import com.google.protobuf.ByteString;
+import io.grpc.Status;
+import io.grpc.stub.StreamObserver;
 import jnr.constants.platform.OpenFlags;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -160,21 +163,76 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             .build();
     }
 
+
     @Override
-    public Stream<ByteString> readFromPosition(long offset) throws IOException {
+    public void readFromPosition(long offset, StreamObserver<LSA.SlotDataChunk> responseObserver) {
         LOG.info("OutFileSlot.readFromPosition for slot " + this.definition().name() + ", current state " + state());
         final FileChannel channel;
         waitForState(OPEN);
+
         if (state() != OPEN) {
-            throw new IllegalStateException("Slot is not open, cannot read");
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Slot is not open, cannot read").asException()
+            );
+            return;
         }
+
         try {
             channel = channelSupplier.get().get();
         } catch (InterruptedException | ExecutionException e) {
-            throw new RuntimeException(e);
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Slot is not open, cannot read").asException()
+            );
+            return;
         }
+
         LOG.info("Slot {} is ready", name());
-        return readFileChannel(name(), offset, channel, () -> state() == OPEN);
+
+        readFileChannel(name(), offset, channel, responseObserver);
+    }
+
+    public static void readFileChannel(String filename, long offset, FileChannel channel,
+                                       StreamObserver<LSA.SlotDataChunk> responseObserver)
+    {
+        try {
+            channel.position(offset);
+        } catch (IOException e) {
+            LOG.error("Error while reading from file channel: ", e);
+            responseObserver.onError(Status.INTERNAL.asException());
+            return;
+        }
+
+        final ByteBuffer bb = ByteBuffer.allocate(PAGE_SIZE);
+
+        int read = 0;
+
+        while (read >= 0) {
+            bb.clear();
+
+            try {
+                read = channel.read(bb);
+                LOG.info("Slot {} hasNext read {}", filename, read);
+            } catch (IOException e) {
+                LOG.error("Error while reading from file channel: ", e);
+                responseObserver.onError(Status.INTERNAL.asException());
+                return;
+            }
+
+            bb.flip();
+            responseObserver.onNext(
+                LSA.SlotDataChunk.newBuilder()
+                    .setChunk(ByteString.copyFrom(bb))
+                    .build()
+            );
+        }
+
+        responseObserver.onNext(
+            LSA.SlotDataChunk.newBuilder()
+                .setControl(LSA.SlotDataChunk.Control.EOS)
+                .build()
+        );
+
+        responseObserver.onCompleted();
     }
 
     public static Stream<ByteString> readFileChannel(String filename, long offset, FileChannel channel,

@@ -452,20 +452,6 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         LOG.info("Open portal output slot, uri: {}, offset: {}", slotInstance.uri(), request.getOffset());
         final var slotName = slotInstance.name();
 
-        Consumer<LzyOutputSlot> reader = outputSlot -> {
-            try {
-                outputSlot
-                    .readFromPosition(request.getOffset())
-                    .forEach(chunk -> response.onNext(LSA.SlotDataChunk.newBuilder().setChunk(chunk).build()));
-
-                response.onNext(LSA.SlotDataChunk.newBuilder().setControl(LSA.SlotDataChunk.Control.EOS).build());
-                response.onCompleted();
-            } catch (Exception e) {
-                LOG.error("Error while uploading data: {}", e.getMessage(), e);
-                response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
-            }
-        };
-
         LzyOutputSlot outputSlot;
 
         synchronized (this) {
@@ -482,7 +468,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         }
 
         if (outputSlot != null) {
-            reader.accept(outputSlot);
+            outputSlot.readFromPosition(request.getOffset(), response);
             return;
         }
 

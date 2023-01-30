@@ -49,7 +49,7 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
 
         if (idempotencyKey != null) {
             var currentAssocOp = idempotencyKey2Operation.computeIfAbsent(idempotencyKey.token(), ik -> {
-                operations.putIfAbsent(operation.id(), new OperationDesc(operation, null));
+                operations.putIfAbsent(operation.id(), new OperationDesc(operation, thread));
                 return operation;
             });
 

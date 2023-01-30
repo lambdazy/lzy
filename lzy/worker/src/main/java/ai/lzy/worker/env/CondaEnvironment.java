@@ -130,6 +130,8 @@ public class CondaEnvironment implements AuxEnvironment {
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
 
+                    CondaPackageRegistry.notifyInstalled(new StringReader(pythonEnv.yaml()));
+
                     condaFile.delete();
                 }
             }

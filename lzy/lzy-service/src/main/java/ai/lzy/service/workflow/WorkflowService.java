@@ -28,6 +28,7 @@ import ai.lzy.v1.workflow.LWFS.StartWorkflowRequest;
 import ai.lzy.v1.workflow.LWFS.StartWorkflowResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -260,7 +261,8 @@ public class WorkflowService {
                 return;
             }
 
-            var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), response);
+            var resp = (ServerCallStreamObserver<LWFS.ReadStdSlotsResponse>) response;
+            var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), resp);
             listenersByExecution.computeIfAbsent(executionId, k -> new ConcurrentLinkedQueue<>()).add(listener);
 
         } catch (Exception e) {

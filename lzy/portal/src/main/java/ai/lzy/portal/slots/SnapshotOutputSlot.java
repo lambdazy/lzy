@@ -5,7 +5,10 @@ import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.storage.Repository;
+import ai.lzy.v1.slots.LSA;
 import com.google.protobuf.ByteString;
+import io.grpc.Status;
+import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -58,13 +61,19 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
         }
     }
 
+
     @Override
-    public Stream<ByteString> readFromPosition(long offset) throws IOException {
+    public void readFromPosition(long offset, StreamObserver<LSA.SlotDataChunk> responseObserver) {
         if (hasInputSlot) {
             if (slot.getState().get() == S3Snapshot.State.INITIAL) {
                 LOG.error("Input slot of this snapshot is not already connected");
                 state = SnapshotSlotStatus.FAILED;
-                throw new IllegalStateException("Input slot of this snapshot is not already connected");
+                responseObserver.onError(
+                    Status.INTERNAL
+                        .withDescription("Input slot of this snapshot is not already connected")
+                        .asException()
+                );
+                return;
             }
         } else if (slot.getState().compareAndSet(S3Snapshot.State.INITIAL, S3Snapshot.State.PREPARING)) {
             state = SnapshotSlotStatus.SYNCING;
@@ -73,7 +82,12 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
             } catch (Exception e) {
                 LOG.error("Cannot sync data with remote storage", e);
                 state = SnapshotSlotStatus.FAILED;
-                throw e;
+                responseObserver.onError(
+                    Status.INTERNAL
+                        .withDescription("Cannot sync data with remote storage")
+                        .asException()
+                );
+                return;
             }
             slot.getState().set(S3Snapshot.State.DONE);
             synchronized (slot) {
@@ -93,9 +107,17 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
         }
         state = SnapshotSlotStatus.SYNCED;
 
-        FileChannel channel = FileChannel.open(storage);
+        final FileChannel channel;
+        try {
+            channel = FileChannel.open(storage);
+        } catch (IOException e) {
+            LOG.error("Error while creating file channel", e);
+            responseObserver.onError(Status.INTERNAL.asException());
+            return;
+        }
         state(OPEN);
-        return OutFileSlot.readFileChannel(definition().name(), offset, channel, () -> true);
+
+        OutFileSlot.readFileChannel(definition().name(), offset, channel, responseObserver);
     }
 
     @Override

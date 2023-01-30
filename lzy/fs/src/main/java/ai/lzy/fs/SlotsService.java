@@ -32,7 +32,6 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -362,21 +361,8 @@ public class SlotsService {
 
             final LzySlot slot = slotsManager.slot(taskId, slotInstance.name());
             if (slot instanceof LzyOutputSlot outputSlot) {
-                try {
-                    outputSlot
-                        .readFromPosition(request.getOffset())
-                        .forEach(chunk -> response.onNext(LSA.SlotDataChunk.newBuilder().setChunk(chunk).build()));
 
-                    response.onNext(
-                        LSA.SlotDataChunk.newBuilder()
-                            .setControl(LSA.SlotDataChunk.Control.EOS)
-                            .build());
-                    response.onCompleted();
-                } catch (IOException e) {
-                    var msg = "IO error while reading slot %s: %s".formatted(slotInstance.shortDesc(), e.getMessage());
-                    LOG.error(msg, e);
-                    response.onError(Status.INTERNAL.withDescription(msg).asException());
-                }
+                outputSlot.readFromPosition(request.getOffset(), response);
                 return;
             }
 
