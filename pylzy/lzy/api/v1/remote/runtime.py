@@ -150,7 +150,7 @@ class RemoteRuntime(Runtime):
                 )
 
     async def abort(self) -> None:
-        client = await self.__get_client()
+        client = self.__workflow_client
         try:
             if not self.__running:
                 return
