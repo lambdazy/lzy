@@ -3,6 +3,7 @@ import dataclasses
 import functools
 import json
 import time
+import warnings
 from dataclasses import dataclass
 from typing import (
     Any,
@@ -232,7 +233,7 @@ def retry(config: RetryConfig, action_name: str):
                     return await f(*args, **kwargs)
                 except AioRpcError as e:
                     if e.code() in config.retryable_status_codes:
-                        _LOG.warning(
+                        warnings.warn(
                             f"Lost connection while {action_name}. Retrying, attempt {retry_count}/{config.max_retry}")
 
                         await asyncio.sleep(current_backoff / 1000)

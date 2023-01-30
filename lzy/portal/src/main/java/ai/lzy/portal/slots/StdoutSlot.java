@@ -13,12 +13,12 @@ import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
 import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -31,7 +31,7 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     private final Map<String, String> slot2task = new HashMap<>();
 
     // TODO(artolord) replace this buffer with persistent queue or file to prevent OOM
-    private final LinkedBlockingQueue<String> buffer = new LinkedBlockingQueue<>(1024);
+    private final CircularFifoQueue<String> buffer = new CircularFifoQueue<>(1024);
     private final AtomicBoolean finished = new AtomicBoolean(false);
     private final AtomicBoolean finishing = new AtomicBoolean(false);
 
@@ -87,12 +87,7 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
         var taskId = slot2task.get(slot);
         if (taskId != null) {
             if (!line.isEmpty()) {
-                try {
-                    buffer.put("[LZY-REMOTE-" + taskId + "] - " + line.toStringUtf8());
-                } catch (InterruptedException e) {
-                    LOG.error("Interrupted while blocked on data writing");
-                    throw new RuntimeException("Interrupted");
-                }
+                buffer.offer("[LZY-REMOTE-" + taskId + "] - " + line.toStringUtf8());
             }
             notifyAll();
         } else {

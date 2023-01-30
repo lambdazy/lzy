@@ -111,6 +111,12 @@ class WorkflowServiceClient:
         self.__ops_stub = ops_stub
         self.__channel = channel
 
+    @retry(config=RetryConfig(
+        initial_backoff_ms=1000,
+        max_retry=120,
+        backoff_multiplier=1,
+        max_backoff_ms=10000
+    ), action_name="starting workflow")
     async def start_workflow(
             self, name: str, storage: Optional[Storage] = None
     ) -> Tuple[str, Optional[Storage]]:
@@ -144,6 +150,12 @@ class WorkflowServiceClient:
             # sleep 300 ms
             await asyncio.sleep(0.3)
 
+    @retry(config=RetryConfig(
+        initial_backoff_ms=1000,
+        max_retry=120,
+        backoff_multiplier=1,
+        max_backoff_ms=10000
+    ), action_name="finishing workflow")
     async def finish_workflow(
             self,
             workflow_name: str,
@@ -171,6 +183,12 @@ class WorkflowServiceClient:
                 for line in msg.stdout.data:
                     yield StdoutMessage(line)
 
+    @retry(config=RetryConfig(
+        initial_backoff_ms=1000,
+        max_retry=120,
+        backoff_multiplier=1,
+        max_backoff_ms=10000
+    ), action_name="starting to execute graph")
     async def execute_graph(self, execution_id: str, graph: Graph) -> str:
         res: ExecuteGraphResponse = await self.__stub.ExecuteGraph(
             ExecuteGraphRequest(executionId=execution_id, graph=graph)
@@ -205,11 +223,23 @@ class WorkflowServiceClient:
             res.executing.message,
         )
 
+    @retry(config=RetryConfig(
+        initial_backoff_ms=1000,
+        max_retry=120,
+        backoff_multiplier=1,
+        max_backoff_ms=10000
+    ), action_name="stopping graph")
     async def graph_stop(self, execution_id: str, graph_id: str):
         await self.__stub.StopGraph(
             StopGraphRequest(executionId=execution_id, graphId=graph_id)
         )
 
+    @retry(config=RetryConfig(
+        initial_backoff_ms=1000,
+        max_retry=120,
+        backoff_multiplier=1,
+        max_backoff_ms=10000
+    ), action_name="getting vm pools specs")
     async def get_pool_specs(self, execution_id: str) -> Sequence[VmPoolSpec]:
         pools: GetAvailablePoolsResponse = await self.__stub.GetAvailablePools(
             GetAvailablePoolsRequest(executionId=execution_id)
