@@ -42,7 +42,7 @@ jobs:
           gist_file_name: ${{ (github.head_ref || github.ref_name) }}-coverage.svg
 
   java-unit-tests:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 25
     defaults:
       run:
@@ -60,6 +60,10 @@ jobs:
           sudo umount -f /tmp/term*
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
+
+      - name: 'Setup fuse config'
+        run: |
+          echo "user_allow_other" | sudo tee -a /etc/fuse.conf
 
       - name: Tests
         run: mvn clean install
