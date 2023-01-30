@@ -103,7 +103,9 @@ public class RestartExecuteGraphTest extends AbstractGraphExecutionTest {
     }
 
     private void executeGraphWithRestartImpl() {
-        LWFS.StartWorkflowResponse workflow = startExecution(authorizedWorkflowClient);
+        var workflowName = "workflow_1";
+        LWFS.StartWorkflowResponse workflow = authorizedWorkflowClient.startWorkflow(
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build());
         LWF.Graph graph = buildSimpleGraph(workflow.getInternalSnapshotStorage());
         var executionId = workflow.getExecutionId();
 
@@ -112,6 +114,7 @@ public class RestartExecuteGraphTest extends AbstractGraphExecutionTest {
 
         assertThrows(StatusRuntimeException.class, () -> idempotentCallsClient.executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .setGraph(graph)
                 .build()).getGraphId());
@@ -121,6 +124,7 @@ public class RestartExecuteGraphTest extends AbstractGraphExecutionTest {
         context.getBean(LzyService.class).testRestart();
 
         var graphId = idempotentCallsClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
+            .setWorkflowName(workflowName)
             .setExecutionId(executionId)
             .setGraph(graph)
             .build()).getGraphId();

@@ -83,10 +83,24 @@ public class CleanExecutionCompanion {
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
     }
 
-    public boolean markExecutionAsBroken(String userId, @Nullable String workflowName,
-                                         String executionId, Status reason)
+    public void markExecutionAsBroken(String userId, @Nullable String workflowName, String executionId, Status reason)
+        throws Exception
     {
         LOG.info("Attempt to mark execution as broken by reason: { executionId: {}, reason: {} }", executionId, reason);
+
+        withRetries(LOG, () -> {
+            try (var tx = TransactionHandle.create(storage)) {
+                executionDao.updateFinishData(userId, workflowName, executionId, reason, tx);
+                executionDao.setErrorExecutionStatus(executionId, tx);
+
+                tx.commit();
+            }
+        });
+    }
+
+    public boolean tryToMarkExecutionAsBroken(String userId, String workflowName, String executionId, Status reason) {
+        LOG.info("Attempt to mark workflow execution as broken by reason: " +
+            "{ workflowName: {}, executionId: {}, reason: {} }", workflowName, executionId, reason);
 
         try {
             withRetries(LOG, () -> {
@@ -98,8 +112,8 @@ public class CleanExecutionCompanion {
                 }
             });
         } catch (Exception e) {
-            LOG.warn("Cannot mark execution as broken: { executionId: {}, error: {} }", executionId,
-                e.getMessage());
+            LOG.warn("Cannot mark workflow execution as broken: { workflowName: {}, executionId: {}, error: {} }",
+                workflowName, executionId, e.getMessage());
             return false;
         }
 
@@ -229,7 +243,7 @@ public class CleanExecutionCompanion {
         return null;
     }
 
-    private void stopGraphs(String executionId) {
+    void stopGraphs(String executionId) {
         LOG.info("Attempt to stop graphs of execution because of completing: { executionId: {} }", executionId);
 
         String curGraphId = null;

@@ -9,7 +9,7 @@ source "$src_dir/util.sh"
 proto_out="lzy/proto"
 proto_validation_path="../util/util-grpc/src/main/proto/"
 proto_model_path="../model/src/main/proto/"
-proto_longrunning_path="../lzy/long-running-api/src/main/proto/"
+proto_longrunning_path="../long-running-api/src/main/proto/"
 proto_workflow_path="../lzy-api/src/main/proto/"
 proto_whiteboard_path="../whiteboard-api/src/main/proto/"
 

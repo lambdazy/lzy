@@ -392,10 +392,8 @@ public class ChannelDaoImpl implements ChannelDao {
     }
 
     @Override
-    public List<Channel> listChannels(String executionId,
-                                      @Nullable TransactionHandle transaction) throws SQLException
-    {
-        return DbOperation.execute(transaction, storage, conn -> {
+    public List<Channel> listChannels(String executionId) throws SQLException {
+        return DbOperation.execute(null, storage, conn -> {
             try (var st = conn.prepareStatement(QUERY_SELECT_CHANNELS_BY_EXECUTION_ID)) {
                 st.setString(1, executionId);
 
@@ -407,10 +405,8 @@ public class ChannelDaoImpl implements ChannelDao {
     }
 
     @Override
-    public List<Channel> listChannels(String executionId, Channel.LifeStatus lifeStatus,
-                                      @Nullable TransactionHandle transaction) throws SQLException
-    {
-        return DbOperation.execute(transaction, storage, conn -> {
+    public List<Channel> listChannels(String executionId, Channel.LifeStatus lifeStatus) throws SQLException {
+        return DbOperation.execute(null, storage, conn -> {
             try (var st = conn.prepareStatement(QUERY_SELECT_CHANNELS_BY_EXECUTION_ID_AND_STATUS)) {
                 st.setString(1, executionId);
                 st.setString(2, lifeStatus.name());
@@ -512,5 +508,4 @@ public class ChannelDaoImpl implements ChannelDao {
             throw new RuntimeException(e);
         }
     }
-
 }
