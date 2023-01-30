@@ -90,48 +90,50 @@ public class CondaEnvironment implements AuxEnvironment {
         try {
             if (RECONFIGURE_CONDA) {
                 if (CondaPackageRegistry.isInstalled(pythonEnv.yaml())) {
+
                     LOG.info("Conda env {} already configured, skipping", envName);
-                    return;
+
+                } else {
+
+                    LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
+
+                    Path condaPath = Path.of(resourcesPath, UUID.randomUUID().toString());
+                    Files.createDirectories(condaPath);
+                    final File condaFile = Files.createFile(Path.of(condaPath.toString(), "conda.yaml")).toFile();
+
+                    try (FileWriter file = new FileWriter(condaFile.getAbsolutePath())) {
+                        file.write(pythonEnv.yaml());
+                    }
+
+                    // Conda env create or update: https://github.com/conda/conda/issues/7819
+                    final LzyProcess lzyProcess = execInEnv(
+                        String.format("conda env create --file %s  || conda env update --file %s",
+                            condaFile.getAbsolutePath(),
+                            condaFile.getAbsolutePath())
+                    );
+
+                    out.add(lzyProcess.out());
+                    err.add(lzyProcess.err());
+
+                    final int rc;
+                    try {
+                        rc = lzyProcess.waitFor();
+                    } catch (InterruptedException e) {
+                        throw new EnvironmentInstallationException("Environment installation cancelled");
+                    }
+                    if (rc != 0) {
+                        String errorMessage = "Failed to create/update conda env\n"
+                            + "  ReturnCode: " + rc + "\n"
+                            + "See your stdout/stderr to see more info";
+                        LOG.error(errorMessage);
+                        throw new EnvironmentInstallationException(errorMessage);
+                    }
+                    LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
+
+                    CondaPackageRegistry.notifyInstalled(new StringReader(pythonEnv.yaml()));
+
+                    condaFile.delete();
                 }
-
-                LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
-
-                Path condaPath = Path.of(resourcesPath, UUID.randomUUID().toString());
-                Files.createDirectories(condaPath);
-                final File condaFile = Files.createFile(Path.of(condaPath.toString(), "conda.yaml")).toFile();
-
-                try (FileWriter file = new FileWriter(condaFile.getAbsolutePath())) {
-                    file.write(pythonEnv.yaml());
-                }
-
-                // Conda env create or update: https://github.com/conda/conda/issues/7819
-                final LzyProcess lzyProcess = execInEnv(
-                    String.format("conda env create --file %s  || conda env update --file %s",
-                        condaFile.getAbsolutePath(),
-                        condaFile.getAbsolutePath())
-                );
-
-                out.add(lzyProcess.out());
-                err.add(lzyProcess.err());
-
-                final int rc;
-                try {
-                    rc = lzyProcess.waitFor();
-                } catch (InterruptedException e) {
-                    throw new EnvironmentInstallationException("Environment installation cancelled");
-                }
-                if (rc != 0) {
-                    String errorMessage = "Failed to create/update conda env\n"
-                        + "  ReturnCode: " + rc + "\n"
-                        + "See your stdout/stderr to see more info";
-                    LOG.error(errorMessage);
-                    throw new EnvironmentInstallationException(errorMessage);
-                }
-                LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
-
-                CondaPackageRegistry.notifyInstalled(new StringReader(pythonEnv.yaml()));
-
-                condaFile.delete();
             }
 
             File directory = new File(localModulesDirectoryAbsolutePath());
