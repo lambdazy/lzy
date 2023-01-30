@@ -48,21 +48,18 @@ jobs:
       run:
         shell: bash -l {0}
     steps:
-      - name: "Chown for checkout"
-        run: sudo chown -R $USER:$USER /home/ubuntu/actions-runner/_work/lzy/
-
-      - name: "Checkout"
+      - name: 'Checkout'
         uses: actions/checkout@v3
 
-      - name: 'Clear before tests'
-        run: |
-          sudo umount -f /tmp/lzy*
-          sudo umount -f /tmp/term*
-          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker*
-          sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
+      - name: 'Setup JDK 17'
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-      - name: 'Setup fuse config'
+      - name: 'Setup fuse'
         run: |
+          sudo apt-get update && sudo apt-get install fuse
           echo "user_allow_other" | sudo tee -a /etc/fuse.conf
 
       - name: Tests
