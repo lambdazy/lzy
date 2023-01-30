@@ -25,8 +25,11 @@ jobs:
       - name: Install dependencies
         run: python -m pip install tox tox-gh-actions
 
+      - name: Build protobuf
+        run: cd pylzy && ./scripts/gen_proto.sh && cd ..
+
       - name: Test
-        run: cp readme.md pylzy && cd pylzy && tox
+        run: cp readme.md pylzy && cd pylzy && tox && cd ..
 
       - name: 'upload coverage badge'
         uses: exuanbo/actions-deploy-gist@v1
