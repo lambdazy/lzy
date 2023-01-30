@@ -150,6 +150,9 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
 
 
 class StorageRegistryMock(StorageRegistry):
+    def register_default_storage(self, default_storage: Storage) -> None:
+        pass
+
     def register_storage(self, name: str, storage: Storage) -> None:
         pass
 

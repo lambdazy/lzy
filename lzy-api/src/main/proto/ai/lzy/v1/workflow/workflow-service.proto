@@ -28,7 +28,7 @@ service LzyWorkflowService {
 
   rpc GetAvailablePools (GetAvailablePoolsRequest) returns (GetAvailablePoolsResponse);
 
-  rpc GetStorage (GetStorageRequest) returns (GetStorageResponse);
+  rpc GetStorageCredentials (GetStorageCredentialsRequest) returns (GetStorageCredentialsResponse);
 }
 
 message StartWorkflowRequest {
@@ -133,11 +133,9 @@ message GetAvailablePoolsResponse {
 
 // ==================== GetStorage =====================
 
-message GetStorageRequest {
-  // if not set, creds for internal SnapshotStorage are returned
-  /* optional */ string bucketName = 1;
+message GetStorageCredentialsRequest {
 }
 
-message GetStorageResponse {
+message GetStorageCredentialsResponse {
   ai.lzy.v1.common.StorageConfig storage = 1;
 }

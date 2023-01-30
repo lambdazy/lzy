@@ -16,6 +16,7 @@ import ai.lzy.service.gc.GarbageCollector;
 import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.graph.GraphExecutionState;
 import ai.lzy.service.graph.debug.InjectedFailures;
+import ai.lzy.service.util.StorageUtils;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ProtoPrinter;
@@ -324,14 +325,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void getStorage(GetStorageRequest request, StreamObserver<GetStorageResponse> responseObserver) {
+    public void getStorageCredentials(GetStorageCredentialsRequest request,
+                                      StreamObserver<GetStorageCredentialsResponse> responseObserver)
+    {
         final String userId = AuthenticationContext.currentSubject().id();
-        final String bucketName;
-        if (request.getBucketName().isBlank()) {
-            bucketName = "tmp-bucket-" + userId;
-        } else {
-            bucketName = request.getBucketName();
-        }
+        final String bucketName = StorageUtils.createInternalBucketName(userId);
 
         LOG.info("Get storage credentials for bucket {}", bucketName);
 
@@ -373,7 +371,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        responseObserver.onNext(GetStorageResponse.newBuilder().setStorage(storageConfig).build());
+        responseObserver.onNext(GetStorageCredentialsResponse.newBuilder().setStorage(storageConfig).build());
         LOG.info("Get storage credentials for bucket {} done", bucketName);
         responseObserver.onCompleted();
     }

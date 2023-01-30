@@ -25,8 +25,8 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     GetAvailablePoolsResponse,
     ReadStdSlotsRequest,
     ReadStdSlotsResponse,
-    GetStorageRequest,
-    GetStorageResponse,
+    GetStorageCredentialsRequest,
+    GetStorageCredentialsResponse,
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
@@ -233,9 +233,9 @@ class WorkflowServiceClient:
 
     async def get_default_storage(self) -> Optional[Storage]:
         await self.__start()
-        response: GetStorageResponse = await self.__stub.GetStorage(GetStorageRequest())
-        if response.HasField("storage"):
-            return _create_storage_endpoint(response.storage)
+        resp: GetStorageCredentialsResponse = await self.__stub.GetStorageCredentials(GetStorageCredentialsRequest())
+        if resp.HasField("storage"):
+            return _create_storage_endpoint(resp.storage)
         return None
 
     async def stop(self):
