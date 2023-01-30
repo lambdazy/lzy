@@ -11,6 +11,7 @@ import ai.lzy.model.Constants;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.util.StorageUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMST;
@@ -86,7 +87,7 @@ final class StartExecutionCompanion {
 
         if (internalSnapshotStorage) {
             try {
-                var bucketName = "tmp-bucket-" + state.getUserId();
+                var bucketName = StorageUtils.createInternalBucketName(state.getUserId());
 
                 LOG.info("Creating new temporary storage bucket: { bucketName: {}, userId: {} }",
                     bucketName, state.getUserId());
