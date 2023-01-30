@@ -22,6 +22,8 @@ import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 public class DockerEnvironment implements BaseEnvironment {
@@ -103,6 +105,8 @@ public class DockerEnvironment implements BaseEnvironment {
         final ExecCreateCmdResponse exec = execCmd.exec();
         LOG.info("Executing cmd {}", String.join(" ", command));
 
+        var feature = new CompletableFuture<>();
+
         var startCmd = DOCKER.execStartCmd(exec.getId())
             .exec(new ResultCallbackTemplate<>() {
                 @Override
@@ -113,6 +117,8 @@ public class DockerEnvironment implements BaseEnvironment {
                         stderr.close();
                     } catch (IOException e) {
                         LOG.error("Cannot close stderr/stdout slots", e);
+                    } finally {
+                        feature.complete(null);
                     }
                 }
 
@@ -163,7 +169,7 @@ public class DockerEnvironment implements BaseEnvironment {
             @Override
             public int waitFor() throws InterruptedException {
                 try {
-                    startCmd.awaitCompletion();
+                    feature.get();
                     return Math.toIntExact(DOCKER.inspectExecCmd(exec.getId()).exec().getExitCodeLong());
                 } catch (InterruptedException e) {
                     try {
@@ -172,6 +178,9 @@ public class DockerEnvironment implements BaseEnvironment {
                         LOG.error("Error while closing cmd: ", ex);
                     }
                     throw e;
+                } catch (ExecutionException e) {
+                    // ignored
+                    return 1;
                 }
             }
 
