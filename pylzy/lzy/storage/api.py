@@ -98,7 +98,7 @@ class StorageRegistry:
         pass
 
     @abstractmethod
-    def provided_storage_name(self) -> Optional[str]:
+    def provided_storage_name(self) -> str:
         pass
 
     @abstractmethod
