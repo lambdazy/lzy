@@ -1,5 +1,6 @@
 package ai.lzy.allocator.gc;
 
+import ai.lzy.allocator.alloc.AllocatorMetrics;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
@@ -10,7 +11,6 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.model.db.TransactionHandle;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -29,6 +29,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -43,6 +44,7 @@ public class GarbageCollector {
     private final GcDao gcDao;
     private final OperationDao operationsDao;
     private final VmAllocator allocator;
+    private final AllocatorMetrics allocatorMetrics;
     private final SubjectServiceGrpcClient subjectClient;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
         var th = new Thread(r, "gc");
@@ -54,7 +56,7 @@ public class GarbageCollector {
 
     public GarbageCollector(ServiceConfig serviceConfig, ServiceConfig.GcConfig gcConfig, AllocatorDataSource storage,
                             VmDao dao, GcDao gcDao, @Named("AllocatorOperationDao") OperationDao operationDao,
-                            VmAllocator allocator,
+                            VmAllocator allocator, AllocatorMetrics allocatorMetrics,
                             @Named("AllocatorSubjectServiceClient") SubjectServiceGrpcClient subjectClient)
     {
         this.instanceId = serviceConfig.getInstanceId();
@@ -64,6 +66,7 @@ public class GarbageCollector {
         this.gcDao = gcDao;
         this.operationsDao = operationDao;
         this.allocator = allocator;
+        this.allocatorMetrics = allocatorMetrics;
         this.subjectClient = subjectClient;
     }
 
@@ -190,7 +193,7 @@ public class GarbageCollector {
             schedule(this, config.getCleanupPeriod());
         }
 
-        public void cleanVm(Vm vm) {
+        public void cleanVm(final Vm vm) {
             LOG.warn("About to delete VM {}", vm);
 
             try {
@@ -227,20 +230,41 @@ public class GarbageCollector {
 
                 // TODO: ensure all slots are flushed
 
+                // will retry deallocate if it fails
                 allocator.deallocate(vm.vmId());
-                //will retry deallocate if it fails
 
                 // TODO: delete tunnel if any
 
-                try (var tx = TransactionHandle.create(storage)) {
-                    vmDao.deleteVm(vm.vmId(), tx);
-                    operationsDao.deleteCompletedOperation(vm.allocOpId(), tx);
-                    tx.commit();
-                }
+                withRetries(LOG, () -> vmDao.deleteVm(vm.vmId(), null));
+
+                var done = switch (vm.status()) {
+                    case ALLOCATING, DELETING -> {
+                        // TODO: ...
+                        yield 41;
+                    }
+                    case RUNNING -> {
+                        allocatorMetrics.runningVms.labels(vm.poolLabel()).dec();
+                        yield 42;
+                    }
+                    case IDLE -> {
+                        allocatorMetrics.cachedVms.labels(vm.poolLabel()).dec();
+                        allocatorMetrics.cachedVmsTime.labels(vm.poolLabel())
+                            .inc(Duration.between(vm.idleState().idleSice(), Instant.now()).getSeconds());
+                        yield 43;
+                    }
+                };
+
+                unused(done);
+
+                withRetries(LOG, () -> operationsDao.deleteCompletedOperation(vm.allocOpId(), null));
+
                 LOG.info("Clean VM {}: done", vm.vmId());
             } catch (Exception e) {
                 LOG.error("Error during clean up Vm {}", vm, e);
             }
         }
+    }
+
+    private static void unused(int ignored) {
     }
 }

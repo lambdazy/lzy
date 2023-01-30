@@ -48,8 +48,10 @@ public class VmDaoImpl implements VmDao {
     private static final String RUN_FIELDS =
         "vm_meta_json, last_activity_time, deadline";
 
+    private static final String IDLE_FIELDS = "idle_since";
+
     private static final String ALL_FIELDS =
-        "%s, %s, %s, %s".formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_FIELDS, RUN_FIELDS);
+        "%s, %s, %s, %s, %s".formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_FIELDS, RUN_FIELDS, IDLE_FIELDS);
 
     private static final String QUERY_LOAD_NOT_COMPLETED_VMS = """
         SELECT %s
@@ -79,7 +81,7 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_DELETE_SESSION_VMS = """
         UPDATE vm
-        SET status = 'DELETING'
+        SET status = 'DELETING', idle_since = NULL
         WHERE session_id = ?""";
 
     private static final String QUERY_LIST_ALIVE_VMS = """
@@ -102,14 +104,16 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_MARK_FAILED_ALLOCATIONS = """
         UPDATE vm
-        SET status = 'DELETING'
+        SET status = 'DELETING', idle_since = NULL
         WHERE status = 'ALLOCATING'
           AND allocation_op_id IN (SELECT id FROM operation WHERE done = TRUE AND error IS NOT NULL)
         RETURNING id""";
 
     private static final String QUERY_ACQUIRE_VM = """
-        UPDATE vm
-        SET status = 'RUNNING'
+        WITH existing_vm AS (
+            SELECT %s
+            FROM vm
+        
         WHERE id = (
             SELECT id FROM vm
             WHERE session_id = ? AND pool_label = ? AND zone = ? AND status = 'IDLE'
@@ -118,17 +122,22 @@ public class VmDaoImpl implements VmDao {
                 AND COALESCE(v6_proxy_address, '') = ?
             LIMIT 1
             )
-        RETURNING %s
+            LIMIT 1
+        )
+        UPDATE vm
+        SET status = 'RUNNING', idle_since = NULL
+        WHERE id = (select id from existing_vm)
+        RETURNING vm.*, (select idle_since from existing_vm) as was_idle_since
         """.formatted(ALL_FIELDS);
 
     private static final String QUERY_RELEASE_VM = """
         UPDATE vm
-        SET status = 'IDLE', deadline = ?
+        SET status = 'IDLE', idle_since = NOW(), deadline = ?
         WHERE id = ?""";
 
     private static final String QUERY_SET_VM_RUNNING = """
         UPDATE vm
-        SET status = 'RUNNING', vm_meta_json = ?, last_activity_time = ?
+        SET status = 'RUNNING', idle_since = NULL, vm_meta_json = ?, last_activity_time = ?
         WHERE id = ?""";
 
     private static final String QUERY_UPDATE_VM_ALLOCATION_META = """
@@ -143,7 +152,7 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_UPDATE_VM_STATUS = """
         UPDATE vm
-        SET status = ?
+        SET status = ?, idle_since = NULL
         WHERE id = ?""";
 
     private static final String QUERY_UPDATE_VOLUME_CLAIMS = """
@@ -374,8 +383,14 @@ public class VmDaoImpl implements VmDao {
                     return null;
                 }
 
-                return readVm(res);
+                var vm = readVm(res);
 
+                return new Vm(
+                    vm.spec(),
+                    Vm.Status.IDLE,
+                    vm.allocateState(),
+                    vm.runState(),
+                    new Vm.IdleState(res.getTimestamp("was_idle_since").toInstant()));
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
             }
@@ -621,13 +636,17 @@ public class VmDaoImpl implements VmDao {
         final var lastActivityTime = Optional.ofNullable(rs.getTimestamp(++idx)).map(Timestamp::toInstant).orElse(null);
         final var deadline = Optional.ofNullable(rs.getTimestamp(++idx)).map(Timestamp::toInstant).orElse(null);
 
+        // idle state
+        final var idleSice = vmStatus == Vm.Status.IDLE ? rs.getTimestamp(++idx).toInstant() : null;
+
         return new Vm(
             new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads,
                 volumeRequests, v6ProxyAddress, clusterType),
             vmStatus,
             new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationOwner, vmOtt,
                 vmSubjectId, tunnelPodName, allocatorMeta, volumeClaims),
-            vmMeta != null ? new Vm.RunState(vmMeta, lastActivityTime, deadline) : null
+            vmMeta != null ? new Vm.RunState(vmMeta, lastActivityTime, deadline) : null,
+            vmStatus == Vm.Status.IDLE ? new Vm.IdleState(idleSice) : null
         );
     }
 }

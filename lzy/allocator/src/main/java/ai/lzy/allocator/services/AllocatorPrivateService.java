@@ -161,6 +161,8 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                         metrics.allocateNewDuration.observe(
                             Duration.between(vm.allocateState().startedAt(), Instant.now()).toSeconds());
 
+                        metrics.runningVms.labels(vm.poolLabel()).inc();
+
                         return Status.OK;
                     }
                 });

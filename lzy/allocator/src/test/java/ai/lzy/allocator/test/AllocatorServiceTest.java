@@ -15,8 +15,11 @@ import ai.lzy.v1.VmAllocatorApi.FreeRequest;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunning.Operation;
 import com.google.protobuf.util.Durations;
-import io.fabric8.kubernetes.api.model.*;
-import io.fabric8.kubernetes.client.utils.Serialization;
+import io.fabric8.kubernetes.api.model.PersistentVolume;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.PersistentVolumeSpec;
+import io.fabric8.kubernetes.api.model.PodListBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nullable;
@@ -25,7 +28,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.time.Duration;
@@ -33,16 +35,13 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Consumer;
 
-import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.VM_POD_NAME_PREFIX;
 import static ai.lzy.allocator.model.Volume.AccessMode.READ_WRITE_ONCE;
 import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.allocator.volume.KuberVolumeManager.KUBER_GB_NAME;
@@ -66,6 +65,12 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     @After
     public void after() {
         super.tearDown();
+    }
+
+    @Override
+    protected void updateStartupProperties(Map<String, Object> props) {
+        super.updateStartupProperties(props);
+        props.put("allocator.allocation-timeout", "3s");
     }
 
     @Test
@@ -738,54 +743,4 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
             Assert.assertEquals(Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
     }
-
-    private <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath) {
-        final var future = new CompletableFuture<T>();
-        kubernetesServer.expect().post()
-            .withPath(resourcePath)
-            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
-                final var resource = Serialization.unmarshal(
-                    new ByteArrayInputStream(req.getBody().readByteArray()), resourceType, Map.of());
-                future.complete(resource);
-                return resource;
-            })
-            .once();
-        return future;
-    }
-
-    private Future<String> awaitAllocationRequest() {
-        final var future = new CompletableFuture<String>();
-        kubernetesServer.expect().post()
-            .withPath(POD_PATH)
-            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
-                final var pod = Serialization.unmarshal(
-                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
-                future.complete(pod.getMetadata().getName());
-                return pod;
-            })
-            .once();
-        return future;
-    }
-
-    private void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete, int responseCode) {
-        kubernetesServer.expect().delete()
-            .withPath(resourcePath + "/" + resourceName)
-            .andReply(responseCode, (req) -> {
-                onDelete.run();
-                return new StatusDetails();
-            }).once();
-    }
-
-    private void mockDeletePod(String podName, Runnable onDelete, int responseCode) {
-        mockDeleteResource(POD_PATH, podName, onDelete, responseCode);
-        kubernetesServer.expect().delete()
-            // "lzy.ai/vm-id"=<VM id>
-            .withPath(POD_PATH + "?labelSelector=lzy.ai%2Fvm-id%3D" + podName.substring(VM_POD_NAME_PREFIX.length()))
-            .andReply(responseCode, (req) -> {
-                onDelete.run();
-                return new StatusDetails();
-            }).once();
-    }
-
-
 }
