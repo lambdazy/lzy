@@ -46,6 +46,7 @@ from lzy.api.v1.utils.files import fileobj_hash, zipdir
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_color
+from lzy.utils.grpc import retry, RetryConfig
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
 
@@ -244,6 +245,12 @@ class RemoteRuntime(Runtime):
                 return spec
         return None
 
+    @retry(action_name="listening to std slots", config=RetryConfig(
+        initial_backoff_ms=1000,
+        max_retry=120,
+        backoff_multiplier=1,
+        max_backoff_ms=10000
+    ))
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
         async for data in client.read_std_slots(execution_id):

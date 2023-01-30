@@ -11,6 +11,7 @@ import io.grpc.ClientCall.Listener;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.Status;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -37,13 +38,18 @@ public class PortalSlotsListener {
 
 
     public PortalSlotsListener(HostAndPort portalAddress, String portalId,
-                               StreamObserver<LWFS.ReadStdSlotsResponse> consumer)
+                               ServerCallStreamObserver<LWFS.ReadStdSlotsResponse> consumer)
     {
         this.portalId = portalId;
         this.consumer = consumer;
 
         slotsChannel = newGrpcChannel(portalAddress, LzySlotsApiGrpc.SERVICE_NAME);
         slotsApi = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(slotsChannel), "PortalStdSlots", NO_AUTH_TOKEN);
+
+        consumer.setOnCancelHandler(() -> {
+            LOG.error("Lost connection to client, cancelling slot listener to portal {}", portalId);
+            cancel("Cancelled by client");
+        });
 
         outCall = createCall(PORTAL_OUT_SLOT_NAME, msg -> {
             synchronized (consumer) {  // Synchronized to prevent onNext from multiple calls
@@ -90,7 +96,16 @@ public class PortalSlotsListener {
                 }
 
                 LOG.debug("Got data, portal <{}>, slot <{}>: {} bytes", portalId, slotName, message.getChunk().size());
-                cons.accept(message.getChunk());
+
+                try {
+                    cons.accept(message.getChunk());
+                } catch (Exception e) {
+                    LOG.error("Error while sending chunk {} to client. Chunk will be lost. Cancelling call...",
+                        message.getChunk().toStringUtf8(), e);
+                    cancel("Error from client");
+                    return;
+                }
+
                 call.request(1);
             }
 

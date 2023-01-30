@@ -113,10 +113,15 @@ public class VmDaoImpl implements VmDao {
         WITH existing_vm AS (
             SELECT %s
             FROM vm
+        
+        WHERE id = (
+            SELECT id FROM vm
             WHERE session_id = ? AND pool_label = ? AND zone = ? AND status = 'IDLE'
-              AND workloads_json = ? AND init_workloads_json = ?
-              AND volume_requests_json = ?
-              AND COALESCE(v6_proxy_address, '') = ?
+                AND workloads_json = ? AND init_workloads_json = ?
+                AND volume_requests_json = ?
+                AND COALESCE(v6_proxy_address, '') = ?
+            LIMIT 1
+            )
             LIMIT 1
         )
         UPDATE vm
