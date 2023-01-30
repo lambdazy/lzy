@@ -231,7 +231,7 @@ def infer_and_validate_call_signature(
 
     generated_names = []
     for arg in args[len(argspec.args):]:
-        name = str(uuid.uuid4())
+        name = str(uuid.uuid4())[:8]
         generated_names.append(name)
         if entry_index.has_entry_id(arg):
             eid = entry_index.get_entry_id(arg)
