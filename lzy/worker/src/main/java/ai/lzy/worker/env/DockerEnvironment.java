@@ -117,6 +117,8 @@ public class DockerEnvironment implements BaseEnvironment {
                         stderr.close();
                     } catch (IOException e) {
                         LOG.error("Cannot close stderr/stdout slots", e);
+                    } catch (Exception e) {
+                        LOG.error("Error while completing docker env process: ", e);
                     } finally {
                         feature.complete(null);
                     }
