@@ -11,7 +11,6 @@ from typing import (
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
-from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy
@@ -149,7 +148,7 @@ class LzyWorkflow:
             if not self.__started:
                 raise RuntimeError("Workflow not started")
             if exc_type is None:
-                LzyEventLoop.run_async(self._barrier())
+                self.barrier()
         finally:
             if exc_type is None:
                 self.__destroy()
