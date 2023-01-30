@@ -166,10 +166,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
 
 
 class StorageRegistryMock(StorageRegistry):
-    def register_default_storage(self, default_storage: Storage) -> None:
-        pass
-
-    def register_storage(self, name: str, storage: Storage) -> None:
+    def register_storage(self, name: str, storage: Storage, default: bool = False) -> None:
         pass
 
     def unregister_storage(self, name: str) -> None:
@@ -182,6 +179,9 @@ class StorageRegistryMock(StorageRegistry):
         return Storage.azure_blob_storage("", "")
 
     def default_storage_name(self) -> Optional[str]:
+        return "storage_name"
+
+    def provided_storage_name(self) -> str:
         return "storage_name"
 
     def client(self, storage_name: str) -> Optional[AsyncStorageClient]:

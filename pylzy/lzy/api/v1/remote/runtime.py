@@ -93,7 +93,8 @@ class RemoteRuntime(Runtime):
 
         self.__execution_id = exec_id
         if creds is not None:
-            self.__workflow.owner.storage_registry.register_default_storage(creds)
+            storage_name = self.__workflow.owner.storage_registry.provided_storage_name()
+            self.__workflow.owner.storage_registry.register_storage(storage_name, creds, default=True)
 
         self.__std_slots_listener = asyncio.create_task(
             self.__listen_to_std_slots(exec_id)

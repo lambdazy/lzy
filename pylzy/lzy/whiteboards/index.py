@@ -226,7 +226,8 @@ class WhiteboardIndexedManager(WhiteboardManager):
     async def __update_default_storage(self):
         if self.__workflow_client is not None:
             storage_creds = await self.__workflow_client.get_default_storage()
-            self.__storage_registry.register_default_storage(storage_creds)
+            storage_name = self.__storage_registry.provided_storage_name()
+            self.__storage_registry.register_storage(storage_name, storage_creds, default=True)
 
     async def __get_meta_from_storage(self,
                                       storage_client: AsyncStorageClient,

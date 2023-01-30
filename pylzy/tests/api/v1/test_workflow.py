@@ -73,7 +73,8 @@ class LzyWorkflowTests(TestCase):
 
         self.lzy = Lzy(runtime=LocalRuntime(),
                        py_env_provider=EnvProviderMock(),
-                       storage_registry=DefaultStorageRegistry("default", storage_config))
+                       storage_registry=DefaultStorageRegistry())
+        self.lzy.storage_registry.register_storage("default", storage_config, default=True)
 
     def test_lists(self):
         @op

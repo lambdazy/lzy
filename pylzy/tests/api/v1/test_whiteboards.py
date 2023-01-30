@@ -89,8 +89,9 @@ class WhiteboardTests(TestCase):
 
         self.lzy = Lzy(runtime=LocalRuntime(),
                        py_env_provider=EnvProviderMock(),
-                       storage_registry=DefaultStorageRegistry("default", storage_config))
+                       storage_registry=DefaultStorageRegistry())
 
+        self.lzy.storage_registry.register_storage("default", storage_config, default=True)
         self.lzy.auth(user="test_user", key_path=self.key_path, whiteboards_endpoint=self.wb_service_url,
                       endpoint="endpoint")
 
