@@ -2,9 +2,7 @@ package ai.lzy.allocator.vmpool.yc;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.allocator.vmpool.VmPoolRegistry;
-import ai.lzy.allocator.vmpool.VmPoolSpec;
+import ai.lzy.allocator.vmpool.*;
 import com.google.common.net.HostAndPort;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
@@ -242,8 +240,43 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             var spec = nodeTemplate.getResourcesSpec();
 
             var platform = nodeTemplate.getPlatformId();
-            var cpuType = spec.getGpus() > 0 && platform.startsWith("gpu-") ? platform.substring(4) : platform;
-            var gpuType = spec.getGpus() > 0 ? nodeTemplate.getPlatformId() : "<none>";
+            final String cpuType;
+            final String gpuType;
+
+            switch (platform) {
+                case "standard-v1" -> {
+                    cpuType = CpuTypes.BROADWELL.value();
+                    gpuType = GpuTypes.NO_GPU.value();
+                }
+                case "standard-v2" -> {
+                    cpuType = CpuTypes.CASCADE_LAKE.value();
+                    gpuType = GpuTypes.NO_GPU.value();
+                }
+                case "standard-v3" -> {
+                    cpuType = CpuTypes.ICE_LAKE.value();
+                    gpuType = GpuTypes.NO_GPU.value();
+                }
+                case "gpu-standard-v1" -> {
+                    cpuType = CpuTypes.BROADWELL.value();
+                    gpuType = GpuTypes.V100.value();
+                }
+                case "gpu-standard-v2" -> {
+                    cpuType = CpuTypes.CASCADE_LAKE.value();
+                    gpuType = GpuTypes.V100.value();
+                }
+                case "standard-v3-t4" -> {
+                    cpuType = CpuTypes.ICE_LAKE.value();
+                    gpuType = GpuTypes.T4.value();
+                }
+                case "gpu-standard-v3" -> {
+                    cpuType = CpuTypes.AMD_EPYC.value();
+                    gpuType = GpuTypes.A100.value();
+                }
+                default -> {
+                    LOG.error("Cannot resolve platform {} for pool {}", platform, label);
+                    throw new RuntimeException("Cannot resolve platform for pool " + label);
+                }
+            }
 
             LOG.info("""
                 Resolved node group {} ({}):
