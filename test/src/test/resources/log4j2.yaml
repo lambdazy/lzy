@@ -35,6 +35,9 @@ Configuration:
       - name: "ai.lzy.channelmanager"
         level: info
 
+      - name: "ai.lzy.whiteboard"
+        level: info
+
       - name: "ai.lzy.test"
         level: info
 

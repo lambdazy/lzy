@@ -18,9 +18,10 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServic
 from lzy.logs.config import get_logger
 
 from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
-    FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse
+    FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse, \
+    AbortWorkflowRequest, AbortWorkflowResponse
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
-from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
+from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient
 from lzy.api.v1.runtime import ProgressStep
 from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.serialization.registry import LzySerializerRegistry
@@ -37,11 +38,17 @@ class RuntimeMock(Runtime):
     def __init__(self):
         self.calls: List[LzyCall] = []
 
+    def workflow_client(self) -> Optional["WorkflowServiceClient"]:
+        return None
+
     async def start(self, workflow: "LzyWorkflow") -> str:
         return str(uuid.uuid4())
 
     async def exec(self, calls: List[LzyCall], progress: Callable[[ProgressStep], None]) -> None:
         self.calls = calls
+
+    async def abort(self) -> None:
+        pass
 
     async def destroy(self) -> None:
         pass
@@ -109,6 +116,18 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             ),
         )
 
+    def AbortWorkflow(self, request: AbortWorkflowRequest, context) -> AbortWorkflowResponse:
+        _LOG.info(f"Aborting wf {request}")
+
+        if self.fail:
+            self.fail = False
+            context.abort(grpc.StatusCode.INTERNAL, "some_error")
+
+        assert request.workflowName == "some_name"
+        assert request.executionId == "exec_id"
+
+        return AbortWorkflowResponse()
+
     def FinishWorkflow(
         self, request: FinishWorkflowRequest, context: grpc.ServicerContext
     ) -> Operation:
@@ -160,6 +179,9 @@ class StorageRegistryMock(StorageRegistry):
         return Storage.azure_blob_storage("", "")
 
     def default_storage_name(self) -> Optional[str]:
+        return "storage_name"
+
+    def provided_storage_name(self) -> str:
         return "storage_name"
 
     def client(self, storage_name: str) -> Optional[AsyncStorageClient]:

@@ -55,11 +55,13 @@ public final class AllocateVmAction extends OperationRunnerBase {
         if (restore) {
             log().info("Restore VM {} allocation...", vm.toString());
         }
+
+        metrics.runningAllocations.labels(vm.spec().poolLabel()).inc();
     }
 
     @Override
     protected List<Supplier<OperationRunnerBase.StepResult>> steps() {
-        return List.of(this::createIamSubject, this::allocateTunnel, this::allocateVm);
+        return List.of(this::createIamSubject, this::allocateTunnel, this::allocateVm, this::waitVm);
     }
 
     @Override
@@ -71,6 +73,11 @@ public final class AllocateVmAction extends OperationRunnerBase {
     protected void notifyExpired() {
         metrics.allocationError.inc();
         metrics.allocationTimeout.inc();
+    }
+
+    @Override
+    protected void notifyFinished() {
+        metrics.runningAllocations.labels(vm.poolLabel()).dec();
     }
 
     @Override
@@ -175,11 +182,22 @@ public final class AllocateVmAction extends OperationRunnerBase {
         InjectedFailures.failAllocateVm5();
 
         try {
-            var allocateStarted = allocator.allocate(vm);
-            if (!allocateStarted) {
-                return StepResult.RESTART;
-            }
-            return StepResult.FINISH;
+            var result = allocator.allocate(vm);
+            return switch (result.code()) {
+                case SUCCESS -> StepResult.FINISH;
+                case FAILED -> {
+                    log().error("Fail VM {} allocation: {}", vm.vmId(), result.message());
+                    withRetries(log(), () -> {
+                        try (var tx = TransactionHandle.create(storage)) {
+                            failOperation(Status.INTERNAL.withDescription(result.message()), tx);
+                            vmDao.setStatus(vm.vmId(), Vm.Status.DELETING, tx);
+                            tx.commit();
+                        }
+                    });
+                    yield StepResult.FINISH;
+                }
+                case RETRY_LATER -> StepResult.RESTART;
+            };
         } catch (Exception e) {
             log().error("Error during VM {} allocation: {}", vm.vmId(), e.getMessage(), e);
             metrics.allocationError.inc();
@@ -206,5 +224,10 @@ public final class AllocateVmAction extends OperationRunnerBase {
                 return StepResult.RESTART;
             }
         }
+    }
+
+    private StepResult waitVm() {
+        log().info("... waiting for VM {} ...", vm.vmId());
+        return StepResult.RESTART.after(Duration.ofMillis(500));
     }
 }

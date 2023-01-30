@@ -102,9 +102,13 @@ public class StorageTest {
             Instant.parse("2022-09-01T12:10:00.00Z"));
         wbStorage.registerWhiteboard(userId2, wb4, Instant.now(), null);
 
+        final var wb5 = genWhiteboard("id0", "name0", Set.of("fun"), Set.of(),
+            Instant.parse("2022-09-01T12:10:00.00Z"));
+        wbStorage.registerWhiteboard(userId2, wb5, Instant.now(), null);
+
 
         Assert.assertEquals(3, wbStorage.listWhiteboards(userId1, null, List.of(), null, null, null).count());
-        Assert.assertEquals(1, wbStorage.listWhiteboards(userId2, null, List.of(), null, null, null).count());
+        Assert.assertEquals(2, wbStorage.listWhiteboards(userId2, null, List.of(), null, null, null).count());
         Assert.assertEquals(1, wbStorage.listWhiteboards(userId2, "name", List.of(), null, null, null).count());
 
         Assert.assertEquals(3, wbStorage.listWhiteboards(userId1, null, List.of("all"), null, null, null).count());

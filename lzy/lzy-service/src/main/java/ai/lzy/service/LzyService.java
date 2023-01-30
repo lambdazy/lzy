@@ -16,13 +16,20 @@ import ai.lzy.service.gc.GarbageCollector;
 import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.graph.GraphExecutionState;
 import ai.lzy.service.graph.debug.InjectedFailures;
+import ai.lzy.service.util.StorageUtils;
 import ai.lzy.service.workflow.WorkflowService;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ProtoPrinter;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.storage.LSS;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.annotations.VisibleForTesting;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -30,14 +37,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
+import java.net.URI;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
-import static ai.lzy.longrunning.IdempotencyUtils.*;
+import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.v1.workflow.LWFS.*;
 
 @Singleton
@@ -54,6 +65,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     private final ExecutorService workersPool;
 
+    private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
+
     private final Storage storage;
     private final OperationDao operationDao;
     private final WorkflowDao workflowDao;
@@ -64,6 +77,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                       GraphDao graphDao, ExecutionDao executionDao, WorkflowDao workflowDao,
                       LzyServiceStorage storage, @Named("LzyServiceOperationDao") OperationDao operationDao,
                       CleanExecutionCompanion cleanExecutionCompanion, GarbageCollector gc, LzyServiceConfig config,
+                      @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
+                      @Named("StorageServiceChannel") ManagedChannel storageChannel,
                       @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
         this.cleanExecutionCompanion = cleanExecutionCompanion;
@@ -76,6 +91,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         this.executionDao = executionDao;
         this.graphDao = graphDao;
         this.storage = storage;
+
+        this.storageServiceClient = newBlockingClient(
+            LzyStorageServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
 
         // gc.start();
 
@@ -148,7 +166,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         } catch (IllegalStateException e) {
             LOG.error("Cannot finish workflow, invalid state: { workflowName: {}, executionId: {}, error: {} }",
                 workflowName, executionId, e.getMessage());
-            response.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
+            response.onError(Status.FAILED_PRECONDITION.withDescription(e.getMessage()).asRuntimeException());
             return;
         } catch (Exception e) {
             if (idempotencyKey != null &&
@@ -171,6 +189,50 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
+    public void abortWorkflow(AbortWorkflowRequest request, StreamObserver<AbortWorkflowResponse> response) {
+        var userId = AuthenticationContext.currentSubject().id();
+        var workflowName = request.getWorkflowName();
+        var executionId = request.getExecutionId();
+        var reason = request.getReason();
+
+        if (Strings.isBlank(workflowName) || Strings.isBlank(executionId)) {
+            LOG.error("Empty 'workflowName' or 'executionId': {}", ProtoPrinter.printer().printToString(request));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Empty 'workflowName' or 'executionId'")
+                .asRuntimeException());
+            return;
+        }
+
+        LOG.info("Attempt to abort workflow with active execution: { workflowName: {}, executionId: {} }",
+            workflowName, executionId);
+
+        var abortStatus = Status.CANCELLED.withDescription(reason);
+        try {
+            cleanExecutionCompanion.markExecutionAsBroken(userId, workflowName, executionId, abortStatus);
+            cleanExecutionCompanion.stopGraphs(executionId);
+        } catch (IllegalStateException ise) {
+            LOG.error("Execution from argument is not an active in workflow: " +
+                "{ userId: {}, workflowName: {}, executionId: {} }", userId, workflowName, executionId);
+            response.onError(Status.FAILED_PRECONDITION.withDescription("Cannot abort user workflow " +
+                "'%s'. Execution '%s' is not an active".formatted(workflowName, executionId)).asRuntimeException());
+            return;
+        } catch (NotFoundException nfe) {
+            LOG.error("Workflow with active execution not found: { userId: {}, workflowName: {}, executionId: {} }",
+                userId, workflowName, executionId);
+            response.onError(Status.NOT_FOUND.withDescription("Cannot found user workflow " +
+                "'%s' with active execution '%s'".formatted(workflowName, executionId)).asRuntimeException());
+            return;
+        } catch (Exception e) {
+            LOG.error("Cannot abort workflow: { userId: {}, workflowName: {}, executionId: {} }",
+                userId, workflowName, executionId, e);
+            response.onError(Status.INTERNAL.withDescription("Cannot abort workflow").asRuntimeException());
+            return;
+        }
+
+        response.onNext(AbortWorkflowResponse.getDefaultInstance());
+        response.onCompleted();
+    }
+
+    @Override
     public void executeGraph(ExecuteGraphRequest request, StreamObserver<ExecuteGraphResponse> responseObserver) {
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null &&
@@ -181,6 +243,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         }
 
         String userId = AuthenticationContext.currentSubject().id();
+        String workflowName = request.getWorkflowName();
         String executionId = request.getExecutionId();
 
         if (checkExecution(userId, executionId, responseObserver)) {
@@ -195,8 +258,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         List<LWF.Operation> operations = request.getGraph().getOperationsList();
         List<LWF.DataDescription> descriptions = request.getGraph().getDataDescriptionsList();
 
-        var state = new GraphExecutionState(executionId, op.id(), parentGraphId, userId, zone, descriptions,
-            operations);
+        var state = new GraphExecutionState(workflowName, executionId, op.id(), parentGraphId, userId, zone,
+            descriptions, operations);
 
         try (var tx = TransactionHandle.create(storage)) {
             operationDao.create(op, tx);
@@ -214,7 +277,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 userId, executionId, ex.getMessage(), ex);
             var status = Status.INTERNAL.withDescription(ex.getMessage());
 
-            if (cleanExecutionCompanion.markExecutionAsBroken(userId, /* workflowName */ null, executionId, status)) {
+            if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId,
+                status))
+            {
                 cleanExecutionCompanion.cleanExecution(executionId);
             }
 
@@ -247,7 +312,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 var status = Status.INTERNAL.withDescription("Cannot execute graph");
                 LOG.error("Cannot execute graph: {}", e.getMessage(), e);
 
-                if (cleanExecutionCompanion.markExecutionAsBroken(userId, null, executionId, status)) {
+                if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId, status)) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
 
@@ -304,6 +369,58 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         }
 
         workflowService.getAvailablePools(request, responseObserver);
+    }
+
+    @Override
+    public void getStorageCredentials(GetStorageCredentialsRequest request,
+                                      StreamObserver<GetStorageCredentialsResponse> responseObserver)
+    {
+        final String userId = AuthenticationContext.currentSubject().id();
+        final String bucketName = StorageUtils.createInternalBucketName(userId);
+
+        LOG.info("Get storage credentials for bucket {}", bucketName);
+
+        // No checkExecution, can be called out of workflow
+
+        var credsRequest = LSS.GetS3BucketCredentialsRequest.newBuilder()
+            .setUserId(userId)
+            .setBucket(bucketName)
+            .build();
+
+        final LMST.StorageConfig storageConfig;
+        try {
+            var credsResponse = storageServiceClient.getS3BucketCredentials(credsRequest);
+
+            storageConfig = switch (credsResponse.getCredentialsCase()) {
+                case AMAZON -> LMST.StorageConfig.newBuilder().setS3(credsResponse.getAmazon())
+                    .setUri(URI.create("s3://" + bucketName).toString())
+                    .build();
+                case AZURE -> LMST.StorageConfig.newBuilder().setAzure(credsResponse.getAzure())
+                    .setUri(URI.create("azure://" + bucketName).toString())
+                    .build();
+                default -> null;
+            };
+
+            if (storageConfig == null) {
+                LOG.error("Unsupported bucket storage type {}", credsResponse.getCredentialsCase());
+                responseObserver.onError(Status.INTERNAL.withDescription("Failed to resolve storage credentials")
+                    .asException());
+                return;
+            }
+        } catch (StatusRuntimeException e) {
+            if (Status.NOT_FOUND.getCode() == e.getStatus().getCode()) {
+                responseObserver.onError(Status.NOT_FOUND.asException());
+                return;
+            }
+            LOG.error("Failed to get storage credentials: {}", e.getStatus().getDescription());
+            responseObserver.onError(Status.INTERNAL.withDescription("Failed to resolve storage credentials")
+                .asException());
+            return;
+        }
+
+        responseObserver.onNext(GetStorageCredentialsResponse.newBuilder().setStorage(storageConfig).build());
+        LOG.info("Get storage credentials for bucket {} done", bucketName);
+        responseObserver.onCompleted();
     }
 
     private <T> boolean checkExecution(String userId, String executionId, StreamObserver<T> responseObserver) {

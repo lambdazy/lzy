@@ -46,6 +46,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 import static ai.lzy.util.auth.credentials.CredentialsUtils.readPrivateKey;
@@ -184,7 +185,9 @@ public class Worker {
 
     @VisibleForTesting
     public static int execute(String[] args) {
-        LOG.info("Starting worker with args {}", Arrays.toString(args));
+        LOG.info("Starting worker with args [{}]", Arrays.stream(args)
+            .map(s -> s.startsWith("-----BEGIN RSA PRIVATE KEY-----") ? "<rsa-private-key>" : s)
+            .collect(Collectors.joining(", ")));
 
         final CommandLineParser cliParser = new DefaultParser();
         try {
