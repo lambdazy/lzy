@@ -1,14 +1,14 @@
 import inspect
 import json
-import os.path
+from collections import defaultdict
+
 import sys
-import time
-import xmlrpc.client as xmlrpclib
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict, Iterable, List, Union, cast, Set
 
 import pkg_resources
+import requests
 from importlib_metadata import packages_distributions  # type: ignore
 from stdlib_list import stdlib_list
 
@@ -29,32 +29,17 @@ def all_installed_packages() -> Dict[str, str]:
 
 
 class AutomaticPyEnvProvider(PyEnvProvider):
-    def __init__(self,
-                 pypi_cache_file_path: str = "/tmp/pypi_packages_cache",
-                 cache_invalidation_period_hours=24,
-                 pypi_list_packages_address: str = "https://pypi.python.org/pypi"):
-        self.__pypi_list_packages_address = pypi_list_packages_address
-        self.__pypi_libs_cache: Set[str]
+    def __init__(self, pypi_cache_file_path: str = "/tmp/pypi_packages_cache"):
+        self.__pypi_libs_cache: Dict[str, List[str]] = defaultdict(list)
         self.__pypi_cache_file_path = pypi_cache_file_path
 
         cache_path = Path(pypi_cache_file_path)
-        build_cache: bool = True
         if cache_path.exists():
-            modification_seconds_diff = time.time() - os.path.getmtime(cache_path)
-            modification_hours_diff, _ = divmod(modification_seconds_diff, 3600)
-            if modification_hours_diff < cache_invalidation_period_hours:
-                build_cache = False
-
-        if not build_cache:
-            _LOG.info("Loading pypi packages cache")
             try:
                 with open(cache_path, "r") as file:
-                    self.__pypi_libs_cache = set(json.load(file))
+                    self.__pypi_libs_cache.update(json.load(file))
             except Exception as e:
                 _LOG.warning("Error while pypi packages cache loading", e)
-                self.__build_pypi_cache()
-        else:
-            self.__build_pypi_cache()
 
     def provide(self, namespace: Dict[str, Any]) -> PyEnv:
         dist_versions: Dict[str, str] = all_installed_packages()
@@ -82,7 +67,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
             # and find it among installed ones
             if name in distributions:
                 package_name = distributions[name][0]
-                if package_name in dist_versions and package_name in self.__pypi_libs_cache:
+                if package_name in dist_versions and self.__exists_in_pypi(package_name, dist_versions[package_name]):
                     remote_packages[package_name] = dist_versions[package_name]
                     return
 
@@ -147,13 +132,24 @@ class AutomaticPyEnvProvider(PyEnvProvider):
             else:
                 append_to_module_paths(path, module_paths)  # type: ignore
 
+        self.__save_pypi_cache()
         py_version = ".".join(cast(Iterable[str], map(str, sys.version_info[:3])))
         return PyEnv(py_version, remote_packages, module_paths)
 
-    def __build_pypi_cache(self):
-        _LOG.info("Building pypi packages cache")
-        client = xmlrpclib.ServerProxy(self.__pypi_list_packages_address)
-        packages = client.list_packages()
-        self.__pypi_libs_cache = set(packages)
+    def __save_pypi_cache(self):
         with open(self.__pypi_cache_file_path, "w") as file:
-            json.dump(packages, file)
+            json.dump(self.__pypi_libs_cache, file)
+
+    def __exists_in_pypi(self, package_name: str, package_version: str) -> bool:
+        if package_name in self.__pypi_libs_cache and package_version in self.__pypi_libs_cache[package_name]:
+            return True
+
+        _LOG.info(f"Checking {package_name}=={package_version} exists in pypi...")
+        with requests.Session() as session:
+            session.max_redirects = (
+                5  # limit redirects to handle possible pypi incidents with redirect cycles
+            )
+            response = session.get(f"https://pypi.python.org/pypi/{package_name}/{package_version}/json")
+        result: bool = 200 <= response.status_code < 300
+        self.__pypi_libs_cache[package_name].append(package_version)
+        return result
