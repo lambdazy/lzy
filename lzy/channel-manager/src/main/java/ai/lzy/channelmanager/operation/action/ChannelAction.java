@@ -102,13 +102,14 @@ public abstract class ChannelAction implements Runnable {
         }
 
         try {
-            workflowPrivateApi.stopExecution(LWFPS.StopExecutionRequest.newBuilder()
+            //noinspection ResultOfMethodCallIgnored
+            workflowPrivateApi.abortExecution(LWFPS.AbortExecutionRequest.newBuilder()
                 .setExecutionId(executionId)
                 .setReason(status.getDescription())
                 .build());
-            LOG.info("Sent request stopWorkflow {} about failed operation {}", executionId, operationId);
+            LOG.info("Sent request abortExecution {} about failed operation {}", executionId, operationId);
         } catch (Exception e) {
-            LOG.error("Cannot send request stopWorkflow {} about failed operation {}, got exception: {}",
+            LOG.error("Cannot send request abortExecution {} about failed operation {}, got exception: {}",
                 executionId, operationId, e.getMessage());
         }
     }

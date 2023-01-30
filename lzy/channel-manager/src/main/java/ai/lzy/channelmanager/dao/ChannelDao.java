@@ -40,11 +40,9 @@ public interface ChannelDao {
                         @Nullable TransactionHandle transaction) throws SQLException;
 
 
-    List<Channel> listChannels(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
-    List<Channel> listChannels(String executionId, Channel.LifeStatus lifeStatus,
-                               @Nullable TransactionHandle transaction) throws SQLException;
+    List<Channel> listChannels(String executionId) throws SQLException;
+    List<Channel> listChannels(String executionId, Channel.LifeStatus lifeStatus) throws SQLException;
 
     @Nullable
     Endpoint findEndpoint(String endpointUri, @Nullable TransactionHandle transaction) throws SQLException;
-
 }

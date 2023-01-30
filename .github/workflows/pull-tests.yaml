@@ -43,7 +43,7 @@ jobs:
 
   java-unit-tests:
     runs-on: self-hosted
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash -l {0}
@@ -84,6 +84,17 @@ jobs:
           file_type: binary
           gist_file_name: ${{ (github.head_ref || github.ref_name) }}-java-coverage.svg
 
+      - name: 'Clear after tests'
+        if: always()
+        run: |
+          SHA=${{ github.sha }}
+          sudo mkdir -p /tmp/old-lzy-logs/$SHA
+          sudo tar -czvf /tmp/old-lzy-logs/$SHA/logs.tar.gz /tmp/lzy-log
+          sudo umount -f /tmp/lzy*
+          sudo umount -f /tmp/term*
+          sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker* /tmp/tmp*
+          sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
+
       - name: 'Publish Test Report'
         uses: EnricoMi/publish-unit-test-result-action@v1
         if: always()
@@ -92,7 +103,7 @@ jobs:
 
   integration-tests:
     runs-on: self-hosted
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         shell: bash -l {0}
@@ -122,7 +133,7 @@ jobs:
           cd ..
 
       - name: 'java unit tests and install'
-        timeout-minutes: 5
+        timeout-minutes: 10
         run: mvn clean install -DskipTests
 
       - name: 'SchedulerTest'
@@ -175,7 +186,6 @@ jobs:
           sudo umount -f /tmp/term*
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker* /tmp/tmp*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
-      #### <- TODO: replace with call to reusable workflow in future: .github/workflows/reusable/pull-request-workflow.yaml
 
       - name: 'clean pylzy'
         run: |

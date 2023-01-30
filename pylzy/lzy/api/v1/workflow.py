@@ -151,7 +151,18 @@ class LzyWorkflow:
             if exc_type is None:
                 LzyEventLoop.run_async(self._barrier())
         finally:
-            self.__destroy()
+            if exc_type is None:
+                self.__destroy()
+            else:
+                self.__abort()
+
+    def __abort(self):
+        _LOG.info(f"Abort workflow '{self.name}'")
+        try:
+            LzyEventLoop.run_async(self.__owner.runtime.abort())
+        finally:
+            type(self).instance = None
+            self.__started = False
 
     def __destroy(self):
         try:

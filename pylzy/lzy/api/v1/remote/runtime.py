@@ -125,7 +125,7 @@ class RemoteRuntime(Runtime):
         )  # Running long op in threadpool
         _LOG.debug(f"Starting executing graph {graph}")
 
-        graph_id = await client.execute_graph(self.__execution_id, graph)
+        graph_id = await client.execute_graph(self.__workflow.name, self.__execution_id, graph)
         _LOG.debug(f"Requesting remote execution, graph_id={graph_id}")
 
         progress(ProgressStep.WAITING)
@@ -150,6 +150,26 @@ class RemoteRuntime(Runtime):
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )
+
+    async def abort(self) -> None:
+        client = await self.__get_client()
+        try:
+            if not self.__running:
+                return
+
+            assert self.__execution_id is not None
+            assert self.__workflow is not None
+
+            await client.abort_workflow(self.__workflow.name, self.__execution_id, "Workflow execution aborted")
+
+            self.__execution_id = None
+            self.__workflow = None
+            self.__std_slots_listener = None
+
+        finally:
+            await client.stop()
+            self.__workflow_client = None
+            self.__running = False
 
     async def destroy(self):
         client = await self.__get_client()

@@ -31,7 +31,7 @@ public class App {
     private final ExecutorService workersPool;
     private final Server server;
 
-    public App(LzyServiceConfig config, LzyService lzyService, LzyServicePrivateApi lzyServicePrivateApi,
+    public App(LzyServiceConfig config, LzyService lzyService,
                @Named("LzyServiceOperationDao") OperationDao operationDao,
                @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
@@ -52,7 +52,6 @@ public class App {
                 }
             },
             lzyService,
-            lzyServicePrivateApi,
             operationService);
     }
 

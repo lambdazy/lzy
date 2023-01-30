@@ -25,7 +25,6 @@ public final class GraphExecutionState {
     private String userId;
     private String executionId;
 
-    @JsonIgnore
     private String workflowName;
 
     private String graphId;
@@ -43,10 +42,11 @@ public final class GraphExecutionState {
 
     private Status errorStatus;
 
-    public GraphExecutionState(String executionId, String opId, String parentGraphId, String userId,
-                               String zone, List<LWF.DataDescription> descriptions,
+    public GraphExecutionState(String workflowName, String executionId, String opId, String parentGraphId,
+                               String userId, String zone, List<LWF.DataDescription> descriptions,
                                List<LWF.Operation> operations)
     {
+        this.workflowName = workflowName;
         this.executionId = executionId;
         this.opId = opId;
         this.parentGraphId = parentGraphId;

@@ -229,22 +229,21 @@ public class ExecutionDaoImpl implements ExecutionDao {
         });
     }
 
-    private PreparedStatement finishExecStmt(Connection con) throws SQLException {
-        return con.prepareStatement(QUERY_GET_EXEC_FINISH_DATA + " FOR UPDATE");
-    }
-
     @Override
-    public void updateFinishData(String userId, @Nullable String workflowName, String executionId, Status status,
-                                 @Nullable TransactionHandle outerTx) throws SQLException
+    public void updateFinishData(String userId, @Nullable String workflowName, String executionId,
+                                 Status status, @Nullable TransactionHandle outerTx) throws SQLException
     {
         try (var tx = TransactionHandle.getOrCreate(storage, outerTx)) {
-            WorkflowDaoImpl.setActiveExecutionToNull(userId, workflowName, executionId, storage, tx);
+            if (workflowName == null) {
+                WorkflowDaoImpl.findAndSetActiveExecutionToNull(userId, executionId, storage, tx);
+            } else {
+                WorkflowDaoImpl.setActiveExecutionToNull(userId, workflowName, executionId, storage, tx);
+            }
 
             DbOperation.execute(tx, storage, conn -> {
-                try (var getFinishStmt = finishExecStmt(conn)) {
+                try (var getFinishStmt = conn.prepareStatement(QUERY_GET_EXEC_FINISH_DATA + " FOR UPDATE")) {
                     getFinishStmt.setString(1, executionId);
                     getFinishStmt.setString(2, userId);
-
                     ResultSet rs = getFinishStmt.executeQuery();
 
                     if (rs.next()) {
@@ -252,7 +251,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
                             LOG.error("Attempt to finish already finished execution: " +
                                     "{ executionId: {}, finished_at: {}, reason: {} }",
                                 executionId, rs.getTimestamp("finished_at"), rs.getString("finished_with_error"));
-                            throw new IllegalStateException("Execution already finished");
+                            throw new IllegalStateException("Workflow execution already finished");
                         }
 
                         try (var updateStmt = conn.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA)) {
