@@ -31,6 +31,7 @@ from lzy.whiteboards.index import WhiteboardIndexedManager, RemoteWhiteboardInde
 # noinspection PyUnresolvedReferences
 from lzy.whiteboards.wrapper import WhiteboardStatus, MISSING_WHITEBOARD_FIELD
 
+configure_logging()
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 FuncT = TypeVar(
@@ -130,8 +131,6 @@ class Lzy:
         storage_registry: Optional[StorageRegistry] = None,
         serializer_registry: Optional[LzySerializerRegistry] = None
     ):
-        configure_logging()
-
         whiteboard_index_client = RemoteWhiteboardIndexClient() if whiteboard_client is None else whiteboard_client
         self.__runtime = RemoteRuntime() if runtime is None else runtime
         self.__env_provider = AutomaticPyEnvProvider() if py_env_provider is None else py_env_provider
