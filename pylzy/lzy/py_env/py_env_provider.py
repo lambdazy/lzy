@@ -25,7 +25,7 @@ def all_installed_packages() -> Dict[str, str]:
     }
 
 
-def exists_in_pypi(package_name: str) -> bool:
+def exists_in_pypi(package_name: str, package_version: str) -> bool:
     if package_name in pypi_existence_cache:
         return pypi_existence_cache[package_name]
 
@@ -33,7 +33,7 @@ def exists_in_pypi(package_name: str) -> bool:
         session.max_redirects = (
             5  # limit redirects to handle possible pypi incidents with redirect cycles
         )
-        response = session.get(f"https://pypi.python.org/pypi/{package_name}/json")
+        response = session.get(f"https://pypi.python.org/pypi/{package_name}/{package_version}/json")
     result: bool = 200 <= response.status_code < 300
     pypi_existence_cache[package_name] = result
     return result
@@ -61,7 +61,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
             # and find it among installed ones
             if name in distributions:
                 package_name = distributions[name][0]
-                if package_name in dist_versions and exists_in_pypi(package_name):
+                if package_name in dist_versions and exists_in_pypi(package_name, dist_versions[package_name]):
                     remote_packages[package_name] = dist_versions[package_name]
                     return
 
