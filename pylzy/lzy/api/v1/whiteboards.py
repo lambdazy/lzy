@@ -182,7 +182,7 @@ class WritableWhiteboard:
 
     def __validate_types(self, value_type: Type, field_type: Type, field_name: str) -> None:
         compatible = check_types_serialization_compatible(field_type, value_type,
-                                                            self.__workflow.owner.serializer_registry)
+                                                          self.__workflow.owner.serializer_registry)
         if not compatible or not is_subhint(value_type, field_type):
             raise TypeError(
                 f"Incompatible types: whiteboard field {field_name} has type {field_type}, "
