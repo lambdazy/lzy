@@ -11,7 +11,7 @@ from serialzy.types import get_type
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, Storage
-from lzy.api.v1.utils.proxy_adapter import lzy_proxy
+from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize_if_sequence_of_lzy_proxies
 from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
 from lzy.proxy.result import Just
 from lzy.utils.event_loop import LzyEventLoop
@@ -160,6 +160,7 @@ class WritableWhiteboard:
             else:
                 self.__workflow.snapshot.update_entry(entry.id, storage_uri)
         else:
+            value = materialize_if_sequence_of_lzy_proxies(value)
             typ = get_type(value)
             self.__validate_types(typ, key_type, key)
             entry = self.__workflow.snapshot.create_entry(self.__model.name + "." + key, key_type, storage_uri)

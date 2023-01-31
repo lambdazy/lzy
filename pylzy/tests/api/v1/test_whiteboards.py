@@ -5,7 +5,7 @@ import uuid
 from concurrent import futures
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import cast, BinaryIO
+from typing import cast, BinaryIO, Tuple
 from unittest import TestCase
 
 # noinspection PyPackageRequirements
@@ -375,3 +375,27 @@ class WhiteboardTests(TestCase):
             with self.lzy.workflow(self.workflow_name) as wf:
                 wb = wf.create_whiteboard(WhiteboardWithDefaults)
                 wb.desc = 2
+
+    def test_tuples(self):
+        @whiteboard(name="tuple_wb")
+        @dataclass
+        class TupleWb:
+            t: Tuple[str, str]
+
+        @op
+        def returns_tuple_1() -> (str, str):
+            return "str1", "str2"
+
+        @op
+        def returns_tuple_2() -> Tuple[str, str]:
+            return "str1", "str2"
+
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb1 = wf.create_whiteboard(TupleWb)
+            wb1.t = returns_tuple_1()
+
+            wb2 = wf.create_whiteboard(TupleWb)
+            wb2.t = returns_tuple_2()
+
+        self.assertEqual(("str1", "str2"), self.lzy.whiteboard(id_=wb1.id).t)
+        self.assertEqual(("str1", "str2"), self.lzy.whiteboard(id_=wb2.id).t)
