@@ -7,12 +7,13 @@ from lzy.api.v1.call import LzyCall, wrap_call
 from lzy.api.v1.env import DockerPullPolicy, Env
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.api.v1.provisioning import Provisioning, GpuType, CpuType
-from lzy.api.v1.remote.runtime import RemoteRuntime, USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV
+from lzy.api.v1.remote.runtime import RemoteRuntime
+from lzy.api.v1.remote.workflow_service_client import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV, WorkflowServiceClient
 from lzy.api.v1.runtime import Runtime
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.api.v1.utils.conda import generate_conda_yaml
 from lzy.api.v1.utils.packages import to_str_version
-from lzy.api.v1.utils.proxy_adapter import lzy_proxy
+from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize
 from lzy.api.v1.utils.types import infer_return_type
 from lzy.api.v1.whiteboards import whiteboard_
 from lzy.api.v1.workflow import LzyWorkflow
@@ -29,8 +30,8 @@ from lzy.whiteboards.index import WhiteboardIndexedManager, RemoteWhiteboardInde
     WB_ENDPOINT_ENV
 # noinspection PyUnresolvedReferences
 from lzy.whiteboards.wrapper import WhiteboardStatus, MISSING_WHITEBOARD_FIELD
-from lzy.api.v1.utils.proxy_adapter import materialize
 
+configure_logging()
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 FuncT = TypeVar(
@@ -124,19 +125,19 @@ class Lzy:
     def __init__(
         self,
         *,
-        runtime: Runtime = RemoteRuntime(),
-        whiteboard_client: WhiteboardIndexClient = RemoteWhiteboardIndexClient(),
-        py_env_provider: PyEnvProvider = AutomaticPyEnvProvider(),
-        storage_registry: StorageRegistry = DefaultStorageRegistry(),
-        serializer_registry: LzySerializerRegistry = LzySerializerRegistry()
+        runtime: Optional[Runtime] = None,
+        whiteboard_client: Optional[WhiteboardIndexClient] = None,
+        py_env_provider: Optional[PyEnvProvider] = None,
+        storage_registry: Optional[StorageRegistry] = None,
+        serializer_registry: Optional[LzySerializerRegistry] = None
     ):
-        configure_logging()
-
-        self.__env_provider = py_env_provider
-        self.__serializer_registry = serializer_registry
-        self.__storage_registry = storage_registry
-        self.__runtime = runtime
-        self.__whiteboard_manager = WhiteboardIndexedManager(whiteboard_client, storage_registry, serializer_registry)
+        whiteboard_index_client = RemoteWhiteboardIndexClient() if whiteboard_client is None else whiteboard_client
+        self.__runtime = RemoteRuntime() if runtime is None else runtime
+        self.__env_provider = AutomaticPyEnvProvider() if py_env_provider is None else py_env_provider
+        self.__storage_registry = DefaultStorageRegistry() if storage_registry is None else storage_registry
+        self.__serializer_registry = LzySerializerRegistry() if serializer_registry is None else serializer_registry
+        self.__whiteboard_manager = WhiteboardIndexedManager(self.__runtime.workflow_client(), whiteboard_index_client,
+                                                             self.__storage_registry, self.__serializer_registry)
 
         self.__storage_client: Optional[AsyncStorageClient] = None
         self.__storage_name: Optional[str] = None
@@ -249,7 +250,7 @@ class Lzy:
         )
 
     def whiteboard(self, *,
-                   id_: Optional[str],
+                   id_: Optional[str] = None,
                    storage_uri: Optional[str] = None,
                    storage_name: Optional[str] = None) -> Optional[Any]:
         return LzyEventLoop.run_async(

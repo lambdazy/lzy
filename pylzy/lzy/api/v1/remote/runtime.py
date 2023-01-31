@@ -46,12 +46,9 @@ from lzy.api.v1.utils.files import fileobj_hash, zipdir
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_color
-from lzy.utils.grpc import build_token
+from lzy.utils.grpc import retry, RetryConfig
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
-KEY_PATH_ENV = "LZY_KEY_PATH"
-USER_ENV = "LZY_USER"
-ENDPOINT_ENV = "LZY_ENDPOINT"
 
 _LOG = get_logger(__name__)
 
@@ -74,17 +71,21 @@ def wrap_error(message: str = "Something went wrong"):
 
 class RemoteRuntime(Runtime):
     def __init__(self):
-        self.__workflow_client: Optional[WorkflowServiceClient] = None
+        self.__workflow_client: WorkflowServiceClient = WorkflowServiceClient()
+
         self.__workflow: Optional[LzyWorkflow] = None
         self.__execution_id: Optional[str] = None
 
         self.__std_slots_listener: Optional[Task] = None
         self.__running = False
 
+    def workflow_client(self) -> Optional[WorkflowServiceClient]:
+        return self.__workflow_client
+
     async def start(self, workflow: LzyWorkflow) -> str:
         self.__running = True
         self.__workflow = workflow
-        client = await self.__get_client()
+        client = self.__workflow_client
 
         default_creds = self.__workflow.owner.storage_registry.default_config()
         exec_id, creds = await client.start_workflow(
@@ -93,9 +94,8 @@ class RemoteRuntime(Runtime):
 
         self.__execution_id = exec_id
         if creds is not None:
-            self.__workflow.owner.storage_registry.register_storage(
-                exec_id, creds, default=True
-            )
+            storage_name = self.__workflow.owner.storage_registry.provided_storage_name()
+            self.__workflow.owner.storage_registry.register_storage(storage_name, creds, default=True)
 
         self.__std_slots_listener = asyncio.create_task(
             self.__listen_to_std_slots(exec_id)
@@ -110,7 +110,7 @@ class RemoteRuntime(Runtime):
         assert self.__execution_id is not None
         assert self.__workflow is not None
 
-        client = await self.__get_client()
+        client = self.__workflow_client
         pools = await client.get_pool_specs(self.__execution_id)
 
         modules: Set[str] = set()
@@ -152,7 +152,7 @@ class RemoteRuntime(Runtime):
                 )
 
     async def abort(self) -> None:
-        client = await self.__get_client()
+        client = self.__workflow_client
         try:
             if not self.__running:
                 return
@@ -167,12 +167,10 @@ class RemoteRuntime(Runtime):
             self.__std_slots_listener = None
 
         finally:
-            await client.stop()
-            self.__workflow_client = None
             self.__running = False
 
     async def destroy(self):
-        client = await self.__get_client()
+        client = self.__workflow_client
         try:
             if not self.__running:
                 return
@@ -190,8 +188,6 @@ class RemoteRuntime(Runtime):
             self.__std_slots_listener = None
 
         finally:
-            await client.stop()
-            self.__workflow_client = None
             self.__running = False
 
     async def __load_local_modules(self, module_paths: Iterable[str]) -> Sequence[str]:
@@ -249,21 +245,14 @@ class RemoteRuntime(Runtime):
                 return spec
         return None
 
-    async def __get_client(self):
-        if self.__workflow_client is None:
-            user = os.getenv(USER_ENV)
-            key_path = os.getenv(KEY_PATH_ENV)
-            if user is None:
-                raise ValueError(f"User must be specified by env variable {USER_ENV} or `user` argument")
-            if key_path is None:
-                raise ValueError(f"Key path must be specified by env variable {KEY_PATH_ENV} or `key_path` argument")
-            self.__workflow_client = await WorkflowServiceClient.create(
-                os.getenv(ENDPOINT_ENV, "api.lzy.ai:8899"), build_token(user, key_path)
-            )
-        return self.__workflow_client
-
+    @retry(action_name="listening to std slots", config=RetryConfig(
+        initial_backoff_ms=1000,
+        max_retry=120,
+        backoff_multiplier=1,
+        max_backoff_ms=10000
+    ))
     async def __listen_to_std_slots(self, execution_id: str):
-        client = await self.__get_client()
+        client = self.__workflow_client
         async for data in client.read_std_slots(execution_id):
             if isinstance(data, StdoutMessage):
                 system_log = "[SYS]" in data.data

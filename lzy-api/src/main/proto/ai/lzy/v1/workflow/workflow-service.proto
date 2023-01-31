@@ -28,6 +28,8 @@ service LzyWorkflowService {
   rpc ReadStdSlots (ReadStdSlotsRequest) returns (stream ReadStdSlotsResponse);
 
   rpc GetAvailablePools (GetAvailablePoolsRequest) returns (GetAvailablePoolsResponse);
+
+  rpc GetStorageCredentials (GetStorageCredentialsRequest) returns (GetStorageCredentialsResponse);
 }
 
 message StartWorkflowRequest {
@@ -136,4 +138,14 @@ message GetAvailablePoolsRequest {
 
 message GetAvailablePoolsResponse {
   repeated VmPoolSpec poolSpecs = 1;
+}
+
+
+// ==================== GetStorage =====================
+
+message GetStorageCredentialsRequest {
+}
+
+message GetStorageCredentialsResponse {
+  ai.lzy.v1.common.StorageConfig storage = 1;
 }

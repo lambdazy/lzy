@@ -1,7 +1,11 @@
 import inspect
+import json
+from collections import defaultdict
+
 import sys
+from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, Iterable, List, Union, cast
+from typing import Any, Dict, Iterable, List, Union, cast, Set
 
 import pkg_resources
 import requests
@@ -12,7 +16,6 @@ from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnv, PyEnvProvider
 
 STDLIB_LIST = stdlib_list() if sys.version_info < (3, 10) else sys.stdlib_module_names  # type: ignore
-pypi_existence_cache: Dict[str, bool] = dict()
 
 _LOG = get_logger(__name__)
 
@@ -25,21 +28,19 @@ def all_installed_packages() -> Dict[str, str]:
     }
 
 
-def exists_in_pypi(package_name: str, package_version: str) -> bool:
-    if package_name in pypi_existence_cache:
-        return pypi_existence_cache[package_name]
-
-    with requests.Session() as session:
-        session.max_redirects = (
-            5  # limit redirects to handle possible pypi incidents with redirect cycles
-        )
-        response = session.get(f"https://pypi.python.org/pypi/{package_name}/{package_version}/json")
-    result: bool = 200 <= response.status_code < 300
-    pypi_existence_cache[package_name] = result
-    return result
-
-
 class AutomaticPyEnvProvider(PyEnvProvider):
+    def __init__(self, pypi_cache_file_path: str = "/tmp/pypi_packages_cache"):
+        self.__pypi_libs_cache: Dict[str, List[str]] = defaultdict(list)
+        self.__pypi_cache_file_path = pypi_cache_file_path
+
+        cache_path = Path(pypi_cache_file_path)
+        if cache_path.exists():
+            try:
+                with open(cache_path, "r") as file:
+                    self.__pypi_libs_cache.update(json.load(file))
+            except Exception as e:
+                _LOG.warning("Error while pypi packages cache loading", e)
+
     def provide(self, namespace: Dict[str, Any]) -> PyEnv:
         dist_versions: Dict[str, str] = all_installed_packages()
 
@@ -47,11 +48,16 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         remote_packages = {}
         local_modules: List[ModuleType] = []
         parents: List[ModuleType] = []
+        seen_modules: Set = set()
 
         def search(obj: Any) -> None:
             module = inspect.getmodule(obj)
             if module is None:
                 return
+
+            if module in seen_modules:
+                return
+            seen_modules.add(module)
 
             # try to get module name
             name = module.__name__.split(".")[0]  # type: ignore
@@ -61,7 +67,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
             # and find it among installed ones
             if name in distributions:
                 package_name = distributions[name][0]
-                if package_name in dist_versions and exists_in_pypi(package_name, dist_versions[package_name]):
+                if package_name in dist_versions and self.__exists_in_pypi(package_name, dist_versions[package_name]):
                     remote_packages[package_name] = dist_versions[package_name]
                     return
 
@@ -126,5 +132,24 @@ class AutomaticPyEnvProvider(PyEnvProvider):
             else:
                 append_to_module_paths(path, module_paths)  # type: ignore
 
+        self.__save_pypi_cache()
         py_version = ".".join(cast(Iterable[str], map(str, sys.version_info[:3])))
         return PyEnv(py_version, remote_packages, module_paths)
+
+    def __save_pypi_cache(self):
+        with open(self.__pypi_cache_file_path, "w") as file:
+            json.dump(self.__pypi_libs_cache, file)
+
+    def __exists_in_pypi(self, package_name: str, package_version: str) -> bool:
+        if package_name in self.__pypi_libs_cache and package_version in self.__pypi_libs_cache[package_name]:
+            return True
+
+        _LOG.info(f"Checking {package_name}=={package_version} exists in pypi...")
+        with requests.Session() as session:
+            session.max_redirects = (
+                5  # limit redirects to handle possible pypi incidents with redirect cycles
+            )
+            response = session.get(f"https://pypi.python.org/pypi/{package_name}/{package_version}/json")
+        result: bool = 200 <= response.status_code < 300
+        self.__pypi_libs_cache[package_name].append(package_version)
+        return result

@@ -6,6 +6,7 @@ from unittest import TestCase, skip
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
+from lzy.storage.registry import DefaultStorageRegistry
 from tests.api.v1.mocks import EnvProviderMock
 from lzy.api.v1 import Lzy, op, LocalRuntime, materialize
 from lzy.api.v1.exceptions import LzyExecutionException
@@ -65,13 +66,15 @@ class LzyWorkflowTests(TestCase):
 
     def setUp(self):
         self.workflow_name = "workflow_" + str(uuid.uuid4())
-        self.lzy = Lzy(runtime=LocalRuntime(), py_env_provider=EnvProviderMock())
-
         storage_config = Storage(
             uri="s3://bucket/prefix",
             credentials=S3Credentials(self.endpoint_url, access_key_id="", secret_access_key="")
         )
-        self.lzy.storage_registry.register_storage('default', storage_config, True)
+
+        self.lzy = Lzy(runtime=LocalRuntime(),
+                       py_env_provider=EnvProviderMock(),
+                       storage_registry=DefaultStorageRegistry())
+        self.lzy.storage_registry.register_storage("default", storage_config, default=True)
 
     def test_lists(self):
         @op

@@ -82,7 +82,6 @@ public class PyApiTest {
     public void testWhiteboards() {
         /* This scenario checks for:
                 1. Whiteboards/Views machinery
-                TODO: turn on after new whiteboards finished
          */
         pythonContext.context().evalAndAssertScenarioResult("whiteboards");
     }

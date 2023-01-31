@@ -10,6 +10,7 @@ import com.google.protobuf.ByteString;
 import io.grpc.ServerBuilder;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import org.junit.Assert;
 import org.junit.Test;
@@ -55,7 +56,7 @@ public class PortalListenerTest {
         }
     }
 
-    private static class ObserverMock implements StreamObserver<LWFS.ReadStdSlotsResponse> {
+    private static class ObserverMock extends ServerCallStreamObserver<LWFS.ReadStdSlotsResponse> {
         private final CompletableFuture<Throwable> completed = new CompletableFuture<>();
         private final List<LWFS.ReadStdSlotsResponse> responses = new ArrayList<>();
 
@@ -82,6 +83,46 @@ public class PortalListenerTest {
         public CompletableFuture<Throwable> getCompleted() {
             return completed;
         }
+
+        @Override
+        public boolean isCancelled() {
+            return false;
+        }
+
+        @Override
+        public void setOnCancelHandler(Runnable runnable) {
+
+        }
+
+        @Override
+        public void setCompression(String s) {
+
+        }
+
+        @Override
+        public boolean isReady() {
+            return true;
+        }
+
+        @Override
+        public void setOnReadyHandler(Runnable runnable) {
+
+        }
+
+        @Override
+        public void disableAutoInboundFlowControl() {
+
+        }
+
+        @Override
+        public void request(int i) {
+
+        }
+
+        @Override
+        public void setMessageCompression(boolean b) {
+
+        }
     }
 
     @Test
@@ -99,7 +140,7 @@ public class PortalListenerTest {
 
         var observer = new ObserverMock();
 
-        new PortalSlotsListener(address, "portal-id", observer);
+        new PortalSlotsListener(address, "portal-id", (ServerCallStreamObserver<LWFS.ReadStdSlotsResponse>) observer);
 
         var t = observer.getCompleted().get();
         Assert.assertNull(t);
@@ -121,7 +162,8 @@ public class PortalListenerTest {
 
         var observer = new ObserverMock();
 
-        var listener = new PortalSlotsListener(address, "portal-id", observer);
+        var listener = new PortalSlotsListener(address, "portal-id",
+            (ServerCallStreamObserver<LWFS.ReadStdSlotsResponse>) observer);
         listener.cancel("Cancelled");
 
         var t = observer.getCompleted().get();
