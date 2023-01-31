@@ -1,5 +1,7 @@
 FROM nvidia/cuda:11.2.0-cudnn8-devel-ubuntu20.04
 
+ENV DEBIAN_FRONTEND noninteractive
+
 ### deps
 RUN apt-get -y update && \
     apt-get -y install fuse lsof procps curl bash tar wget \
@@ -27,7 +29,6 @@ RUN curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOS
 	&& chmod +x /usr/local/bin/docker-compose && docker-compose version
 
 ### java
-ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get -y update && \
     apt-get install -y openjdk-17-jdk && \
     rm -rf /var/lib/apt/lists/*
