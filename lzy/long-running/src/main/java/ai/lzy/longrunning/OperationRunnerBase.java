@@ -177,6 +177,10 @@ public abstract class OperationRunnerBase implements Runnable {
         return log;
     }
 
+    protected final String descr() {
+        return descr;
+    }
+
     protected void notifyExpired() {
     }
 
