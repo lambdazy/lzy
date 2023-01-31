@@ -9,6 +9,7 @@ import ai.lzy.scheduler.test.mocks.AllocatorMock;
 import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
+import ai.lzy.v1.scheduler.Scheduler;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskScheduleRequest;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
 import io.grpc.ManagedChannel;
@@ -282,11 +283,24 @@ public class IntegrationTest extends BaseTestWithIam {
 
         allocate.await();
 
-        var r = stub.status(ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest.newBuilder()
-            .setTaskId(resp.getStatus().getTaskId())
-            .setWorkflowId(resp.getStatus().getWorkflowId())
-            .build());
+        Scheduler.TaskStatus taskStatus = null;
 
-        Assert.assertTrue(r.getStatus().hasError());
+        var retries = 0;
+        while ((++retries) < 10) {   // Waiting for task fail
+            var r = stub.status(ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest.newBuilder()
+                .setTaskId(resp.getStatus().getTaskId())
+                .setWorkflowId(resp.getStatus().getWorkflowId())
+                .build());
+
+            if (!r.getStatus().hasExecuting()){
+                taskStatus = r.getStatus();
+                break;
+            }
+
+            Thread.sleep(100);
+        }
+
+        Assert.assertNotNull(taskStatus);
+        Assert.assertTrue(taskStatus.hasError());
     }
 }
