@@ -41,7 +41,7 @@ public class BaseTestWithChannelManager {
             channel.awaitTermination(10, TimeUnit.SECONDS);
         }
         app.stop();
-        app.awaitTermination();
+        app.awaitTermination(5, TimeUnit.SECONDS);
         context.stop();
     }
 

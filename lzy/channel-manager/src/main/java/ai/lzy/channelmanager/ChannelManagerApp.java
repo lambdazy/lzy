@@ -84,9 +84,13 @@ public class ChannelManagerApp {
         iamChannel.awaitTermination(10, TimeUnit.SECONDS);
     }
 
+    public void awaitTermination(long timeout, TimeUnit timeUnit) throws InterruptedException {
+        channelManagerServer.awaitTermination(timeout / 2, timeUnit);
+        iamChannel.awaitTermination(timeout / 2, timeUnit);
+    }
+
     public void stop() {
         channelManagerServer.shutdown();
         iamChannel.shutdown();
     }
-
 }

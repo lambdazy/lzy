@@ -6,7 +6,6 @@ import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GcDao;
 import jakarta.annotation.PreDestroy;
-import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,7 +16,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.UUID;
 
-@Singleton
+
 public class GarbageCollector extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(GarbageCollector.class);
     private static final long MIN_JITTER_PERIOD = 10;
