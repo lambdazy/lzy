@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass
 from typing import Optional, Type, Dict, Any, Iterable, Set, TYPE_CHECKING, Sequence
 
+from beartype.door import is_subhint
 # noinspection PyPackageRequirements
 from google.protobuf.timestamp_pb2 import Timestamp
 from serialzy.api import Schema
@@ -12,6 +13,7 @@ from serialzy.types import get_type
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField, Storage
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize_if_sequence_of_lzy_proxies
+from lzy.api.v1.utils.types import check_types_serialization_compatible
 from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
 from lzy.proxy.result import Just
 from lzy.utils.event_loop import LzyEventLoop
@@ -178,9 +180,10 @@ class WritableWhiteboard:
             raise AttributeError(f"Whiteboard field {item} is not assigned")
         return self.__fields[item]
 
-    @staticmethod
-    def __validate_types(value_type: Type, field_type: Type, field_name: str) -> None:
-        if value_type != field_type:
+    def __validate_types(self, value_type: Type, field_type: Type, field_name: str) -> None:
+        compatible = check_types_serialization_compatible(field_type, value_type,
+                                                            self.__workflow.owner.serializer_registry)
+        if not compatible or not is_subhint(value_type, field_type):
             raise TypeError(
                 f"Incompatible types: whiteboard field {field_name} has type {field_type}, "
                 f"but assigning value has type {value_type}")
