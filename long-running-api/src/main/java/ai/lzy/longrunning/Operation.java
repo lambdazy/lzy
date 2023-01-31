@@ -48,12 +48,12 @@ public class Operation {
             meta != null ? Any.pack(meta) : null, now, true, Any.pack(response), null);
     }
 
-    public static Operation create(String createdBy, String description, @Nullable Duration duration,
+    public static Operation create(String createdBy, String description, @Nullable Duration timeout,
                                    @Nullable IdempotencyKey idempotencyKey, @Nullable Message meta)
     {
         var now = Instant.now();
         return new Operation(UUID.randomUUID().toString(), createdBy, now, description,
-            duration != null ? now.plus(duration) : null, idempotencyKey, meta != null ? Any.pack(meta) : null,
+            timeout != null ? now.plus(timeout) : null, idempotencyKey, meta != null ? Any.pack(meta) : null,
             now, false, null, null);
     }
 
