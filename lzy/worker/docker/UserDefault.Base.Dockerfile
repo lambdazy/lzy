@@ -2,11 +2,13 @@ FROM nvidia/cuda:11.2.0-cudnn8-devel-ubuntu20.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
+### deps
+RUN apt-get update && \
+    apt-get install -y wget libsndfile1 ffmpeg libgomp1 && \
+    rm -rf /var/lib/apt/lists/*
+
 ### conda setup
 ENV PATH="/root/miniconda3/bin:$PATH"
-RUN apt-get update && \
-    apt-get install -y wget && \
-    apt-get install -y libsndfile1 ffmpeg
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && mkdir /root/.conda \
     && bash Miniconda3-latest-Linux-x86_64.sh -b \
