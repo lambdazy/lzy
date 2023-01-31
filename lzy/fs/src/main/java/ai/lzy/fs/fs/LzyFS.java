@@ -152,7 +152,7 @@ public class LzyFS extends FuseStubFS {
                     try {
                         p.getErrorStream().transferTo(System.err);
                     } catch (IOException e) {
-                        throw new RuntimeException(e);
+                        throw new FuseException("Unable to umount FS", e);
                     }
                 }
             } catch (InterruptedException e) {
