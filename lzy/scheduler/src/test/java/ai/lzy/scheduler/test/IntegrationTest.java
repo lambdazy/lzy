@@ -292,7 +292,7 @@ public class IntegrationTest extends BaseTestWithIam {
                 .setWorkflowId(resp.getStatus().getWorkflowId())
                 .build());
 
-            if (!r.getStatus().hasExecuting()){
+            if (!r.getStatus().hasExecuting()) {
                 taskStatus = r.getStatus();
                 break;
             }
