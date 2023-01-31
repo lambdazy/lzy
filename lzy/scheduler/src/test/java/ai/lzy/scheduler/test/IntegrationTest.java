@@ -9,6 +9,7 @@ import ai.lzy.scheduler.test.mocks.AllocatorMock;
 import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
+import ai.lzy.v1.scheduler.Scheduler;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskScheduleRequest;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
 import io.grpc.ManagedChannel;
@@ -112,12 +113,9 @@ public class IntegrationTest extends BaseTestWithIam {
         exec.await();
         latch.await();
 
-        var r = stub.status(ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest.newBuilder()
-            .setTaskId(resp.getStatus().getTaskId())
-            .setWorkflowId(resp.getStatus().getWorkflowId())
-            .build());
+        var status = awaitCompleted(resp.getStatus().getTaskId(), resp.getStatus().getWorkflowId());
 
-        Assert.assertTrue(r.getStatus().hasSuccess());
+        Assert.assertTrue(status.hasSuccess());
     }
 
     @Test
@@ -191,18 +189,11 @@ public class IntegrationTest extends BaseTestWithIam {
         exec.await();
         latch.await();
 
-        var r1 = stub.status(ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest.newBuilder()
-            .setTaskId(resp1.getStatus().getTaskId())
-            .setWorkflowId(resp1.getStatus().getWorkflowId())
-            .build());
+        var status1 = awaitCompleted(resp1.getStatus().getTaskId(), resp1.getStatus().getWorkflowId());
+        var status2 = awaitCompleted(resp2.getStatus().getTaskId(), resp2.getStatus().getWorkflowId());
 
-        var r2 = stub.status(ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest.newBuilder()
-            .setTaskId(resp2.getStatus().getTaskId())
-            .setWorkflowId(resp2.getStatus().getWorkflowId())
-            .build());
-
-        Assert.assertTrue(r1.getStatus().hasSuccess());
-        Assert.assertTrue(r2.getStatus().hasSuccess());
+        Assert.assertTrue(status1.hasSuccess());
+        Assert.assertTrue(status2.hasSuccess());
     }
 
     @Test
@@ -246,12 +237,9 @@ public class IntegrationTest extends BaseTestWithIam {
         exec.await();
         latch.await();
 
-        var r = stub.status(ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest.newBuilder()
-            .setTaskId(resp.getStatus().getTaskId())
-            .setWorkflowId(resp.getStatus().getWorkflowId())
-            .build());
+        var status = awaitCompleted(resp.getStatus().getTaskId(), resp.getStatus().getWorkflowId());
 
-        Assert.assertTrue(r.getStatus().hasError());
+        Assert.assertTrue(status.hasError());
     }
 
     @Test
@@ -282,11 +270,30 @@ public class IntegrationTest extends BaseTestWithIam {
 
         allocate.await();
 
-        var r = stub.status(ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest.newBuilder()
-            .setTaskId(resp.getStatus().getTaskId())
-            .setWorkflowId(resp.getStatus().getWorkflowId())
-            .build());
+        var status = awaitCompleted(resp.getStatus().getTaskId(), resp.getStatus().getWorkflowId());
+        Assert.assertTrue(status.hasError());
+    }
 
-        Assert.assertTrue(r.getStatus().hasError());
+    private Scheduler.TaskStatus awaitCompleted(String taskId, String workflowId) throws InterruptedException {
+        var retries = 0;
+        Scheduler.TaskStatus taskStatus = null;
+        while ((++retries) < 10) {   // Waiting for task fail
+            var r = stub.status(ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest.newBuilder()
+                .setTaskId(taskId)
+                .setWorkflowId(workflowId)
+                .build());
+
+            if (!r.getStatus().hasExecuting()) {
+                taskStatus = r.getStatus();
+                break;
+            }
+            Thread.sleep(100);
+        }
+
+        if (taskStatus == null) {
+            Assert.fail();  // Retries exceeded
+        }
+
+        return taskStatus;
     }
 }
