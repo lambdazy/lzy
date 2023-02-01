@@ -112,7 +112,8 @@ class DefaultSnapshot(Snapshot):
 
         with tempfile.NamedTemporaryFile() as f:
             _LOG.debug(f"Serializing {entry.name}...")
-            self.__serializer_registry.find_serializer_by_type(entry.typ).serialize(data, f)
+            serializer = self.__serializer_registry.find_serializer_by_type(entry.typ)
+            serializer.serialize(data, f)
             length = f.tell()
             f.seek(0)
 
