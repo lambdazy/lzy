@@ -1,7 +1,7 @@
 FROM amazoncorretto:17
 
 RUN yum -y install openssl && yum clean all
-COPY target/lzy-service-1.0-SNAPSHOT.jar app/app.jar
+COPY target/lzy-service.jar app/app.jar
 
 ENTRYPOINT ["java", \
             "-Xmx4G", \

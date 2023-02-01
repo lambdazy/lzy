@@ -8,7 +8,7 @@ RUN mkdir -p /tmp/lzy-log/worker \
 COPY docker/tmp-for-context/pylzy/ pylzy
 RUN ./conda_prepare.sh pylzy_install 'pylzy'
 
-COPY target/worker-1.0-SNAPSHOT.jar app/app.jar
+COPY target/worker.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 
