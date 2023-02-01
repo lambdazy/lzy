@@ -17,10 +17,14 @@ NAME = __name__
 _lzy_mount: Optional[str] = None  # for tests only
 __lzy_lazy_argument = "__lzy_lazy_argument__"
 
+__read_cache: Dict[str, Any] = {}
+
 
 def read_data(path: str, typ: Type, serializers: SerializerRegistry, logger: Logger) -> Any:
-    ser = serializers.find_serializer_by_type(typ)
+    if path in __read_cache:
+        return __read_cache[path]
 
+    ser = serializers.find_serializer_by_type(typ)
     name = path.split('/')[-1]
     logger.info(f"Reading {name} with serializer {type(ser).__name__}")
 
@@ -33,6 +37,7 @@ def read_data(path: str, typ: Type, serializers: SerializerRegistry, logger: Log
             time.sleep(0)  # Thread.yield
         file.seek(0)
         data = ser.deserialize(file, typ)  # type: ignore
+        __read_cache[path] = data
         return data
 
 

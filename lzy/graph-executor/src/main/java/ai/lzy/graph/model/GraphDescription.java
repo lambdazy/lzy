@@ -18,7 +18,8 @@ import java.util.stream.Collectors;
 public record GraphDescription(
     List<TaskDescription> tasks,
     Map<String, ChannelDescription> channels // Map from channel id to its description
-) {
+)
+{
 
     public static GraphDescription fromGrpc(List<TaskDesc> tasks, List<ChannelDesc> channels) {
 
@@ -27,11 +28,12 @@ public record GraphDescription(
                 t.getId(),
                 Operation.fromProto(t.getOperation()),
                 t.getSlotAssignmentsList()
-                .stream()
-                .collect(Collectors.toMap(
-                    SlotToChannelAssignment::getSlotName,
-                    SlotToChannelAssignment::getChannelId
-                ))))
+                    .stream()
+                    .collect(Collectors.toMap(
+                        SlotToChannelAssignment::getSlotName,
+                        SlotToChannelAssignment::getChannelId,
+                        (ch1, ch2) -> ch1 // ignore duplicates, because multiple arguments can use the same slot/channel
+                    ))))
             .collect(Collectors.toList());
 
         final Map<String, ChannelDescription> channelDescriptions = channels
