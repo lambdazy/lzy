@@ -22,7 +22,7 @@ with the following properties:
 ʎzy allows running any python functions on a cluster by annotating them with `@op` decorator:
 
 ```python
-@op(gpu=Gpu.any())
+@op(gpu_count=1, gpu_type=GpuType.V100.name)
 def train(data_set: Bunch) -> CatBoostClassifier:
     cb_model = CatBoostClassifier(iterations=1000, task_type="GPU", devices='0:1', train_dir='/tmp/catboost')
     cb_model.fit(data_set.data, data_set.target, verbose=True)
@@ -33,8 +33,8 @@ def train(data_set: Bunch) -> CatBoostClassifier:
 model = train(data_set)
 
 # remote call on a cluster
-env = LzyRemoteEnv()
-with env.workflow("training"):
+lzy = Lzy()
+with lzy.workflow("training"):
     model = train(data_set)
 ```
 
