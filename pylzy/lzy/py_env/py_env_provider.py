@@ -129,7 +129,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                 return str(module.__file__)
             else:
                 # case for namespace package
-                return [module_path for module_path in module.__path__]
+                return [module_path for module_path in set(module.__path__)]
 
         def append_to_module_paths(f: str, paths: List[str]):  # type: ignore
             for module_path in paths:
@@ -154,7 +154,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
 
         self.__save_pypi_cache()
         py_version = ".".join(cast(Iterable[str], map(str, sys.version_info[:3])))
-        return PyEnv(py_version, remote_packages, list(set(module_paths)))
+        return PyEnv(py_version, remote_packages, module_paths)
 
     def __save_pypi_cache(self):
         with open(self.__existed_cache_file_path, "w") as file:
