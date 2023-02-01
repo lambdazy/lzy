@@ -196,6 +196,7 @@
                     <execution>
                         <id>default-shade</id>
                         <configuration>
+                            <finalName>${project.artifactId}</finalName>
                             <createDependencyReducedPom>false</createDependencyReducedPom>
                             <filters>
                                 <filter>

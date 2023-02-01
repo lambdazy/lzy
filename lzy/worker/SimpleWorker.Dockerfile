@@ -44,7 +44,7 @@ COPY --from=build-jre /java /opt/jre-minimal
 ENV JAVA_HOME=/opt/jre-minimal
 ENV PATH="$PATH:$JAVA_HOME/bin"
 
-COPY target/worker-1.0-SNAPSHOT.jar app/app.jar
+COPY target/worker.jar app/app.jar
 
 COPY docker/log_processor.py /log_processor.py
 COPY docker/ua_config.yml /logging.yml

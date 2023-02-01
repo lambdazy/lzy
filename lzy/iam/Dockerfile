@@ -1,6 +1,6 @@
 FROM amazoncorretto:17
 
-COPY target/iam-1.0-SNAPSHOT.jar app/app.jar
+COPY target/iam.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 
