@@ -9,6 +9,7 @@ from typing import (
     get_type_hints, List, Dict, Any,
 )
 
+from serialzy.api import SerializerRegistry
 from typing_extensions import get_origin, get_args
 
 from lzy.proxy.result import Just, Nothing, Result
@@ -50,3 +51,17 @@ def get_default_args(func: Callable) -> Dict[str, Any]:
         for k, v in signature.parameters.items()
         if v.default is not inspect.Parameter.empty
     }
+
+
+def check_types_serialization_compatible(annotation: Type, typ: Type, registry: SerializerRegistry) -> bool:
+    if annotation == typ:
+        return True
+
+    annotation_types = infer_real_types(annotation)
+    for annotation_type in annotation_types:
+        serializer = registry.find_serializer_by_type(annotation_type)
+        serializable = serializer.supported_types() == typ if \
+            isinstance(serializer.supported_types(), Type) else serializer.supported_types()(typ)  # type: ignore
+        if serializable:
+            return True
+    return False

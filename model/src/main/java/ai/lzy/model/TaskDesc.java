@@ -27,7 +27,8 @@ public record TaskDesc(
     public static TaskDesc fromProto(LMO.TaskDesc taskDesc) {
         Map<String, String> slotMapping = taskDesc.getSlotAssignmentsList()
             .stream()
-            .collect(Collectors.toMap(SlotToChannelAssignment::getSlotName, SlotToChannelAssignment::getChannelId));
+            .collect(Collectors.toMap(SlotToChannelAssignment::getSlotName, SlotToChannelAssignment::getChannelId,
+                (ch1, ch2) -> ch1)); // ignore duplicates, because multiple arguments can use the same slot/channel
 
         return new TaskDesc(Operation.fromProto(taskDesc.getOperation()), slotMapping);
     }

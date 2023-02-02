@@ -14,19 +14,23 @@ class ModulesSearchTests(TestCase):
     def test_modules_search(self):
         # Arrange
         from modules_for_tests.level1.level1 import Level1
+        from modules_for_tests_2.level import Level
         level1 = Level1()
+        level = Level()
         os.chdir(os.path.dirname(__file__))
         directory = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
 
         # Act
-        env = self.provider.provide({"level1": level1})
+        env = self.provider.provide({"level": level, "level1": level1})
         remote = env.libraries
         local = env.local_modules_path
 
         # Assert
         self.assertEqual("echo", level1.echo())
+        self.assertEqual(2, len(local))
         # noinspection DuplicatedCode
         self.assertTrue(directory + "/modules_for_tests" in local)
+        self.assertTrue(directory + "/modules_for_tests_2" in local)
         self.assertFalse(directory + "/modules_for_tests/level1" in local)
         self.assertFalse(directory + "/modules_for_tests/level1/level2" in local)
         self.assertFalse(directory + "/modules_for_tests/level1/level2/level3" in local)
@@ -43,6 +47,7 @@ class ModulesSearchTests(TestCase):
         directory = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
 
         # noinspection DuplicatedCode
+        self.assertEqual(1, len(local))
         self.assertTrue(directory + "/modules_for_tests" in local)
         self.assertFalse(directory + "/modules_for_tests/level1" in local)
         self.assertFalse(directory + "/modules_for_tests/level1/level2" in local)

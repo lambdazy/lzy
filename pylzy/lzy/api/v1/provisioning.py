@@ -10,7 +10,7 @@ class CpuType(Enum):
 
 
 class GpuType(Enum):
-    NO_GPU = "<none>"
+    NO_GPU = "NO_GPU"
     V100 = "V100"
     A100 = "A100"
     T4 = "T4"

@@ -4,9 +4,11 @@ import jnr.ffi.Pointer;
 import jnr.ffi.types.mode_t;
 import jnr.ffi.types.off_t;
 import jnr.ffi.types.size_t;
+import jnr.posix.util.Platform;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.ErrorCodes;
+import ru.serce.jnrfuse.FuseException;
 import ru.serce.jnrfuse.FuseFillDir;
 import ru.serce.jnrfuse.FuseStubFS;
 import ru.serce.jnrfuse.struct.FileStat;
@@ -113,6 +115,53 @@ public class LzyFS extends FuseStubFS {
     @Override
     public void mount(Path mountPoint, boolean blocking, boolean debug, String[] fuseOpts) {
         super.mount(mountPoint, blocking, debug, fuseOpts);
+    }
+
+    @Override
+    public void umount() {
+        if (Platform.IS_WINDOWS) {
+            super.umount();
+            return;
+        }
+
+        if (!mounted.get()) {
+            return;
+        }
+
+        final var mountPath = mountPoint.toAbsolutePath().toString();
+        Process p;
+        try {
+            p = new ProcessBuilder("fusermount", "-u", "-z", mountPath).start();
+        } catch (IOException e) {
+            p = null;
+            try {
+                new ProcessBuilder("umount", mountPath).start().waitFor();
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw new FuseException("Unable to umount FS", e);
+            } catch (IOException ioe) {
+                ioe.addSuppressed(e);
+                throw new FuseException("Unable to umount FS", ioe);
+            }
+        }
+
+        if (p != null) {
+            try {
+                var rc = p.waitFor();
+                if (rc != 0) {
+                    try {
+                        p.getErrorStream().transferTo(System.err);
+                    } catch (IOException e) {
+                        throw new FuseException("Unable to umount FS", e);
+                    }
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new FuseException("Unable to umount FS", e);
+            }
+        }
+
+        mounted.set(false);
     }
 
     public boolean addScript(LzyScript script, Path path) {

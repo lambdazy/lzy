@@ -42,7 +42,7 @@ from lzy.api.v1.runtime import (
 )
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.conda import generate_conda_yaml
-from lzy.api.v1.utils.files import fileobj_hash, zipdir
+from lzy.api.v1.utils.files import fileobj_hash, zip_module
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_color
@@ -203,7 +203,7 @@ class RemoteRuntime(Runtime):
                         z.write(local_module, os.path.relpath(local_module))
                 else:
                     with zipfile.ZipFile(archive.name, "w") as z:
-                        zipdir(local_module, z)
+                        zip_module(local_module, z)
                 archive.seek(0)
                 file = cast(BytesIO, archive.file)
                 key = os.path.join(

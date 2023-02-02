@@ -124,7 +124,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         WHERE execution_id = ?
         """;
 
-    private static final String QUERY_EXPIRED_EXECUTIONS = """
+    private static final String QUERY_PICK_EXPIRED_EXECUTION = """
         SELECT execution_id
         FROM workflow_executions
         WHERE execution_status = 'ERROR'
@@ -560,7 +560,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         String[] res = {null};
 
         DbOperation.execute(null, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_EXPIRED_EXECUTIONS)) {
+            try (var statement = con.prepareStatement(QUERY_PICK_EXPIRED_EXECUTION)) {
                 ResultSet rs = statement.executeQuery();
 
                 if (rs.next()) {

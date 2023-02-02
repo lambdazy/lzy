@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -341,11 +342,11 @@ public class WorkflowTest extends BaseTest {
         String[] destroyedExecutionChannels = {null};
         onChannelsDestroy(exId -> destroyedExecutionChannels[0] = exId);
 
-        var deleteSessionFlag = new AtomicBoolean(false);
-        onDeleteSession(() -> deleteSessionFlag.set(true));
+        var deleteSessionFlag = new AtomicInteger(0);
+        onDeleteSession(deleteSessionFlag::incrementAndGet);
 
-        var freeVmFlag = new AtomicBoolean(false);
-        onFreeVm(() -> freeVmFlag.set(true));
+        var freeVmFlag = new AtomicInteger(0);
+        onFreeVm(freeVmFlag::incrementAndGet);
 
         String[] stopGraphId = {null};
         onStopGraph(actualGraphId -> stopGraphId[0] = actualGraphId);
@@ -370,7 +371,11 @@ public class WorkflowTest extends BaseTest {
 
         assertSame(Status.FAILED_PRECONDITION.getCode(), thrown1.getStatus().getCode());
         assertSame(Status.NOT_FOUND.getCode(), thrown2.getStatus().getCode());
+
         assertEquals(expectedGraphId, stopGraphId[0]);
+        assertEquals(destroyedExecutionChannels[0], executionId);
+        assertEquals(deleteSessionFlag.get(), 1);
+        assertEquals(freeVmFlag.get(), 1);
     }
 
     @Test

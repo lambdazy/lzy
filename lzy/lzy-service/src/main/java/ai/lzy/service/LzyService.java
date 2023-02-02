@@ -12,7 +12,6 @@ import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
-import ai.lzy.service.gc.GarbageCollector;
 import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.graph.GraphExecutionState;
 import ai.lzy.service.debug.InjectedFailures;
@@ -76,10 +75,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     public LzyService(WorkflowService workflowService, GraphExecutionService graphExecutionService,
                       GraphDao graphDao, ExecutionDao executionDao, WorkflowDao workflowDao,
                       LzyServiceStorage storage, @Named("LzyServiceOperationDao") OperationDao operationDao,
-                      CleanExecutionCompanion cleanExecutionCompanion, GarbageCollector gc, LzyServiceConfig config,
+                      CleanExecutionCompanion cleanExecutionCompanion, LzyServiceConfig config,
                       @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
-                      @Named("StorageServiceChannel") ManagedChannel storageChannel,
-                      @Named("LzyServiceServerExecutor") ExecutorService workersPool)
+                      @Named("StorageServiceChannel") ManagedChannel storageChannel
+                      /*, GarbageCollector gc */, @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
         this.cleanExecutionCompanion = cleanExecutionCompanion;
         this.instanceId = config.getInstanceId();
@@ -208,7 +207,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var abortStatus = Status.CANCELLED.withDescription(reason);
         try {
             cleanExecutionCompanion.markExecutionAsBroken(userId, workflowName, executionId, abortStatus);
-            cleanExecutionCompanion.stopGraphs(executionId);
+            cleanExecutionCompanion.cleanExecution(executionId);
         } catch (IllegalStateException ise) {
             LOG.error("Execution from argument is not an active in workflow: " +
                 "{ userId: {}, workflowName: {}, executionId: {} }", userId, workflowName, executionId);

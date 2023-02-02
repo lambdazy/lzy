@@ -14,7 +14,7 @@ with the following properties:
 ʎzy allows running any python functions on a cluster by annotating them with `@op` decorator:
 
 ```python
-@op(gpu=Gpu.any())
+@op(gpu_count=1, gpu_type=GpuType.V100.name)
 def train(data_set: Bunch) -> CatBoostClassifier:
     cb_model = CatBoostClassifier(iterations=1000, task_type="GPU", devices='0:1', train_dir='/tmp/catboost')
     cb_model.fit(data_set.data, data_set.target, verbose=True)
@@ -25,8 +25,8 @@ def train(data_set: Bunch) -> CatBoostClassifier:
 model = train(data_set)
 
 # remote call on a cluster
-env = LzyRemoteEnv()
-with env.workflow("training"):
+lzy = Lzy()
+with lzy.workflow("training"):
     model = train(data_set)
 ```
 
@@ -38,5 +38,4 @@ Please read the [tutorial](1-setup.md) for details:
 2. [Data transfer](4-data.md)
 2. [Dev Environment](5-environment.md)
 2. [Managing Graph Results - Whiteboards](6-whiteboards.md)
-2. [Managing Graph Results - Views](7-views.md)
-2. [Integrations (catboost native)](8-integrations.md)
+2. [Integrations (catboost native)](7-integrations.md)

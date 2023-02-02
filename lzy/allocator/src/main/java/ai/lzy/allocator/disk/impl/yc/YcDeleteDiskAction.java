@@ -75,19 +75,14 @@ final class YcDeleteDiskAction extends YcDiskActionBase<YcDeleteDiskState> {
 
         InjectedFailures.failDeleteDisk1();
 
-        try {
-            withRetries(log(), () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
-            state = state.withYcOperationId(ycDeleteDiskOperationId);
-        } catch (Exception e) {
-            metrics().deleteDiskRetryableError.inc();
-            log().debug("Cannot save new state for YcDeleteDisk {}/{}, reschedule...", opId(), state.ycOperationId());
-            return StepResult.RESTART;
-        }
-
-        InjectedFailures.failDeleteDisk2();
-
-        log().info("Wait YC at YcDeleteDisk {}/{}...", opId(), state.ycOperationId());
-        return StepResult.RESTART.after(Duration.ofMillis(500));
+        return saveState(
+            () -> {
+                state = state.withYcOperationId(ycDeleteDiskOperationId);
+                InjectedFailures.failDeleteDisk2();
+                log().info("Wait YC at YcDeleteDisk {}/{}...", opId(), state.ycOperationId());
+            },
+            () -> metrics().deleteDiskRetryableError.inc()
+        );
     }
 
     private StepResult waitDeleteDisk() {

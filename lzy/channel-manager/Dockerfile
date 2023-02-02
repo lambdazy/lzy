@@ -1,6 +1,6 @@
 FROM amazoncorretto:17
 
-COPY target/channel-manager-1.0-SNAPSHOT.jar app/app.jar
+COPY target/channel-manager.jar app/app.jar
 
 ENTRYPOINT ["java", \
             "-Xmx4G", \

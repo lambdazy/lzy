@@ -147,17 +147,6 @@ jobs:
         run: |
           cd test && mvn test -Dtest=WorkflowTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
-      - name: 'Build worker image'
-        timeout-minutes: 15
-        run: |
-          BRANCH=${{ (github.head_ref || github.ref_name) }}
-          WORKER_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh worker-base $BRANCH master)
-          docker pull $WORKER_BASE_IMAGE
-          WORKER_BASE_TAG="$(echo $WORKER_BASE_IMAGE | awk -F: '{print $2}')"
-          mkdir -p lzy/worker/docker/tmp-for-context
-          cp -R pylzy lzy/worker/docker/tmp-for-context/pylzy
-          docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t worker -f lzy/worker/docker/Worker.Dockerfile lzy/worker
-
       - name: 'UserImagePyTest'
         timeout-minutes: 10
         run: |

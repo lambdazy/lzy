@@ -330,6 +330,21 @@ class LzyWorkflowTests(TestCase):
             res = return_argument("str")
         self.assertEqual("str", res)
 
+    @skip("currently we do not support lazy collections")
+    def test_lazy_list(self):
+        @op
+        def return_list_len(strings: List[str], strings2: List[str]) -> (int, int):
+            return len(strings), len(strings2)
+
+        with self.lzy.workflow("test"):
+            a = foo()
+            b = foo()
+            c = foo()
+            len1, len2 = return_list_len([a, b, c], strings2=[a, b, c])
+
+        self.assertEqual(3, len1)
+        self.assertEqual(3, len2)
+
     @skip("WIP")
     def test_barrier(self):
         with self.lzy.workflow(self.workflow_name, False) as workflow:

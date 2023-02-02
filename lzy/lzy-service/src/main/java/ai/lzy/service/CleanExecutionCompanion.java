@@ -175,10 +175,6 @@ public class CleanExecutionCompanion {
 
                     LOG.info("Execution was completed: { executionId: {} }", executionId);
                     tx.commit();
-                } catch (Exception e) {
-                    LOG.warn("Cannot update execution status: { executionId: {} }", executionId, e);
-                    operationDao.failOperation(completeOperation.id(), toProto(
-                        Status.INTERNAL.withDescription("Cannot set response")), null, LOG);
                 }
             });
         } catch (Exception e) {
@@ -205,12 +201,6 @@ public class CleanExecutionCompanion {
 
         stopGraphs(executionId);
 
-        var portalDesc = getPortalDescription(executionId);
-
-        if (portalDesc != null && portalDesc.vmAddress() != null) {
-            stopPortal(executionId, portalDesc.vmAddress());
-        }
-
         var destroyChannelsOp = destroyChannels(executionId);
         if (destroyChannelsOp != null) {
             var opId = destroyChannelsOp.getId();
@@ -218,12 +208,18 @@ public class CleanExecutionCompanion {
                 LongRunningServiceGrpc.newBlockingStub(channelManagerChannel), APP,
                 () -> internalUserCredentials.get().token());
 
-            destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(5));
+            destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(10));
 
             if (!destroyChannelsOp.getDone()) {
                 LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {} }",
                     executionId);
             }
+        }
+
+        var portalDesc = getPortalDescription(executionId);
+
+        if (portalDesc != null && portalDesc.vmAddress() != null) {
+            stopPortal(executionId, portalDesc.vmAddress());
         }
 
         if (portalDesc != null && portalDesc.vmId() != null) {

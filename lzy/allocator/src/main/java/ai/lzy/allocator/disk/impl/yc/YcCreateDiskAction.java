@@ -28,6 +28,9 @@ import static java.util.stream.Collectors.joining;
 
 final class YcCreateDiskAction extends YcDiskActionBase<YcCreateDiskState> {
 
+    @Nullable
+    private String ycCreateDiskOperationId = null;
+
     YcCreateDiskAction(DiskManager.OuterOperation op, YcCreateDiskState state, YcDiskManager diskManager) {
         super(op, "[YcCreateDisk]", state, diskManager);
 
@@ -63,52 +66,49 @@ final class YcCreateDiskAction extends YcDiskActionBase<YcCreateDiskState> {
             diskRequestBuilder.setSnapshotId(state.snapshotId());
         }
 
-        String ycCreateDiskOperationId;
-        try {
-            var ycCreateDiskOperation = ycDiskService()
-                .withInterceptors(ClientHeaderInterceptor.idempotencyKey(this::opId))
-                .create(diskRequestBuilder.build());
-            ycCreateDiskOperationId = ycCreateDiskOperation.getId();
-        } catch (StatusRuntimeException e) {
-            var status = e.getStatus();
+        if (ycCreateDiskOperationId == null) {
+            try {
+                var ycCreateDiskOperation = ycDiskService()
+                    .withInterceptors(ClientHeaderInterceptor.idempotencyKey(this::opId))
+                    .create(diskRequestBuilder.build());
+                ycCreateDiskOperationId = ycCreateDiskOperation.getId();
+            } catch (StatusRuntimeException e) {
+                var status = e.getStatus();
 
-            log().error("Error while running YcCreateDisk {} op {} state: [{}] {}",
-                state.spec().name(), opId(), status.getCode(), status.getDescription());
+                log().error("Error while running YcCreateDisk {} op {} state: [{}] {}",
+                    state.spec().name(), opId(), status.getCode(), status.getDescription());
 
-            if (status.getCode() == Status.Code.ALREADY_EXISTS) {
-                var ret = handleExistingDisk(state.spec().name());
-                switch (ret.code()) {
-                    case CONTINUE -> ycCreateDiskOperationId = state.ycOperationId();
-                    case RESTART, FINISH -> { return ret; }
-                    default -> { throw new RuntimeException("Unexpected"); }
+                if (status.getCode() == Status.Code.ALREADY_EXISTS) {
+                    var ret = handleExistingDisk(state.spec().name());
+                    switch (ret.code()) {
+                        case CONTINUE -> ycCreateDiskOperationId = state.ycOperationId();
+                        case RESTART, FINISH -> { return ret; }
+                        default -> throw new RuntimeException("Unexpected");
+                    }
+                } else {
+                    var ex = failOp(status);
+                    if (ex != null) {
+                        log().error("Cannot fail YcCreateDisk {} op {}/{}: {}",
+                            state.spec().name(), opId(), state.ycOperationId(), e.getMessage());
+                        return StepResult.RESTART;
+                    }
+                    return StepResult.FINISH;
                 }
-            } else {
-                var ex = failOp(status);
-                if (ex != null) {
-                    log().error("Cannot fail YcCreateDisk {} op {}/{}: {}",
-                        state.spec().name(), opId(), state.ycOperationId(), e.getMessage());
-                    return StepResult.RESTART;
-                }
-                return StepResult.FINISH;
             }
         }
 
         InjectedFailures.failCreateDisk1();
 
-        try {
-            withRetries(log(), () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
-            state = state.withYcOperationId(ycCreateDiskOperationId);
-        } catch (Exception e) {
-            metrics().createDiskRetryableError.inc();
-            log().debug("Cannot save new state for YcCreateDisk {} op {}/{}, reschedule...",
-                state.spec().name(), opId(), state.ycOperationId());
-            return StepResult.RESTART;
-        }
+        return saveState(
+            () -> {
+                state = state.withYcOperationId(ycCreateDiskOperationId);
 
-        InjectedFailures.failCreateDisk2();
+                InjectedFailures.failCreateDisk2();
 
-        log().info("Wait YC at YcCreateDisk {} op {}/{}...", state.spec().name(), opId(), state.ycOperationId());
-        return StepResult.RESTART;
+                log().info("Wait YC at YcCreateDisk {} op {}/{}...",
+                    state.spec().name(), opId(), state.ycOperationId());
+            },
+            () -> metrics().createDiskRetryableError.inc());
     }
 
     private StepResult waitDiskCreation() {

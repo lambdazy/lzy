@@ -39,7 +39,7 @@ public class LzyServicePrivateApi extends LzyWorkflowPrivateServiceGrpc.LzyWorkf
         var abortStatus = Status.INTERNAL.withDescription(reason);
         try {
             cleanExecutionCompanion.markExecutionAsBroken(userId, /* workflowName */ null, executionId, abortStatus);
-            cleanExecutionCompanion.stopGraphs(executionId);
+            cleanExecutionCompanion.cleanExecution(executionId);
         } catch (Exception e) {
             LOG.error("Cannot abort execution: { executionId: {} }", executionId, e);
             response.onError(Status.INTERNAL.withDescription("Cannot abort execution").asRuntimeException());

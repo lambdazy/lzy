@@ -1,7 +1,7 @@
 package ai.lzy.allocator.vmpool;
 
 public enum GpuTypes {
-    NO_GPU("<none>"),
+    NO_GPU("NO_GPU"),
     V100("V100"),
     A100("A100"),
     T4("T4");
