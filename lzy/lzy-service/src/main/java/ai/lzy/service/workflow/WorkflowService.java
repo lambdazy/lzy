@@ -177,14 +177,6 @@ public class WorkflowService {
             LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
                 request.getWorkflowName(), executionId);
 
-            try {
-                withRetries(LOG, () -> workflowDao.setActiveExecutionToNull(newExecution.getOwner(),
-                    request.getWorkflowName(), executionId, null));
-            } catch (Exception e) {
-                LOG.warn("Cannot deactivate execution of workflow: { workflowName: {}, executionId: {}, error: {} }",
-                    request.getWorkflowName(), executionId, e.getMessage());
-            }
-
             if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(newExecution.getOwner(), request.getWorkflowName(),
                 executionId, newExecution.getErrorStatus()))
             {

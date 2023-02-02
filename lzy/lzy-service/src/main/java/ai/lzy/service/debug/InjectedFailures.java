@@ -10,7 +10,8 @@ public class InjectedFailures {
     public static final List<AtomicReference<Supplier<Throwable>>> FAIL_LZY_SERVICE = List.of(
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
-        new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null)
+        new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
+        new AtomicReference<>(null)
     );
 
     public static void reset() {
@@ -55,6 +56,10 @@ public class InjectedFailures {
 
     public static void fail8() {
         fail(8);
+    }
+
+    public static void fail9() {
+        fail(9);
     }
 
     private static void failImpl(AtomicReference<Supplier<Throwable>> ref) {

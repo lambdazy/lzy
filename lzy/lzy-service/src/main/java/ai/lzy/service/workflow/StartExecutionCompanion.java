@@ -255,7 +255,10 @@ final class StartExecutionCompanion {
                 /* transaction */ null
             ));
 
-            InjectedFailures.fail0();
+            InjectedFailures.fail9();
+        }  catch (InjectedFailures.TerminateException e) {
+            LOG.error("Got InjectedFailure exception: " + e.getMessage());
+            state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
         } catch (StatusRuntimeException e) {
             LOG.error("Cannot start portal", e);
             state.fail(e.getStatus(), "Cannot start portal");

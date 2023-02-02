@@ -77,11 +77,8 @@ public class WorkflowTest extends BaseTest {
 
     @Test
     public void startExecutionFailedAfterPortalStarted() {
-        InjectedFailures.FAIL_LZY_SERVICE.get(0).set(() -> new InjectedFailures.TerminateException(
+        InjectedFailures.FAIL_LZY_SERVICE.get(9).set(() -> new InjectedFailures.TerminateException(
             "Fail after portal started"));
-
-        String[] destroyedExecutionChannels = {null};
-        onChannelsDestroy(exId -> destroyedExecutionChannels[0] = exId);
 
         var deleteSessionFlag = new AtomicBoolean(false);
         onDeleteSession(() -> deleteSessionFlag.set(true));
@@ -89,17 +86,15 @@ public class WorkflowTest extends BaseTest {
         var freeVmFlag = new AtomicBoolean(false);
         onFreeVm(() -> freeVmFlag.set(true));
 
-        String[] executionId = {null};
         var thrown = assertThrows(StatusRuntimeException.class, () ->
-            executionId[0] = authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                .setWorkflowName("workflow_1").build()).getExecutionId());
+            authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
+                .setWorkflowName("workflow_1").build()));
 
         var expectedErrorCode = Status.INTERNAL.getCode();
 
         assertEquals(expectedErrorCode, thrown.getStatus().getCode());
-        assertEquals(executionId[0], destroyedExecutionChannels[0]);
-        assertTrue(deleteSessionFlag.get());
         assertTrue(freeVmFlag.get());
+        assertTrue(deleteSessionFlag.get());
     }
 
     @Test
