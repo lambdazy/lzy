@@ -198,7 +198,7 @@ public class VmDaoImpl implements VmDao {
     public Vm create(Vm.Spec vmSpec, String opId, Instant startedAt, Instant opDeadline, String vmOtt,
                      String allocatorId, @Nullable TransactionHandle transaction) throws SQLException
     {
-        final var vmId = "vm-" + UUID.randomUUID();
+        final var vmId = "vm-" + vmSpec.poolLabel() + "-" + UUID.randomUUID();
 
         DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_CREATE_VM)) {

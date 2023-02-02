@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -167,14 +168,14 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
             .addAllWorkload(workloads)
             .addAllVolumes(volumes)
             .build());
-        final VmAllocatorApi.AllocateMetadata allocateMetadata =
+        final VmAllocatorApi.AllocateMetadata allocateMeta =
             allocateOperation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
         if (allocateOperation.hasError()) {
             throw new RuntimeException(allocateOperation.getError().getMessage());
         }
 
-        final String podName = KuberVmAllocator.VM_POD_NAME_PREFIX + allocateMetadata.getVmId();
+        final String podName = KuberVmAllocator.VM_POD_NAME_PREFIX + allocateMeta.getVmId().toLowerCase(Locale.ROOT);
         final AtomicReference<String> podPhase = new AtomicReference<>();
         TimeUtils.waitFlagUp(
             () -> {
@@ -190,11 +191,11 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         );
         ExecResult execResult = null;
         if (!podPhase.get().equals("Failed")) {
-            registerVm(allocateMetadata.getVmId());
+            registerVm(allocateMeta.getVmId());
             execResult = execPodFunc.apply(podName);
         }
         //noinspection ResultOfMethodCallIgnored
-        allocator.free(VmAllocatorApi.FreeRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+        allocator.free(VmAllocatorApi.FreeRequest.newBuilder().setVmId(allocateMeta.getVmId()).build());
         // noinspection ResultOfMethodCallIgnored
         allocator.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
             .setSessionId(sessionId)
