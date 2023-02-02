@@ -22,7 +22,7 @@ def dataset() -> Bunch:
     return data_set
 
 
-@op(gpu_count=1, gpu_type=str(GpuType.V100.value))
+@op(gpu_count=1, gpu_type=GpuType.V100.name)
 def search_best_model(data_set: Bunch) -> GridSearchCV:
     grid = {"max_depth": [3, 4, 5], "n_estimators": [100, 200, 300]}
     cb_model = CatBoostClassifier()
@@ -33,7 +33,7 @@ def search_best_model(data_set: Bunch) -> GridSearchCV:
 
 lzy = Lzy()
 with lzy.workflow("training") as wf:
-    wb = wf.create_whiteboard(BestModel)
+    wb = wf.create_whiteboard(BestModel, tags=["training", "catboost"])
     data = dataset()
     search = search_best_model(data)
     wb.model = search.best_estimator_
