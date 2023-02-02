@@ -39,7 +39,7 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
 
         user = os.getenv(WB_USER_ENV)
         key_path = os.getenv(WB_KEY_PATH_ENV)
-        endpoint: str = os.getenv(WB_ENDPOINT_ENV, "api.lzy.ai:8899")
+        endpoint: str = os.getenv(WB_ENDPOINT_ENV, "whiteboard.lzy.ai:8122")
 
         if user is None:
             raise ValueError(f"User must be specified by env variable {WB_USER_ENV} or `user` argument")
