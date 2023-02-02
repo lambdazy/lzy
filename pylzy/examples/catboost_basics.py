@@ -11,7 +11,7 @@ def dataset() -> Bunch:
     return data_set
 
 
-@op(gpu_count=1, gpu_type=str(GpuType.V100.value))
+@op(gpu_count=1, gpu_type=GpuType.V100.name)
 def train(data_set: Bunch) -> CatBoostClassifier:
     cb_model = CatBoostClassifier(
         iterations=1000, task_type="GPU", devices="0:1", train_dir="/tmp/catboost"
