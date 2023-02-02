@@ -11,6 +11,7 @@ public class InjectedFailures {
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
+        new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
         new AtomicReference<>(null)
     );
 
@@ -60,6 +61,18 @@ public class InjectedFailures {
 
     public static void fail9() {
         fail(9);
+    }
+
+    public static void fail10() {
+        fail(10);
+    }
+
+    public static void fail11() {
+        fail(11);
+    }
+
+    public static void fail12() {
+        fail(12);
     }
 
     private static void failImpl(AtomicReference<Supplier<Throwable>> ref) {

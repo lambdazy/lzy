@@ -202,6 +202,8 @@ final class StartExecutionCompanion {
             state.getWorkflowName(), state.getExecutionId());
 
         try {
+            InjectedFailures.fail9();
+
             createPortalStdChannels(stdoutChannelName, stderrChannelName);
 
             withRetries(LOG, () -> owner.executionDao.updateStdChannelIds(state.getExecutionId(),
@@ -213,6 +215,8 @@ final class StartExecutionCompanion {
 
             withRetries(LOG, () -> owner.executionDao.updatePortalVmAllocateSession(state.getExecutionId(),
                 state.getSessionId(), state.getPortalId(), null));
+
+            InjectedFailures.fail10();
 
             var allocateVmOp = startAllocation(dockerImage, channelManagerAddress, iamAddress,
                 whiteboardAddress, portalPort, slotsApiPort);
@@ -230,6 +234,8 @@ final class StartExecutionCompanion {
 
             withRetries(LOG, () ->
                 owner.executionDao.updateAllocateOperationData(state.getExecutionId(), opId, vmId, null));
+
+            InjectedFailures.fail11();
 
             allocateVmOp = awaitOperationDone(owner.allocOpService, opId, allocationTimeout);
 
@@ -255,8 +261,8 @@ final class StartExecutionCompanion {
                 /* transaction */ null
             ));
 
-            InjectedFailures.fail9();
-        }  catch (InjectedFailures.TerminateException e) {
+            InjectedFailures.fail12();
+        } catch (InjectedFailures.TerminateException e) {
             LOG.error("Got InjectedFailure exception: " + e.getMessage());
             state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
         } catch (StatusRuntimeException e) {
