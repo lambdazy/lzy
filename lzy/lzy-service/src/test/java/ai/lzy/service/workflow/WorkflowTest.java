@@ -1,6 +1,8 @@
 package ai.lzy.service.workflow;
 
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.service.BaseTest;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.common.LMST;
@@ -11,8 +13,11 @@ import ai.lzy.v1.workflow.LWFS;
 import com.google.common.net.HostAndPort;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
@@ -27,6 +32,20 @@ import static org.junit.Assert.*;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class WorkflowTest extends BaseTest {
+    @Override
+    @Before
+    public void setUp() throws IOException, InterruptedException {
+        super.setUp();
+        InjectedFailures.reset();
+    }
+
+    @Override
+    @After
+    public void tearDown() throws java.sql.SQLException, InterruptedException, DaoException {
+        super.tearDown();
+        InjectedFailures.reset();
+    }
+
     @Test
     public void tempBucketCreationFailed() throws InterruptedException {
         shutdownStorage();
@@ -53,6 +72,33 @@ public class WorkflowTest extends BaseTest {
         var expectedErrorCode = Status.INVALID_ARGUMENT.getCode();
 
         assertEquals(expectedErrorCode, thrown.getStatus().getCode());
+    }
+
+    @Test
+    public void startExecutionFailedAfterPortalStarted() {
+        InjectedFailures.FAIL_LZY_SERVICE.get(0).set(() -> new InjectedFailures.TerminateException(
+            "Fail after portal started"));
+
+        String[] destroyedExecutionChannels = {null};
+        onChannelsDestroy(exId -> destroyedExecutionChannels[0] = exId);
+
+        var deleteSessionFlag = new AtomicBoolean(false);
+        onDeleteSession(() -> deleteSessionFlag.set(true));
+
+        var freeVmFlag = new AtomicBoolean(false);
+        onFreeVm(() -> freeVmFlag.set(true));
+
+        String[] executionId = {null};
+        var thrown = assertThrows(StatusRuntimeException.class, () ->
+            executionId[0] = authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
+                .setWorkflowName("workflow_1").build()).getExecutionId());
+
+        var expectedErrorCode = Status.INTERNAL.getCode();
+
+        assertEquals(expectedErrorCode, thrown.getStatus().getCode());
+        assertEquals(executionId[0], destroyedExecutionChannels[0]);
+        assertTrue(deleteSessionFlag.get());
+        assertTrue(freeVmFlag.get());
     }
 
     @Test

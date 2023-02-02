@@ -150,6 +150,9 @@ public class WorkflowService {
         var executionId = newExecution.getExecutionId();
 
         if (previousActiveExecutionId != null) {
+            LOG.info("Attempt to clean previous active execution of workflow: { wfName: {}, prevExId: {} }",
+                request.getWorkflowName(), previousActiveExecutionId);
+
             Status errorStatus = Status.INTERNAL.withDescription("Cancelled by new execution start");
             if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(newExecution.getOwner(), request.getWorkflowName(),
                 previousActiveExecutionId, errorStatus))
@@ -171,7 +174,9 @@ public class WorkflowService {
             channelManagerAddress, iamAddress, whiteboardAddress, allocationTimeout, allocatorVmCacheTimeout);
 
         if (newExecution.isInvalid()) {
-            // todo: delete workflow too in case of created in this execution
+            LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
+                request.getWorkflowName(), executionId);
+
             try {
                 withRetries(LOG, () -> workflowDao.setActiveExecutionToNull(newExecution.getOwner(),
                     request.getWorkflowName(), executionId, null));
@@ -180,7 +185,11 @@ public class WorkflowService {
                     request.getWorkflowName(), executionId, e.getMessage());
             }
 
-            deleteExecution(executionId);
+            if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(newExecution.getOwner(), request.getWorkflowName(),
+                executionId, newExecution.getErrorStatus()))
+            {
+                cleanExecutionCompanion.cleanExecution(executionId);
+            }
 
             replyError.accept(newExecution.getErrorStatus());
             return;

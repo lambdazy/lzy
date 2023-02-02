@@ -211,7 +211,20 @@ public class CleanExecutionCompanion {
             stopPortal(executionId, portalDesc.vmAddress());
         }
 
-        destroyChannels(executionId);
+        var destroyChannelsOp = destroyChannels(executionId);
+        if (destroyChannelsOp != null) {
+            var opId = destroyChannelsOp.getId();
+            var channelManagerOpsClient = newBlockingClient(
+                LongRunningServiceGrpc.newBlockingStub(channelManagerChannel), APP,
+                () -> internalUserCredentials.get().token());
+
+            destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(5));
+
+            if (!destroyChannelsOp.getDone()) {
+                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {} }",
+                    executionId);
+            }
+        }
 
         if (portalDesc != null && portalDesc.vmId() != null) {
             freeVm(executionId, portalDesc.vmId());

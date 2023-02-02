@@ -15,7 +15,7 @@ import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.gc.GarbageCollector;
 import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.graph.GraphExecutionState;
-import ai.lzy.service.graph.debug.InjectedFailures;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.service.util.StorageUtils;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -287,7 +287,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        InjectedFailures.failExecuteGraph0();
+        InjectedFailures.fail0();
 
         workersPool.submit(() -> {
             var completedOp = graphExecutionService.executeGraph(state);

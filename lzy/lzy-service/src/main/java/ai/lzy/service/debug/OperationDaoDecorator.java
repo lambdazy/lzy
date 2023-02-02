@@ -1,4 +1,4 @@
-package ai.lzy.service.graph.debug;
+package ai.lzy.service.debug;
 
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;

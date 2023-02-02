@@ -11,6 +11,7 @@ import ai.lzy.model.Constants;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.service.util.StorageUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.v1.VmAllocatorApi;
@@ -197,6 +198,9 @@ final class StartExecutionCompanion {
                             String channelManagerAddress, String iamAddress, String whiteboardAddress,
                             Duration allocationTimeout, Duration allocateVmCacheTimeout)
     {
+        LOG.info("Attempt to start portal for workflow execution: { wfName: {}, execId: {} }",
+            state.getWorkflowName(), state.getExecutionId());
+
         try {
             createPortalStdChannels(stdoutChannelName, stderrChannelName);
 
@@ -251,6 +255,7 @@ final class StartExecutionCompanion {
                 /* transaction */ null
             ));
 
+            InjectedFailures.fail0();
         } catch (StatusRuntimeException e) {
             LOG.error("Cannot start portal", e);
             state.fail(e.getStatus(), "Cannot start portal");
