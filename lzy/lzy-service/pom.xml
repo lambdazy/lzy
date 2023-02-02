@@ -9,6 +9,7 @@
     </parent>
 
     <artifactId>lzy-service</artifactId>
+    <version>1.1</version>
 
     <properties>
         <exec.mainClass>ai.lzy.service.App</exec.mainClass>
