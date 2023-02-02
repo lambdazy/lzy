@@ -1,6 +1,8 @@
 package ai.lzy.service.workflow;
 
+import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.service.BaseTest;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.common.LMST;
@@ -11,8 +13,12 @@ import ai.lzy.v1.workflow.LWFS;
 import com.google.common.net.HostAndPort;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.List;
@@ -28,6 +34,20 @@ import static org.junit.Assert.*;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class WorkflowTest extends BaseTest {
+    @Override
+    @Before
+    public void setUp() throws IOException, InterruptedException {
+        super.setUp();
+        InjectedFailures.reset();
+    }
+
+    @Override
+    @After
+    public void tearDown() throws java.sql.SQLException, InterruptedException, DaoException {
+        super.tearDown();
+        InjectedFailures.reset();
+    }
+
     @Test
     public void tempBucketCreationFailed() throws InterruptedException {
         shutdownStorage();
@@ -54,6 +74,95 @@ public class WorkflowTest extends BaseTest {
         var expectedErrorCode = Status.INVALID_ARGUMENT.getCode();
 
         assertEquals(expectedErrorCode, thrown.getStatus().getCode());
+    }
+
+    @Test
+    public void startExecutionFailedJustBeforePortalStarted() {
+        InjectedFailures.FAIL_LZY_SERVICE.get(9).set(() -> new InjectedFailures.TerminateException(
+            "Fail just before portal started"));
+
+        var deleteSessionFlag = new AtomicBoolean(false);
+        onDeleteSession(() -> deleteSessionFlag.set(true));
+
+        var freeVmFlag = new AtomicBoolean(false);
+        onFreeVm(() -> freeVmFlag.set(true));
+
+        var thrown = assertThrows(StatusRuntimeException.class, () ->
+            authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
+                .setWorkflowName("workflow_1").build()));
+
+        var expectedErrorCode = Status.INTERNAL.getCode();
+
+        assertEquals(expectedErrorCode, thrown.getStatus().getCode());
+        assertFalse(freeVmFlag.get());
+        assertFalse(deleteSessionFlag.get());
+    }
+
+    @Test
+    public void startExecutionFailedAfterSessionCreated() {
+        InjectedFailures.FAIL_LZY_SERVICE.get(10).set(() -> new InjectedFailures.TerminateException(
+            "Fail after session created"));
+
+        var deleteSessionFlag = new AtomicBoolean(false);
+        onDeleteSession(() -> deleteSessionFlag.set(true));
+
+        var freeVmFlag = new AtomicBoolean(false);
+        onFreeVm(() -> freeVmFlag.set(true));
+
+        var thrown = assertThrows(StatusRuntimeException.class, () ->
+            authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
+                .setWorkflowName("workflow_1").build()));
+
+        var expectedErrorCode = Status.INTERNAL.getCode();
+
+        assertEquals(expectedErrorCode, thrown.getStatus().getCode());
+        assertFalse(freeVmFlag.get());
+        assertTrue(deleteSessionFlag.get());
+    }
+
+    @Ignore("Lzy-service shutdown before portal-vm address was stored in db")
+    @Test
+    public void startExecutionFailedAfterVmRequested() {
+        InjectedFailures.FAIL_LZY_SERVICE.get(11).set(() -> new InjectedFailures.TerminateException(
+            "Fail after portal vm requested"));
+
+        var deleteSessionFlag = new AtomicBoolean(false);
+        onDeleteSession(() -> deleteSessionFlag.set(true));
+
+        var freeVmFlag = new AtomicBoolean(false);
+        onFreeVm(() -> freeVmFlag.set(true));
+
+        var thrown = assertThrows(StatusRuntimeException.class, () ->
+            authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
+                .setWorkflowName("workflow_1").build()));
+
+        var expectedErrorCode = Status.INTERNAL.getCode();
+
+        assertEquals(expectedErrorCode, thrown.getStatus().getCode());
+        assertTrue(freeVmFlag.get());
+        assertTrue(deleteSessionFlag.get());
+    }
+
+    @Test
+    public void startExecutionFailedAfterPortalStarted() {
+        InjectedFailures.FAIL_LZY_SERVICE.get(12).set(() -> new InjectedFailures.TerminateException(
+            "Fail after portal started"));
+
+        var deleteSessionFlag = new AtomicBoolean(false);
+        onDeleteSession(() -> deleteSessionFlag.set(true));
+
+        var freeVmFlag = new AtomicBoolean(false);
+        onFreeVm(() -> freeVmFlag.set(true));
+
+        var thrown = assertThrows(StatusRuntimeException.class, () ->
+            authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
+                .setWorkflowName("workflow_1").build()));
+
+        var expectedErrorCode = Status.INTERNAL.getCode();
+
+        assertEquals(expectedErrorCode, thrown.getStatus().getCode());
+        assertTrue(freeVmFlag.get());
+        assertTrue(deleteSessionFlag.get());
     }
 
     @Test
