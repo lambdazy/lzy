@@ -5,11 +5,16 @@ micronaut:
   application:
     name: lzySite
   ssl:
-    enabled: false
+    key-store:
+      path: file:/app/keystore.jks
+      type: JKS
+      enabled: true
   server:
     port: 8080
     cors:
       enabled: true
+    ssl:
+      port: 8443
 grpc:
   host: 0.0.0.0
   port: 8888
