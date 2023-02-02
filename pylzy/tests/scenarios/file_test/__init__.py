@@ -35,13 +35,6 @@ if __name__ == "__main__":
     wb_id = ""
     lzy = Lzy()
 
-    lzy_auth(
-        user="ArtoLord",
-        key_path="/Users/artolord/.ssh/private.pem",
-        endpoint="158.160.44.118:8122",
-        whiteboards_endpoint="158.160.34.24:8122"
-    )
-
     with lzy.workflow("wf", interactive=False) as wf:
         file_wb = wf.create_whiteboard(FileWb)
 
