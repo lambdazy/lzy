@@ -9,5 +9,5 @@
         <relativePath>../parent</relativePath>
     </parent>
     <artifactId>pylzy</artifactId>
-    <version>1.0.0rc8</version>
+    <version>1.0.1</version>
 </project>
