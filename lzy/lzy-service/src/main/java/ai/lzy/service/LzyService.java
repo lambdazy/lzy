@@ -12,9 +12,9 @@ import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.service.graph.GraphExecutionService;
 import ai.lzy.service.graph.GraphExecutionState;
-import ai.lzy.service.graph.debug.InjectedFailures;
 import ai.lzy.service.util.StorageUtils;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -43,9 +43,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
-import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
-import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
-import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
+import static ai.lzy.longrunning.IdempotencyUtils.*;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.v1.workflow.LWFS.*;
@@ -78,7 +76,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                       CleanExecutionCompanion cleanExecutionCompanion, LzyServiceConfig config,
                       @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                       @Named("StorageServiceChannel") ManagedChannel storageChannel
-                      /*, GarbageCollector gc */, @Named("LzyServiceServerExecutor") ExecutorService workersPool)
+        /*, GarbageCollector gc */, @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
         this.cleanExecutionCompanion = cleanExecutionCompanion;
         this.instanceId = config.getInstanceId();
@@ -286,7 +284,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        InjectedFailures.failExecuteGraph0();
+        InjectedFailures.fail0();
 
         workersPool.submit(() -> {
             var completedOp = graphExecutionService.executeGraph(state);

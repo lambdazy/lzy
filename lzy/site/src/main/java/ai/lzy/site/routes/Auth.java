@@ -5,6 +5,7 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.site.ServiceConfig;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
@@ -62,6 +63,9 @@ public class Auth {
     @Inject
     private RouteBuilder.UriNamingStrategy uriNamingStrategy;
 
+    @Inject
+    private ServiceConfig config;
+
     @Client(value = "${site.github.address}")
     @Inject
     private HttpClient githubClient;
@@ -79,7 +83,7 @@ public class Auth {
             final String loginUrl = UriBuilder.of(new URI("https://github.com/login/oauth/authorize"))
                 .queryParam("client_id", githubCredentials.getClientId())
                 .queryParam("state", siteSignInUrl)
-                .queryParam("redirect_uri", httpHostResolver.resolve(httpRequest)
+                .queryParam("redirect_uri", config.getHostname()
                     + uriNamingStrategy.resolveUri(Auth.class) + "/code/github")
                 .build().toString();
             return HttpResponse.ok(new LoginUrlResponse(loginUrl));

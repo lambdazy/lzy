@@ -6,7 +6,7 @@ import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.PortalClientProvider;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
-import ai.lzy.service.graph.debug.InjectedFailures;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -93,7 +93,7 @@ public class GraphExecutionService {
         String executionId = state.getExecutionId();
 
         try {
-            InjectedFailures.failExecuteGraph1();
+            InjectedFailures.fail1();
 
             if (state.isInvalid()) {
                 if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId,
@@ -109,7 +109,7 @@ public class GraphExecutionService {
                 LOG.debug("Validate dataflow graph, current state: " + state);
                 validator.validate(state);
 
-                InjectedFailures.failExecuteGraph2();
+                InjectedFailures.fail2();
 
                 withRetries(LOG, () -> graphDao.update(state, null));
             }
@@ -136,13 +136,13 @@ public class GraphExecutionService {
                 return operationDao.failOperation(state.getOpId(), toProto(reason), null, LOG);
             }
 
-            InjectedFailures.failExecuteGraph3();
+            InjectedFailures.fail3();
 
             if (state.getTasks() == null) {
                 LOG.debug("Building graph, current state: " + state);
                 builder.build(state, portalClient);
 
-                InjectedFailures.failExecuteGraph4();
+                InjectedFailures.fail4();
 
                 withRetries(LOG, () -> graphDao.update(state, null));
             }
@@ -161,7 +161,7 @@ public class GraphExecutionService {
             if (state.getGraphId() == null) {
                 LOG.debug("Send execute graph request to graph execution service, current state: " + state);
 
-                InjectedFailures.failExecuteGraph5();
+                InjectedFailures.fail5();
 
                 if (state.getIdempotencyKey() == null) {
                     state.setIdempotencyKey(UUID.randomUUID().toString());
@@ -192,14 +192,14 @@ public class GraphExecutionService {
 
                 state.setGraphId(executeResponse.getStatus().getGraphId());
 
-                InjectedFailures.failExecuteGraph6();
+                InjectedFailures.fail6();
 
                 withRetries(LOG, () -> graphDao.update(state, null));
             }
 
             LOG.info("Graph successfully executed, current state: " + state);
 
-            InjectedFailures.failExecuteGraph7();
+            InjectedFailures.fail7();
 
             try {
                 withRetries(LOG, () -> graphDao.save(new GraphDao.GraphDescription(
@@ -217,7 +217,7 @@ public class GraphExecutionService {
                 return operationDao.failOperation(state.getOpId(), toProto(reason), null, LOG);
             }
 
-            InjectedFailures.failExecuteGraph8();
+            InjectedFailures.fail8();
 
             var response = ExecuteGraphResponse.newBuilder()
                 .setGraphId(state.getGraphId())

@@ -11,6 +11,7 @@ import lombok.Setter;
 @ConfigurationProperties("site")
 public class ServiceConfig {
     private String schedulerAddress;
+    private String hostname = "https://lzy.ai:8443";  // Hostname to redirect github to
 
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();
