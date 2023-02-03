@@ -80,6 +80,10 @@ public class InjectedFailures {
         failAllocateVm(9);
     }
 
+    public static void failAllocateVm10() {
+        failAllocateVm(10);
+    }
+
     public static void failCreateDisk(int n) {
         failImpl(FAIL_CREATE_DISK.get(n));
     }

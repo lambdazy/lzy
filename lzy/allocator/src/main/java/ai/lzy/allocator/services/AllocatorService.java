@@ -1,23 +1,20 @@
 package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.alloc.AllocateVmAction;
-import ai.lzy.allocator.alloc.AllocatorMetrics;
-import ai.lzy.allocator.alloc.VmAllocator;
+import ai.lzy.allocator.alloc.AllocationContext;
+import ai.lzy.allocator.alloc.DeleteSessionAction;
+import ai.lzy.allocator.alloc.DeleteVmAction;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
-import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
-import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
-import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
@@ -37,6 +34,7 @@ import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -65,46 +63,52 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final OperationDao operationsDao;
     private final DiskDao diskDao;
     private final SessionDao sessionsDao;
-    private final VmAllocator allocator;
-    private final TunnelAllocator tunnelAllocator;
+    private final AllocationContext allocationContext;
     private final ServiceConfig config;
-    private final AllocatorDataSource storage;
-    private final OperationsExecutor executor;
-    private final AllocatorMetrics metrics;
-    private final SubjectServiceGrpcClient subjectClient;
 
     @Inject
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
-                            SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
-                            TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
-                            AllocatorMetrics metrics, @Named("AllocatorOperationsExecutor") OperationsExecutor executor,
-                            @Named("AllocatorSubjectServiceClient") SubjectServiceGrpcClient subjectClient)
+                            SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
+                            ServiceConfig config)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
         this.sessionsDao = sessionsDao;
         this.diskDao = diskDao;
-        this.allocator = allocator;
-        this.tunnelAllocator = tunnelAllocator;
+        this.allocationContext = allocationContext;
         this.config = config;
-        this.storage = storage;
-        this.metrics = metrics;
-        this.executor = executor;
-        this.subjectClient = subjectClient;
 
-        restoreRunningAllocations();
+        restoreRunningActions();
     }
 
-    private void restoreRunningAllocations() {
+    private void restoreRunningActions() {
         try {
-            var vms = vmDao.loadAllocatingVms(config.getInstanceId(), null);
+            var vms = allocationContext.vmDao().loadActiveVmsActions(allocationContext.selfWorkerId(), null);
             if (!vms.isEmpty()) {
-                LOG.warn("Found {} not completed allocations on allocator {}", vms.size(), config.getInstanceId());
+                LOG.warn("Found {} not completed VM actions on allocator {}",
+                    vms.size(), allocationContext.selfWorkerId());
 
-                vms.forEach(vm -> executor.submit(new AllocateVmAction(vm, storage, operationsDao, vmDao, executor,
-                    subjectClient, allocator, tunnelAllocator, metrics, true)));
+                vms.forEach(vm -> {
+                    var action = switch (vm.status()) {
+                        case ALLOCATING -> new AllocateVmAction(vm, allocationContext, true);
+                        case DELETING -> new DeleteVmAction(vm, vm.deleteState().operationId(), allocationContext);
+                        case IDLE, RUNNING -> throw new RuntimeException("Unexpected Vm state %s".formatted(vm));
+                    };
+                    allocationContext.submit(action);
+                });
             } else {
                 LOG.info("Not completed allocations weren't found.");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        try {
+            var sessions = sessionsDao.listDeleting(null);
+            if (!sessions.isEmpty()) {
+                LOG.info("Found {} not completed sessions removal", sessions.size());
+                sessions.forEach(s ->
+                    allocationContext.submit(new DeleteSessionAction(s, s.deleteOpId(), allocationContext)));
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -121,7 +125,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         if (!force) {
             shutdown();
         }
-        restoreRunningAllocations();
+        restoreRunningActions();
     }
 
     @Override
@@ -152,11 +156,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         final var minIdleTimeout = ProtoConverter.fromProto(request.getCachePolicy().getIdleTimeout());
         final var session = new Session(sessionId, request.getOwner(), request.getDescription(),
-            new CachePolicy(minIdleTimeout), operationId);
+            new CachePolicy(minIdleTimeout), operationId, null);
 
         try {
             withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     operationsDao.create(op, tx);
                     sessionsDao.create(session, tx);
                     tx.commit();
@@ -169,52 +173,70 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 return;
             }
 
-            metrics.createSessionError.inc();
+            allocationContext.metrics().createSessionError.inc();
 
             LOG.error("Cannot create session: {}", ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
 
-        metrics.activeSessions.inc();
-
         responseObserver.onNext(op.toProto());
         responseObserver.onCompleted();
     }
 
     @Override
-    public void deleteSession(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> responseObserver) {
+    public void deleteSession(DeleteSessionRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
         if (!validateRequest(request, responseObserver)) {
             return;
         }
 
-        boolean success;
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationsDao, idempotencyKey, responseObserver, LOG)) {
+            return;
+        }
+
+        Pair<Operation, DeleteSessionAction> ret;
+
         try {
-            success = withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    var session = sessionsDao.delete(request.getSessionId(), tx);
-                    if (session != null) {
-                        operationsDao.deleteCompletedOperation(session.opId(), tx);
-                        vmDao.delete(request.getSessionId(), tx);
+            ret = withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    var session = sessionsDao.get(request.getSessionId(), tx);
+                    if (session == null) {
+                        return null;
                     }
+
+                    var op = Operation.create(
+                        session.owner(),
+                        "Delete session %s".formatted(session.sessionId()),
+                        Duration.ofDays(1),
+                        new Operation.IdempotencyKey(
+                            "delete-session-%s".formatted(session.sessionId()),
+                            IdempotencyUtils.md5(request)),
+                        null);
+
+                    operationsDao.create(op, tx);
+                    sessionsDao.delete(session.sessionId(), op.id(), tx);
                     tx.commit();
-                    return session != null;
+
+                    return Pair.of(op, new DeleteSessionAction(session, op.id(), allocationContext));
                 }
             });
         } catch (Exception ex) {
-            metrics.deleteSessionError.inc();
+            allocationContext.metrics().deleteSessionError.inc();
             LOG.error("Error while executing `deleteSession` request, sessionId={}: {}",
                 request.getSessionId(), ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
 
-        if (success) {
-            metrics.activeSessions.dec();
-        }
+        if (ret != null) {
+            responseObserver.onNext(ret.getKey().toProto());
+            responseObserver.onCompleted();
 
-        responseObserver.onNext(DeleteSessionResponse.getDefaultInstance());
-        responseObserver.onCompleted();
+            allocationContext.submit(ret.getValue());
+        } else {
+            responseObserver.onError(Status.NOT_FOUND.asException());
+        }
     }
 
     @Override
@@ -236,7 +258,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 proxyV6Address = (Inet6Address) Inet6Address.getByName(request.getProxyV6Address());
             } catch (UnknownHostException e) {
                 LOG.error("Invalid proxy v6 address {} in allocate request", request.getProxyV6Address());
-                metrics.allocationError.inc();
+                allocationContext.metrics().allocationError.inc();
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
                 return;
             }
@@ -249,7 +271,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             session = withRetries(LOG, () -> sessionsDao.get(request.getSessionId(), null));
         } catch (Exception ex) {
             LOG.error("Cannot get session {}: {}", request.getSessionId(), ex.getMessage(), ex);
-            metrics.allocationError.inc();
+            allocationContext.metrics().allocationError.inc();
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
@@ -257,7 +279,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         if (session == null) {
             LOG.error("Cannot allocate, session {} not found. Request: {}",
                 request.getSessionId(), ProtoPrinter.safePrinter().shortDebugString(request));
-            metrics.allocationError.inc();
+            allocationContext.metrics().allocationError.inc();
             responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Session not found").asException());
             return;
         }
@@ -279,11 +301,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         if (proxyV6Address != null) {
             try {
-                var tunnelWl = tunnelAllocator.createRequestTunnelWorkload(
+                var tunnelWl = allocationContext.tunnelAllocator().createRequestTunnelWorkload(
                     request.getProxyV6Address(), request.getPoolLabel(), request.getZone());
                 initWorkloads.add(tunnelWl);
             } catch (InvalidConfigurationException e) {
-                metrics.allocationError.inc();
+                allocationContext.metrics().allocationError.inc();
                 LOG.error("Error while allocating tunnel for {}: {}", proxyV6Address, e.getMessage(), e);
                 responseObserver.onError(Status.INVALID_ARGUMENT
                     .withDescription("Cannot allocate tunnel for proxy %s: %s"
@@ -293,10 +315,12 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             }
         }
 
+        InjectedFailures.failAllocateVm10();
+
         Runnable allocateCont = null;
         try {
             allocateCont = withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     final var volumes = prepareVolumeRequests(request.getVolumesList(), tx);
 
                     var clusterType = switch (request.getClusterType()) {
@@ -326,7 +350,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                                 .setVmId(existingVm.vmId())
                                 .build());
 
-                        var endpoints = allocator.getVmEndpoints(existingVm.vmId(), tx);
+                        var endpoints = allocationContext.allocator().getVmEndpoints(existingVm.vmId(), tx);
 
                         var builder = AllocateResponse.newBuilder()
                             .setSessionId(existingVm.sessionId())
@@ -341,16 +365,18 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         op.setResponse(builder.build());
 
                         operationsDao.create(op, tx);
+                        sessionsDao.touch(session.sessionId(), tx);
 
                         tx.commit();
 
                         var now = Instant.now();
 
-                        metrics.allocateVmFromCache.inc();
-                        metrics.allocateFromCacheDuration.observe(Duration.between(op.createdAt(), now).getSeconds());
+                        allocationContext.metrics().allocateVmFromCache.inc();
+                        allocationContext.metrics().allocateFromCacheDuration
+                            .observe(Duration.between(op.createdAt(), now).getSeconds());
 
-                        metrics.cachedVms.labels(existingVm.poolLabel()).dec();
-                        metrics.cachedVmsTime.labels(existingVm.poolLabel())
+                        allocationContext.metrics().cachedVms.labels(existingVm.poolLabel()).dec();
+                        allocationContext.metrics().cachedVmsTime.labels(existingVm.poolLabel())
                             .inc(Duration.between(existingVm.idleState().idleSice(), now).getSeconds());
 
                         responseObserver.onNext(op.toProto());
@@ -360,11 +386,19 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                     // create new VM
 
-                    final var vmOtt = UUID.randomUUID().toString();
+                    final var vmAllocState = new Vm.AllocateState(
+                        op.id(),
+                        op.createdAt(),
+                        op.deadline(),
+                        allocationContext.selfWorkerId(),
+                        UUID.randomUUID().toString(),
+                        null,
+                        null);
+
 
                     operationsDao.create(op, tx);
-                    final var newVm = vmDao.create(vmSpec, op.id(), op.createdAt(), op.deadline(), vmOtt,
-                        config.getInstanceId(), tx);
+                    sessionsDao.touch(session.sessionId(), tx);
+                    final var newVm = vmDao.create(vmSpec, vmAllocState, tx);
 
                     var meta = Any.pack(AllocateMetadata.newBuilder()
                         .setVmId(newVm.vmId())
@@ -375,18 +409,17 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                     tx.commit();
 
-                    metrics.allocateVmNew.inc();
+                    allocationContext.metrics().allocateVmNew.inc();
 
                     // we should create this action here to inc `runningAllocation` counter before return the result
-                    var cont = new AllocateVmAction(newVm, storage, operationsDao, vmDao, executor, subjectClient,
-                        allocator, tunnelAllocator, metrics, false);
+                    var cont = new AllocateVmAction(newVm, allocationContext, false);
 
                     responseObserver.onNext(op.toProto());
                     responseObserver.onCompleted();
 
                     return cont;
                 } catch (StatusException e) {
-                    metrics.allocationError.inc();
+                    allocationContext.metrics().allocationError.inc();
                     responseObserver.onError(e);
                     return null;
                 }
@@ -398,7 +431,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 return;
             }
 
-            metrics.allocationError.inc();
+            allocationContext.metrics().allocationError.inc();
             LOG.error("Cannot create allocate vm operation for session {}: {}",
                 request.getSessionId(), ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
@@ -406,7 +439,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         if (allocateCont != null) {
             InjectedFailures.failAllocateVm0();
-            executor.submit(allocateCont);
+            allocationContext.submit(allocateCont);
         }
     }
 
@@ -419,7 +452,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             status = withRetries(
                 LOG,
                 () -> {
-                    try (var tx = TransactionHandle.create(storage)) {
+                    try (var tx = TransactionHandle.create(allocationContext.storage())) {
                         var vm = vmDao.get(request.getVmId(), tx);
                         if (vm == null) {
                             LOG.error("Cannot find vm {}", request.getVmId());
@@ -447,8 +480,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         LOG.info("VM {} released to session {} cache until {}",
                             vm.vmId(), vm.sessionId(), cacheDeadline);
 
-                        metrics.runningVms.labels(vm.poolLabel()).dec();
-                        metrics.cachedVms.labels(vm.poolLabel()).inc();
+                        allocationContext.metrics().runningVms.labels(vm.poolLabel()).dec();
+                        allocationContext.metrics().cachedVms.labels(vm.poolLabel()).inc();
 
                         return Status.OK;
                     }
@@ -527,7 +560,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         return true;
     }
 
-    private static boolean validateRequest(DeleteSessionRequest request, StreamObserver<DeleteSessionResponse> resp) {
+    private static boolean validateRequest(DeleteSessionRequest request, StreamObserver<LongRunning.Operation> resp) {
         if (request.getSessionId().isBlank()) {
             resp.onError(Status.INVALID_ARGUMENT.withDescription("session_id not set").asException());
             return false;

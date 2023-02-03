@@ -1,5 +1,6 @@
 package ai.lzy.longrunning;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -19,7 +20,7 @@ public final class OperationsExecutor extends ScheduledThreadPoolExecutor {
 
             @Override
             public Thread newThread(Runnable r) {
-                var th = new Thread(r, "executor-" + counter.getAndIncrement());
+                var th = new Thread(r, "operations-executor-" + counter.getAndIncrement());
                 th.setUncaughtExceptionHandler((t, e) -> {
                     onError.run();
                     LOG.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e);
@@ -57,7 +58,7 @@ public final class OperationsExecutor extends ScheduledThreadPoolExecutor {
         }
         if (t != null) {
             onError.run();
-            LOG.error("Unexpected exception: {}", t.getMessage(), t);
+            LOG.error("Unexpected exception {}: {}", t.getClass().getSimpleName(), t.getMessage(), t);
         }
     }
 
@@ -79,5 +80,20 @@ public final class OperationsExecutor extends ScheduledThreadPoolExecutor {
             LOG.error("Graceful termination interrupted, tasks in queue: {}, running tasks: {}.",
                 getQueue().size(), getActiveCount());
         }
+    }
+
+    @VisibleForTesting
+    public void dropAll() {
+        LOG.info("Drop all tasks");
+
+        getQueue().clear();
+
+//        try {
+//            var m = ThreadPoolExecutor.class.getDeclaredMethod("interruptWorkers");
+//            m.setAccessible(true);
+//            m.invoke(this);
+//        } catch (Exception e) {
+//            throw new RuntimeException(e);
+//        }
     }
 }

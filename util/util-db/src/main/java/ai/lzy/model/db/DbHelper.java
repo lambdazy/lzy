@@ -112,12 +112,12 @@ public enum DbHelper {
             }
             var delay = nextDelay;
             nextDelay *= coeff;
-            return delay;
+            return delay + (int) ((delay / 5) * (Math.random() - 0.5));
         }
     }
 
     public static RetryPolicy defaultRetryPolicy() {
-        return new DefaultRetryPolicy(3, 50, 2);
+        return new DefaultRetryPolicy(10, 50, 2);
     }
 
     public static final class RetryCountExceededException extends Exception {
