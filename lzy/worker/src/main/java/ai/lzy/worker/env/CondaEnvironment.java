@@ -31,9 +31,9 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private final PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
-    private final String localModulesDir;
     private final String envName;
     private final String resourcesPath;
+    private final String localModulesPath;
 
     @VisibleForTesting
     public static void reconfigureConda(boolean reconfigure) {
@@ -43,13 +43,14 @@ public class CondaEnvironment implements AuxEnvironment {
     public CondaEnvironment(
         PythonEnv pythonEnv,
         BaseEnvironment baseEnv,
-        String resourcesPath
+        String resourcesPath,
+        String localModulesPath
     )
     {
         this.resourcesPath = resourcesPath;
+        this.localModulesPath = localModulesPath;
         this.pythonEnv = pythonEnv;
         this.baseEnv = baseEnv;
-        this.localModulesDir = Path.of("/", "tmp", "local_modules" + UUID.randomUUID()).toString();
 
         var yaml = new Yaml();
         Map<String, Object> data = yaml.load(pythonEnv.yaml());
@@ -82,7 +83,7 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     private String localModulesDirectoryAbsolutePath() {
-        return localModulesDir;
+        return Path.of(localModulesPath).toAbsolutePath().toString();
     }
 
     public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
