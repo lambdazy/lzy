@@ -29,6 +29,7 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -248,7 +249,7 @@ public class KuberVmAllocator implements VmAllocator {
         return client.pods()
                 .inNamespace(namespace)
                 .list(new ListOptionsBuilder()
-                        .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
+                        .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId.toLowerCase(Locale.ROOT))
                         .build()
                 ).getItems();
     }
@@ -280,7 +281,7 @@ public class KuberVmAllocator implements VmAllocator {
         try (final var client = factory.build(credentials)) {
             List<StatusDetails> statusDetails = client.pods()
                 .inNamespace(ns)
-                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId)
+                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId.toLowerCase(Locale.ROOT))
                 .delete();
             if (statusDetails.isEmpty()) {
                 LOG.warn("No delete status details were provided by k8s client after deleting pods with vm {}", vmId);
