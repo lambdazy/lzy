@@ -6,7 +6,6 @@ micronaut:
     name: lzySite
   ssl:
     key-store:
-      path: file:/app/keystore.jks
       type: JKS
       enabled: true
   server:

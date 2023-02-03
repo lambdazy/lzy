@@ -3,6 +3,8 @@ micronaut:
     name: lzySite
   ssl:
     enabled: false
+    key-store:
+      enabled: false
   server:
     port: 9090
     cors:
