@@ -10,6 +10,8 @@ public interface TunnelAllocator {
      */
     String allocateTunnel(Vm.Spec vmSpec) throws InvalidConfigurationException;
 
+    void deallocateTunnel(String podName);
+
     Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone)
         throws InvalidConfigurationException;
 }

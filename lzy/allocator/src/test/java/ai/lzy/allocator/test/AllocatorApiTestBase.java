@@ -7,6 +7,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.AllocatorGrpc;
@@ -18,25 +19,29 @@ import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
 import io.fabric8.kubernetes.api.model.*;
-import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import okhttp3.mockwebserver.MockWebServer;
 import org.junit.Assert;
 import org.junit.Rule;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -58,7 +63,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         .formatted(NAMESPACE_VALUE);
     protected static final ClusterRegistry.ClusterType CLUSTER_TYPE = ClusterRegistry.ClusterType.User;
 
-
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
@@ -71,17 +75,18 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceApiBlockingStub;
     protected DiskServiceGrpc.DiskServiceBlockingStub diskService;
     protected AllocatorMain allocatorApp;
-    protected KubernetesServer kubernetesServer;
+    protected KubernetesMockServer kubernetesServer;
     protected ManagedChannel channel;
     protected ClusterRegistry clusterRegistry;
+    protected OperationsExecutor operationsExecutor;
 
     protected void updateStartupProperties(Map<String, Object> props) {}
 
     protected void setUp() throws IOException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
 
-        kubernetesServer = new KubernetesServer();
-        kubernetesServer.before();
+        kubernetesServer = new KubernetesMockServer(new MockWebServer(), new ConcurrentHashMap<>(), false);
+        kubernetesServer.init(InetAddress.getLoopbackAddress(), 0);
         kubernetesServer.expect().post().withPath("/api/v1/pods")
             .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
 
@@ -107,7 +112,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         allocatorCtx = ApplicationContext.run(props);
         ((MockKuberClientFactory) allocatorCtx.getBean(KuberClientFactory.class)).setClientSupplier(
-            () -> kubernetesServer.getKubernetesMockServer().createClient()
+            () -> kubernetesServer.createClient()
         );
 
         var config = allocatorCtx.getBean(ServiceConfig.class);
@@ -131,6 +136,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             () -> credentials.get().token());
 
         clusterRegistry = allocatorCtx.getBean(ClusterRegistry.class);
+        operationsExecutor = allocatorCtx.getBean(OperationsExecutor.class,
+            Qualifiers.byName("AllocatorOperationsExecutor"));
     }
 
     protected void tearDown() {
@@ -151,7 +158,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         allocatorCtx.getBean(AllocatorDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
 
         allocatorCtx.stop();
-        kubernetesServer.after();
+        kubernetesServer.destroy();
         super.after();
     }
 
@@ -191,7 +198,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
         Assert.assertFalse(updatedOperation.hasResponse());
         Assert.assertTrue(updatedOperation.hasError());
-        Assert.assertEquals(expectedErrorStatus.getCode().value(), updatedOperation.getError().getCode());
+        Assert.assertEquals(expectedErrorStatus.getCode(),
+            Status.fromCodeValue(updatedOperation.getError().getCode()).getCode());
     }
 
     protected void mockGetPod(String podName) {
@@ -227,6 +235,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
                 return true;
             } catch (StatusRuntimeException e) {
                 if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
+                    System.err.println("Fail to register VM %s: %s".formatted(vmId, e.getStatus().toString()));
                     return false;
                 }
                 throw new RuntimeException(e);
@@ -281,7 +290,9 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return future;
     }
 
-    protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete, int responseCode) {
+    protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete,
+                                                   int responseCode)
+    {
         kubernetesServer.expect().delete()
             .withPath(resourcePath + "/" + resourceName)
             .andReply(responseCode, (req) -> {

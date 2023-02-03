@@ -16,6 +16,13 @@ public class DummyTunnelAllocator implements TunnelAllocator {
     }
 
     @Override
+    public void deallocateTunnel(String podName) {
+        throw new UnsupportedOperationException(
+            "ks8 tunnel allocator needs property allocator.kuber-tunnel-allocator.enabled=true"
+        );
+    }
+
+    @Override
     public Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone) {
         throw new UnsupportedOperationException(
             "ks8 tunnel allocator needs property allocator.kuber-tunnel-allocator.enabled=true"

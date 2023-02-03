@@ -151,14 +151,14 @@ public class BaseTest {
     @After
     public void tearDown() throws SQLException, InterruptedException, DaoException {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
-        iamTestContext.after();
-        allocatorTestContext.after();
-        graphExecutorTestContext.after();
-        storageTestContext.after();
-        channelManagerTestContext.after();
         lzyServiceChannel.shutdown();
         lzyServer.shutdown();
         lzyServer.awaitTermination();
+        graphExecutorTestContext.after();
+        channelManagerTestContext.after();
+        allocatorTestContext.after();
+        storageTestContext.after();
+        iamTestContext.after();
         context.stop();
     }
 

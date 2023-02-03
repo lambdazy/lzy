@@ -26,7 +26,12 @@ service Allocator {
   }
 
   // Delete allocation session and all resources
-  rpc DeleteSession (DeleteSessionRequest) returns (DeleteSessionResponse);
+  rpc DeleteSession (DeleteSessionRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "DeleteSessionResponse"
+    };
+  }
 
   rpc Allocate (AllocateRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
