@@ -10,7 +10,7 @@ import javax.annotation.Nullable;
 
 public interface VmAllocator {
 
-    class AllocateResult {
+    class Result {
         public enum Code {
             SUCCESS,
             RETRY_LATER,
@@ -20,11 +20,11 @@ public interface VmAllocator {
         private final Code code;
         private final String reason;
 
-        public static final AllocateResult SUCCESS = new AllocateResult(Code.SUCCESS, "");
-        public static final AllocateResult RETRY_LATER = new AllocateResult(Code.RETRY_LATER, "");
-        public static final AllocateResult FAILED = new AllocateResult(Code.FAILED, "");
+        public static final Result SUCCESS = new Result(Code.SUCCESS, "");
+        public static final Result RETRY_LATER = new Result(Code.RETRY_LATER, "");
+        public static final Result FAILED = new Result(Code.FAILED, "");
 
-        private AllocateResult(Code code, String reason) {
+        private Result(Code code, String reason) {
             this.code = code;
             this.reason = reason;
         }
@@ -37,8 +37,8 @@ public interface VmAllocator {
             return reason;
         }
 
-        public AllocateResult withReason(String reason) {
-            return new AllocateResult(code, reason);
+        public Result withReason(String reason) {
+            return new Result(code, reason);
         }
     }
 
@@ -47,15 +47,15 @@ public interface VmAllocator {
      *
      * @throws InvalidConfigurationException on invalid spec
      */
-    AllocateResult allocate(Vm vm) throws InvalidConfigurationException;
+    Result allocate(Vm.Ref vmRef) throws InvalidConfigurationException;
 
     /**
      * Idempotent operation to destroy vm
      * If vm is not allocated, does nothing
      *
-     * @param vmId of vm to deallocate
+     * @param vm vm to deallocate
      */
-    void deallocate(String vmId);
+    Result deallocate(Vm vm);
 
     /**
      * Get endpoints of vm to connect to it

@@ -13,6 +13,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.HttpURLConnection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -264,7 +265,11 @@ public class KuberVolumeManager implements VolumeManager {
             client.persistentVolumes().withName(volumeName).delete();
             LOG.info("Persistent volume {} successfully deleted", volumeName);
         } catch (KubernetesClientException e) {
-            LOG.error("Could not delete resource: {}", e.getMessage(), e);
+            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                LOG.warn("Persistent volume {} not found", volumeName);
+            } else {
+                LOG.error("Cannot delete persistent volume {}: {}", volumeName, e.getMessage(), e);
+            }
         }
     }
 
@@ -275,7 +280,11 @@ public class KuberVolumeManager implements VolumeManager {
             client.persistentVolumeClaims().inNamespace(DEFAULT_NAMESPACE).withName(volumeClaimName).delete();
             LOG.info("Volume claim {} successfully deleted", volumeClaimName);
         } catch (KubernetesClientException e) {
-            LOG.error("Could not delete resource: {}", e.getMessage(), e);
+            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                LOG.warn("Persistent volume claim {} not found", volumeClaimName);
+            } else {
+                LOG.error("Cannot delete persistent volume claim {}: {}", volumeClaimName, e.getMessage(), e);
+            }
         }
     }
 }

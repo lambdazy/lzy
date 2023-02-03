@@ -1,13 +1,13 @@
 package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.alloc.dao.VmDao;
-import ai.lzy.allocator.gc.GarbageCollector;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.TextFormat;
@@ -23,9 +23,11 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 
 import static java.util.Objects.requireNonNull;
@@ -46,15 +48,6 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         InjectedFailures.reset();
     }
 
-    @Override
-    protected void updateStartupProperties(Map<String, Object> props) {
-        props.put("allocator.allocation-timeout", "10m");
-        props.put("allocator.gc.initial-delay", "100m");
-        props.put("allocator.gc.cleanup-period", "100m");
-        props.put("allocator.gc.lease-duration", "1000m");
-        props.put("allocator.gc.graceful-shutdown-duration", "0s");
-    }
-
     private record AllocVm(
         String vmId,
         String allocOpId
@@ -65,9 +58,12 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         var vm = vmDao.get(x.vmId, null);
         Assert.assertNull(vm);
 
+        Assert.assertTrue(vmDao.hasDeadVm(x.vmId));
+
         var operationsDao = allocatorCtx.getBean(OperationDao.class);
         var allocOp = operationsDao.get(x.allocOpId, null);
-        Assert.assertNull(allocOp);
+        Assert.assertEquals(Status.CANCELLED.getCode(),
+            Status.fromCodeValue(allocOp.error().getCode().value()).getCode());
 
         var vmIamSubject = allocatorCtx.getBean(SubjectServiceGrpcClient.class)
             .findSubject(AuthProvider.INTERNAL, x.vmId, SubjectType.VM);
@@ -80,7 +76,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
 
         InjectedFailures.FAIL_ALLOCATE_VMS.get(0).set(waitOn(latch));
 
-        var vm = allocateImpl((__, op) -> {
+        final var vm = allocateImpl((__, op) -> {
             var resp = operationServiceApiBlockingStub.cancel(
                 LongRunning.CancelOperationRequest.newBuilder()
                     .setOperationId(op.getId())
@@ -90,7 +86,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
             return false;
         });
 
-        allocatorCtx.getBean(GarbageCollector.class).forceRun();
+        waitVm(vm);
         assertVmCleaned(vm);
     }
 
@@ -110,7 +106,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
             return true;
         });
 
-        allocatorCtx.getBean(GarbageCollector.class).forceRun();
+        waitVm(vm);
         assertVmCleaned(vm);
     }
 
@@ -130,7 +126,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
             return false;
         });
 
-        allocatorCtx.getBean(GarbageCollector.class).forceRun();
+        waitVm(vm);
         assertVmCleaned(vm);
     }
 
@@ -150,7 +146,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
             return true;
         });
 
-        allocatorCtx.getBean(GarbageCollector.class).forceRun();
+        waitVm(vm);
         assertVmCleaned(vm);
     }
 
@@ -185,7 +181,10 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
         if (action.apply(vmId, allocOp)) {
+            System.err.println("--> do restart ...");
+            operationsExecutor.dropAll();
             allocatorCtx.getBean(AllocatorService.class).testRestart(false);
+            System.err.println("--> restart done");
         }
 
         allocOp = operationServiceApiBlockingStub.get(
@@ -200,6 +199,8 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
             return new AllocVm(vmId, allocOp.getId());
         }
 
+        Assert.fail();
+
         final String podName = createdPod.get();
         mockGetPod(podName);
 
@@ -210,6 +211,18 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
 
         return new AllocVm(vmId, allocOp.getId());
+    }
+
+    private void waitVm(AllocVm vm) {
+        var done = TimeUtils.waitFlagUp(() -> {
+            var vmDao = allocatorCtx.getBean(VmDao.class);
+            try {
+                return vmDao.get(vm.vmId, null) == null;
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }, 5, TimeUnit.SECONDS);
+        Assert.assertTrue(done);
     }
 
     private static Runnable waitOn(CountDownLatch latch) {

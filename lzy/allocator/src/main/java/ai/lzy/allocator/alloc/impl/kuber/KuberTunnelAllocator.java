@@ -86,6 +86,11 @@ public class KuberTunnelAllocator implements TunnelAllocator {
         }
     }
 
+    @Override
+    public void deallocateTunnel(String podName) {
+        LOG.error("--> TODO: delete tunnel " + podName);
+    }
+
     /**
      * Constructs the {@link Workload}, which will request tunnel creation to the tunnel pod,
      * who must be created by the {@link KuberTunnelAllocator#allocateTunnel(Vm.Spec)} method.
@@ -124,9 +129,5 @@ public class KuberTunnelAllocator implements TunnelAllocator {
             Map.of(),
             List.of()
         );
-    }
-
-    public void deallocateTunnel() {
-        // TODO:
     }
 }
