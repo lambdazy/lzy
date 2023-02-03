@@ -1,6 +1,7 @@
 __package__ = None
 
 import os
+import sys
 from pathlib import Path
 from unittest import TestCase
 
@@ -29,7 +30,8 @@ class ModulesSearchTests(TestCase):
 
         # Assert
         self.assertEqual("echo", level1.echo())
-        self.assertEqual(3, len(local_modules_path))
+        self.assertEqual(3 if sys.version_info < (3, 10) else 2,
+                         len(local_modules_path))  # typing extensions is a standard module starting from 3.10
 
         for local in local_modules_path:
             prefix = sys_path_parent(local)
@@ -56,7 +58,8 @@ class ModulesSearchTests(TestCase):
         directory = os.path.abspath(os.path.join(os.getcwd(), os.pardir))
 
         # noinspection DuplicatedCode
-        self.assertEqual(2, len(local_modules_path))
+        self.assertEqual(2 if sys.version_info < (3, 10) else 1,
+                         len(local_modules_path))  # typing extensions is a standard module starting from 3.10
         for local in local_modules_path:
             prefix = sys_path_parent(local)
             path = (Path(local).relative_to(prefix))
