@@ -151,7 +151,7 @@ class WorkflowServiceClient:
         )
         exec_id = res.executionId
 
-        if res.HasField("internalSnapshotStorage"):
+        if res.internalSnapshotStorage is not None and res.internalSnapshotStorage.uri != "":
             return exec_id, _create_storage_endpoint(res.internalSnapshotStorage)
 
         return exec_id, None

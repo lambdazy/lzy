@@ -6,14 +6,15 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.UUID;
 import java.util.function.Supplier;
 
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
     private static Supplier<Environment> envForTests = null;
 
-    private String defaultImage;
-    private boolean isDockerSupported;
+    private final String defaultImage;
+    private final boolean isDockerSupported;
 
     public EnvironmentFactory(String defaultImage) {
         this.defaultImage = defaultImage;
@@ -28,6 +29,7 @@ public class EnvironmentFactory {
         }
 
         final String resourcesPathStr = "/tmp/resources/";
+        final String localModulesPathStr = "/tmp/local_modules/";
 
         final BaseEnvironment baseEnv;
         if (isDockerSupported && env.baseEnv() != null) {
@@ -36,6 +38,7 @@ public class EnvironmentFactory {
             BaseEnvConfig config = BaseEnvConfig.newBuilder()
                 .image((image == null || image.equals("default")) ? defaultImage : image)
                 .addMount(resourcesPathStr, resourcesPathStr)
+                .addMount(localModulesPathStr, localModulesPathStr)
                 .addRsharedMount(fsRoot, fsRoot)
                 .build();
             baseEnv = new DockerEnvironment(config);
@@ -51,7 +54,7 @@ public class EnvironmentFactory {
 
         if (env.auxEnv() instanceof PythonEnv) {
             LOG.info("Conda auxEnv provided, using CondaEnvironment");
-            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, resourcesPathStr);
+            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, resourcesPathStr, localModulesPathStr);
         } else {
             LOG.info("No auxEnv provided, using SimpleBashEnvironment");
             return new SimpleBashEnvironment(baseEnv);

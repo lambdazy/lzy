@@ -3,7 +3,8 @@ ARG WORKER_BASE_TAG
 FROM ${REGISTRY}/worker-base:${WORKER_BASE_TAG}
 
 RUN mkdir -p /tmp/lzy-log/worker \
-    && mkdir -p /tmp/resources
+    && mkdir -p /tmp/resources \
+    && mkdir -p /tmp/local_modules
 
 COPY docker/tmp-for-context/pylzy/ pylzy
 RUN ./conda_prepare.sh pylzy_install 'pylzy'
