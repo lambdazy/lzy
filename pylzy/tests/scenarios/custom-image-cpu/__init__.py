@@ -1,18 +1,18 @@
 import os
 
 from lzy.api.v1 import Lzy, op
-from local import two
+from localq import two
 
 
 @op
 def check_env_var_default_image() -> str:
-    print("op1: " + two())
+    print("op1: " + str(two()))
     return os.environ["CUSTOM_ENV"]
 
 
 @op(docker_image="lzydock/user-test:custom-1")
 def check_env_var_custom_image() -> str:
-    print("op2: " + two())
+    print("op2: " + str(two()))
     return os.environ["CUSTOM_ENV"]
 
 
