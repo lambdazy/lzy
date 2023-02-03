@@ -84,7 +84,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                         if (vm.status() != Vm.Status.ALLOCATING) {
                             allocationContext.metrics().registerFail.inc();
                             LOG.error("Wrong status of vm while register, expected ALLOCATING: {}", vm);
-                            return Status.FAILED_PRECONDITION;
+                            return Status.FAILED_PRECONDITION.withDescription("Unexpected VM status " + vm.status());
                         }
 
                         final var op = allocationContext.operationsDao().get(vm.allocOpId(), transaction);
