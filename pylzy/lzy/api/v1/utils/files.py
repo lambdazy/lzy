@@ -2,21 +2,23 @@ import hashlib
 import os
 import sys
 from io import BytesIO
-from itertools import chain
 from pathlib import Path
 from typing import Optional
 from zipfile import ZipFile
-import site
 
 
-def zip_module(path: str, zipfile: ZipFile):
-    relative_to: Optional[str] = None
+def sys_path_parent(path: str) -> Optional[str]:
+    prefix: Optional[str] = None
     module_parent_dir = str(Path(path).parent)
     for relative in sys.path:
         if relative == module_parent_dir:
-            relative_to = relative
+            prefix = relative
             break
+    return prefix
 
+
+def zip_module(path: str, zipfile: ZipFile):
+    relative_to: Optional[str] = sys_path_parent(path)
     if relative_to is None:
         raise ValueError(f'Unexpected local module location: {path}')
 

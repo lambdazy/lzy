@@ -6,6 +6,7 @@ import tempfile
 import zipfile
 from asyncio import Task
 from io import BytesIO
+from pathlib import Path
 from typing import (
     Callable,
     Dict,
@@ -42,7 +43,7 @@ from lzy.api.v1.runtime import (
 )
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.conda import generate_conda_yaml
-from lzy.api.v1.utils.files import fileobj_hash, zip_module
+from lzy.api.v1.utils.files import fileobj_hash, zip_module, sys_path_parent
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_color
@@ -199,8 +200,11 @@ class RemoteRuntime(Runtime):
 
             with tempfile.NamedTemporaryFile("rb") as archive:
                 if not os.path.isdir(local_module):
+                    prefix = sys_path_parent(local_module)
+                    if prefix is None:
+                        raise RuntimeError(f'Invalid local module path {local_module}')
                     with zipfile.ZipFile(archive.name, "w") as z:
-                        z.write(local_module, os.path.relpath(local_module))
+                        z.write(local_module, (Path(local_module).relative_to(prefix)))
                 else:
                     with zipfile.ZipFile(archive.name, "w") as z:
                         zip_module(local_module, z)
