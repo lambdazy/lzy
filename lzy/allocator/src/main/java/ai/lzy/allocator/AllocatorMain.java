@@ -110,13 +110,20 @@ public class AllocatorMain {
     public void destroyAll() throws SQLException {
         LOG.info("Deallocating all vms");
         final var vms = allocationContext.vmDao().listAlive();
-        var ops = vms.stream().map(vm -> {
-            try {
-                return allocationContext.submitDeleteVmAction(vm, "Force clean", LOG);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        });
+        var ops = vms.stream()
+            .map(vm -> {
+                switch (vm.status()) {
+                    case ALLOCATING, DELETING -> { return null; }
+                    case RUNNING, IDLE -> { }
+                }
+                try {
+                    return allocationContext.submitDeleteVmAction(vm, "Force clean", LOG);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            })
+            .filter(Objects::nonNull)
+            .toList();
 
         ops.forEach(opId -> {
             while (true) {

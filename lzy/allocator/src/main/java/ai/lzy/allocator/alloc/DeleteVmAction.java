@@ -129,8 +129,9 @@ public final class DeleteVmAction extends OperationRunnerBase {
                     log().warn("{} IAM subject {} not found", logPrefix(), vmSubjectId);
                     iamSubjectDeleted = true;
                 } else {
-                    log().error("{} Error during deleting IAM subject {}: {}",
+                    log().error("{} Error during deleting IAM subject {}: {}. Retry later...",
                         logPrefix(), vmSubjectId, e.getMessage());
+                    return StepResult.RESTART;
                 }
             }
         }
