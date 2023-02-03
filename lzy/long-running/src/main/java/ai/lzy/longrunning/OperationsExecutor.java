@@ -85,15 +85,6 @@ public final class OperationsExecutor extends ScheduledThreadPoolExecutor {
     @VisibleForTesting
     public void dropAll() {
         LOG.info("Drop all tasks");
-
         getQueue().clear();
-
-//        try {
-//            var m = ThreadPoolExecutor.class.getDeclaredMethod("interruptWorkers");
-//            m.setAccessible(true);
-//            m.invoke(this);
-//        } catch (Exception e) {
-//            throw new RuntimeException(e);
-//        }
     }
 }
