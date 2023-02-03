@@ -31,6 +31,7 @@ public class AllocatorContext {
         this.address = HostAndPort.fromParts("localhost", port);
 
         Utils.createFolder(Path.of("/tmp/resources"));
+        Utils.createFolder(Path.of("/tmp/local_modules"));
         final var opts = Utils.createModuleDatabase("allocator");
         opts.putAll(new HashMap<String, Object>(Map.of(
             "allocator.instance-id", "xxx",

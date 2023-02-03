@@ -1,7 +1,5 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.logs.MetricEvent;
-import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.model.graph.PythonEnv;
 import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
@@ -33,7 +31,9 @@ public class CondaEnvironment implements AuxEnvironment {
     private final BaseEnvironment baseEnv;
     private final String envName;
     private final String resourcesPath;
-    private final String localModulesPath;
+    private final String localModulesPathPrefix;
+
+    private Path localModulesAbsolutePath = null;
 
     @VisibleForTesting
     public static void reconfigureConda(boolean reconfigure) {
@@ -48,7 +48,7 @@ public class CondaEnvironment implements AuxEnvironment {
     )
     {
         this.resourcesPath = resourcesPath;
-        this.localModulesPath = localModulesPath;
+        this.localModulesPathPrefix = localModulesPath;
         this.pythonEnv = pythonEnv;
         this.baseEnv = baseEnv;
 
@@ -80,10 +80,6 @@ public class CondaEnvironment implements AuxEnvironment {
         try (ZipFile zipFile = new ZipFile(file.getAbsolutePath())) {
             zipFile.extractAll(destinationDirectory);
         }
-    }
-
-    private String localModulesDirectoryAbsolutePath() {
-        return Path.of(localModulesPath).toAbsolutePath().toString();
     }
 
     public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
@@ -137,14 +133,17 @@ public class CondaEnvironment implements AuxEnvironment {
                 }
             }
 
-            File directory = new File(localModulesDirectoryAbsolutePath());
-            boolean created = directory.mkdirs();
-            if (!created) {
+            Path localModulesPath = Path.of(this.localModulesPathPrefix, UUID.randomUUID().toString());
+            try {
+                Files.createDirectories(localModulesPath);
+            } catch (IOException e) {
                 String errorMessage = "Failed to create directory to download local modules into;\n"
-                    + "  Directory name: " + localModulesDirectoryAbsolutePath() + "\n";
+                    + "  Directory name: " + localModulesPath + "\n";
                 LOG.error(errorMessage);
                 throw new EnvironmentInstallationException(errorMessage);
             }
+            this.localModulesAbsolutePath = localModulesPath.toAbsolutePath();
+
             LOG.info("CondaEnvironment::installPyenv created directory to download local modules into");
             for (var entry : pythonEnv.localModules()) {
                 String name = entry.name();
@@ -158,7 +157,7 @@ public class CondaEnvironment implements AuxEnvironment {
                     Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 }
 
-                extractFiles(tempFile, localModulesDirectoryAbsolutePath());
+                extractFiles(tempFile, localModulesAbsolutePath.toString());
                 tempFile.deleteOnExit();
             }
         } catch (IOException e) {
@@ -187,7 +186,7 @@ public class CondaEnvironment implements AuxEnvironment {
     @Override
     public LzyProcess runProcess(String[] command, String[] envp) {
         List<String> envList = new ArrayList<>();
-        envList.add("LOCAL_MODULES=" + localModulesDirectoryAbsolutePath());
+        envList.add("LOCAL_MODULES=" + localModulesAbsolutePath);
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));
         }

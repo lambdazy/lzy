@@ -29,7 +29,7 @@ public class EnvironmentFactory {
         }
 
         final String resourcesPathStr = "/tmp/resources/";
-        final String localModulesPathStr = "/tmp/local-modules-" + UUID.randomUUID();
+        final String localModulesPathStr = "/tmp/local_modules/";
 
         final BaseEnvironment baseEnv;
         if (isDockerSupported && env.baseEnv() != null) {
