@@ -11,7 +11,6 @@ import com.google.protobuf.Any;
 import com.google.protobuf.Empty;
 import io.grpc.Status;
 
-import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Supplier;
 
