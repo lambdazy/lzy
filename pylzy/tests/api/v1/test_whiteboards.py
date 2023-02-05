@@ -437,7 +437,7 @@ class WhiteboardTests(TestCase):
     def test_union(self):
         @whiteboard(name="union_wb")
         @dataclass
-        class OptionalWb:
+        class UnionWb:
             field: Union[int, List[int]]
 
         @op
@@ -445,16 +445,50 @@ class WhiteboardTests(TestCase):
             return [1, 2, 3]
 
         with self.lzy.workflow(self.workflow_name) as wf:
-            wb_int = wf.create_whiteboard(OptionalWb)
+            wb_int = wf.create_whiteboard(UnionWb)
             wb_int.field = func()
 
-            wb_list_local = wf.create_whiteboard(OptionalWb)
+            wb_list_local = wf.create_whiteboard(UnionWb)
             wb_list_local.field = [1, 2, 3]
 
-            wb_op_list = wf.create_whiteboard(OptionalWb)
+            wb_op_list = wf.create_whiteboard(UnionWb)
             # noinspection PyNoneFunctionAssignment
             wb_op_list.field = returns_union()
 
         self.assertEqual(42, self.lzy.whiteboard(id_=wb_int.id).field)
         self.assertEqual([1, 2, 3], self.lzy.whiteboard(id_=wb_list_local.id).field)
         self.assertEqual([1, 2, 3], self.lzy.whiteboard(id_=wb_op_list.id).field)
+
+    def test_list(self):
+        @whiteboard(name="list_wb")
+        @dataclass
+        class ListWb:
+            field: List[int]
+
+        @op
+        def returns_list_int() -> List[int]:
+            return [1, 2, 3]
+
+        @op
+        def returns_list_str() -> List[str]:
+            return ["1", "2", "3"]
+
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb = wf.create_whiteboard(ListWb)
+            wb.field = returns_list_int()
+        self.assertEqual([1, 2, 3], self.lzy.whiteboard(id_=wb.id).field)
+
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb = wf.create_whiteboard(ListWb)
+            wb.field = [1, 2, 3]
+        self.assertEqual([1, 2, 3], self.lzy.whiteboard(id_=wb.id).field)
+
+        with self.assertRaises(TypeError):
+            with self.lzy.workflow(self.workflow_name) as wf:
+                wb = wf.create_whiteboard(ListWb)
+                wb.field = returns_list_str()
+
+        with self.assertRaises(TypeError):
+            with self.lzy.workflow(self.workflow_name) as wf:
+                wb = wf.create_whiteboard(ListWb)
+                wb.field = ["1", "2", "3"]

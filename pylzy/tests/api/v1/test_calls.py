@@ -377,3 +377,14 @@ class LzyCallsTests(TestCase):
         with self.assertRaisesRegex(ValueError, "Invalid workflow name. Name can contain only"):
             with self.lzy.workflow("test test"):
                 pass
+
+    def test_invalid_list_type(self):
+        # noinspection PyUnusedLocal
+        @op
+        def accept_list(lst: List[int]) -> None:
+            pass
+
+        with self.assertRaises(TypeError):
+            with self.lzy.workflow("test"):
+                # noinspection PyTypeChecker
+                accept_list(["a", "b", "c"])
