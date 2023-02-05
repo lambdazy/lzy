@@ -71,9 +71,9 @@ def check_types_serialization_compatible(annotation: Type, typ: Type, registry: 
 
 def is_subtype(subtype: Type, supertype: Type) -> bool:
     if subtype == List[EmptyContent]:
-        subtype = supertype if is_subhint(supertype, List) else List
+        subtype = supertype if is_subhint(supertype, List) else List  # type: ignore
     elif subtype == Tuple[EmptyContent]:
-        subtype = supertype if is_subhint(supertype, Tuple) else Tuple
+        subtype = supertype if is_subhint(supertype, Tuple) else Tuple  # type: ignore
     elif subtype == Dict[EmptyContent, EmptyContent]:
         subtype = Dict if is_subhint(supertype, Dict) else Dict
     return is_subhint(subtype, supertype)
