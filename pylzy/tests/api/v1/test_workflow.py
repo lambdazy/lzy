@@ -1,15 +1,15 @@
 import asyncio
 import uuid
-from typing import List, Optional, Union, Tuple
+from typing import List, Optional, Union, Tuple, Dict
 from unittest import TestCase, skip
 
+from lzy.api.v1.exceptions import LzyExecutionException
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
 from lzy.storage.registry import DefaultStorageRegistry
 from tests.api.v1.mocks import EnvProviderMock
 from lzy.api.v1 import Lzy, op, LocalRuntime, materialize
-from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.utils.proxy_adapter import materialized, is_lzy_proxy
 from lzy.storage.api import Storage, S3Credentials
 from tests.api.v1.utils import create_bucket
@@ -41,8 +41,28 @@ def inc(numb: int) -> int:
 
 
 @op
-def return_list() -> List[dict]:
-    return [{}, {}, {}]
+def accept_unspecified_list(lst: List) -> int:
+    return len(lst)
+
+
+@op
+def accept_int_list(lst: List[int]) -> int:
+    return len(lst)
+
+
+@op
+def accept_custom_class_list(lst: List[Lzy]) -> int:
+    return len(lst)
+
+
+@op
+def return_list() -> List[int]:
+    return [1, 2, 3]
+
+
+@op
+def accept_returns_dict(d: Dict) -> Dict:
+    return d
 
 
 def entry_id(lazy_proxy):
@@ -85,6 +105,16 @@ class LzyWorkflowTests(TestCase):
             some_list = [1, 2, 3]
             result = list2list(some_list)
             self.assertEqual([str(i) for i in some_list], result)
+
+    def test_invalid_list_type_returns(self):
+        @op
+        def invalid_list_type_returns() -> List[str]:
+            # noinspection PyTypeChecker
+            return [1, 2, 3]
+
+        with self.assertRaises(LzyExecutionException):
+            with self.lzy.workflow(self.workflow_name):
+                invalid_list_type_returns()
 
     def test_tuple_type(self):
         @op
@@ -230,7 +260,7 @@ class LzyWorkflowTests(TestCase):
 
     def test_return_accept_list(self):
         @op
-        def accept_list(lst: List[dict]) -> int:
+        def accept_list(lst: List[int]) -> int:
             return len(lst)
 
         with self.lzy.workflow("test"):
@@ -248,10 +278,50 @@ class LzyWorkflowTests(TestCase):
             print(bst)
             return len(lst)
 
-        with self.assertRaises(LzyExecutionException):
+        with self.lzy.workflow("test"):
+            a = return_list()
+            lst_len = accept_list(a, [{}])
+        self.assertEqual(3, lst_len)
+
+    def test_empty_list(self):
+        with self.lzy.workflow("test"):
+            a = accept_int_list([])
+            b = accept_unspecified_list([])
+            c = accept_custom_class_list([])
+
+        self.assertEqual(0, a)
+        self.assertEqual(0, b)
+        self.assertEqual(0, c)
+
+    def test_primitive_to_unspecified_list(self):
+        with self.lzy.workflow("test"):
+            a = accept_unspecified_list([1, 2, 3])
+
+        self.assertEqual(3, a)
+
+    def test_unspecified_dict(self):
+        with self.lzy.workflow("test"):
+            res = accept_returns_dict({1: "2"})
+        self.assertEqual({1: "2"}, res)
+
+    def test_empty_dict(self):
+        with self.lzy.workflow("test"):
+            res = accept_returns_dict({})
+        self.assertEqual({}, res)
+
+    def test_specified_dict(self):
+        @op
+        def accept_returns_specified_dict(d: Dict[int, str]) -> Dict[int, str]:
+            return d
+
+        with self.lzy.workflow("test"):
+            res = accept_returns_specified_dict(accept_returns_specified_dict({1: "2"}))
+        self.assertEqual({1: "2"}, res)
+
+        with self.assertRaises(TypeError):
             with self.lzy.workflow("test"):
-                a = return_list()
-                accept_list(a, [{}])
+                # noinspection PyTypeChecker
+                accept_returns_specified_dict({1: 1})
 
     def test_lazy(self):
         with self.lzy.workflow("test") as wf:
