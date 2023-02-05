@@ -6,9 +6,10 @@ from logging import Logger
 from typing import Any, Callable, Mapping, Sequence, Tuple, Type, Optional, cast, Dict
 
 from serialzy.api import SerializerRegistry
+from serialzy.types import get_type
 
 from lzy.api.v1.utils.pickle import unpickle
-from lzy.api.v1.utils.types import infer_real_types
+from lzy.api.v1.utils.types import infer_real_types, check_types_serialization_compatible, is_subtype
 from lzy.logs.config import configure_logging, get_remote_logger
 from lzy.proxy import proxy
 from lzy.serialization.registry import LzySerializerRegistry, SerializerImport
@@ -36,7 +37,7 @@ def read_data(path: str, typ: Type, serializers: SerializerRegistry, logger: Log
         while file.read(1) is None:
             time.sleep(0)  # Thread.yield
         file.seek(0)
-        data = ser.deserialize(file, typ)  # type: ignore
+        data = ser.deserialize(file)  # type: ignore
         __read_cache[path] = data
         return data
 
@@ -54,6 +55,13 @@ def write_data(path: str, typ: Type, data: Any, serializers: SerializerRegistry,
 
     if hasattr(data, __lzy_lazy_argument):  # if input argument is a return value
         data = data.__lzy_origin__  # type: ignore
+
+    real_type = get_type(data)
+    compatible = check_types_serialization_compatible(typ, real_type, serializers)
+    if not compatible or not is_subtype(real_type, typ):
+        raise TypeError(
+            f"Invalid types: return value has type {typ} "
+            f"but passed type {real_type}")
 
     name = path.split('/')[-1]
     logger.info(f"Writing {name} with serializer {type(ser)}")
