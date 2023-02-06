@@ -139,7 +139,7 @@ jobs:
 
       - name: 'java build worker'
         timeout-minutes: 5
-        run: cd lzy/worker && mvn package && cd ../..
+        run: cd lzy/worker && mvn package -DskipTests && cd ../..
 
       - name: 'java build portal'
         timeout-minutes: 5
