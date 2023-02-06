@@ -289,6 +289,88 @@ public class WorkflowTest extends BaseTest {
     }
 
     @Test
+    public void startWorkflowExecutionWhenAlreadyActive() {
+        var workflowName = "workflow_1";
+        var firstExecution = authorizedWorkflowClient.startWorkflow(
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
+        );
+
+        var firstExecutionId = firstExecution.getExecutionId();
+        var firstStorageConfig = firstExecution.getInternalSnapshotStorage();
+
+        var operations = List.of(
+            LWF.Operation.newBuilder()
+                .setName("first task prints string 'i-am-hacker' to variable")
+                .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_worker_1/a")
+                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_worker_1/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", firstStorageConfig))
+                    .build())
+                .setPoolSpecName("s")
+                .build(),
+            LWF.Operation.newBuilder()
+                .setName("second task reads string 'i-am-hacker' from variable and prints it to another one")
+                .setCommand("/tmp/lzy_worker_2/sbin/cat /tmp/lzy_worker_2/a > /tmp/lzy_worker_2/b")
+                .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_worker_2/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", firstStorageConfig))
+                    .build())
+                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                    .setPath("/tmp/lzy_worker_2/b")
+                    .setStorageUri(buildSlotUri("snapshot_b_1", firstStorageConfig))
+                    .build())
+                .setPoolSpecName("s")
+                .build()
+        );
+
+        var graph = LWF.Graph.newBuilder()
+            .setName("simple-graph")
+            .setZone("ru-central1-a")
+            .addAllOperations(operations)
+            .build();
+
+        var expectedGraphId = authorizedWorkflowClient.executeGraph(
+            LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
+                .setExecutionId(firstExecutionId)
+                .setGraph(graph)
+                .build()).getGraphId();
+
+        var destroyChannelsCount = new AtomicInteger(0);
+        onChannelsDestroy(exId -> destroyChannelsCount.incrementAndGet());
+
+        var deleteSessionCount = new AtomicInteger(0);
+        onDeleteSession(deleteSessionCount::incrementAndGet);
+
+        var freeVmCount = new AtomicInteger(0);
+        onFreeVm(freeVmCount::incrementAndGet);
+
+        var stopGraphCount = new AtomicInteger(0);
+        onStopGraph(actualGraphId -> stopGraphCount.incrementAndGet());
+
+        var secondExecution = authorizedWorkflowClient.startWorkflow(
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
+        );
+
+        var secondExecutionId = secondExecution.getExecutionId();
+
+        var finishOp = authorizedWorkflowClient.finishWorkflow(
+            LWFS.FinishWorkflowRequest.newBuilder()
+                .setWorkflowName(workflowName)
+                .setExecutionId(secondExecutionId)
+                .build());
+        finishOp = awaitOperationDone(operationServiceClient, finishOp.getId(), Duration.ofSeconds(15));
+
+        assertTrue(finishOp.getDone());
+        assertTrue(finishOp.hasResponse());
+
+        assertSame(destroyChannelsCount.get(), 2);
+        assertSame(deleteSessionCount.get(), 2);
+        assertSame(freeVmCount.get(), 2);
+        assertSame(stopGraphCount.get(), 1);
+    }
+
+    @Test
     public void startAndAbortWorkflowExecutionWithGraphs() {
         var workflowName = "workflow_1";
         var execution = authorizedWorkflowClient.startWorkflow(

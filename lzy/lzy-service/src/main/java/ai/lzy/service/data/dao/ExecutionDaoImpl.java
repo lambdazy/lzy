@@ -18,7 +18,9 @@ import org.apache.commons.collections4.SetUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -230,49 +232,39 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updateFinishData(String userId, @Nullable String workflowName, String executionId,
-                                 Status status, @Nullable TransactionHandle outerTx) throws SQLException
+    public void updateFinishData(String userId, String executionId, Status status, @Nullable TransactionHandle tx)
+        throws SQLException
     {
-        try (var tx = TransactionHandle.getOrCreate(storage, outerTx)) {
-            if (workflowName == null) {
-                WorkflowDaoImpl.findAndSetActiveExecutionToNull(userId, executionId, storage, tx);
-            } else {
-                WorkflowDaoImpl.setActiveExecutionToNull(userId, workflowName, executionId, storage, tx);
-            }
+        DbOperation.execute(tx, storage, conn -> {
+            try (var getFinishStmt = conn.prepareStatement(QUERY_GET_EXEC_FINISH_DATA + " FOR UPDATE")) {
+                getFinishStmt.setString(1, executionId);
+                getFinishStmt.setString(2, userId);
+                ResultSet rs = getFinishStmt.executeQuery();
 
-            DbOperation.execute(tx, storage, conn -> {
-                try (var getFinishStmt = conn.prepareStatement(QUERY_GET_EXEC_FINISH_DATA + " FOR UPDATE")) {
-                    getFinishStmt.setString(1, executionId);
-                    getFinishStmt.setString(2, userId);
-                    ResultSet rs = getFinishStmt.executeQuery();
-
-                    if (rs.next()) {
-                        if (rs.getTimestamp("finished_at") != null) {
-                            LOG.error("Attempt to finish already finished execution: " +
-                                    "{ executionId: {}, finished_at: {}, reason: {} }",
-                                executionId, rs.getTimestamp("finished_at"), rs.getString("finished_with_error"));
-                            throw new IllegalStateException("Workflow execution already finished");
-                        }
-
-                        try (var updateStmt = conn.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA)) {
-                            updateStmt.setTimestamp(1, Timestamp.from(Instant.now()));
-                            updateStmt.setString(2, status.getDescription());
-                            updateStmt.setInt(3, status.getCode().value());
-                            updateStmt.setString(4, executionId);
-
-                            updateStmt.executeUpdate();
-                        }
-                    } else {
-                        LOG.error("Attempt to finish unknown execution: { userId: {}, executionId: {} }",
-                            userId, executionId);
-                        throw new NotFoundException("Cannot find execution '%s' of user '%s'".formatted(executionId,
-                            userId));
+                if (rs.next()) {
+                    if (rs.getTimestamp("finished_at") != null) {
+                        LOG.error("Attempt to finish already finished execution: " +
+                                "{ executionId: {}, finished_at: {}, reason: {} }",
+                            executionId, rs.getTimestamp("finished_at"), rs.getString("finished_with_error"));
+                        throw new IllegalStateException("Workflow execution already finished");
                     }
-                }
-            });
 
-            tx.commit();
-        }
+                    try (var updateStmt = conn.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA)) {
+                        updateStmt.setTimestamp(1, Timestamp.from(Instant.now()));
+                        updateStmt.setString(2, status.getDescription());
+                        updateStmt.setInt(3, status.getCode().value());
+                        updateStmt.setString(4, executionId);
+
+                        updateStmt.executeUpdate();
+                    }
+                } else {
+                    LOG.error("Attempt to finish unknown execution: { userId: {}, executionId: {} }",
+                        userId, executionId);
+                    throw new NotFoundException("Cannot find execution '%s' of user '%s'".formatted(executionId,
+                        userId));
+                }
+            }
+        });
     }
 
     @Override

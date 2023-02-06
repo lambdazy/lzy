@@ -114,13 +114,6 @@ public class WorkflowDaoImpl implements WorkflowDao {
     public void setActiveExecutionToNull(String userId, String workflowName, String executionId,
                                          @Nullable TransactionHandle transaction) throws SQLException
     {
-        setActiveExecutionToNull(userId, workflowName, executionId, storage, transaction);
-    }
-
-    static void setActiveExecutionToNull(String userId, String workflowName, String executionId,
-                                         LzyServiceStorage storage, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
         DbOperation.execute(transaction, storage, connection -> {
             try (var stmt = connection.prepareStatement(SELECT_FOR_UPDATE_ACTIVE_EXECUTION_BY_WF_NAME,
                 ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
@@ -146,10 +139,9 @@ public class WorkflowDaoImpl implements WorkflowDao {
         });
     }
 
-    static void findAndSetActiveExecutionToNull(String userId, String executionId, LzyServiceStorage storage,
-                                                @Nullable TransactionHandle transaction) throws SQLException
-    {
-        DbOperation.execute(transaction, storage, con -> {
+    @Override
+    public void setActiveExecutionToNull(String userId, String executionId, TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, con -> {
             try (var stmt = con.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION)) {
                 stmt.setString(1, executionId);
                 stmt.setTimestamp(2, Timestamp.from(Instant.now()));

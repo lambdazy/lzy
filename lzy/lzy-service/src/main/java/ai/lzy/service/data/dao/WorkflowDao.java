@@ -24,4 +24,7 @@ public interface WorkflowDao {
 
     void setActiveExecutionToNull(String userId, String workflowName, String executionId,
                                   @Nullable TransactionHandle transaction) throws SQLException;
+
+    void setActiveExecutionToNull(String userId, String executionId, @Nullable TransactionHandle transaction)
+        throws SQLException;
 }
