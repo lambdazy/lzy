@@ -6,10 +6,12 @@ from typing import (
     Type,
     TypeVar,
     Union,
-    get_type_hints, List, Dict, Any,
+    get_type_hints, List, Dict, Any, Tuple,
 )
 
+from beartype.door import is_subhint
 from serialzy.api import SerializerRegistry
+from serialzy.types import EmptyContent
 from typing_extensions import get_origin, get_args
 
 from lzy.proxy.result import Just, Nothing, Result
@@ -65,3 +67,13 @@ def check_types_serialization_compatible(annotation: Type, typ: Type, registry: 
         if serializable:
             return True
     return False
+
+
+def is_subtype(subtype: Type, supertype: Type) -> bool:
+    if subtype == List[EmptyContent]:
+        subtype = supertype if is_subhint(supertype, List) else List  # type: ignore
+    elif subtype == Tuple[EmptyContent]:
+        subtype = supertype if is_subhint(supertype, Tuple) else Tuple  # type: ignore
+    elif subtype == Dict[EmptyContent, EmptyContent]:
+        subtype = Dict if is_subhint(supertype, Dict) else Dict
+    return is_subhint(subtype, supertype)
