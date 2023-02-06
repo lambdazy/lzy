@@ -42,7 +42,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
-import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -154,8 +153,8 @@ public class WorkflowService {
                 request.getWorkflowName(), previousActiveExecutionId);
 
             Status errorStatus = Status.INTERNAL.withDescription("Cancelled by new execution start");
-            if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(newExecution.getOwner(), request.getWorkflowName(),
-                previousActiveExecutionId, errorStatus))
+            if (cleanExecutionCompanion.tryToFinishExecution(newExecution.getOwner(), previousActiveExecutionId,
+                errorStatus))
             {
                 cleanExecutionCompanion.cleanExecution(previousActiveExecutionId);
             }
@@ -177,7 +176,7 @@ public class WorkflowService {
             LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
                 request.getWorkflowName(), executionId);
 
-            if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(newExecution.getOwner(), request.getWorkflowName(),
+            if (cleanExecutionCompanion.tryToFinishWorkflow(newExecution.getOwner(), request.getWorkflowName(),
                 executionId, newExecution.getErrorStatus()))
             {
                 cleanExecutionCompanion.cleanExecution(executionId);
@@ -200,51 +199,6 @@ public class WorkflowService {
 
     public void completeExecution(String executionId, Operation operation) {
         cleanExecutionCompanion.completeExecution(executionId, operation);
-    }
-
-    private void deleteExecution(String executionId) {
-        LOG.info("Delete broken execution: { executionId: {} }", executionId);
-
-        PortalDescription portalDesc;
-        try {
-            portalDesc = withRetries(LOG, () -> executionDao.getPortalDescription(executionId));
-        } catch (Exception e) {
-            LOG.error("Cannot get portal for execution {}", executionId, e);
-            return;
-        }
-
-        if (portalDesc != null && portalDesc.vmAddress() != null) {
-            cleanExecutionCompanion.stopPortal(executionId, portalDesc.vmAddress());
-        }
-
-        var destroyChannelsOp = cleanExecutionCompanion.destroyChannels(executionId);
-        if (destroyChannelsOp != null) {
-            var opId = destroyChannelsOp.getId();
-            var channelManagerOpsClient = newBlockingClient(
-                LongRunningServiceGrpc.newBlockingStub(channelManagerChannel), APP,
-                () -> internalUserCredentials.get().token());
-
-            destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(5));
-
-            if (!destroyChannelsOp.getDone()) {
-                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {} }",
-                    executionId);
-            }
-        }
-
-        if (portalDesc != null && portalDesc.vmId() != null) {
-            cleanExecutionCompanion.freeVm(executionId, portalDesc.vmId());
-        }
-
-        if (portalDesc != null && portalDesc.allocatorSessionId() != null) {
-            cleanExecutionCompanion.deleteSession(executionId, portalDesc.allocatorSessionId());
-        }
-
-        try {
-            withRetries(LOG, () -> executionDao.delete(executionId, null));
-        } catch (Exception e) {
-            LOG.error("Cannot delete execution data from dao: { executionId: {} }", executionId, e);
-        }
     }
 
     public void readStdSlots(LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> response) {
