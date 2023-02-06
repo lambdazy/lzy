@@ -86,11 +86,12 @@ public class DockerEnvironment extends BaseEnvironment {
     @Nullable
     public static DockerEnvironment fromExistedContainer(String sourceImage, String containerId) {
         final var imageInspection = DOCKER.inspectImageCmd(sourceImage).exec();
-        LOG.info("TMP image: {}", imageInspection.toString());
-        final var containerInspection = DOCKER.inspectContainerCmd(containerId).withSize(true).exec();
-        LOG.info("TMP container: {}", containerInspection.toString());
+        final var containerInspection = DOCKER.inspectContainerCmd(containerId).exec();
+        if (containerInspection.getImageId().equals(imageInspection.getId())) {
+            return new DockerEnvironment(sourceImage, containerId);
+        }
 
-        return null; // TODO new DockerEnvironment(sourceImage, containerId);
+        return null;
     }
 
     @Override
