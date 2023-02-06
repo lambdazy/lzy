@@ -219,8 +219,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 "'%s' with active execution '%s'".formatted(workflowName, executionId)).asRuntimeException());
             return;
         } catch (Exception e) {
-            LOG.error("Cannot abort workflow: { userId: {}, workflowName: {}, executionId: {} }",
-                userId, workflowName, executionId, e);
+            LOG.error("Cannot abort workflow: { userId: {}, workflowName: {}, executionId: {}, error: {} }",
+                userId, workflowName, executionId, e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription("Cannot abort workflow").asRuntimeException());
             return;
         }

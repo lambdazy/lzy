@@ -208,10 +208,15 @@ public class CleanExecutionCompanion {
                 LongRunningServiceGrpc.newBlockingStub(channelManagerChannel), APP,
                 () -> internalUserCredentials.get().token());
 
-            destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(10));
+            try {
+                destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(10));
+            } catch (Exception e) {
+                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {}, error: {} }",
+                    executionId, e.getMessage(), e);
+            }
 
             if (!destroyChannelsOp.getDone()) {
-                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {} }",
+                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {} }, timeout",
                     executionId);
             }
         }
@@ -246,7 +251,8 @@ public class CleanExecutionCompanion {
             return channelManagerClient.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder()
                 .setExecutionId(executionId).build());
         } catch (StatusRuntimeException e) {
-            LOG.warn("Cannot destroy channels of execution: { executionId: {} }", executionId, e);
+            LOG.warn("Cannot destroy channels of execution: { executionId: {}, error: {} }",
+                executionId, e.getStatus());
         }
 
         return null;
@@ -268,7 +274,7 @@ public class CleanExecutionCompanion {
             LOG.warn("Cannot stop graphs of completed execution: { executionId: {}, graphId: {} }, error: {}",
                 executionId, Objects.toString(curGraphId, ""), e.getStatus().getDescription());
         } catch (Exception e) {
-            LOG.warn("Cannot find graphs of execution: { executionId: {} }", executionId);
+            LOG.warn("Cannot find graphs of execution: { executionId: {}, error: {} }", executionId, e.getMessage());
         }
     }
 
@@ -278,7 +284,7 @@ public class CleanExecutionCompanion {
         try {
             portalDesc = withRetries(LOG, () -> executionDao.getPortalDescription(executionId));
         } catch (Exception e) {
-            LOG.warn("Cannot get portal for execution: { executionId: {} }", executionId, e);
+            LOG.warn("Cannot get portal for execution: { executionId: {}, error: {} }", executionId, e.getMessage(), e);
         }
         return portalDesc;
     }
@@ -318,7 +324,8 @@ public class CleanExecutionCompanion {
 
             LOG.info("Portal of execution was stopped: { executionId: {} }", executionId);
         } catch (Exception e) {
-            LOG.warn("Cannot stop portal for execution: { executionId: {} }", executionId, e);
+            LOG.warn("Cannot stop portal for execution: { executionId: {}, error: {} }",
+                executionId, e.getMessage(), e);
         }
     }
 
