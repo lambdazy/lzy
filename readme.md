@@ -57,5 +57,4 @@ Development [guide](https://github.com/lambdazy/lzy/tree/master/docs/development
 
 Deployment guide.
 
-* [Azure](https://github.com/lambdazy/lzy/tree/master/docs/deployment_azure.md)
 * [YCloud](https://github.com/lambdazy/lzy/tree/master/docs/deployment_ycloud.md)
