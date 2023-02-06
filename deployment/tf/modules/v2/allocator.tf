@@ -186,7 +186,7 @@ resource "kubernetes_stateful_set" "allocator" {
 
         container {
           name = "unified-agent"
-          image = "cr.yandex/crp2nh9s2lfeqpfgs3c0/unified_agent:master-1.0"
+          image = var.unified-agent-image
           image_pull_policy = "Always"
           env {
             name = "FOLDER_ID"
