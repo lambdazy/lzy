@@ -54,6 +54,12 @@ public class DockerEnvironment implements BaseEnvironment {
         final HostConfig hostConfig = new HostConfig();
         hostConfig.withMounts(dockerMounts);
 
+        // --gpus all
+        hostConfig.withDeviceRequests(List.of(new DeviceRequest()
+            .withDriver("nvidia")
+            .withCapabilities(List.of(List.of("gpu")))
+        ));
+
         final CreateContainerCmd createContainerCmd = DOCKER.createContainerCmd(sourceImage)
             .withHostConfig(hostConfig)
             .withAttachStdout(true)
