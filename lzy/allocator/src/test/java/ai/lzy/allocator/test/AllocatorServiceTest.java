@@ -576,11 +576,11 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
-        //noinspection ResultOfMethodCallIgnored
-        authorizedAllocatorBlockingStub.deleteSession(
+        var op = authorizedAllocatorBlockingStub.deleteSession(
             DeleteSessionRequest.newBuilder()
                 .setSessionId(sessionId)
                 .build());
+        Assert.assertFalse(op.getDone());
 
         try {
             //noinspection ResultOfMethodCallIgnored

@@ -27,6 +27,8 @@ public class DeleteSessionAction extends OperationRunnerBase {
 
         this.sessionId = session.sessionId();
         this.allocationContext = allocationContext;
+
+        log().info("Delete session " + session.sessionId());
     }
 
     @Override
