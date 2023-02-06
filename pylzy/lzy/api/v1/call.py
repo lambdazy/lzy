@@ -14,7 +14,7 @@ from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
-from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize
+from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize, is_lzy_proxy
 from lzy.api.v1.utils.types import infer_real_types, get_default_args
 from lzy.api.v1.workflow import LzyWorkflow
 
@@ -39,22 +39,26 @@ class LzyCall:
         self.__env = env
         self.__description = description
 
-        prefix = f"{workflow.owner.storage_uri}/lzy_runs/{workflow.name}/{workflow.execution_id}/data"
+        # prefix = f"{workflow.owner.storage_uri}/lzy_runs/{workflow.name}/{workflow.execution_id}/data"
         self.__entry_ids: List[str] = []
         for i, typ in enumerate(sign.func.output_types):
             name = sign.func.callable.__name__ + ".return_" + str(i)
-            uri = f"{prefix}/{name}.{self.__id}"
-            self.__entry_ids.append(workflow.snapshot.create_entry(name, typ, uri).id)
+            eid = workflow.snapshot.create_entry(name, typ).id
+            self.__entry_ids.append(eid)
 
         self.__args_entry_ids: List[str] = []
         for i, arg in enumerate(sign.args):
             if workflow.entry_index.has_entry_id(arg):
                 self.__args_entry_ids.append(workflow.entry_index.get_entry_id(arg))
+            elif not is_lzy_proxy(arg):
+                arg_name = sign.func.arg_names[i]
+                entry = workflow.snapshot.create_entry("local", sign.func.input_types[arg_name])
+                self.__args_entry_ids.append(entry.id)
+                workflow.entry_index.add_entry_id(arg, entry.id)
             else:
                 arg_name = sign.func.arg_names[i]
                 name = sign.func.callable.__name__ + "." + arg_name
-                uri = f"{prefix}/{name}.{self.__id}"
-                entry = workflow.snapshot.create_entry(name, sign.func.input_types[arg_name], uri)
+                entry = workflow.snapshot.create_entry(name, sign.func.input_types[arg_name])
                 self.__args_entry_ids.append(entry.id)
                 workflow.entry_index.add_entry_id(arg, entry.id)
 
@@ -63,11 +67,14 @@ class LzyCall:
             entry_id: str
             if workflow.entry_index.has_entry_id(kwarg):
                 entry_id = workflow.entry_index.get_entry_id(kwarg)
+            elif not is_lzy_proxy(kwarg):
+                entry_id = workflow.snapshot.create_entry("local", sign.func.input_types[kwarg_name]).id
+                workflow.entry_index.add_entry_id(kwarg, entry_id)
             else:
                 name = sign.func.callable.__name__ + "." + kwarg_name
-                uri = f"{prefix}/{name}.{self.__id}"
-                entry_id = workflow.snapshot.create_entry(name, sign.func.input_types[kwarg_name], uri).id
+                entry_id = workflow.snapshot.create_entry(name, sign.func.input_types[kwarg_name]).id
                 workflow.entry_index.add_entry_id(kwarg, entry_id)
+
             self.__kwargs_entry_ids[kwarg_name] = entry_id
 
     @property

@@ -11,9 +11,8 @@ from typing import (
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
-from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
-from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
+from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot, SerializedDataHasher
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy
 from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
 from lzy.api.v1.whiteboards import WritableWhiteboard
@@ -68,6 +67,7 @@ class LzyWorkflow:
         self.__snapshot: Optional[Snapshot] = None
         self.__execution_id: Optional[str] = None
         self.__entry_index = EntryIndex()
+        self.__hasher = SerializedDataHasher("sha256")
 
     @property
     def owner(self) -> "Lzy":
@@ -137,8 +137,8 @@ class LzyWorkflow:
     def __enter__(self) -> "LzyWorkflow":
         try:
             self.__execution_id = LzyEventLoop.run_async(self.__start())
-            self.__snapshot = DefaultSnapshot(self.owner.serializer_registry, self.owner.storage_client,
-                                              self.owner.storage_name)
+            self.__snapshot = DefaultSnapshot(self.__name, self.owner.serializer_registry, self.__owner.storage_uri,
+                                              self.owner.storage_client, self.owner.storage_name, self.__hasher)
             return self
         except Exception as e:
             self.__destroy()
@@ -203,17 +203,41 @@ class LzyWorkflow:
         data_to_load = []
         for call in self.__call_queue:
             for arg, eid in zip(call.args, call.arg_entry_ids):
-                if not is_lzy_proxy(arg):
+                if not is_lzy_proxy(arg) and eid not in self.__filled_entry_ids:
                     data_to_load.append(self.snapshot.put_data(eid, arg))
                     self.__filled_entry_ids.add(eid)
 
             for name, kwarg in call.kwargs.items():
                 eid = call.kwarg_entry_ids[name]
-                if not is_lzy_proxy(kwarg):
+                if not is_lzy_proxy(kwarg) and eid not in self.__filled_entry_ids:
                     data_to_load.append(self.snapshot.put_data(eid, kwarg))
                     self.__filled_entry_ids.add(eid)
 
-            self.__filled_entry_ids.update(call.entry_ids)
+            args_inputs_hash: str = '_'.join(map(lambda eid: self.snapshot.get(eid).hash, call.arg_entry_ids))
+            kwargs_inputs_hash: str = '_'.join(map(
+                lambda name: self.snapshot.get(call.kwarg_entry_ids[name]).hash,
+                sorted(call.kwargs.values())
+            ))
+            inputs_hash: str = '_'.join([args_inputs_hash, kwargs_inputs_hash])
+
+            op_name: str = call.signature.func.callable.__name__
+            op_version: str = '1.0'
+
+            for i, eid in enumerate(call.entry_ids):
+                if eid not in self.__filled_entry_ids:
+                    self.snapshot.update_entry(eid, f"/${op_name}_${op_version}_${inputs_hash}/return_${str(i)}")
+                    entry = self.snapshot.get(eid)
+                    entry.set_hash(self.__hasher.hash_of_str(entry.storage_uri))
+                    self.__filled_entry_ids.add(eid)
+
+            # prefix = f"{workflow.owner.storage_uri}/lzy_runs/{workflow.name}/data"
+            # self.__entry_ids: List[str] = []
+            # for i, typ in enumerate(sign.func.output_types):
+            #     name = sign.func.callable.__name__ + ".return_" + str(i)
+            #     uri = f"{prefix}/{name}.{self.__id}"
+            #     eid = workflow.snapshot.create_entry(name, typ).id
+            #     self.__entry_ids.append(eid)
+            #     workflow.snapshot.update_entry(eid, uri)
 
         await asyncio.gather(*data_to_load)
         await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))
