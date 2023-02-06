@@ -5,8 +5,7 @@ import basics from '../docs/3-basics.md';
 import data from '../docs/4-data.md';
 import environment from '../docs/5-environment.md';
 import whiteboard from '../docs/6-whiteboards.md';
-import views from '../docs/7-views.md';
-import integrations from '../docs/8-integrations.md'
+import integrations from '../docs/7-integrations.md'
 import ReactMarkdown from 'react-markdown'
 import {useState} from 'react';
 
@@ -112,23 +111,6 @@ export function Whiteboards() {
     let [state, setState] = useState<any>(null);
     if (state == null) {
         fetch(whiteboard)
-            .then(async (response) => {
-                    let mdtext = await response.text();
-                    setState(<ReactMarkdown className="markdown-body">{mdtext}</ReactMarkdown>);
-                }
-            )
-    }
-    return (
-        <>
-            {state}
-        </>
-    )
-}
-
-export function Views() {
-    let [state, setState] = useState<any>(null);
-    if (state == null) {
-        fetch(views)
             .then(async (response) => {
                     let mdtext = await response.text();
                     setState(<ReactMarkdown className="markdown-body">{mdtext}</ReactMarkdown>);

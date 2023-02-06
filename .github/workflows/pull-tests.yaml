@@ -133,9 +133,17 @@ jobs:
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
           cd ..
 
-      - name: 'java unit tests and install'
+      - name: 'java compile'
         timeout-minutes: 10
-        run: mvn clean install -DskipTests
+        run: mvn -T 8 clean compile -DskipTests -Dmaven.test.skip -Dmaven.javadoc.skip=true
+
+      - name: 'java build worker'
+        timeout-minutes: 5
+        run: cd lzy/worker && mvn package -DskipTests && cd ../..
+
+      - name: 'java build portal'
+        timeout-minutes: 5
+        run: cd lzy/portal && mvn package -DskipTests && cd ../..
 
       - name: 'SchedulerTest'
         timeout-minutes: 5

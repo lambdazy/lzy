@@ -9,7 +9,7 @@
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>scheduler</artifactId>
-    <version>1.0</version>
+    <version>1.1</version>
 
     <properties>
         <exec.mainClass>ai.lzy.scheduler.SchedulerApi</exec.mainClass>
