@@ -54,6 +54,7 @@ public class EnvironmentFactory {
                 LOG.info("Found existed Docker Environment, id={}", baseEnv.baseEnvId());
             } else {
                 BaseEnvConfig config = BaseEnvConfig.newBuilder()
+                    .withGpu(hasGpu)
                     .withImage(image)
                     .addMount(resourcesPathStr, resourcesPathStr)
                     .addMount(localModulesPathStr, localModulesPathStr)
