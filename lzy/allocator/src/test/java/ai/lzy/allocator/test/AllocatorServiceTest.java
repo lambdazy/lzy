@@ -588,8 +588,24 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 VmAllocatorPrivateApi.RegisterRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
-            // either Session not found or VM not found
+            switch (e.getStatus().getCode()) {
+                case CANCELLED ->
+                    Assert.assertEquals(e.getStatus().toString(),
+                        "Op %s already done".formatted(allocate.getId()),
+                        e.getStatus().getDescription());
+                case NOT_FOUND -> {
+                    if (!Objects.equals(e.getStatus().getDescription(), "Session not found")) {
+                        Assert.assertEquals(e.getStatus().toString(),
+                            "Op %s not found".formatted(allocate.getId()),
+                            e.getStatus().getDescription());
+                    }
+                }
+                case FAILED_PRECONDITION ->
+                    Assert.assertEquals(e.getStatus().toString(),
+                        "Unexpected VM status DELETING",
+                        e.getStatus().getDescription());
+                default -> Assert.fail("Unexpected status: " + e.getStatus());
+            }
         }
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));

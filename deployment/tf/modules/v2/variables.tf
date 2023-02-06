@@ -69,6 +69,7 @@ variable "whiteboard-image" {
 variable "oauth-github-client-id" {
   type = string
 }
+
 variable "oauth-github-client-secret" {
   type = string
 }
@@ -76,6 +77,11 @@ variable "oauth-github-client-secret" {
 variable "backoffice-frontend-image" {
   type = string
 }
+
 variable "backoffice-backend-image" {
+  type = string
+}
+
+variable "unified-agent-image" {
   type = string
 }
