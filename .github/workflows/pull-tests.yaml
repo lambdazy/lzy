@@ -135,7 +135,7 @@ jobs:
 
       - name: 'java unit tests and install'
         timeout-minutes: 10
-        run: mvn clean install -DskipTests
+        run: mvn -T 1.5C clean install -DskipTests -Dmaven.test.skip -Dmaven.javadoc.skip=true
 
       - name: 'SchedulerTest'
         timeout-minutes: 5
