@@ -309,6 +309,15 @@ class LzyWorkflowTests(TestCase):
             res = accept_returns_dict({})
         self.assertEqual({}, res)
 
+    def test_empty_specified_dict(self):
+        @op
+        def accept_returns_specified_dict(d: Dict[int, str]) -> Dict[int, str]:
+            return d
+
+        with self.lzy.workflow("test"):
+            res = accept_returns_specified_dict({})
+        self.assertEqual({}, res)
+
     def test_specified_dict(self):
         @op
         def accept_returns_specified_dict(d: Dict[int, str]) -> Dict[int, str]:
