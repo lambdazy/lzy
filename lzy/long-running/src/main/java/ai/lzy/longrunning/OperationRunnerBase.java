@@ -5,6 +5,7 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import ai.lzy.util.grpc.ContextAwareTask;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
@@ -23,7 +24,7 @@ import java.util.function.Supplier;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
-public abstract class OperationRunnerBase implements Runnable {
+public abstract class OperationRunnerBase extends ContextAwareTask {
     private final String logPrefix;
     private final Logger log = LogManager.getLogger(getClass());
     private final String id;
@@ -43,7 +44,7 @@ public abstract class OperationRunnerBase implements Runnable {
     }
 
     @Override
-    public final void run() {
+    protected final void execute() {
         try {
             if (!loadOperation()) {
                 return;
