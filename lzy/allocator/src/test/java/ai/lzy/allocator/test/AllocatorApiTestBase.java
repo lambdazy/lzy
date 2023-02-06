@@ -49,6 +49,7 @@ import javax.annotation.Nullable;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
+import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
@@ -167,23 +168,39 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return Utils.extractSessionId(op);
     }
 
-    protected LongRunning.Operation createSessionOp(String owner, Duration idleTimeout, @Nullable String token) {
-        var stub = authorizedAllocatorBlockingStub;
+    protected LongRunning.Operation deleteSession(String sessionId, boolean wait) {
+        var op = withGrpcContext(() ->
+            authorizedAllocatorBlockingStub.deleteSession(
+                VmAllocatorApi.DeleteSessionRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .build()));
 
-        if (token != null) {
-            stub = withIdempotencyKey(stub, token);
+        if (wait) {
+            op = waitOperation(operationServiceApiBlockingStub, op, 5);
         }
 
-        var op = stub.createSession(
-            VmAllocatorApi.CreateSessionRequest.newBuilder()
-                .setOwner(owner)
-                .setCachePolicy(
-                    VmAllocatorApi.CachePolicy.newBuilder()
-                        .setIdleTimeout(idleTimeout)
-                        .build())
-                .build());
-        Assert.assertTrue(op.getDone());
         return op;
+    }
+
+    protected LongRunning.Operation createSessionOp(String owner, Duration idleTimeout, @Nullable String token) {
+        return withGrpcContext(() -> {
+            var stub = authorizedAllocatorBlockingStub;
+
+            if (token != null) {
+                stub = withIdempotencyKey(stub, token);
+            }
+
+            var op = stub.createSession(
+                VmAllocatorApi.CreateSessionRequest.newBuilder()
+                    .setOwner(owner)
+                    .setCachePolicy(
+                        VmAllocatorApi.CachePolicy.newBuilder()
+                            .setIdleTimeout(idleTimeout)
+                            .build())
+                    .build());
+            Assert.assertTrue(op.getDone());
+            return op;
+        });
     }
 
     protected LongRunning.Operation waitOpSuccess(LongRunning.Operation operation) {
@@ -224,15 +241,16 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected void registerVm(String vmId, String clusterId) {
         TimeUtils.waitFlagUp(() -> {
             try {
-                //noinspection ResultOfMethodCallIgnored
-                privateAllocatorBlockingStub.register(
-                    VmAllocatorPrivateApi.RegisterRequest.newBuilder()
-                        .setVmId(vmId)
-                        .putMetadata(NAMESPACE_KEY, NAMESPACE_VALUE)
-                        .putMetadata(CLUSTER_ID_KEY, clusterId)
-                        .build()
-                );
-                return true;
+                return withGrpcContext(() -> {
+                    privateAllocatorBlockingStub.register(
+                        VmAllocatorPrivateApi.RegisterRequest.newBuilder()
+                            .setVmId(vmId)
+                            .putMetadata(NAMESPACE_KEY, NAMESPACE_VALUE)
+                            .putMetadata(CLUSTER_ID_KEY, clusterId)
+                            .build()
+                    );
+                    return true;
+                });
             } catch (StatusRuntimeException e) {
                 if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
                     System.err.println("Fail to register VM %s: %s".formatted(vmId, e.getStatus().toString()));

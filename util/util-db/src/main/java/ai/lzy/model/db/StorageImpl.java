@@ -38,7 +38,7 @@ public abstract class StorageImpl implements Storage {
     public final Connection connect() throws SQLException {
         var conn = dataSource.getConnection();
         conn.setAutoCommit(true);
-        conn.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+        conn.setTransactionIsolation(isolationLevel());
         return conn;
     }
 
