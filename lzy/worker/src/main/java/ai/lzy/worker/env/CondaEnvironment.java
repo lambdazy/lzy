@@ -1,7 +1,5 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.logs.MetricEvent;
-import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.model.graph.PythonEnv;
 import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
@@ -62,17 +60,6 @@ public class CondaEnvironment implements AuxEnvironment {
         return baseEnv;
     }
 
-    private void readToFile(File file, InputStream stream) throws IOException {
-        try (FileOutputStream output = new FileOutputStream(file.getAbsolutePath(), true)) {
-            byte[] buffer = new byte[4096];
-            int len = 0;
-            while (len != -1) {
-                output.write(buffer, 0, len);
-                len = stream.read(buffer);
-            }
-        }
-    }
-
     private void extractFiles(File file, String destinationDirectory) throws IOException {
         LOG.info("CondaEnvironment::extractFiles trying to unzip module archive "
             + file.getAbsolutePath());
@@ -130,8 +117,8 @@ public class CondaEnvironment implements AuxEnvironment {
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
 
-                    CondaPackageRegistry.notifyInstalled(new StringReader(pythonEnv.yaml()));
-
+                    CondaPackageRegistry.notifyInstalled(pythonEnv.yaml());
+                    //noinspection ResultOfMethodCallIgnored
                     condaFile.delete();
                 }
             }
