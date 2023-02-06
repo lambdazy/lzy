@@ -4,6 +4,7 @@ import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -66,6 +67,6 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
     @Nullable
     @Override
     public VmPoolSpec findPool(String poolLabel) {
-        return vmPools.get(poolLabel);
+        return vmPools.get(poolLabel.toLowerCase(Locale.ROOT));
     }
 }

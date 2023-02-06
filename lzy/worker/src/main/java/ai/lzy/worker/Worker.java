@@ -120,8 +120,8 @@ public class Worker {
 
         operationService = new LocalOperationService(vmId);
 
-        int gpuCount = Integer.parseInt(System.getenv(AllocatorAgent.VM_GPU_COUNT));
-        this.envFactory = new EnvironmentFactory(defaultUserImage, gpuCount);
+        String gpuCount = System.getenv(AllocatorAgent.VM_GPU_COUNT);
+        this.envFactory = new EnvironmentFactory(defaultUserImage, gpuCount == null ? 0 : Integer.parseInt(gpuCount));
 
         server = newGrpcServer("0.0.0.0", apiPort, GrpcUtils.NO_AUTH)
             .addService(new WorkerApiImpl())
