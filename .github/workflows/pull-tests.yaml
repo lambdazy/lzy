@@ -135,15 +135,7 @@ jobs:
 
       - name: 'java compile'
         timeout-minutes: 10
-        run: mvn -T 8 clean compile -DskipTests -Dmaven.test.skip -Dmaven.javadoc.skip=true
-
-      - name: 'java build worker'
-        timeout-minutes: 5
-        run: cd lzy/worker && mvn package -DskipTests && cd ../..
-
-      - name: 'java build portal'
-        timeout-minutes: 5
-        run: cd lzy/portal && mvn package -DskipTests && cd ../..
+        run: mvn -T 8 clean install -DskipTests -Dmaven.test.skip -Dmaven.javadoc.skip=true
 
       - name: 'SchedulerTest'
         timeout-minutes: 5
