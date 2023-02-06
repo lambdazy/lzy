@@ -11,9 +11,10 @@ import java.util.Map;
 
 public class CondaPackageRegistry {
     private static final Logger LOG = LogManager.getLogger(CondaPackageRegistry.class);
-    private static final Map<String, Map<String, Package>> envs = new HashMap<>();
 
-    static {
+    private final Map<String, Map<String, Package>> envs = new HashMap<>();
+
+    public CondaPackageRegistry() {
         var list = System.getenv("LZY_CONDA_ENVS_LIST");
         if (list != null) {
             var envs = list.split(",");
@@ -32,7 +33,7 @@ public class CondaPackageRegistry {
 
     private record Package(String name, String version) {}
 
-    public static boolean isInstalled(String condaYaml) {
+    public boolean isInstalled(String condaYaml) {
         try {
             var yaml = new Yaml();
             Map<String, Object> conf = yaml.load(condaYaml);
@@ -122,7 +123,7 @@ public class CondaPackageRegistry {
         return false;
     }
 
-    public static void notifyInstalled(Reader condaYaml) {
+    public void notifyInstalled(Reader condaYaml) {
         try {
             var yaml = new Yaml();
             var res = (Map<String, Object>) yaml.load(condaYaml);
@@ -133,7 +134,7 @@ public class CondaPackageRegistry {
 
             var deps = (List) res.getOrDefault("dependencies", List.of());
 
-            for (var dep: deps) {
+            for (var dep : deps) {
                 if (dep instanceof String) {
                     var dat = ((String) dep).split("=");
                     if (dat.length == 1) {
@@ -154,7 +155,7 @@ public class CondaPackageRegistry {
 
                     var pipDeps = (List<Object>) ((Map<String, Object>) dep).get("pip");
 
-                    for (var pipDep: pipDeps) {
+                    for (var pipDep : pipDeps) {
                         if (!(pipDep instanceof String)) {
                             continue;
                         }

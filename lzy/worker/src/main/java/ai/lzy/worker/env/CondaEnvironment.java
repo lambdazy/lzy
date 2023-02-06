@@ -85,8 +85,9 @@ public class CondaEnvironment implements AuxEnvironment {
     public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
         try {
+            final var condaPackageRegistry = baseEnv.getPackageRegistry();
             if (RECONFIGURE_CONDA) {
-                if (CondaPackageRegistry.isInstalled(pythonEnv.yaml())) {
+                if (condaPackageRegistry.isInstalled(pythonEnv.yaml())) {
 
                     LOG.info("Conda env {} already configured, skipping", envName);
 
@@ -127,7 +128,7 @@ public class CondaEnvironment implements AuxEnvironment {
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
 
-                    CondaPackageRegistry.notifyInstalled(new StringReader(pythonEnv.yaml()));
+                    condaPackageRegistry.notifyInstalled(new StringReader(pythonEnv.yaml()));
 
                     condaFile.delete();
                 }

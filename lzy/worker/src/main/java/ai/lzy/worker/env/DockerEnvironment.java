@@ -26,7 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-public class DockerEnvironment implements BaseEnvironment {
+public class DockerEnvironment extends BaseEnvironment {
 
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
@@ -35,6 +35,7 @@ public class DockerEnvironment implements BaseEnvironment {
     public final String containerId;
 
     private DockerEnvironment(String sourceImage, String containerId) {
+        super(containerId);
         this.sourceImage = sourceImage;
         this.containerId = containerId;
     }
@@ -222,12 +223,6 @@ public class DockerEnvironment implements BaseEnvironment {
     @Override
     public void close() throws Exception {
         DOCKER.killContainerCmd(containerId).exec();
-    }
-
-
-    @Override
-    public String baseEnvId() {
-        return containerId;
     }
 
     public String getSourceImage() {

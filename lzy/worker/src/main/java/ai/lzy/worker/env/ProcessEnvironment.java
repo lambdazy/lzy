@@ -8,7 +8,11 @@ import java.io.OutputStream;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class ProcessEnvironment implements BaseEnvironment {
+public class ProcessEnvironment extends BaseEnvironment {
+
+    public ProcessEnvironment() {
+        super("process-env");
+    }
 
     @Override
     public void install(StreamQueue out, StreamQueue err) {}
@@ -63,11 +67,6 @@ public class ProcessEnvironment implements BaseEnvironment {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @Override
-    public String baseEnvId() {
-        return "Process";
     }
 
     @Override
