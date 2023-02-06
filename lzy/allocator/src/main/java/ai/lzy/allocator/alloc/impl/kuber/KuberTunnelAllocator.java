@@ -6,6 +6,7 @@ import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
@@ -27,11 +28,14 @@ public class KuberTunnelAllocator implements TunnelAllocator {
     public static final String TUNNEL_POD_APP_LABEL_VALUE = "tunnel";
 
     private final ClusterRegistry clusterRegistry;
+    private final VmPoolRegistry poolRegistry;
     private final KuberClientFactory factory;
     private final ServiceConfig config;
 
-    public KuberTunnelAllocator(ClusterRegistry clusterRegistry, KuberClientFactory factory, ServiceConfig config) {
+    public KuberTunnelAllocator(ClusterRegistry clusterRegistry, VmPoolRegistry poolRegistry,
+                                KuberClientFactory factory, ServiceConfig config) {
         this.clusterRegistry = clusterRegistry;
+        this.poolRegistry = poolRegistry;
         this.factory = factory;
         this.config = config;
     }
@@ -47,14 +51,16 @@ public class KuberTunnelAllocator implements TunnelAllocator {
     public String allocateTunnel(Vm.Spec vmSpec) throws InvalidConfigurationException {
         final var cluster = clusterRegistry.findCluster(
             vmSpec.poolLabel(), vmSpec.zone(), ClusterRegistry.ClusterType.User);
-        if (cluster == null) {
+        final var pool = poolRegistry.findPool(vmSpec.poolLabel());
+        if (cluster == null || pool == null) {
             throw new InvalidConfigurationException(
                 "Cannot find pool for label " + vmSpec.poolLabel() + " and zone " + vmSpec.zone());
         }
 
         try (final var client = factory.build(cluster)) {
-            Pod tunnelPod = new PodSpecBuilder(vmSpec, client, config, TUNNEL_POD_TEMPLATE_PATH, TUNNEL_POD_NAME_PREFIX)
-                .withWorkloads(
+            var tunnelPodBuilder = new PodSpecBuilder(vmSpec, pool, client, config,
+                TUNNEL_POD_TEMPLATE_PATH, TUNNEL_POD_NAME_PREFIX);
+            Pod tunnelPod = tunnelPodBuilder.withWorkloads(
                     List.of(
                         new Workload("tunnel", config.getTunnelPodImage(), Map.of(), List.of(), Map.of(), List.of())),
                     /* init */ false)
