@@ -43,10 +43,7 @@ public class DockerEnvironment extends BaseEnvironment {
     public static DockerEnvironment create(BaseEnvConfig config) {
         final String sourceImage = prepareImage(config);
 
-        LOG.info("Creating container from image={} ...", sourceImage);
-        LOG.info("Mount options:\n\t{}", config.mounts().stream()
-            .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
-            .collect(Collectors.joining("\n\t")));
+        LOG.info("Creating container from image={} ... , config = {}", sourceImage, config);
 
         final List<Mount> dockerMounts = new ArrayList<>();
         config.mounts().forEach(m -> {
@@ -61,10 +58,12 @@ public class DockerEnvironment extends BaseEnvironment {
         hostConfig.withMounts(dockerMounts);
 
         // --gpus all
-        hostConfig.withDeviceRequests(List.of(new DeviceRequest()
-            .withDriver("nvidia")
-            .withCapabilities(List.of(List.of("gpu")))
-        ));
+        if (config.needGpu()) {
+            hostConfig.withDeviceRequests(List.of(new DeviceRequest()
+                .withDriver("nvidia")
+                .withCapabilities(List.of(List.of("gpu")))
+            ));
+        }
 
         final CreateContainerCmd createContainerCmd = DOCKER.createContainerCmd(sourceImage)
             .withHostConfig(hostConfig)

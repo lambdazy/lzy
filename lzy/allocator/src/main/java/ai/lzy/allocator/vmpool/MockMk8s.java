@@ -26,6 +26,9 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
             HostAndPort.fromString("localhost:1256"),
             "", ClusterType.User)
     ));
+    private final Map<String, VmPoolSpec> vmPools = Map.of("s", new VmPoolSpec(
+        "s", CpuTypes.CASCADE_LAKE.value(), 2, GpuTypes.NO_GPU.value(), 0, 4, Set.of("ru-central1-a")
+    ));
     private final Map<String, ClusterDescription> idsToClusters;
 
     public MockMk8s() {
@@ -57,7 +60,12 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
 
     @Override
     public Map<String, VmPoolSpec> getUserVmPools() {
-        return Map.of("s", new VmPoolSpec("s", CpuTypes.CASCADE_LAKE.value(),
-            2, GpuTypes.NO_GPU.value(), 0, 4, Set.of("ru-central1-a")));
+        return vmPools;
+    }
+
+    @Nullable
+    @Override
+    public VmPoolSpec findPool(String poolLabel) {
+        return vmPools.get(poolLabel);
     }
 }

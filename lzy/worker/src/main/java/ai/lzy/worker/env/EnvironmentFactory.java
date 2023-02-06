@@ -16,10 +16,12 @@ public class EnvironmentFactory {
     private static Supplier<Environment> envForTests = null;
 
     private final String defaultImage;
+    private final boolean hasGpu;
     private final boolean isDockerSupported;
 
-    public EnvironmentFactory(String defaultImage) {
+    public EnvironmentFactory(String defaultImage, int gpuCount) {
         this.defaultImage = defaultImage;
+        this.hasGpu = gpuCount > 0;
         this.isDockerSupported = true;
     }
 
@@ -52,7 +54,7 @@ public class EnvironmentFactory {
                 LOG.info("Found existed Docker Environment, id={}", baseEnv.baseEnvId());
             } else {
                 BaseEnvConfig config = BaseEnvConfig.newBuilder()
-                    .image(image)
+                    .withImage(image)
                     .addMount(resourcesPathStr, resourcesPathStr)
                     .addMount(localModulesPathStr, localModulesPathStr)
                     .addRsharedMount(fsRoot, fsRoot)

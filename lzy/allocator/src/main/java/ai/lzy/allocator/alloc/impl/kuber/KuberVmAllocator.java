@@ -11,6 +11,7 @@ import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -56,18 +57,20 @@ public class KuberVmAllocator implements VmAllocator {
 
     private final VmDao vmDao;
     private final OperationDao operationsDao;
-    private final ClusterRegistry poolRegistry;
+    private final ClusterRegistry clusterRegistry;
+    private final VmPoolRegistry poolRegistry;
     private final KuberClientFactory factory;
     private final NodeRemover nodeRemover;
     private final ServiceConfig config;
 
     @Inject
     public KuberVmAllocator(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
-                            ClusterRegistry poolRegistry, KuberClientFactory factory, NodeRemover nodeRemover,
-                            ServiceConfig config)
+                            ClusterRegistry clusterRegistry, VmPoolRegistry poolRegistry,
+                            KuberClientFactory factory, NodeRemover nodeRemover, ServiceConfig config)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
+        this.clusterRegistry = clusterRegistry;
         this.poolRegistry = poolRegistry;
         this.factory = factory;
         this.nodeRemover = nodeRemover;
@@ -76,9 +79,10 @@ public class KuberVmAllocator implements VmAllocator {
 
     @Override
     public AllocateResult allocate(Vm vm) throws InvalidConfigurationException {
-        var cluster = poolRegistry.findCluster(vm.poolLabel(), vm.zone(), vm.spec().clusterType());
+        var cluster = clusterRegistry.findCluster(vm.poolLabel(), vm.zone(), vm.spec().clusterType());
+        var pool = poolRegistry.findPool(vm.poolLabel());
 
-        if (cluster == null) {
+        if (cluster == null || pool == null) {
             throw new InvalidConfigurationException(
                 "Cannot find pool for label " + vm.poolLabel() + " and zone " + vm.zone());
         }
@@ -87,7 +91,8 @@ public class KuberVmAllocator implements VmAllocator {
         var allocState = vm.allocateState();
 
         try (final var client = factory.build(cluster)) {
-            var podSpecBuilder = new PodSpecBuilder(vmSpec, client, config, VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX);
+            var podSpecBuilder = new PodSpecBuilder(vmSpec, pool, client, config,
+                VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX);
 
             final String podName = podSpecBuilder.getPodName();
 
@@ -275,7 +280,7 @@ public class KuberVmAllocator implements VmAllocator {
         }
 
         final var clusterId = meta.get(CLUSTER_ID_KEY);
-        final var credentials = poolRegistry.getCluster(clusterId);
+        final var credentials = clusterRegistry.getCluster(clusterId);
         final var ns = meta.get(NAMESPACE_KEY);
 
         try (final var client = factory.build(credentials)) {
@@ -335,7 +340,7 @@ public class KuberVmAllocator implements VmAllocator {
         }
 
         final var clusterId = meta.get(CLUSTER_ID_KEY);
-        final var credentials = poolRegistry.getCluster(clusterId);
+        final var credentials = clusterRegistry.getCluster(clusterId);
         final var ns = meta.get(NAMESPACE_KEY);
         final var podName = meta.get(POD_NAME_KEY);
 

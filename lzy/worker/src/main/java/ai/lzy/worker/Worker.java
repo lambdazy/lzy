@@ -119,7 +119,9 @@ public class Worker {
         Objects.requireNonNull(allocatorToken);
 
         operationService = new LocalOperationService(vmId);
-        this.envFactory = new EnvironmentFactory(defaultUserImage);
+
+        int gpuCount = Integer.parseInt(System.getenv(AllocatorAgent.VM_GPU_COUNT));
+        this.envFactory = new EnvironmentFactory(defaultUserImage, gpuCount);
 
         server = newGrpcServer("0.0.0.0", apiPort, GrpcUtils.NO_AUTH)
             .addService(new WorkerApiImpl())
@@ -281,7 +283,7 @@ public class Worker {
                 LOG.info("Configuring worker");
 
                 final Environment env = envFactory.create(lzyFsRoot, ProtoConverter.fromProto(
-                        request.getTaskDesc().getOperation().getEnv()));
+                    request.getTaskDesc().getOperation().getEnv()));
 
                 try {
                     env.install(outQueue, errQueue);
