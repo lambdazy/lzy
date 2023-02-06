@@ -6,6 +6,7 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.PortalDescription;
+import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorGrpc;
@@ -45,6 +46,7 @@ public class CleanExecutionCompanion {
     private static final Logger LOG = LogManager.getLogger(CleanExecutionCompanion.class);
 
     private final LzyServiceStorage storage;
+    private final WorkflowDao workflowDao;
     private final ExecutionDao executionDao;
     private final GraphDao graphDao;
     private final OperationDao operationDao;
@@ -58,7 +60,7 @@ public class CleanExecutionCompanion {
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
 
     public CleanExecutionCompanion(PortalClientProvider portalClients, LzyServiceStorage storage,
-                                   ExecutionDao executionDao, GraphDao graphDao,
+                                   WorkflowDao workflowDao, ExecutionDao executionDao, GraphDao graphDao,
                                    @Named("LzyServiceOperationDao") OperationDao operationDao,
                                    @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                    @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
@@ -66,6 +68,7 @@ public class CleanExecutionCompanion {
                                    @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel)
     {
         this.storage = storage;
+        this.workflowDao = workflowDao;
         this.executionDao = executionDao;
         this.graphDao = graphDao;
         this.operationDao = operationDao;
@@ -83,14 +86,19 @@ public class CleanExecutionCompanion {
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
     }
 
-    public void markExecutionAsBroken(String userId, @Nullable String workflowName, String executionId, Status reason)
+    public void finishWorkflow(String userId, @Nullable String workflowName, String executionId, Status reason)
         throws Exception
     {
         LOG.info("Attempt to mark execution as broken by reason: { executionId: {}, reason: {} }", executionId, reason);
 
         withRetries(LOG, () -> {
             try (var tx = TransactionHandle.create(storage)) {
-                executionDao.updateFinishData(userId, workflowName, executionId, reason, tx);
+                if (workflowName == null) {
+                    workflowDao.setActiveExecutionToNull(userId, executionId, tx);
+                } else {
+                    workflowDao.setActiveExecutionToNull(userId, workflowName, executionId, tx);
+                }
+                executionDao.updateFinishData(userId, executionId, reason, tx);
                 executionDao.setErrorExecutionStatus(executionId, tx);
 
                 tx.commit();
@@ -98,14 +106,39 @@ public class CleanExecutionCompanion {
         });
     }
 
-    public boolean tryToMarkExecutionAsBroken(String userId, String workflowName, String executionId, Status reason) {
+    public boolean tryToFinishExecution(String userId, String executionId, Status reason) {
+        LOG.info("Attempt to mark execution as broken by reason: { executionId: {}, reason: {} }", executionId, reason);
+
+        try {
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    executionDao.updateFinishData(userId, executionId, reason, tx);
+                    executionDao.setErrorExecutionStatus(executionId, tx);
+
+                    tx.commit();
+                }
+            });
+        } catch (Exception e) {
+            LOG.warn("Cannot mark execution as broken: { executionId: {}, error: {} }", executionId, e.getMessage());
+            return false;
+        }
+
+        return true;
+    }
+
+    public boolean tryToFinishWorkflow(String userId, String workflowName, String executionId, Status reason) {
         LOG.info("Attempt to mark workflow execution as broken by reason: " +
             "{ workflowName: {}, executionId: {}, reason: {} }", workflowName, executionId, reason);
 
         try {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
-                    executionDao.updateFinishData(userId, workflowName, executionId, reason, tx);
+                    if (workflowName == null) {
+                        workflowDao.setActiveExecutionToNull(userId, executionId, tx);
+                    } else {
+                        workflowDao.setActiveExecutionToNull(userId, workflowName, executionId, tx);
+                    }
+                    executionDao.updateFinishData(userId, executionId, reason, tx);
                     executionDao.setErrorExecutionStatus(executionId, tx);
 
                     tx.commit();
@@ -132,11 +165,18 @@ public class CleanExecutionCompanion {
             if (shutdownPortalOp != null) {
                 var portalOpsClient = portalClients.getOperationsGrpcClient(executionId, portalDesc.vmAddress());
 
-                // it may be long-running process to finish stdout/err portal slots
-                shutdownPortalOp = awaitOperationDone(portalOpsClient, shutdownPortalOp.getId(), Duration.ofMinutes(5));
+                try {
+                    // it may be long-running process to finish stdout/err portal slots
+                    shutdownPortalOp = awaitOperationDone(portalOpsClient, shutdownPortalOp.getId(),
+                        Duration.ofMinutes(5));
 
-                if (!shutdownPortalOp.getDone()) {
-                    LOG.warn("Cannot wait portal of execution shutdown: { executionId: {} }", executionId);
+                    if (!shutdownPortalOp.getDone()) {
+                        LOG.warn("Cannot wait portal of execution shutdown: { executionId: {}, error: timeout }",
+                            executionId);
+                    }
+                } catch (Exception e) {
+                    LOG.warn("Cannot wait portal of execution shutdown: { executionId: {}, error: {} }",
+                        executionId, e.getMessage(), e);
                 }
 
                 stopPortal(executionId, portalDesc.vmAddress());
@@ -150,11 +190,16 @@ public class CleanExecutionCompanion {
                 LongRunningServiceGrpc.newBlockingStub(channelManagerChannel), APP,
                 () -> internalUserCredentials.get().token());
 
-            destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(5));
+            try {
+                destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(10));
 
-            if (!destroyChannelsOp.getDone()) {
-                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {} }",
-                    executionId);
+                if (!destroyChannelsOp.getDone()) {
+                    LOG.warn("Cannot wait channel manager destroy all execution channels: " +
+                        "{ executionId: {}, error: timeout }", executionId);
+                }
+            } catch (Exception e) {
+                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {}, error: {} }",
+                    executionId, e.getMessage(), e);
             }
         }
 
@@ -208,11 +253,16 @@ public class CleanExecutionCompanion {
                 LongRunningServiceGrpc.newBlockingStub(channelManagerChannel), APP,
                 () -> internalUserCredentials.get().token());
 
-            destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(10));
+            try {
+                destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(10));
 
-            if (!destroyChannelsOp.getDone()) {
-                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {} }",
-                    executionId);
+                if (!destroyChannelsOp.getDone()) {
+                    LOG.warn("Cannot wait channel manager destroy all execution channels: " +
+                        "{ executionId: {}, error: timeout }", executionId);
+                }
+            } catch (Exception e) {
+                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {}, error: {} }",
+                    executionId, e.getMessage(), e);
             }
         }
 
@@ -246,7 +296,8 @@ public class CleanExecutionCompanion {
             return channelManagerClient.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder()
                 .setExecutionId(executionId).build());
         } catch (StatusRuntimeException e) {
-            LOG.warn("Cannot destroy channels of execution: { executionId: {} }", executionId, e);
+            LOG.warn("Cannot destroy channels of execution: { executionId: {}, error: {} }",
+                executionId, e.getStatus());
         }
 
         return null;
@@ -268,7 +319,7 @@ public class CleanExecutionCompanion {
             LOG.warn("Cannot stop graphs of completed execution: { executionId: {}, graphId: {} }, error: {}",
                 executionId, Objects.toString(curGraphId, ""), e.getStatus().getDescription());
         } catch (Exception e) {
-            LOG.warn("Cannot find graphs of execution: { executionId: {} }", executionId);
+            LOG.warn("Cannot find graphs of execution: { executionId: {}, error: {} }", executionId, e.getMessage());
         }
     }
 
@@ -278,7 +329,7 @@ public class CleanExecutionCompanion {
         try {
             portalDesc = withRetries(LOG, () -> executionDao.getPortalDescription(executionId));
         } catch (Exception e) {
-            LOG.warn("Cannot get portal for execution: { executionId: {} }", executionId, e);
+            LOG.warn("Cannot get portal for execution: { executionId: {}, error: {} }", executionId, e.getMessage(), e);
         }
         return portalDesc;
     }
@@ -318,7 +369,8 @@ public class CleanExecutionCompanion {
 
             LOG.info("Portal of execution was stopped: { executionId: {} }", executionId);
         } catch (Exception e) {
-            LOG.warn("Cannot stop portal for execution: { executionId: {} }", executionId, e);
+            LOG.warn("Cannot stop portal for execution: { executionId: {}, error: {} }",
+                executionId, e.getMessage(), e);
         }
     }
 

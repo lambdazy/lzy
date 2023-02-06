@@ -149,12 +149,17 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             .formatted(workflowName, executionId), null, idempotencyKey, null);
         var finishStatus = Status.OK.withDescription(reason);
 
-        try (var tx = TransactionHandle.create(storage)) {
-            executionDao.updateFinishData(userId, workflowName, executionId, finishStatus, tx);
-            operationDao.create(op, tx);
-            executionDao.setCompletingExecutionStatus(executionId, tx);
+        try {
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    workflowDao.setActiveExecutionToNull(userId, workflowName, executionId, tx);
+                    executionDao.updateFinishData(userId, executionId, finishStatus, tx);
+                    operationDao.create(op, tx);
+                    executionDao.setCompletingExecutionStatus(executionId, tx);
 
-            tx.commit();
+                    tx.commit();
+                }
+            });
         } catch (NotFoundException e) {
             LOG.error("Cannot finish workflow, not found: { workflowName: {}, executionId: {}, error: {} }",
                 workflowName, executionId, e.getMessage());
@@ -204,7 +209,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         var abortStatus = Status.CANCELLED.withDescription(reason);
         try {
-            cleanExecutionCompanion.markExecutionAsBroken(userId, workflowName, executionId, abortStatus);
+            cleanExecutionCompanion.finishWorkflow(userId, workflowName, executionId, abortStatus);
             cleanExecutionCompanion.cleanExecution(executionId);
         } catch (IllegalStateException ise) {
             LOG.error("Execution from argument is not an active in workflow: " +
@@ -219,8 +224,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 "'%s' with active execution '%s'".formatted(workflowName, executionId)).asRuntimeException());
             return;
         } catch (Exception e) {
-            LOG.error("Cannot abort workflow: { userId: {}, workflowName: {}, executionId: {} }",
-                userId, workflowName, executionId, e);
+            LOG.error("Cannot abort workflow: { userId: {}, workflowName: {}, executionId: {}, error: {} }",
+                userId, workflowName, executionId, e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription("Cannot abort workflow").asRuntimeException());
             return;
         }
@@ -274,7 +279,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 userId, executionId, ex.getMessage(), ex);
             var status = Status.INTERNAL.withDescription(ex.getMessage());
 
-            if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId,
+            if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                 status))
             {
                 cleanExecutionCompanion.cleanExecution(executionId);
@@ -309,7 +314,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 var status = Status.INTERNAL.withDescription("Cannot execute graph");
                 LOG.error("Cannot execute graph: {}", e.getMessage(), e);
 
-                if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId, status)) {
+                if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId, status)) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
 
