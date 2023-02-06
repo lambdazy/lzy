@@ -141,6 +141,10 @@ jobs:
         timeout-minutes: 5
         run: cd lzy/worker && mvn package && cd ../..
 
+      - name: 'java build portal'
+        timeout-minutes: 5
+        run: cd lzy/portal && mvn package && cd ../..
+
       - name: 'SchedulerTest'
         timeout-minutes: 5
         run: |
