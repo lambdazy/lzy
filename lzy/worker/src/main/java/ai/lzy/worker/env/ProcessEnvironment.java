@@ -66,6 +66,11 @@ public class ProcessEnvironment implements BaseEnvironment {
     }
 
     @Override
+    public String baseEnvId() {
+        return "Process";
+    }
+
+    @Override
     public void close() throws Exception {
     }
 

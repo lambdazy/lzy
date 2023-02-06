@@ -6,11 +6,13 @@ import com.google.common.annotations.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.UUID;
+import java.util.HashMap;
 import java.util.function.Supplier;
 
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
+
+    private static final HashMap<String, String> createdContainers = new HashMap<>();
     private static Supplier<Environment> envForTests = null;
 
     private final String defaultImage;
@@ -31,17 +33,33 @@ public class EnvironmentFactory {
         final String resourcesPathStr = "/tmp/resources/";
         final String localModulesPathStr = "/tmp/local_modules/";
 
-        final BaseEnvironment baseEnv;
+        BaseEnvironment baseEnv = null;
         if (isDockerSupported && env.baseEnv() != null) {
             LOG.info("Docker baseEnv provided, using DockerEnvironment");
+
             String image = env.baseEnv().name();
-            BaseEnvConfig config = BaseEnvConfig.newBuilder()
-                .image((image == null || image.equals("default")) ? defaultImage : image)
-                .addMount(resourcesPathStr, resourcesPathStr)
-                .addMount(localModulesPathStr, localModulesPathStr)
-                .addRsharedMount(fsRoot, fsRoot)
-                .build();
-            baseEnv = new DockerEnvironment(config);
+            if (image == null || image.equals("default")) {
+                image = defaultImage;
+            }
+
+
+            if (createdContainers.containsKey(image)) {
+                final String containerId = createdContainers.get(image);
+                baseEnv = DockerEnvironment.fromExistedContainer(image, containerId);
+            }
+
+            if (baseEnv != null) {
+                LOG.info("Found existed Docker Environment, id={}", baseEnv.baseEnvId());
+            } else {
+                BaseEnvConfig config = BaseEnvConfig.newBuilder()
+                    .image(image)
+                    .addMount(resourcesPathStr, resourcesPathStr)
+                    .addMount(localModulesPathStr, localModulesPathStr)
+                    .addRsharedMount(fsRoot, fsRoot)
+                    .build();
+                baseEnv = DockerEnvironment.create(config);
+                createdContainers.put(image, ((DockerEnvironment) baseEnv).getContainerId());
+            }
         } else {
             if (env.baseEnv() == null) {
                 LOG.info("No baseEnv provided, using ProcessEnvironment");

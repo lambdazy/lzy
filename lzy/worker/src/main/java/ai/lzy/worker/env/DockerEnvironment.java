@@ -4,12 +4,12 @@ import ai.lzy.worker.StreamQueue;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerCmd;
-import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DockerClientBuilder;
+import jakarta.annotation.Nullable;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,11 +31,16 @@ public class DockerEnvironment implements BaseEnvironment {
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
 
-    public final CreateContainerResponse container;
     public final String sourceImage;
+    public final String containerId;
 
-    public DockerEnvironment(BaseEnvConfig config) {
-        sourceImage = prepareImage(config);
+    private DockerEnvironment(String sourceImage, String containerId) {
+        this.sourceImage = sourceImage;
+        this.containerId = containerId;
+    }
+
+    public static DockerEnvironment create(BaseEnvConfig config) {
+        final String sourceImage = prepareImage(config);
 
         LOG.info("Creating container from image={} ...", sourceImage);
         LOG.info("Mount options:\n\t{}", config.mounts().stream()
@@ -65,14 +70,27 @@ public class DockerEnvironment implements BaseEnvironment {
             .withAttachStdout(true)
             .withAttachStderr(true);
 
-        container = createContainerCmd
+        final var container = createContainerCmd
             .withTty(true)
             .exec();
-        LOG.info("Creating container from image={} done, id={}", sourceImage, container.getId());
+        final String containerId = container.getId();
+        LOG.info("Creating container from image={} done, id={}", sourceImage, containerId);
 
-        LOG.info("Starting env container with id {} ...", container.getId());
+        LOG.info("Starting env container with id {} ...", containerId);
         DOCKER.startContainerCmd(container.getId()).exec();
-        LOG.info("Starting env container with id {} done", container.getId());
+        LOG.info("Starting env container with id {} done", containerId);
+
+        return new DockerEnvironment(sourceImage, containerId);
+    }
+
+    @Nullable
+    public static DockerEnvironment fromExistedContainer(String sourceImage, String containerId) {
+        final var imageInspection = DOCKER.inspectImageCmd(sourceImage).exec();
+        LOG.info("TMP image: {}", imageInspection.toString());
+        final var containerInspection = DOCKER.inspectContainerCmd(containerId).withSize(true).exec();
+        LOG.info("TMP container: {}", containerInspection.toString());
+
+        return null; // TODO new DockerEnvironment(sourceImage, containerId);
     }
 
     @Override
@@ -100,7 +118,7 @@ public class DockerEnvironment implements BaseEnvironment {
         }
 
         LOG.info("Creating cmd {}", String.join(" ", command));
-        final ExecCreateCmd execCmd = DOCKER.execCreateCmd(container.getId())
+        final ExecCreateCmd execCmd = DOCKER.execCreateCmd(containerId)
             .withCmd(command)
             .withAttachStdout(true)
             .withAttachStderr(true);
@@ -194,7 +212,7 @@ public class DockerEnvironment implements BaseEnvironment {
 
             @Override
             public void signal(int sigValue) {
-                DOCKER.killContainerCmd(container.getId()) // TODO(d-kruchinin): execId?
+                DOCKER.killContainerCmd(containerId) // TODO(d-kruchinin): execId?
                     .withSignal(String.valueOf(sigValue))
                     .exec();
             }
@@ -203,10 +221,24 @@ public class DockerEnvironment implements BaseEnvironment {
 
     @Override
     public void close() throws Exception {
-        DOCKER.killContainerCmd(container.getId()).exec();
+        DOCKER.killContainerCmd(containerId).exec();
     }
 
-    private String prepareImage(BaseEnvConfig config) {
+
+    @Override
+    public String baseEnvId() {
+        return containerId;
+    }
+
+    public String getSourceImage() {
+        return sourceImage;
+    }
+
+    public String getContainerId() {
+        return containerId;
+    }
+
+    private static String prepareImage(BaseEnvConfig config) {
         LOG.info("Pulling image {} ...", config.image());
         final var pullingImage = DOCKER
             .pullImageCmd(config.image())
