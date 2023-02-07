@@ -58,8 +58,8 @@ resource "yandex_kubernetes_node_group" "workers-s" {
     }
 
     resources {
-      memory = 4
-      cores  = 2
+      memory = 32
+      cores  = 4
     }
 
     boot_disk {
@@ -73,10 +73,8 @@ resource "yandex_kubernetes_node_group" "workers-s" {
   }
 
   scale_policy {
-    auto_scale {
-      initial = 5
-      max     = 10
-      min     = 5
+    fixed_scale {
+      size = 10
     }
   }
 }
@@ -118,10 +116,8 @@ resource "yandex_kubernetes_node_group" "workers-l" {
   }
 
   scale_policy {
-    auto_scale {
-      initial = 1
-      max     = 2
-      min     = 1
+    fixed_scale {
+      size = 7
     }
   }
 }
