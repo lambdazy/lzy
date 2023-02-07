@@ -46,7 +46,7 @@ abstract class YcDiskActionBase<S> extends OperationRunnerBase {
             onSuccess.run();
             return StepResult.CONTINUE;
         } catch (Exception e) {
-            log().debug("[{}] Cannot save state for op {}, reschedule...", descr(), opId());
+            log().debug("{} Cannot save state, reschedule...", logPrefix());
             onFail.run();
             return StepResult.RESTART;
         }

@@ -1,6 +1,7 @@
 package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
+import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
@@ -8,6 +9,7 @@ import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.*;
+import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
 import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
@@ -117,7 +119,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     @Test
     public void allocateKuberErrorWhileCreate() throws Exception {
         //simulate kuber api error on pod creation
-        kubernetesServer.getKubernetesMockServer().clearExpectations();
+        kubernetesServer.clearExpectations();
         kubernetesServer.expect().post().withPath(POD_PATH)
             .andReturn(HttpURLConnection.HTTP_INTERNAL_ERROR, new PodListBuilder().build())
             .once();
@@ -229,8 +231,15 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
-        Assert.assertFalse(allocOp.getDone());
-        var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+
+        if (allocOp.getDone()) {
+            var vmId = allocOp.getMetadata().unpack(AllocateMetadata.class).getVmId();
+            var vmSubj = super.getSubject(AuthProvider.INTERNAL, vmId, SubjectType.VM);
+            Assert.assertNotNull(vmSubj);
+            return new AllocatedVm(vmId, "unknown", vmSubj);
+        }
+
+        var vmId = allocOp.getMetadata().unpack(AllocateMetadata.class).getVmId();
 
         final String podName = future.get();
         mockGetPod(podName);
@@ -287,7 +296,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .build());
         Assert.assertTrue(allocOp.getDone());
 
-        var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+        var vmId = allocOp.getMetadata().unpack(AllocateMetadata.class).getVmId();
         Assert.assertEquals(vm1.vmId, vmId);
 
         vmId = allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId();
@@ -321,7 +330,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                             .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                             .build());
 
-                    var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+                    var vmId = allocOp.getMetadata().unpack(AllocateMetadata.class).getVmId();
 
                     while (vmId.isEmpty()) {
                         LockSupport.parkNanos(Duration.ofMillis(1).toNanos());
@@ -329,7 +338,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                             LongRunning.GetOperationRequest.newBuilder()
                                 .setOperationId(allocOp.getId())
                                 .build());
-                        vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+                        vmId = allocOp.getMetadata().unpack(AllocateMetadata.class).getVmId();
                     }
 
                     allocatedVmIds[index] = vmId;
@@ -386,7 +395,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
-        var allocateMetadataSecond = operationSecond.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        var allocateMetadataSecond = operationSecond.getMetadata().unpack(AllocateMetadata.class);
         operationSecond = waitOpSuccess(operationSecond);
 
         final var allocateResponseSecond = operationSecond.getResponse().unpack(AllocateResponse.class);
@@ -440,11 +449,10 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                             .setClusterType(AllocateRequest.ClusterType.USER)
                             .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                             .build());
-                    allocOp = waitOpSuccess(allocOp);
 
-                    var allocResp = allocOp.getResponse().unpack(AllocateResponse.class);
+                    var allocResp = allocOp.getMetadata().unpack(AllocateMetadata.class);
                     allocatedVmIds[index] = allocResp.getVmId();
-                } catch (Exception e) {
+                } catch (Throwable e) {
                     e.printStackTrace(System.err);
                     failed.set(true);
                 } finally {
@@ -462,6 +470,56 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     }
 
     @Test
+    public void deleteSessionParallelToAllocation() throws Exception {
+        var sessionId = createSession(Durations.ZERO);
+
+        var deleteLatch = new CountDownLatch(1);
+        var deletedLatch = new CountDownLatch(1);
+
+        var deleteSessionThread = new Thread(() -> {
+            try {
+                deleteLatch.await();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            var op = authorizedAllocatorBlockingStub.deleteSession(
+                DeleteSessionRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .build());
+            waitOpSuccess(op);
+            deletedLatch.countDown();
+        }, "delete-session");
+        deleteSessionThread.start();
+
+        InjectedFailures.FAIL_ALLOCATE_VMS.get(10).set(() -> {
+            deleteLatch.countDown();
+            try {
+                deletedLatch.await();
+                System.out.println("--> continue allocation");
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        try {
+            authorizedAllocatorBlockingStub.allocate(
+                AllocateRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .setPoolLabel("S")
+                    .setZone(ZONE)
+                    .setClusterType(AllocateRequest.ClusterType.USER)
+                    .addWorkload(AllocateRequest.Workload.getDefaultInstance())
+                    .build());
+            Assert.fail();
+        } catch (StatusRuntimeException e) {
+            Assert.assertEquals(Status.Code.INTERNAL, e.getStatus().getCode());
+            Assert.assertEquals("Session %s not found".formatted(sessionId), e.getStatus().getDescription());
+        }
+
+        deleteSessionThread.join();
+    }
+
+    @Test
     public void deleteSessionWithActiveVmsAfterRegister() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
@@ -475,7 +533,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
-        var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        var allocateMetadata = allocate.getMetadata().unpack(AllocateMetadata.class);
 
         final String podName = future.get();
         mockGetPod(podName);
@@ -511,18 +569,18 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
-        var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        var allocateMetadata = allocate.getMetadata().unpack(AllocateMetadata.class);
 
         final String podName = future.get();
         mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
-        //noinspection ResultOfMethodCallIgnored
-        authorizedAllocatorBlockingStub.deleteSession(
+        var op = authorizedAllocatorBlockingStub.deleteSession(
             DeleteSessionRequest.newBuilder()
                 .setSessionId(sessionId)
                 .build());
+        Assert.assertFalse(op.getDone());
 
         try {
             //noinspection ResultOfMethodCallIgnored
@@ -530,8 +588,24 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 VmAllocatorPrivateApi.RegisterRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(),
-                e.getStatus().getCode());
+            switch (e.getStatus().getCode()) {
+                case CANCELLED ->
+                    Assert.assertEquals(e.getStatus().toString(),
+                        "Op %s already done".formatted(allocate.getId()),
+                        e.getStatus().getDescription());
+                case NOT_FOUND -> {
+                    if (!Objects.equals(e.getStatus().getDescription(), "Session not found")) {
+                        Assert.assertEquals(e.getStatus().toString(),
+                            "Op %s not found".formatted(allocate.getId()),
+                            e.getStatus().getDescription());
+                    }
+                }
+                case FAILED_PRECONDITION ->
+                    Assert.assertEquals(e.getStatus().toString(),
+                        "Unexpected VM status DELETING",
+                        e.getStatus().getDescription());
+                default -> Assert.fail("Unexpected status: " + e.getStatus());
+            }
         }
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
@@ -583,7 +657,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .setClusterType(AllocateRequest.ClusterType.USER)
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build());
-        var allocateMetadata = allocate.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        var allocateMetadata = allocate.getMetadata().unpack(AllocateMetadata.class);
 
         final String podName = future.get();
         mockGetPod(podName);
@@ -659,7 +733,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                         .setDiskId(disk.getDiskId()).build())
                     .build())
                 .build());
-        var allocateMetadata = allocationStarted.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        var allocateMetadata = allocationStarted.getMetadata().unpack(AllocateMetadata.class);
 
         final String podName = future.get();
         mockGetPod(podName);
