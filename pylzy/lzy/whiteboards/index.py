@@ -1,3 +1,4 @@
+import atexit
 import datetime
 import json
 import os
@@ -5,7 +6,8 @@ import tempfile
 from json import JSONDecodeError
 from typing import Optional, Sequence, cast, AsyncIterable, BinaryIO
 
-from google.protobuf.json_format import MessageToJson, Parse, ParseDict
+# noinspection PyPackageRequirements
+from google.protobuf.json_format import MessageToJson, ParseDict
 # noinspection PyPackageRequirements
 from google.protobuf.timestamp_pb2 import Timestamp
 # noinspection PyPackageRequirements
@@ -17,6 +19,7 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import GetRequest, GetResponse,
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceStub
 from lzy.api.v1 import WorkflowServiceClient
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
+from lzy.utils.event_loop import LzyEventLoop
 from lzy.utils.grpc import build_channel, add_headers_interceptor, build_token
 from lzy.whiteboards.api import WhiteboardIndexClient, WhiteboardManager
 from lzy.whiteboards.wrapper import WhiteboardWrapper
@@ -31,6 +34,7 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
         self.__channel = None
         self.__stub = None
         self.__is_started = False
+        atexit.register(self.__cleanup)
 
     async def __start(self) -> None:
         if self.__is_started:
@@ -102,6 +106,10 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
     async def update(self, wb: Whiteboard):
         await self.__start()
         await self.__stub.UpdateWhiteboard(UpdateWhiteboardRequest(whiteboard=wb))
+
+    def __cleanup(self) -> None:
+        if self.__is_started:
+            LzyEventLoop.run_async(self.__channel.close())
 
 
 class WhiteboardIndexedManager(WhiteboardManager):
@@ -229,8 +237,8 @@ class WhiteboardIndexedManager(WhiteboardManager):
             storage_name = self.__storage_registry.provided_storage_name()
             self.__storage_registry.register_storage(storage_name, storage_creds, default=True)
 
-    async def __get_meta_from_storage(self,
-                                      storage_client: AsyncStorageClient,
+    @staticmethod
+    async def __get_meta_from_storage(storage_client: AsyncStorageClient,
                                       wb_meta_uri: str) -> Optional[Whiteboard]:
 
         exists = await storage_client.blob_exists(wb_meta_uri)
@@ -243,6 +251,6 @@ class WhiteboardIndexedManager(WhiteboardManager):
             try:
                 wb = ParseDict(json.load(f), Whiteboard())
             except JSONDecodeError as e:
-                raise RuntimeError("Whiteboard corrupted, failed to load")
+                raise RuntimeError("Whiteboard corrupted, failed to load", e)
 
         return wb
