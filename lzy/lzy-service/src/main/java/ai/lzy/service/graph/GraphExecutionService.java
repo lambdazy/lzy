@@ -96,7 +96,7 @@ public class GraphExecutionService {
             InjectedFailures.fail1();
 
             if (state.isInvalid()) {
-                if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId,
+                if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                     state.getErrorStatus()))
                 {
                     cleanExecutionCompanion.cleanExecution(executionId);
@@ -115,7 +115,7 @@ public class GraphExecutionService {
             }
 
             if (state.isInvalid()) {
-                if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId,
+                if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                     state.getErrorStatus()))
                 {
                     cleanExecutionCompanion.cleanExecution(executionId);
@@ -130,7 +130,7 @@ public class GraphExecutionService {
             if (portalClient == null) {
                 LOG.error("Cannot get portal client while creating portal slots for current graph: " + state);
                 var reason = Status.INTERNAL.withDescription("Cannot build execution graph");
-                if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId, reason)) {
+                if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId, reason)) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
                 return operationDao.failOperation(state.getOpId(), toProto(reason), null, LOG);
@@ -148,7 +148,7 @@ public class GraphExecutionService {
             }
 
             if (state.isInvalid()) {
-                if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId,
+                if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                     state.getErrorStatus()))
                 {
                     cleanExecutionCompanion.cleanExecution(executionId);
@@ -182,7 +182,7 @@ public class GraphExecutionService {
                             .addAllChannels(state.getChannels())
                             .build());
                 } catch (StatusRuntimeException e) {
-                    if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId,
+                    if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                         e.getStatus()))
                     {
                         cleanExecutionCompanion.cleanExecution(executionId);
@@ -211,7 +211,7 @@ public class GraphExecutionService {
                     GraphExecutorApi.GraphStopRequest.newBuilder().setGraphId(state.getGraphId()).build());
 
                 var reason = Status.INTERNAL.withDescription("Error while graph execution");
-                if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId, reason)) {
+                if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId, reason)) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
                 return operationDao.failOperation(state.getOpId(), toProto(reason), null, LOG);
@@ -233,7 +233,7 @@ public class GraphExecutionService {
                     GraphExecutorApi.GraphStopRequest.newBuilder().setGraphId(state.getGraphId()).build());
 
                 var reason = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
-                if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, workflowName, executionId, reason)) {
+                if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId, reason)) {
                     cleanExecutionCompanion.cleanExecution(executionId);
                 }
                 return operationDao.failOperation(state.getOpId(), toProto(reason), null, LOG);
@@ -244,7 +244,7 @@ public class GraphExecutionService {
             return null;
         } catch (Exception e) {
             var errorStatus = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
-            if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(userId, state.getWorkflowName(), executionId,
+            if (cleanExecutionCompanion.tryToFinishWorkflow(userId, state.getWorkflowName(), executionId,
                 errorStatus))
             {
                 cleanExecutionCompanion.cleanExecution(executionId);
