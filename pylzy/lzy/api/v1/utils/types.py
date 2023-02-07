@@ -75,5 +75,5 @@ def is_subtype(subtype: Type, supertype: Type) -> bool:
     elif subtype == Tuple[EmptyContent]:
         subtype = supertype if is_subhint(supertype, Tuple) else Tuple  # type: ignore
     elif subtype == Dict[EmptyContent, EmptyContent]:
-        subtype = Dict if is_subhint(supertype, Dict) else Dict
+        subtype = supertype if is_subhint(supertype, Dict) else Dict  # type: ignore
     return is_subhint(subtype, supertype)
