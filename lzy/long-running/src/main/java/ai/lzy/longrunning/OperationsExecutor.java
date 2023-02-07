@@ -64,6 +64,7 @@ public final class OperationsExecutor {
         var ok = delegate.awaitTermination(5, TimeUnit.SECONDS);
         assert ok;
         LOG.info("{} tasks dropped", q.size());
+        // let's wait a bit to cancel the blunted tasks
         LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
         delegate = create(delegate.getCorePoolSize(), delegate.getMaximumPoolSize(), onError, injectedFailure);
     }
