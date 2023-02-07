@@ -24,6 +24,12 @@ resource "kubernetes_secret" "oauth_github" {
   type = "Opaque"
 }
 
+variable "ssl-enabled" {
+  default = ""
+}
+variable "ssl-keystore-password" {
+  default = ""
+}
 resource "kubernetes_deployment" "lzy_backoffice" {
   metadata {
     name   = local.backoffice-k8s-name
@@ -55,6 +61,10 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             name           = "frontendtls"
             container_port = local.backoffice-frontend-tls-port
             host_port      = local.backoffice-frontend-tls-port
+          }
+          volume_mount {
+            name       = "cert"
+            mount_path = "/etc/sec"
           }
         }
         container {
@@ -119,7 +129,30 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             container_port = local.backoffice-backend-tls-port
             host_port      = local.backoffice-backend-tls-port
           }
+
+          args = [
+            "-Dmicronaut.env.deduction=true",
+            "-Dmicronaut.ssl.keyStore.password=${var.ssl-keystore-password}",
+            "-Dmicronaut.ssl.enabled=${var.ssl-enabled ? "true" : "false"}",
+            "-Dmicronaut.server.dual-protocol=${var.ssl-enabled ? "true" : "false"}"
+          ]
         }
+
+        volume {
+          name = "cert"
+          secret {
+            secret_name = "certs"
+            items {
+              key  = "cert"
+              path = "cert.crt"
+            }
+            items {
+              key  = "cert-key"
+              path = "cert.key"
+            }
+          }
+        }
+
         node_selector = {
           type = "lzy"
         }
