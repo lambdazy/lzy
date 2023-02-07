@@ -58,7 +58,7 @@ module "v2" {
   portal_image              = "lzydock/portal:${var.docker_portal_image_tag}"
   storage-image             = "lzydock/storage:${var.docker_storage_image_tag}"
   whiteboard-image          = "lzydock/whiteboard:${var.docker_whiteboard_image_tag}"
-  backoffice-backend-image  = "lzydock/site-backend:${var.docker_backend_image_tag}"
+  backoffice-backend-image  = "lzydock/site:${var.docker_backend_image_tag}"
   backoffice-frontend-image = "lzydock/site-frontend:${var.docker_frontend_image_tag}"
   unified-agent-image       = "lzydock/unified_agent:${var.docker_unified_agent_image_tag}"
 }
