@@ -40,10 +40,8 @@ resource "yandex_kubernetes_node_group" "portals" {
   }
 
   scale_policy {
-    auto_scale {
-      initial = 2
-      max     = 10
-      min     = 2
+    fixed_scale {
+      size = 10
     }
   }
 }

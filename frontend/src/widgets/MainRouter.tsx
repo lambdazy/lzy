@@ -2,7 +2,7 @@ import {Redirect, Route, Switch} from "react-router-dom";
 import {LoginFormFC} from "./LoginForm";
 import {PrivateRoute} from "../logic/Auth";
 import {AuthUser} from "./AuthUser";
-import {Basics, Environment, Setup, Data, Whiteboards, Views, Integrations, Overview, Auth} from "./Docs";
+import {Basics, Environment, Setup, Data, Whiteboards, Integrations, Overview, Auth} from "./Docs";
 import {Tasks} from "./Tasks";
 import {PublicKeys} from "./PublicKeys";
 import {Header} from "./Header";
@@ -23,8 +23,7 @@ export const MainRouter = () => (
             <Route exact path="/docs/4-data.md" component={Data}/>
             <Route exact path="/docs/5-environment.md" component={Environment}/>
             <Route exact path="/docs/6-whiteboards.md" component={Whiteboards}/>
-            <Route exact path="/docs/7-views.md" component={Views}/>
-            <Route exact path="/docs/8-integrations.md" component={Integrations}/>
+            <Route exact path="/docs/7-integrations.md" component={Integrations}/>
             <Route exact path="/login" component={LoginFormFC}/>
             <Route exact path="/login_user" component={AuthUser}/>
             <PrivateRoute path="/keys" exact>
