@@ -213,10 +213,22 @@ class LzyWorkflow:
                     data_to_load.append(self.snapshot.put_data(eid, kwarg))
                     self.__filled_entry_ids.add(eid)
 
+            # prefix = f"{workflow.owner.storage_uri}/lzy_runs/{workflow.name}/data"
+            # self.__entry_ids: List[str] = []
+            # for i, typ in enumerate(sign.func.output_types):
+            #     name = sign.func.callable.__name__ + ".return_" + str(i)
+            #     uri = f"{prefix}/{name}.{self.__id}"
+            #     eid = workflow.snapshot.create_entry(name, typ).id
+            #     self.__entry_ids.append(eid)
+            #     workflow.snapshot.update_entry(eid, uri)
+
+        await asyncio.gather(*data_to_load)
+
+        for call in self.__call_queue:
             args_inputs_hash: str = '_'.join(map(lambda eid: self.snapshot.get(eid).hash, call.arg_entry_ids))
             kwargs_inputs_hash: str = '_'.join(map(
                 lambda name: self.snapshot.get(call.kwarg_entry_ids[name]).hash,
-                sorted(call.kwargs.values())
+                sorted(call.kwargs.keys())
             ))
             inputs_hash: str = '_'.join([args_inputs_hash, kwargs_inputs_hash])
 
@@ -230,15 +242,5 @@ class LzyWorkflow:
                     entry.set_hash(self.__hasher.hash_of_str(entry.storage_uri))
                     self.__filled_entry_ids.add(eid)
 
-            # prefix = f"{workflow.owner.storage_uri}/lzy_runs/{workflow.name}/data"
-            # self.__entry_ids: List[str] = []
-            # for i, typ in enumerate(sign.func.output_types):
-            #     name = sign.func.callable.__name__ + ".return_" + str(i)
-            #     uri = f"{prefix}/{name}.{self.__id}"
-            #     eid = workflow.snapshot.create_entry(name, typ).id
-            #     self.__entry_ids.append(eid)
-            #     workflow.snapshot.update_entry(eid, uri)
-
-        await asyncio.gather(*data_to_load)
         await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))
         self.__call_queue = []

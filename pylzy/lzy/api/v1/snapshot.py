@@ -70,9 +70,7 @@ class SerializedDataHasher:
         self.__algo = algo
 
     def hash_of_str(self, uri: str) -> str:
-        hsh = hashlib.sha256()
-        hsh.update(uri)
-        return hsh.hexdigest()
+        return hashlib.sha256(uri.encode('utf-8')).hexdigest()
 
     def hash_of_file(self, file_obj: FileIO) -> str:
         blocksize: int = 4096
