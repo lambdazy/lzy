@@ -52,7 +52,7 @@ resource "yandex_kubernetes_node_group" "services" {
 
   scale_policy {
     fixed_scale {
-      size = 5
+      size = 6
     }
   }
 }
