@@ -1,11 +1,11 @@
 import dataclasses
 
-from lzy.api.v1 import op, whiteboard, Lzy
+from lzy.api.v1 import op, whiteboard, Lzy, lzy_auth
 from lzy.types import File
 
 
 # noinspection PyShadowingNames
-@op
+@op(gpu_type="NO_GPU")
 def a(f1: File) -> (File, File, File):
     with f1.open("a") as fl:
         fl.write("buzz")
@@ -19,7 +19,7 @@ def a(f1: File) -> (File, File, File):
     return f1, File("/tmp/b.txt"), File("/tmp/c.txt")
 
 
-@op
+@op(gpu_type="NO_GPU")
 def b() -> (int, str):
     return 42, "42"
 
