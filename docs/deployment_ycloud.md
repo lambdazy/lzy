@@ -11,17 +11,15 @@
 
 1) Create terraform module and import [v2](../deployment/tf/modules/v2) module (see example [here](../deployment/tf/modules/v2_example)).
 It's necessary to instantiate "yandex" terraform provider in your module.
-2) Perform yc login into your organization
-3) Create GitHub OAuth App
-4) Generate client secret
-5) Create tvars.json file with the following content
+2) Perform yc login into your organization.
+3) Create [GitHub OAuth App](https://docs.github.com/en/developers/apps/building-github-apps/creating-a-github-app).
+You will get your callback URLs later, so leave fields empty or fill them with random value.
+4) Generate client secret. Save client ID and secret.
+5) Create tfvars.json file with the following content
 ```
 {
   "oauth_github_client_id": "<your_client_id>",
   "oauth_github_client_secret": "<your_client_secret>",
-  "docker_images_tag": "1.1", //optional, has default
-  "docker_worker_image_tag": "1.2", //optional, has default
-  "docker_unified_agent_tag": "1.0", //optional, has default
   "yc_token": "<yc_token>" //optional, see the step about authorized key
 }
 ```
@@ -37,8 +35,21 @@ Then put path to the file to env variable `YC_SERVICE_ACCOUNT_KEY_FILE`. It's ne
 Alternatively, you can log into your organization through yc-cli and request token with `yc iam create-token` command.
 Then put the token into `YC_TOKEN` env variable or fill `yc_token` variable in terraform vars.
 10) Run `terraform init` from your module directory
-11) Run `terraform plan -var-file=tvars.json -out=tfplan`
-12) Run `terraform apply tfplan`
+11) Run `terraform plan -var-file=tfvars.json -out=tfplan`
+12) Run `terraform apply tfplan`. If something is not right, check quota on your cloud. After that, retry previous and this steps again.
+13) If everything went well, open 'Network Load Balancer' tab and find ip address of the balancer over _lzy-backoffice-service_.
+Copy it and insert to your GitHub OAuth App **Homepage URL** field as `http://<your_ip>`
+and to **Authorization callback URL** field as `http://<your_ip>:8080`
+14) Open `http://<your_ip>` and check that everything is working. Follow the instructions on the site and try to add your keys.
+15) If something isn't working, but your infrastructure were deployed successfully, check YC's 'Virtual Private Cloud' tab.
+Then check `Security groups` on the left bar. If there's a default security group, edit it and add new rule on incoming traffic that allows any traffic on any port.
+Read about security groups [here](https://cloud.yandex.com/en/docs/vpc/concepts/security-groups?from=int-console-help-center-or-nav).
+16) Also, you need to customize your Python code a little. Go to the YC's 'Network load balancer' tab and check ips for the
+balancers over _lzy-service_ and _whiteboard_. Add them to your auth call like this:
+```python
+lzy.auth(user="<your github login>", key_path="<path to the private key>",
+         endpoint="<lzy-service lb ip>:8122", whiteboards_endpoint="<whiteboard lb ip>:8122")
+```
 
 ### View logs
 

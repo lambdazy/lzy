@@ -17,21 +17,80 @@ variable "oauth_github_client_secret" {
   sensitive   = true
 }
 
-variable "docker_images_tag" {
+variable "docker_iam_image_tag" {
   type        = string
-  description = "Docker image tag for services"
-  default = "1.1"
+  description = "Docker IAM image tag"
+  default     = "1.0"
+}
+
+variable "docker_channel_manager_image_tag" {
+  type        = string
+  description = "Docker IAM channel-manager tag"
+  default     = "1.0"
+}
+
+variable "docker_lzy_service_image_tag" {
+  type        = string
+  description = "Docker IAM lzy-service tag"
+  default     = "1.1"
+}
+
+variable "docker_graph_executor_image_tag" {
+  type        = string
+  description = "Docker IAM graph-executor tag"
+  default     = "1.1"
+}
+
+variable "docker_scheduler_image_tag" {
+  type        = string
+  description = "Docker IAM scheduler tag"
+  default     = "1.0"
+}
+
+variable "docker_allocator_image_tag" {
+  type        = string
+  description = "Docker IAM allocator tag"
+  default     = "1.1"
 }
 
 variable "docker_worker_image_tag" {
   type        = string
-  description = "Docker image tag for worker"
-  default = "1.2"
+  description = "Docker IAM worker tag"
+  default     = "1.2"
 }
 
-
-variable "docker_unified_agent_tag" {
+variable "docker_portal_image_tag" {
   type        = string
-  description = "Docker image tag for unified agent"
-  default = "1.0"
+  description = "Docker IAM portal tag"
+  default     = "1.1"
+}
+
+variable "docker_storage_image_tag" {
+  type        = string
+  description = "Docker IAM storage tag"
+  default     = "1.0"
+}
+
+variable "docker_whiteboard_image_tag" {
+  type        = string
+  description = "Docker IAM whiteboard tag"
+  default     = "1.0"
+}
+
+variable "docker_frontend_image_tag" {
+  type        = string
+  description = "Docker IAM frontend tag"
+  default     = "1.0"
+}
+
+variable "docker_backend_image_tag" {
+  type        = string
+  description = "Docker IAM backend tag"
+  default     = "1.1"
+}
+
+variable "docker_unified_agent_image_tag" {
+  type        = string
+  description = "Docker IAM unified agent tag"
+  default     = "1.0"
 }

@@ -33,7 +33,7 @@ provider "yandex" {
 }
 
 module "v2" {
-#  source                    = "github.com/lambdazy/lzy//deployment/tf/modules/v2?ref=master"
+  #  source                    = "github.com/lambdazy/lzy//deployment/tf/modules/v2?ref=master"
   source                    = "../v2"
   installation_name         = "lzy-dev-public" //you can change it
   folder_id                 = local.folder_id
@@ -48,17 +48,17 @@ module "v2" {
   oauth-github-client-id     = var.oauth_github_client_id
   oauth-github-client-secret = var.oauth_github_client_secret
 
-  channel-manager-image     = "lzydock/channel-manager:${var.docker_images_tag}"
-  allocator-image           = "lzydock/allocator:${var.docker_images_tag}"
-  iam-image                 = "lzydock/iam:${var.docker_images_tag}"
-  scheduler-image           = "lzydock/scheduler:${var.docker_images_tag}"
+  channel-manager-image     = "lzydock/channel-manager:${var.docker_channel_manager_image_tag}"
+  allocator-image           = "lzydock/allocator:${var.docker_allocator_image_tag}"
+  iam-image                 = "lzydock/iam:${var.docker_iam_image_tag}"
+  scheduler-image           = "lzydock/scheduler:${var.docker_scheduler_image_tag}"
   servant-image             = "lzydock/worker:${var.docker_worker_image_tag}"
-  graph-image               = "lzydock/graph-executor:${var.docker_images_tag}"
-  lzy-service-image         = "lzydock/lzy-service:${var.docker_images_tag}"
-  portal_image              = "lzydock/portal:${var.docker_images_tag}"
-  storage-image             = "lzydock/storage:${var.docker_images_tag}"
-  whiteboard-image          = "lzydock/whiteboard:${var.docker_images_tag}"
-  backoffice-backend-image  = "lzydock/site-backend:${var.docker_images_tag}"
-  backoffice-frontend-image = "lzydock/site-frontend:${var.docker_images_tag}"
-  unified-agent-image       = "lzydock/unified_agent:${var.docker_unified_agent_tag}"
+  graph-image               = "lzydock/graph-executor:${var.docker_graph_executor_image_tag}"
+  lzy-service-image         = "lzydock/lzy-service:${var.docker_lzy_service_image_tag}"
+  portal_image              = "lzydock/portal:${var.docker_portal_image_tag}"
+  storage-image             = "lzydock/storage:${var.docker_storage_image_tag}"
+  whiteboard-image          = "lzydock/whiteboard:${var.docker_whiteboard_image_tag}"
+  backoffice-backend-image  = "lzydock/site-backend:${var.docker_backend_image_tag}"
+  backoffice-frontend-image = "lzydock/site-frontend:${var.docker_frontend_image_tag}"
+  unified-agent-image       = "lzydock/unified_agent:${var.docker_unified_agent_image_tag}"
 }
