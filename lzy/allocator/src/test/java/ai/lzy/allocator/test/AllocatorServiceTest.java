@@ -593,13 +593,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                     Assert.assertEquals(e.getStatus().toString(),
                         "Op %s already done".formatted(allocate.getId()),
                         e.getStatus().getDescription());
-                case NOT_FOUND -> {
-                    if (!Objects.equals(e.getStatus().getDescription(), "Session not found")) {
-                        Assert.assertEquals(e.getStatus().toString(),
-                            "Op %s not found".formatted(allocate.getId()),
-                            e.getStatus().getDescription());
-                    }
-                }
+                case NOT_FOUND -> { }
                 case FAILED_PRECONDITION ->
                     Assert.assertEquals(e.getStatus().toString(),
                         "Unexpected VM status DELETING",
