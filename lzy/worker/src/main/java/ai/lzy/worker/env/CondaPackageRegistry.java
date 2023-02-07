@@ -14,9 +14,10 @@ public class CondaPackageRegistry {
     private static final Logger LOG = LogManager.getLogger(CondaPackageRegistry.class);
     private static final String VERSION_REGEX = "(?=>=)|(?=<=)|(?=<)|(?=>)|==|=";
     private static final int SPLIT_LIMIT = 2;
-    private static final Map<String, Map<String, Package>> envs = new HashMap<>();
 
-    static {
+    private final Map<String, Map<String, Package>> envs = new HashMap<>();
+
+    public CondaPackageRegistry() {
         var list = System.getenv("LZY_CONDA_ENVS_LIST");
         if (list != null) {
             var envs = list.split(",");
@@ -36,7 +37,7 @@ public class CondaPackageRegistry {
     private record Package(String name, String version) {
     }
 
-    public static boolean isInstalled(String condaYaml) {
+    public boolean isInstalled(String condaYaml) {
         try {
             var yaml = new Yaml();
             Map<String, Object> conf = yaml.load(condaYaml);
@@ -122,7 +123,7 @@ public class CondaPackageRegistry {
         }
     }
 
-    public static void notifyInstalled(String condaYaml) {
+    public void notifyInstalled(String condaYaml) {
         try {
             var yaml = new Yaml();
             //noinspection unchecked

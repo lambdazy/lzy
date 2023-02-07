@@ -54,9 +54,9 @@ if [[ $BASE = true ]]; then
   USER_TEST_BASE_TAG="local"
 else
   if [[ -z "$CUSTOM_TAG" ]]; then
-    WORKER_BASE="$(deployment/latest-docker-image-on-branches.sh worker-base $BRANCH master)"
-    USER_DEFAULT_BASE="$(deployment/latest-docker-image-on-branches.sh user-default-base $BRANCH master)"
-    USER_TEST_BASE="$(deployment/latest-docker-image-on-branches.sh user-test-base $BRANCH master)"
+    WORKER_BASE="$(../../deployment/latest-docker-image-on-branches.sh worker-base $BRANCH master)"
+    USER_DEFAULT_BASE="$(../../deployment/latest-docker-image-on-branches.sh user-default-base $BRANCH master)"
+    USER_TEST_BASE="$(../../deployment/latest-docker-image-on-branches.sh user-test-base $BRANCH master)"
   else
     if [[ -z "$STORED_WORKER_BASE_TAG" ]]; then
       REMOTE_BASE_TAG="$BRANCH-$CUSTOM_TAG"

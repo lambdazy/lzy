@@ -2,13 +2,17 @@ package ai.lzy.worker.env;
 
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 public class CondaPackageRegistryTest {
-    @BeforeClass
-    public static void before() {
-        CondaPackageRegistry.notifyInstalled("""
+
+    private final CondaPackageRegistry condaPackageRegistry = new CondaPackageRegistry();
+
+    @Before
+    public void before() {
+        condaPackageRegistry.notifyInstalled("""
             name: default
             dependencies:
             - python==3.9.15
@@ -22,7 +26,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testSame() {
-        Assert.assertTrue(CondaPackageRegistry.isInstalled("""
+        Assert.assertTrue(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -36,7 +40,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testSameUnspecifiedVersion() {
-        Assert.assertTrue(CondaPackageRegistry.isInstalled("""
+        Assert.assertTrue(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -50,7 +54,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testSameDifferentOrder() {
-        Assert.assertTrue(CondaPackageRegistry.isInstalled("""
+        Assert.assertTrue(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - cloudpickle=1.0.0
@@ -65,7 +69,7 @@ public class CondaPackageRegistryTest {
     @Test
     public void testLibEquality() {
         // currently we do not support inequalities parsing
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -79,7 +83,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testLessLibs() {
-        Assert.assertTrue(CondaPackageRegistry.isInstalled("""
+        Assert.assertTrue(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -92,7 +96,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testNoPipDependencies() {
-        Assert.assertTrue(CondaPackageRegistry.isInstalled("""
+        Assert.assertTrue(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -102,7 +106,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testNoPip() {
-        Assert.assertTrue(CondaPackageRegistry.isInstalled("""
+        Assert.assertTrue(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python==3.9.15
@@ -115,7 +119,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testExtraLib() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python==3.9.15
@@ -130,7 +134,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testOtherPythonVersion() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.16
@@ -145,7 +149,7 @@ public class CondaPackageRegistryTest {
     @Test
     public void testPythonVersionInequality() {
         // currently we do not support inequalities parsing
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python>=3.9.15
@@ -159,7 +163,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testTopLevelLibAnotherVersion() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -173,7 +177,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testTopLevelLibInvalid() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -189,7 +193,7 @@ public class CondaPackageRegistryTest {
     @Test
     public void testTopLevelLibInequality() {
         // currently we do not support inequalities parsing
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -203,7 +207,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testSameAnotherName() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default1
             dependencies:
             - python=3.9.15
@@ -217,7 +221,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testNewTopLevelLibWithoutVersion() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -232,7 +236,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testNewTopLevelLibWithVersion() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -247,7 +251,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testInvalidPipDependenciesName() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -261,7 +265,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testPipDependenciesNotList() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -272,7 +276,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testPipDependenciesIsList() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -285,7 +289,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testPipDependenciesVersionUpdate() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -299,7 +303,7 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testPipDependenciesNewDepWithoutVersion() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: default
             dependencies:
             - python=3.9.15
@@ -314,17 +318,17 @@ public class CondaPackageRegistryTest {
 
     @Test
     public void testInvalidYaml() {
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("///////"));
+        Assert.assertFalse(condaPackageRegistry.isInstalled("///////"));
     }
 
     @Test
     public void testNotPipDictNotRegistered() {
-        CondaPackageRegistry.notifyInstalled("""
+        condaPackageRegistry.notifyInstalled("""
             name: custom
             dependencies:
             - pip2:
               - pylzy==1.0.0""");
-        Assert.assertFalse(CondaPackageRegistry.isInstalled("""
+        Assert.assertFalse(condaPackageRegistry.isInstalled("""
             name: custom
             dependencies:
             - pip2:
@@ -334,7 +338,7 @@ public class CondaPackageRegistryTest {
     @Test
     public void testInvalidYamlRegister() {
         try {
-            CondaPackageRegistry.notifyInstalled("///////");
+            condaPackageRegistry.notifyInstalled("///////");
         } catch (Exception e) {
             Assert.fail();
         }

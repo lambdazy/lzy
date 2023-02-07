@@ -4,6 +4,7 @@ import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -25,6 +26,9 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
             "M-" + UUID.randomUUID(),
             HostAndPort.fromString("localhost:1256"),
             "", ClusterType.User)
+    ));
+    private final Map<String, VmPoolSpec> vmPools = Map.of("s", new VmPoolSpec(
+        "s", CpuTypes.CASCADE_LAKE.value(), 2, GpuTypes.NO_GPU.value(), 0, 4, Set.of("ru-central1-a")
     ));
     private final Map<String, ClusterDescription> idsToClusters;
 
@@ -57,7 +61,12 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
 
     @Override
     public Map<String, VmPoolSpec> getUserVmPools() {
-        return Map.of("s", new VmPoolSpec("s", CpuTypes.CASCADE_LAKE.value(),
-            2, GpuTypes.NO_GPU.value(), 0, 4, Set.of("ru-central1-a")));
+        return vmPools;
+    }
+
+    @Nullable
+    @Override
+    public VmPoolSpec findPool(String poolLabel) {
+        return vmPools.get(poolLabel.toLowerCase(Locale.ROOT));
     }
 }
