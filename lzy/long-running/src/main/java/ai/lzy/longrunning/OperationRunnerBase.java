@@ -17,7 +17,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -30,11 +29,11 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
     private final String id;
     private final Storage storage;
     private final OperationDao operationsDao;
-    private final ScheduledExecutorService executor;
+    private final OperationsExecutor executor;
     private Operation op;
 
     protected OperationRunnerBase(String id, String descr, Storage storage, OperationDao operationsDao,
-                                  ScheduledExecutorService executor)
+                                  OperationsExecutor executor)
     {
         this.logPrefix = "[Op %s (%s)]".formatted(id, descr);
         this.id = id;

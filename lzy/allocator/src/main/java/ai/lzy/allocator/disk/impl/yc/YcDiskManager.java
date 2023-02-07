@@ -25,7 +25,6 @@ import yandex.cloud.api.operation.OperationServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceGrpc.OperationServiceBlockingStub;
 import yandex.cloud.sdk.ServiceFactory;
 
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -213,7 +212,7 @@ public class YcDiskManager implements DiskManager {
         return metrics;
     }
 
-    ScheduledExecutorService executor() {
+    OperationsExecutor executor() {
         return executor;
     }
 
