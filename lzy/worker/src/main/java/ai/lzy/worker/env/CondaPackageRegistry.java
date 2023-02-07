@@ -56,8 +56,8 @@ public class CondaPackageRegistry {
                     return false;
                 }
 
-                if (dep instanceof String) {
-                    var res = ((String) dep).split(VERSION_REGEX, SPLIT_LIMIT);
+                if (dep instanceof String s) {
+                    var res = s.split(VERSION_REGEX, SPLIT_LIMIT);
                     if (res.length < 2) {
                         if (env.containsKey(res[0])) {
                             continue;
@@ -78,21 +78,18 @@ public class CondaPackageRegistry {
                     }
                 }
 
-                if (dep instanceof Map) {
-                    //noinspection unchecked
-                    var pipDeps = (Map<String, Object>) dep;
-                    if (!pipDeps.containsKey("pip")) {
+                //noinspection rawtypes
+                if (dep instanceof Map depsMap) {
+                    var pipDeps = depsMap.get("pip");
+                    if (pipDeps == null) {
+                        return false;
+                    }
+                    if (!(pipDeps instanceof List)) {
                         return false;
                     }
 
-                    if (!(pipDeps.get("pip") instanceof List)) {
-                        return false;
-                    }
-
                     //noinspection unchecked
-                    var pipDepsList = (List<Object>) pipDeps.get("pip");
-
-                    for (var pipDep : pipDepsList) {
+                    for (var pipDep : (List<Object>) pipDeps) {
                         if (!(pipDep instanceof String)) {
                             return false;
                         }
@@ -148,21 +145,18 @@ public class CondaPackageRegistry {
                     }
                 }
 
-                if (dep instanceof Map) {
-                    //noinspection unchecked
-                    if (!((Map<String, Object>) dep).containsKey("pip")) {
+                //noinspection rawtypes
+                if (dep instanceof Map depsMap) {
+                    var pipDeps = depsMap.get("pip");
+                    if (pipDeps == null) {
+                        return;
+                    }
+                    if (!(pipDeps instanceof List)) {
                         return;
                     }
 
                     //noinspection unchecked
-                    if (!(((Map<String, Object>) dep).get("pip") instanceof List)) {
-                        return;
-                    }
-
-                    //noinspection unchecked
-                    var pipDeps = (List<Object>) ((Map<String, Object>) dep).get("pip");
-
-                    for (var pipDep : pipDeps) {
+                    for (var pipDep : (List<Object>) pipDeps) {
                         if (!(pipDep instanceof String)) {
                             return;
                         }
