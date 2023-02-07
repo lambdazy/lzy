@@ -101,11 +101,14 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     @Nullable
     @Override
     public VmPoolSpec findPool(String poolLabel) {
-        if (systemPools.containsKey(poolLabel)) {
-            return systemPools.get(poolLabel);
+        VmPoolSpec poolSpec;
+        poolSpec = systemPools.get(poolLabel);
+        if (poolSpec != null) {
+            return poolSpec;
         }
-        if (userPools.containsKey(poolLabel)) {
-            return userPools.get(poolLabel);
+        poolSpec = userPools.get(poolLabel);
+        if (poolSpec != null) {
+            return poolSpec;
         }
         return null;
     }
