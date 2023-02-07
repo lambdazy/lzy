@@ -68,6 +68,7 @@ public enum DbHelper {
                     }
                 } else {
                     logger.error("Got non-retryable database error: [{}] {}.", e.getSQLState(), e.getMessage());
+                    //Runtime.getRuntime().halt(42);
                     throw error.fail(e);
                 }
             } catch (Exception e) {
