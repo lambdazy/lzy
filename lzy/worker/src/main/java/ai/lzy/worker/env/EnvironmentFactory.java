@@ -12,7 +12,7 @@ import java.util.function.Supplier;
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
 
-    private static final HashMap<String, String> createdContainers = new HashMap<>();
+    private static final HashMap<BaseEnvConfig, String> createdContainers = new HashMap<>();
     private static Supplier<Environment> envForTests = null;
 
     private final String defaultImage;
@@ -43,25 +43,24 @@ public class EnvironmentFactory {
             if (image == null || image.equals("default")) {
                 image = defaultImage;
             }
+            BaseEnvConfig config = BaseEnvConfig.newBuilder()
+                .withGpu(hasGpu)
+                .withImage(image)
+                .addMount(resourcesPathStr, resourcesPathStr)
+                .addMount(localModulesPathStr, localModulesPathStr)
+                .addRsharedMount(fsRoot, fsRoot)
+                .build();
 
-
-            if (createdContainers.containsKey(image)) {
-                final String containerId = createdContainers.get(image);
+            if (createdContainers.containsKey(config)) {
+                final String containerId = createdContainers.get(config);
                 baseEnv = DockerEnvironment.fromExistedContainer(image, containerId);
             }
 
             if (baseEnv != null) {
                 LOG.info("Found existed Docker Environment, id={}", baseEnv.baseEnvId());
             } else {
-                BaseEnvConfig config = BaseEnvConfig.newBuilder()
-                    .withGpu(hasGpu)
-                    .withImage(image)
-                    .addMount(resourcesPathStr, resourcesPathStr)
-                    .addMount(localModulesPathStr, localModulesPathStr)
-                    .addRsharedMount(fsRoot, fsRoot)
-                    .build();
                 baseEnv = DockerEnvironment.create(config);
-                createdContainers.put(image, ((DockerEnvironment) baseEnv).getContainerId());
+                createdContainers.put(config, ((DockerEnvironment) baseEnv).getContainerId());
             }
         } else {
             if (env.baseEnv() == null) {

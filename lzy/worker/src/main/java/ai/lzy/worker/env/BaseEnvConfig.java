@@ -1,16 +1,18 @@
 package ai.lzy.worker.env;
 
-import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class BaseEnvConfig {
 
     private final String image;
-    private final List<MountDescription> mounts;
+    private final Set<MountDescription> mounts;
     private final boolean needGpu;
 
-    private BaseEnvConfig(String image, List<MountDescription> mounts, boolean needGpu) {
+    private BaseEnvConfig(String image, Set<MountDescription> mounts, boolean needGpu) {
         this.image = image;
         this.mounts = mounts;
         this.needGpu = needGpu;
@@ -29,7 +31,7 @@ public class BaseEnvConfig {
     }
 
     public List<MountDescription> mounts() {
-        return this.mounts;
+        return this.mounts.stream().toList();
     }
 
     @Override
@@ -43,13 +45,39 @@ public class BaseEnvConfig {
             '}';
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof BaseEnvConfig that)) {
+            return false;
+        }
+
+        if (needGpu != that.needGpu) {
+            return false;
+        }
+        if (!Objects.equals(image, that.image)) {
+            return false;
+        }
+        return mounts.equals(that.mounts);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = image != null ? image.hashCode() : 0;
+        result = 31 * result + mounts.hashCode();
+        result = 31 * result + (needGpu ? 1 : 0);
+        return result;
+    }
+
     public record MountDescription(String source, String target, boolean isRshared) { }
 
     public static class Builder {
 
         String image = null;
         boolean gpu = false;
-        List<MountDescription> mounts = new ArrayList<>();
+        Set<MountDescription> mounts = new HashSet<>();
 
         public Builder withImage(String name) {
             this.image = name;
