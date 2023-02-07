@@ -1,11 +1,10 @@
 import asyncio
+import atexit
 import os
 from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
-# noinspection PyPackageRequirements
-from ai.lzy.v1.workflow import workflow_service_pb2_grpc, workflow_service_pb2
-from grpc.aio import Channel
+from lzy.utils.event_loop import LzyEventLoop
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
 from ai.lzy.v1.long_running.operation_pb2 import GetOperationRequest
@@ -101,6 +100,7 @@ class WorkflowServiceClient:
         self.__ops_stub = None
         self.__channel = None
         self.__is_started = False
+        atexit.register(self.__cleanup)
 
     async def __start(self):
         if self.__is_started:
@@ -127,6 +127,10 @@ class WorkflowServiceClient:
         self.__stub = LzyWorkflowServiceStub(self.__channel)
         self.__ops_stub = LongRunningServiceStub(self.__channel)
 
+    def __cleanup(self) -> None:
+        if self.__is_started:
+            LzyEventLoop.run_async(self.__channel.close())
+
     @retry(config=RetryConfig(
         initial_backoff_ms=1000,
         max_retry=120,
@@ -134,7 +138,7 @@ class WorkflowServiceClient:
         max_backoff_ms=10000
     ), action_name="starting workflow")
     async def start_workflow(
-            self, name: str, storage: Optional[Storage] = None
+        self, name: str, storage: Optional[Storage] = None
     ) -> Tuple[str, Optional[Storage]]:
         await self.__start()
 
@@ -175,10 +179,10 @@ class WorkflowServiceClient:
         max_backoff_ms=10000
     ), action_name="finishing workflow")
     async def finish_workflow(
-            self,
-            workflow_name: str,
-            execution_id: str,
-            reason: str,
+        self,
+        workflow_name: str,
+        execution_id: str,
+        reason: str,
     ) -> None:
         await self.__start()
         request = FinishWorkflowRequest(
@@ -196,10 +200,10 @@ class WorkflowServiceClient:
         max_backoff_ms=10000
     ), action_name="aborting workflow")
     async def abort_workflow(
-            self,
-            workflow_name: str,
-            execution_id: str,
-            reason: str,
+        self,
+        workflow_name: str,
+        execution_id: str,
+        reason: str,
     ) -> None:
         await self.__stub.AbortWorkflow(
             AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
@@ -295,6 +299,3 @@ class WorkflowServiceClient:
         if resp.HasField("storage"):
             return _create_storage_endpoint(resp.storage)
         return None
-
-    async def stop(self):
-        await self.__channel.close()
