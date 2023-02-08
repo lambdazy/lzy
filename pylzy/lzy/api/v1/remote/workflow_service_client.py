@@ -137,7 +137,6 @@ class WorkflowServiceClient:
                                     service_names=("LzyWorkflowService", "LongRunningService"),
                                     enable_retry=True,
                                     keepalive_ms=1000)
-            await CHANNEL.channel_ready()
 
         self.__stub = LzyWorkflowServiceStub(CHANNEL)
         self.__ops_stub = LongRunningServiceStub(CHANNEL)

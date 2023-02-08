@@ -69,7 +69,6 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
             CHANNEL = build_channel(
                 endpoint, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
             )
-            await CHANNEL.channel_ready()
         self.__stub = LzyWhiteboardServiceStub(CHANNEL)
 
     @retry(config=RETRY_CONFIG, action_name="getting whiteboard")
