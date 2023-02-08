@@ -76,3 +76,10 @@ allocator:
 
   kuber-tunnel-allocator:
     enabled: false
+
+  cache-limits:
+    user-limit: 5
+    session-limit: 3
+    any-session-pool-limit: 1
+    session-pool-limit:
+      portals: 0

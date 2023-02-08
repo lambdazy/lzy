@@ -70,11 +70,12 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final SessionDao sessionsDao;
     private final AllocationContext allocationContext;
     private final ServiceConfig config;
+    private final ServiceConfig.CacheLimits cacheConfig;
 
     @Inject
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
-                            ServiceConfig config)
+                            ServiceConfig config, ServiceConfig.CacheLimits cacheConfig)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
@@ -82,11 +83,37 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         this.diskDao = diskDao;
         this.allocationContext = allocationContext;
         this.config = config;
+        this.cacheConfig = cacheConfig;
 
         restoreRunningActions();
     }
 
     private void restoreRunningActions() {
+        try {
+            var vms = allocationContext.vmDao().loadRunningVms(allocationContext.selfWorkerId(), null);
+            if (!vms.isEmpty()) {
+                int run = 0;
+                int idle = 0;
+                for (var vm : vms) {
+                    switch (vm.status()) {
+                        case RUNNING -> {
+                            allocationContext.metrics().runningAllocations.labels(vm.poolLabel()).inc();
+                            run++;
+                        }
+                        case IDLE -> {
+                            allocationContext.metrics().cachedVms.labels(vm.poolLabel()).inc();
+                            idle++;
+                        }
+                        default -> throw new RuntimeException("Unexpected state: " + vm);
+                    }
+                }
+                LOG.info("Found {} cached and {} running VMs on allocator {}",
+                    idle, run, allocationContext.selfWorkerId());
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
         try {
             var vms = allocationContext.vmDao().loadActiveVmsActions(allocationContext.selfWorkerId(), null);
             if (!vms.isEmpty()) {
@@ -469,6 +496,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     public void free(FreeRequest request, StreamObserver<FreeResponse> responseObserver) {
         LOG.info("Free request {}", ProtoPrinter.safePrinter().shortDebugString(request));
 
+        var reqid = ofNullable(GrpcHeaders.getRequestId()).orElse("unknown");
+
         Status status;
         try {
             status = withRetries(
@@ -481,9 +510,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                             return Status.NOT_FOUND.withDescription("Cannot find vm");
                         }
 
-                        // TODO(artolord) validate that client can free this vm
                         if (vm.status() != Vm.Status.RUNNING) {
-                            LOG.error("Freed vm {} in status {}, expected RUNNING", vm, vm.status());
+                            LOG.error("Free vm {} in status {}, expected RUNNING", vm, vm.status());
                             return Status.FAILED_PRECONDITION.withDescription("State is " + vm.status());
                         }
 
@@ -493,17 +521,34 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                             return Status.INTERNAL.withDescription("Session %s not found".formatted(vm.sessionId()));
                         }
 
-                        var cacheDeadline = Instant.now().plus(session.cachePolicy().minIdleTimeout());
+                        var cachedVms = vmDao.countCachedVms(vm.spec(), session.owner(), tx);
 
-                        vmDao.release(vm.vmId(), cacheDeadline, tx);
+                        if (cachedVms.atOwner() >= cacheConfig.getUserLimit() ||
+                            cachedVms.atSession() >= cacheConfig.getSessionLimit() ||
+                            cachedVms.atPoolAndSession() >= cacheConfig.getLimit(vm.spec().poolLabel()))
+                        {
+                            LOG.info("Vms cache is full ({}), about to delete VM {}...", cachedVms, vm.vmId());
 
-                        tx.commit();
+                            var action = allocationContext.createDeleteVmAction(vm, "VMs cache is full", reqid, tx);
 
-                        LOG.info("VM {} released to session {} cache until {}",
-                            vm.vmId(), vm.sessionId(), cacheDeadline);
+                            tx.commit();
+
+                            LOG.info("VM {} scheduled to remove (cache is full)", vm.vmId());
+
+                            allocationContext.submit(action);
+                        } else {
+                            var cacheDeadline = Instant.now().plus(session.cachePolicy().minIdleTimeout());
+                            vmDao.release(vm.vmId(), cacheDeadline, tx);
+
+                            tx.commit();
+
+                            LOG.info("VM {} released to session {} cache until {}",
+                                vm.vmId(), vm.sessionId(), cacheDeadline);
+
+                            allocationContext.metrics().cachedVms.labels(vm.poolLabel()).inc();
+                        }
 
                         allocationContext.metrics().runningVms.labels(vm.poolLabel()).dec();
-                        allocationContext.metrics().cachedVms.labels(vm.poolLabel()).inc();
 
                         return Status.OK;
                     }
