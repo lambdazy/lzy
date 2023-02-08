@@ -4,6 +4,9 @@ import os
 from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
+# noinspection PyPackageRequirements
+from grpc.aio import Channel
+
 from lzy.utils.event_loop import LzyEventLoop
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
@@ -92,20 +95,30 @@ class StderrMessage:
 
 
 Message = Union[StderrMessage, StdoutMessage]
+RETRY_CONFIG = RetryConfig(
+    initial_backoff_ms=1000,
+    max_retry=120,
+    backoff_multiplier=1,
+    max_backoff_ms=10000
+)
+CHANNEL: Optional[Channel] = None
+
+
+@atexit.register
+def __channel_cleanup():
+    if CHANNEL:
+        # noinspection PyTypeChecker
+        LzyEventLoop.run_async(CHANNEL.close())
 
 
 class WorkflowServiceClient:
     def __init__(self):
         self.__stub = None
         self.__ops_stub = None
-        self.__channel = None
-        self.__is_started = False
-        atexit.register(self.__cleanup)
 
     async def __start(self):
-        if self.__is_started:
+        if self.__stub and self.__ops_stub:
             return
-        self.__is_started = True
 
         user = os.getenv(USER_ENV)
         key_path = os.getenv(KEY_PATH_ENV)
@@ -117,26 +130,19 @@ class WorkflowServiceClient:
         address = os.getenv(ENDPOINT_ENV, "api.lzy.ai:8899")
         token = build_token(user, key_path)
         interceptors = add_headers_interceptor({"authorization": f"Bearer {token}"})
-        self.__channel = build_channel(address, interceptors=interceptors,
-                                       service_names=("LzyWorkflowService", "LongRunningService"),
-                                       enable_retry=True,
-                                       keepalive_ms=1000)
 
-        await self.__channel.channel_ready()
+        global CHANNEL
+        if not CHANNEL:
+            CHANNEL = build_channel(address, interceptors=interceptors,
+                                    service_names=("LzyWorkflowService", "LongRunningService"),
+                                    enable_retry=True,
+                                    keepalive_ms=1000)
+            await CHANNEL.channel_ready()
 
-        self.__stub = LzyWorkflowServiceStub(self.__channel)
-        self.__ops_stub = LongRunningServiceStub(self.__channel)
+        self.__stub = LzyWorkflowServiceStub(CHANNEL)
+        self.__ops_stub = LongRunningServiceStub(CHANNEL)
 
-    def __cleanup(self) -> None:
-        if self.__is_started:
-            LzyEventLoop.run_async(self.__channel.close())
-
-    @retry(config=RetryConfig(
-        initial_backoff_ms=1000,
-        max_retry=120,
-        backoff_multiplier=1,
-        max_backoff_ms=10000
-    ), action_name="starting workflow")
+    @retry(config=RETRY_CONFIG, action_name="starting workflow")
     async def start_workflow(
         self, name: str, storage: Optional[Storage] = None
     ) -> Tuple[str, Optional[Storage]]:
@@ -172,12 +178,7 @@ class WorkflowServiceClient:
             # sleep 300 ms
             await asyncio.sleep(0.3)
 
-    @retry(config=RetryConfig(
-        initial_backoff_ms=1000,
-        max_retry=120,
-        backoff_multiplier=1,
-        max_backoff_ms=10000
-    ), action_name="finishing workflow")
+    @retry(config=RETRY_CONFIG, action_name="finishing workflow")
     async def finish_workflow(
         self,
         workflow_name: str,
@@ -193,12 +194,7 @@ class WorkflowServiceClient:
         finish_op: Operation = await self.__stub.FinishWorkflow(request)
         await self._await_op_done(finish_op.id)
 
-    @retry(config=RetryConfig(
-        initial_backoff_ms=1000,
-        max_retry=120,
-        backoff_multiplier=1,
-        max_backoff_ms=10000
-    ), action_name="aborting workflow")
+    @retry(config=RETRY_CONFIG, action_name="aborting workflow")
     async def abort_workflow(
         self,
         workflow_name: str,
@@ -222,12 +218,7 @@ class WorkflowServiceClient:
                 for line in msg.stdout.data:
                     yield StdoutMessage(line)
 
-    @retry(config=RetryConfig(
-        initial_backoff_ms=1000,
-        max_retry=120,
-        backoff_multiplier=1,
-        max_backoff_ms=10000
-    ), action_name="starting to execute graph")
+    @retry(config=RETRY_CONFIG, action_name="starting to execute graph")
     async def execute_graph(self, workflow_name: str, execution_id: str, graph: Graph) -> str:
         await self.__start()
 
@@ -237,12 +228,7 @@ class WorkflowServiceClient:
 
         return res.graphId
 
-    @retry(config=RetryConfig(
-        initial_backoff_ms=1000,
-        max_retry=120,
-        backoff_multiplier=1,
-        max_backoff_ms=10000
-    ), action_name="getting graph status")
+    @retry(config=RETRY_CONFIG, action_name="getting graph status")
     async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
         await self.__start()
 
@@ -266,24 +252,14 @@ class WorkflowServiceClient:
             res.executing.message,
         )
 
-    @retry(config=RetryConfig(
-        initial_backoff_ms=1000,
-        max_retry=120,
-        backoff_multiplier=1,
-        max_backoff_ms=10000
-    ), action_name="stopping graph")
+    @retry(config=RETRY_CONFIG, action_name="stopping graph")
     async def graph_stop(self, execution_id: str, graph_id: str):
         await self.__start()
         await self.__stub.StopGraph(
             StopGraphRequest(executionId=execution_id, graphId=graph_id)
         )
 
-    @retry(config=RetryConfig(
-        initial_backoff_ms=1000,
-        max_retry=120,
-        backoff_multiplier=1,
-        max_backoff_ms=10000
-    ), action_name="getting vm pools specs")
+    @retry(config=RETRY_CONFIG, action_name="getting vm pools specs")
     async def get_pool_specs(self, execution_id: str) -> Sequence[VmPoolSpec]:
         await self.__start()
 
