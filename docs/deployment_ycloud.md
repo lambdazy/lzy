@@ -50,7 +50,7 @@ Read about security groups [here](https://cloud.yandex.com/en/docs/vpc/concepts/
 balancers over _lzy-service_ and _whiteboard_. Add them to your auth call like this:
 ```python
 lzy.auth(user="<your github login>", key_path="<path to the private key>",
-         endpoint="<lzy-service lb ip>:8122", whiteboards_endpoint="<whiteboard lb ip>:8122")
+         endpoint="<lzy-service lb ip>:8899", whiteboards_endpoint="<whiteboard lb ip>:8899")
 ```
 
 ### View logs
