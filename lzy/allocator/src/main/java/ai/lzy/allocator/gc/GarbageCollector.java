@@ -183,7 +183,8 @@ public class GarbageCollector {
 
         public String cleanVm(final Vm vm) {
             try {
-                return allocationContext.submitDeleteVmAction(vm, "Delete expired VM %s".formatted(vm), LOG);
+                var reqid = "gc-expired-" + vm.vmId();
+                return allocationContext.submitDeleteVmAction(vm, "Delete expired VM %s".formatted(vm), reqid, LOG);
             } catch (Exception e) {
                 LOG.error("Cannot cleanup expired VM {}: {}", vm, e.getMessage());
                 return null;

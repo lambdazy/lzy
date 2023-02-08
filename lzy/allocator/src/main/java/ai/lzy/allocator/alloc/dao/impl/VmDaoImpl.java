@@ -28,6 +28,9 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
 
+import static java.util.Arrays.stream;
+import static java.util.stream.Collectors.joining;
+
 @Singleton
 public class VmDaoImpl implements VmDao {
     private static final String SPEC_FIELDS =
@@ -41,7 +44,7 @@ public class VmDaoImpl implements VmDao {
         "vm_subject_id, tunnel_pod_name";
 
     private static final String ALLOCATION_START_FIELDS =
-        "allocation_op_id, allocation_started_at, allocation_deadline, allocation_worker, vm_ott";
+        "allocation_op_id, allocation_started_at, allocation_deadline, allocation_worker, allocation_reqid, vm_ott";
 
     private static final String ALLOCATION_FIELDS =
         ALLOCATION_START_FIELDS + ", allocator_meta_json, volume_claims_json";
@@ -53,7 +56,7 @@ public class VmDaoImpl implements VmDao {
         "idle_since, idle_deadline";
 
     private static final String DELETE_FIELDS =
-        "delete_op_id, delete_worker";
+        "delete_op_id, delete_worker, delete_reqid";
 
     private static final String ALL_FIELDS =
         "%s, %s, %s, %s, %s, %s, %s".formatted(
@@ -73,12 +76,12 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_CREATE_VM = """
         INSERT INTO vm (%s, %s, %s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_START_FIELDS);
 
     private static final String QUERY_START_DELETE_VM = """
         UPDATE vm
-        SET status = 'DELETING', delete_op_id = ?, delete_worker = ?
+        SET status = 'DELETING', delete_op_id = ?, delete_worker = ?, delete_reqid = ?
         WHERE id = ?""";
 
     private static final String QUERY_CLEANUP_VM = """
@@ -105,10 +108,10 @@ public class VmDaoImpl implements VmDao {
         SET status = 'RUNNING', idle_since = NULL, idle_deadline = NULL
         WHERE id = (SELECT id FROM existing_vm)
         RETURNING
-            vm.*,
+            %s,
             (SELECT idle_since FROM existing_vm) AS was_idle_since,
             (SELECT idle_deadline FROM existing_vm) AS was_idle_deadline
-        """.formatted(ALL_FIELDS);
+        """.formatted(ALL_FIELDS, stream(ALL_FIELDS.split(",")).map(s -> "vm." + s.trim()).collect(joining(", ")));
 
     private static final String QUERY_RELEASE_VM = """
         UPDATE vm
@@ -245,6 +248,7 @@ public class VmDaoImpl implements VmDao {
                 s.setTimestamp(++idx, Timestamp.from(allocState.startedAt()));
                 s.setTimestamp(++idx, Timestamp.from(allocState.deadline()));
                 s.setString(++idx, allocState.worker());
+                s.setString(++idx, allocState.reqid());
                 s.setString(++idx, allocState.vmOtt());
 
                 int ret = s.executeUpdate();
@@ -261,9 +265,11 @@ public class VmDaoImpl implements VmDao {
     public void delete(String vmId, Vm.DeletingState deleteState, @Nullable TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, conn -> {
             try (PreparedStatement st = conn.prepareStatement(QUERY_START_DELETE_VM)) {
-                st.setString(1, deleteState.operationId());
-                st.setString(2, deleteState.worker());
-                st.setString(3, vmId);
+                int idx = 0;
+                st.setString(++idx, deleteState.operationId());
+                st.setString(++idx, deleteState.worker());
+                st.setString(++idx, deleteState.reqid());
+                st.setString(++idx, vmId);
                 var updated = st.executeUpdate();
                 if (updated != 1) {
                     throw new RuntimeException("Cannot start deleting of VM " + vmId);
@@ -564,6 +570,7 @@ public class VmDaoImpl implements VmDao {
         final var allocationStartedAt = rs.getTimestamp(++idx).toInstant();
         final var allocationDeadline = rs.getTimestamp(++idx).toInstant();
         final var allocationWorker = rs.getString(++idx);
+        final var allocationReqid = rs.getString(++idx);
         final var vmOtt = rs.getString(++idx);
         final var allocatorMeta = Optional.ofNullable(rs.getString(++idx))
             .map(x -> {
@@ -616,9 +623,10 @@ public class VmDaoImpl implements VmDao {
         if (vmStatus == Vm.Status.DELETING) {
             final var deleteOperationId = rs.getString(++idx);
             final var deleteWorker = rs.getString(++idx);
-            deleteState = new Vm.DeletingState(deleteOperationId, deleteWorker);
+            final var deleteReqid = rs.getString(++idx);
+            deleteState = new Vm.DeletingState(deleteOperationId, deleteWorker, deleteReqid);
         } else {
-            idx += 2;
+            idx += 3;
             deleteState = null;
         }
 
@@ -627,8 +635,8 @@ public class VmDaoImpl implements VmDao {
                 volumeRequests, v6ProxyAddress, clusterType),
             vmStatus,
             new Vm.InstanceProperties(vmSubjectId, tunnelPodName),
-            new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationWorker, vmOtt,
-                allocatorMeta, volumeClaims),
+            new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationWorker,
+                allocationReqid, vmOtt, allocatorMeta, volumeClaims),
             runState,
             idleState,
             deleteState

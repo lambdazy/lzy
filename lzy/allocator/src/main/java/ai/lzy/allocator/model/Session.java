@@ -9,7 +9,14 @@ public record Session(
     @Nullable
     String description,
     CachePolicy cachePolicy,
-    String allocateOpId,
+    String createOpId,
     @Nullable
-    String deleteOpId
-) {}
+    String deleteOpId,
+    @Nullable
+    String deleteReqid
+)
+{
+    public Session(String sessionId, String owner, String description, CachePolicy cachePolicy, String createOpId) {
+        this(sessionId, owner, description, cachePolicy, createOpId, null, null);
+    }
+}

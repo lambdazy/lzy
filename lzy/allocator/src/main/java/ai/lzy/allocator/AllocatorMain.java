@@ -14,7 +14,6 @@ import ai.lzy.longrunning.OperationsService;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
 import ai.lzy.v1.AllocatorPrivateGrpc;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -106,8 +105,7 @@ public class AllocatorMain {
         server.awaitTermination();
     }
 
-    @VisibleForTesting
-    public void destroyAll() throws SQLException {
+    public void destroyAllForTests() throws SQLException {
         LOG.info("Deallocating all vms");
         final var vms = allocationContext.vmDao().listAlive();
         var ops = vms.stream()
@@ -117,7 +115,7 @@ public class AllocatorMain {
                     case RUNNING, IDLE -> { }
                 }
                 try {
-                    return allocationContext.submitDeleteVmAction(vm, "Force clean", LOG);
+                    return allocationContext.submitDeleteVmAction(vm, "Force clean", "test", LOG);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }

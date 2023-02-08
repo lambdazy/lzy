@@ -30,6 +30,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 
+import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static java.util.Objects.requireNonNull;
 
 public class CancelAllocationTest extends AllocatorApiTestBase {
@@ -137,10 +138,10 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         InjectedFailures.FAIL_ALLOCATE_VMS.get(2).set(waitOnAndTerminate(latch, "term"));
 
         var vm = allocateImpl((__, op) -> {
-            var resp = operationServiceApiBlockingStub.cancel(
+            var resp = withGrpcContext(() -> operationServiceApiBlockingStub.cancel(
                 LongRunning.CancelOperationRequest.newBuilder()
                     .setOperationId(op.getId())
-                    .build());
+                    .build()));
             System.err.println("--> cancel: " + TextFormat.printer().shortDebugString(resp.getError()));
             latch.countDown();
             return true;
@@ -165,7 +166,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
 
         var sessionId = createSession(Durations.ZERO);
 
-        var allocOp = authorizedAllocatorBlockingStub.allocate(
+        var allocOp = withGrpcContext(() -> authorizedAllocatorBlockingStub.allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
                 .setPoolLabel("S")
@@ -176,7 +177,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
                         .setName("wl")
                         .putEnv("k", "v")
                         .build())
-                .build());
+                .build()));
         Assert.assertFalse(allocOp.getDone());
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
@@ -187,10 +188,11 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
             System.err.println("--> restart done");
         }
 
-        allocOp = operationServiceApiBlockingStub.get(
+        var opId = allocOp.getId();
+        allocOp = withGrpcContext(() -> operationServiceApiBlockingStub.get(
             LongRunning.GetOperationRequest.newBuilder()
-                .setOperationId(allocOp.getId())
-                .build());
+                .setOperationId(opId)
+                .build()));
 
         if (allocOp.getDone()) {
             Assert.assertTrue(allocOp.toString(), allocOp.hasError());
@@ -204,7 +206,8 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         final String podName = createdPod.get();
         mockGetPod(podName);
 
-        var clusterId = requireNonNull(clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId();
+        var clusterId = requireNonNull(withGrpcContext(() ->
+            clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId());
         registerVm(vmId, clusterId);
 
         allocOp = waitOpSuccess(allocOp);

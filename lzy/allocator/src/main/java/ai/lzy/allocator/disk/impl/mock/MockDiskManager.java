@@ -12,6 +12,8 @@ import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.util.grpc.ContextAwareTask;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.DiskServiceApi;
 import com.google.protobuf.Any;
 import io.grpc.Status;
@@ -22,6 +24,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
@@ -88,28 +91,32 @@ public class MockDiskManager implements DiskManager {
             instanceId,
             DiskOperation.Type.CREATE,
             "",
-            () -> {
-                var m = Any.pack(
+            Optional.ofNullable(GrpcHeaders.getRequestId()).orElse("unknown"),
+            new ContextAwareTask() {
+                @Override
+                protected void execute() {
+                    var m = Any.pack(
                         DiskServiceApi.CreateDiskMetadata.newBuilder()
                             .setDiskId(id)
                             .build());
 
-                var r = Any.pack(
+                    var r = Any.pack(
                         DiskServiceApi.CreateDiskResponse.newBuilder()
                             .setDisk(disk.toProto())
                             .build());
 
-                try {
-                    withRetries(LOG, () -> {
-                        try (var tx = TransactionHandle.create(storage)) {
-                            diskDao.insert(disk, tx);
-                            diskOpDao.deleteDiskOp(outerOp.opId(), tx);
-                            operationsDao.complete(outerOp.opId(), m, r, tx);
-                            tx.commit();
-                        }
-                    });
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    try {
+                        withRetries(LOG, () -> {
+                            try (var tx = TransactionHandle.create(storage)) {
+                                diskDao.insert(disk, tx);
+                                diskOpDao.deleteDiskOp(outerOp.opId(), tx);
+                                operationsDao.complete(outerOp.opId(), m, r, tx);
+                                tx.commit();
+                            }
+                        });
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             });
     }
@@ -141,39 +148,43 @@ public class MockDiskManager implements DiskManager {
             instanceId,
             DiskOperation.Type.CLONE,
             "",
-            () -> {
-                if (notFound) {
-                    var status = Status.NOT_FOUND.withDescription("Disk not found");
-                    try {
-                        operationsDao.fail(outerOp.opId(), toProto(status), null);
-                    } catch (SQLException e) {
-                        throw new RuntimeException(e);
+            Optional.ofNullable(GrpcHeaders.getRequestId()).orElse("unknown"),
+            new ContextAwareTask() {
+                @Override
+                protected void execute() {
+                    if (notFound) {
+                        var status = Status.NOT_FOUND.withDescription("Disk not found");
+                        try {
+                            operationsDao.fail(outerOp.opId(), toProto(status), null);
+                        } catch (SQLException e) {
+                            throw new RuntimeException(e);
+                        }
+                        return;
                     }
-                    return;
-                }
 
 
-                var m = Any.pack(
+                    var m = Any.pack(
                         DiskServiceApi.CloneDiskMetadata.newBuilder()
                             .setDiskId(newDisk.id())
                             .build());
 
-                var r = Any.pack(
+                    var r = Any.pack(
                         DiskServiceApi.CloneDiskResponse.newBuilder()
                             .setDisk(newDisk.toProto())
                             .build());
 
-                try {
-                    withRetries(LOG, () -> {
-                        try (var tx = TransactionHandle.create(storage)) {
-                            diskOpDao.deleteDiskOp(outerOp.opId(), tx);
-                            diskDao.insert(newDisk, tx);
-                            operationsDao.complete(outerOp.opId(), m, r, tx);
-                            tx.commit();
-                        }
-                    });
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    try {
+                        withRetries(LOG, () -> {
+                            try (var tx = TransactionHandle.create(storage)) {
+                                diskOpDao.deleteDiskOp(outerOp.opId(), tx);
+                                diskDao.insert(newDisk, tx);
+                                operationsDao.complete(outerOp.opId(), m, r, tx);
+                                tx.commit();
+                            }
+                        });
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             });
     }
@@ -194,21 +205,25 @@ public class MockDiskManager implements DiskManager {
             instanceId,
             DiskOperation.Type.DELETE,
             "",
-            () -> {
-                var m = Any.pack(DiskServiceApi.DeleteDiskMetadata.newBuilder().build());
-                var r = Any.pack(DiskServiceApi.DeleteDiskResponse.newBuilder().build());
+            Optional.ofNullable(GrpcHeaders.getRequestId()).orElse("unknown"),
+            new ContextAwareTask() {
+                @Override
+                protected void execute() {
+                    var m = Any.pack(DiskServiceApi.DeleteDiskMetadata.newBuilder().build());
+                    var r = Any.pack(DiskServiceApi.DeleteDiskResponse.newBuilder().build());
 
-                try {
-                    withRetries(LOG, () -> {
-                        try (var tx = TransactionHandle.create(storage)) {
-                            diskOpDao.deleteDiskOp(outerOp.opId(), tx);
-                            diskDao.remove(diskId, tx);
-                            operationsDao.complete(outerOp.opId(), m, r, tx);
-                            tx.commit();
-                        }
-                    });
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    try {
+                        withRetries(LOG, () -> {
+                            try (var tx = TransactionHandle.create(storage)) {
+                                diskOpDao.deleteDiskOp(outerOp.opId(), tx);
+                                diskDao.remove(diskId, tx);
+                                operationsDao.complete(outerOp.opId(), m, r, tx);
+                                tx.commit();
+                            }
+                        });
+                    } catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             });
     }

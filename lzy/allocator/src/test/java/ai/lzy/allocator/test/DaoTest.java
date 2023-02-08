@@ -151,7 +151,7 @@ public class DaoTest {
         Assert.assertEquals("owner", s1.owner());
         Assert.assertEquals(Duration.ofSeconds(10), s1.cachePolicy().minIdleTimeout());
 
-        sessionDao.delete(s.sessionId(), s.allocateOpId(), null);
+        sessionDao.delete(s.sessionId(), s.createOpId(), "reqid-1", null);
         Assert.assertNull(sessionDao.get(s.sessionId(), null));
     }
 
@@ -159,7 +159,7 @@ public class DaoTest {
         var opId = UUID.randomUUID().toString();
         var op = Operation.createCompleted(opId, "owner", "descr", null, null, Empty.getDefaultInstance());
         var sid = UUID.randomUUID().toString();
-        var s = new Session(sid, "owner", "descr", new CachePolicy(Duration.ofSeconds(10)), opId, null);
+        var s = new Session(sid, "owner", "descr", new CachePolicy(Duration.ofSeconds(10)), opId);
 
         try (var tx = TransactionHandle.create(storage)) {
             opDao.create(op, tx);
@@ -198,6 +198,7 @@ public class DaoTest {
             now(),
             now().plus(Duration.ofDays(1)),
             "worker",
+            "reqid",
             "ott",
             null,
             null);

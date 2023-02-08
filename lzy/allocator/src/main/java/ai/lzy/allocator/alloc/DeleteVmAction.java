@@ -21,25 +21,21 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 public final class DeleteVmAction extends OperationRunnerBase {
     private final String vmId;
     private final AllocationContext allocationContext;
-    private Vm vm = null;
+    private Vm vm;
     private String vmSubjectId = null;
     private boolean iamSubjectDeleted = false;
     private boolean tunnelDeleted = false;
     private boolean deallocated = false;
 
-    public DeleteVmAction(String vmId, String deleteOpId, AllocationContext allocationContext) {
-        super(deleteOpId, "VM " + vmId, allocationContext.storage(), allocationContext.operationsDao(),
+    public DeleteVmAction(Vm vm, String deleteOpId, AllocationContext allocationContext) {
+        super(deleteOpId, "VM " + vm.vmId(), allocationContext.storage(), allocationContext.operationsDao(),
             allocationContext.executor());
 
-        this.vmId = vmId;
+        this.vmId = vm.vmId();
         this.allocationContext = allocationContext;
+        this.vm = vm;
 
         log().info("{} Delete VM...", logPrefix());
-    }
-
-    public DeleteVmAction(Vm vm, String deleteOpId, AllocationContext allocationContext) {
-        this(vm.vmId(), deleteOpId, allocationContext);
-        this.vm = vm;
     }
 
     @Override
