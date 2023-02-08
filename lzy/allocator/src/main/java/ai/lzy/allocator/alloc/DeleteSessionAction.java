@@ -19,6 +19,7 @@ import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 public class DeleteSessionAction extends OperationRunnerBase {
     private final String sessionId;
+    private final String reqid;
     private final AllocationContext allocationContext;
 
     public DeleteSessionAction(Session session, String opId, AllocationContext allocationContext) {
@@ -26,6 +27,7 @@ public class DeleteSessionAction extends OperationRunnerBase {
             allocationContext.operationsDao(), allocationContext.executor());
 
         this.sessionId = session.sessionId();
+        this.reqid = session.deleteReqid();
         this.allocationContext = allocationContext;
 
         log().info("Delete session " + session.sessionId());
@@ -101,7 +103,7 @@ public class DeleteSessionAction extends OperationRunnerBase {
                 case RUNNING, IDLE -> {
                     try {
                         allocationContext.submitDeleteVmAction(
-                            vm, "Delete VM %s on session %s remove".formatted(vm, sessionId), log());
+                            vm, "Delete VM %s on session %s remove".formatted(vm, sessionId), reqid, log());
                     } catch (Exception e) {
                         log().error("{} Cannot cleanup expired VM {}: {}", logPrefix(), vm.vmId(), e.getMessage());
                         return StepResult.RESTART;

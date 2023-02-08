@@ -18,6 +18,7 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorGrpc;
@@ -45,6 +46,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -52,7 +54,10 @@ import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.GrpcHeaders.createContext;
+import static ai.lzy.util.grpc.GrpcHeaders.withContext;
 import static java.util.Objects.requireNonNull;
+import static java.util.Optional.ofNullable;
 
 @Singleton
 @Requires(beans = MetricReporter.class, notEnv = "test-mock")
@@ -90,8 +95,15 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                 vms.forEach(vm -> {
                     var action = switch (vm.status()) {
-                        case ALLOCATING -> new AllocateVmAction(vm, allocationContext, true);
-                        case DELETING -> new DeleteVmAction(vm, vm.deleteState().operationId(), allocationContext);
+                        case ALLOCATING -> {
+                            var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, vm.allocateState().reqid()));
+                            yield withContext(ctx, () -> new AllocateVmAction(vm, allocationContext, true));
+                        }
+                        case DELETING -> {
+                            var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, vm.deleteState().reqid()));
+                            var deleteOpId = vm.deleteState().operationId();
+                            yield withContext(ctx, () -> new DeleteVmAction(vm, deleteOpId, allocationContext));
+                        }
                         case IDLE, RUNNING -> throw new RuntimeException("Unexpected Vm state %s".formatted(vm));
                     };
                     allocationContext.submit(action);
@@ -107,8 +119,12 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             var sessions = sessionsDao.listDeleting(null);
             if (!sessions.isEmpty()) {
                 LOG.info("Found {} not completed sessions removal", sessions.size());
-                sessions.forEach(s ->
-                    allocationContext.submit(new DeleteSessionAction(s, s.deleteOpId(), allocationContext)));
+                sessions.forEach(s -> {
+                    var reqid = requireNonNull(s.deleteReqid());
+                    var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, reqid));
+                    withContext(ctx, () ->
+                        allocationContext.submit(new DeleteSessionAction(s, s.deleteOpId(), allocationContext)));
+                });
             }
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -156,7 +172,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         final var minIdleTimeout = ProtoConverter.fromProto(request.getCachePolicy().getIdleTimeout());
         final var session = new Session(sessionId, request.getOwner(), request.getDescription(),
-            new CachePolicy(minIdleTimeout), operationId, null);
+            new CachePolicy(minIdleTimeout), operationId);
 
         try {
             withRetries(LOG, () -> {
@@ -195,6 +211,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
+        var reqid = ofNullable(GrpcHeaders.getRequestId()).orElse("unknown");
+
         Pair<Operation, DeleteSessionAction> ret;
 
         try {
@@ -215,8 +233,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         null);
 
                     operationsDao.create(op, tx);
-                    sessionsDao.delete(session.sessionId(), op.id(), tx);
+                    session = sessionsDao.delete(session.sessionId(), op.id(), reqid, tx);
                     tx.commit();
+
+                    assert op.id().equals(session.deleteOpId());
+                    assert reqid.equals(session.deleteReqid());
 
                     return Pair.of(op, new DeleteSessionAction(session, op.id(), allocationContext));
                 }
@@ -391,6 +412,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         op.createdAt(),
                         op.deadline(),
                         allocationContext.selfWorkerId(),
+                        ofNullable(GrpcHeaders.getRequestId()).orElse("unknown"),
                         UUID.randomUUID().toString(),
                         null,
                         null);

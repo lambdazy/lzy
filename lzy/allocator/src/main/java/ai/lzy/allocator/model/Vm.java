@@ -67,20 +67,25 @@ public record Vm(
         Instant startedAt,
         Instant deadline,
         String worker,
+        String reqid,
         String vmOtt,
         @Nullable Map<String, String> allocatorMeta,
         @Nullable List<VolumeClaim> volumeClaims
     ) {
-        public AllocateState(String operationId, Instant startedAt, Instant deadline, String ownerId, String vmOtt) {
-            this(operationId, startedAt, deadline, ownerId, vmOtt, null, null);
+        public AllocateState(String operationId, Instant startedAt, Instant deadline, String worker, String reqid,
+                             String vmOtt)
+        {
+            this(operationId, startedAt, deadline, worker, reqid, vmOtt, null, null);
         }
 
         public AllocateState withAllocatorMeta(Map<String, String> allocatorMeta) {
-            return new AllocateState(operationId, startedAt, deadline, worker, vmOtt, allocatorMeta, volumeClaims);
+            return new AllocateState(operationId, startedAt, deadline, worker, reqid, vmOtt, allocatorMeta,
+                volumeClaims);
         }
 
         public AllocateState withVolumeClaims(List<VolumeClaim> volumeClaims) {
-            return new AllocateState(operationId, startedAt, deadline, worker, vmOtt, allocatorMeta, volumeClaims);
+            return new AllocateState(operationId, startedAt, deadline, worker, reqid, vmOtt, allocatorMeta,
+                volumeClaims);
         }
     }
 
@@ -96,7 +101,8 @@ public record Vm(
 
     public record DeletingState(
         String operationId,
-        String worker
+        String worker,
+        String reqid
     ) {}
 
     public enum Status {

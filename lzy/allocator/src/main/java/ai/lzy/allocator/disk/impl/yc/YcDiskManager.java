@@ -8,6 +8,7 @@ import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.util.grpc.GrpcHeaders;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.grpc.Status;
@@ -25,6 +26,8 @@ import yandex.cloud.api.operation.OperationServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceGrpc.OperationServiceBlockingStub;
 import yandex.cloud.sdk.ServiceFactory;
 
+import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
@@ -128,6 +131,7 @@ public class YcDiskManager implements DiskManager {
             instanceId,
             DiskOperation.Type.CREATE,
             toJson(state),
+            Optional.ofNullable(GrpcHeaders.getRequestId()).orElse("unknown"),
             new YcCreateDiskAction(outerOp, state, this));
     }
 
@@ -148,6 +152,7 @@ public class YcDiskManager implements DiskManager {
             instanceId,
             DiskOperation.Type.CLONE,
             toJson(state),
+            Optional.ofNullable(GrpcHeaders.getRequestId()).orElse("unknown"),
             new YcCloneDiskAction(outerOp, state, this));
     }
 
@@ -162,6 +167,7 @@ public class YcDiskManager implements DiskManager {
             instanceId,
             DiskOperation.Type.DELETE,
             toJson(state),
+            Optional.ofNullable(GrpcHeaders.getRequestId()).orElse("unknown"),
             new YcDeleteDiskAction(outerOp, state, this));
     }
 
@@ -169,7 +175,8 @@ public class YcDiskManager implements DiskManager {
     public DiskOperation restoreDiskOperation(DiskOperation template) {
         var outerOp = new DiskManager.OuterOperation(
             template.opId(), template.descr(), template.startedAt(), template.deadline());
-        return switch (template.diskOpType()) {
+        var ctx = GrpcHeaders.createContext(Map.of(GrpcHeaders.X_REQUEST_ID, template.reqid()));
+        return GrpcHeaders.withContext(ctx, () -> switch (template.diskOpType()) {
             case CREATE -> {
                 var state = fromJson(template.state(), YcCreateDiskState.class);
                 var action = new YcCreateDiskAction(outerOp, state, this);
@@ -185,7 +192,7 @@ public class YcDiskManager implements DiskManager {
                 var action = new YcDeleteDiskAction(outerOp, state, this);
                 yield template.withDeferredAction(action);
             }
-        };
+        });
     }
 
     AllocatorDataSource storage() {

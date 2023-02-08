@@ -62,7 +62,7 @@ public class AllocatorContext {
 
     public void close() {
         try {
-            main.destroyAll();
+            main.destroyAllForTests();
             main.stop();
             main.awaitTermination();
 

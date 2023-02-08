@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static ai.lzy.allocator.test.Utils.waitOperation;
+import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
@@ -184,11 +185,11 @@ public class DiskApiTest extends BaseTestWithIam {
 
     @Test
     public void createDeleteTest() throws Exception {
-        var createDiskOperation =
+        var createDiskOperation = withGrpcContext(() ->
             diskService.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
                 .setDiskSpec(defaultDiskSpec.toProto())
-                .build());
+                .build()));
 
         createDiskOperation = waitOperation(operations, createDiskOperation, DEFAULT_TIMEOUT_SEC);
         Assert.assertFalse(createDiskOperation.hasError());
@@ -458,10 +459,10 @@ public class DiskApiTest extends BaseTestWithIam {
     }
 
     private void deleteDisk(DiskApi.Disk disk) {
-        //noinspection ResultOfMethodCallIgnored
-        diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
-            .setDiskId(disk.getDiskId())
-            .build());
+        withGrpcContext(() ->
+            diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
+                .setDiskId(disk.getDiskId())
+                .build()));
     }
 
     private boolean waitDiskDeletion(DiskApi.Disk disk)  {

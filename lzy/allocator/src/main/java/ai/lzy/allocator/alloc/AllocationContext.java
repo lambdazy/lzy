@@ -37,9 +37,9 @@ public record AllocationContext(
         executor.submit(action);
     }
 
-    public String submitDeleteVmAction(Vm vm, String description, Logger log) throws Exception {
+    public String submitDeleteVmAction(Vm vm, String description, String reqid, Logger log) throws Exception {
         log.info("About to delete VM {}: {}", vm.vmId(), description);
-        var action = createDeleteVmAction(vm, description, log);
+        var action = createDeleteVmAction(vm, description, reqid, log);
         submit(action);
 
         switch (vm.status()) {
@@ -56,17 +56,17 @@ public record AllocationContext(
         return action.id();
     }
 
-    public DeleteVmAction createDeleteVmAction(Vm vm, String description, Logger log) throws Exception {
+    public DeleteVmAction createDeleteVmAction(Vm vm, String description, String reqid, Logger log) throws Exception {
         return withRetries(log, () -> {
             try (var tx = TransactionHandle.create(storage)) {
-                var action = createDeleteVmAction(vm, description, tx);
+                var action = createDeleteVmAction(vm, description, reqid, tx);
                 tx.commit();
                 return action;
             }
         });
     }
 
-    public DeleteVmAction createDeleteVmAction(Vm vm, String description, @Nullable TransactionHandle tx)
+    public DeleteVmAction createDeleteVmAction(Vm vm, String description, String reqid, @Nullable TransactionHandle tx)
         throws SQLException
     {
         var deleteOp = Operation.create(
@@ -76,7 +76,7 @@ public record AllocationContext(
             new Operation.IdempotencyKey("Delete VM " + vm.vmId(), vm.vmId()),
             /* meta */ null);
 
-        var deleteState = new Vm.DeletingState(deleteOp.id(), selfWorkerId);
+        var deleteState = new Vm.DeletingState(deleteOp.id(), selfWorkerId, reqid);
 
         operationsDao.create(deleteOp, tx);
         vmDao.delete(vm.vmId(), deleteState, tx);
