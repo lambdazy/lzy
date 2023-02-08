@@ -1,8 +1,6 @@
 package ai.lzy.test.scenarios;
 
 import ai.lzy.test.impl.v2.PythonContextBase;
-import ai.lzy.worker.env.CondaEnvironment;
-import org.junit.AfterClass;
 import org.junit.Test;
 
 import java.util.List;

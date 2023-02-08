@@ -10,27 +10,16 @@ import ai.lzy.util.auth.credentials.RsaUtils;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.LineIterator;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-import org.junit.Assert;
 
-import java.io.BufferedReader;
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.List;
-import java.util.Map;
-import java.util.function.Consumer;
 
 @Singleton
 public class PythonContext extends PythonContextBase {
 
-    private final static Path file = Path.of(System.getProperty("user.dir"), "../lzy-test-cert.pem");
+    private static final Path file = Path.of(System.getProperty("user.dir"), "../lzy-test-cert.pem");
 
     public PythonContext(WorkflowContext workflow, WhiteboardContext whiteboard, IamContext iam, ServiceConfig cfg)
             throws IOException, InterruptedException
