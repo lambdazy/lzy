@@ -24,12 +24,6 @@ resource "kubernetes_secret" "oauth_github" {
   type = "Opaque"
 }
 
-variable "ssl-enabled" {
-  default = ""
-}
-variable "ssl-keystore-password" {
-  default = ""
-}
 resource "kubernetes_deployment" "lzy_backoffice" {
   metadata {
     name   = local.backoffice-k8s-name
@@ -62,12 +56,15 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             container_port = local.backoffice-frontend-tls-port
             host_port      = local.backoffice-frontend-tls-port
           }
-          volume_mount {
-            name       = "cert"
-            mount_path = "/etc/sec"
+          dynamic "volume_mount" {
+            for_each = var.ssl-enabled ? [1] : []
+            content {
+              name       = "cert"
+              mount_path = "/etc/sec"
+            }
           }
         }
-        container {
+      container {
           name              = "${local.backoffice-k8s-name}-backend"
           image             = var.backoffice-backend-image
           image_pull_policy = "Always"
@@ -130,25 +127,35 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             host_port      = local.backoffice-backend-tls-port
           }
 
-          args = [
+          args = var.ssl-enabled ? [
             "-Dmicronaut.env.deduction=true",
-            "-Dmicronaut.ssl.keyStore.password=${var.ssl-keystore-password}",
-            "-Dmicronaut.ssl.enabled=${var.ssl-enabled ? "true" : "false"}",
-            "-Dmicronaut.server.dual-protocol=${var.ssl-enabled ? "true" : "false"}"
+            "-Dmicronaut.ssl.key-store.password=${var.ssl-keystore-password}",
+            "-Dmicronaut.ssl.key-store.type=JKS",
+            "-Dmicronaut.ssl.enabled=true",
+            "-Dsite.hostname=https://${yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address}:8443",
+            "-Dmicronaut.server.dual-protocol=true"
+          ] : [
+            "-Dmicronaut.env.deduction=true",
+            "-Dmicronaut.ssl.enabled=false",
+            "-Dsite.hostname=http://${yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address}:8080",
+            "-Dmicronaut.server.dual-protocol=false"
           ]
         }
 
-        volume {
-          name = "cert"
-          secret {
-            secret_name = "certs"
-            items {
-              key  = "cert"
-              path = "cert.crt"
-            }
-            items {
-              key  = "cert-key"
-              path = "cert.key"
+        dynamic "volume" {
+          for_each = var.ssl-enabled ? [1] : []
+          content {
+            name = "cert"
+            secret {
+              secret_name = "certs"
+              items {
+                key  = "cert"
+                path = "cert.crt"
+              }
+              items {
+                key  = "cert-key"
+                path = "cert.key"
+              }
             }
           }
         }

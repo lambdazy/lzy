@@ -11,7 +11,7 @@
 
 ### Steps
 
-1) Create terraform module and import [v2](../deployment/tf/modules/v2) module (see example [here](../deployment/tf/modules/v2_example)).
+1) Create terraform module and import [v2](../deployment/tf/modules/yc) module (see example [here](../deployment/tf/modules/yc_example)).
 It's necessary to instantiate "yandex" terraform provider in your module.
 2) Perform yc login into your organization.
 3) Create [GitHub OAuth App](https://docs.github.com/en/developers/apps/building-github-apps/creating-a-github-app).
