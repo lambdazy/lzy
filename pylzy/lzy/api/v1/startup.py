@@ -3,6 +3,7 @@ import os
 import sys
 import time
 from logging import Logger
+from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence, Tuple, Type, Optional, cast, Dict
 
 from serialzy.api import SerializerRegistry
@@ -133,8 +134,20 @@ class ProcessingRequest:
 
 def main(arg: str):
     try:
+        # remove current dir from sys path to avoid importing [local,remote,utils] and other internal modules
+        parent_dir = str(Path(__file__).parent)
+        for path in sys.path:
+            if path == parent_dir:
+                sys.path.remove(path)
+
         if "LOCAL_MODULES" in os.environ:
             sys.path.append(os.environ["LOCAL_MODULES"])
+    except Exception as e:
+        sys.stderr.write(f"Error while preparing sys path: {e}")
+        sys.stderr.flush()
+        raise e
+
+    try:
         req: ProcessingRequest = cast(ProcessingRequest, unpickle(arg))
     except Exception as e:
         sys.stderr.write(f"Error while unpickling request: {e}")

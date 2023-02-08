@@ -1,4 +1,5 @@
 import asyncio
+import importlib
 import uuid
 from typing import List, Optional, Union, Tuple, Dict
 from unittest import TestCase, skip
@@ -408,6 +409,23 @@ class LzyWorkflowTests(TestCase):
         with self.lzy.workflow("test"):
             res = return_argument("str")
         self.assertEqual("str", res)
+
+    def test_local_startup_import(self):
+        @op
+        def op_with_import() -> bool:
+            # noinspection PyBroadException
+            try:
+                importlib.import_module("remote")
+                importlib.import_module("local")
+                importlib.import_module("utils")
+                return True
+            except Exception:
+                return False
+
+        with self.lzy.workflow("test"):
+            res = op_with_import()
+
+        self.assertEqual(False, res)
 
     @skip("currently we do not support lazy collections")
     def test_lazy_list(self):
