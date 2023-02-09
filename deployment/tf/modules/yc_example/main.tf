@@ -32,9 +32,9 @@ provider "yandex" {
   max_retries = 10
 }
 
-module "v2" {
-  #  source                    = "github.com/lambdazy/lzy//deployment/tf/modules/v2?ref=master"
-  source                    = "../v2"
+module "yc" {
+  #  source                    = "github.com/lambdazy/lzy//deployment/tf/modules/yc?ref=master"
+  source                    = "../yc"
   installation_name         = "lzy-dev-public" //you can change it
   folder_id                 = local.folder_id
   network_id                = local.network_id

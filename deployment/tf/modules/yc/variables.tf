@@ -85,3 +85,11 @@ variable "backoffice-backend-image" {
 variable "unified-agent-image" {
   type = string
 }
+
+variable "ssl-enabled" {
+  default = false
+}
+
+variable "ssl-keystore-password" {
+  default = ""
+}
