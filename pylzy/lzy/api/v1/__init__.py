@@ -223,7 +223,8 @@ class Lzy:
         gpu_type: Optional[str] = None,
         gpu_count: Optional[int] = None,
         ram_size_gb: Optional[int] = None,
-        env: Env = Env()
+        env: Env = Env(),
+        dvc: bool = False,
     ) -> LzyWorkflow:
         provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
         provisioning.validate()
@@ -246,7 +247,8 @@ class Lzy:
             provisioning=provisioning,
             auto_py_env=auto_py_env,
             eager=eager,
-            interactive=interactive
+            interactive=interactive,
+            dvc=dvc,
         )
 
     def whiteboard(self, *,

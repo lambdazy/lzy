@@ -8,7 +8,7 @@ from pure_protobuf.types import int32
 from lzy.api.v1 import Lzy, op
 from lzy.api.v1.signatures import FuncSignature
 from lzy.api.v1.utils.proxy_adapter import materialized
-from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
+from mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
 
 
 @op

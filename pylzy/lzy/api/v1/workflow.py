@@ -46,7 +46,8 @@ class LzyWorkflow:
         auto_py_env: PyEnv,
         *,
         eager: bool = False,
-        interactive: bool = True
+        interactive: bool = True,
+        dvc: bool = False,
     ):
         if not is_name_valid(name):
             raise ValueError(f"Invalid workflow name. Name can contain only {NAME_VALID_SYMBOLS}")
@@ -55,12 +56,14 @@ class LzyWorkflow:
         self.__eager = eager
         self.__owner = owner
         self.__call_queue: List["LzyCall"] = []
+        self.__call_list: List["LzyCall"] = []
         self.__started = False
 
         self.__env = env
         self.__provisioning = provisioning
         self.__auto_py_env = auto_py_env
         self.__interactive = interactive
+        self.__dvc = dvc
         self.__whiteboards: List[WritableWhiteboard] = []
         self.__filled_entry_ids: Set[str] = set()
 
@@ -120,8 +123,13 @@ class LzyWorkflow:
     def eager(self) -> bool:
         return self.__eager
 
+    @property
+    def call_list(self) -> List["LzyCall"]:
+        return self.__call_list
+
     def register_call(self, call: "LzyCall") -> Any:
         self.__call_queue.append(call)
+        self.__call_list.append(call)
         if self.__eager:
             self.barrier()
 
@@ -154,6 +162,9 @@ class LzyWorkflow:
                 self.__destroy()
             else:
                 self.__abort()
+            if self.__dvc:
+                from lzy.api.v1.dvc import generate_dvc_files  # TODO: fix
+                generate_dvc_files(self)
 
     def __abort(self):
         _LOG.info(f"Abort workflow '{self.name}'")
