@@ -61,7 +61,6 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
         }
     }
 
-
     @Override
     public void readFromPosition(long offset, StreamObserver<LSA.SlotDataChunk> responseObserver) {
         if (hasInputSlot) {

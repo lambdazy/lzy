@@ -36,7 +36,7 @@ public class S3Snapshot implements Snapshot {
         this.snapshotId = snapshotId;
         this.uri = uri;
         this.repository = repository;
-        this.storageFile = Files.createTempFile("lzy", "snapshot_" + snapshotId + "_storage");
+        this.storageFile = Files.createTempFile("lzy_", "_storage");
         this.storageFile.toFile().deleteOnExit();
     }
 

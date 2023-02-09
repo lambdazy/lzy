@@ -21,10 +21,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Stream;
 
 @Singleton
@@ -40,10 +37,7 @@ public class SnapshotProvider {
         throws CreateSlotException
     {
         URI uri = URI.create(snapshotData.getStorageConfig().getUri());
-        String endpoint = endpointFrom(snapshotData.getStorageConfig());
-        var snapshotId = "%s-%s-%s".formatted(uri.getPath(), uri.getHost(), endpoint)
-            .replace("/", "")
-            .replace(":", "");
+        var snapshotId = snapshotData.getStorageConfig().getUri();
         var previousSnapshotId = name2id.get(instance.name());
         if (Objects.nonNull(previousSnapshotId)) {
             throw new SnapshotUniquenessException("Slot '" + instance.name() + "' already associated with "
