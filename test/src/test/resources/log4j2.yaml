@@ -39,7 +39,7 @@ Configuration:
         level: info
 
       - name: "ai.lzy.test"
-        level: info
+        level: debug
 
       - name: "org.flywaydb"
         level: error
