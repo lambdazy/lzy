@@ -120,11 +120,11 @@ public class ServiceConfig {
     @Setter
     @ConfigurationProperties("cache-limits")
     public static final class CacheLimits {
-        private int userLimit = 5;
-        private int sessionLimit = 3;
+        private int userLimit = 100;
+        private int sessionLimit = 100;
         @Nullable
         private Map<String, Integer> sessionPoolLimit = null;
-        private int anySessionPoolLimit = 1;
+        private int anySessionPoolLimit = 100;
 
         public int getLimit(String pool) {
             if (sessionPoolLimit == null) {
