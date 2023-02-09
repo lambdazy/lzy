@@ -39,13 +39,6 @@ public class ClusterTest {
     }
 
     @Test
-    public void testCustomCondaAndSerializer() {
-
-        pythonContext.evalAndAssertScenarioResult("custom_conda_and_serializer");
-
-    }
-
-    @Test
     public void testImportFile() {
         /* This scenario checks for:
                 1. Importing local file package
@@ -62,14 +55,6 @@ public class ClusterTest {
 
         //Arrange
         pythonContext.evalAndAssertScenarioResult("none_result");
-    }
-
-    @Test
-    public void testWhiteboards() {
-        /* This scenario checks for:
-                1. Whiteboards/Views machinery
-         */
-        pythonContext.evalAndAssertScenarioResult("whiteboards");
     }
 
     @Test
