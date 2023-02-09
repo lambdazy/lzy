@@ -67,7 +67,7 @@ class JupyterKernel(IPythonKernel):
                     '-Djava.library.path=/usr/local/lib',
                     '-Djava.util.concurrent.ForkJoinPool.common.parallelism=32',
                     '-Dlog4j.configurationFile=../servant/src/main/resources/servant_cmd/log4j2.yaml',
-                    '-cp', '../servant/target/servant-1.0-SNAPSHOT.jar',
+                    '-cp', '../servant/target/servant.jar',
                     'ai.lzy.servant.BashApi',
                     '-z', 'localhost:7777',
                     '-w', 'blah-blah-blah://localhost:8999',

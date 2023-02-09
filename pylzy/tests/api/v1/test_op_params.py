@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from api.v1.mocks import RuntimeMock, StorageRegistryMock
+from api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
 from lzy.api.v1 import Lzy, op, Env, DockerPullPolicy
 from lzy.api.v1.provisioning import GpuType, Provisioning, CpuType
 from lzy.api.v1.call import LzyCall
@@ -14,7 +14,9 @@ def func() -> None:
 
 class LzyOpParamsTests(TestCase):
     def setUp(self):
-        self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock())
+        self.lzy = Lzy(runtime=RuntimeMock(),
+                       storage_registry=StorageRegistryMock(),
+                       py_env_provider=EnvProviderMock({"pylzy": "0.0.0"}, ["local_module_path"]))
 
     def test_description(self):
         description = "my favourite func"
@@ -49,7 +51,7 @@ class LzyOpParamsTests(TestCase):
                                                                      ram_size_gb=8,
                                                                      gpu_type=str(GpuType.NO_GPU.value))):
                 func()
-        with self.assertRaisesRegex(ValueError, "gpu_type is set to <none> while gpu_count"):
+        with self.assertRaisesRegex(ValueError, "gpu_type is set to NO_GPU while gpu_count"):
             with self.lzy.workflow("test", provisioning=Provisioning(cpu_type=CpuType.BROADWELL.name, cpu_count=4,
                                                                      ram_size_gb=8, gpu_type=str(GpuType.NO_GPU.value),
                                                                      gpu_count=4)):
@@ -100,7 +102,7 @@ class LzyOpParamsTests(TestCase):
         def func_with_provisioning() -> None:
             pass
 
-        with self.assertRaisesRegex(ValueError, "gpu_type is set to <none> while gpu_count"):
+        with self.assertRaisesRegex(ValueError, "gpu_type is set to NO_GPU while gpu_count"):
             with self.lzy.workflow("test", gpu_type=str(GpuType.NO_GPU.value)):
                 func_with_provisioning()
 

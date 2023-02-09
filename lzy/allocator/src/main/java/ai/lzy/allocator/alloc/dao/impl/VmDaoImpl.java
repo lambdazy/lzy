@@ -14,7 +14,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
 import java.net.Inet6Address;
@@ -25,108 +27,96 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import javax.annotation.Nullable;
-import javax.inject.Named;
+
+import static java.util.Arrays.stream;
+import static java.util.stream.Collectors.joining;
 
 @Singleton
 public class VmDaoImpl implements VmDao {
     private static final String SPEC_FIELDS =
-        "id, session_id, pool_label, zone, init_workloads_json, workloads_json, volume_requests_json," +
-        " v6_proxy_address, cluster_type";
+        "id, session_id, pool_label, zone, init_workloads_json, workloads_json, volume_requests_json, " +
+        "v6_proxy_address, cluster_type";
 
-    private static final String STATUS_FIELDS = "status";
+    private static final String STATUS_FIELDS =
+        "status";
+
+    private static final String INSTANCE_FIELDS =
+        "vm_subject_id, tunnel_pod_name";
 
     private static final String ALLOCATION_START_FIELDS =
-        "allocation_op_id, allocation_started_at, allocation_deadline, owner_instance, vm_ott";
+        "allocation_op_id, allocation_started_at, allocation_deadline, allocation_worker, allocation_reqid, vm_ott";
 
     private static final String ALLOCATION_FIELDS =
-        ALLOCATION_START_FIELDS + ", vm_subject_id, tunnel_pod_name, allocator_meta_json, volume_claims_json";
+        ALLOCATION_START_FIELDS + ", allocator_meta_json, volume_claims_json";
 
     private static final String RUN_FIELDS =
-        "vm_meta_json, last_activity_time, deadline";
+        "vm_meta_json, activity_deadline";
+
+    private static final String IDLE_FIELDS =
+        "idle_since, idle_deadline";
+
+    private static final String DELETE_FIELDS =
+        "delete_op_id, delete_worker, delete_reqid";
 
     private static final String ALL_FIELDS =
-        "%s, %s, %s, %s".formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_FIELDS, RUN_FIELDS);
+        "%s, %s, %s, %s, %s, %s, %s".formatted(
+            SPEC_FIELDS, STATUS_FIELDS, INSTANCE_FIELDS, ALLOCATION_FIELDS, RUN_FIELDS, IDLE_FIELDS, DELETE_FIELDS);
 
-    private static final String QUERY_LOAD_NOT_COMPLETED_VMS = """
-        SELECT %s
-        FROM vm JOIN operation o ON vm.allocation_op_id = o.id
-        WHERE o.done = FALSE AND vm.allocation_deadline > NOW() AND vm.owner_instance = ?
-        """.formatted(Stream.of(ALL_FIELDS.split(",\s*")).map(x -> "vm." + x).collect(Collectors.joining(", ")));
-
-    private static final String QUERY_CREATE_VM = """
-        INSERT INTO vm (%s, %s, %s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """.formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_START_FIELDS);
-
-    private static final String QUERY_UPDATE_VM_ACTIVITY = """
-        UPDATE vm
-        SET last_activity_time = ?
-        WHERE id = ?""";
-
-    private static final String QUERY_UPDATE_VM_DEADLINE = """
-        UPDATE vm
-        SET deadline = ?
-        WHERE id = ?""";
-
-    private static final String QUERY_LIST_SESSION_VMS = """
-        SELECT %s
-        FROM vm
-        WHERE session_id = ?""".formatted(ALL_FIELDS);
-
-    private static final String QUERY_DELETE_SESSION_VMS = """
-        UPDATE vm
-        SET status = 'DELETING'
-        WHERE session_id = ?""";
-
-    private static final String QUERY_LIST_ALIVE_VMS = """
-        SELECT %s
-        FROM vm""".formatted(ALL_FIELDS);
+    /*** -= QUERIES =- ***/
 
     private static final String QUERY_READ_VM = """
         SELECT %s
         FROM vm
         WHERE id = ?""".formatted(ALL_FIELDS);
 
-    private static final String QUERY_LIST_VMS_TO_CLEANUP = """
+    private static final String QUERY_READ_SESSION_VMS = """
         SELECT %s
         FROM vm
-        WHERE (status = 'IDLE' AND deadline IS NOT NULL AND deadline < NOW())
-           OR (status = 'DELETING')
-           OR (status = 'ALLOCATING' AND allocation_deadline < NOW())
-           OR (status = 'RUNNING' AND COALESCE(last_activity_time < NOW(), FALSE))
-        LIMIT ?""".formatted(ALL_FIELDS);
+        WHERE session_id = ?""".formatted(ALL_FIELDS);
 
-    private static final String QUERY_MARK_FAILED_ALLOCATIONS = """
+    private static final String QUERY_CREATE_VM = """
+        INSERT INTO vm (%s, %s, %s)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """.formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_START_FIELDS);
+
+    private static final String QUERY_START_DELETE_VM = """
         UPDATE vm
-        SET status = 'DELETING'
-        WHERE status = 'ALLOCATING'
-          AND allocation_op_id IN (SELECT id FROM operation WHERE done = TRUE AND error IS NOT NULL)
-        RETURNING id""";
+        SET status = 'DELETING', delete_op_id = ?, delete_worker = ?, delete_reqid = ?
+        WHERE id = ?""";
+
+    private static final String QUERY_CLEANUP_VM = """
+        WITH vm_row AS (
+            DELETE FROM vm
+            WHERE id = ?
+            RETURNING *
+        )
+        INSERT INTO dead_vms
+        SELECT id, NOW() AS ts, JSONB_SET(ROW_TO_JSON("vm_row")::JSONB, '{status}', '"DEAD"') AS vm
+        FROM vm_row""";
 
     private static final String QUERY_ACQUIRE_VM = """
+        WITH existing_vm AS (
+            SELECT %s
+            FROM vm
+            WHERE session_id = ? AND pool_label = ? AND zone = ? AND status = 'IDLE'
+                AND workloads_json = ? AND init_workloads_json = ?
+                AND volume_requests_json = ?
+                AND COALESCE(v6_proxy_address, '') = ?
+            LIMIT 1
+        )
         UPDATE vm
-        SET status = 'RUNNING'
-        WHERE
-            session_id = ? AND pool_label = ? AND zone = ? AND status = 'IDLE'
-            AND workloads_json = ? AND init_workloads_json = ?
-            AND volume_requests_json = ?
-            AND COALESCE(v6_proxy_address, '') = ?
-        RETURNING %s
-        """.formatted(ALL_FIELDS);
+        SET status = 'RUNNING', idle_since = NULL, idle_deadline = NULL
+        WHERE id = (SELECT id FROM existing_vm)
+        RETURNING
+            %s,
+            (SELECT idle_since FROM existing_vm) AS was_idle_since,
+            (SELECT idle_deadline FROM existing_vm) AS was_idle_deadline
+        """.formatted(ALL_FIELDS, stream(ALL_FIELDS.split(",")).map(s -> "vm." + s.trim()).collect(joining(", ")));
 
     private static final String QUERY_RELEASE_VM = """
         UPDATE vm
-        SET status = 'IDLE', deadline = ?
-        WHERE id = ?""";
-
-    private static final String QUERY_SET_VM_RUNNING = """
-        UPDATE vm
-        SET status = 'RUNNING', vm_meta_json = ?, last_activity_time = ?
-        WHERE id = ?""";
+        SET status = 'IDLE', idle_since = NOW(), idle_deadline = ?
+        WHERE id = ? AND status = 'RUNNING'""";
 
     private static final String QUERY_UPDATE_VM_ALLOCATION_META = """
         UPDATE vm
@@ -135,21 +125,6 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_READ_VM_ALLOCATION_META = """
         SELECT allocator_meta_json
-        FROM vm
-        WHERE id = ?""";
-
-    private static final String QUERY_UPDATE_VM_STATUS = """
-        UPDATE vm
-        SET status = ?
-        WHERE id = ?""";
-
-    private static final String QUERY_UPDATE_VOLUME_CLAIMS = """
-        UPDATE vm
-        SET volume_claims_json = ?
-        WHERE id = ?""";
-
-    private static final String QUERY_GET_VOLUME_CLAIMS = """
-        SELECT volume_claims_json
         FROM vm
         WHERE id = ?""";
 
@@ -163,15 +138,44 @@ public class VmDaoImpl implements VmDao {
         SET tunnel_pod_name = ?
         WHERE id = ?""";
 
-    private static final String QUERY_DELETE_VM = """
-        WITH vm_row AS (
-            DELETE FROM vm
-            WHERE id = ?
-            RETURNING *
-        )
-        INSERT INTO dead_vms
-        SELECT id, NOW() AS ts, JSONB_SET(ROW_TO_JSON("vm_row")::JSONB, '{status}', '"DEAD"') AS vm
-        FROM vm_row""";
+    private static final String QUERY_UPDATE_VOLUME_CLAIMS = """
+        UPDATE vm
+        SET volume_claims_json = ?
+        WHERE id = ?""";
+
+    private static final String QUERY_GET_VOLUME_CLAIMS = """
+        SELECT volume_claims_json
+        FROM vm
+        WHERE id = ?""";
+
+    private static final String QUERY_SET_VM_RUNNING = """
+        UPDATE vm
+        SET status = 'RUNNING', idle_since = NULL, idle_deadline = null, vm_meta_json = ?, activity_deadline = ?
+        WHERE id = ?""";
+
+    private static final String QUERY_UPDATE_VM_ACTIVITY = """
+        UPDATE vm
+        SET activity_deadline = ?
+        WHERE id = ?""";
+
+    private static final String QUERY_LIST_ALIVE_VMS = """
+        SELECT %s
+        FROM vm""".formatted(ALL_FIELDS);
+
+    private static final String QUERY_LIST_EXPIRED_VMS = """
+        SELECT %s
+        FROM vm
+        WHERE (status = 'IDLE' AND idle_deadline < NOW())
+           OR (status = 'RUNNING' AND activity_deadline < NOW())
+        LIMIT ?""".formatted(ALL_FIELDS);
+
+    private static final String QUERY_LOAD_NOT_COMPLETED_VMS = """
+        SELECT %s
+        FROM vm
+        WHERE (status = 'ALLOCATING' AND allocation_worker = ?)
+           OR (status = 'DELETING' AND delete_worker = ?)
+        """.formatted(ALL_FIELDS);
+
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
@@ -182,34 +186,70 @@ public class VmDaoImpl implements VmDao {
         this.objectMapper = objectMapper;
     }
 
+    @Nullable
     @Override
-    public Vm create(Vm.Spec vmSpec, String opId, Instant startedAt, Instant opDeadline, String vmOtt,
-                     String allocatorId, @Nullable TransactionHandle transaction) throws SQLException
-    {
-        final var vmId = "vm-" + UUID.randomUUID();
-
-        DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_CREATE_VM)) {
-                // spec
+    public Vm get(String vmId, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_READ_VM)) {
                 s.setString(1, vmId);
-                s.setString(2, vmSpec.sessionId());
-                s.setString(3, vmSpec.poolLabel());
-                s.setString(4, vmSpec.zone());
-                s.setString(5, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
-                s.setString(6, objectMapper.writeValueAsString(vmSpec.workloads()));
-                s.setString(7, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
-                s.setString(8, vmSpec.proxyV6Address() == null ? null : vmSpec.proxyV6Address().getHostAddress());
-                s.setString(9, vmSpec.clusterType().name());
+                final var res = s.executeQuery();
+                if (res.next()) {
+                    return readVm(res);
+                }
+                return null;
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot read vm", e);
+            }
+        });
+    }
+
+    @Override
+    public List<Vm> getSessionVms(String sessionId, TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_READ_SESSION_VMS)) {
+                st.setString(1, sessionId);
+                final var res = st.executeQuery();
+
+                final List<Vm> vms = new ArrayList<>();
+                while (res.next()) {
+                    vms.add(readVm(res));
+                }
+                return vms;
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot read vm", e);
+            }
+        });
+    }
+
+    @Override
+    public Vm create(Vm.Spec vmSpec, Vm.AllocateState allocState, @Nullable TransactionHandle tx) throws SQLException {
+        final var vmId = "vm-" + vmSpec.poolLabel() + "-" + UUID.randomUUID();
+
+        DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_CREATE_VM)) {
+                int idx = 0;
+
+                // spec
+                s.setString(++idx, vmId);
+                s.setString(++idx, vmSpec.sessionId());
+                s.setString(++idx, vmSpec.poolLabel());
+                s.setString(++idx, vmSpec.zone());
+                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
+                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.workloads()));
+                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
+                s.setString(++idx, vmSpec.proxyV6Address() == null ? null : vmSpec.proxyV6Address().getHostAddress());
+                s.setString(++idx, vmSpec.clusterType().name());
 
                 // status
-                s.setString(10, Vm.Status.ALLOCATING.name());
+                s.setString(++idx, Vm.Status.ALLOCATING.name());
 
                 // allocation state
-                s.setString(11, opId);
-                s.setTimestamp(12, Timestamp.from(startedAt));
-                s.setTimestamp(13, Timestamp.from(opDeadline));
-                s.setString(14, allocatorId);
-                s.setString(15, vmOtt);
+                s.setString(++idx, allocState.operationId());
+                s.setTimestamp(++idx, Timestamp.from(allocState.startedAt()));
+                s.setTimestamp(++idx, Timestamp.from(allocState.deadline()));
+                s.setString(++idx, allocState.worker());
+                s.setString(++idx, allocState.reqid());
+                s.setString(++idx, allocState.vmOtt());
 
                 int ret = s.executeUpdate();
                 assert ret == 1;
@@ -218,17 +258,131 @@ public class VmDaoImpl implements VmDao {
             }
         });
 
-        return new Vm(vmSpec.withVmId(vmId), Vm.Status.ALLOCATING,
-            new Vm.AllocateState(opId, startedAt, opDeadline, allocatorId, vmOtt));
+        return new Vm(vmSpec.withVmId(vmId), Vm.Status.ALLOCATING, allocState);
     }
 
     @Override
-    public void setStatus(String vmId, Vm.Status status, @Nullable TransactionHandle transaction)
+    public void delete(String vmId, Vm.DeletingState deleteState, @Nullable TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_START_DELETE_VM)) {
+                int idx = 0;
+                st.setString(++idx, deleteState.operationId());
+                st.setString(++idx, deleteState.worker());
+                st.setString(++idx, deleteState.reqid());
+                st.setString(++idx, vmId);
+                var updated = st.executeUpdate();
+                if (updated != 1) {
+                    throw new RuntimeException("Cannot start deleting of VM " + vmId);
+                }
+            }
+        });
+    }
+
+    @Override
+    public void cleanupVm(String vmId, TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_CLEANUP_VM)) {
+                st.setString(1, vmId);
+                st.execute();
+            }
+        });
+    }
+
+    @Nullable
+    @Override
+    public Vm acquire(Vm.Spec vmSpec, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_ACQUIRE_VM)) {
+                int idx = 0;
+
+                s.setString(++idx, vmSpec.sessionId());
+                s.setString(++idx, vmSpec.poolLabel());
+                s.setString(++idx, vmSpec.zone());
+                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.workloads()));
+                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
+                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
+                s.setString(++idx, vmSpec.proxyV6Address() != null ? vmSpec.proxyV6Address().getHostAddress() : "");
+
+                final var res = s.executeQuery();
+                if (!res.next()) {
+                    return null;
+                }
+
+                var vm = readVm(res);
+
+                return new Vm(
+                    vm.spec(),
+                    Vm.Status.IDLE,
+                    vm.instanceProperties(),
+                    vm.allocateState(),
+                    vm.runState(),
+                    new Vm.IdleState(
+                        res.getTimestamp("was_idle_since").toInstant(),
+                        res.getTimestamp("was_idle_deadline").toInstant()),
+                    null);
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump values", e);
+            }
+        });
+    }
+
+    @Override
+    public void release(String vmId, Instant deadline, @Nullable TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_RELEASE_VM)) {
+                st.setTimestamp(1, Timestamp.from(deadline));
+                st.setString(2, vmId);
+                int ret = st.executeUpdate();
+                if (ret != 1) {
+                    throw new RuntimeException("Cannot release VM %s".formatted(vmId));
+                }
+            }
+        });
+    }
+
+    @Override
+    public void setAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle tx)
         throws SQLException
     {
-        DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_UPDATE_VM_STATUS)) {
-                s.setString(1, status.name());
+        DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_UPDATE_VM_ALLOCATION_META)) {
+                s.setString(1, objectMapper.writeValueAsString(meta));
+                s.setString(2, vmId);
+                s.executeUpdate();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump values", e);
+            }
+        });
+    }
+
+    @Nullable
+    @Override
+    public Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_READ_VM_ALLOCATION_META)) {
+                s.setString(1, vmId);
+                final var res = s.executeQuery();
+                if (!res.next()) {
+                    return null;
+                }
+
+                final var dumpedMeta = res.getString(1);
+                if (dumpedMeta == null) {
+                    return null;
+                } else {
+                    return objectMapper.readValue(res.getString(1), new TypeReference<>() {});
+                }
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump values", e);
+            }
+        });
+    }
+
+    @Override
+    public void setVmSubjectId(String vmId, String vmSubjectId, @Nullable TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_SET_VM_SUBJECT_ID)) {
+                s.setString(1, vmSubjectId);
                 s.setString(2, vmId);
                 s.executeUpdate();
             }
@@ -236,64 +390,78 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public void setLastActivityTime(String vmId, Instant time) throws SQLException {
+    public void setTunnelPod(String vmId, String tunnelPodName, @Nullable TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_SET_TUNNEL_PON_NAME)) {
+                s.setString(1, tunnelPodName);
+                s.setString(2, vmId);
+                s.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
+        DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_UPDATE_VOLUME_CLAIMS)) {
+                s.setString(1, objectMapper.writeValueAsString(volumeClaims));
+                s.setString(2, vmId);
+                s.executeUpdate();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump values", e);
+            }
+        });
+    }
+
+    @Override
+    public List<VolumeClaim> getVolumeClaims(String vmId, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_GET_VOLUME_CLAIMS)) {
+                s.setString(1, vmId);
+                final var resultSet = s.executeQuery();
+                if (!resultSet.next()) {
+                    return null;
+                }
+
+                final String dumpedVolumeClaims = resultSet.getString(1);
+                if (dumpedVolumeClaims == null) {
+                    return null;
+                } else {
+                    return objectMapper.readValue(dumpedVolumeClaims, new TypeReference<>() {});
+                }
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot read volume json from db", e);
+            }
+        });
+    }
+
+    @Override
+    public void setVmRunning(String vmId, Map<String, String> vmMeta, Instant activityDeadline, TransactionHandle tx)
+        throws SQLException
+    {
+        DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement st = con.prepareStatement(QUERY_SET_VM_RUNNING)) {
+                st.setString(1, objectMapper.writeValueAsString(vmMeta));
+                st.setTimestamp(2, Timestamp.from(activityDeadline));
+                st.setString(3, vmId);
+                st.executeUpdate();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump values", e);
+            }
+        });
+    }
+
+    @Override
+    public void updateActivityDeadline(String vmId, Instant deadline) throws SQLException {
         try (var conn = storage.connect();
              var st = conn.prepareStatement(QUERY_UPDATE_VM_ACTIVITY))
         {
-            st.setTimestamp(1, Timestamp.from(time));
+            st.setTimestamp(1, Timestamp.from(deadline));
             st.setString(2, vmId);
             st.executeUpdate();
         }
-    }
-
-    @Override
-    public void setDeadline(String vmId, Instant time) throws SQLException {
-        try (var conn = storage.connect();
-             var st = conn.prepareStatement(QUERY_UPDATE_VM_DEADLINE))
-        {
-            st.setTimestamp(1, Timestamp.from(time));
-            st.setString(2, vmId);
-            st.executeUpdate();
-        }
-    }
-
-    @Override
-    public void deleteVm(String vmId, @jakarta.annotation.Nullable TransactionHandle transaction) throws SQLException {
-        DbOperation.execute(transaction, storage, conn -> {
-            try (PreparedStatement st = conn.prepareStatement(QUERY_DELETE_VM)) {
-                st.setString(1, vmId);
-                st.execute();
-            }
-        });
-    }
-
-    @Override
-    public List<Vm> list(String sessionId) throws SQLException {
-        try (var conn = storage.connect();
-             var st = conn.prepareStatement(QUERY_LIST_SESSION_VMS))
-        {
-            st.setString(1, sessionId);
-            final var res = st.executeQuery();
-
-            final List<Vm> vms = new ArrayList<>();
-            while (res.next()) {
-                final Vm vm = readVm(res);
-                vms.add(vm);
-            }
-            return vms;
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Cannot read vm", e);
-        }
-    }
-
-    @Override
-    public void delete(String sessionId, @Nullable TransactionHandle tx) throws SQLException {
-        DbOperation.execute(tx, storage, conn -> {
-            try (PreparedStatement st = conn.prepareStatement(QUERY_DELETE_SESSION_VMS)) {
-                st.setString(1, sessionId);
-                st.execute();
-            }
-        });
     }
 
     @Override
@@ -315,9 +483,9 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public List<Vm> listVmsToClean(int limit) throws SQLException {
+    public List<Vm> listExpiredVms(int limit) throws SQLException {
         try (var conn = storage.connect();
-             var st = conn.prepareStatement(QUERY_LIST_VMS_TO_CLEANUP))
+             var st = conn.prepareStatement(QUERY_LIST_EXPIRED_VMS))
         {
             st.setInt(1, limit);
             final var res = st.executeQuery();
@@ -333,230 +501,37 @@ public class VmDaoImpl implements VmDao {
         }
     }
 
-    @Nullable
     @Override
-    public Vm get(String vmId, TransactionHandle transaction) throws SQLException {
-        final Vm[] vm = {null};
-        DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_READ_VM)) {
-                s.setString(1, vmId);
-                final var res = s.executeQuery();
-                if (!res.next()) {
-                    vm[0] = null;
-                    return;
-                }
-                vm[0] = readVm(res);
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot read vm", e);
-            }
-        });
-        return vm[0];
-    }
-
-    @Nullable
-    @Override
-    public Vm acquire(Vm.Spec vmSpec, @Nullable TransactionHandle outerTransaction) throws SQLException {
-        final Vm[] vm = {null};
-        try (final var transaction = TransactionHandle.getOrCreate(storage, outerTransaction)) {
-            DbOperation.execute(transaction, storage, con -> {
-                try (PreparedStatement s = con.prepareStatement(QUERY_ACQUIRE_VM)) {
-                    s.setString(1, vmSpec.sessionId());
-                    s.setString(2, vmSpec.poolLabel());
-                    s.setString(3, vmSpec.zone());
-                    s.setString(4, objectMapper.writeValueAsString(vmSpec.workloads()));
-                    s.setString(5, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
-                    s.setString(6, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
-                    s.setString(7, vmSpec.proxyV6Address() != null ? vmSpec.proxyV6Address().getHostAddress() : "");
-
-                    final var res = s.executeQuery();
-                    if (!res.next()) {
-                        return;
-                    }
-
-                    vm[0] = readVm(res);
-
-                    Objects.requireNonNull(vm[0].runState());
-                } catch (JsonProcessingException e) {
-                    throw new RuntimeException("Cannot dump values", e);
-                }
-            });
-
-            transaction.commit();
-        }
-
-        return vm[0];
-    }
-
-    @Override
-    public void release(String vmId, Instant deadline, @Nullable TransactionHandle transaction) throws SQLException {
-        DbOperation.execute(transaction, storage, conn -> {
-            try (PreparedStatement st = conn.prepareStatement(QUERY_RELEASE_VM)) {
-                st.setTimestamp(1, Timestamp.from(deadline));
-                st.setString(2, vmId);
-                st.execute();
-            }
-        });
-    }
-
-    @Override
-    public void setAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_UPDATE_VM_ALLOCATION_META)) {
-                s.setString(1, objectMapper.writeValueAsString(meta));
-                s.setString(2, vmId);
-                s.executeUpdate();
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot dump values", e);
-            }
-        });
-    }
-
-    @Nullable
-    @Override
-    public Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        final AtomicReference<Map<String, String>> meta = new AtomicReference<>();
-        DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_READ_VM_ALLOCATION_META)) {
-                s.setString(1, vmId);
-                final var res = s.executeQuery();
-                if (!res.next()) {
-                    meta.set(null);
-                    return;
-                }
-
-                final var dumpedMeta = res.getString(1);
-                if (dumpedMeta == null) {
-                    meta.set(null);
-                } else {
-                    meta.set(objectMapper.readValue(res.getString(1), new TypeReference<>() {}));
-                }
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot dump values", e);
-            }
-        });
-        return meta.get();
-    }
-
-    @Override
-    public void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims,
-                                @Nullable TransactionHandle transaction) throws SQLException
-    {
-        DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_UPDATE_VOLUME_CLAIMS)) {
-                s.setString(1, objectMapper.writeValueAsString(volumeClaims));
-                s.setString(2, vmId);
-                s.executeUpdate();
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot dump values", e);
-            }
-        });
-    }
-
-    @Override
-    public List<VolumeClaim> getVolumeClaims(String vmId, @Nullable TransactionHandle transaction) throws SQLException {
-        final AtomicReference<List<VolumeClaim>> volumeClaims = new AtomicReference<>();
-        DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_GET_VOLUME_CLAIMS)) {
-                s.setString(1, vmId);
-                final var resultSet = s.executeQuery();
-                if (!resultSet.next()) {
-                    volumeClaims.set(null);
-                    return;
-                }
-                final String dumpedVolumeClaims = resultSet.getString(1);
-                if (dumpedVolumeClaims == null) {
-                    volumeClaims.set(null);
-                } else {
-                    volumeClaims.set(objectMapper.readValue(dumpedVolumeClaims, new TypeReference<>() {}));
-                }
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot read volume json from db", e);
-            }
-        });
-        return volumeClaims.get();
-    }
-
-    @Override
-    public void setVmSubjectId(String vmId, String vmSubjectId, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_SET_VM_SUBJECT_ID)) {
-                s.setString(1, vmSubjectId);
-                s.setString(2, vmId);
-                s.executeUpdate();
-            }
-        });
-    }
-
-    @Override
-    public void setTunnelPod(String vmId, String tunnelPodName, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_SET_TUNNEL_PON_NAME)) {
-                s.setString(1, tunnelPodName);
-                s.setString(2, vmId);
-                s.executeUpdate();
-            }
-        });
-    }
-
-    @Override
-    public List<Vm> loadAllocatingVms(String allocatorId, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        final List<Vm> vms = new ArrayList<>();
-        DbOperation.execute(transaction, storage, con -> {
+    public List<Vm> loadActiveVmsActions(String workerId, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_LOAD_NOT_COMPLETED_VMS)) {
-                s.setString(1, allocatorId);
+                s.setString(1, workerId);
+                s.setString(2, workerId);
                 final var res = s.executeQuery();
+                final var vms = new ArrayList<Vm>();
                 while (res.next()) {
-                    var vm = readVm(res);
-                    assert allocatorId.equals(vm.allocateState().ownerId());
-                    vms.add(vm);
+                    vms.add(readVm(res));
                 }
+                return vms;
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot read vm", e);
             }
         });
-        return vms;
     }
 
     @Override
-    public List<String> findFailedVms(@Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        return DbOperation.execute(transaction, storage, conn -> {
-            try (PreparedStatement st = conn.prepareStatement(QUERY_MARK_FAILED_ALLOCATIONS)) {
-                var rs = st.executeQuery();
-                var ids = new ArrayList<String>();
-                while (rs.next()) {
-                    ids.add(rs.getString(1));
-                }
-                return ids;
-            }
-        });
-    }
-
-    @Override
-    public void setVmRunning(String vmId, Map<String, String> vmMeta, Instant activityDeadline,
-                             TransactionHandle transaction) throws SQLException
-    {
-        DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement st = con.prepareStatement(QUERY_SET_VM_RUNNING)) {
-                st.setString(1, objectMapper.writeValueAsString(vmMeta));
-                st.setTimestamp(2, Timestamp.from(activityDeadline));
-                st.setString(3, vmId);
-                st.executeUpdate();
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot dump values", e);
-            }
-        });
+    public boolean hasDeadVm(String vmId) throws SQLException {
+        try (var conn = storage.connect();
+             PreparedStatement st = conn.prepareStatement("""
+                SELECT 1
+                FROM dead_vms
+                WHERE id = ?
+                """))
+        {
+            st.setString(1, vmId);
+            var rs = st.executeQuery();
+            return rs.next();
+        }
     }
 
     private Vm readVm(ResultSet rs) throws SQLException, JsonProcessingException {
@@ -586,14 +561,17 @@ public class VmDaoImpl implements VmDao {
         // status
         final var vmStatus = Vm.Status.valueOf(rs.getString(++idx));
 
+        // instance properties
+        final var vmSubjectId = rs.getString(++idx);
+        final var tunnelPodName = rs.getString(++idx);
+
         // allocate state
         final var allocationOpId = rs.getString(++idx);
         final var allocationStartedAt = rs.getTimestamp(++idx).toInstant();
         final var allocationDeadline = rs.getTimestamp(++idx).toInstant();
-        final var allocationOwner = rs.getString(++idx);
+        final var allocationWorker = rs.getString(++idx);
+        final var allocationReqid = rs.getString(++idx);
         final var vmOtt = rs.getString(++idx);
-        final var vmSubjectId = rs.getString(++idx);
-        final var tunnelPodName = rs.getString(++idx);
         final var allocatorMeta = Optional.ofNullable(rs.getString(++idx))
             .map(x -> {
                 try {
@@ -614,25 +592,54 @@ public class VmDaoImpl implements VmDao {
             .orElse(null);
 
         // run state
-        final var vmMeta = Optional.ofNullable(rs.getString(++idx))
-            .map(x -> {
-                try {
-                    return objectMapper.readValue(x, new TypeReference<LinkedHashMap<String, String>>() {});
-                } catch (JsonProcessingException e) {
-                    throw new RuntimeException(e);
-                }
-            })
-            .orElse(null);
-        final var lastActivityTime = Optional.ofNullable(rs.getTimestamp(++idx)).map(Timestamp::toInstant).orElse(null);
-        final var deadline = Optional.ofNullable(rs.getTimestamp(++idx)).map(Timestamp::toInstant).orElse(null);
+        final Vm.RunState runState;
+        if (vmStatus == Vm.Status.RUNNING || vmStatus == Vm.Status.IDLE) {
+            final LinkedHashMap<String, String> vmMeta;
+            try {
+                vmMeta = objectMapper.readValue(rs.getString(++idx), new TypeReference<>() {});
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException(e);
+            }
+            final var lastActivityTime = rs.getTimestamp(++idx).toInstant();
+            runState = new Vm.RunState(vmMeta, lastActivityTime);
+        } else {
+            idx += 2;
+            runState = null;
+        }
+
+        // idle state
+        final Vm.IdleState idleState;
+        if (vmStatus == Vm.Status.IDLE) {
+            final var idleSice = rs.getTimestamp(++idx).toInstant();
+            final var idleDeadline = rs.getTimestamp(++idx).toInstant();
+            idleState = new Vm.IdleState(idleSice, idleDeadline);
+        } else {
+            idx += 2;
+            idleState = null;
+        }
+
+        // deleting state
+        final Vm.DeletingState deleteState;
+        if (vmStatus == Vm.Status.DELETING) {
+            final var deleteOperationId = rs.getString(++idx);
+            final var deleteWorker = rs.getString(++idx);
+            final var deleteReqid = rs.getString(++idx);
+            deleteState = new Vm.DeletingState(deleteOperationId, deleteWorker, deleteReqid);
+        } else {
+            idx += 3;
+            deleteState = null;
+        }
 
         return new Vm(
             new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads,
                 volumeRequests, v6ProxyAddress, clusterType),
             vmStatus,
-            new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationOwner, vmOtt,
-                vmSubjectId, tunnelPodName, allocatorMeta, volumeClaims),
-            vmMeta != null ? new Vm.RunState(vmMeta, lastActivityTime, deadline) : null
+            new Vm.InstanceProperties(vmSubjectId, tunnelPodName),
+            new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationWorker,
+                allocationReqid, vmOtt, allocatorMeta, volumeClaims),
+            runState,
+            idleState,
+            deleteState
         );
     }
 }

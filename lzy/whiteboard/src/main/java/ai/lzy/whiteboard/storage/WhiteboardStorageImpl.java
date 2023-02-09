@@ -187,7 +187,7 @@ public class WhiteboardStorageImpl implements WhiteboardStorage {
                     t.tags as tags
                 FROM whiteboards wb
                 INNER JOIN whiteboard_fields f ON wb.whiteboard_id = f.whiteboard_id
-                INNER JOIN (
+                LEFT JOIN (
                     SELECT whiteboard_id, ARRAY_AGG(whiteboard_tag) as tags
                     FROM whiteboard_tags
                     GROUP BY whiteboard_id

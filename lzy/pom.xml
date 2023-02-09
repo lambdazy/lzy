@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ai.lzy</groupId>
     <artifactId>lzy</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.2-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <modules>
@@ -12,14 +12,12 @@
         <module>allocator-api</module>
         <module>channel-manager</module>
         <module>channel-manager-api</module>
-        <module>disk-service</module>
         <module>fs</module>
         <module>graph-executor</module>
         <module>graph-executor-api</module>
         <module>iam</module>
         <module>jupyter-kernel</module>
         <module>long-running</module>
-        <module>long-running-api</module>
         <module>lzy-service</module>
         <module>portal</module>
         <module>portal-api</module>

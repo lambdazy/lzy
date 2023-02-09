@@ -5,7 +5,6 @@ import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.util.grpc.RequestIdInterceptor;
@@ -32,7 +31,7 @@ public class App {
     private final ExecutorService workersPool;
     private final Server server;
 
-    public App(LzyServiceConfig config, LzyService lzyService, LzyServicePrivateApi lzyServicePrivateApi,
+    public App(LzyServiceConfig config, LzyService lzyService,
                @Named("LzyServiceOperationDao") OperationDao operationDao,
                @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
@@ -53,7 +52,6 @@ public class App {
                 }
             },
             lzyService,
-            lzyServicePrivateApi,
             operationService);
     }
 
@@ -95,7 +93,9 @@ public class App {
         var serverBuilder = NettyServerBuilder
             .forAddress(new InetSocketAddress(endpoint.getHost(), endpoint.getPort()))
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .permitKeepAliveTime(500, TimeUnit.MILLISECONDS)
+            .keepAliveTime(1000, TimeUnit.MILLISECONDS)
+            .keepAliveTimeout(500, TimeUnit.MILLISECONDS)
             .intercept(authInterceptor)
             .intercept(GrpcLogsInterceptor.server())
             .intercept(RequestIdInterceptor.server(true))

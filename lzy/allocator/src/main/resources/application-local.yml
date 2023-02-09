@@ -20,7 +20,7 @@ allocator:
 
   thread-allocator:
     enabled: true
-    vm-jar-file: 'worker/target/worker-1.0-SNAPSHOT.jar'
+    vm-jar-file: 'worker/target/worker.jar'
     vm-class-name: 'ai.lzy.worker.Worker'
 
   mock-mk8s:

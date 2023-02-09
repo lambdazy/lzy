@@ -39,10 +39,11 @@ public class TasksControllerTest extends BaseTestWithIam {
     public void before() throws IOException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
         context = server.getApplicationContext();
+        var serviceConfig = context.getBean(ServiceConfig.class);
+        serviceConfig.getIam().setAddress("localhost:" + super.getPort());
         tasks = context.getBean(Tasks.class);
         auth = context.getBean(Auth.class);
         server = context.getBean(EmbeddedServer.class);
-        ServiceConfig serviceConfig = context.getBean(ServiceConfig.class);
         final HostAndPort schedulerAddress = HostAndPort.fromString(serviceConfig.getSchedulerAddress());
         schedulerServer = NettyServerBuilder.forAddress(
                 new InetSocketAddress(schedulerAddress.getHost(), schedulerAddress.getPort()))
@@ -105,7 +106,7 @@ public class TasksControllerTest extends BaseTestWithIam {
                     final Scheduler.TaskStatus.Builder taskBuilder = Scheduler.TaskStatus.newBuilder()
                         .setWorkflowId(taskStatus.workflowId())
                         .setTaskId(taskStatus.taskId())
-                        .setZygoteName(taskStatus.operationName());
+                        .setOperationName(taskStatus.operationName());
                     switch (taskStatus.status()) {
                         case "SUCCESS" -> taskBuilder.setSuccess(
                             Scheduler.TaskStatus.Success.newBuilder().setRc(0).build());

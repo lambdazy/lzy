@@ -2,6 +2,7 @@ package ai.lzy.site.routes;
 
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.site.ServiceConfig;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
@@ -27,6 +28,8 @@ public class KeysControllerTest extends BaseTestWithIam {
     public void before() throws IOException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
         context = server.getApplicationContext();
+        var config = context.getBean(ServiceConfig.class);
+        config.getIam().setAddress("localhost:" + super.getPort());
         auth = context.getBean(Auth.class);
         keys = context.getBean(Keys.class);
         server = context.getBean(EmbeddedServer.class);

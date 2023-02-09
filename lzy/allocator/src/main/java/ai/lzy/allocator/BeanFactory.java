@@ -127,4 +127,10 @@ public class BeanFactory {
 
         return new OperationsExecutor(5, 20, errors::inc, e -> e instanceof InjectedFailures.TerminateException);
     }
+
+    @Singleton
+    @Named("AllocatorSelfWorkerId")
+    public String selfWorkerId(ServiceConfig serviceConfig) {
+        return serviceConfig.getInstanceId();
+    }
 }

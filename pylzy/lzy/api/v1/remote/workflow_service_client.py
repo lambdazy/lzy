@@ -1,9 +1,13 @@
 import asyncio
+import atexit
+import os
 from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
 
 # noinspection PyPackageRequirements
 from grpc.aio import Channel
+
+from lzy.utils.event_loop import LzyEventLoop
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
 from ai.lzy.v1.long_running.operation_pb2 import GetOperationRequest
@@ -20,16 +24,23 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     StopGraphRequest,
     FinishWorkflowRequest,
     FinishWorkflowResponse,
+    AbortWorkflowRequest,
     GetAvailablePoolsRequest,
     GetAvailablePoolsResponse,
     ReadStdSlotsRequest,
-    ReadStdSlotsResponse
+    ReadStdSlotsResponse,
+    GetStorageCredentialsRequest,
+    GetStorageCredentialsResponse,
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials
-from lzy.utils.grpc import add_headers_interceptor, build_channel
+from lzy.utils.grpc import add_headers_interceptor, build_channel, build_token, retry, RetryConfig
+
+KEY_PATH_ENV = "LZY_KEY_PATH"
+USER_ENV = "LZY_USER"
+ENDPOINT_ENV = "LZY_ENDPOINT"
 
 
 @dataclass
@@ -58,13 +69,8 @@ class Failed:
 GraphStatus = Union[Waiting, Executing, Completed, Failed]
 
 
-def _create_storage_endpoint(
-        response: StartWorkflowResponse,
-) -> Storage:
+def _create_storage_endpoint(store: StorageConfig) -> Storage:
     error_msg = "no storage credentials provided"
-
-    assert response.HasField("internalSnapshotStorage"), error_msg
-    store: StorageConfig = response.internalSnapshotStorage
 
     grpc_creds: converter.storage_creds.grpc_STORAGE_CREDS
     if store.HasField("azure"):
@@ -89,27 +95,58 @@ class StderrMessage:
 
 
 Message = Union[StderrMessage, StdoutMessage]
+RETRY_CONFIG = RetryConfig(
+    initial_backoff_ms=1000,
+    max_retry=120,
+    backoff_multiplier=1,
+    max_backoff_ms=10000
+)
+CHANNEL: Optional[Channel] = None
+
+
+@atexit.register
+def __channel_cleanup():
+    if CHANNEL:
+        # noinspection PyTypeChecker
+        LzyEventLoop.run_async(CHANNEL.close())
 
 
 class WorkflowServiceClient:
-    @staticmethod
-    async def create(address: str, token: str) -> "WorkflowServiceClient":
-        channel = build_channel(
-            address, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
-        )
-        await channel.channel_ready()
-        stub = LzyWorkflowServiceStub(channel)
-        ops_stub = LongRunningServiceStub(channel)
-        return WorkflowServiceClient(stub, ops_stub, channel)
+    def __init__(self):
+        self.__stub = None
+        self.__ops_stub = None
 
-    def __init__(self, stub: LzyWorkflowServiceStub, ops_stub: LongRunningServiceStub, channel: Channel):
-        self.__stub = stub
-        self.__ops_stub = ops_stub
-        self.__channel = channel
+    async def __start(self):
+        if self.__stub and self.__ops_stub:
+            return
 
+        user = os.getenv(USER_ENV)
+        key_path = os.getenv(KEY_PATH_ENV)
+        if user is None:
+            raise ValueError(f"User must be specified by env variable {USER_ENV} or `user` argument")
+        if key_path is None:
+            raise ValueError(f"Key path must be specified by env variable {KEY_PATH_ENV} or `key_path` argument")
+
+        address = os.getenv(ENDPOINT_ENV, "api.lzy.ai:8899")
+        token = build_token(user, key_path)
+        interceptors = add_headers_interceptor({"authorization": f"Bearer {token}"})
+
+        global CHANNEL
+        if not CHANNEL:
+            CHANNEL = build_channel(address, interceptors=interceptors,
+                                    service_names=("LzyWorkflowService", "LongRunningService"),
+                                    enable_retry=True,
+                                    keepalive_ms=1000)
+
+        self.__stub = LzyWorkflowServiceStub(CHANNEL)
+        self.__ops_stub = LongRunningServiceStub(CHANNEL)
+
+    @retry(config=RETRY_CONFIG, action_name="starting workflow")
     async def start_workflow(
-            self, name: str, storage: Optional[Storage] = None
+        self, name: str, storage: Optional[Storage] = None
     ) -> Tuple[str, Optional[Storage]]:
+        await self.__start()
+
         s: Optional[StorageConfig] = None
 
         if storage is not None:
@@ -124,7 +161,7 @@ class WorkflowServiceClient:
         exec_id = res.executionId
 
         if res.internalSnapshotStorage is not None and res.internalSnapshotStorage.uri != "":
-            return exec_id, _create_storage_endpoint(res)
+            return exec_id, _create_storage_endpoint(res.internalSnapshotStorage)
 
         return exec_id, None
 
@@ -140,12 +177,14 @@ class WorkflowServiceClient:
             # sleep 300 ms
             await asyncio.sleep(0.3)
 
+    @retry(config=RETRY_CONFIG, action_name="finishing workflow")
     async def finish_workflow(
-            self,
-            workflow_name: str,
-            execution_id: str,
-            reason: str,
+        self,
+        workflow_name: str,
+        execution_id: str,
+        reason: str,
     ) -> None:
+        await self.__start()
         request = FinishWorkflowRequest(
             workflowName=workflow_name,
             executionId=execution_id,
@@ -153,6 +192,17 @@ class WorkflowServiceClient:
         )
         finish_op: Operation = await self.__stub.FinishWorkflow(request)
         await self._await_op_done(finish_op.id)
+
+    @retry(config=RETRY_CONFIG, action_name="aborting workflow")
+    async def abort_workflow(
+        self,
+        workflow_name: str,
+        execution_id: str,
+        reason: str,
+    ) -> None:
+        await self.__stub.AbortWorkflow(
+            AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
+        )
 
     async def read_std_slots(self, execution_id: str) -> AsyncIterator[Message]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
@@ -167,14 +217,20 @@ class WorkflowServiceClient:
                 for line in msg.stdout.data:
                     yield StdoutMessage(line)
 
-    async def execute_graph(self, execution_id: str, graph: Graph) -> str:
+    @retry(config=RETRY_CONFIG, action_name="starting to execute graph")
+    async def execute_graph(self, workflow_name: str, execution_id: str, graph: Graph) -> str:
+        await self.__start()
+
         res: ExecuteGraphResponse = await self.__stub.ExecuteGraph(
-            ExecuteGraphRequest(executionId=execution_id, graph=graph)
+            ExecuteGraphRequest(workflowName=workflow_name, executionId=execution_id, graph=graph)
         )
 
         return res.graphId
 
+    @retry(config=RETRY_CONFIG, action_name="getting graph status")
     async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
+        await self.__start()
+
         res: GraphStatusResponse = await self.__stub.GraphStatus(
             GraphStatusRequest(executionId=execution_id, graphId=graph_id)
         )
@@ -195,17 +251,26 @@ class WorkflowServiceClient:
             res.executing.message,
         )
 
+    @retry(config=RETRY_CONFIG, action_name="stopping graph")
     async def graph_stop(self, execution_id: str, graph_id: str):
+        await self.__start()
         await self.__stub.StopGraph(
             StopGraphRequest(executionId=execution_id, graphId=graph_id)
         )
 
+    @retry(config=RETRY_CONFIG, action_name="getting vm pools specs")
     async def get_pool_specs(self, execution_id: str) -> Sequence[VmPoolSpec]:
+        await self.__start()
+
         pools: GetAvailablePoolsResponse = await self.__stub.GetAvailablePools(
             GetAvailablePoolsRequest(executionId=execution_id)
         )
 
         return pools.poolSpecs
 
-    async def stop(self):
-        await self.__channel.close()
+    async def get_default_storage(self) -> Optional[Storage]:
+        await self.__start()
+        resp: GetStorageCredentialsResponse = await self.__stub.GetStorageCredentials(GetStorageCredentialsRequest())
+        if resp.HasField("storage"):
+            return _create_storage_endpoint(resp.storage)
+        return None

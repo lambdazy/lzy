@@ -9,21 +9,19 @@ message TaskStatus {
   string workflowId = 1;
   string taskId = 2;
 
-  string zygoteName = 3;
-
   oneof status {
-    Queue queue = 4;
-    Executing executing = 5;
-    Success success = 6;
-    Error error = 7;
+    Executing executing = 3;
+    Success success = 4;
+    Error error = 5;
   }
 
-  message Queue {}
+  string operationName = 6;
 
   message Executing {}
 
   message Success {
     int32 rc = 1;
+    string description = 2;
   }
 
   message Error {

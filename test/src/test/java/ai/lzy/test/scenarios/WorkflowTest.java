@@ -44,6 +44,7 @@ public class WorkflowTest {
         var creds = wf.getInternalSnapshotStorage();
 
         var graph = stub.executeGraph(ExecuteGraphRequest.newBuilder()
+            .setWorkflowName(workflowName)
             .setExecutionId(wf.getExecutionId())
             .setGraph(Graph.newBuilder()
                 .setName("graph")

@@ -37,7 +37,7 @@
     "web-vitals": "1.1.2"
   },
   "scripts": {
-    "build-markdown": "cp ../docs/tutorials/* src/docs",
+    "build-markdown": "mkdir -p src/docs && cp ../docs/tutorials/* src/docs",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

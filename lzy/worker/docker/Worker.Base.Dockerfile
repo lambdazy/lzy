@@ -1,9 +1,21 @@
-FROM nvidia/cuda:11.2.0-devel-ubuntu20.04
+FROM nvidia/cuda:11.2.0-cudnn8-devel-ubuntu20.04
+
+ENV DEBIAN_FRONTEND noninteractive
 
 ### deps
 RUN apt-get -y update && \
-    apt-get -y install fuse lsof procps curl bash tar wget \
-                       ca-certificates openssh-client iptables && \
+    apt-get -y install fuse lsof procps curl bash tar wget && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
+          && curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg \
+          && curl -s -L https://nvidia.github.io/libnvidia-container/experimental/$distribution/libnvidia-container.list | \
+             sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+             tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+
+RUN apt-get -y update && \
+    apt-get -y install ca-certificates openssh-client iptables nvidia-container-toolkit \
+                       libsndfile1 ffmpeg libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
 ### dind installation, by https://github.com/cruizba/ubuntu-dind
@@ -26,7 +38,6 @@ RUN curl -L "https://github.com/docker/compose/releases/download/${DOCKER_COMPOS
 	&& chmod +x /usr/local/bin/docker-compose && docker-compose version
 
 ### java
-ENV DEBIAN_FRONTEND noninteractive
 RUN apt-get -y update && \
     apt-get install -y openjdk-17-jdk && \
     rm -rf /var/lib/apt/lists/*
@@ -36,9 +47,6 @@ RUN export JAVA_HOME
 ### conda setup
 ENV PATH="/root/miniconda3/bin:$PATH"
 ARG PATH="/root/miniconda3/bin:$PATH"
-RUN apt-get update && \
-    apt-get install -y wget && \
-    apt-get install -y libsndfile1 ffmpeg
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && mkdir /root/.conda \
     && bash Miniconda3-latest-Linux-x86_64.sh -b \

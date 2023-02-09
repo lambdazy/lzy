@@ -4,13 +4,14 @@
 
     <groupId>ai.lzy</groupId>
     <artifactId>lzy-root</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.2-SNAPSHOT</version>
 
     <packaging>pom</packaging>
 
     <modules>
         <module>coverage</module>
         <module>iam-api</module>
+        <module>long-running-api</module>
         <module>lzy-api</module>
         <module>lzy</module>
         <module>model</module>

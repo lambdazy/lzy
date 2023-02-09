@@ -15,7 +15,7 @@ from lzy.logs.config import get_logging_config, COLOURS, get_color, RESET_COLOR
 from lzy.storage.api import AsyncStorageClient
 
 if TYPE_CHECKING:
-    from lzy.api.v1 import LzyWorkflow
+    from lzy.api.v1 import LzyWorkflow, WorkflowServiceClient
 
 from lzy.api.v1.call import LzyCall
 from lzy.api.v1.runtime import (
@@ -27,6 +27,9 @@ from lzy.api.v1.runtime import (
 class LocalRuntime(Runtime):
     def __init__(self):
         self.__workflow: Optional["LzyWorkflow"] = None
+
+    def workflow_client(self) -> Optional["WorkflowServiceClient"]:
+        return None
 
     async def start(self, workflow: "LzyWorkflow") -> str:
         self.__workflow = workflow
@@ -114,6 +117,7 @@ class LocalRuntime(Runtime):
                 args_paths=arg_descriptions,
                 kwargs_paths=kwarg_descriptions,
                 output_paths=ret_descriptions,
+                lazy_arguments=call.lazy_arguments
             )
 
             directory = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -126,11 +130,13 @@ class LocalRuntime(Runtime):
 
             env_vars = os.environ.copy()
             env_vars["LZY_MOUNT"] = folder
-            main_dir_path = cast(str, os.path.dirname(cast(str, sys.modules['__main__'].__file__)))
-            if "PYTHONPATH" in env_vars:
-                env_vars["PYTHONPATH"] = f"{env_vars['PYTHONPATH']}:{main_dir_path}"
-            else:
-                env_vars["PYTHONPATH"] = main_dir_path
+            main_module = sys.modules['__main__']
+            if hasattr(main_module, '__file__'):
+                main_dir_path = cast(str, os.path.dirname(cast(str, getattr(main_module, '__file__'))))
+                if "PYTHONPATH" in env_vars:
+                    env_vars["PYTHONPATH"] = f"{env_vars['PYTHONPATH']}:{main_dir_path}"
+                else:
+                    env_vars["PYTHONPATH"] = main_dir_path
             result = subprocess.Popen(command, env=env_vars, stdout=subprocess.PIPE)
             out = cast(IO[bytes], result.stdout)
             for line in iter(out.readline, b''):
@@ -150,6 +156,9 @@ class LocalRuntime(Runtime):
                 entry = self.__workflow.snapshot.get(eid)
                 data_to_put.append(self.__from_file_to_storage(entry.storage_uri, folder + "/" + eid))
             await asyncio.gather(*data_to_put)
+
+    async def abort(self) -> None:
+        pass
 
     async def destroy(self) -> None:
         pass

@@ -1,14 +1,17 @@
 import asyncio
-import os
+import importlib
 import uuid
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Tuple, Dict
 from unittest import TestCase, skip
 
+from lzy.api.v1.exceptions import LzyExecutionException
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
-from lzy.api.v1 import Lzy, op, LocalRuntime
-from lzy.api.v1.utils.proxy_adapter import materialized
+from lzy.storage.registry import DefaultStorageRegistry
+from tests.api.v1.mocks import EnvProviderMock
+from lzy.api.v1 import Lzy, op, LocalRuntime, materialize
+from lzy.api.v1.utils.proxy_adapter import materialized, is_lzy_proxy
 from lzy.storage.api import Storage, S3Credentials
 from tests.api.v1.utils import create_bucket
 
@@ -38,28 +41,61 @@ def inc(numb: int) -> int:
     return numb + 1
 
 
+@op
+def accept_unspecified_list(lst: List) -> int:
+    return len(lst)
+
+
+@op
+def accept_int_list(lst: List[int]) -> int:
+    return len(lst)
+
+
+@op
+def accept_custom_class_list(lst: List[Lzy]) -> int:
+    return len(lst)
+
+
+@op
+def return_list() -> List[int]:
+    return [1, 2, 3]
+
+
+@op
+def accept_returns_dict(d: Dict) -> Dict:
+    return d
+
+
 def entry_id(lazy_proxy):
     return lazy_proxy.lzy_call.entry_id
 
 
 class LzyWorkflowTests(TestCase):
+    endpoint_url = None
+    service = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.service = ThreadedMotoServer(port=12345)
+        cls.service.start()
+        cls.endpoint_url = "http://localhost:12345"
+        asyncio.run(create_bucket(cls.endpoint_url))
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.service.stop()
+
     def setUp(self):
-        self.service = ThreadedMotoServer(port=12345)
-        self.service.start()
-        self.endpoint_url = "http://localhost:12345"
-        asyncio.run(create_bucket(self.endpoint_url))
-
         self.workflow_name = "workflow_" + str(uuid.uuid4())
-        self.lzy = Lzy(runtime=LocalRuntime())
-
         storage_config = Storage(
             uri="s3://bucket/prefix",
             credentials=S3Credentials(self.endpoint_url, access_key_id="", secret_access_key="")
         )
-        self.lzy.storage_registry.register_storage('default', storage_config, True)
 
-    def tearDown(self) -> None:
-        self.service.stop()
+        self.lzy = Lzy(runtime=LocalRuntime(),
+                       py_env_provider=EnvProviderMock(),
+                       storage_registry=DefaultStorageRegistry())
+        self.lzy.storage_registry.register_storage("default", storage_config, default=True)
 
     def test_lists(self):
         @op
@@ -70,6 +106,71 @@ class LzyWorkflowTests(TestCase):
             some_list = [1, 2, 3]
             result = list2list(some_list)
             self.assertEqual([str(i) for i in some_list], result)
+
+    def test_invalid_list_type_returns(self):
+        @op
+        def invalid_list_type_returns() -> List[str]:
+            # noinspection PyTypeChecker
+            return [1, 2, 3]
+
+        with self.assertRaises(LzyExecutionException):
+            with self.lzy.workflow(self.workflow_name):
+                invalid_list_type_returns()
+
+    def test_tuple_type(self):
+        @op
+        def returns_tuple() -> Tuple[str, int]:
+            return "str", 42
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual("str", a)
+        self.assertEqual(42, b)
+
+    def test_tuple_type_of_lists(self):
+        @op
+        def returns_tuple() -> Tuple[List, List]:
+            return [1], [2]
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual([1], a)
+        self.assertEqual([2], b)
+
+    def test_tuple_type_of_typed_lists(self):
+        @op
+        def returns_tuple() -> Tuple[List[int], List[int]]:
+            return [1], [2]
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual([1], a)
+        self.assertEqual([2], b)
+
+    def test_tuple_with_ellipses(self):
+        @op
+        def returns_tuple() -> Tuple[List[int], ...]:
+            return [1], [2]
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual([1], a)
+        self.assertEqual([2], b)
+
+    def test_tuple_type_short(self):
+        @op
+        def returns_tuple() -> (str, int):
+            return "str", 42
+
+        with self.lzy.workflow(self.workflow_name):
+            a, b = returns_tuple()
+
+        self.assertEqual("str", a)
+        self.assertEqual(42, b)
 
     def test_optional_return(self):
         @op
@@ -160,18 +261,186 @@ class LzyWorkflowTests(TestCase):
 
     def test_return_accept_list(self):
         @op
-        def return_list() -> List[dict]:
-            return [{}, {}, {}]
-
-        @op
-        def accept_list(lst: List[dict]) -> int:
+        def accept_list(lst: List[int]) -> int:
             return len(lst)
 
         with self.lzy.workflow("test"):
             a = return_list()
             i = accept_list(a)
 
+        self.assertFalse(materialized(a))
+        self.assertFalse(materialized(i))
         self.assertEqual(3, i)
+
+    def test_return_accept_unspecified_list(self):
+        # noinspection PyUnusedLocal
+        @op
+        def accept_list(lst: List, bst: List) -> int:
+            print(bst)
+            return len(lst)
+
+        with self.lzy.workflow("test"):
+            a = return_list()
+            lst_len = accept_list(a, [{}])
+        self.assertEqual(3, lst_len)
+
+    def test_empty_list(self):
+        with self.lzy.workflow("test"):
+            a = accept_int_list([])
+            b = accept_unspecified_list([])
+            c = accept_custom_class_list([])
+
+        self.assertEqual(0, a)
+        self.assertEqual(0, b)
+        self.assertEqual(0, c)
+
+    def test_primitive_to_unspecified_list(self):
+        with self.lzy.workflow("test"):
+            a = accept_unspecified_list([1, 2, 3])
+
+        self.assertEqual(3, a)
+
+    def test_unspecified_dict(self):
+        with self.lzy.workflow("test"):
+            res = accept_returns_dict({1: "2"})
+        self.assertEqual({1: "2"}, res)
+
+    def test_empty_dict(self):
+        with self.lzy.workflow("test"):
+            res = accept_returns_dict({})
+        self.assertEqual({}, res)
+
+    def test_empty_specified_dict(self):
+        @op
+        def accept_returns_specified_dict(d: Dict[int, str]) -> Dict[int, str]:
+            return d
+
+        with self.lzy.workflow("test"):
+            res = accept_returns_specified_dict({})
+        self.assertEqual({}, res)
+
+    def test_specified_dict(self):
+        @op
+        def accept_returns_specified_dict(d: Dict[int, str]) -> Dict[int, str]:
+            return d
+
+        with self.lzy.workflow("test"):
+            res = accept_returns_specified_dict(accept_returns_specified_dict({1: "2"}))
+        self.assertEqual({1: "2"}, res)
+
+        with self.assertRaises(TypeError):
+            with self.lzy.workflow("test"):
+                # noinspection PyTypeChecker
+                accept_returns_specified_dict({1: 1})
+
+    def test_lazy(self):
+        with self.lzy.workflow("test") as wf:
+            f = foo()
+            b1 = bar(f)
+            i = inc(1)
+            b2 = baz(b1, i)
+            queue_len = len(wf.call_queue)
+
+        self.assertEqual(4, queue_len)
+        self.assertFalse(materialized(f))
+        self.assertFalse(materialized(b1))
+        self.assertFalse(materialized(i))
+        self.assertFalse(materialized(b2))
+        self.assertEqual("Foo: Bar: Baz(2):", b2)
+
+    def test_eager(self):
+        with self.lzy.workflow("test", eager=True) as wf:
+            f = foo()
+            b1 = bar(f)
+            i = inc(1)
+            b2 = baz(b1, i)
+            queue_len = len(wf.call_queue)
+
+        self.assertEqual(0, queue_len)
+        self.assertFalse(is_lzy_proxy(f))
+        self.assertEqual(str, type(f))
+        self.assertFalse(is_lzy_proxy(b1))
+        self.assertEqual(str, type(b1))
+        self.assertFalse(is_lzy_proxy(i))
+        self.assertEqual(int, type(i))
+        self.assertFalse(is_lzy_proxy(b2))
+        self.assertEqual(str, type(b2))
+        self.assertEqual("Foo: Bar: Baz(2):", b2)
+
+    def test_materialize(self):
+        with self.lzy.workflow("test") as wf:
+            f = foo()
+            b1 = bar(f)
+            i = materialize(inc(1))
+            b2 = baz(b1, i)
+            queue_len = len(wf.call_queue)
+
+        self.assertEqual(1, queue_len)
+        self.assertFalse(materialized(f))
+        self.assertFalse(materialized(b1))
+        self.assertFalse(materialized(b2))
+        self.assertFalse(is_lzy_proxy(i))
+        self.assertEqual(int, type(i))
+        self.assertEqual("Foo: Bar: Baz(2):", b2)
+
+    def test_lazy_args_loading(self):
+        @op
+        def is_arg_type_str(a: str) -> bool:
+            return type(a) == str
+
+        with self.lzy.workflow("test"):
+            res = is_arg_type_str("str")
+        self.assertFalse(res)
+
+    def test_eager_args_loading(self):
+        @op(lazy_arguments=False)
+        def is_arg_type_str(a: str) -> bool:
+            return type(a) == str
+
+        with self.lzy.workflow("test"):
+            res = is_arg_type_str("str")
+        self.assertTrue(res)
+
+    def test_return_argument(self):
+        @op
+        def return_argument(arg: str) -> str:
+            return arg
+
+        with self.lzy.workflow("test"):
+            res = return_argument("str")
+        self.assertEqual("str", res)
+
+    def test_local_startup_import(self):
+        @op
+        def op_with_import() -> bool:
+            # noinspection PyBroadException
+            try:
+                importlib.import_module("remote")
+                importlib.import_module("local")
+                importlib.import_module("utils")
+                return True
+            except Exception:
+                return False
+
+        with self.lzy.workflow("test"):
+            res = op_with_import()
+
+        self.assertEqual(False, res)
+
+    @skip("currently we do not support lazy collections")
+    def test_lazy_list(self):
+        @op
+        def return_list_len(strings: List[str], strings2: List[str]) -> (int, int):
+            return len(strings), len(strings2)
+
+        with self.lzy.workflow("test"):
+            a = foo()
+            b = foo()
+            c = foo()
+            len1, len2 = return_list_len([a, b, c], strings2=[a, b, c])
+
+        self.assertEqual(3, len1)
+        self.assertEqual(3, len2)
 
     @skip("WIP")
     def test_barrier(self):

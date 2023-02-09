@@ -26,7 +26,7 @@ class SnapshotTests(TestCase):
             credentials=storage.S3Credentials(self.endpoint_url, access_key_id="", secret_access_key="")
         )
         self.storages = DefaultStorageRegistry()
-        self.storages.register_storage("storage", storage_config, True)
+        self.storages.register_storage("storage", storage_config, default=True)
 
         serializers = LzySerializerRegistry()
         self.snapshot = DefaultSnapshot(serializers, self.storages.client("storage"), "storage")
@@ -50,7 +50,7 @@ class SnapshotTests(TestCase):
         with self.assertRaisesRegex(ValueError, "does not exist"):
             asyncio.run(self.snapshot.put_data(str(uuid.uuid4()), "some_str"))
 
-    def test_get_nit_uploaded_entry(self):
+    def test_get_not_uploaded_entry(self):
         entry = self.snapshot.create_entry("name", str, f"{self.storages.config('storage').uri}/name")
         ret = asyncio.run(self.snapshot.get_data(entry.id))
         self.assertIsInstance(ret, Nothing)

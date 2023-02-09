@@ -2,7 +2,7 @@ from catboost import CatBoostClassifier
 from sklearn import datasets
 from sklearn.utils import Bunch
 
-from lzy.api.v1 import Gpu, LzyRemoteEnv, op
+from lzy.api.v1 import op, Lzy, GpuType
 
 
 @op
@@ -11,7 +11,7 @@ def dataset() -> Bunch:
     return data_set
 
 
-@op(gpu=Gpu.any())
+@op(gpu_count=1, gpu_type=GpuType.V100.name)
 def train(data_set: Bunch) -> CatBoostClassifier:
     cb_model = CatBoostClassifier(
         iterations=1000, task_type="GPU", devices="0:1", train_dir="/tmp/catboost"
@@ -20,9 +20,9 @@ def train(data_set: Bunch) -> CatBoostClassifier:
     return cb_model
 
 
-env = LzyRemoteEnv()
-with env.workflow("training"):
-    data_set = dataset()
-    model = train(data_set)
-    result = model.predict(data_set.data[0])
+lzy = Lzy()
+with lzy.workflow("training"):
+    data = dataset()
+    model = train(data)
+    result = model.predict(data.data[0])
     print(result)

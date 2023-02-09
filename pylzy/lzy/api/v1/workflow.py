@@ -11,10 +11,10 @@ from typing import (
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
-from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy
+from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
 from lzy.api.v1.whiteboards import WritableWhiteboard
 from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnv
@@ -49,6 +49,9 @@ class LzyWorkflow:
         interactive: bool = True,
         dvc: bool = False,
     ):
+        if not is_name_valid(name):
+            raise ValueError(f"Invalid workflow name. Name can contain only {NAME_VALID_SYMBOLS}")
+
         self.__name = name
         self.__eager = eager
         self.__owner = owner
@@ -117,6 +120,10 @@ class LzyWorkflow:
         return self.__call_queue
 
     @property
+    def eager(self) -> bool:
+        return self.__eager
+
+    @property
     def call_list(self) -> List["LzyCall"]:
         return self.__call_list
 
@@ -148,13 +155,24 @@ class LzyWorkflow:
         try:
             if not self.__started:
                 raise RuntimeError("Workflow not started")
-            if exc_type != LzyExecutionException:
-                LzyEventLoop.run_async(self._barrier())
+            if exc_type is None:
+                self.barrier()
         finally:
-            self.__destroy()
+            if exc_type is None:
+                self.__destroy()
+            else:
+                self.__abort()
             if self.__dvc:
                 from lzy.api.v1.dvc import generate_dvc_files  # TODO: fix
                 generate_dvc_files(self)
+
+    def __abort(self):
+        _LOG.info(f"Abort workflow '{self.name}'")
+        try:
+            LzyEventLoop.run_async(self.__owner.runtime.abort())
+        finally:
+            type(self).instance = None
+            self.__started = False
 
     def __destroy(self):
         try:

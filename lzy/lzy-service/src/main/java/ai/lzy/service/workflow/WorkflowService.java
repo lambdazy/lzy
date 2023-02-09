@@ -28,6 +28,7 @@ import ai.lzy.v1.workflow.LWFS.StartWorkflowRequest;
 import ai.lzy.v1.workflow.LWFS.StartWorkflowResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
+import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -41,7 +42,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
-import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -128,7 +128,7 @@ public class WorkflowService {
     }
 
     public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> response) {
-        var newExecution = StartExecutionCompanion.of(request, this);
+        var newExecution = StartExecutionCompanion.of(request, this, startupPortalConfig);
 
         LOG.info("Start new execution: " + newExecution.getState());
 
@@ -149,9 +149,12 @@ public class WorkflowService {
         var executionId = newExecution.getExecutionId();
 
         if (previousActiveExecutionId != null) {
+            LOG.info("Attempt to clean previous active execution of workflow: { wfName: {}, prevExId: {} }",
+                request.getWorkflowName(), previousActiveExecutionId);
+
             Status errorStatus = Status.INTERNAL.withDescription("Cancelled by new execution start");
-            if (cleanExecutionCompanion.markExecutionAsBroken(newExecution.getOwner(), request.getWorkflowName(),
-                executionId, errorStatus))
+            if (cleanExecutionCompanion.tryToFinishExecution(newExecution.getOwner(), previousActiveExecutionId,
+                errorStatus))
             {
                 cleanExecutionCompanion.cleanExecution(previousActiveExecutionId);
             }
@@ -170,16 +173,14 @@ public class WorkflowService {
             channelManagerAddress, iamAddress, whiteboardAddress, allocationTimeout, allocatorVmCacheTimeout);
 
         if (newExecution.isInvalid()) {
-            // todo: delete workflow too in case of created in this execution
-            try {
-                withRetries(LOG, () -> workflowDao.setActiveExecutionToNull(newExecution.getOwner(),
-                    request.getWorkflowName(), executionId, null));
-            } catch (Exception e) {
-                LOG.warn("Cannot deactivate execution of workflow: { workflowName: {}, executionId: {}, error: {} }",
-                    request.getWorkflowName(), executionId, e.getMessage());
-            }
+            LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
+                request.getWorkflowName(), executionId);
 
-            deleteExecution(executionId);
+            if (cleanExecutionCompanion.tryToFinishWorkflow(newExecution.getOwner(), request.getWorkflowName(),
+                executionId, newExecution.getErrorStatus()))
+            {
+                cleanExecutionCompanion.cleanExecution(executionId);
+            }
 
             replyError.accept(newExecution.getErrorStatus());
             return;
@@ -200,51 +201,6 @@ public class WorkflowService {
         cleanExecutionCompanion.completeExecution(executionId, operation);
     }
 
-    private void deleteExecution(String executionId) {
-        LOG.info("Delete broken execution: { executionId: {} }", executionId);
-
-        PortalDescription portalDesc;
-        try {
-            portalDesc = withRetries(LOG, () -> executionDao.getPortalDescription(executionId));
-        } catch (Exception e) {
-            LOG.error("Cannot get portal for execution {}", executionId, e);
-            return;
-        }
-
-        if (portalDesc != null && portalDesc.vmAddress() != null) {
-            cleanExecutionCompanion.stopPortal(executionId, portalDesc.vmAddress());
-        }
-
-        var destroyChannelsOp = cleanExecutionCompanion.destroyChannels(executionId);
-        if (destroyChannelsOp != null) {
-            var opId = destroyChannelsOp.getId();
-            var channelManagerOpsClient = newBlockingClient(
-                LongRunningServiceGrpc.newBlockingStub(channelManagerChannel), APP,
-                () -> internalUserCredentials.get().token());
-
-            destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(5));
-
-            if (!destroyChannelsOp.getDone()) {
-                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {} }",
-                    executionId);
-            }
-        }
-
-        if (portalDesc != null && portalDesc.vmId() != null) {
-            cleanExecutionCompanion.freeVm(executionId, portalDesc.vmId());
-        }
-
-        if (portalDesc != null && portalDesc.allocatorSessionId() != null) {
-            cleanExecutionCompanion.deleteSession(executionId, portalDesc.allocatorSessionId());
-        }
-
-        try {
-            withRetries(LOG, () -> executionDao.delete(executionId, null));
-        } catch (Exception e) {
-            LOG.error("Cannot delete execution data from dao: { executionId: {} }", executionId, e);
-        }
-    }
-
     public void readStdSlots(LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> response) {
         var executionId = request.getExecutionId();
         try {
@@ -260,7 +216,8 @@ public class WorkflowService {
                 return;
             }
 
-            var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), response);
+            var resp = (ServerCallStreamObserver<LWFS.ReadStdSlotsResponse>) response;
+            var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), resp);
             listenersByExecution.computeIfAbsent(executionId, k -> new ConcurrentLinkedQueue<>()).add(listener);
 
         } catch (Exception e) {

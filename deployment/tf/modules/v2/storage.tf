@@ -151,10 +151,6 @@ resource "kubernetes_service" "storage_service" {
   metadata {
     name   = "${local.storage-k8s-name}-load-balancer"
     labels = local.storage-labels
-    annotations = {
-      "yandex.cloud/load-balancer-type": "internal"
-      "yandex.cloud/subnet-id": yandex_vpc_subnet.custom-subnet.id
-    }
   }
   spec {
     selector = local.storage-labels
@@ -162,6 +158,6 @@ resource "kubernetes_service" "storage_service" {
       port = local.storage-port
       target_port = local.storage-port
     }
-    type = "LoadBalancer"
+    type = "ClusterIP"
   }
 }

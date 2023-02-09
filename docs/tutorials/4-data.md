@@ -6,7 +6,7 @@
 For example, `data_set` argument and the resulting `CatBoostClassifier` will be transferred without any additional user actions:
 
 ```python
-@op(gpu=Gpu.any())
+@op(gpu_count=1, gpu_type=GpuType.V100.name)
 def train(data_set: Bunch) -> CatBoostClassifier:
     ...
 ```
@@ -16,15 +16,15 @@ def train(data_set: Bunch) -> CatBoostClassifier:
 ʎzy provides the custom type for working with files. Files can be used in input arguments as well as in return values:
 
 ```python
-from lzy.serialization.types import File
+from lzy.types import File
 
 @op
 def process_file(file: File) -> File:
     do_some_processing(file)
     return file
 
-env = LzyRemoteEnv()
-with env.workflow("file-processing"):
+lzy = Lzy()
+with lzy.workflow("file-processing"):
     input_file = File('path/to/local/file')
     result = process_file(input_file)
     with result.open("r") as f:

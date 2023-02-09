@@ -4,15 +4,16 @@ from typing import Optional
 
 
 class CpuType(Enum):
-    ICE_LAKE = "standard-v3"
-    CASCADE_LAKE = "standard-v2"
-    BROADWELL = "standard-v1"
+    ICE_LAKE = "Intel Ice Lake"
+    CASCADE_LAKE = "Intel Cascade Lake"
+    BROADWELL = "Intel Broadwell"
 
 
 class GpuType(Enum):
-    NO_GPU = "<none>"
-    V100 = "gpu-standard-v2"
-    A100 = "gpu-standard-v3"
+    NO_GPU = "NO_GPU"
+    V100 = "V100"
+    A100 = "A100"
+    T4 = "T4"
 
 
 @dataclass(frozen=True)

@@ -1,12 +1,21 @@
 package ai.lzy.worker.env;
 
+import ai.lzy.worker.StreamQueue;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class ProcessEnvironment implements BaseEnvironment {
+public class ProcessEnvironment extends BaseEnvironment {
+
+    public ProcessEnvironment() {
+        super("process-env");
+    }
+
+    @Override
+    public void install(StreamQueue out, StreamQueue err) {}
 
     @Override
     public LzyProcess runProcess(String... command) {
@@ -37,11 +46,12 @@ public class ProcessEnvironment implements BaseEnvironment {
                 }
 
                 @Override
-                public int waitFor() {
+                public int waitFor() throws InterruptedException {
                     try {
                         return exec.waitFor();
                     } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
+                        exec.destroyForcibly().waitFor();
+                        throw e;
                     }
                 }
 

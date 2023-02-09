@@ -5,7 +5,7 @@ install_lzy_in_every_env() {
   cd "$path"
   for env in $(conda env list | cut -d" " -f1 | tail -n+4);
   do
-    conda activate "$env" && pip install -r requirements.txt && pip install .
+    conda activate "$env" && pip install -r requirements.txt && ./scripts/build.sh && pip install .
   done
   cd -
 }

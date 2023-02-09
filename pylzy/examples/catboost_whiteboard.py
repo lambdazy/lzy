@@ -1,24 +1,19 @@
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Optional
 
 from catboost import CatBoostClassifier
 from sklearn import datasets
 from sklearn.model_selection import GridSearchCV
 from sklearn.utils import Bunch
 
-from lzy.api.v1 import Gpu, LzyRemoteEnv, op, view, whiteboard
+from lzy.api.v1 import Lzy, op, whiteboard, GpuType
 
 
 @dataclass
-@whiteboard(tags=["best_model"])
+@whiteboard(name="best_model")
 class BestModel:
     model: Optional[CatBoostClassifier] = None
-    params: Optional[Dict[str, int]] = None
     score: float = 0.0
-
-    @view
-    def model_view(self) -> CatBoostClassifier:
-        return self.model
 
 
 @op
@@ -27,7 +22,7 @@ def dataset() -> Bunch:
     return data_set
 
 
-@op(gpu=Gpu.any())
+@op(gpu_count=1, gpu_type=GpuType.V100.name)
 def search_best_model(data_set: Bunch) -> GridSearchCV:
     grid = {"max_depth": [3, 4, 5], "n_estimators": [100, 200, 300]}
     cb_model = CatBoostClassifier()
@@ -36,22 +31,17 @@ def search_best_model(data_set: Bunch) -> GridSearchCV:
     return search
 
 
-env = LzyRemoteEnv()
-wb = BestModel()
-with env.workflow("training", whiteboard=wb):
-    data_set = dataset()
-    search = search_best_model(data_set)
+lzy = Lzy()
+with lzy.workflow("training") as wf:
+    wb = wf.create_whiteboard(BestModel, tags=["training", "catboost"])
+    data = dataset()
+    search = search_best_model(data)
     wb.model = search.best_estimator_
-    wb.params = search.best_params_
-    wb.score = search.best_score_
-    print(wb.__id__)
+    wb.score = float(search.best_score_)
+    print(wb.id)
 
-# loaded_wb = env.whiteboard(wb.__id__, BestModel)
-loaded_wb = env.whiteboard_by_id(wb.__id__)
-print(loaded_wb.params["max_depth"])
+loaded_wb = lzy.whiteboard(id_=wb.id)
+print(loaded_wb.score)
 
-wbs = env.whiteboards([BestModel])
-print(wbs)
-
-views = env.whiteboards([BestModel]).views(CatBoostClassifier)
-print(views)
+wbs = list(lzy.whiteboards(name="best_model"))
+print(len(wbs))

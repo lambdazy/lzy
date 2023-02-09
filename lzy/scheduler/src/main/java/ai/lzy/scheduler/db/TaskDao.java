@@ -1,22 +1,37 @@
 package ai.lzy.scheduler.db;
 
-import ai.lzy.model.TaskDesc;
-import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.scheduler.models.TaskState;
-import ai.lzy.scheduler.task.Task;
+import ai.lzy.model.db.TransactionHandle;
 
+import java.sql.SQLException;
 import java.util.List;
 import javax.annotation.Nullable;
 
 public interface TaskDao {
-    Task create(String workflowId, String workflowName, String userId, TaskDesc taskDesc) throws DaoException;
 
     @Nullable
-    Task get(String taskId) throws DaoException;
+    String getAllocatorSession(String workflowName, String userId, @Nullable TransactionHandle tx) throws SQLException;
 
-    List<Task> filter(TaskState.Status status) throws DaoException;
+    void insertAllocatorSession(String workflowName, String userId,
+                                String sessionId, @Nullable TransactionHandle tx) throws SQLException;
 
-    List<Task> list(String workflowId) throws DaoException;
+    @Nullable
+    TaskDesc getTaskDesc(String taskId, String executionId, @Nullable TransactionHandle tx) throws SQLException;
 
-    void update(Task state) throws DaoException;
+    @Nullable
+    TaskDesc getTaskDesc(String operationId, @Nullable TransactionHandle tx) throws SQLException;
+
+    void insertTaskDesc(TaskDesc desc, @Nullable TransactionHandle tx) throws SQLException;
+
+    List<TaskDesc> listTasks(String executionId, @Nullable TransactionHandle tx) throws SQLException;
+
+    List<TaskDesc> listByWfName(String wfName, String userId, @Nullable TransactionHandle tx) throws SQLException;
+
+    record TaskDesc(
+        String taskId,
+        String executionId,
+        String workflowName,
+        String userId,
+        String operationId,
+        String operationName
+    ) {}
 }

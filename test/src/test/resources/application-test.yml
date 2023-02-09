@@ -197,3 +197,12 @@ channel-manager:
     enabled: true
     min-pool-size: 3
     max-pool-size: 5
+
+jobs:
+  database:
+    url: 'embedded-postgres'
+    username: 'test'
+    password: ''
+    min-pool-size: 3
+    max-pool-size: 5
+    enabled: true

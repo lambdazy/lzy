@@ -6,6 +6,7 @@ import org.apache.logging.log4j.CloseableThreadContext;
 import org.apache.logging.log4j.ThreadContext;
 
 import java.util.Map;
+import java.util.Optional;
 
 public abstract class ContextAwareTask implements Runnable {
     private final Map<String, String> logContext;
@@ -14,6 +15,10 @@ public abstract class ContextAwareTask implements Runnable {
     public ContextAwareTask() {
         logContext = ThreadContext.getContext();
         grpcContext = Context.current().fork();
+        if (!logContext.containsKey("rid")) {
+            var reqid = Optional.ofNullable(GrpcHeaders.getRequestId()).orElse("unknown");
+            logContext.put("rid", reqid);
+        }
     }
 
     public final void run() {

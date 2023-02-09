@@ -270,7 +270,13 @@ class ProxyTests(TestCase):
         prxy_a = proxy(lambda: A(0), (A, type(None)))
         self.assertEqual(prxy_a.a, 0)
 
-        prxy_a = self.lazy_constructed_obj_none(list)
+        prxy_a = proxy(lambda: "str", (str, type(None)))
+        if not prxy_a:
+            self.fail()
+
+        prxy_a = self.lazy_constructed_obj_none(str)
+        if prxy_a:
+            self.fail()
         with self.assertRaises(AttributeError):
             print(prxy_a.a)
 

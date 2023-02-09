@@ -1,6 +1,5 @@
 iam:
   user-limit: 60 # 0 - is infinite limit
-  server-port: 8443
 
   database:
     url: "embedded-postgres"

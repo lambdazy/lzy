@@ -2,9 +2,7 @@ package ai.lzy.allocator.vmpool.yc;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.allocator.vmpool.VmPoolRegistry;
-import ai.lzy.allocator.vmpool.VmPoolSpec;
+import ai.lzy.allocator.vmpool.*;
 import com.google.common.net.HostAndPort;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
@@ -98,6 +96,21 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     @Override
     public Map<String, VmPoolSpec> getUserVmPools() {
         return userPools;
+    }
+
+    @Nullable
+    @Override
+    public VmPoolSpec findPool(String poolLabel) {
+        VmPoolSpec poolSpec;
+        poolSpec = systemPools.get(poolLabel);
+        if (poolSpec != null) {
+            return poolSpec;
+        }
+        poolSpec = userPools.get(poolLabel);
+        if (poolSpec != null) {
+            return poolSpec;
+        }
+        return null;
     }
 
     @Override
@@ -241,9 +254,44 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             var nodeTemplate = nodeGroup.getNodeTemplate();
             var spec = nodeTemplate.getResourcesSpec();
 
-            var parts = nodeTemplate.getPlatformId().split(" with ", 2);
-            var cpuType = parts[0];
-            var gpuType = parts.length > 1 ? parts[1] : "<none>";
+            var platform = nodeTemplate.getPlatformId();
+            final String cpuType;
+            final String gpuType;
+
+            switch (platform) {
+                case "standard-v1" -> {
+                    cpuType = CpuTypes.BROADWELL.value();
+                    gpuType = GpuTypes.NO_GPU.value();
+                }
+                case "standard-v2" -> {
+                    cpuType = CpuTypes.CASCADE_LAKE.value();
+                    gpuType = GpuTypes.NO_GPU.value();
+                }
+                case "standard-v3" -> {
+                    cpuType = CpuTypes.ICE_LAKE.value();
+                    gpuType = GpuTypes.NO_GPU.value();
+                }
+                case "gpu-standard-v1" -> {
+                    cpuType = CpuTypes.BROADWELL.value();
+                    gpuType = GpuTypes.V100.value();
+                }
+                case "gpu-standard-v2" -> {
+                    cpuType = CpuTypes.CASCADE_LAKE.value();
+                    gpuType = GpuTypes.V100.value();
+                }
+                case "standard-v3-t4" -> {
+                    cpuType = CpuTypes.ICE_LAKE.value();
+                    gpuType = GpuTypes.T4.value();
+                }
+                case "gpu-standard-v3" -> {
+                    cpuType = CpuTypes.AMD_EPYC.value();
+                    gpuType = GpuTypes.A100.value();
+                }
+                default -> {
+                    LOG.error("Cannot resolve platform {} for pool {}", platform, label);
+                    throw new RuntimeException("Cannot resolve platform for pool " + label);
+                }
+            }
 
             LOG.info("""
                 Resolved node group {} ({}):

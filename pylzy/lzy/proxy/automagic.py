@@ -38,12 +38,18 @@ class TrickDescriptor:
         else:
             proxy_cls = owner
 
+        materialized_object = create_and_cache(proxy_cls, self.__constructor)
+        # handle __bool__() func
+        if self.__name == '__bool__' and not hasattr(materialized_object, self.__name):
+            if materialized_object:
+                return lambda: True
+            else:
+                return lambda: False
+
+        res = getattr(materialized_object, self.__name)
         # for attributes such that its __get__ requires (or just receives)
         # instance:
         # call given callback and put result as new instance
-        materialized_object = create_and_cache(proxy_cls, self.__constructor)
-        res = getattr(materialized_object, self.__name)
-
         if hasattr(res, "__get__"):
             res = res.__get__(materialized_object, type(materialized_object))
 

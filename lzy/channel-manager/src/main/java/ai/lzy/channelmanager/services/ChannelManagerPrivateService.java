@@ -195,7 +195,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
 
         final List<String> channelsToDestroy;
         try {
-            final List<Channel> channels = withRetries(LOG, () -> channelDao.listChannels(executionId, null));
+            final List<Channel> channels = withRetries(LOG, () -> channelDao.listChannels(executionId));
             channelsToDestroy = channels.stream().map(Channel::getId).collect(Collectors.toList());
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
@@ -295,7 +295,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         List<Channel> aliveChannels;
         try {
             aliveChannels = withRetries(LOG, () ->
-                channelDao.listChannels(executionId, Channel.LifeStatus.ALIVE, null));
+                channelDao.listChannels(executionId, Channel.LifeStatus.ALIVE));
         } catch (Exception e) {
             LOG.error("Get status for channels of execution {} failed, "
                       + "got exception: {}", executionId, e.getMessage(), e);

@@ -6,13 +6,14 @@ import java.nio.file.Path;
 import java.util.Set;
 
 public class LzyLinuxFsManagerImpl implements LzyFSManager {
+    private static final boolean DEBUG_FUSE = "true".equals(System.getenv("LZY_DEBUG_FUSE"));
 
     private final LzyFS baseMount = new LzyFS(Set.of("dev", "bin", "sbin"));
 
     @Override
     public void mount(Path mountPoint) {
         createFsDirectories(mountPoint);
-        baseMount.mount(mountPoint, false, false,
+        baseMount.mount(mountPoint, /* blocking */ false, DEBUG_FUSE,
             new String[] {"-o", "direct_io", "-o", "allow_root"} // Need user_allow_other flag in fuse.conf
         );
     }

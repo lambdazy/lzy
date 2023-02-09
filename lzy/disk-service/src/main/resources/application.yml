@@ -1,7 +1,7 @@
 disk-service:
   database:
-    url: 'jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false'
-    username: 'test'
+    url: ''
+    username: ''
     password: ''
   local-provider:
     disksLocation: '/tmp/lzy-disk/'

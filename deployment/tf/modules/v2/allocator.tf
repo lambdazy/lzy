@@ -3,18 +3,20 @@ resource "kubernetes_secret" "allocator_sa_key" {
     name = "allocator-sa-key"
   }
   data = {
-    key = jsonencode({
-      "id" : yandex_iam_service_account_key.allocator-sa-key.id
-      "service_account_id" : yandex_iam_service_account_key.allocator-sa-key.service_account_id
-      "created_at" : yandex_iam_service_account_key.allocator-sa-key.created_at
-      "key_algorithm" : yandex_iam_service_account_key.allocator-sa-key.key_algorithm
-      "public_key" : yandex_iam_service_account_key.allocator-sa-key.public_key
-      "private_key" : yandex_iam_service_account_key.allocator-sa-key.private_key
-    })
+    key = local.allocator-sa-key-json
   }
 }
 
 locals {
+  allocator-sa-key-json = jsonencode({
+    "id" : yandex_iam_service_account_key.allocator-sa-key.id
+    "service_account_id" : yandex_iam_service_account_key.allocator-sa-key.service_account_id
+    "created_at" : yandex_iam_service_account_key.allocator-sa-key.created_at
+    "key_algorithm" : yandex_iam_service_account_key.allocator-sa-key.key_algorithm
+    "public_key" : yandex_iam_service_account_key.allocator-sa-key.public_key
+    "private_key" : yandex_iam_service_account_key.allocator-sa-key.private_key
+  })
+
   user-clusters = [yandex_kubernetes_cluster.main.id]
   allocator-labels   = {
     app                         = "allocator"
@@ -186,7 +188,7 @@ resource "kubernetes_stateful_set" "allocator" {
 
         container {
           name = "unified-agent"
-          image = "cr.yandex/crp2nh9s2lfeqpfgs3c0/unified_agent:master-1.0"
+          image = var.unified-agent-image
           image_pull_policy = "Always"
           env {
             name = "FOLDER_ID"

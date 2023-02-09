@@ -14,6 +14,8 @@ import yandex.cloud.sdk.Zone;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import static ai.lzy.test.GrpcUtils.withGrpcContext;
+
 public class Utils {
     public static DiskSpec createTestDiskSpec(int gb) {
         return createTestDiskSpec(
@@ -34,13 +36,20 @@ public class Utils {
     public static Operation waitOperation(LongRunningServiceBlockingStub service, Operation operation,
                                           long timeoutSeconds)
     {
-        TimeUtils.waitFlagUp(() -> {
-            var op = service.get(
-                LongRunning.GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
-            return op.getDone();
-        }, timeoutSeconds, TimeUnit.SECONDS);
-        return service.get(
-            LongRunning.GetOperationRequest.newBuilder().setOperationId(operation.getId()).build());
+        TimeUtils.waitFlagUp(
+            () -> withGrpcContext(
+                () -> service.get(
+                    LongRunning.GetOperationRequest.newBuilder()
+                        .setOperationId(operation.getId())
+                        .build())
+                    .getDone()),
+            timeoutSeconds,
+            TimeUnit.SECONDS);
+
+        return withGrpcContext(() -> service.get(
+            LongRunning.GetOperationRequest.newBuilder()
+                .setOperationId(operation.getId())
+                .build()));
     }
 
     public static String extractSessionId(Operation createSessionOp) {

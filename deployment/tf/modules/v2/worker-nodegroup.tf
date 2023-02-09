@@ -58,8 +58,8 @@ resource "yandex_kubernetes_node_group" "workers-s" {
     }
 
     resources {
-      memory = 4
-      cores  = 2
+      memory = 32
+      cores  = 4
     }
 
     boot_disk {
@@ -73,10 +73,51 @@ resource "yandex_kubernetes_node_group" "workers-s" {
   }
 
   scale_policy {
-    auto_scale {
-      initial = 2
-      max     = 10
-      min     = 2
+    fixed_scale {
+      size = 10
+    }
+  }
+}
+
+resource "yandex_kubernetes_node_group" "workers-l" {
+  cluster_id  = yandex_kubernetes_cluster.allocator_cluster.id
+  name        = "workers-l"
+  description = "Nodegroup for lzy workers with label l"
+  node_labels = {
+    "lzy.ai/node-pool-id" = "l1"
+    "lzy.ai/node-pool-label" = "l"
+    "lzy.ai/node-pool-kind" = "GPU"
+    "lzy.ai/node-pool-az" = "ru-central1-a"
+    "lzy.ai/node-pool-state" = "ACTIVE"
+  }
+
+  instance_template {
+    platform_id = "gpu-standard-v2"
+
+    network_interface {
+      subnet_ids         = [yandex_vpc_subnet.custom-subnet.id]
+      ipv4               = true
+    }
+
+    resources {
+      memory = 48
+      cores  = 8
+      gpus   = 1
+    }
+
+    boot_disk {
+      type = "network-hdd"
+      size = 64
+    }
+
+    scheduling_policy {
+      preemptible = false
+    }
+  }
+
+  scale_policy {
+    fixed_scale {
+      size = 7
     }
   }
 }
@@ -106,7 +147,41 @@ resource "kubernetes_daemonset" "worker_cpu_fictive_containers" {
           command = ["tail", "-f", "/entrypoint.sh"]
         }
         node_selector = {
-          "lzy.ai/node-pool-id" = "s1"
+          "lzy.ai/node-pool-kind" = "CPU"
+        }
+      }
+    }
+  }
+
+  provider = kubernetes.allocator
+}
+
+resource "kubernetes_daemonset" "worker_gpu_fictive_containers" {
+  metadata {
+    name      = "worker-fictive-containers-gpu"
+    namespace = kubernetes_namespace.fictive.metadata[0].name
+  }
+  spec {
+    selector {
+      match_labels = {
+        name = "worker-image-caching"
+      }
+    }
+    template {
+      metadata {
+        labels = {
+          name = "worker-image-caching"
+        }
+      }
+      spec {
+        container {
+          image   = var.servant-image
+          image_pull_policy = "Always"
+          name    = "fictive-worker"
+          command = ["tail", "-f", "/entrypoint.sh"]
+        }
+        node_selector = {
+          "lzy.ai/node-pool-kind" = "GPU"
         }
       }
     }

@@ -1,21 +1,11 @@
 package ai.lzy.allocator.gc;
 
-import ai.lzy.allocator.alloc.VmAllocator;
-import ai.lzy.allocator.alloc.dao.VmDao;
+import ai.lzy.allocator.alloc.AllocationContext;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.gc.dao.GcDao;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.storage.AllocatorDataSource;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.model.db.TransactionHandle;
 import com.google.common.annotations.VisibleForTesting;
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import jakarta.annotation.PreDestroy;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,8 +18,8 @@ import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 
-import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 @Singleton
@@ -38,12 +28,8 @@ public class GarbageCollector {
 
     private final String instanceId;
     private final ServiceConfig.GcConfig config;
-    private final AllocatorDataSource storage;
-    private final VmDao vmDao;
     private final GcDao gcDao;
-    private final OperationDao operationsDao;
-    private final VmAllocator allocator;
-    private final SubjectServiceGrpcClient subjectClient;
+    private final AllocationContext allocationContext;
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
         var th = new Thread(r, "gc");
         th.setUncaughtExceptionHandler((t, e) -> LOG.error("Uncaught exception in thread {}", t.getName(), e));
@@ -52,19 +38,13 @@ public class GarbageCollector {
     private final AtomicReference<Instant> leaderDeadline = new AtomicReference<>(null);
     private volatile ScheduledFuture<?> becomeLeaderFuture;
 
-    public GarbageCollector(ServiceConfig serviceConfig, ServiceConfig.GcConfig gcConfig, AllocatorDataSource storage,
-                            VmDao dao, GcDao gcDao, @Named("AllocatorOperationDao") OperationDao operationDao,
-                            VmAllocator allocator,
-                            @Named("AllocatorSubjectServiceClient") SubjectServiceGrpcClient subjectClient)
+    public GarbageCollector(ServiceConfig serviceConfig, ServiceConfig.GcConfig gcConfig, GcDao gcDao,
+                            AllocationContext allocationContext)
     {
         this.instanceId = serviceConfig.getInstanceId();
         this.config = gcConfig;
-        this.storage = storage;
-        this.vmDao = dao;
         this.gcDao = gcDao;
-        this.operationsDao = operationDao;
-        this.allocator = allocator;
-        this.subjectClient = subjectClient;
+        this.allocationContext = allocationContext;
     }
 
     public void start() {
@@ -166,80 +146,48 @@ public class GarbageCollector {
             var startTime = Instant.now();
 
             try {
-                var failedVms = vmDao.findFailedVms(null);
-                if (!failedVms.isEmpty()) {
-                    LOG.info("Found {} failed VM allocations: [{}]", failedVms.size(), String.join(", ", failedVms));
-                }
-            } catch (Exception e) {
-                LOG.error("Cannot find failed allocation operations: {}", e.getMessage());
-            }
-
-            try {
-                var vms = vmDao.listVmsToClean(10);
+                var vms = allocationContext.vmDao().listExpiredVms(10);
                 LOG.info("Found {} Vms to clean", vms.size());
+                var ops = vms.stream().map(this::cleanVm).toList();
+                if (force) {
+                    ops.forEach(opId -> {
+                        if (opId == null) {
+                            return;
+                        }
 
-                vms.forEach(this::cleanVm);
-            } catch (Exception e) {
+                        try {
+                            while (true) {
+                                var op = allocationContext.operationsDao().get(opId, null);
+                                if (op == null || op.done()) {
+                                    return;
+                                }
+                                LockSupport.parkNanos(Duration.ofMillis(50).toNanos());
+                            }
+                        } catch (SQLException e) {
+                            throw new RuntimeException(e);
+                        }
+                    });
+                }
+            } catch (Throwable e) {
                 LOG.error("Error during GC: " + e.getMessage(), e);
             }
 
             // TODO: cleanup disks
+
+            // TODO: cleanup completed ops
 
             LOG.info("GC step takes {}ms", Duration.between(startTime, Instant.now()).toMillis());
 
             schedule(this, config.getCleanupPeriod());
         }
 
-        public void cleanVm(Vm vm) {
-            LOG.warn("About to delete VM {}", vm);
-
+        public String cleanVm(final Vm vm) {
             try {
-                var allocOp = operationsDao.get(vm.allocOpId(), null);
-                if (allocOp != null && !allocOp.done()) {
-                    LOG.info("Clean VM {}: try to fail allocation operation {}...", vm.vmId(), allocOp.id());
-                    var status = toProto(Status.DEADLINE_EXCEEDED.withDescription("Vm is expired"));
-                    operationsDao.fail(vm.allocOpId(), status, null);
-                    return;
-                }
-
-                var vmSubjectId = vm.allocateState().vmSubjectId();
-                if (vmSubjectId == null || vmSubjectId.isEmpty()) {
-                    var vmSubject = subjectClient.findSubject(AuthProvider.INTERNAL, vm.vmId(), SubjectType.VM);
-                    if (vmSubject != null) {
-                        LOG.error("Clean VM {}: found leaked IAM subject {}", vm.vmId(), vmSubject.id());
-                        vmSubjectId = vmSubject.id();
-                    }
-
-                }
-                if (vmSubjectId != null && !vmSubjectId.isEmpty()) {
-                    LOG.info("Clean VM {}: removing IAM subject {}...", vm.vmId(), vmSubjectId);
-                    try {
-                        subjectClient.removeSubject(new ai.lzy.iam.resources.subjects.Vm(vmSubjectId));
-                    } catch (StatusRuntimeException e) {
-                        if (e.getStatus().getCode().equals(Status.Code.NOT_FOUND)) {
-                            LOG.warn("Clean VM {}: IAM subject {} not found", vm.vmId(), vmSubjectId);
-                        } else {
-                            LOG.error("Error during cleaning VM {}: {}", vm.vmId(), e.getMessage());
-                            return;
-                        }
-                    }
-                }
-
-                // TODO: ensure all slots are flushed
-
-                allocator.deallocate(vm.vmId());
-                //will retry deallocate if it fails
-
-                // TODO: delete tunnel if any
-
-                try (var tx = TransactionHandle.create(storage)) {
-                    vmDao.deleteVm(vm.vmId(), tx);
-                    operationsDao.deleteCompletedOperation(vm.allocOpId(), tx);
-                    tx.commit();
-                }
-                LOG.info("Clean VM {}: done", vm.vmId());
+                var reqid = "gc-expired-" + vm.vmId();
+                return allocationContext.submitDeleteVmAction(vm, "Delete expired VM %s".formatted(vm), reqid, LOG);
             } catch (Exception e) {
-                LOG.error("Error during clean up Vm {}", vm, e);
+                LOG.error("Cannot cleanup expired VM {}: {}", vm, e.getMessage());
+                return null;
             }
         }
     }

@@ -7,10 +7,15 @@ import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.longrunning.OperationRunnerBase;
+import ai.lzy.model.db.TransactionHandle;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import yandex.cloud.api.compute.v1.DiskServiceGrpc;
 import yandex.cloud.api.compute.v1.SnapshotServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceGrpc;
+
+import java.sql.SQLException;
+
+import static ai.lzy.model.db.DbHelper.withRetries;
 
 abstract class YcDiskActionBase<S> extends OperationRunnerBase {
 
@@ -28,6 +33,23 @@ abstract class YcDiskActionBase<S> extends OperationRunnerBase {
     @Override
     protected final boolean isInjectedError(Error e) {
         return e instanceof InjectedFailures.TerminateException;
+    }
+
+    @Override
+    protected void onExpired(TransactionHandle tx) throws SQLException {
+        diskOpDao().deleteDiskOp(opId(), tx);
+    }
+
+    protected final StepResult saveState(Runnable onSuccess, Runnable onFail) {
+        try {
+            withRetries(log(), () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
+            onSuccess.run();
+            return StepResult.CONTINUE;
+        } catch (Exception e) {
+            log().debug("{} Cannot save state, reschedule...", logPrefix());
+            onFail.run();
+            return StepResult.RESTART;
+        }
     }
 
     protected final String opId() {

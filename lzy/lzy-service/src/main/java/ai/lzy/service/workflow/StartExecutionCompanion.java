@@ -10,6 +10,9 @@ import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.Constants;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.debug.InjectedFailures;
+import ai.lzy.service.util.StorageUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMST;
@@ -40,16 +43,22 @@ final class StartExecutionCompanion {
     private final LWFS.StartWorkflowRequest request;
     private final CreateExecutionState state;
     private final WorkflowService owner;
+    private final LzyServiceConfig.StartupPortalConfig cfg;
 
-    StartExecutionCompanion(LWFS.StartWorkflowRequest request, CreateExecutionState initial, WorkflowService owner) {
+    StartExecutionCompanion(LWFS.StartWorkflowRequest request, CreateExecutionState initial,
+                            WorkflowService owner, LzyServiceConfig.StartupPortalConfig cfg)
+    {
         this.request = request;
         this.state = initial;
         this.owner = owner;
+        this.cfg = cfg;
     }
 
-    static StartExecutionCompanion of(LWFS.StartWorkflowRequest request, WorkflowService owner) {
+    static StartExecutionCompanion of(LWFS.StartWorkflowRequest request, WorkflowService owner,
+                                      LzyServiceConfig.StartupPortalConfig cfg)
+    {
         var initState = new CreateExecutionState(currentSubject().id(), request.getWorkflowName());
-        return new StartExecutionCompanion(request, initState, owner);
+        return new StartExecutionCompanion(request, initState, owner, cfg);
     }
 
     public boolean isInvalid() {
@@ -79,7 +88,7 @@ final class StartExecutionCompanion {
 
         if (internalSnapshotStorage) {
             try {
-                var bucketName = "tmp-bucket-" + state.getUserId();
+                var bucketName = StorageUtils.createInternalBucketName(state.getUserId());
 
                 LOG.info("Creating new temporary storage bucket: { bucketName: {}, userId: {} }",
                     bucketName, state.getUserId());
@@ -189,7 +198,12 @@ final class StartExecutionCompanion {
                             String channelManagerAddress, String iamAddress, String whiteboardAddress,
                             Duration allocationTimeout, Duration allocateVmCacheTimeout)
     {
+        LOG.info("Attempt to start portal for workflow execution: { wfName: {}, execId: {} }",
+            state.getWorkflowName(), state.getExecutionId());
+
         try {
+            InjectedFailures.fail9();
+
             createPortalStdChannels(stdoutChannelName, stderrChannelName);
 
             withRetries(LOG, () -> owner.executionDao.updateStdChannelIds(state.getExecutionId(),
@@ -201,6 +215,8 @@ final class StartExecutionCompanion {
 
             withRetries(LOG, () -> owner.executionDao.updatePortalVmAllocateSession(state.getExecutionId(),
                 state.getSessionId(), state.getPortalId(), null));
+
+            InjectedFailures.fail10();
 
             var allocateVmOp = startAllocation(dockerImage, channelManagerAddress, iamAddress,
                 whiteboardAddress, portalPort, slotsApiPort);
@@ -218,6 +234,8 @@ final class StartExecutionCompanion {
 
             withRetries(LOG, () ->
                 owner.executionDao.updateAllocateOperationData(state.getExecutionId(), opId, vmId, null));
+
+            InjectedFailures.fail11();
 
             allocateVmOp = awaitOperationDone(owner.allocOpService, opId, allocationTimeout);
 
@@ -243,6 +261,10 @@ final class StartExecutionCompanion {
                 /* transaction */ null
             ));
 
+            InjectedFailures.fail12();
+        } catch (InjectedFailures.TerminateException e) {
+            LOG.error("Got InjectedFailure exception: " + e.getMessage());
+            state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
         } catch (StatusRuntimeException e) {
             LOG.error("Cannot start portal", e);
             state.fail(e.getStatus(), "Cannot start portal");
@@ -339,8 +361,8 @@ final class StartExecutionCompanion {
         return withIdempotencyKey(owner.allocatorClient, "portal-" + state.getExecutionId()).allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()
                 .setSessionId(state.getSessionId())
-                .setPoolLabel("portals")
-                .setZone("default")
+                .setPoolLabel(cfg.getPoolLabel())
+                .setZone(cfg.getPoolZone())
                 .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.SYSTEM)
                 .addWorkload(
                     VmAllocatorApi.AllocateRequest.Workload.newBuilder()

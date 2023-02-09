@@ -1,7 +1,11 @@
 FROM amazoncorretto:17
 
 RUN yum -y install openssl && yum clean all
-COPY target/site-1.0-SNAPSHOT.jar app/app.jar
+
+ARG keystore=keystore.jks
+COPY $keystore app/keystore.jks
+
+COPY target/site.jar app/app.jar
 
 ENTRYPOINT ["java", \
             "-Xmx4G", \

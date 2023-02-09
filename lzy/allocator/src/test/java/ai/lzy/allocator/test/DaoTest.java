@@ -132,7 +132,7 @@ public class DaoTest {
         final var op1 = opDao.get(op.id(), null);
         Assert.assertNull(op1);
 
-        op = Operation.create("test", "Some op", null, Any.pack(meta));
+        op = Operation.create("test", "Some op", null, meta);
         try (final var tx = TransactionHandle.create(storage)) {
             opDao.create(op, tx);
             tx.commit();
@@ -151,7 +151,7 @@ public class DaoTest {
         Assert.assertEquals("owner", s1.owner());
         Assert.assertEquals(Duration.ofSeconds(10), s1.cachePolicy().minIdleTimeout());
 
-        sessionDao.delete(s.sessionId(), null);
+        sessionDao.delete(s.sessionId(), s.createOpId(), "reqid-1", null);
         Assert.assertNull(sessionDao.get(s.sessionId(), null));
     }
 
@@ -193,7 +193,16 @@ public class DaoTest {
             List.of(volumeRequest),
             null,
             ClusterRegistry.ClusterType.User);
-        final var vm = vmDao.create(vmSpec, allocOp.id(), now(), now().plus(Duration.ofDays(1)), "ott", "x", null);
+        final var vmAllocState = new Vm.AllocateState(
+            allocOp.id(),
+            now(),
+            now().plus(Duration.ofDays(1)),
+            "worker",
+            "reqid",
+            "ott",
+            null,
+            null);
+        final var vm = vmDao.create(vmSpec, vmAllocState, null);
 
         final var vm1 = vmDao.get(vm.vmId(), null);
         Assert.assertNotNull(vm1);
@@ -206,20 +215,22 @@ public class DaoTest {
         Assert.assertEquals(List.of(volumeRequest), vm1.volumeRequests());
 
         vmDao.setVmRunning(vm1.vmId(), Map.of(), now().plus(Duration.ofDays(1)), null);
-        vmDao.setStatus(vm1.vmId(), Vm.Status.IDLE, null);
+        vmDao.release(vm1.vmId(), now().plus(Duration.ofHours(1)), null);
 
-        final var vm2 = vmDao.acquire(vmSpec, null);
+        var vm2 = vmDao.acquire(vmSpec, null);
         Assert.assertNotNull(vm2);
         Assert.assertEquals(vm1.vmId(), vm2.vmId());
+        Assert.assertEquals(Vm.Status.IDLE, vm2.status()); // `acquire` returns previous state
+
+        vm2 = vmDao.get(vm2.vmId(), null);
         Assert.assertEquals(Vm.Status.RUNNING, vm2.status());
 
-        final var vms = vmDao.list(session.sessionId());
+        final var vms = vmDao.getSessionVms(session.sessionId(), null);
         Assert.assertEquals(List.of(vm2), vms);
 
-        vmDao.setStatus(vm2.vmId(), Vm.Status.IDLE, null);
-        vmDao.setDeadline(vm2.vmId(), now().minus(Duration.ofSeconds(10)));
+        vmDao.release(vm2.vmId(), now().minus(Duration.ofSeconds(10)), null);
 
-        final var vms2 = vmDao.listVmsToClean(100);
+        final var vms2 = vmDao.listExpiredVms(100);
         Assert.assertEquals(1, vms2.size());
         Assert.assertEquals(vm.vmId(), vms2.get(0).vmId());
 

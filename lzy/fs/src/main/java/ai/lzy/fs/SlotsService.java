@@ -14,6 +14,7 @@ import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ContextAwareTask;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.util.grpc.ProtoPrinter;
@@ -31,7 +32,6 @@ import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Spliterator;
 import java.util.Spliterators;
@@ -45,7 +45,6 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
@@ -60,14 +59,16 @@ public class SlotsService {
     private final ExecutorService longrunningExecutor;
     private final LocalOperationService operationService;
     private final LzySlotsApiGrpc.LzySlotsApiImplBase slotsApi;
+    private final RenewableJwt token;
 
     public SlotsService(String agentId, LocalOperationService operationService,
-                        SlotsManager slotsManager, @Nullable LzyFSManager fsManager)
+                        SlotsManager slotsManager, @Nullable LzyFSManager fsManager, RenewableJwt token)
     {
         this.agentId = agentId;
         this.slotsManager = slotsManager;
         this.fsManager = fsManager;
         this.operationService = operationService;
+        this.token = token;
 
         this.longrunningExecutor = new ThreadPoolExecutor(5, 20, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
             new ThreadFactory() {
@@ -195,7 +196,7 @@ public class SlotsService {
                                 var channel = newGrpcChannel(toSlot.uri().getHost(), toSlot.uri().getPort(),
                                     LzySlotsApiGrpc.SERVICE_NAME);
                                 var client = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(channel), "LzyFs",
-                                    NO_AUTH_TOKEN);
+                                    () -> token.get().token());
 
                                 var req = LSA.SlotDataRequest.newBuilder()
                                     .setSlotInstance(request.getTo())
@@ -360,21 +361,8 @@ public class SlotsService {
 
             final LzySlot slot = slotsManager.slot(taskId, slotInstance.name());
             if (slot instanceof LzyOutputSlot outputSlot) {
-                try {
-                    outputSlot
-                        .readFromPosition(request.getOffset())
-                        .forEach(chunk -> response.onNext(LSA.SlotDataChunk.newBuilder().setChunk(chunk).build()));
 
-                    response.onNext(
-                        LSA.SlotDataChunk.newBuilder()
-                            .setControl(LSA.SlotDataChunk.Control.EOS)
-                            .build());
-                    response.onCompleted();
-                } catch (IOException e) {
-                    var msg = "IO error while reading slot %s: %s".formatted(slotInstance.shortDesc(), e.getMessage());
-                    LOG.error(msg, e);
-                    response.onError(Status.INTERNAL.withDescription(msg).asException());
-                }
+                outputSlot.readFromPosition(request.getOffset(), response);
                 return;
             }
 

@@ -1,4 +1,4 @@
-# Authentication & running terminal
+# Authentication
 
 ### Sandbox sign up
 
@@ -12,13 +12,22 @@ $ openssl rsa -in ~/.ssh/private.pem -outform PEM -pubout -out ~/.ssh/public.pem
 
 3. Copy content of `~/.ssh/public.pem` to an [add key form](http://lzy.ai/keys).
 
-### Running terminal
+### Authentication
 
-`lzy-terminal -u <github username> -k ~/.ssh/private.pem`
+There are several ways to authenticate in ʎzy:
 
-NOTE: github username is CASE SENSITIVE!
-
-If you see `Started terminal` message in stdout - ʎzy is ready for work. Now you can run a workflow!
+1. Set ENV variables `$LZY_USER=<your github login>` and `$LZY_KEY_PATH=<path to the private key>`
+2. Call `lzy_auth` function:
+   ```python
+   from lzy.api.v1 import lzy_auth
+   lzy_auth(user="<your github login>", key_path="<path to the private key>")
+   ```
+3. Call `auth` method on a `Lzy` object:
+   ```python
+   from lzy.api.v1 import Lzy
+   lzy = Lzy()
+   lzy.auth(user="<your github login>", key_path="<path to the private key>")
+   ```
 
 ---
 

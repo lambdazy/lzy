@@ -1,14 +1,15 @@
 package ai.lzy.worker.env;
 
+import ai.lzy.worker.StreamQueue;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.CreateContainerCmd;
-import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DockerClientBuilder;
+import jakarta.annotation.Nullable;
 import org.apache.commons.io.output.NullOutputStream;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,24 +24,26 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
-public class DockerEnvironment implements BaseEnvironment {
+public class DockerEnvironment extends BaseEnvironment {
 
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
 
-    public final CreateContainerResponse container;
     public final String sourceImage;
+    public final String containerId;
 
-    public DockerEnvironment(BaseEnvConfig config) {
-        sourceImage = prepareImage(config);
+    private DockerEnvironment(String sourceImage, String containerId) {
+        super(containerId);
+        this.sourceImage = sourceImage;
+        this.containerId = containerId;
+    }
 
-        LOG.info("Creating container from image={} ...", sourceImage);
-        LOG.info("Mount options:\n\t{}", config.mounts().stream()
-            .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
-            .collect(Collectors.joining("\n\t")));
+    public static DockerEnvironment create(BaseEnvConfig config) {
+        final String sourceImage = prepareImage(config);
+
+        LOG.info("Creating container from image={} ... , config = {}", sourceImage, config);
 
         final List<Mount> dockerMounts = new ArrayList<>();
         config.mounts().forEach(m -> {
@@ -54,19 +57,46 @@ public class DockerEnvironment implements BaseEnvironment {
         final HostConfig hostConfig = new HostConfig();
         hostConfig.withMounts(dockerMounts);
 
+        // --gpus all
+        if (config.needGpu()) {
+            hostConfig.withDeviceRequests(List.of(new DeviceRequest()
+                .withDriver("nvidia")
+                .withCapabilities(List.of(List.of("gpu")))
+            ));
+        }
+
         final CreateContainerCmd createContainerCmd = DOCKER.createContainerCmd(sourceImage)
             .withHostConfig(hostConfig)
             .withAttachStdout(true)
             .withAttachStderr(true);
 
-        container = createContainerCmd
+        final var container = createContainerCmd
             .withTty(true)
             .exec();
-        LOG.info("Creating container from image={} done, id={}", sourceImage, container.getId());
+        final String containerId = container.getId();
+        LOG.info("Creating container from image={} done, id={}", sourceImage, containerId);
 
-        LOG.info("Starting env container with id {} ...", container.getId());
+        LOG.info("Starting env container with id {} ...", containerId);
         DOCKER.startContainerCmd(container.getId()).exec();
-        LOG.info("Starting env container with id {} done", container.getId());
+        LOG.info("Starting env container with id {} done", containerId);
+
+        return new DockerEnvironment(sourceImage, containerId);
+    }
+
+    @Nullable
+    public static DockerEnvironment fromExistedContainer(String sourceImage, String containerId) {
+        final var imageInspection = DOCKER.inspectImageCmd(sourceImage).exec();
+        final var containerInspection = DOCKER.inspectContainerCmd(containerId).exec();
+        if (containerInspection.getImageId().equals(imageInspection.getId())) {
+            return new DockerEnvironment(sourceImage, containerId);
+        }
+
+        return null;
+    }
+
+    @Override
+    public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
+        // TODO(artolord) add stdout/stderr to std streams
     }
 
     @Override
@@ -88,57 +118,64 @@ public class DockerEnvironment implements BaseEnvironment {
             throw new RuntimeException(e);
         }
 
-        final CompletableFuture<Long> exitCode = new CompletableFuture<>();
-        ForkJoinPool.commonPool().execute(() -> {
-            try {
-                LOG.info("Creating cmd {}", String.join(" ", command));
-                final ExecCreateCmd execCmd = DOCKER.execCreateCmd(container.getId())
-                    .withCmd(command)
-                    .withAttachStdout(true)
-                    .withAttachStderr(true);
-                if (envp != null && envp.length > 0) {
-                    execCmd.withEnv(List.of(envp));
+        LOG.info("Creating cmd {}", String.join(" ", command));
+        final ExecCreateCmd execCmd = DOCKER.execCreateCmd(containerId)
+            .withCmd(command)
+            .withAttachStdout(true)
+            .withAttachStderr(true);
+
+        if (envp != null && envp.length > 0) {
+            execCmd.withEnv(List.of(envp));
+        }
+        final ExecCreateCmdResponse exec = execCmd.exec();
+        LOG.info("Executing cmd {}", String.join(" ", command));
+
+        var feature = new CompletableFuture<>();
+
+        var startCmd = DOCKER.execStartCmd(exec.getId())
+            .exec(new ResultCallbackTemplate<>() {
+                @Override
+                public void onComplete() {
+                    LOG.info("Closing stdout, stderr of cmd {}", String.join(" ", command));
+                    try {
+                        stdout.close();
+                        stderr.close();
+                    } catch (IOException e) {
+                        LOG.error("Cannot close stderr/stdout slots", e);
+                    } catch (Exception e) {
+                        LOG.error("Error while completing docker env process: ", e);
+                    } finally {
+                        feature.complete(null);
+                    }
                 }
-                final ExecCreateCmdResponse exec = execCmd.exec();
-                LOG.info("Executing cmd {}", String.join(" ", command));
-                DOCKER.execStartCmd(exec.getId())
-                    .exec(new ResultCallbackTemplate<>() {
-                        @Override
-                        public void onNext(Frame item) {
-                            switch (item.getStreamType()) {
-                                case STDOUT:
-                                    try {
-                                        stdout.write(item.getPayload());
-                                        stdout.flush();
-                                    } catch (IOException e) {
-                                        LOG.error("Error while write into stdout log", e);
-                                    }
-                                    break;
-                                case STDERR:
-                                    try {
-                                        stderr.write(item.getPayload());
-                                        stderr.flush();
-                                    } catch (IOException e) {
-                                        LOG.error("Error while write into stderr log", e);
-                                    }
-                                    break;
-                                default:
-                                    LOG.info("Got frame "
-                                        + new String(item.getPayload(), StandardCharsets.UTF_8)
-                                        + " from unknown stream type "
-                                        + item.getStreamType());
+
+                @Override
+                public void onNext(Frame item) {
+                    switch (item.getStreamType()) {
+                        case STDOUT:
+                            try {
+                                stdout.write(item.getPayload());
+                                stdout.flush();
+                            } catch (IOException e) {
+                                LOG.error("Error while write into stdout log", e);
                             }
-                        }
-                    }).awaitCompletion();
-                LOG.info("Closing stdout, stderr of cmd {}", String.join(" ", command));
-                stdout.close();
-                stderr.close();
-                exitCode.complete(DOCKER.inspectExecCmd(exec.getId()).exec().getExitCodeLong());
-            } catch (InterruptedException | IOException e) {
-                LOG.error("Job container with id=" + container.getId() + " image= " + sourceImage
-                    + " was interrupted");
-            }
-        });
+                            break;
+                        case STDERR:
+                            try {
+                                stderr.write(item.getPayload());
+                                stderr.flush();
+                            } catch (IOException e) {
+                                LOG.error("Error while write into stderr log", e);
+                            }
+                            break;
+                        default:
+                            LOG.info("Got frame "
+                                + new String(item.getPayload(), StandardCharsets.UTF_8)
+                                + " from unknown stream type "
+                                + item.getStreamType());
+                    }
+                }
+            });
 
         return new LzyProcess() {
             @Override
@@ -157,21 +194,26 @@ public class DockerEnvironment implements BaseEnvironment {
             }
 
             @Override
-            public int waitFor() {
+            public int waitFor() throws InterruptedException {
                 try {
-                    return exitCode.get().intValue();
+                    feature.get();
+                    return Math.toIntExact(DOCKER.inspectExecCmd(exec.getId()).exec().getExitCodeLong());
                 } catch (InterruptedException e) {
-                    LOG.error("LzyProcess was interrupted, failed to get exit code", e);
-                    throw new RuntimeException(e);
+                    try {
+                        startCmd.close();
+                    } catch (IOException ex) {
+                        LOG.error("Error while closing cmd: ", ex);
+                    }
+                    throw e;
                 } catch (ExecutionException e) {
-                    LOG.error("LzyProcess was failed with ExecutionException, failed to get exit code", e);
-                    throw new RuntimeException(e);
+                    // ignored
+                    return 1;
                 }
             }
 
             @Override
             public void signal(int sigValue) {
-                DOCKER.killContainerCmd(container.getId()) // TODO(d-kruchinin): execId?
+                DOCKER.killContainerCmd(containerId) // TODO(d-kruchinin): execId?
                     .withSignal(String.valueOf(sigValue))
                     .exec();
             }
@@ -180,10 +222,18 @@ public class DockerEnvironment implements BaseEnvironment {
 
     @Override
     public void close() throws Exception {
-        DOCKER.killContainerCmd(container.getId()).exec();
+        DOCKER.killContainerCmd(containerId).exec();
     }
 
-    private String prepareImage(BaseEnvConfig config) {
+    public String getSourceImage() {
+        return sourceImage;
+    }
+
+    public String getContainerId() {
+        return containerId;
+    }
+
+    private static String prepareImage(BaseEnvConfig config) {
         LOG.info("Pulling image {} ...", config.image());
         final var pullingImage = DOCKER
             .pullImageCmd(config.image())

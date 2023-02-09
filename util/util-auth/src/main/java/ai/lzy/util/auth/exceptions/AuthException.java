@@ -26,6 +26,11 @@ public abstract class AuthException extends RuntimeException {
         return this;
     }
 
+    @Override
+    public String getMessage() {
+        return "[%s] %s (%s)".formatted(getClass().getSimpleName(), super.getMessage(), internalDetails);
+    }
+
     public String getInternalDetails() {
         return this.internalDetails;
     }

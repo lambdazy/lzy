@@ -69,7 +69,7 @@ public class Execution {
         }
     }
 
-    public int waitFor() {
+    public int waitFor() throws InterruptedException {
         int rc = process.waitFor();
         String resultDescription = (rc == 0) ? "Success" : "Error while executing command on worker.\n" +
             "See your stdout/stderr to see more info";

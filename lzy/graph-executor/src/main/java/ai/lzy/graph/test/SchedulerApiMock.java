@@ -25,7 +25,7 @@ public class SchedulerApiMock implements SchedulerApi {
         this.callback = (a, b, sch) -> {
             sch.changeStatus(b.id(), TaskStatus.newBuilder()
                 .setTaskId(b.id())
-                .setQueue(TaskStatus.Queue.newBuilder().build())
+                .setExecuting(TaskStatus.Executing.newBuilder().build())
                 .build()
             );
             return b.id();
@@ -65,8 +65,6 @@ public class SchedulerApiMock implements SchedulerApi {
         exceptions.add(taskId);
     }
 
-    public static final TaskStatus QUEUE = TaskStatus.newBuilder()
-        .setQueue(TaskStatus.Queue.newBuilder().build()).build();
     public static final TaskStatus EXECUTING = TaskStatus.newBuilder()
         .setExecuting(TaskStatus.Executing.newBuilder().build()).build();
     public static final TaskStatus ERROR = TaskStatus.newBuilder()

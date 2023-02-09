@@ -21,27 +21,32 @@ public class LzyServicePrivateApi extends LzyWorkflowPrivateServiceGrpc.LzyWorkf
     }
 
     @Override
-    public void stopExecution(LWFPS.StopExecutionRequest request,
-                              StreamObserver<LWFPS.StopExecutionResponse> response)
+    public void abortExecution(LWFPS.AbortExecutionRequest request,
+                               StreamObserver<LWFPS.AbortExecutionResponse> response)
     {
         var userId = AuthenticationContext.currentSubject().id();
         var executionId = request.getExecutionId();
         var reason = request.getReason();
 
         if (StringUtils.isEmpty(executionId)) {
-            LOG.error("Cannot stop execution: { executionId: {} }", executionId);
+            LOG.error("Cannot abort execution: { executionId: {} }", executionId);
             response.onError(Status.INVALID_ARGUMENT.withDescription("Empty 'executionId'").asRuntimeException());
             return;
         }
 
-        LOG.info("Attempt to stop execution: { userId: {}, executionId: {} }", userId, executionId);
+        LOG.info("Attempt to abort execution: { userId: {}, executionId: {} }", userId, executionId);
 
-        var stopStatus = Status.INTERNAL.withDescription(reason);
-        if (cleanExecutionCompanion.markExecutionAsBroken(userId, /* workflowName */ null, executionId, stopStatus)) {
+        var abortStatus = Status.INTERNAL.withDescription(reason);
+        try {
+            cleanExecutionCompanion.finishWorkflow(userId, /* workflowName */ null, executionId, abortStatus);
             cleanExecutionCompanion.cleanExecution(executionId);
+        } catch (Exception e) {
+            LOG.error("Cannot abort execution: { executionId: {} }", executionId, e);
+            response.onError(Status.INTERNAL.withDescription("Cannot abort execution").asRuntimeException());
+            return;
         }
 
-        response.onNext(LWFPS.StopExecutionResponse.getDefaultInstance());
+        response.onNext(LWFPS.AbortExecutionResponse.getDefaultInstance());
         response.onCompleted();
     }
 }

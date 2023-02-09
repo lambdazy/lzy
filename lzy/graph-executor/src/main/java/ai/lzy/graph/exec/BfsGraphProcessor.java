@@ -134,6 +134,12 @@ public class BfsGraphProcessor implements GraphProcessor {
 
             newExecutions.addAll(graph.executions());
 
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // ignore
+            }
+
             return graph.copyFromThis()
                 .withExecutions(newExecutions)
                 .withCurrentExecutionGroup(

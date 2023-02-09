@@ -60,9 +60,10 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public boolean allocate(Vm vm) {
+    public Result allocate(Vm.Ref vmRef) {
+        var vm = vmRef.vm();
         allocateWithSingleWorkload(vm.vmId(), vm.poolLabel(), vm.allocateState().vmOtt(), vm.workloads().get(0));
-        return true;
+        return Result.SUCCESS;
     }
 
     private void allocateWithSingleWorkload(String vmId, String poolLabel, String vmOtt, Workload workload) {
@@ -122,11 +123,12 @@ public class ThreadVmAllocator implements VmAllocator {
         return task;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
-    public void deallocate(String vmId) {
-        LOG.info("Deallocate vm with id: " + vmId);
+    public Result deallocate(Vm vm) {
+        LOG.info("Deallocate vm with id: " + vm.vmId());
 
-        var thread = vmThreads.remove(vmId);
+        var thread = vmThreads.remove(vm.vmId());
         if (thread != null) {
             thread.interrupt();
             try {
@@ -141,10 +143,14 @@ public class ThreadVmAllocator implements VmAllocator {
                 }
             }
         }
+
+        return Result.SUCCESS;
     }
 
     @Override
     public List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction) {
-        return List.of(new VmEndpoint(VmEndpointType.HOST_NAME, "localhost"));
+        return List.of(
+            new VmEndpoint(VmEndpointType.HOST_NAME, "localhost"),
+            new VmEndpoint(VmEndpointType.INTERNAL_IP, "127.0.0.1"));
     }
 }

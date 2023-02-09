@@ -13,12 +13,13 @@ option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowService {
   rpc StartWorkflow (StartWorkflowRequest) returns (StartWorkflowResponse);
-  rpc FinishWorkflow (FinishWorkflowRequest) returns (ai.lzy.v1.Operation) {
+  rpc FinishWorkflow (FinishWorkflowRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       // metadata: null
       response: "FinishWorkflowResponse";
     };
   }
+  rpc AbortWorkflow (AbortWorkflowRequest) returns (AbortWorkflowResponse);
 
   rpc ExecuteGraph (ExecuteGraphRequest) returns (ExecuteGraphResponse);
   rpc GraphStatus (GraphStatusRequest) returns (GraphStatusResponse);
@@ -27,18 +28,20 @@ service LzyWorkflowService {
   rpc ReadStdSlots (ReadStdSlotsRequest) returns (stream ReadStdSlotsResponse);
 
   rpc GetAvailablePools (GetAvailablePoolsRequest) returns (GetAvailablePoolsResponse);
+
+  rpc GetStorageCredentials (GetStorageCredentialsRequest) returns (GetStorageCredentialsResponse);
 }
 
 message StartWorkflowRequest {
   string workflowName = 1;
 
   // if not set then internal SnapshotStorage is created
-  /* optional */ StorageConfig snapshotStorage = 2;
+  /* optional */ ai.lzy.v1.common.StorageConfig snapshotStorage = 2;
 }
 
 message StartWorkflowResponse {
   string executionId = 1;
-  /* optional */ StorageConfig internalSnapshotStorage = 2;
+  /* optional */ ai.lzy.v1.common.StorageConfig internalSnapshotStorage = 2;
 }
 
 message FinishWorkflowRequest {
@@ -49,11 +52,20 @@ message FinishWorkflowRequest {
 
 message FinishWorkflowResponse {}
 
+message AbortWorkflowRequest {
+  string workflowName = 1;
+  string executionId = 2;
+  string reason = 3;
+}
+
+message AbortWorkflowResponse {}
+
 // ==================== ExecuteGraph =====================
 
 message ExecuteGraphRequest {
-  string executionId = 1;
-  Graph graph = 2;
+  string workflowName = 1;
+  string executionId = 2;
+  Graph graph = 3;
 }
 
 message ExecuteGraphResponse {
@@ -126,4 +138,14 @@ message GetAvailablePoolsRequest {
 
 message GetAvailablePoolsResponse {
   repeated VmPoolSpec poolSpecs = 1;
+}
+
+
+// ==================== GetStorage =====================
+
+message GetStorageCredentialsRequest {
+}
+
+message GetStorageCredentialsResponse {
+  ai.lzy.v1.common.StorageConfig storage = 1;
 }

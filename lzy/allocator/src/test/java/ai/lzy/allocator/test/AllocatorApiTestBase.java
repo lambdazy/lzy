@@ -7,6 +7,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.AllocatorGrpc;
@@ -18,27 +19,37 @@ import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
 import io.fabric8.kubernetes.api.model.*;
-import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
+import io.fabric8.kubernetes.client.utils.Serialization;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import okhttp3.mockwebserver.MockWebServer;
 import org.junit.Assert;
 import org.junit.Rule;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
+import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
@@ -53,7 +64,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         .formatted(NAMESPACE_VALUE);
     protected static final ClusterRegistry.ClusterType CLUSTER_TYPE = ClusterRegistry.ClusterType.User;
 
-
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
@@ -66,17 +76,18 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceApiBlockingStub;
     protected DiskServiceGrpc.DiskServiceBlockingStub diskService;
     protected AllocatorMain allocatorApp;
-    protected KubernetesServer kubernetesServer;
+    protected KubernetesMockServer kubernetesServer;
     protected ManagedChannel channel;
     protected ClusterRegistry clusterRegistry;
+    protected OperationsExecutor operationsExecutor;
 
     protected void updateStartupProperties(Map<String, Object> props) {}
 
     protected void setUp() throws IOException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
 
-        kubernetesServer = new KubernetesServer();
-        kubernetesServer.before();
+        kubernetesServer = new KubernetesMockServer(new MockWebServer(), new ConcurrentHashMap<>(), false);
+        kubernetesServer.init(InetAddress.getLoopbackAddress(), 0);
         kubernetesServer.expect().post().withPath("/api/v1/pods")
             .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
 
@@ -102,13 +113,14 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         allocatorCtx = ApplicationContext.run(props);
         ((MockKuberClientFactory) allocatorCtx.getBean(KuberClientFactory.class)).setClientSupplier(
-            () -> kubernetesServer.getKubernetesMockServer().createClient()
+            () -> kubernetesServer.createClient()
         );
+
+        var config = allocatorCtx.getBean(ServiceConfig.class);
+        config.getIam().setAddress("localhost:" + super.getPort());
 
         allocatorApp = allocatorCtx.getBean(AllocatorMain.class);
         allocatorApp.start();
-
-        final var config = allocatorCtx.getBean(ServiceConfig.class);
 
         channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME, AllocatorPrivateGrpc.SERVICE_NAME,
             LongRunningServiceGrpc.SERVICE_NAME, DiskServiceGrpc.SERVICE_NAME);
@@ -125,6 +137,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             () -> credentials.get().token());
 
         clusterRegistry = allocatorCtx.getBean(ClusterRegistry.class);
+        operationsExecutor = allocatorCtx.getBean(OperationsExecutor.class,
+            Qualifiers.byName("AllocatorOperationsExecutor"));
     }
 
     protected void tearDown() {
@@ -145,7 +159,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         allocatorCtx.getBean(AllocatorDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
 
         allocatorCtx.stop();
-        kubernetesServer.after();
+        kubernetesServer.destroy();
         super.after();
     }
 
@@ -154,23 +168,39 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return Utils.extractSessionId(op);
     }
 
-    protected LongRunning.Operation createSessionOp(String owner, Duration idleTimeout, @Nullable String token) {
-        var stub = authorizedAllocatorBlockingStub;
+    protected LongRunning.Operation deleteSession(String sessionId, boolean wait) {
+        var op = withGrpcContext(() ->
+            authorizedAllocatorBlockingStub.deleteSession(
+                VmAllocatorApi.DeleteSessionRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .build()));
 
-        if (token != null) {
-            stub = withIdempotencyKey(stub, token);
+        if (wait) {
+            op = waitOperation(operationServiceApiBlockingStub, op, 5);
         }
 
-        var op = stub.createSession(
-            VmAllocatorApi.CreateSessionRequest.newBuilder()
-                .setOwner(owner)
-                .setCachePolicy(
-                    VmAllocatorApi.CachePolicy.newBuilder()
-                        .setIdleTimeout(idleTimeout)
-                        .build())
-                .build());
-        Assert.assertTrue(op.getDone());
         return op;
+    }
+
+    protected LongRunning.Operation createSessionOp(String owner, Duration idleTimeout, @Nullable String token) {
+        return withGrpcContext(() -> {
+            var stub = authorizedAllocatorBlockingStub;
+
+            if (token != null) {
+                stub = withIdempotencyKey(stub, token);
+            }
+
+            var op = stub.createSession(
+                VmAllocatorApi.CreateSessionRequest.newBuilder()
+                    .setOwner(owner)
+                    .setCachePolicy(
+                        VmAllocatorApi.CachePolicy.newBuilder()
+                            .setIdleTimeout(idleTimeout)
+                            .build())
+                    .build());
+            Assert.assertTrue(op.getDone());
+            return op;
+        });
     }
 
     protected LongRunning.Operation waitOpSuccess(LongRunning.Operation operation) {
@@ -185,7 +215,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
         Assert.assertFalse(updatedOperation.hasResponse());
         Assert.assertTrue(updatedOperation.hasError());
-        Assert.assertEquals(expectedErrorStatus.getCode().value(), updatedOperation.getError().getCode());
+        Assert.assertEquals(expectedErrorStatus.getCode(),
+            Status.fromCodeValue(updatedOperation.getError().getCode()).getCode());
     }
 
     protected void mockGetPod(String podName) {
@@ -210,17 +241,19 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected void registerVm(String vmId, String clusterId) {
         TimeUtils.waitFlagUp(() -> {
             try {
-                //noinspection ResultOfMethodCallIgnored
-                privateAllocatorBlockingStub.register(
-                    VmAllocatorPrivateApi.RegisterRequest.newBuilder()
-                        .setVmId(vmId)
-                        .putMetadata(NAMESPACE_KEY, NAMESPACE_VALUE)
-                        .putMetadata(CLUSTER_ID_KEY, clusterId)
-                        .build()
-                );
-                return true;
+                return withGrpcContext(() -> {
+                    privateAllocatorBlockingStub.register(
+                        VmAllocatorPrivateApi.RegisterRequest.newBuilder()
+                            .setVmId(vmId)
+                            .putMetadata(NAMESPACE_KEY, NAMESPACE_VALUE)
+                            .putMetadata(CLUSTER_ID_KEY, clusterId)
+                            .build()
+                    );
+                    return true;
+                });
             } catch (StatusRuntimeException e) {
                 if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
+                    System.err.println("Fail to register VM %s: %s".formatted(vmId, e.getStatus().toString()));
                     return false;
                 }
                 throw new RuntimeException(e);
@@ -228,4 +261,72 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         }, TIMEOUT_SEC, TimeUnit.SECONDS);
     }
 
+    protected <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath) {
+        final var future = new CompletableFuture<T>();
+        kubernetesServer.expect().post()
+            .withPath(resourcePath)
+            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+                final var resource = Serialization.unmarshal(
+                    new ByteArrayInputStream(req.getBody().readByteArray()), resourceType, Map.of());
+                future.complete(resource);
+                return resource;
+            })
+            .once();
+        return future;
+    }
+
+    protected Future<String> awaitAllocationRequest() {
+        final var future = new CompletableFuture<String>();
+        kubernetesServer.expect().post()
+            .withPath(POD_PATH)
+            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+                final var pod = Serialization.unmarshal(
+                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
+                future.complete(pod.getMetadata().getName());
+                return pod;
+            })
+            .once();
+        return future;
+    }
+
+    protected Future<String> awaitAllocationRequest(CountDownLatch latch) {
+        final var future = new CompletableFuture<String>();
+        kubernetesServer.expect().post()
+            .withPath(POD_PATH)
+            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+                try {
+                    latch.await();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                final var pod = Serialization.unmarshal(
+                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
+                future.complete(pod.getMetadata().getName());
+                return pod;
+            })
+            .once();
+        return future;
+    }
+
+    protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete,
+                                                   int responseCode)
+    {
+        kubernetesServer.expect().delete()
+            .withPath(resourcePath + "/" + resourceName)
+            .andReply(responseCode, (req) -> {
+                onDelete.run();
+                return new StatusDetails();
+            }).once();
+    }
+
+    protected void mockDeletePod(String podName, Runnable onDelete, int responseCode) {
+        mockDeleteResource(POD_PATH, podName, onDelete, responseCode);
+        kubernetesServer.expect().delete()
+            // "lzy.ai/vm-id"=<VM id>
+            .withPath(POD_PATH + "?labelSelector=lzy.ai%2Fvm-id%3D" + podName.substring(VM_POD_NAME_PREFIX.length()))
+            .andReply(responseCode, (req) -> {
+                onDelete.run();
+                return new StatusDetails();
+            }).once();
+    }
 }

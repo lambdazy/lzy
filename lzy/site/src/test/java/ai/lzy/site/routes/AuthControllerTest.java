@@ -36,6 +36,8 @@ public class AuthControllerTest extends BaseTestWithIam {
     public void before() throws IOException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
         context = server.getApplicationContext();
+        var config = context.getBean(ServiceConfig.class);
+        config.getIam().setAddress("localhost:" + super.getPort());
         auth = context.getBean(Auth.class);
         githubCredentials = context.getBean(ServiceConfig.GithubCredentials.class);
         server = context.getBean(EmbeddedServer.class);

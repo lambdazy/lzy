@@ -16,8 +16,8 @@ environment using
 its [YAML representation](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#create-env-file-manually):
 
 ```python
-env = LzyRemoteEnv()
-with env.workflow("train", conda_yaml_path='path/to/custom/conda.yml'):
+lzy = Lzy()
+with lzy.workflow("train", conda_yaml_path='path/to/custom/conda.yml'):
     ...
 ```
 
@@ -26,8 +26,19 @@ with env.workflow("train", conda_yaml_path='path/to/custom/conda.yml'):
 You also can manually define which local modules should be uploaded:
 
 ```python
-env = LzyRemoteEnv()
-with env.workflow("train", local_module_paths=['/path/to/local/module']):
+lzy = Lzy()
+with lzy.workflow("train", local_modules_path=['/path/to/local/module']):
+    ...
+```
+
+#### Python libraries
+
+It is possible to override versions of installed locally python libraries or add additional libraries.
+For example, if you want to run @op with catboost version "1.1.0", you can set it for a workflow:
+
+```python
+lzy = Lzy()
+with lzy.workflow("train", libraries={"catboost": "1.1.0"}):
     ...
 ```
 
@@ -36,15 +47,24 @@ with env.workflow("train", local_module_paths=['/path/to/local/module']):
 If an environment requires deep specification, it is possible to define docker image for a workflow:
 
 ```python
-env = LzyRemoteEnv()
-with env.workflow("train", docker_image='<tag>'):
+lzy = Lzy()
+with lzy.workflow("train", docker_image='<tag>'):
     ...
 ```
 
-or for a specific op:
+Please note that a docker image should contain conda or be built as follows:
+
+```dockerfile
+FROM lzydock/worker-base:master-1.1
+...
+```
+
+#### Op specification
+
+All previous settings can be applied to @op only:
 
 ```python
-@op(gpu=Gpu.any(), docker_image='<tag>')
+@op(docker_image='<tag>', local_modules_path=['/path/to/local/module'], libraries={"catboost": "1.1.0"})
 def train(data_set: Bunch) -> CatBoostClassifier:
     ...
 ```

@@ -1,7 +1,7 @@
 FROM findepi/graalvm:java17-all
 
 RUN apt-get update && apt-get install -y procps netcat net-tools curl tar wget iproute2 iputils-ping
-COPY target/tunnel-agent-1.0-SNAPSHOT.jar app/app.jar
+COPY target/tunnel-agent.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
 

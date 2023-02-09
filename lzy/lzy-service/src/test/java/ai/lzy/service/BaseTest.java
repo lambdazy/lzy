@@ -19,17 +19,12 @@ import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
-import ai.lzy.util.grpc.ChannelBuilder;
-import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
-import ai.lzy.util.grpc.GrpcLogsInterceptor;
-import ai.lzy.util.grpc.RequestIdInterceptor;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.netty.NettyServerBuilder;
 import io.jsonwebtoken.Claims;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
@@ -41,10 +36,8 @@ import org.junit.Before;
 import org.junit.Rule;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
@@ -74,8 +67,6 @@ public class BaseTest {
     protected ApplicationContext context;
     protected LzyServiceConfig config;
 
-    private Server whiteboardServer;
-
     private Server lzyServer;
 
     protected ManagedChannel lzyServiceChannel;
@@ -91,20 +82,25 @@ public class BaseTest {
     public void setUp() throws IOException, InterruptedException {
         var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
+        var iamAddress = "localhost:" + iamTestContext.getPort();
 
-        var storageDbConfig = preparePostgresConfig("storage", storageDb.getConnectionInfo());
-        storageTestContext.setUp(storageDbConfig);
+        var storageCfgOverrides = preparePostgresConfig("storage", storageDb.getConnectionInfo());
+        storageCfgOverrides.put("storage.iam.address", iamAddress);
+        storageTestContext.setUp(storageCfgOverrides);
 
-        var channelManagerDbConfig = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
-        channelManagerTestContext.setUp(channelManagerDbConfig);
+        var channelManagerCfgOverrides = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
+        channelManagerCfgOverrides.put("channel-manager.iam.address", iamAddress);
+        channelManagerTestContext.setUp(channelManagerCfgOverrides);
 
-        var graphExecDbConfig = preparePostgresConfig("graph-executor", graphExecutorDb.getConnectionInfo());
-        graphExecutorTestContext.setUp(graphExecDbConfig);
+        var graphExecCfgOverrides = preparePostgresConfig("graph-executor", graphExecutorDb.getConnectionInfo());
+        graphExecCfgOverrides.put("graph-executor.iam.address", iamAddress);
+        graphExecutorTestContext.setUp(graphExecCfgOverrides);
 
-        var allocatorConfigOverrides = preparePostgresConfig("allocator", allocatorDb.getConnectionInfo());
-        allocatorConfigOverrides.put("allocator.thread-allocator.enabled", true);
-        allocatorConfigOverrides.put("allocator.thread-allocator.vm-class-name", "ai.lzy.portal.App");
-        allocatorTestContext.setUp(allocatorConfigOverrides);
+        var allocatorCfgOverrides = preparePostgresConfig("allocator", allocatorDb.getConnectionInfo());
+        allocatorCfgOverrides.put("allocator.thread-allocator.enabled", true);
+        allocatorCfgOverrides.put("allocator.thread-allocator.vm-class-name", "ai.lzy.portal.App");
+        allocatorCfgOverrides.put("allocator.iam.address", iamAddress);
+        allocatorTestContext.setUp(allocatorCfgOverrides);
 
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
 
@@ -112,6 +108,7 @@ public class BaseTest {
 
         context = ApplicationContext.run(PropertySource.of(lzyConfigOverrides), "test-mock");
         config = context.getBean(LzyServiceConfig.class);
+        config.getIam().setAddress(iamAddress);
 
         config.setGraphExecutorAddress("localhost:" + graphExecutorTestContext.getPort());
         config.getStorage().setAddress("localhost:" + storageTestContext.getPort());
@@ -140,18 +137,6 @@ public class BaseTest {
             context.getBean(LzyServicePrivateApi.class), opService);
         lzyServer.start();
 
-        var whiteboardAddress = HostAndPort.fromString(config.getWhiteboardAddress());
-        whiteboardServer = NettyServerBuilder
-            .forAddress(new InetSocketAddress(whiteboardAddress.getHost(), whiteboardAddress.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .intercept(authInterceptor)
-            .intercept(GrpcLogsInterceptor.server())
-            .intercept(RequestIdInterceptor.server(true))
-            .intercept(GrpcHeadersServerInterceptor.create())
-            .build();
-        whiteboardServer.start();
-
         lzyServiceChannel = newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
         unauthorizedWorkflowClient = LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel);
 
@@ -166,16 +151,14 @@ public class BaseTest {
     @After
     public void tearDown() throws SQLException, InterruptedException, DaoException {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
-        iamTestContext.after();
-        allocatorTestContext.after();
-        graphExecutorTestContext.after();
-        storageTestContext.after();
-        channelManagerTestContext.after();
         lzyServiceChannel.shutdown();
         lzyServer.shutdown();
         lzyServer.awaitTermination();
-        whiteboardServer.shutdown();
-        whiteboardServer.awaitTermination();
+        graphExecutorTestContext.after();
+        channelManagerTestContext.after();
+        allocatorTestContext.after();
+        storageTestContext.after();
+        iamTestContext.after();
         context.stop();
     }
 

@@ -1,5 +1,5 @@
-protobuf==4.21.8
-grpcio-status==1.50.0
-grpcio-tools==1.50.0
-grpcio==1.50.0
-mypy-protobuf==3.4.0
+protobuf==3.19.4
+grpcio-status==1.43.0
+grpcio-tools==1.43.0
+grpcio==1.43.0
+mypy-protobuf==3.3.0

@@ -1,9 +1,11 @@
 import datetime
+import sys
 import uuid
 from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Sequence, AsyncIterable, Dict
 
 # noinspection PyPackageRequirements
 import grpc
+# noinspection PyPackageRequirements
 from google.protobuf.any_pb2 import Any
 from serialzy.serializers.primitive import PrimitiveSerializer
 
@@ -16,10 +18,12 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServic
 from lzy.logs.config import get_logger
 
 from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
-    FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse
+    FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse, \
+    AbortWorkflowRequest, AbortWorkflowResponse
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
-from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
+from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient
 from lzy.api.v1.runtime import ProgressStep
+from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
 from lzy.whiteboards.api import WhiteboardIndexClient
@@ -34,11 +38,17 @@ class RuntimeMock(Runtime):
     def __init__(self):
         self.calls: List[LzyCall] = []
 
+    def workflow_client(self) -> Optional["WorkflowServiceClient"]:
+        return None
+
     async def start(self, workflow: "LzyWorkflow") -> str:
         return str(uuid.uuid4())
 
     async def exec(self, calls: List[LzyCall], progress: Callable[[ProgressStep], None]) -> None:
         self.calls = calls
+
+    async def abort(self) -> None:
+        pass
 
     async def destroy(self) -> None:
         pass
@@ -106,6 +116,18 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             ),
         )
 
+    def AbortWorkflow(self, request: AbortWorkflowRequest, context) -> AbortWorkflowResponse:
+        _LOG.info(f"Aborting wf {request}")
+
+        if self.fail:
+            self.fail = False
+            context.abort(grpc.StatusCode.INTERNAL, "some_error")
+
+        assert request.workflowName == "some_name"
+        assert request.executionId == "exec_id"
+
+        return AbortWorkflowResponse()
+
     def FinishWorkflow(
         self, request: FinishWorkflowRequest, context: grpc.ServicerContext
     ) -> Operation:
@@ -157,6 +179,9 @@ class StorageRegistryMock(StorageRegistry):
         return Storage.azure_blob_storage("", "")
 
     def default_storage_name(self) -> Optional[str]:
+        return "storage_name"
+
+    def provided_storage_name(self) -> str:
         return "storage_name"
 
     def client(self, storage_name: str) -> Optional[AsyncStorageClient]:
@@ -240,3 +265,16 @@ class WhiteboardIndexServiceMock(LzyWhiteboardServiceServicer):
 
             whiteboards.append(whiteboard)
         return ListResponse(whiteboards=whiteboards)
+
+    def clear_all(self) -> None:
+        self.__whiteboards.clear()
+
+
+class EnvProviderMock(PyEnvProvider):
+    def __init__(self, libraries: Optional[Dict[str, str]] = None, local_modules_path: Optional[Sequence[str]] = None):
+        self.__libraries = libraries if libraries else {}
+        self.__local_modules_path = local_modules_path if local_modules_path else []
+
+    def provide(self, namespace: Dict[str, Any]) -> PyEnv:
+        info = sys.version_info
+        return PyEnv(f"{info.major}.{info.minor}.{info.micro}", self.__libraries, self.__local_modules_path)

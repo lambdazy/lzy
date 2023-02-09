@@ -2,7 +2,6 @@ package ai.lzy.service.data.dao;
 
 
 import ai.lzy.model.db.DbOperation;
-import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.storage.LzyServiceStorage;
@@ -15,7 +14,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
-import java.util.Objects;
 
 @Singleton
 public class WorkflowDaoImpl implements WorkflowDao {
@@ -32,15 +30,21 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     private static final String QUERY_UPDATE_ACTIVE_EXECUTION = """
         UPDATE workflows
-        SET active_execution_id = ?, modified_at = ?
+        SET active_execution_id = ?, modified_at = ? 
         WHERE user_id = ? AND active_execution_id = ?""";
+
+    private static final String SELECT_FOR_UPDATE_ACTIVE_EXECUTION_BY_WF_NAME = """
+        SELECT user_id, workflow_name, modified_at, active_execution_id 
+        FROM workflows
+        WHERE user_id = ? AND workflow_name = ? 
+        FOR UPDATE""";
 
     private static final String QUERY_GET_WORKFLOW_INFO = """
         SELECT workflow_name, user_id
         FROM workflows
         WHERE active_execution_id = ?""";
 
-    private final Storage storage;
+    private final LzyServiceStorage storage;
 
     public WorkflowDaoImpl(LzyServiceStorage storage) {
         this.storage = storage;
@@ -110,42 +114,44 @@ public class WorkflowDaoImpl implements WorkflowDao {
     public void setActiveExecutionToNull(String userId, String workflowName, String executionId,
                                          @Nullable TransactionHandle transaction) throws SQLException
     {
-        DbOperation.execute(transaction, storage, conn -> {
-            try (var statement = conn.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION + " AND workflow_name = ?")) {
-                statement.setString(1, null);
-                statement.setTimestamp(2, Timestamp.from(Instant.now()));
-                statement.setString(3, userId);
-                statement.setString(4, executionId);
-                statement.setString(5, workflowName);
-                if (statement.executeUpdate() < 1) {
-                    LOG.error("Active execution of user not found: { executionId: {}, userId: {} }",
-                        executionId, userId);
-                    throw new NotFoundException("Cannot find active execution '%s' of user '%s'".formatted(executionId,
-                        userId));
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var stmt = connection.prepareStatement(SELECT_FOR_UPDATE_ACTIVE_EXECUTION_BY_WF_NAME,
+                ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
+            {
+                stmt.setString(1, userId);
+                stmt.setString(2, workflowName);
+                ResultSet rs = stmt.executeQuery();
+
+                if (rs.next()) {
+                    var activeExecutionId = rs.getString("active_execution_id");
+
+                    if (executionId.equals(activeExecutionId)) {
+                        rs.updateString("active_execution_id", null);
+                        rs.updateTimestamp("modified_at", Timestamp.from(Instant.now()));
+                        rs.updateRow();
+                    } else {
+                        throw new IllegalStateException("Execution from arguments is not an active workflow execution");
+                    }
+                } else {
+                    throw new NotFoundException("User workflow not found");
                 }
             }
         });
     }
 
-    static void setActiveExecutionToNull(String userId, @Nullable String workflowName, String executionId,
-                                         LzyServiceStorage storage, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        var queryString = Objects.isNull(workflowName) ? QUERY_UPDATE_ACTIVE_EXECUTION
-            : QUERY_UPDATE_ACTIVE_EXECUTION + " AND workflow_name = ?";
+    @Override
+    public void setActiveExecutionToNull(String userId, String executionId, TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, con -> {
+            try (var stmt = con.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION)) {
+                stmt.setString(1, executionId);
+                stmt.setTimestamp(2, Timestamp.from(Instant.now()));
+                stmt.setString(3, userId);
+                stmt.setString(4, executionId);
 
-        DbOperation.execute(transaction, storage, con -> {
-            try (var statement = con.prepareStatement(queryString)) {
-                statement.setString(1, null);
-                statement.setTimestamp(2, Timestamp.from(Instant.now()));
-                statement.setString(3, userId);
-                statement.setString(4, executionId);
-                if (workflowName != null) {
-                    statement.setString(5, workflowName);
-                }
-                if (statement.executeUpdate() < 1) {
-                    LOG.warn("Active execution of user not found: { executionId: {}, userId: {} }",
+                if (stmt.executeUpdate() < 1) {
+                    LOG.error("Active execution of user not found: { executionId: {}, userId: {} }",
                         executionId, userId);
+                    throw new NotFoundException("User workflow not found");
                 }
             }
         });
