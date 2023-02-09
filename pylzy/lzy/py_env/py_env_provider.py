@@ -85,11 +85,18 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                 return
 
             # and find it among installed ones
+            all_from_pypi: bool = False
             if name in distributions:
-                package_name = distributions[name][0]
-                if package_name in dist_versions and self.__exists_in_pypi(package_name, dist_versions[package_name]):
-                    remote_packages[package_name] = dist_versions[package_name]
-                    return
+                all_from_pypi = len(distributions[name]) > 0
+                for package_name in distributions[name]:
+                    if package_name in dist_versions and self.__exists_in_pypi(package_name,
+                                                                               dist_versions[package_name]):
+                        remote_packages[package_name] = dist_versions[package_name]
+                    else:
+                        all_from_pypi = False
+
+            if all_from_pypi:
+                return
 
             # if module is not found in distributions, try to find it as local one
             if module in local_modules:
