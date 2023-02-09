@@ -108,8 +108,13 @@ class WritableWhiteboard:
 
             if field.default != dataclasses.MISSING:
                 entry = workflow.snapshot.create_entry(declaration_meta.name + "." + field.name, field.type)
-                workflow.snapshot.update_entry(entry.id, f"{whiteboard_uri}/{field.name}.default")
-                data_to_load.append(workflow.snapshot.put_data(entry.id, field.default))
+
+                async def coro():
+                    await workflow.snapshot.put_data(entry.id, field.default)
+                    await workflow.owner.storage_client.copy(entry.storage_uri,
+                                                             f"{whiteboard_uri}/{field.name}.default")
+
+                data_to_load.append(coro())
                 defaults[field.name] = lzy_proxy(entry.id, (field.type,), workflow, Just(field.default))
 
             fields.append(WhiteboardField(name=field.name, scheme=build_scheme(serializer.schema(field.type))))
@@ -158,13 +163,13 @@ class WritableWhiteboard:
             if entry.id in self.__workflow.filled_entry_ids:
                 LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(entry.storage_uri, storage_uri))
             else:
-                self.__workflow.snapshot.update_entry(entry.id, storage_uri)
+                self.__workflow.snapshot.must_be_copied(entry.id, storage_uri)
         else:
             typ = get_type(value)
             self.__validate_types(typ, key_type, key)
             entry = self.__workflow.snapshot.create_entry(self.__model.name + "." + key, key_type)
-            self.__workflow.snapshot.update_entry(entry.id, storage_uri)
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
+            LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(entry.storage_uri, storage_uri))
             self.__workflow.entry_index.add_entry_id(value, entry.id)
             self.__workflow.filled_entry_ids.add(entry.id)
 

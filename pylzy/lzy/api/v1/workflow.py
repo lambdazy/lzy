@@ -243,4 +243,7 @@ class LzyWorkflow:
                     self.__filled_entry_ids.add(eid)
 
         await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))
+
+        await self.snapshot.processed_copying(self.owner.storage_client.copy)
+
         self.__call_queue = []
