@@ -32,6 +32,14 @@ public interface VmDao {
 
     void release(String vmId, Instant deadline, @Nullable TransactionHandle tx) throws SQLException;
 
+    record CachedVms(
+        int atPoolAndSession,
+        int atSession,
+        int atOwner
+    ) {}
+
+    CachedVms countCachedVms(Vm.Spec vmSpec, String owner, @Nullable TransactionHandle tx) throws SQLException;
+
 
     void setAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle tx) throws SQLException;
 
@@ -58,6 +66,8 @@ public interface VmDao {
     List<Vm> listExpiredVms(int limit) throws SQLException;
 
     List<Vm> loadActiveVmsActions(String workerId, @Nullable TransactionHandle tx) throws SQLException;
+
+    List<Vm> loadRunningVms(String workerId, @Nullable TransactionHandle tx) throws SQLException;
 
     @VisibleForTesting
     boolean hasDeadVm(String vmId) throws SQLException;

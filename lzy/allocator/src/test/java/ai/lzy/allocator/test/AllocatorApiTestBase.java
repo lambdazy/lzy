@@ -6,6 +6,9 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -28,6 +31,7 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import jakarta.annotation.Nullable;
 import okhttp3.mockwebserver.MockWebServer;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -45,7 +49,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
@@ -53,10 +56,12 @@ import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+import static java.util.Objects.requireNonNull;
 
 public class AllocatorApiTestBase extends BaseTestWithIam {
 
     protected static final long TIMEOUT_SEC = 10;
+    protected static final String ZONE = "test-zone";
 
     protected static final String POD_PATH = "/api/v1/namespaces/%s/pods".formatted(NAMESPACE_VALUE);
     protected static final String PERSISTENT_VOLUME_PATH = "/api/v1/persistentvolumes";
@@ -164,7 +169,11 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected String createSession(Duration idleTimeout) {
-        var op = createSessionOp(UUID.randomUUID().toString(), idleTimeout, null);
+        return createSession(UUID.randomUUID().toString(), idleTimeout);
+    }
+
+    protected String createSession(String owner, Duration idleTimeout) {
+        var op = createSessionOp(owner, idleTimeout, null);
         return Utils.extractSessionId(op);
     }
 
@@ -328,5 +337,64 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
                 onDelete.run();
                 return new StatusDetails();
             }).once();
+    }
+
+    protected record AllocatedVm(
+        String vmId,
+        String podName,
+        Subject iamSubj
+    ) {}
+
+    protected AllocatedVm allocateVm(String sessionId, @Nullable String idempotencyKey) throws Exception {
+        return allocateVm(sessionId, "S", idempotencyKey);
+    }
+
+    protected AllocatedVm allocateVm(String sessionId, String pool, @Nullable String idempotencyKey) throws Exception {
+        final var future = awaitAllocationRequest();
+
+        var allocOp = withGrpcContext(() -> {
+            var stub = authorizedAllocatorBlockingStub;
+            if (idempotencyKey != null) {
+                stub = withIdempotencyKey(stub, idempotencyKey);
+            }
+
+            return stub.allocate(
+                VmAllocatorApi.AllocateRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .setPoolLabel(pool)
+                    .setZone(ZONE)
+                    .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)
+                    .addWorkload(VmAllocatorApi.AllocateRequest.Workload.getDefaultInstance())
+                    .build());
+        });
+
+        if (allocOp.getDone()) {
+            var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+            var vmSubj = super.getSubject(AuthProvider.INTERNAL, vmId, SubjectType.VM);
+            Assert.assertNotNull(vmSubj);
+            return new AllocatedVm(vmId, "unknown", vmSubj);
+        }
+
+        var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+
+        final String podName = future.get();
+        mockGetPod(podName);
+
+        String clusterId = withGrpcContext(() ->
+            requireNonNull(clusterRegistry.findCluster(pool, ZONE, CLUSTER_TYPE)).clusterId());
+        registerVm(vmId, clusterId);
+
+        allocOp = waitOpSuccess(allocOp);
+        Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
+
+        var vmSubj = super.getSubject(AuthProvider.INTERNAL, vmId, SubjectType.VM);
+        Assert.assertNotNull(vmSubj);
+
+        return new AllocatedVm(vmId, podName, vmSubj);
+    }
+
+    protected void freeVm(String vmId) {
+        withGrpcContext(() ->
+            authorizedAllocatorBlockingStub.free(VmAllocatorApi.FreeRequest.newBuilder().setVmId(vmId).build()));
     }
 }

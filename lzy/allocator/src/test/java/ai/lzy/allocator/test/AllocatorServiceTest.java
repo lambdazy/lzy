@@ -3,7 +3,6 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -24,7 +23,6 @@ import io.fabric8.kubernetes.api.model.PodListBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import jakarta.annotation.Nullable;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -57,8 +55,6 @@ import static java.util.Objects.requireNonNull;
 public class AllocatorServiceTest extends AllocatorApiTestBase {
 
     private static final int TIMEOUT_SEC = 300;
-
-    private static final String ZONE = "test-zone";
 
 
     @Before
@@ -212,61 +208,11 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         }
     }
 
-    private record AllocatedVm(
-        String vmId,
-        String podName,
-        Subject iamSubj
-    ) {}
-
-    private AllocatedVm allocateVm(String sessionId, @Nullable String idempotencyKey) throws Exception {
-        final var future = awaitAllocationRequest();
-
-        var allocOp = withGrpcContext(() -> {
-            var stub = authorizedAllocatorBlockingStub;
-            if (idempotencyKey != null) {
-                stub = withIdempotencyKey(stub, idempotencyKey);
-            }
-
-            return stub.allocate(
-                AllocateRequest.newBuilder()
-                    .setSessionId(sessionId)
-                    .setPoolLabel("S")
-                    .setZone(ZONE)
-                    .setClusterType(AllocateRequest.ClusterType.USER)
-                    .addWorkload(AllocateRequest.Workload.getDefaultInstance())
-                    .build());
-        });
-
-        if (allocOp.getDone()) {
-            var vmId = allocOp.getMetadata().unpack(AllocateMetadata.class).getVmId();
-            var vmSubj = super.getSubject(AuthProvider.INTERNAL, vmId, SubjectType.VM);
-            Assert.assertNotNull(vmSubj);
-            return new AllocatedVm(vmId, "unknown", vmSubj);
-        }
-
-        var vmId = allocOp.getMetadata().unpack(AllocateMetadata.class).getVmId();
-
-        final String podName = future.get();
-        mockGetPod(podName);
-
-        String clusterId = withGrpcContext(() ->
-            requireNonNull(clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId());
-        registerVm(vmId, clusterId);
-
-        allocOp = waitOpSuccess(allocOp);
-        Assert.assertEquals(vmId, allocOp.getResponse().unpack(AllocateResponse.class).getVmId());
-
-        var vmSubj = super.getSubject(AuthProvider.INTERNAL, vmId, SubjectType.VM);
-        Assert.assertNotNull(vmSubj);
-
-        return new AllocatedVm(vmId, podName, vmSubj);
-    }
-
     private AllocatedVm allocateAndFreeVm(String sessionId, Consumer<AllocatedVm> beforeFree) throws Exception {
         var vm = allocateVm(sessionId, null);
         beforeFree.accept(vm);
 
-        withGrpcContext(() -> authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(vm.vmId).build()));
+        freeVm(vm.vmId());
         return vm;
     }
 
@@ -276,11 +222,11 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         var vm1 = allocateAndFreeVm(sessionId,
-            vm -> mockDeletePod(vm.podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
+            vm -> mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
 
-        var vmSubj = super.getSubject(AuthProvider.INTERNAL, vm1.vmId, SubjectType.VM);
+        var vmSubj = super.getSubject(AuthProvider.INTERNAL, vm1.vmId(), SubjectType.VM);
         Assert.assertNull(vmSubj);
     }
 
@@ -301,10 +247,10 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         Assert.assertTrue(allocOp.getDone());
 
         var vmId = allocOp.getMetadata().unpack(AllocateMetadata.class).getVmId();
-        Assert.assertEquals(vm1.vmId, vmId);
+        Assert.assertEquals(vm1.vmId(), vmId);
 
         vmId = allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId();
-        Assert.assertEquals(vm1.vmId, vmId);
+        Assert.assertEquals(vm1.vmId(), vmId);
     }
 
     @Test
@@ -370,15 +316,15 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(2);
 
         var vm1 = allocateAndFreeVm(sessionId, vm ->
-            mockDeletePod(vm.podName, () -> {
+            mockDeletePod(vm.podName(), () -> {
                 kuberRemoveRequestLatch.countDown();
-                mockDeletePod(vm.podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+                mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
             },
             HttpURLConnection.HTTP_INTERNAL_ERROR /* fail the first remove request */));
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
 
-        var vmSubj = super.getSubject(AuthProvider.INTERNAL, vm1.vmId, SubjectType.VM);
+        var vmSubj = super.getSubject(AuthProvider.INTERNAL, vm1.vmId(), SubjectType.VM);
         Assert.assertNull(vmSubj);
     }
 
@@ -389,7 +335,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
 
         var cachedVm = allocateAndFreeVm(sessionId,
-            vm -> mockDeletePod(vm.podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
+            vm -> mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
 
         var operationSecond = authorizedAllocatorBlockingStub.allocate(
             AllocateRequest.newBuilder()
@@ -403,22 +349,22 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         operationSecond = waitOpSuccess(operationSecond);
 
         final var allocateResponseSecond = operationSecond.getResponse().unpack(AllocateResponse.class);
-        Assert.assertEquals(cachedVm.vmId, allocateResponseSecond.getVmId());
+        Assert.assertEquals(cachedVm.vmId(), allocateResponseSecond.getVmId());
 
         var vmSubj2 = super.getSubject(AuthProvider.INTERNAL, allocateMetadataSecond.getVmId(), SubjectType.VM);
         Assert.assertNotNull(vmSubj2);
 
-        Assert.assertEquals(cachedVm.vmId, allocateMetadataSecond.getVmId());
-        Assert.assertEquals(cachedVm.iamSubj, vmSubj2);
+        Assert.assertEquals(cachedVm.vmId(), allocateMetadataSecond.getVmId());
+        Assert.assertEquals(cachedVm.iamSubj(), vmSubj2);
 
         //noinspection ResultOfMethodCallIgnored
         authorizedAllocatorBlockingStub.free(
             FreeRequest.newBuilder().setVmId(allocateMetadataSecond.getVmId()).build());
 
-        Assert.assertEquals(cachedVm.vmId, allocateMetadataSecond.getVmId());
+        Assert.assertEquals(cachedVm.vmId(), allocateMetadataSecond.getVmId());
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
 
-        var vmSubj = super.getSubject(AuthProvider.INTERNAL, cachedVm.vmId, SubjectType.VM);
+        var vmSubj = super.getSubject(AuthProvider.INTERNAL, cachedVm.vmId(), SubjectType.VM);
         Assert.assertNull(vmSubj);
     }
 
@@ -429,7 +375,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
 
         var cachedVm = allocateAndFreeVm(sessionId,
-            vm -> mockDeletePod(vm.podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
+            vm -> mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
 
         final int N = 10;
         final var readyLatch = new CountDownLatch(N);
@@ -469,7 +415,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         executor.shutdown();
         Assert.assertFalse(failed.get());
 
-        var n = Arrays.stream(allocatedVmIds).filter(cachedVm.vmId::equals).count();
+        var n = Arrays.stream(allocatedVmIds).filter(cachedVm.vmId()::equals).count();
         Assert.assertEquals(1, n);
     }
 
@@ -626,11 +572,11 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
 
         var vm1 = allocateAndFreeVm(sessionId,
-            vm -> mockDeletePod(vm.podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
+            vm -> mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
 
         try {
             //noinspection ResultOfMethodCallIgnored
-            authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(vm1.vmId).build());
+            authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(vm1.vmId()).build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(),

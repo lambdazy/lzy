@@ -12,6 +12,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import javax.inject.Singleton;
 
+import static ai.lzy.allocator.vmpool.CpuTypes.CASCADE_LAKE;
+import static ai.lzy.allocator.vmpool.GpuTypes.NO_GPU;
+
 @Singleton
 @Primary
 @Requires(property = "allocator.mock-mk8s.enabled", value = "true")
@@ -27,9 +30,12 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
             HostAndPort.fromString("localhost:1256"),
             "", ClusterType.User)
     ));
-    private final Map<String, VmPoolSpec> vmPools = Map.of("s", new VmPoolSpec(
-        "s", CpuTypes.CASCADE_LAKE.value(), 2, GpuTypes.NO_GPU.value(), 0, 4, Set.of("ru-central1-a")
-    ));
+
+    private final Map<String, VmPoolSpec> vmPools = Map.of(
+        "s", new VmPoolSpec("s", CASCADE_LAKE.value(), 2, NO_GPU.value(), 0, 4, Set.of("ru-central1-a")),
+        "m", new VmPoolSpec("m", CASCADE_LAKE.value(), 4, NO_GPU.value(), 0, 4, Set.of("ru-central1-a"))
+    );
+
     private final Map<String, ClusterDescription> idsToClusters;
 
     public MockMk8s() {
