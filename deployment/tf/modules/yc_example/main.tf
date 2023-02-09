@@ -39,11 +39,6 @@ module "yc" {
   folder_id                 = local.folder_id
   network_id                = local.network_id
   yc-endpoint               = "api.cloud.yandex.net:443"
-  user-clusters             = []
-  max-servants-per-workflow = "2"
-  worker-limits-by-labels = {
-    "s" = 2
-  }
 
   oauth-github-client-id     = var.oauth_github_client_id
   oauth-github-client-secret = var.oauth_github_client_secret
@@ -61,4 +56,34 @@ module "yc" {
   backoffice-backend-image  = "lzydock/site:${var.docker_backend_image_tag}"
   backoffice-frontend-image = "lzydock/site-frontend:${var.docker_frontend_image_tag}"
   unified-agent-image       = "lzydock/unified_agent:${var.docker_unified_agent_image_tag}"
+
+  workers_nodegroups_definition = {
+    "s" = {
+      kind        = "CPU"
+      platform_id = "standard-v2"
+      resource_spec = {
+        cores  = 4
+        memory = 32
+      }
+      scale_policy = {
+        fixed        = false
+        initial_size = 1
+        min_size = 0
+        max_size = 2
+      }
+    }
+    "l" = {
+      kind        = "GPU"
+      platform_id = "gpu-standard-v2"
+      resource_spec = {
+        memory = 48
+        cores  = 8
+        gpus   = 1
+      }
+      scale_policy = {
+        fixed        = true
+        initial_size = 1
+      }
+    }
+  }
 }
