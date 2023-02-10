@@ -1,6 +1,6 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.model.graph.PythonEnv;
+import ai.lzy.v1.common.LME;
 import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
 import net.lingala.zip4j.ZipFile;
@@ -27,7 +27,7 @@ public class CondaEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private static final Lock lockForMultithreadingTests = new ReentrantLock();
 
-    private final PythonEnv pythonEnv;
+    private final LME.PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
     private final String envName;
     private final String resourcesPath;
@@ -41,7 +41,7 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     public CondaEnvironment(
-        PythonEnv pythonEnv,
+        LME.PythonEnv pythonEnv,
         BaseEnvironment baseEnv,
         String resourcesPath,
         String localModulesPath
@@ -53,7 +53,7 @@ public class CondaEnvironment implements AuxEnvironment {
         this.baseEnv = baseEnv;
 
         var yaml = new Yaml();
-        Map<String, Object> data = yaml.load(pythonEnv.yaml());
+        Map<String, Object> data = yaml.load(pythonEnv.getYaml());
 
         envName = (String) data.getOrDefault("name", "default");
     }
@@ -76,7 +76,7 @@ public class CondaEnvironment implements AuxEnvironment {
         try {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
             if (RECONFIGURE_CONDA) {
-                if (condaPackageRegistry.isInstalled(pythonEnv.yaml())) {
+                if (condaPackageRegistry.isInstalled(pythonEnv.getYaml())) {
 
                     LOG.info("Conda env {} already configured, skipping", envName);
 
@@ -89,7 +89,7 @@ public class CondaEnvironment implements AuxEnvironment {
                     final File condaFile = Files.createFile(Path.of(condaPath.toString(), "conda.yaml")).toFile();
 
                     try (FileWriter file = new FileWriter(condaFile.getAbsolutePath())) {
-                        file.write(pythonEnv.yaml());
+                        file.write(pythonEnv.getYaml());
                     }
 
                     // Conda env create or update: https://github.com/conda/conda/issues/7819
@@ -117,7 +117,7 @@ public class CondaEnvironment implements AuxEnvironment {
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
 
-                    condaPackageRegistry.notifyInstalled(pythonEnv.yaml());
+                    condaPackageRegistry.notifyInstalled(pythonEnv.getYaml());
                     //noinspection ResultOfMethodCallIgnored
                     condaFile.delete();
                 }
@@ -135,9 +135,9 @@ public class CondaEnvironment implements AuxEnvironment {
             this.localModulesAbsolutePath = localModulesPath.toAbsolutePath();
 
             LOG.info("CondaEnvironment::installPyenv created directory to download local modules into");
-            for (var entry : pythonEnv.localModules()) {
-                String name = entry.name();
-                String url = entry.uri();
+            for (var entry : pythonEnv.getLocalModulesList()) {
+                String name = entry.getName();
+                String url = entry.getUri();
                 LOG.info(
                     "CondaEnvironment::installPyenv installing local module with name " + name + " and url " + url);
 

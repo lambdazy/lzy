@@ -1,10 +1,10 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.model.graph.Env;
-import ai.lzy.model.graph.PythonEnv;
+import ai.lzy.v1.common.LME;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 
 import java.util.HashMap;
 import java.util.function.Supplier;
@@ -26,7 +26,7 @@ public class EnvironmentFactory {
         this.isDockerSupported = true;
     }
 
-    public Environment create(String fsRoot, Env env) {
+    public Environment create(String fsRoot, LME.EnvSpec env) {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
@@ -37,11 +37,11 @@ public class EnvironmentFactory {
         final String localModulesPathStr = "/tmp/local_modules/";
 
         BaseEnvironment baseEnv = null;
-        if (isDockerSupported && env.baseEnv() != null) {
+        if (isDockerSupported && env.hasBaseEnv()) {
             LOG.info("Docker baseEnv provided, using DockerEnvironment");
 
-            String image = env.baseEnv().name();
-            if (image == null || image.equals("default")) {
+            String image = env.getBaseEnv().getName();
+            if (Strings.isBlank(image) || image.equals("default")) {
                 image = defaultImage;
             }
             BaseEnvConfig config = BaseEnvConfig.newBuilder()
@@ -63,18 +63,18 @@ public class EnvironmentFactory {
                 createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
             }
         } else {
-            if (env.baseEnv() == null) {
+            if (!env.hasBaseEnv()) {
                 LOG.info("No baseEnv provided, using ProcessEnvironment");
             } else if (!isDockerSupported) {
                 LOG.info("Docker support disabled, using ProcessEnvironment, "
-                         + "baseEnv {} ignored", env.baseEnv().name());
+                         + "baseEnv {} ignored", env.getBaseEnv().getName());
             }
             baseEnv = localProcessEnv;
         }
 
-        if (env.auxEnv() instanceof PythonEnv) {
+        if (env.hasAuxEnv() && env.getAuxEnv().hasPyenv()) {
             LOG.info("Conda auxEnv provided, using CondaEnvironment");
-            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, resourcesPathStr, localModulesPathStr);
+            return new CondaEnvironment(env.getAuxEnv().getPyenv(), baseEnv, resourcesPathStr, localModulesPathStr);
         } else {
             LOG.info("No auxEnv provided, using SimpleBashEnvironment");
             return new SimpleBashEnvironment(baseEnv);

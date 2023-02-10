@@ -13,7 +13,6 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
 import ai.lzy.model.TaskDesc;
-import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.operation.Operation.StdSlotDesc;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.TextLinesOutSlot;
@@ -289,8 +288,7 @@ public class Worker {
 
                 LOG.info("Configuring worker");
 
-                final Environment env = envFactory.create(lzyFsRoot, ProtoConverter.fromProto(
-                    request.getTaskDesc().getOperation().getEnv()));
+                final Environment env = envFactory.create(lzyFsRoot, request.getTaskDesc().getOperation().getEnv());
 
                 try {
                     env.install(outQueue, errQueue);

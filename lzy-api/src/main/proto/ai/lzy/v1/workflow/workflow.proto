@@ -25,6 +25,8 @@ message Operation {
 
   string poolSpecName = 8;  // Label to execute operation in
 
+  /* optional */ map<string, string> envVariables = 9;  // Environment variables to run operation with
+
   message SlotDescription {
     string path = 1;
     string storageUri = 2;

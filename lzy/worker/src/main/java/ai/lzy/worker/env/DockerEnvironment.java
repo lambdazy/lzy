@@ -3,7 +3,6 @@ package ai.lzy.worker.env;
 import ai.lzy.worker.StreamQueue;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
-import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
@@ -64,14 +63,14 @@ public class DockerEnvironment extends BaseEnvironment {
             ));
         }
 
-        final CreateContainerCmd createContainerCmd = DOCKER.createContainerCmd(sourceImage)
+        final var container = DOCKER.createContainerCmd(sourceImage)
             .withHostConfig(hostConfig)
             .withAttachStdout(true)
-            .withAttachStderr(true);
-
-        final var container = createContainerCmd
+            .withAttachStderr(true)
             .withTty(true)
+            .withEnv(config.envs())
             .exec();
+
         final String containerId = container.getId();
         LOG.info("Creating container from image={} done, id={}", sourceImage, containerId);
 
@@ -212,7 +211,7 @@ public class DockerEnvironment extends BaseEnvironment {
 
             @Override
             public void signal(int sigValue) {
-                DOCKER.killContainerCmd(containerId) // TODO(d-kruchinin): execId?
+                DOCKER.killContainerCmd(containerId)
                     .withSignal(String.valueOf(sigValue))
                     .exec();
             }
