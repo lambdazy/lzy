@@ -1,6 +1,5 @@
 package ai.lzy.worker;
 
-import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;

@@ -309,7 +309,7 @@ public class Worker {
                             .build();
                 }
 
-                LOG.info("Executing task");
+                LOG.info("Executing task {}", tid);
 
                 try {
                     var exec = new Execution(tid, task.operation().command(), "", lzyFs.getMountPoint().toString());
@@ -396,9 +396,9 @@ public class Worker {
                         var readers = channel.getReceivers().getWorkerSlotsCount() +
                             (channel.getReceivers().hasPortalSlot() ? 1 : 0);
 
-                        if (slot.getCompletedReads() >= readers) {
-                            LOG.info("Channel {} already read by all consumers ({})",
-                                channel.getChannelId(), readers);
+                        if (readers != 0 && slot.getCompletedReads() >= readers) {
+                            LOG.info("Channel {} already read ({}) by all consumers ({})",
+                                channel.getChannelId(), slot.getCompletedReads(), readers);
                             outputChannelsIds.remove(channel.getChannelId());
                         } else {
                             LOG.info(
@@ -414,22 +414,24 @@ public class Worker {
             }
         }
 
-        private StreamQueue generateStreamQueue(String tid, StdSlotDesc stdoutSpec, String name) {
+        private StreamQueue generateStreamQueue(String tid, @Nullable StdSlotDesc stdoutSpec, String name) {
             final OutputStream stdout;
             if (stdoutSpec != null) {
                 stdout = new PipedOutputStream();
+
                 final PipedInputStream i;
                 try {
                     i = new PipedInputStream((PipedOutputStream) stdout);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(tid,
-                    new TextLinesOutSlot(stdoutSpec.slotName()), stdoutSpec.channelId());
-                slot.setStream(new LineNumberReader(new InputStreamReader(
-                    i,
-                    StandardCharsets.UTF_8
-                )));
+
+                final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(
+                    tid,
+                    new TextLinesOutSlot(stdoutSpec.slotName()),
+                    stdoutSpec.channelId());
+
+                slot.setStream(new LineNumberReader(new InputStreamReader(i, StandardCharsets.UTF_8)));
             } else {
                 stdout = OutputStream.nullOutputStream();
             }

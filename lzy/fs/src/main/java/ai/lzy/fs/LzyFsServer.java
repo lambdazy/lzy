@@ -135,6 +135,7 @@ public class LzyFsServer {
                 slotsService.shutdown();
                 channelManagerChannel.shutdown();
                 localServer.shutdown();
+                iamChannel.shutdown();
             } finally {
                 try {
                     fsManager.umount();
