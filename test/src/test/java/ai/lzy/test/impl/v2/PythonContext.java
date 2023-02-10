@@ -4,9 +4,10 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.auth.credentials.RsaUtils;
+import ai.lzy.util.grpc.GrpcUtils;
+import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 import org.apache.commons.io.FileUtils;
@@ -27,9 +28,10 @@ public class PythonContext extends PythonContextBase {
         super(workflow.address().toString(), whiteboard.publicAddress().toString(),
             "test", file.toAbsolutePath().toString());
 
-        var client = new SubjectServiceGrpcClient(
+        var iamChannel = GrpcUtils.newGrpcChannel(iam.address(), LzySubjectServiceGrpc.SERVICE_NAME);
+        var subjectClient = new SubjectServiceGrpcClient(
             "subject-service",
-            new GrpcConfig(iam.address().getHost(), iam.address().getPort()),
+            iamChannel,
             () -> cfg.getIam().createRenewableToken().get()
         );
 
@@ -43,8 +45,10 @@ public class PythonContext extends PythonContextBase {
         FileUtils.write(file.toFile(), keys.privateKey(), StandardCharsets.UTF_8);
 
 
-        client.createSubject(
+        subjectClient.createSubject(
             AuthProvider.GITHUB, "test", SubjectType.USER, SubjectCredentials.publicKey("test", keys.publicKey()));
+
+        iamChannel.shutdownNow();
     }
 
     @PreDestroy

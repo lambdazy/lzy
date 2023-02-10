@@ -22,7 +22,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class CondaEnvironment implements AuxEnvironment {
-    private static boolean RECONFIGURE_CONDA = true;  // Only for tests
+    private static volatile boolean RECONFIGURE_CONDA = true;  // Only for tests
 
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private static final Lock lockForMultithreadingTests = new ReentrantLock();
