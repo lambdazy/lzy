@@ -13,6 +13,7 @@ public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
 
     private static final HashMap<BaseEnvConfig, String> createdContainers = new HashMap<>();
+    private final ProcessEnvironment localProcessEnv = new ProcessEnvironment();
     private static Supplier<Environment> envForTests = null;
 
     private final String defaultImage;
@@ -69,7 +70,7 @@ public class EnvironmentFactory {
                 LOG.info("Docker support disabled, using ProcessEnvironment, "
                          + "baseEnv {} ignored", env.baseEnv().name());
             }
-            baseEnv = new ProcessEnvironment();
+            baseEnv = localProcessEnv;
         }
 
         if (env.auxEnv() instanceof PythonEnv) {
