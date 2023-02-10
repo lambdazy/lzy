@@ -1,10 +1,10 @@
 resource "yandex_iam_service_account" "admin-sa" {
-  name        = "k8s-lzy-admin-sa"
+  name        = "${var.installation_name}-k8s-lzy-admin-sa"
   description = "service account to manage Lzy K8s"
 }
 
 resource "yandex_iam_service_account" "node-sa" {
-  name        = "k8s-lzy-node-sa"
+  name        = "${var.installation_name}-k8s-lzy-node-sa"
   description = "service account for kuber nodes"
 }
 
@@ -59,7 +59,7 @@ resource "yandex_resourcemanager_folder_iam_binding" "s3-admin" {
 }
 
 resource "yandex_iam_service_account" "allocator-sa" {
-  name        = "k8s-sa"
+  name        = "${var.installation_name}-k8s-sa"
   description = "service account to manage Lzy K8s"
 }
 

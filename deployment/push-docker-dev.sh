@@ -15,13 +15,18 @@ IMAGES=""
 function build_image {
     IMAGE_NAME=$1
     IMAGE_PATH=$2
+    ADDITIONAL_ARGS=$3
+
     FULL_IMAGE_NAME="$REGISTRY_PREFIX/$IMAGE_NAME:$BRANCH-$TAG"
     echo "Building $FULL_IMAGE_NAME from $IMAGE_PATH"
-    docker build -t "$FULL_IMAGE_NAME" "$IMAGE_PATH"
+    docker build -t "$FULL_IMAGE_NAME" $ADDITIONAL_ARGS "$IMAGE_PATH"
     IMAGES="$IMAGES $FULL_IMAGE_NAME"
 }
 
-build_image site-frontend frontend
+build_image site-frontend frontend '--build-arg conf=nginx.conf'
+touch lzy/site/fake-keystore.jks
+build_image site lzy/site '--build-arg keystore=fake-keystore.jks'
+
 build_image allocator lzy/allocator
 build_image channel-manager lzy/channel-manager
 build_image graph-executor lzy/graph-executor
@@ -29,7 +34,6 @@ build_image iam lzy/iam
 build_image lzy-service lzy/lzy-service
 build_image portal lzy/portal
 build_image scheduler lzy/scheduler
-build_image site-backend lzy/site
 build_image storage lzy/storage
 build_image whiteboard lzy/whiteboard
 
