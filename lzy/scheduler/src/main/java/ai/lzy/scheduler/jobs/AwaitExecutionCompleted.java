@@ -99,6 +99,10 @@ public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
             return null;
         }
 
+        if (op.hasError()) {
+            System.err.println("--> " + op.getError());
+        }
+
         final LWS.ExecuteResponse resp;
 
         try {

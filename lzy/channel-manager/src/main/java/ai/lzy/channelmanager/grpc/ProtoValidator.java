@@ -140,8 +140,25 @@ public class ProtoValidator {
         }
     }
 
-    public record ValidationVerdict(boolean isOk, String description) {
+    public static ValidationVerdict validate(LCMS.GetChannelsStatusRequest request) {
+        if (request.getExecutionId().isBlank()) {
+            return ValidationVerdict.fail("executionId not set");
+        }
+        if (request.getChannelIdsCount() == 0) {
+            return ValidationVerdict.fail("channelIds not set");
+        }
+        for (int i = 0; i < request.getChannelIdsCount(); ++i) {
+            if (request.getChannelIds(i).isBlank()) {
+                return ValidationVerdict.fail("channelIds[%s] not set".formatted(i));
+            }
+        }
+        return ValidationVerdict.ok();
+    }
 
+    public record ValidationVerdict(
+        boolean isOk,
+        String description)
+    {
         public static ValidationVerdict ok() {
             return new ValidationVerdict(true, "ok");
         }
@@ -149,7 +166,5 @@ public class ProtoValidator {
         public static ValidationVerdict fail(String errorMessage) {
             return new ValidationVerdict(false, errorMessage);
         }
-
     }
-
 }

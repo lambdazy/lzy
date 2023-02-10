@@ -3,7 +3,9 @@ package ai.lzy.test.impl.v2;
 import ai.lzy.channelmanager.ChannelManagerApp;
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.test.impl.Utils;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
@@ -28,7 +30,12 @@ public class ChannelManagerContext {
     private final ChannelManagerApp channelManager;
 
     private final ManagedChannel channel;
+    private final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub client;
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub privateClient;
+
+    private final ManagedChannel operationsChannel;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operationsClient;
+
 
     @Inject
     public ChannelManagerContext(IamContext iam) {
@@ -56,9 +63,16 @@ public class ChannelManagerContext {
         }
 
         final var internalUserCredentials = config.getIam().createRenewableToken();
-        channel = newGrpcChannel(address, LzyChannelManagerPrivateGrpc.SERVICE_NAME);
+        channel = newGrpcChannel(
+            address, LzyChannelManagerGrpc.SERVICE_NAME, LzyChannelManagerPrivateGrpc.SERVICE_NAME);
+
+        client = LzyChannelManagerGrpc.newBlockingStub(channel);
+
         privateClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channel),
             "PrivateTest", () -> internalUserCredentials.get().token());
+
+        this.operationsChannel = newGrpcChannel(address, LongRunningServiceGrpc.SERVICE_NAME);
+        this.operationsClient = LongRunningServiceGrpc.newBlockingStub(operationsChannel);
     }
 
     @PreDestroy
@@ -67,6 +81,8 @@ public class ChannelManagerContext {
         channel.awaitTermination(10, TimeUnit.SECONDS);
         channelManager.stop();
         channelManager.awaitTermination();
+
+        operationsChannel.shutdownNow();
         context.stop();
     }
 
@@ -76,5 +92,13 @@ public class ChannelManagerContext {
 
     public LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub privateClient() {
         return privateClient;
+    }
+
+    public LzyChannelManagerGrpc.LzyChannelManagerBlockingStub client() {
+        return client;
+    }
+
+    public LongRunningServiceGrpc.LongRunningServiceBlockingStub operationsClient() {
+        return operationsClient;
     }
 }

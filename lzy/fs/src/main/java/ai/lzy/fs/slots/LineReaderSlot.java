@@ -1,6 +1,6 @@
 package ai.lzy.fs.slots;
 
-import ai.lzy.fs.fs.LzyOutputSlot;
+import ai.lzy.fs.fs.LzyOutputSlotBase;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
@@ -20,7 +20,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-public class LineReaderSlot extends LzySlotBase implements LzyOutputSlot {
+public class LineReaderSlot extends LzyOutputSlotBase {
     private static final Logger LOG = LogManager.getLogger(LineReaderSlot.class);
 
     private final CompletableFuture<LineNumberReader> reader = new CompletableFuture<>();

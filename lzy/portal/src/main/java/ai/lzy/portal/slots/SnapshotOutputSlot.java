@@ -1,7 +1,6 @@
 package ai.lzy.portal.slots;
 
-import ai.lzy.fs.fs.LzyOutputSlot;
-import ai.lzy.fs.slots.LzySlotBase;
+import ai.lzy.fs.fs.LzyOutputSlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.storage.Repository;
@@ -9,7 +8,6 @@ import ai.lzy.v1.slots.LSA;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedOutputStream;
@@ -24,9 +22,7 @@ import java.util.stream.Stream;
 
 import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
 
-public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, SnapshotSlot {
-    private static final Logger LOG = LogManager.getLogger(SnapshotOutputSlot.class);
-
+public class SnapshotOutputSlot extends LzyOutputSlotBase implements SnapshotSlot {
     private final URI uri;
     private final Repository<Stream<ByteString>> repository;
     private final Path storage;
@@ -47,14 +43,14 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
         this.hasInputSlot = Objects.nonNull(slot.getInputSlot());
     }
 
-    private static void write(Stream<ByteString> data, File sink) throws IOException {
+    private static void write(Stream<ByteString> data, File sink, Logger log) throws IOException {
         try (var storage = new BufferedOutputStream(new FileOutputStream(sink))) {
             data.forEach(chunk -> {
                 try {
-                    LOG.debug("Received chunk of size {}", chunk.size());
+                    log.debug("Received chunk of size {}", chunk.size());
                     chunk.writeTo(storage);
                 } catch (IOException ioe) {
-                    LOG.warn("Unable write chunk of data of size " + chunk.size()
+                    log.warn("Unable write chunk of data of size " + chunk.size()
                         + " to file " + sink.getAbsolutePath(), ioe);
                 }
             });
@@ -66,7 +62,7 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
     public void readFromPosition(long offset, StreamObserver<LSA.SlotDataChunk> responseObserver) {
         if (hasInputSlot) {
             if (slot.getState().get() == S3Snapshot.State.INITIAL) {
-                LOG.error("Input slot of this snapshot is not already connected");
+                log.error("Input slot of this snapshot is not already connected");
                 state = SnapshotSlotStatus.FAILED;
                 responseObserver.onError(
                     Status.INTERNAL
@@ -78,9 +74,9 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
         } else if (slot.getState().compareAndSet(S3Snapshot.State.INITIAL, S3Snapshot.State.PREPARING)) {
             state = SnapshotSlotStatus.SYNCING;
             try {
-                write(repository.get(uri), storage.toFile());
+                write(repository.get(uri), storage.toFile(), log);
             } catch (Exception e) {
-                LOG.error("Cannot sync data with remote storage", e);
+                log.error("Cannot sync data with remote storage", e);
                 state = SnapshotSlotStatus.FAILED;
                 responseObserver.onError(
                     Status.INTERNAL
@@ -102,7 +98,7 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
                 }
             }
         } catch (InterruptedException e) {
-            LOG.error("Can not open file channel on file {}", storage);
+            log.error("Can not open file channel on file {}", storage);
             throw new RuntimeException(e);
         }
         state = SnapshotSlotStatus.SYNCED;
@@ -111,13 +107,14 @@ public class SnapshotOutputSlot extends LzySlotBase implements LzyOutputSlot, Sn
         try {
             channel = FileChannel.open(storage);
         } catch (IOException e) {
-            LOG.error("Error while creating file channel", e);
+            log.error("Error while creating file channel", e);
             responseObserver.onError(Status.INTERNAL.asException());
             return;
         }
         state(OPEN);
 
-        OutFileSlot.readFileChannel(definition().name(), offset, channel, responseObserver);
+        OutFileSlot.readFileChannel(definition().name(), offset, channel, completedReads::getAndIncrement,
+            responseObserver, log);
     }
 
     @Override
