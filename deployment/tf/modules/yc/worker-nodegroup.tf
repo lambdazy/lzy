@@ -6,19 +6,19 @@ resource "kubernetes_namespace" "fictive" {
 }
 
 resource "yandex_kubernetes_cluster" "allocator_cluster" {
-  name        = "allocator-cluster"
-  description = "Allocator k8s cluster"
+  name            = "allocator-cluster"
+  description     = "Allocator k8s cluster"
   release_channel = "RAPID"
 
-  network_id              = var.network_id
-  cluster_ipv4_range      = "10.21.0.0/16"
-  service_ipv4_range      = "10.22.0.0/16"
+  network_id         = var.network_id
+  cluster_ipv4_range = "10.21.0.0/16"
+  service_ipv4_range = "10.22.0.0/16"
   master {
     zonal {
       zone      = var.zone
       subnet_id = yandex_vpc_subnet.custom-subnet.id
     }
-    public_ip          = true
+    public_ip = true
     maintenance_policy {
       auto_upgrade = false
     }
@@ -35,91 +35,6 @@ provider "kubernetes" {
     manifest_resource = true
   }
   alias = "allocator"
-}
-
-resource "yandex_kubernetes_node_group" "workers-s" {
-  cluster_id  = yandex_kubernetes_cluster.allocator_cluster.id
-  name        = "workers-s"
-  description = "Nodegroup for lzy workers with label s"
-  node_labels = {
-    "lzy.ai/node-pool-id" = "s1"
-    "lzy.ai/node-pool-label" = "s"
-    "lzy.ai/node-pool-kind" = "CPU"
-    "lzy.ai/node-pool-az" = "ru-central1-a"
-    "lzy.ai/node-pool-state" = "ACTIVE"
-  }
-
-  instance_template {
-    platform_id = "standard-v2"
-
-    network_interface {
-      subnet_ids         = [yandex_vpc_subnet.custom-subnet.id]
-      ipv4               = true
-    }
-
-    resources {
-      memory = 32
-      cores  = 4
-    }
-
-    boot_disk {
-      type = "network-hdd"
-      size = 64
-    }
-
-    scheduling_policy {
-      preemptible = false
-    }
-  }
-
-  scale_policy {
-    fixed_scale {
-      size = 10
-    }
-  }
-}
-
-resource "yandex_kubernetes_node_group" "workers-l" {
-  cluster_id  = yandex_kubernetes_cluster.allocator_cluster.id
-  name        = "workers-l"
-  description = "Nodegroup for lzy workers with label l"
-  node_labels = {
-    "lzy.ai/node-pool-id" = "l1"
-    "lzy.ai/node-pool-label" = "l"
-    "lzy.ai/node-pool-kind" = "GPU"
-    "lzy.ai/node-pool-az" = "ru-central1-a"
-    "lzy.ai/node-pool-state" = "ACTIVE"
-  }
-
-  instance_template {
-    platform_id = "gpu-standard-v2"
-
-    network_interface {
-      subnet_ids         = [yandex_vpc_subnet.custom-subnet.id]
-      ipv4               = true
-    }
-
-    resources {
-      memory = 48
-      cores  = 8
-      gpus   = 1
-    }
-
-    boot_disk {
-      type = "network-hdd"
-      size = 64
-    }
-
-    scheduling_policy {
-      preemptible = false
-    }
-  }
-
-  scale_policy {
-    fixed_scale {
-      size = 7
-    }
-  }
 }
 
 resource "kubernetes_daemonset" "worker_cpu_fictive_containers" {
@@ -141,10 +56,10 @@ resource "kubernetes_daemonset" "worker_cpu_fictive_containers" {
       }
       spec {
         container {
-          image   = var.servant-image
+          image             = var.servant-image
           image_pull_policy = "Always"
-          name    = "fictive-worker"
-          command = ["tail", "-f", "/entrypoint.sh"]
+          name              = "fictive-worker"
+          command           = ["tail", "-f", "/entrypoint.sh"]
         }
         node_selector = {
           "lzy.ai/node-pool-kind" = "CPU"
@@ -175,10 +90,10 @@ resource "kubernetes_daemonset" "worker_gpu_fictive_containers" {
       }
       spec {
         container {
-          image   = var.servant-image
+          image             = var.servant-image
           image_pull_policy = "Always"
-          name    = "fictive-worker"
-          command = ["tail", "-f", "/entrypoint.sh"]
+          name              = "fictive-worker"
+          command           = ["tail", "-f", "/entrypoint.sh"]
         }
         node_selector = {
           "lzy.ai/node-pool-kind" = "GPU"
@@ -188,4 +103,63 @@ resource "kubernetes_daemonset" "worker_gpu_fictive_containers" {
   }
 
   provider = kubernetes.allocator
+}
+
+resource "yandex_kubernetes_node_group" "workers" {
+  for_each = var.workers_nodegroups_definition
+
+  cluster_id  = yandex_kubernetes_cluster.allocator_cluster.id
+  name        = "workers-${each.key}"
+  description = "Nodegroup for lzy workers with label ${each.key}"
+  node_labels = {
+    "lzy.ai/node-pool-id"    = "${each.key}1"
+    "lzy.ai/node-pool-label" = each.key
+    "lzy.ai/node-pool-kind"  = each.value.kind
+    "lzy.ai/node-pool-az"    = "ru-central1-a"
+    "lzy.ai/node-pool-state" = "ACTIVE"
+  }
+
+  instance_template {
+    platform_id = each.value.platform_id
+
+    network_interface {
+      subnet_ids = [yandex_vpc_subnet.custom-subnet.id]
+      ipv4       = true
+    }
+
+    resources {
+      memory = each.value.resource_spec.memory
+      cores  = each.value.resource_spec.cores
+      gpus   = each.value.resource_spec.gpus
+    }
+
+    boot_disk {
+      type = "network-hdd"
+      size = 64
+    }
+
+    scheduling_policy {
+      preemptible = false
+    }
+  }
+
+  scale_policy {
+    dynamic "fixed_scale" {
+      for_each = each.value.scale_policy.fixed ? [1] : []
+
+      content {
+        size = each.value.scale_policy.initial_size
+      }
+    }
+
+    dynamic "auto_scale" {
+      for_each = each.value.scale_policy.fixed ? [] : [1]
+
+      content {
+        initial = each.value.scale_policy.initial_size
+        max     = each.value.scale_policy.max_size
+        min     = each.value.scale_policy.min_size
+      }
+    }
+  }
 }

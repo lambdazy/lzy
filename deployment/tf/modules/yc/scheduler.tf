@@ -128,19 +128,6 @@ resource "kubernetes_deployment" "scheduler" {
           }
 
           env {
-            name = "SCHEDULER_MAX_WORKERS_PER_WORKFLOW"
-            value = var.max-servants-per-workflow
-          }
-
-          dynamic "env" {
-            for_each = var.worker-limits-by-labels
-            content {
-              name = "SCHEDULER_PROVISIONING_LIMITS_${env.key}"
-              value = env.value
-            }
-          }
-
-          env {
             name = "SCHEDULER_DEFAULT_PROVISIONING_LIMIT"
             value = "0"
           }
