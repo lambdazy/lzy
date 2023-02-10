@@ -1,9 +1,8 @@
 package ai.lzy.portal.slots;
 
 import ai.lzy.fs.fs.LzyInputSlot;
-import ai.lzy.fs.fs.LzyOutputSlot;
+import ai.lzy.fs.fs.LzyOutputSlotBase;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.fs.slots.LzySlotBase;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.portal.exceptions.CreateSlotException;
@@ -14,19 +13,16 @@ import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
-    private static final Logger LOG = LogManager.getLogger(StdoutSlot.class);
-
+public class StdoutSlot extends LzyOutputSlotBase {
     private final Map<String, StdoutInputSlot> task2slot = new HashMap<>();
     private final Map<String, String> slot2task = new HashMap<>();
 
@@ -58,7 +54,7 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
                 + taskId + " already exists");
         }
 
-        LOG.info("attach slot " + slotInstance.spec() + ", task " + taskId);
+        log.info("attach slot " + slotInstance.spec() + ", task " + taskId);
 
         slot2task.put(slotInstance.name(), taskId);
 
@@ -71,12 +67,12 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
     }
 
     public synchronized void detach(String slot) {
-        LOG.info("detach slot " + slot);
+        log.info("detach slot " + slot);
         var taskId = slot2task.remove(slot);
         if (taskId != null) {
             task2slot.remove(taskId);
             if (slot2task.isEmpty() && finishing.get()) {
-                LOG.info("Stdout slot <{}> is finished, completing stream", name());
+                log.info("Stdout slot <{}> is finished, completing stream", name());
                 finished.set(true);
             }
             notifyAll();
@@ -91,7 +87,7 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
             }
             notifyAll();
         } else {
-            LOG.error("Attempt to write stdout/stderr slot from unknown task, slot " + slot);
+            log.error("Attempt to write stdout/stderr slot from unknown task, slot " + slot);
         }
     }
 
@@ -115,14 +111,14 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
         while (true) {
 
             if (((ServerCallStreamObserver<LSA.SlotDataChunk>) responseObserver).isCancelled()) {
-                LOG.error("Stream cancelled, returning...");
+                log.error("Stream cancelled, returning...");
                 return;
             }
 
             var l = buffer.peek();
             while (l != null) {
                 if (((ServerCallStreamObserver<LSA.SlotDataChunk>) responseObserver).isCancelled()) {
-                    LOG.error("Stream cancelled, returning...");
+                    log.error("Stream cancelled, returning...");
                     return;
                 }
                 try {
@@ -131,7 +127,7 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
                         .build());
                     buffer.poll();
                 } catch (Exception e) {
-                    LOG.error("Error while sending data from slot {}", name(), e);
+                    log.error("Error while sending data from slot {}", name(), e);
                     responseObserver.onError(Status.INTERNAL.asException());
                     return;
                 }
@@ -155,12 +151,14 @@ public class StdoutSlot extends LzySlotBase implements LzyOutputSlot {
             .setControl(LSA.SlotDataChunk.Control.EOS)
             .build());
         responseObserver.onCompleted();
+
+        completedReads.getAndIncrement();
     }
 
     public synchronized void finish() {
         if (finishing.compareAndSet(false, true)) {
             if (slot2task.isEmpty()) {
-                LOG.info("Stdout slot <{}> is finished, completing stream", name());
+                log.info("Stdout slot <{}> is finished, completing stream", name());
                 finished.set(true);
                 notifyAll();
             }

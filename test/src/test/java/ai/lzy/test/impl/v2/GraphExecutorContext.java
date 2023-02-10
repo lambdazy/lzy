@@ -3,6 +3,7 @@ package ai.lzy.test.impl.v2;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.graph.GraphExecutorApi;
 import ai.lzy.test.impl.Utils;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
@@ -27,6 +28,7 @@ public class GraphExecutorContext  {
     private final GraphExecutorApi graphExecutor;
     private final ManagedChannel channel;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub stub;
+    private final RenewableJwt internalUserCreds;
 
     @Inject
     public GraphExecutorContext(SchedulerContext scheduler, IamContext iam) {
@@ -58,10 +60,10 @@ public class GraphExecutorContext  {
                 .enableRetry(GraphExecutorGrpc.SERVICE_NAME)
                 .build();
 
-        var creds = context.getBean(ServiceConfig.class).getIam().createRenewableToken();
+        internalUserCreds = context.getBean(ServiceConfig.class).getIam().createRenewableToken();
 
         this.stub = GraphExecutorGrpc.newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.authorization(() -> creds.get().token()));
+            .withInterceptors(ClientHeaderInterceptor.authorization(() -> internalUserCreds.get().token()));
     }
 
     @PreDestroy
@@ -82,5 +84,9 @@ public class GraphExecutorContext  {
 
     public GraphExecutorGrpc.GraphExecutorBlockingStub stub() {
         return stub;
+    }
+
+    public RenewableJwt internalUserCreds() {
+        return internalUserCreds;
     }
 }

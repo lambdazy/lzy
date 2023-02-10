@@ -72,7 +72,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
             try {
                 state = SnapshotSlotStatus.SYNCING;
                 FileChannel channel = FileChannel.open(storage, StandardOpenOption.READ);
-                repository.put(uri, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true));
+                repository.put(uri, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true, LOG));
                 state = SnapshotSlotStatus.SYNCED;
                 if (slotSyncHandler != null) {
                     slotSyncHandler.run();

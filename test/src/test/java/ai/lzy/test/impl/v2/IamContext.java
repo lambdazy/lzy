@@ -23,4 +23,8 @@ public class IamContext {
     public HostAndPort address() {
         return ctx.address();
     }
+
+    public IAMThreadContext ctx() {
+        return ctx;
+    }
 }

@@ -2,7 +2,7 @@ package ai.lzy.fs.slots;
 
 import ai.lzy.fs.fs.FileContents;
 import ai.lzy.fs.fs.LzyFileSlot;
-import ai.lzy.fs.fs.LzyOutputSlot;
+import ai.lzy.fs.fs.LzyOutputSlotBase;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
@@ -11,7 +11,6 @@ import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jnr.constants.platform.OpenFlags;
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import ru.serce.jnrfuse.struct.FileStat;
 import ru.serce.jnrfuse.struct.FuseFileInfo;
@@ -40,8 +39,7 @@ import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.PREPARING;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.UNBOUND;
 
-public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSlot {
-    private static final Logger LOG = LogManager.getLogger(OutFileSlot.class);
+public class OutFileSlot extends LzyOutputSlotBase implements LzyFileSlot {
     public static final int PAGE_SIZE = 4096;
     private final Path storage;
     private final CompletableFuture<Supplier<FileChannel>> channelSupplier = new CompletableFuture<>();
@@ -61,7 +59,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         try {
             return Files.size(storage);
         } catch (IOException e) {
-            LOG.warn("Unable to get a storage file size", e);
+            log.warn("Unable to get a storage file size", e);
             return 0;
         }
     }
@@ -71,7 +69,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         try {
             return ((FileTime) Files.getAttribute(storage, "unix:creationTime")).toMillis();
         } catch (IOException e) {
-            LOG.warn("Unable to get file creation time", e);
+            log.warn("Unable to get file creation time", e);
             return 0L;
         }
     }
@@ -81,7 +79,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         try {
             return ((FileTime) Files.getAttribute(storage, "unix:lastModifiedTime")).toMillis();
         } catch (IOException e) {
-            LOG.warn("Unable to get file creation time", e);
+            log.warn("Unable to get file creation time", e);
             return 0L;
         }
     }
@@ -91,7 +89,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         try {
             return ((FileTime) Files.getAttribute(storage, "unix:lastAccessTime")).toMillis();
         } catch (IOException e) {
-            LOG.warn("Unable to get file creation time", e);
+            log.warn("Unable to get file creation time", e);
             return 0L;
         }
     }
@@ -138,7 +136,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
                             onChunk(ByteString.copyFrom(page, 0, read));
                         }
                     } catch (IOException e) {
-                        LOG.warn("Unable to read contents of the slot: " + definition(), e);
+                        log.warn("Unable to read contents of the slot: " + definition(), e);
                     }
                     channelSupplier.complete(() -> { // channels are now ready to read
                         try {
@@ -166,7 +164,7 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
 
     @Override
     public void readFromPosition(long offset, StreamObserver<LSA.SlotDataChunk> responseObserver) {
-        LOG.info("OutFileSlot.readFromPosition for slot " + this.definition().name() + ", current state " + state());
+        log.info("OutFileSlot.readFromPosition for slot " + this.definition().name() + ", current state " + state());
         final FileChannel channel;
         waitForState(OPEN);
 
@@ -186,18 +184,18 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             return;
         }
 
-        LOG.info("Slot {} is ready", name());
+        log.info("Slot {} is ready", name());
 
-        readFileChannel(name(), offset, channel, responseObserver);
+        readFileChannel(name(), offset, channel, completedReads::getAndIncrement, responseObserver, log);
     }
 
-    public static void readFileChannel(String filename, long offset, FileChannel channel,
-                                       StreamObserver<LSA.SlotDataChunk> responseObserver)
+    public static void readFileChannel(String filename, long offset, FileChannel channel, Runnable onComplete,
+                                       StreamObserver<LSA.SlotDataChunk> responseObserver, Logger log)
     {
         try {
             channel.position(offset);
         } catch (IOException e) {
-            LOG.error("Error while reading from file channel: ", e);
+            log.error("Error while reading from file channel: ", e);
             responseObserver.onError(Status.INTERNAL.asException());
             return;
         }
@@ -211,9 +209,9 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
 
             try {
                 read = channel.read(bb);
-                LOG.info("Slot {} hasNext read {}", filename, read);
+                log.info("Slot {} hasNext read {}", filename, read);
             } catch (IOException e) {
-                LOG.error("Error while reading from file channel: ", e);
+                log.error("Error while reading from file channel: ", e);
                 responseObserver.onError(Status.INTERNAL.asException());
                 return;
             }
@@ -233,10 +231,12 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
         );
 
         responseObserver.onCompleted();
+
+        onComplete.run();
     }
 
     public static Stream<ByteString> readFileChannel(String filename, long offset, FileChannel channel,
-                                                     BooleanSupplier readyFn) throws IOException
+                                                     BooleanSupplier readyFn, Logger log) throws IOException
     {
         channel.position(offset);
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(new Iterator<>() {
@@ -245,16 +245,16 @@ public class OutFileSlot extends LzySlotBase implements LzyFileSlot, LzyOutputSl
             @Override
             public boolean hasNext() {
                 if (!readyFn.getAsBoolean()) {
-                    LOG.info("Slot {} hasNext is not open", filename);
+                    log.info("Slot {} hasNext is not open", filename);
                     return false;
                 }
                 try {
                     bb.clear();
                     int read = channel.read(bb);
-                    LOG.info("Slot {} hasNext read {}", filename, read);
+                    log.info("Slot {} hasNext read {}", filename, read);
                     return read >= 0;
                 } catch (IOException e) {
-                    LOG.warn("Unable to read line from reader", e);
+                    log.warn("Unable to read line from reader", e);
                     return false;
                 }
             }

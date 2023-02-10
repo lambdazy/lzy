@@ -5,23 +5,29 @@ package ai.lzy.v1.channel;
 import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/long-running/operation.proto";
 import "ai/lzy/v1/long-running/option.proto";
+import "ai/lzy/v1/channel/channel.proto";
 
 option java_outer_classname = "LCMS";
 option java_package = "ai.lzy.v1.channel";
 
 service LzyChannelManager {
+
   rpc Bind (BindRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       response: "BindResponse"
       metadata: "BindMetadata"
     };
   }
+
   rpc Unbind (UnbindRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       response: "UnbindResponse"
       metadata: "UnbindMetadata"
     };
   }
+
+  rpc GetChannelsStatus (GetChannelsStatusRequest) returns (GetChannelsStatusResponse);
+
 }
 
 message BindRequest {
@@ -47,3 +53,12 @@ message UnbindRequest {
 message UnbindResponse {}
 
 message UnbindMetadata {}
+
+message GetChannelsStatusRequest {
+  string executionId = 1;
+  repeated string channelIds = 2;
+}
+
+message GetChannelsStatusResponse {
+  repeated Channel channels = 1;
+}

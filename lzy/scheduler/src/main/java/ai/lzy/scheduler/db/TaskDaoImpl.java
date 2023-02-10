@@ -53,6 +53,7 @@ public class TaskDaoImpl implements TaskDao {
             try (PreparedStatement ps = con.prepareStatement("""
                 INSERT INTO workflow (name, user_id, allocator_session_id)
                 VALUES (?, ?, ?)
+                ON CONFLICT DO NOTHING
                 """))
             {
                 ps.setString(1, workflowName);
