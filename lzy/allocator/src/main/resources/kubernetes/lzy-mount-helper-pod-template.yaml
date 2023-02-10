@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app.kubernetes.io/name: lzy-vm-mount-helper
+    app.kubernetes.io/part-of: lzy
+    lzy.ai/app: vm
+spec:
+  containers:
+    - name: mount-helper
+      image: alpine:3.14
+      imagePullPolicy: Always
+      securityContext:
+        privileged: true
+        runAsUser: 0
+      command: ["sh", "-c", "tail -f /dev/null"]
+      volumeMounts:
+        - mountPath: /mnt
+          name: base-volume
+          mountPropagation: Bidirectional
+  volumes:
+    - name: base-volume
+      hostPath:
+        path: /mnt
+        type: Directory
+  restartPolicy: Never
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+          topologyKey: "kubernetes.io/hostname"
+  dnsPolicy: ClusterFirstWithHostNet
+  hostNetwork: true

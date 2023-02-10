@@ -8,6 +8,7 @@ import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.HostPathVolumeDescription;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.VolumeMount;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
@@ -155,14 +156,20 @@ public class KuberVmAllocator implements VmAllocator {
                 InjectedFailures.failAllocateVm8();
             }
 
+            // for mount pvc without restarting worker pod
+            final VolumeMount baseVolume =  new VolumeMount(/* name */ "base-volume",
+                /* path */ "/mnt", /* readOnly */ false, VolumeMount.MountPropagation.BIDIRECTIONAL);
+
             final String vmOtt = allocState.vmOtt();
 
             final Pod vmPodSpec = podSpecBuilder
                 .withWorkloads(vmSpec.initWorkloads(), true)
                 .withWorkloads(
                     vmSpec.workloads().stream()
-                        // we pass vmOtt to _all_ workloads, but only _one_ of them will use it
-                        .map(wl -> wl.withEnv(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt))
+                        .map(wl -> wl
+                            .withVolumeMount(baseVolume)
+                            // we pass vmOtt to _all_ workloads, but only _one_ of them will use it
+                            .withEnv(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt))
                         .toList(),
                     false)
                 .withVolumes(requireNonNull(allocState.volumeClaims()))
@@ -239,11 +246,11 @@ public class KuberVmAllocator implements VmAllocator {
     @Nullable
     private List<Pod> getAllPodsWithVmId(String namespace, String vmId, KubernetesClient client) {
         return client.pods()
-                .inNamespace(namespace)
-                .list(new ListOptionsBuilder()
-                        .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId.toLowerCase(Locale.ROOT))
-                        .build()
-                ).getItems();
+            .inNamespace(namespace)
+            .list(new ListOptionsBuilder()
+                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId.toLowerCase(Locale.ROOT))
+                .build()
+            ).getItems();
     }
 
     /**
@@ -341,10 +348,10 @@ public class KuberVmAllocator implements VmAllocator {
         final List<VmEndpoint> hosts = new ArrayList<>();
 
         final var meta = withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> vmDao.getAllocatorMeta(vmId, transaction),
-                ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
+            defaultRetryPolicy(),
+            LOG,
+            () -> vmDao.getAllocatorMeta(vmId, transaction),
+            ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
 
         if (meta == null) {
             throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);

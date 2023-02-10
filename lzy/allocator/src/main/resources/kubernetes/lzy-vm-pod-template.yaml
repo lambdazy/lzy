@@ -19,4 +19,8 @@ spec:
           topologyKey: "kubernetes.io/hostname"
   dnsPolicy: ClusterFirstWithHostNet
   hostNetwork: true
-  hostIpc: true
+  volumes:
+    - name: base-volume
+      hostPath:
+        path: /mnt
+        type: Directory
