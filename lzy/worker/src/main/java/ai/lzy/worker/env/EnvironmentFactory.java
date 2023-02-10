@@ -12,7 +12,7 @@ import java.util.function.Supplier;
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
 
-    private static final HashMap<BaseEnvConfig, String> createdContainers = new HashMap<>();
+    private final HashMap<String, DockerEnvironment> createdContainers = new HashMap<>();
     private final ProcessEnvironment localProcessEnv = new ProcessEnvironment();
     private static Supplier<Environment> envForTests = null;
 
@@ -52,16 +52,15 @@ public class EnvironmentFactory {
                 .addRsharedMount(fsRoot, fsRoot)
                 .build();
 
-            if (createdContainers.containsKey(config)) {
-                final String containerId = createdContainers.get(config);
-                baseEnv = DockerEnvironment.fromExistedContainer(image, containerId);
+            if (createdContainers.containsKey(config.image())) {
+                baseEnv = createdContainers.get(config.image());
             }
 
             if (baseEnv != null) {
                 LOG.info("Found existed Docker Environment, id={}", baseEnv.baseEnvId());
             } else {
                 baseEnv = DockerEnvironment.create(config);
-                createdContainers.put(config, ((DockerEnvironment) baseEnv).getContainerId());
+                createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
             }
         } else {
             if (env.baseEnv() == null) {
