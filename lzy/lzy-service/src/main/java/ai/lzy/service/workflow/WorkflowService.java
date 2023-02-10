@@ -48,7 +48,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 
 @Singleton
 public class WorkflowService {
-    public static boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
+    public static volatile boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
     static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
     private final LzyServiceConfig.StartupPortalConfig startupPortalConfig;
