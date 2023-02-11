@@ -12,10 +12,10 @@ from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.pickle import pickle
 from lzy.logs.config import get_logging_config, COLOURS, get_color, RESET_COLOR
-from lzy.storage.api import AsyncStorageClient
+from lzy.storage.api import AsyncStorageClient, Storage
 
 if TYPE_CHECKING:
-    from lzy.api.v1 import LzyWorkflow, WorkflowServiceClient
+    from lzy.api.v1 import LzyWorkflow
 
 from lzy.api.v1.call import LzyCall
 from lzy.api.v1.runtime import (
@@ -28,7 +28,7 @@ class LocalRuntime(Runtime):
     def __init__(self):
         self.__workflow: Optional["LzyWorkflow"] = None
 
-    def workflow_client(self) -> Optional["WorkflowServiceClient"]:
+    async def default_storage(self) -> Optional[Storage]:
         return None
 
     async def start(self, workflow: "LzyWorkflow") -> str:

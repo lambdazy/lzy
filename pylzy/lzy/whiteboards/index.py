@@ -19,7 +19,6 @@ from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, TimeBounds
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import GetRequest, GetResponse, ListResponse, ListRequest, \
     RegisterWhiteboardRequest, UpdateWhiteboardRequest
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceStub
-from lzy.api.v1 import WorkflowServiceClient
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
 from lzy.utils.grpc import build_channel, add_headers_interceptor, build_token, RetryConfig, retry
 from lzy.whiteboards.api import WhiteboardIndexClient, WhiteboardManager
@@ -126,11 +125,9 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
 
 class WhiteboardIndexedManager(WhiteboardManager):
     def __init__(self,
-                 workflow_client: Optional[WorkflowServiceClient],
                  index_client: WhiteboardIndexClient,
                  storage_registry: StorageRegistry,
                  serializer_registry: SerializerRegistry):
-        self.__workflow_client = workflow_client
         self.__index_client = index_client
         self.__storage_registry = storage_registry
         self.__serializer_registry = serializer_registry
@@ -223,8 +220,6 @@ class WhiteboardIndexedManager(WhiteboardManager):
         if storage_uri is not None or storage_name is not None:
             raise NotImplementedError("Fetching whiteboard by storage uri is not supported yet")
 
-        await self.__update_default_storage()
-
         async for whiteboard in self.__index_client.query(name, tags, not_before, not_after):
             yield WhiteboardWrapper(self.__storage_registry, self.__serializer_registry, whiteboard)
 
@@ -236,18 +231,9 @@ class WhiteboardIndexedManager(WhiteboardManager):
         else:
             storage_client = self.__storage_registry.default_client()
             if storage_client is None:
-                await self.__update_default_storage()
-                storage_client = self.__storage_registry.default_client()
-                if storage_client is None:
-                    raise RuntimeError("No default storage client")
+                raise RuntimeError("No default storage client")
 
         return storage_client
-
-    async def __update_default_storage(self):
-        if self.__workflow_client is not None:
-            storage_creds = await self.__workflow_client.get_default_storage()
-            storage_name = self.__storage_registry.provided_storage_name()
-            self.__storage_registry.register_storage(storage_name, storage_creds, default=True)
 
     @staticmethod
     async def __get_meta_from_storage(storage_client: AsyncStorageClient,

@@ -20,6 +20,8 @@ from typing import (
     cast,
 )
 
+from lzy.storage.api import Storage
+
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
     DataDescription,
@@ -73,6 +75,7 @@ def wrap_error(message: str = "Something went wrong"):
 class RemoteRuntime(Runtime):
     def __init__(self):
         self.__workflow_client: WorkflowServiceClient = WorkflowServiceClient()
+        self.__storage: Optional[Storage] = None
 
         self.__workflow: Optional[LzyWorkflow] = None
         self.__execution_id: Optional[str] = None
@@ -80,8 +83,10 @@ class RemoteRuntime(Runtime):
         self.__std_slots_listener: Optional[Task] = None
         self.__running = False
 
-    def workflow_client(self) -> Optional[WorkflowServiceClient]:
-        return self.__workflow_client
+    async def default_storage(self) -> Optional[Storage]:
+        if not self.__storage:
+            self.__storage = await self.__workflow_client.get_default_storage()
+        return self.__storage
 
     async def start(self, workflow: LzyWorkflow) -> str:
         self.__running = True
@@ -89,15 +94,10 @@ class RemoteRuntime(Runtime):
         client = self.__workflow_client
 
         default_creds = self.__workflow.owner.storage_registry.default_config()
-        exec_id, creds = await client.start_workflow(
+        exec_id, _ = await client.start_workflow(
             self.__workflow.name, default_creds
         )
-
         self.__execution_id = exec_id
-        if creds is not None:
-            storage_name = self.__workflow.owner.storage_registry.provided_storage_name()
-            self.__workflow.owner.storage_registry.register_storage(storage_name, creds, default=True)
-
         self.__std_slots_listener = asyncio.create_task(
             self.__listen_to_std_slots(exec_id)
         )

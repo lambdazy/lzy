@@ -6,14 +6,13 @@ from lzy.storage.async_ import from_credentials
 
 
 class DefaultStorageRegistry(StorageRegistry):
-    def __init__(self, provided_storage_name: str = "provided_default_storage"):
+    def __init__(self):
         self.__credentials_map: Dict[str, Optional[Storage]] = defaultdict(
             lambda: None
         )
         self.__clients_map: Dict[str, Optional[AsyncStorageClient]] = defaultdict(
             lambda: None
         )
-        self.__provided_storage_name: str = provided_storage_name
 
         self.__default_name: Optional[str] = None
         self.__default_config: Optional[Storage] = None
@@ -44,9 +43,6 @@ class DefaultStorageRegistry(StorageRegistry):
 
     def default_storage_name(self) -> Optional[str]:
         return self.__default_name
-
-    def provided_storage_name(self) -> str:
-        return self.__provided_storage_name
 
     def client(self, storage_name: str) -> Optional[AsyncStorageClient]:
         return self.__clients_map.get(storage_name)

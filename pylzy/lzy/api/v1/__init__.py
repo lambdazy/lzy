@@ -133,11 +133,17 @@ class Lzy:
     ):
         whiteboard_index_client = RemoteWhiteboardIndexClient() if whiteboard_client is None else whiteboard_client
         self.__runtime = RemoteRuntime() if runtime is None else runtime
-        self.__env_provider = AutomaticPyEnvProvider() if py_env_provider is None else py_env_provider
         self.__storage_registry = DefaultStorageRegistry() if storage_registry is None else storage_registry
+
+        default_storage = LzyEventLoop.run_async(self.__runtime.default_storage())
+        if default_storage:
+            as_default = self.__storage_registry.default_client() is None
+            self.__storage_registry.register_storage("provided_default_storage", default_storage, default=as_default)
+
+        self.__env_provider = AutomaticPyEnvProvider() if py_env_provider is None else py_env_provider
         self.__serializer_registry = LzySerializerRegistry() if serializer_registry is None else serializer_registry
-        self.__whiteboard_manager = WhiteboardIndexedManager(self.__runtime.workflow_client(), whiteboard_index_client,
-                                                             self.__storage_registry, self.__serializer_registry)
+        self.__whiteboard_manager = WhiteboardIndexedManager(whiteboard_index_client, self.__storage_registry,
+                                                             self.__serializer_registry)
 
         self.__storage_client: Optional[AsyncStorageClient] = None
         self.__storage_name: Optional[str] = None
