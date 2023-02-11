@@ -71,8 +71,10 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.channelmanager.ProtoConverter.*;
+import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.*;
+import static org.junit.Assert.assertTrue;
 
 public class PortalTestBase {
     private static final Logger LOG = LogManager.getLogger(PortalTestBase.class);
@@ -82,7 +84,7 @@ public class PortalTestBase {
 
     private static final int S3_PORT = 8001;
     protected static final String S3_ADDRESS = "http://localhost:" + S3_PORT;
-    protected static final String BUCKET_NAME = "lzy-bucket";
+    protected static final String BUCKET_NAME = "lzybucket";
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -104,6 +106,7 @@ public class PortalTestBase {
     protected LzyPortalGrpc.LzyPortalBlockingStub unauthorizedPortalClient;
     private LzyPortalGrpc.LzyPortalBlockingStub authorizedPortalClient;
     private LzySlotsApiGrpc.LzySlotsApiBlockingStub portalSlotsClient;
+    private LongRunningServiceGrpc.LongRunningServiceBlockingStub portalOpsClient;
 
     private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerPrivateClient;
     private Map<String, String> createdChannels;
@@ -164,7 +167,7 @@ public class PortalTestBase {
         portalSlotsChannel.shutdown();
 
         stopS3();
-        for (var worker: workers.values()) {
+        for (var worker : workers.values()) {
             worker.worker.stop();
         }
 
@@ -220,6 +223,16 @@ public class PortalTestBase {
             LzySlotsApiGrpc.newBlockingStub(portalSlotsChannel),
             "Test",
             NO_AUTH_TOKEN); // TODO: Auth
+
+        portalOpsClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(portalApiChannel), "TestClient",
+            () -> internalUserCredentials.get().token());
+    }
+
+    protected void finishPortal() {
+        var op = authorizedPortalClient.finish(LzyPortalApi.FinishRequest.getDefaultInstance());
+        op = awaitOperationDone(portalOpsClient, op.getId(), Duration.ofSeconds(5));
+        assertTrue(op.getDone());
+        assertTrue(op.hasResponse());
     }
 
     protected String prepareTask(int taskNum, boolean newWorker, boolean isInput, String snapshotId) {
@@ -342,7 +355,7 @@ public class PortalTestBase {
 
         var opStub = LongRunningServiceGrpc.newBlockingStub(workerChannel);
         opStub = ai.lzy.util.grpc.GrpcUtils.newBlockingClient(opStub, "worker", () -> iamTestContext.getClientConfig()
-                .createRenewableToken().get().token());
+            .createRenewableToken().get().token());
 
         workers.put(workerId, new WorkerDesc(worker, workerChannel, stub, opStub));
     }
@@ -485,7 +498,7 @@ public class PortalTestBase {
 
         public String createUser(String portalId, String pk) throws Exception {
             var subj = subjectClient.createSubject(AuthProvider.INTERNAL, portalId, SubjectType.WORKER,
-                    new SubjectCredentials("main", pk, CredentialsType.PUBLIC_KEY));
+                new SubjectCredentials("main", pk, CredentialsType.PUBLIC_KEY));
 
             return subj.id();
         }
@@ -529,5 +542,5 @@ public class PortalTestBase {
         ManagedChannel channel,
         WorkerApiGrpc.WorkerApiBlockingStub workerStub,
         LongRunningServiceGrpc.LongRunningServiceBlockingStub opStub
-    ) { }
+    ) {}
 }
