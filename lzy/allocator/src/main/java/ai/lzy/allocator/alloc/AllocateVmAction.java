@@ -240,7 +240,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
             return;
         }
 
-        deleteVmAction = allocationContext.createDeleteVmAction(vm, description, tx);
+        deleteVmAction = allocationContext.createDeleteVmAction(vm, description, vm.allocateState().reqid(), tx);
     }
 
     private void fail(Status status) throws Exception {

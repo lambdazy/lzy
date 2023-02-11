@@ -277,7 +277,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
                             .setPath("/tmp/lzy_worker_1/a")
                             .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                             .build())
-                        .setPoolSpecName("m")
+                        .setPoolSpecName("not-existing-spec")
                         .build();
 
                 var executionId = workflow.getExecutionId();

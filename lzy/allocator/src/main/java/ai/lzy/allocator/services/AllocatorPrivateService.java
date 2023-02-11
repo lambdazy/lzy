@@ -189,6 +189,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                         var deleteVmAction = allocationContext.createDeleteVmAction(
                             vmRef[0],
                             "Delete VM %s on register failure: %s".formatted(request.getVmId(), ex.getMessage()),
+                            vmRef[0].allocateState().reqid(),
                             tx);
 
                         tx.commit();

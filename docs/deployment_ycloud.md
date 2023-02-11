@@ -11,7 +11,7 @@
 
 ### Steps
 
-1) Create terraform module and import [v2](../deployment/tf/modules/v2) module (see example [here](../deployment/tf/modules/v2_example)).
+1) Create terraform module and import [v2](../deployment/tf/modules/yc) module (see example [here](../deployment/tf/modules/yc_example)).
 It's necessary to instantiate "yandex" terraform provider in your module.
 2) Perform yc login into your organization.
 3) Create [GitHub OAuth App](https://docs.github.com/en/developers/apps/building-github-apps/creating-a-github-app).
@@ -50,7 +50,7 @@ Read about security groups [here](https://cloud.yandex.com/en/docs/vpc/concepts/
 balancers over _lzy-service_ and _whiteboard_. Add them to your auth call like this:
 ```python
 lzy.auth(user="<your github login>", key_path="<path to the private key>",
-         endpoint="<lzy-service lb ip>:8122", whiteboards_endpoint="<whiteboard lb ip>:8122")
+         endpoint="<lzy-service lb ip>:8899", whiteboards_endpoint="<whiteboard lb ip>:8899")
 ```
 
 ### View logs

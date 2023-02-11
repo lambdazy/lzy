@@ -48,11 +48,12 @@ public class SessionDaoImpl implements SessionDao {
                 INSERT INTO session(id, owner, description, cache_policy_json, create_op_id)
                 VALUES (?, ?, ?, ?, ?)"""))
             {
-                s.setString(1, session.sessionId());
-                s.setString(2, session.owner());
-                s.setString(3, session.description());
-                s.setString(4, objectMapper.writeValueAsString(session.cachePolicy()));
-                s.setString(5, session.allocateOpId());
+                int idx = 0;
+                s.setString(++idx, session.sessionId());
+                s.setString(++idx, session.owner());
+                s.setString(++idx, session.description());
+                s.setString(++idx, objectMapper.writeValueAsString(session.cachePolicy()));
+                s.setString(++idx, session.createOpId());
                 s.execute();
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump cache policy %s".formatted(session.cachePolicy()), e);
@@ -63,13 +64,13 @@ public class SessionDaoImpl implements SessionDao {
     @Nullable
     @Override
     public Session get(String sessionId, @Nullable TransactionHandle transaction) throws SQLException {
-        LOG.debug("Get session {} in tx {}", sessionId, transaction);
+        LOG.debug("Get session {}", sessionId);
 
         throwInjectedError();
 
         return DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement s = con.prepareStatement("""
-                SELECT id, owner, description, cache_policy_json, create_op_id, delete_op_id
+                SELECT id, owner, description, cache_policy_json, create_op_id, delete_op_id, delete_reqid
                 FROM session
                 WHERE id = ? AND delete_op_id IS NULL""" + forUpdate(transaction)))
             {
@@ -85,23 +86,29 @@ public class SessionDaoImpl implements SessionDao {
 
     @Override
     @Nullable
-    public Session delete(String sessionId, String deleteOpId, @Nullable TransactionHandle tx) throws SQLException {
-        LOG.debug("Delete session {} in tx {}", sessionId, tx);
+    public Session delete(String sessionId, String deleteOpId, String reqid, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
+        LOG.debug("Delete session {}", sessionId);
 
         throwInjectedError();
 
         return DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement st = con.prepareStatement("""
                 UPDATE session
-                SET modified_at = NOW(), delete_op_id = ?
+                SET modified_at = NOW(), delete_op_id = ?, delete_reqid = ?
                 WHERE id = ?
-                RETURNING id, owner, description, cache_policy_json, create_op_id, delete_op_id"""))
+                RETURNING id, owner, description, cache_policy_json, create_op_id, delete_op_id, delete_reqid"""))
             {
-                st.setString(1, deleteOpId);
-                st.setString(2, sessionId);
+                int idx = 0;
+                st.setString(++idx, deleteOpId);
+                st.setString(++idx, reqid);
+                st.setString(++idx, sessionId);
                 var rs = st.executeQuery();
                 if (rs.next()) {
-                    return readSession(rs);
+                    var session = readSession(rs);
+                    return new Session(sessionId, session.owner(), session.description(), session.cachePolicy(),
+                        session.createOpId(), deleteOpId, reqid);
                 }
                 return null;
             }
@@ -110,6 +117,8 @@ public class SessionDaoImpl implements SessionDao {
 
     @Override
     public void touch(String sessionId, TransactionHandle tx) throws SQLException {
+        LOG.debug("Touch session {}", sessionId);
+
         DbOperation.execute(tx, storage, conn -> {
             try (PreparedStatement st = conn.prepareStatement("""
                 UPDATE session
@@ -129,7 +138,7 @@ public class SessionDaoImpl implements SessionDao {
     public List<Session> listDeleting(@Nullable TransactionHandle transaction) throws SQLException {
         return DbOperation.execute(transaction, storage, conn -> {
             try (PreparedStatement st = conn.prepareStatement("""
-                SELECT id, owner, description, cache_policy_json, create_op_id, delete_op_id
+                SELECT id, owner, description, cache_policy_json, create_op_id, delete_op_id, delete_reqid
                 FROM session
                 WHERE delete_op_id IS NOT NULL"""))
             {
@@ -158,18 +167,20 @@ public class SessionDaoImpl implements SessionDao {
     }
 
     private Session readSession(ResultSet rs) throws SQLException {
-        final var id = rs.getString(1);
-        final var owner = rs.getString(2);
-        final var description = rs.getString(3);
+        int idx = 0;
+        final var id = rs.getString(++idx);
+        final var owner = rs.getString(++idx);
+        final var description = rs.getString(++idx);
         final CachePolicy cachePolicy;
         try {
-            cachePolicy = objectMapper.readValue(rs.getString(4), CachePolicy.class);
+            cachePolicy = objectMapper.readValue(rs.getString(++idx), CachePolicy.class);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Cannot parse cache policy for session " + id, e);
         }
-        final var allocOpId = rs.getString(5);
-        final var deleteOpId = rs.getString(6);
-        return new Session(id, owner, description, cachePolicy, allocOpId, deleteOpId);
+        final var allocOpId = rs.getString(++idx);
+        final var deleteOpId = rs.getString(++idx);
+        final var deleteReqid = rs.getString(++idx);
+        return new Session(id, owner, description, cachePolicy, allocOpId, deleteOpId, deleteReqid);
     }
 
     @VisibleForTesting
@@ -177,12 +188,11 @@ public class SessionDaoImpl implements SessionDao {
         injectedError = error;
     }
 
-    @SuppressWarnings({"ResultOfMethodCallIgnored", "ThrowableNotThrown"})
     private void throwInjectedError() {
         final var error = injectedError;
         if (error != null) {
             injectedError = null;
-            Lombok.sneakyThrow(error);
+            throw Lombok.sneakyThrow(error);
         }
     }
 

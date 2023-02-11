@@ -2,10 +2,12 @@ package ai.lzy.util.grpc;
 
 import io.grpc.Context;
 import io.grpc.Metadata;
+import lombok.Lombok;
 
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 public class GrpcHeaders {
     public static final Context.Key<Metadata> HEADERS = Context.key("metadata");
@@ -59,6 +61,18 @@ public class GrpcHeaders {
         Objects.requireNonNull(newHeaders);
         overrideHeaders.forEach(newHeaders::put);
         return Context.current().withValue(HEADERS, newHeaders);
+    }
+
+    public static <T> T withContext(Context ctx, Supplier<T> fn) {
+        try {
+            return ctx.wrap(fn::get).call();
+        } catch (Exception e) {
+            throw Lombok.sneakyThrow(e);
+        }
+    }
+
+    public static void withContext(Context ctx, Runnable fn) {
+        ctx.wrap(fn).run();
     }
 
     private static Metadata.Key<String> createMetadataKey(String headerName) {

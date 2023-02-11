@@ -389,8 +389,7 @@ class RemoteRuntime(Runtime):
             _com = "".join(
                 [
                     "python -u ",  # -u makes stdout/stderr unbuffered. Maybe it should be a parameter
-                    "$(python -c 'import site; print(site.getsitepackages()[0])')",
-                    "/lzy/api/v1/startup.py ",
+                    "$(python -c 'import lzy.api.v1.startup as startup; print(startup.__file__)')"
                 ]
             )
 

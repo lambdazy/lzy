@@ -37,10 +37,6 @@ variable "folder_id" {
   type = string
 }
 
-variable "user-clusters" {
-  type = list(string)
-}
-
 variable "yc-endpoint" {
   type = string
 }
@@ -48,14 +44,6 @@ variable "yc-endpoint" {
 variable "zone" {
   type = string
   default = "ru-central1-a"
-}
-
-variable "max-servants-per-workflow" {
-  type = number
-}
-
-variable "worker-limits-by-labels" {
-  type = map(number)
 }
 
 variable "storage-image" {
@@ -84,4 +72,36 @@ variable "backoffice-backend-image" {
 
 variable "unified-agent-image" {
   type = string
+}
+
+variable "ssl-enabled" {
+  type = bool
+  default = false
+}
+
+variable "ssl-keystore-password" {
+  type = string
+  default = ""
+}
+
+variable "workers_nodegroups_definition" {
+  type = map(object({
+    platform_id = string
+    kind        = string # CPU | GPU
+    resource_spec = object({
+      cores  = number
+      gpus   = optional(number, 0)
+      memory = number
+    })
+    scale_policy = object({
+      fixed        = bool
+      initial_size = number
+      min_size     = optional(number, 0)
+      max_size     = optional(number, 0)
+    })
+  }))
+  validation {
+    condition     = length(var.workers_nodegroups_definition) > 0
+    error_message = "Amount of workers node-groups cannot be zero"
+  }
 }

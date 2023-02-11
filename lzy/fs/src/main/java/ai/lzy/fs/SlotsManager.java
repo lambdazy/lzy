@@ -8,10 +8,14 @@ import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.TextLinesOutSlot;
+import ai.lzy.v1.channel.LCM;
+import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.common.net.HostAndPort;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -22,11 +26,12 @@ import java.nio.file.Path;
 import java.text.MessageFormat;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 
 import static ai.lzy.channelmanager.ProtoConverter.makeBindSlotCommand;
 import static ai.lzy.channelmanager.ProtoConverter.makeUnbindSlotCommand;
@@ -186,6 +191,35 @@ public class SlotsManager implements AutoCloseable {
                 + bindSlotOp.getError().getCode() + ": " + bindSlotOp.getError().getMessage());
         }
         LOG.info("Slot `{}` configured.", slotUri);
+    }
+
+    @Nullable
+    public List<LCM.Channel> getChannelsStatus(String executionId, Collection<String> channelIds) {
+        try {
+            return channelManager
+                .getChannelsStatus(
+                    LCMS.GetChannelsStatusRequest.newBuilder()
+                        .setExecutionId(executionId)
+                        .addAllChannelIds(channelIds)
+                        .build())
+                .getChannelsList();
+        } catch (StatusRuntimeException e) {
+            LOG.error("ChannelManager::GetChannelsStatus failed: [{}] {}",
+                e.getStatus().getCode(), e.getStatus().getDescription());
+
+            if (e.getStatus().getCode() == Status.Code.INVALID_ARGUMENT ||
+                e.getStatus().getCode() == Status.Code.PERMISSION_DENIED)
+            {
+                throw new RuntimeException("GetStatusChannels failed with error: [%s] %s"
+                    .formatted(e.getStatus().getCode(), e.getStatus().getDescription()));
+            }
+
+            if (e.getStatus().getCode() == Status.Code.UNIMPLEMENTED) {
+                return List.of();
+            }
+
+            return null;
+        }
     }
 
     private LzySlot createSlot(String taskId, Slot spec, String channelId) throws IOException {

@@ -40,6 +40,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
 
         self.__existed_cache_file_path = existed_cache_file_path
         self.__nonexistent_cache_file_path = nonexistent_cache_file_path
+        self.__nonexistent_cache_creation_time = time.time()
 
         existed_cache_path = Path(existed_cache_file_path)
         if existed_cache_path.exists():
@@ -51,12 +52,14 @@ class AutomaticPyEnvProvider(PyEnvProvider):
 
         nonexistent_cache_path = Path(nonexistent_cache_file_path)
         if nonexistent_cache_path.exists():
-            modification_seconds_diff = time.time() - os.path.getmtime(nonexistent_cache_path)
-            modification_hours_diff, _ = divmod(modification_seconds_diff, 3600)
-            if modification_hours_diff > cache_invalidation_period_hours:
-                return  # do not load cache
             try:
                 with open(nonexistent_cache_path, "r") as file:
+                    creation_time = float(file.readline())
+                    modification_seconds_diff = time.time() - creation_time
+                    modification_hours_diff, _ = divmod(modification_seconds_diff, 3600)
+                    if modification_hours_diff >= cache_invalidation_period_hours:
+                        return  # do not load cache
+                    self.__nonexistent_cache_creation_time = creation_time
                     self.__nonexistent_cache.update(json.load(file))
             except Exception as e:
                 _LOG.warning("Error while pypi nonexistent packages cache loading", e)
@@ -85,11 +88,18 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                 return
 
             # and find it among installed ones
+            all_from_pypi: bool = False
             if name in distributions:
-                package_name = distributions[name][0]
-                if package_name in dist_versions and self.__exists_in_pypi(package_name, dist_versions[package_name]):
-                    remote_packages[package_name] = dist_versions[package_name]
-                    return
+                all_from_pypi = len(distributions[name]) > 0
+                for package_name in distributions[name]:
+                    if package_name in dist_versions and self.__exists_in_pypi(package_name,
+                                                                               dist_versions[package_name]):
+                        remote_packages[package_name] = dist_versions[package_name]
+                    else:
+                        all_from_pypi = False
+
+            if all_from_pypi:
+                return
 
             # if module is not found in distributions, try to find it as local one
             if module in local_modules:
@@ -160,6 +170,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         with open(self.__existed_cache_file_path, "w") as file:
             json.dump(self.__existed_cache, file)
         with open(self.__nonexistent_cache_file_path, "w") as file:
+            file.write(f"{str(self.__nonexistent_cache_creation_time)}\n")
             json.dump(self.__nonexistent_cache, file)
 
     def __exists_in_pypi(self, package_name: str, package_version: str) -> bool:

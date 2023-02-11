@@ -17,6 +17,7 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.grpc.ProtoConverter;
+import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LMS;
@@ -33,6 +34,7 @@ import org.apache.logging.log4j.Logger;
 import java.time.Instant;
 import java.util.Objects;
 
+import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
@@ -276,6 +278,67 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         InjectedFailures.fail12();
 
         executor.submit(channelOperationManager.getAction(channelOperation));
+    }
+
+    @Override
+    public void getChannelsStatus(LCMS.GetChannelsStatusRequest request,
+                                  StreamObserver<LCMS.GetChannelsStatusResponse> response)
+    {
+        var validationResult = ProtoValidator.validate(request);
+        if (!validationResult.isOk()) {
+            LOG.error("GetChannelStatusRequest failed: {}", validationResult.description());
+            response.onError(Status.INVALID_ARGUMENT.withDescription(validationResult.description()).asException());
+            return;
+        }
+
+        var authenticationContext = AuthenticationContext.current();
+        var subjId = Objects.requireNonNull(authenticationContext).getSubject().id();
+
+        var responseBuilder = LCMS.GetChannelsStatusResponse.newBuilder();
+
+        for (var channelId : request.getChannelIdsList()) {
+            final Channel channel;
+            try {
+                channel = withRetries(LOG, () -> channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
+            } catch (Exception e) {
+                LOG.error("Get status for channel {} failed, got exception: {}", channelId, e.getMessage(), e);
+                response.onError(Status.INTERNAL
+                    .withDescription("Cannot load channel %s: %s".formatted(channelId, e.getMessage())).asException());
+                return;
+            }
+
+            if (channel == null) {
+                LOG.error("Get status for channel {} failed, channel not found", channelId);
+                responseBuilder.addChannels(
+                    LCM.Channel.newBuilder()
+                        .setChannelId(channelId)
+                        // .setSpec()  // no spec - no (alive) channel
+                        .build());
+                continue;
+            }
+
+            if (!channel.getExecutionId().equals(request.getExecutionId())) {
+                LOG.error("GetChannelStatusRequest failed: requested executionId {} differs from channel {} one: {}",
+                    request.getExecutionId(), channelId, channel.getExecutionId());
+                response.onError(Status.INVALID_ARGUMENT.withDescription("Hack attempt fails").asException());
+                return;
+            }
+
+            final String userId = channel.getUserId();
+            final String workflowName = channel.getWorkflowName();
+            if (!accessManager.checkAccess(subjId, userId, workflowName, ChannelOperation.Type.BIND)) {
+                LOG.error("GetChannelsStatus failed: PERMISSION DENIED to workflow {} of user {}",
+                    workflowName, userId);
+                response.onError(Status.PERMISSION_DENIED.withDescription(
+                    "Don't have access to workflow " + channel.getWorkflowName()).asException());
+                return;
+            }
+
+            responseBuilder.addChannels(toProto(channel));
+        }
+
+        response.onNext(responseBuilder.build());
+        response.onCompleted();
     }
 
     private Status checkBindPreconditions(LCMS.BindRequest request, String channelId, Channel channel) {

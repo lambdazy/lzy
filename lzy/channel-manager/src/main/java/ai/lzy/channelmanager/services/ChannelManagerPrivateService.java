@@ -6,8 +6,6 @@ import ai.lzy.channelmanager.dao.ChannelOperationDao;
 import ai.lzy.channelmanager.grpc.ProtoValidator;
 import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.channelmanager.model.channel.Channel;
-import ai.lzy.channelmanager.model.channel.Receivers;
-import ai.lzy.channelmanager.model.channel.Senders;
 import ai.lzy.channelmanager.operation.ChannelOperation;
 import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.operation.ChannelOperationManager;
@@ -16,7 +14,6 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.AlreadyExistsException;
-import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -34,6 +31,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
@@ -311,7 +309,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
     private LCMPS.ChannelStatusResponse createChannelStatusResponse(Channel channel) {
         return LCMPS.ChannelStatusResponse.newBuilder()
             .setStatus(LCMPS.ChannelStatus.newBuilder()
-                .setChannel(toChannelProto(channel))
+                .setChannel(toProto(channel))
                 .build())
             .build();
     }
@@ -320,37 +318,9 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         return LCMPS.ChannelStatusAllResponse.newBuilder()
             .addAllStatuses(channels.stream()
                 .map(channel -> LCMPS.ChannelStatus.newBuilder()
-                    .setChannel(toChannelProto(channel))
+                    .setChannel(toProto(channel))
                     .build())
                 .collect(Collectors.toList()))
-            .build();
-    }
-
-    private LCM.Channel toChannelProto(Channel channel) {
-        Senders activeSenders = channel.getActiveSenders();
-        LCM.ChannelSenders.Builder sendersBuilder = LCM.ChannelSenders.newBuilder();
-        if (activeSenders.portalEndpoint() != null) {
-            sendersBuilder.setPortalSlot(ProtoConverter.toProto(activeSenders.portalEndpoint().getSlot()));
-        }
-        if (activeSenders.workerEndpoint() != null) {
-            sendersBuilder.setWorkerSlot(ProtoConverter.toProto(activeSenders.workerEndpoint().getSlot()));
-        }
-
-        Receivers activeReceivers = channel.getActiveReceivers();
-        LCM.ChannelReceivers.Builder receiversBuilder = LCM.ChannelReceivers.newBuilder();
-        if (activeReceivers.portalEndpoint() != null) {
-            receiversBuilder.setPortalSlot(ProtoConverter.toProto(activeReceivers.portalEndpoint().getSlot()));
-        }
-        receiversBuilder.addAllWorkerSlots(activeReceivers.workerEndpoints().stream()
-            .map(e -> ProtoConverter.toProto(e.getSlot()))
-            .toList());
-
-        return LCM.Channel.newBuilder()
-            .setChannelId(channel.getId())
-            .setSpec(toProto(channel.getSpec()))
-            .setExecutionId(channel.getExecutionId())
-            .setSenders(sendersBuilder.build())
-            .setReceivers(receiversBuilder.build())
             .build();
     }
 
@@ -359,13 +329,6 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             channel.getChannelName(),
             ai.lzy.model.grpc.ProtoConverter.fromProto(channel.getScheme())
         );
-    }
-
-    public static LCM.ChannelSpec toProto(Channel.Spec channelSpec) {
-        return LCM.ChannelSpec.newBuilder()
-            .setChannelName(channelSpec.name())
-            .setScheme(ai.lzy.model.grpc.ProtoConverter.toProto(channelSpec.contentType()))
-            .build();
     }
 
 }

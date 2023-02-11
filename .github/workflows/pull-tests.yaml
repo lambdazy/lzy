@@ -178,6 +178,7 @@ jobs:
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
 
       - name: 'clean pylzy'
+        if: always()
         run: |
           cd pylzy/
           eval "$(conda shell.bash hook)" && ./scripts/clean.sh
