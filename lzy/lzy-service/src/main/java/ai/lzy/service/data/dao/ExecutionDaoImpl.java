@@ -34,7 +34,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     private static final String QUERY_INSERT_EXECUTION = """
         INSERT INTO workflow_executions (execution_id, user_id, created_at, storage,
             storage_uri, storage_credentials, execution_status)
-        VALUES (?, ?, ?, cast(? as storage_type), ?, ?, cast(? as execution_status))""";
+        VALUES (?, ?, ?, ?, ?, ?, cast(? as execution_status))""";
 
     private static final String QUERY_DELETE_EXECUTION = """
         DELETE FROM workflow_executions
@@ -141,7 +141,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void create(String userId, String executionId, String storageType, LMST.StorageConfig storageConfig,
+    public void create(String userId, String executionId, String storageName, LMST.StorageConfig storageConfig,
                        @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
@@ -149,7 +149,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 statement.setString(1, executionId);
                 statement.setString(2, userId);
                 statement.setTimestamp(3, Timestamp.from(Instant.now()));
-                statement.setString(4, storageType.toUpperCase(Locale.ROOT));
+                statement.setString(4, storageName);
                 statement.setString(5, storageConfig.getUri());
                 statement.setString(6, objectMapper.writeValueAsString(storageConfig));
                 statement.setString(7, ExecutionStatus.RUN.name());

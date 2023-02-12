@@ -19,7 +19,7 @@ from lzy.logs.config import get_logger
 
 from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
     FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse, \
-    AbortWorkflowRequest, AbortWorkflowResponse, GetStorageCredentialsResponse, GetStorageCredentialsRequest
+    AbortWorkflowRequest, AbortWorkflowResponse, GetOrCreateDefaultStorageResponse, GetOrCreateDefaultStorageRequest
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
 # noinspection PyUnresolvedReferences
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient
@@ -109,13 +109,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
         self.created = True
-        return StartWorkflowResponse(
-            executionId="exec_id",
-            internalSnapshotStorage=StorageConfig(
-                uri="s3://bucket/prefix",
-                s3=S3Credentials(endpoint="", accessToken="", secretToken=""),
-            ),
-        )
+        return StartWorkflowResponse(executionId="exec_id")
 
     def AbortWorkflow(self, request: AbortWorkflowRequest, context) -> AbortWorkflowResponse:
         _LOG.info(f"Aborting wf {request}")
@@ -146,9 +140,9 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             stderr=ReadStdSlotsResponse.Data(data=("Some stderr",))
         )
 
-    def GetStorageCredentials(self, request: GetStorageCredentialsRequest,
-                              context: grpc.ServicerContext) -> GetStorageCredentialsResponse:
-        return GetStorageCredentialsResponse(storage=StorageConfig(
+    def GetOrCreateDefaultStorage(self, request: GetOrCreateDefaultStorageRequest,
+                                  context: grpc.ServicerContext) -> GetOrCreateDefaultStorageResponse:
+        return GetOrCreateDefaultStorageResponse(storage=StorageConfig(
             uri="s3://bucket/prefix",
             s3=S3Credentials(endpoint="", accessToken="", secretToken=""),
         ))

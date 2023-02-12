@@ -2,7 +2,7 @@ import asyncio
 import atexit
 import os
 from dataclasses import dataclass
-from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Tuple, Union
+from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
 
 # noinspection PyPackageRequirements
 from grpc.aio import Channel
@@ -29,13 +29,13 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     GetAvailablePoolsResponse,
     ReadStdSlotsRequest,
     ReadStdSlotsResponse,
-    GetStorageCredentialsRequest,
-    GetStorageCredentialsResponse,
+    GetOrCreateDefaultStorageRequest,
+    GetOrCreateDefaultStorageResponse,
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
-from lzy.storage.api import S3Credentials, Storage, StorageCredentials
+from lzy.storage.api import S3Credentials, Storage, StorageCredentials, AzureCredentials
 from lzy.utils.grpc import add_headers_interceptor, build_channel, build_token, retry, RetryConfig
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
@@ -67,21 +67,6 @@ class Failed:
 
 
 GraphStatus = Union[Waiting, Executing, Completed, Failed]
-
-
-def _create_storage_endpoint(store: StorageConfig) -> Storage:
-    error_msg = "no storage credentials provided"
-
-    grpc_creds: converter.storage_creds.grpc_STORAGE_CREDS
-    if store.HasField("azure"):
-        grpc_creds = store.azure
-    elif store.HasField("s3"):
-        grpc_creds = store.s3
-    else:
-        raise ValueError(error_msg)
-
-    creds: StorageCredentials = converter.storage_creds.from_(grpc_creds)
-    return Storage(creds, store.uri)
 
 
 @dataclass
@@ -142,28 +127,22 @@ class WorkflowServiceClient:
         self.__ops_stub = LongRunningServiceStub(CHANNEL)
 
     @retry(config=RETRY_CONFIG, action_name="starting workflow")
-    async def start_workflow(
-        self, name: str, storage: Optional[Storage] = None
-    ) -> Tuple[str, Optional[Storage]]:
+    async def start_workflow(self, name: str, storage: Storage, storage_name: str) -> str:
         await self.__start()
 
-        s: Optional[StorageConfig] = None
-
-        if storage is not None:
-            if isinstance(storage.credentials, S3Credentials):
-                s = StorageConfig(uri=storage.uri, s3=to(storage.credentials))
-            else:
-                s = StorageConfig(uri=storage.uri, azure=to(storage.credentials))
+        s: StorageConfig
+        if isinstance(storage.credentials, S3Credentials):
+            s = StorageConfig(uri=storage.uri, s3=to(storage.credentials))
+        elif isinstance(storage.credentials, AzureCredentials):
+            s = StorageConfig(uri=storage.uri, azure=to(storage.credentials))
+        else:
+            raise ValueError(f"Invalid storage credentials type {type(storage.credentials)}")
 
         res: StartWorkflowResponse = await self.__stub.StartWorkflow(
-            StartWorkflowRequest(workflowName=name, snapshotStorage=s)
+            StartWorkflowRequest(workflowName=name, snapshotStorage=s, storageName=storage_name)
         )
         exec_id = res.executionId
-
-        if res.internalSnapshotStorage is not None and res.internalSnapshotStorage.uri != "":
-            return exec_id, _create_storage_endpoint(res.internalSnapshotStorage)
-
-        return exec_id, None
+        return exec_id
 
     async def _await_op_done(self, op_id: str) -> FinishWorkflowResponse:
         while True:
@@ -269,9 +248,18 @@ class WorkflowServiceClient:
         return pools.poolSpecs
 
     @retry(config=RETRY_CONFIG, action_name="getting default storage")
-    async def get_storage(self) -> Optional[Storage]:
+    async def get_or_create_storage(self) -> Optional[Storage]:
         await self.__start()
-        resp: GetStorageCredentialsResponse = await self.__stub.GetStorageCredentials(GetStorageCredentialsRequest())
+        resp: GetOrCreateDefaultStorageResponse = await self.__stub.GetOrCreateDefaultStorage(
+            GetOrCreateDefaultStorageRequest())
         if resp.HasField("storage"):
-            return _create_storage_endpoint(resp.storage)
+            grpc_creds: converter.storage_creds.grpc_STORAGE_CREDS
+            if resp.storage.HasField("azure"):
+                grpc_creds = resp.storage.azure
+            elif resp.storage.HasField("s3"):
+                grpc_creds = resp.storage.s3
+            else:
+                raise ValueError(f"Invalid storage credentials provided: {resp.storage}")
+            creds: StorageCredentials = converter.storage_creds.from_(grpc_creds)
+            return Storage(creds, resp.storage.uri)
         return None

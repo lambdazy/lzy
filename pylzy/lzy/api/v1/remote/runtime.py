@@ -85,15 +85,16 @@ class RemoteRuntime(Runtime):
 
     async def storage(self) -> Optional[Storage]:
         if not self.__storage:
-            self.__storage = await self.__workflow_client.get_storage()
+            self.__storage = await self.__workflow_client.get_or_create_storage()
         return self.__storage
 
     async def start(self, workflow: LzyWorkflow) -> str:
-        default_creds = workflow.owner.storage_registry.default_config()
-        if default_creds is None:
-            raise ValueError("No default storage")
+        storage = workflow.owner.storage_registry.default_config()
+        storage_name = workflow.owner.storage_registry.default_storage_name()
+        if storage is None or storage_name is None:
+            raise ValueError("No provided storage")
 
-        exec_id, _ = await self.__workflow_client.start_workflow(workflow.name, default_creds)
+        exec_id = await self.__workflow_client.start_workflow(workflow.name, storage, storage_name)
         self.__running = True
         self.__workflow = workflow
         self.__execution_id = exec_id

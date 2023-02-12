@@ -53,11 +53,10 @@ public class WorkflowTest extends BaseTest {
         shutdownStorage();
 
         var thrown = assertThrows(StatusRuntimeException.class, () ->
-            authorizedWorkflowClient.startWorkflow(
-                LWFS.StartWorkflowRequest.newBuilder().setWorkflowName("workflow_1").build()));
+            authorizedWorkflowClient.getOrCreateDefaultStorage(
+                LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()));
 
         var expectedErrorCode = Status.UNAVAILABLE.getCode();
-
         assertEquals(expectedErrorCode, thrown.getStatus().getCode());
     }
 
@@ -87,9 +86,12 @@ public class WorkflowTest extends BaseTest {
         var freeVmFlag = new AtomicBoolean(false);
         onFreeVm(() -> freeVmFlag.set(true));
 
+        var creds =
+            authorizedWorkflowClient.getOrCreateDefaultStorage(
+                LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var thrown = assertThrows(StatusRuntimeException.class, () ->
             authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                .setWorkflowName("workflow_1").build()));
+                .setWorkflowName("workflow_1").setSnapshotStorage(creds).build()));
 
         var expectedErrorCode = Status.INTERNAL.getCode();
 
@@ -109,9 +111,12 @@ public class WorkflowTest extends BaseTest {
         var freeVmFlag = new AtomicBoolean(false);
         onFreeVm(() -> freeVmFlag.set(true));
 
+        var creds =
+            authorizedWorkflowClient.getOrCreateDefaultStorage(
+                LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var thrown = assertThrows(StatusRuntimeException.class, () ->
             authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                .setWorkflowName("workflow_1").build()));
+                .setWorkflowName("workflow_1").setSnapshotStorage(creds).build()));
 
         var expectedErrorCode = Status.INTERNAL.getCode();
 
@@ -154,9 +159,12 @@ public class WorkflowTest extends BaseTest {
         var freeVmFlag = new AtomicBoolean(false);
         onFreeVm(() -> freeVmFlag.set(true));
 
+        var creds =
+            authorizedWorkflowClient.getOrCreateDefaultStorage(
+                LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var thrown = assertThrows(StatusRuntimeException.class, () ->
             authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                .setWorkflowName("workflow_1").build()));
+                .setWorkflowName("workflow_1").setSnapshotStorage(creds).build()));
 
         var expectedErrorCode = Status.INTERNAL.getCode();
 
@@ -168,8 +176,11 @@ public class WorkflowTest extends BaseTest {
     @Test
     public void startAndFinishExecutionWithInternalStorage() {
         var workflowName = "workflow_2";
+        var creds =
+            authorizedWorkflowClient.getOrCreateDefaultStorage(
+                LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var executionId = authorizedWorkflowClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(creds).build()
         ).getExecutionId();
 
         String[] destroyedExecutionChannels = {null};
@@ -215,12 +226,13 @@ public class WorkflowTest extends BaseTest {
     @Test
     public void startAndFinishExecutionWithGraph() {
         var workflowName = "workflow_2";
+        var storageConfig = authorizedWorkflowClient.getOrCreateDefaultStorage(
+            LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var execution = authorizedWorkflowClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(storageConfig)
+                .build()
         );
-
         var executionId = execution.getExecutionId();
-        var storageConfig = execution.getInternalSnapshotStorage();
 
         var operations = List.of(
             LWF.Operation.newBuilder()
@@ -291,12 +303,14 @@ public class WorkflowTest extends BaseTest {
     @Test
     public void startWorkflowExecutionWhenAlreadyActive() {
         var workflowName = "workflow_1";
+        var storageConfig = authorizedWorkflowClient.getOrCreateDefaultStorage(
+            LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var firstExecution = authorizedWorkflowClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(storageConfig)
+                .build()
         );
 
         var firstExecutionId = firstExecution.getExecutionId();
-        var firstStorageConfig = firstExecution.getInternalSnapshotStorage();
 
         var operations = List.of(
             LWF.Operation.newBuilder()
@@ -304,7 +318,7 @@ public class WorkflowTest extends BaseTest {
                 .setCommand("echo 'i-am-a-hacker' > /tmp/lzy_worker_1/a")
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_worker_1/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", firstStorageConfig))
+                    .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                     .build())
                 .setPoolSpecName("s")
                 .build(),
@@ -313,11 +327,11 @@ public class WorkflowTest extends BaseTest {
                 .setCommand("/tmp/lzy_worker_2/sbin/cat /tmp/lzy_worker_2/a > /tmp/lzy_worker_2/b")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_worker_2/a")
-                    .setStorageUri(buildSlotUri("snapshot_a_1", firstStorageConfig))
+                    .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                     .build())
                 .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/tmp/lzy_worker_2/b")
-                    .setStorageUri(buildSlotUri("snapshot_b_1", firstStorageConfig))
+                    .setStorageUri(buildSlotUri("snapshot_b_1", storageConfig))
                     .build())
                 .setPoolSpecName("s")
                 .build()
@@ -349,7 +363,8 @@ public class WorkflowTest extends BaseTest {
         onStopGraph(actualGraphId -> stopGraphCount.incrementAndGet());
 
         var secondExecution = authorizedWorkflowClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(storageConfig)
+                .build()
         );
 
         var secondExecutionId = secondExecution.getExecutionId();
@@ -373,12 +388,13 @@ public class WorkflowTest extends BaseTest {
     @Test
     public void startAndAbortWorkflowExecutionWithGraphs() {
         var workflowName = "workflow_1";
+        var storageConfig = authorizedWorkflowClient.getOrCreateDefaultStorage(
+            LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var execution = authorizedWorkflowClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(storageConfig)
+                .build()
         );
-
         var executionId = execution.getExecutionId();
-        var storageConfig = execution.getInternalSnapshotStorage();
 
         var graphs = IntStream.range(0, 10).boxed().map(i -> {
                 var output1 = LWF.Operation.SlotDescription.newBuilder()
@@ -439,12 +455,13 @@ public class WorkflowTest extends BaseTest {
     @Test
     public void failToAbortUnknownWorkflowExecutions() {
         var workflowName = "workflow_1";
+        var storageConfig = authorizedWorkflowClient.getOrCreateDefaultStorage(
+            LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var execution = authorizedWorkflowClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(storageConfig)
+                .build()
         );
-
         var executionId = execution.getExecutionId();
-        var storageConfig = execution.getInternalSnapshotStorage();
 
         var operations = List.of(
             LWF.Operation.newBuilder()
@@ -527,8 +544,12 @@ public class WorkflowTest extends BaseTest {
     public void testPortalStartedWhileCreatingWorkflow() throws InterruptedException {
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = false;
         var workflowName = "workflow_1";
+        var creds =
+            authorizedWorkflowClient.getOrCreateDefaultStorage(
+                LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var exId = authorizedWorkflowClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build()).getExecutionId();
+                LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(creds).build())
+            .getExecutionId();
 
         var portalAddress = HostAndPort.fromParts("localhost", config.getPortal().getPortalApiPort());
         var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);

@@ -104,9 +104,12 @@ public class RestartExecuteGraphTest extends AbstractGraphExecutionTest {
 
     private void executeGraphWithRestartImpl() {
         var workflowName = "workflow_1";
+        var storage =
+            authorizedWorkflowClient.getOrCreateDefaultStorage(
+                    LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         LWFS.StartWorkflowResponse workflow = authorizedWorkflowClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build());
-        LWF.Graph graph = buildSimpleGraph(workflow.getInternalSnapshotStorage());
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(storage).build());
+        LWF.Graph graph = buildSimpleGraph(storage);
         var executionId = workflow.getExecutionId();
 
         var idempotencyKey = "idempotency-key";
