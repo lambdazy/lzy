@@ -60,7 +60,7 @@ def op(
     ram_size_gb: Optional[int] = None,
     env: Env = Env(),
     description: str = "",
-    lazy_arguments: bool = True
+    lazy_arguments: bool = False
 ):
     def deco(f):
         """

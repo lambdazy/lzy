@@ -172,10 +172,10 @@ def main(arg: str):
         raise e
 
     logger = get_remote_logger(__name__)
-    logger.info("Starting remote runtime...")
+    logger.info("Starting execution...")
     logger.debug(f"Running with environment: {os.environ}")
     process_execution(registry, req.op, req.args_paths, req.kwargs_paths, req.output_paths, logger, req.lazy_arguments)
-    logger.info("Finishing remote runtime...")
+    logger.info("Finishing execution...")
 
 
 if __name__ == "__main__":
