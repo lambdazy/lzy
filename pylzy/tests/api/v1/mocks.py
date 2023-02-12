@@ -10,26 +10,23 @@ from google.protobuf.any_pb2 import Any
 from serialzy.serializers.primitive import PrimitiveSerializer
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
+from ai.lzy.v1.long_running.operation_pb2 import Operation, GetOperationRequest
+from ai.lzy.v1.long_running.operation_pb2_grpc import LongRunningServiceServicer
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import RegisterWhiteboardRequest, RegisterWhiteboardResponse, \
     UpdateWhiteboardRequest, UpdateWhiteboardResponse, GetRequest, GetResponse, ListRequest, ListResponse
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceServicer
-
-from lzy.logs.config import get_logger
-
 from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
     FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse, \
     AbortWorkflowRequest, AbortWorkflowResponse
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
-from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient
+from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
 from lzy.api.v1.runtime import ProgressStep
+from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
 from lzy.whiteboards.api import WhiteboardIndexClient
-
-from ai.lzy.v1.long_running.operation_pb2 import Operation, GetOperationRequest
-from ai.lzy.v1.long_running.operation_pb2_grpc import LongRunningServiceServicer
 
 _LOG = get_logger(__name__)
 
@@ -38,7 +35,7 @@ class RuntimeMock(Runtime):
     def __init__(self):
         self.calls: List[LzyCall] = []
 
-    def workflow_client(self) -> Optional["WorkflowServiceClient"]:
+    async def default_storage(self) -> Optional[Storage]:
         return None
 
     async def start(self, workflow: "LzyWorkflow") -> str:
@@ -179,9 +176,6 @@ class StorageRegistryMock(StorageRegistry):
         return Storage.azure_blob_storage("", "")
 
     def default_storage_name(self) -> Optional[str]:
-        return "storage_name"
-
-    def provided_storage_name(self) -> str:
         return "storage_name"
 
     def client(self, storage_name: str) -> Optional[AsyncStorageClient]:
