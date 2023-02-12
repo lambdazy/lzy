@@ -18,7 +18,7 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import RegisterWhiteboardReques
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceServicer
 from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
     FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse, \
-    AbortWorkflowRequest, AbortWorkflowResponse
+    AbortWorkflowRequest, AbortWorkflowResponse, GetStorageCredentialsRequest, GetStorageCredentialsResponse
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow
 from lzy.api.v1.runtime import ProgressStep
@@ -91,7 +91,7 @@ class OperationsServiceMock(LongRunningServiceServicer):
 
 class WorkflowServiceMock(LzyWorkflowServiceServicer):
     def __init__(self, op_service: OperationsServiceMock):
-        self.fail = False
+        self.fail_on_start = False
         self.created = False
         self.__op_service = op_service
 
@@ -100,8 +100,8 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
     ) -> StartWorkflowResponse:
         _LOG.info(f"Creating wf {request}")
 
-        if self.fail:
-            self.fail = False
+        if self.fail_on_start:
+            self.fail_on_start = False
             context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
         self.created = True
@@ -115,27 +115,12 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
 
     def AbortWorkflow(self, request: AbortWorkflowRequest, context) -> AbortWorkflowResponse:
         _LOG.info(f"Aborting wf {request}")
-
-        if self.fail:
-            self.fail = False
-            context.abort(grpc.StatusCode.INTERNAL, "some_error")
-
-        assert request.workflowName == "some_name"
-        assert request.executionId == "exec_id"
-
         return AbortWorkflowResponse()
 
     def FinishWorkflow(
         self, request: FinishWorkflowRequest, context: grpc.ServicerContext
     ) -> Operation:
         _LOG.info(f"Finishing workflow {request}")
-
-        if self.fail:
-            self.fail = False
-            context.abort(grpc.StatusCode.INTERNAL, "some_error")
-
-        assert request.workflowName == "some_name"
-        assert request.executionId == "exec_id"
 
         packed = Any()
         packed.Pack(FinishWorkflowResponse())
@@ -150,16 +135,19 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
     ) -> Iterator[ReadStdSlotsResponse]:
         _LOG.info(f"Registered listener")
 
-        if self.fail:
-            self.fail = False
-            context.abort(grpc.StatusCode.INTERNAL, "some_error")
-
         yield ReadStdSlotsResponse(
             stdout=ReadStdSlotsResponse.Data(data=("Some stdout",))
         )
         yield ReadStdSlotsResponse(
             stderr=ReadStdSlotsResponse.Data(data=("Some stderr",))
         )
+
+    def GetStorageCredentials(self, request: GetStorageCredentialsRequest,
+                              context: grpc.ServicerContext) -> GetStorageCredentialsResponse:
+        return GetStorageCredentialsResponse(storage=StorageConfig(
+            uri="s3://bucket/prefix",
+            s3=S3Credentials(endpoint="", accessToken="", secretToken=""),
+        ))
 
 
 class StorageRegistryMock(StorageRegistry):

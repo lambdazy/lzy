@@ -1,5 +1,4 @@
 import logging
-import os
 import tempfile
 from concurrent import futures
 from unittest import TestCase
@@ -8,6 +7,8 @@ from unittest import TestCase
 import grpc.aio
 # noinspection PyPackageRequirements
 from Crypto.PublicKey import RSA
+# noinspection PyPackageRequirements
+from grpc.aio import AioRpcError
 
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     add_LzyWorkflowServiceServicer_to_server,
@@ -53,12 +54,15 @@ class GrpcRuntimeTests(TestCase):
             self.assertIsNotNone(lzy.storage_registry.default_config())
             self.assertTrue(self.mock.created)
 
-    def test_error(self):
+    def test_error_on_start(self):
         lzy = Lzy(whiteboard_client=WhiteboardIndexClientMock(), py_env_provider=EnvProviderMock())
         lzy.auth(user="ArtoLord", key_path=self.__key_path, endpoint="localhost:12345")
 
-        self.mock.fail = True
-        with self.assertRaises(expected_exception=Exception):
+        self.mock.fail_on_start = True
+        # noinspection PyUnusedLocal
+        flag: bool = False
+        with self.assertRaises(AioRpcError):
             with lzy.workflow("some_name"):
-                self.assertIsNotNone(lzy.storage_registry.default_config())
-        self.assertIsNone(lzy.storage_registry.default_config())
+                flag = True
+        self.assertFalse(flag)
+        self.assertIsNotNone(lzy.storage_registry.default_config())

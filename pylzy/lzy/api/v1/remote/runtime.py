@@ -89,14 +89,10 @@ class RemoteRuntime(Runtime):
         return self.__storage
 
     async def start(self, workflow: LzyWorkflow) -> str:
+        default_creds = workflow.owner.storage_registry.default_config()
+        exec_id, _ = await self.__workflow_client.start_workflow(workflow.name, default_creds)
         self.__running = True
         self.__workflow = workflow
-        client = self.__workflow_client
-
-        default_creds = self.__workflow.owner.storage_registry.default_config()
-        exec_id, _ = await client.start_workflow(
-            self.__workflow.name, default_creds
-        )
         self.__execution_id = exec_id
         self.__std_slots_listener = asyncio.create_task(
             self.__listen_to_std_slots(exec_id)
@@ -108,8 +104,8 @@ class RemoteRuntime(Runtime):
         calls: List[LzyCall],
         progress: Callable[[ProgressStep], None],
     ) -> None:
-        assert self.__execution_id is not None
-        assert self.__workflow is not None
+        if not self.__running:
+            raise ValueError("Runtime is not running")
 
         client = self.__workflow_client
         pools = await client.get_pool_specs(self.__execution_id)
@@ -126,7 +122,7 @@ class RemoteRuntime(Runtime):
         )  # Running long op in threadpool
         _LOG.debug(f"Starting executing graph {graph}")
 
-        graph_id = await client.execute_graph(self.__workflow.name, self.__execution_id, graph)
+        graph_id = await client.execute_graph(cast(LzyWorkflow, self.__workflow).name, self.__execution_id, graph)
         _LOG.debug(f"Requesting remote execution, graph_id={graph_id}")
 
         progress(ProgressStep.WAITING)
@@ -154,19 +150,14 @@ class RemoteRuntime(Runtime):
 
     async def abort(self) -> None:
         client = self.__workflow_client
+        if not self.__running:
+            return
         try:
-            if not self.__running:
-                return
-
-            assert self.__execution_id is not None
-            assert self.__workflow is not None
-
-            await client.abort_workflow(self.__workflow.name, self.__execution_id, "Workflow execution aborted")
-
+            await client.abort_workflow(cast(LzyWorkflow, self.__workflow).name, self.__execution_id,
+                                        "Workflow execution aborted")
             self.__execution_id = None
             self.__workflow = None
             self.__std_slots_listener = None
-
         finally:
             self.__running = False
 
