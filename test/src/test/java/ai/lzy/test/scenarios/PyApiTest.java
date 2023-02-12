@@ -79,6 +79,16 @@ public class PyApiTest {
     }
 
     @Test
+    public void testLargeInputOutput() {
+        /* This scenario checks for:
+                1. Checking large input & output
+         */
+
+        //Arrange
+        pythonContext.context().evalAndAssertScenarioResult("large_input_output");
+    }
+
+    @Test
     public void testWhiteboards() {
         /* This scenario checks for:
                 1. Whiteboards/Views machinery
