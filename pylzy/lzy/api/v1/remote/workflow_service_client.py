@@ -269,7 +269,7 @@ class WorkflowServiceClient:
         return pools.poolSpecs
 
     @retry(config=RETRY_CONFIG, action_name="getting default storage")
-    async def get_default_storage(self) -> Optional[Storage]:
+    async def get_storage(self) -> Optional[Storage]:
         await self.__start()
         resp: GetStorageCredentialsResponse = await self.__stub.GetStorageCredentials(GetStorageCredentialsRequest())
         if resp.HasField("storage"):

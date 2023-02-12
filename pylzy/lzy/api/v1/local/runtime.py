@@ -28,7 +28,7 @@ class LocalRuntime(Runtime):
     def __init__(self):
         self.__workflow: Optional["LzyWorkflow"] = None
 
-    async def default_storage(self) -> Optional[Storage]:
+    async def storage(self) -> Optional[Storage]:
         return None
 
     async def start(self, workflow: "LzyWorkflow") -> str:

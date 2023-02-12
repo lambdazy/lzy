@@ -39,5 +39,5 @@ class Runtime(ABC):
         pass
 
     @abstractmethod
-    async def default_storage(self) -> Optional[Storage]:
+    async def storage(self) -> Optional[Storage]:
         pass

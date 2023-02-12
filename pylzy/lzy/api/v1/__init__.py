@@ -280,7 +280,7 @@ class Lzy:
         if self.__registered_runtime_storage:
             return
 
-        default_storage = LzyEventLoop.run_async(self.__runtime.default_storage())
+        default_storage = LzyEventLoop.run_async(self.__runtime.storage())
         if default_storage:
             as_default = self.__storage_registry.default_client() is None
             self.__storage_registry.register_storage("provided_default_storage", default_storage, default=as_default)
