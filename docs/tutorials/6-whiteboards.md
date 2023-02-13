@@ -46,7 +46,7 @@ with lzy.workflow("training") as wf:
 Whiteboard can be loaded by `id`:
 
 ```python
-wb = lzy.whiteboard('<id>')
+wb = lzy.whiteboard(id_=‘<id>’)
 print(wb.score)
 ```
 
