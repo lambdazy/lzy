@@ -378,7 +378,7 @@ public class PortalTestBase {
                     };
                 });
             if (!done) {
-                LockSupport.parkNanos(Duration.ofMillis(100).toNanos());
+                LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
             }
         }
     }
