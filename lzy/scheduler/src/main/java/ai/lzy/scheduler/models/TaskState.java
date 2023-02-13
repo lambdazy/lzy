@@ -1,6 +1,6 @@
 package ai.lzy.scheduler.models;
 
-import ai.lzy.model.TaskDesc;
+import ai.lzy.v1.common.LMO;
 
 import javax.annotation.Nullable;
 
@@ -9,7 +9,7 @@ public record TaskState(
     String executionId,
     String workflowName,
     String userId,
-    TaskDesc description,
+    LMO.TaskDesc description,
     @Nullable String vmId,
     @Nullable String allocatorOperationId,
     @Nullable Integer workerPort,
@@ -34,7 +34,7 @@ public record TaskState(
         private final String executionId;
         private final String workflowName;
         private final String userId;
-        private final TaskDesc description;
+        private final LMO.TaskDesc description;
         private @Nullable String vmId;
         private @Nullable String allocatorOperationId;
         private @Nullable String workerHost;

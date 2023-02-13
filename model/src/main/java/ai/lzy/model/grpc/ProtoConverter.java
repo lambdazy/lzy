@@ -1,7 +1,6 @@
 package ai.lzy.model.grpc;
 
 import ai.lzy.model.DataScheme;
-import ai.lzy.model.StorageCredentials;
 import ai.lzy.model.graph.*;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
@@ -11,8 +10,6 @@ import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMS;
 
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -35,89 +32,9 @@ public class ProtoConverter {
         );
     }
 
-    public static Provisioning fromProto(LME.Provisioning provisioning) {
-        return () -> provisioning.getTagsList().stream()
-            .map(LME.Provisioning.Tag::getTag)
-            .collect(Collectors.toSet());
-    }
-
-    public static Env fromProto(LME.EnvSpec env) {
-        final BaseEnv baseEnv;
-        if (env.hasBaseEnv()) {
-            baseEnv = fromProto(env.getBaseEnv());
-        } else {
-            baseEnv = null;
-        }
-        final AuxEnv auxEnv;
-        if (env.hasAuxEnv()) {
-            auxEnv = fromProto(env.getAuxEnv());
-        } else {
-            auxEnv = null;
-        }
-        return new EnvImpl(baseEnv, auxEnv);
-    }
-
-    public static BaseEnv fromProto(LME.BaseEnv env) {
-        return new BaseEnvAdapter(env);
-    }
-
-    public static AuxEnv fromProto(LME.AuxEnv env) {
-        if (env.hasPyenv()) {
-            return fromProto(env.getPyenv());
-        }
-        return null;
-    }
-
-    private static PythonEnv fromProto(LME.PythonEnv env) {
-        return new PythonEnvAdapter(env);
-    }
-
     public static DataScheme fromProto(LMD.DataScheme dataScheme) {
         return new DataScheme(dataScheme.getDataFormat(), dataScheme.getSchemeFormat(),
             dataScheme.getSchemeContent(), dataScheme.getMetadataMap());
-    }
-
-    public static LME.EnvSpec toProto(Env env) {
-        LME.EnvSpec.Builder builder = LME.EnvSpec.newBuilder();
-        if (env != null) {
-            if (env.baseEnv() != null) {
-                builder.setBaseEnv(toProto(env.baseEnv()));
-            }
-            if (env.auxEnv() != null) {
-                builder.setAuxEnv(toProto(env.auxEnv()));
-            }
-        }
-        return builder.build();
-    }
-
-    public static LME.BaseEnv toProto(BaseEnv env) {
-        LME.BaseEnv.Builder builder = LME.BaseEnv.newBuilder();
-        if (env.name() != null) {
-            builder.setName(env.name());
-        }
-        return builder.build();
-    }
-
-    public static LME.AuxEnv toProto(AuxEnv env) {
-        LME.AuxEnv.Builder builder = LME.AuxEnv.newBuilder();
-        if (env instanceof PythonEnv) {
-            builder.setPyenv(toProto((PythonEnv) env));
-        }
-        return builder.build();
-    }
-
-    public static LME.PythonEnv toProto(PythonEnv env) {
-        List<LME.LocalModule> localModules = new ArrayList<>();
-        env.localModules()
-            .forEach(localModule -> localModules.add(LME.LocalModule.newBuilder()
-                .setName(localModule.name())
-                .setUri(localModule.uri())
-                .build()));
-        return LME.PythonEnv.newBuilder()
-            .setName(env.name())
-            .setYaml(env.yaml())
-            .addAllLocalModules(localModules)
-            .build();
     }
 
     public static LMS.Slot toProto(Slot slot) {
@@ -178,103 +95,6 @@ public class ProtoConverter {
             .setContentType(scheme)
             .setMedia(LMS.Slot.Media.FILE)
             .build();
-    }
-
-    private static class EnvImpl implements Env {
-
-        private final BaseEnv baseEnv;
-        private final AuxEnv auxEnv;
-
-        public EnvImpl(BaseEnv baseEnv, AuxEnv auxEnv) {
-            this.baseEnv = baseEnv;
-            this.auxEnv = auxEnv;
-        }
-
-        @Override
-        public BaseEnv baseEnv() {
-            return baseEnv;
-        }
-
-        @Override
-        public AuxEnv auxEnv() {
-            return auxEnv;
-        }
-    }
-
-    private static class LocalModuleAdapter implements LocalModule {
-
-        private final String name;
-        private final String uri;
-
-        public LocalModuleAdapter(LME.LocalModule localModule) {
-            this.name = localModule.getName();
-            this.uri = localModule.getUri();
-        }
-
-        public String name() {
-            return name;
-        }
-
-        public String uri() {
-            return uri;
-        }
-    }
-
-    private static class PythonEnvAdapter implements PythonEnv {
-
-        private final LME.PythonEnv env;
-        private final List<LocalModule> localModules;
-
-        public PythonEnvAdapter(LME.PythonEnv env) {
-            this.env = env;
-            localModules = new ArrayList<>();
-            env.getLocalModulesList()
-                .forEach(localModule -> localModules.add(new LocalModuleAdapter(localModule)));
-        }
-
-        @Override
-        public String name() {
-            return this.env.getName();
-        }
-
-        @Override
-        public String yaml() {
-            return this.env.getYaml();
-        }
-
-        @Override
-        public List<LocalModule> localModules() {
-            return new ArrayList<>(localModules);
-        }
-
-        @Nullable
-        @Override
-        public StorageCredentials credentials() {
-            // TODO(artolord) add credentials to proto
-            return null;
-        }
-
-        @Override
-        public URI uri() {
-            return URI.create("conda/" + name());
-        }
-    }
-
-    private static class BaseEnvAdapter implements BaseEnv {
-
-        private final LME.BaseEnv env;
-
-        public BaseEnvAdapter(LME.BaseEnv env) {
-            this.env = env;
-        }
-
-        @Override
-        public String name() {
-            if (env.getName().equals("")) {
-                return null;
-            }
-            return env.getName();
-        }
     }
 
     public static class SlotAdapter implements Slot {

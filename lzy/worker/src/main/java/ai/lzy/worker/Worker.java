@@ -12,14 +12,15 @@ import ai.lzy.longrunning.LocalOperationService.OperationSnapshot;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.Signal;
-import ai.lzy.model.TaskDesc;
-import ai.lzy.model.operation.Operation.StdSlotDesc;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.common.LMO.Operation.StdSlotDesc;
+import ai.lzy.v1.common.LMO.SlotToChannelAssignment;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.worker.LWS.ExecuteRequest;
 import ai.lzy.v1.worker.LWS.ExecuteResponse;
@@ -252,21 +253,23 @@ public class Worker {
 
         private synchronized ExecuteResponse executeOp(ExecuteRequest request) {
             String tid = request.getTaskId();
-            var task = TaskDesc.fromProto(request.getTaskDesc());
+            var task = request.getTaskDesc();
+            var op = task.getOperation();
 
-            var lzySlots = new ArrayList<LzySlot>(task.operation().slots().size());
+            var lzySlots = new ArrayList<LzySlot>(task.getOperation().getSlotsCount());
+            var slotAssignments = task.getSlotAssignmentsList().stream()
+                .collect(Collectors.toMap(SlotToChannelAssignment::getSlotName, SlotToChannelAssignment::getChannelId));
 
-            for (var slot : task.operation().slots()) {
-                final var binding = task.slotsToChannelsAssignments().get(slot.name());
+            for (var slot : op.getSlotsList()) {
+                final var binding = slotAssignments.get(slot.getName());
                 if (binding == null) {
-
                     return ExecuteResponse.newBuilder()
                         .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                         .setDescription("Internal error")
                         .build();
                 }
 
-                lzySlots.add(lzyFs.getSlotsManager().getOrCreateSlot(tid, slot, binding));
+                lzySlots.add(lzyFs.getSlotsManager().getOrCreateSlot(tid, ProtoConverter.fromProto(slot), binding));
             }
 
             lzySlots.forEach(slot -> {
@@ -275,8 +278,8 @@ public class Worker {
                 }
             });
 
-            final var stdoutSpec = task.operation().stdout();
-            final var stderrSpec = task.operation().stderr();
+            final var stdoutSpec = op.getStdout();
+            final var stderrSpec = op.getStderr();
 
             final var outQueue = generateStreamQueue(tid, stdoutSpec, "stdout");
             final var errQueue = generateStreamQueue(tid, stderrSpec, "stderr");
@@ -311,7 +314,7 @@ public class Worker {
                 LOG.info("Executing task {}", tid);
 
                 try {
-                    var exec = new Execution(tid, task.operation().command(), "", lzyFs.getMountPoint().toString());
+                    var exec = new Execution(tid, op.getCommand(), "", lzyFs.getMountPoint().toString());
 
                     exec.start(env);
 
@@ -427,8 +430,8 @@ public class Worker {
 
                 final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(
                     tid,
-                    new TextLinesOutSlot(stdoutSpec.slotName()),
-                    stdoutSpec.channelId());
+                    new TextLinesOutSlot(stdoutSpec.getName()),
+                    stdoutSpec.getChannelId());
 
                 slot.setStream(new LineNumberReader(new InputStreamReader(i, StandardCharsets.UTF_8)));
             } else {

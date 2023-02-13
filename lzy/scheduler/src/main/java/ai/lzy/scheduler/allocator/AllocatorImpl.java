@@ -1,7 +1,6 @@
 package ai.lzy.scheduler.allocator;
 
 import ai.lzy.iam.config.IamClientConfiguration;
-import ai.lzy.model.operation.Operation;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.configs.ServiceConfig;
@@ -11,6 +10,7 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
 import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
+import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -98,7 +98,7 @@ public class AllocatorImpl implements WorkersAllocator {
 
     @Override
     public AllocateResult allocate(String userId, String workflowName,
-                                          String sessionId, Operation.Requirements requirements)
+                                          String sessionId, LMO.Requirements requirements)
     {
         final int port;
         final int fsPort;
@@ -136,8 +136,8 @@ public class AllocatorImpl implements WorkersAllocator {
             .build();
 
         final var request = VmAllocatorApi.AllocateRequest.newBuilder()
-            .setPoolLabel(requirements.poolLabel())
-            .setZone(requirements.zone())
+            .setPoolLabel(requirements.getPoolLabel())
+            .setZone(requirements.getZone())
             .setSessionId(sessionId)
             .addWorkload(workload)
             .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)

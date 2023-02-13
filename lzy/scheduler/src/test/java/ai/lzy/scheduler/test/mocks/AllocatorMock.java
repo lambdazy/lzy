@@ -1,7 +1,6 @@
 package ai.lzy.scheduler.test.mocks;
 
 import ai.lzy.longrunning.LocalOperationService;
-import ai.lzy.model.operation.Operation;
 import ai.lzy.scheduler.allocator.WorkersAllocator;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.auth.credentials.RsaUtils;
@@ -9,6 +8,7 @@ import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse.VmEndpoint;
+import ai.lzy.v1.common.LMO;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.micronaut.context.annotation.Primary;
@@ -43,7 +43,7 @@ public class AllocatorMock implements WorkersAllocator {
 
     @Override
     public AllocateResult allocate(String userId, String workflowName, String sessionId,
-                                          Operation.Requirements requirements)
+                                          LMO.Requirements requirements)
     {
         var address = onAllocate.call(workflowName, userId, sessionId);
 
