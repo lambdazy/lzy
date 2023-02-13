@@ -396,7 +396,7 @@ public class Worker {
                         var readers = channel.getReceivers().getWorkerSlotsCount() +
                             (channel.getReceivers().hasPortalSlot() ? 1 : 0);
 
-                        if (readers != 0 && slot.getCompletedReads() >= readers) {
+                        if (slot.getCompletedReads() >= readers) {
                             LOG.info("Channel {} already read ({}) by all consumers ({})",
                                 channel.getChannelId(), slot.getCompletedReads(), readers);
                             outputChannelsIds.remove(channel.getChannelId());

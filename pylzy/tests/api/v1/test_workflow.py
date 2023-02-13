@@ -384,7 +384,7 @@ class LzyWorkflowTests(TestCase):
         self.assertEqual("Foo: Bar: Baz(2):", b2)
 
     def test_lazy_args_loading(self):
-        @op
+        @op(lazy_arguments=True)
         def is_arg_type_str(a: str) -> bool:
             return type(a) == str
 

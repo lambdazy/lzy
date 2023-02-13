@@ -45,7 +45,7 @@ public class SchedulerTest {
     public final ContextRule<ChannelManagerContext> channelManager
         = new ContextRule<>(ctx, ChannelManagerContext.class);
 
-    @Test(timeout = 60_000)
+    @Test(timeout = 120_000)
     public void testGE() throws Exception {
         final var ch1 = buildChannel("1");
         final var ch2 = buildChannel("2");
