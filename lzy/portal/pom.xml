@@ -19,6 +19,16 @@
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>portal-api</artifactId>
+            <version>1.2-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>iam-api</artifactId>
+            <version>1.2-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>allocator-api</artifactId>
             <version>1.2-SNAPSHOT</version>
         </dependency>
@@ -34,30 +44,9 @@
             <version>1.2-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
-
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>fs</artifactId>
-            <version>1.2-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>iam-api</artifactId>
-            <version>1.2-SNAPSHOT</version>
-        </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running-api</artifactId>
-            <version>1.2-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>long-running</artifactId>
-            <version>1.2-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>portal-api</artifactId>
             <version>1.2-SNAPSHOT</version>
         </dependency>
         <dependency>
@@ -67,8 +56,41 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>storage-api</artifactId>
+            <version>1.2-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>fs</artifactId>
+            <version>1.2-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>long-running</artifactId>
+            <version>1.2-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>worker</artifactId>
             <version>1.2-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>iam</artifactId>
+            <version>1.2-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>channel-manager</artifactId>
+            <version>1.2-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>util-test</artifactId>
+            <version>1.2-SNAPSHOT</version>
+            <scope>test</scope>
         </dependency>
 
         <dependency>
@@ -83,7 +105,6 @@
             <groupId>io.micronaut</groupId>
             <artifactId>micronaut-runtime</artifactId>
         </dependency>
-
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
@@ -100,25 +121,6 @@
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <scope>compile</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>util-test</artifactId>
-            <version>1.2-SNAPSHOT</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>iam</artifactId>
-            <version>1.2-SNAPSHOT</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>channel-manager</artifactId>
-            <version>1.2-SNAPSHOT</version>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>io.findify</groupId>
