@@ -171,6 +171,7 @@ public class PortalTestBase {
         stopS3();
         for (var worker : workers.values()) {
             worker.worker.stop();
+            worker.channel.shutdown();
         }
 
         mocksServer.stop();
@@ -377,7 +378,7 @@ public class PortalTestBase {
                     };
                 });
             if (!done) {
-                LockSupport.parkNanos(Duration.ofMillis(100).toNanos());
+                LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
             }
         }
     }

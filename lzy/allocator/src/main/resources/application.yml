@@ -78,8 +78,8 @@ allocator:
     enabled: false
 
   cache-limits:
-    user-limit: 100
-    session-limit: 100
-    any-session-pool-limit: 100
+    user-limit: 5
+    session-limit: 3
+    any-session-pool-limit: 1
     session-pool-limit:
-      portals: 100
+      portals: 1

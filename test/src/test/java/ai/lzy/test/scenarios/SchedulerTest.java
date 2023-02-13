@@ -1,5 +1,6 @@
 package ai.lzy.test.scenarios;
 
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.graph.AuxEnv;
 import ai.lzy.model.graph.BaseEnv;
@@ -8,6 +9,7 @@ import ai.lzy.model.operation.Operation;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
+import ai.lzy.test.impl.v2.AllocatorContext;
 import ai.lzy.test.impl.v2.ChannelManagerContext;
 import ai.lzy.test.impl.v2.GraphExecutorContext;
 import ai.lzy.test.impl.v2.IamContext;
@@ -47,6 +49,13 @@ public class SchedulerTest {
 
     @Test(timeout = 120_000)
     public void testGE() throws Exception {
+        var cacheLimits = ctx.getCtx().getBean(AllocatorContext.WorkerAllocatorContext.class).context()
+            .getBean(ServiceConfig.CacheLimits.class);
+        cacheLimits.setUserLimit(Integer.MAX_VALUE);
+        cacheLimits.setSessionLimit(Integer.MAX_VALUE);
+        cacheLimits.setSessionPoolLimit(null);
+        cacheLimits.setAnySessionPoolLimit(Integer.MAX_VALUE);
+
         final var ch1 = buildChannel("1");
         final var ch2 = buildChannel("2");
         final var ch3 = buildChannel("3");
