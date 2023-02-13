@@ -23,6 +23,7 @@ function build_image {
     IMAGES="$IMAGES $FULL_IMAGE_NAME"
 }
 
+cp docs/tutorials/* frontend/src/docs
 build_image site-frontend frontend '--build-arg conf=nginx.conf'
 touch lzy/site/fake-keystore.jks
 build_image site lzy/site '--build-arg keystore=fake-keystore.jks'
