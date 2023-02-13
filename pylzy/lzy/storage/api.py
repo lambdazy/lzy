@@ -98,10 +98,6 @@ class StorageRegistry:
         pass
 
     @abstractmethod
-    def provided_storage_name(self) -> str:
-        pass
-
-    @abstractmethod
     def client(self, storage_name: str) -> Optional[AsyncStorageClient]:
         pass
 

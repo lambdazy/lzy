@@ -133,11 +133,13 @@ class Lzy:
     ):
         whiteboard_index_client = RemoteWhiteboardIndexClient() if whiteboard_client is None else whiteboard_client
         self.__runtime = RemoteRuntime() if runtime is None else runtime
-        self.__env_provider = AutomaticPyEnvProvider() if py_env_provider is None else py_env_provider
         self.__storage_registry = DefaultStorageRegistry() if storage_registry is None else storage_registry
+        self.__registered_runtime_storage: bool = False
+
+        self.__env_provider = AutomaticPyEnvProvider() if py_env_provider is None else py_env_provider
         self.__serializer_registry = LzySerializerRegistry() if serializer_registry is None else serializer_registry
-        self.__whiteboard_manager = WhiteboardIndexedManager(self.__runtime.workflow_client(), whiteboard_index_client,
-                                                             self.__storage_registry, self.__serializer_registry)
+        self.__whiteboard_manager = WhiteboardIndexedManager(whiteboard_index_client, self.__storage_registry,
+                                                             self.__serializer_registry)
 
         self.__storage_client: Optional[AsyncStorageClient] = None
         self.__storage_name: Optional[str] = None
@@ -225,6 +227,8 @@ class Lzy:
         ram_size_gb: Optional[int] = None,
         env: Env = Env()
     ) -> LzyWorkflow:
+        self.__register_default_runtime_storage()
+
         provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
         provisioning.validate()
 
@@ -253,6 +257,7 @@ class Lzy:
                    id_: Optional[str] = None,
                    storage_uri: Optional[str] = None,
                    storage_name: Optional[str] = None) -> Optional[Any]:
+        self.__register_default_runtime_storage()
         return LzyEventLoop.run_async(
             self.whiteboard_manager.get(id_=id_, storage_uri=storage_uri, storage_name=storage_name))
 
@@ -261,6 +266,7 @@ class Lzy:
                     tags: Sequence[str] = (),
                     not_before: Optional[datetime.datetime] = None,
                     not_after: Optional[datetime.datetime] = None) -> Iterable[Any]:
+        self.__register_default_runtime_storage()
         it = self.whiteboard_manager.query(name=name, tags=tags, not_before=not_before, not_after=not_after)
         while True:
             try:
@@ -269,3 +275,13 @@ class Lzy:
                 yield elem
             except StopAsyncIteration:
                 break
+
+    def __register_default_runtime_storage(self) -> None:
+        if self.__registered_runtime_storage:
+            return
+
+        default_storage = LzyEventLoop.run_async(self.__runtime.storage())
+        if default_storage:
+            as_default = self.__storage_registry.default_client() is None
+            self.__storage_registry.register_storage("provided_default_storage", default_storage, default=as_default)
+        self.__registered_runtime_storage = True

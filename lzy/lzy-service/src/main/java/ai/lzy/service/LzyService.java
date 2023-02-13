@@ -21,15 +21,18 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.core.util.StringUtils;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -41,11 +44,14 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 import static ai.lzy.longrunning.IdempotencyUtils.*;
+import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static ai.lzy.v1.workflow.LWFS.*;
 
 @Singleton
@@ -63,6 +69,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final ExecutorService workersPool;
 
     private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOpService;
+    private final Duration bucketCreationTimeout;
 
     private final Storage storage;
     private final OperationDao operationDao;
@@ -80,6 +88,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     {
         this.cleanExecutionCompanion = cleanExecutionCompanion;
         this.instanceId = config.getInstanceId();
+        this.bucketCreationTimeout = config.getStorage().getBucketCreationTimeout();
         this.workflowService = workflowService;
         this.graphExecutionService = graphExecutionService;
         this.workersPool = workersPool;
@@ -91,6 +100,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         this.storageServiceClient = newBlockingClient(
             LzyStorageServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
+        this.storageOpService = newBlockingClient(
+            LongRunningServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
 
         // gc.start();
 
@@ -374,37 +385,57 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void getStorageCredentials(GetStorageCredentialsRequest request,
-                                      StreamObserver<GetStorageCredentialsResponse> responseObserver)
+    public void getOrCreateDefaultStorage(GetOrCreateDefaultStorageRequest request,
+                                      StreamObserver<GetOrCreateDefaultStorageResponse> responseObserver)
     {
         final String userId = AuthenticationContext.currentSubject().id();
         final String bucketName = StorageUtils.createInternalBucketName(userId);
 
         LOG.info("Get storage credentials for bucket {}", bucketName);
-
-        // No checkExecution, can be called out of workflow
-
-        var credsRequest = LSS.GetS3BucketCredentialsRequest.newBuilder()
-            .setUserId(userId)
-            .setBucket(bucketName)
-            .build();
-
         final LMST.StorageConfig storageConfig;
         try {
-            var credsResponse = storageServiceClient.getS3BucketCredentials(credsRequest);
+            LOG.info("Creating new temporary storage bucket if it does not exist: { bucketName: {}, userId: {} }",
+                bucketName, userId);
 
-            storageConfig = switch (credsResponse.getCredentialsCase()) {
-                case AMAZON -> LMST.StorageConfig.newBuilder().setS3(credsResponse.getAmazon())
+            var idempotencyKey = UUID.randomUUID().toString();
+            LongRunning.Operation createOp = withIdempotencyKey(storageServiceClient, idempotencyKey)
+                .createStorage(LSS.CreateStorageRequest.newBuilder()
+                    .setUserId(userId)
+                    .setBucket(bucketName)
+                    .build());
+
+            createOp = awaitOperationDone(storageOpService, createOp.getId(), bucketCreationTimeout);
+
+            if (!createOp.getDone()) {
+                responseObserver.onError(Status.DEADLINE_EXCEEDED.withDescription(
+                    "Cannot wait create bucket operation response: { opId: {} }" +
+                        createOp.getId()).asException());
+                return;
+            }
+
+            if (createOp.hasError()) {
+                var status = createOp.getError();
+                responseObserver.onError(Status.fromCodeValue(status.getCode())
+                    .withDescription("Cannot process create S3 bucket operation: " +
+                        "{ operationId: %s }, error: %s".formatted(createOp.getId(), status.getMessage()))
+                    .asException());
+                return;
+            }
+
+            LSS.CreateStorageResponse response = createOp.getResponse().unpack(LSS.CreateStorageResponse.class);
+            storageConfig = switch (response.getCredentialsCase()) {
+                case S3 -> LMST.StorageConfig.newBuilder().setS3(response.getS3())
                     .setUri(URI.create("s3://" + bucketName).toString())
                     .build();
-                case AZURE -> LMST.StorageConfig.newBuilder().setAzure(credsResponse.getAzure())
+                case AZURE -> LMST.StorageConfig.newBuilder().setAzure(response.getAzure())
                     .setUri(URI.create("azure://" + bucketName).toString())
                     .build();
                 default -> null;
             };
 
             if (storageConfig == null) {
-                LOG.error("Unsupported bucket storage type {}", credsResponse.getCredentialsCase());
+                deleteTempUserBucket(bucketName);
+                LOG.error("Unsupported bucket storage type {}", response.getCredentialsCase());
                 responseObserver.onError(Status.INTERNAL.withDescription("Failed to resolve storage credentials")
                     .asException());
                 return;
@@ -415,12 +446,16 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 return;
             }
             LOG.error("Failed to get storage credentials: {}", e.getStatus().getDescription());
-            responseObserver.onError(Status.INTERNAL.withDescription("Failed to resolve storage credentials")
-                .asException());
+            responseObserver.onError(e.getStatus().asException());
+            return;
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error("Cannot deserialize create S3 bucket response from operation: " + e.getMessage());
+            responseObserver.onError(
+                Status.INTERNAL.withDescription("Cannot create temp bucket: " + e.getMessage()).asException());
             return;
         }
 
-        responseObserver.onNext(GetStorageCredentialsResponse.newBuilder().setStorage(storageConfig).build());
+        responseObserver.onNext(GetOrCreateDefaultStorageResponse.newBuilder().setStorage(storageConfig).build());
         LOG.info("Get storage credentials for bucket {} done", bucketName);
         responseObserver.onCompleted();
     }
@@ -442,5 +477,23 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         }
 
         return false;
+    }
+
+    private void deleteTempUserBucket(String bucket) {
+        if (StringUtils.isEmpty(bucket)) {
+            return;
+        }
+
+        LOG.info("Deleting temp storage bucket '{}'", bucket);
+
+        try {
+            @SuppressWarnings("unused")
+            var resp = storageServiceClient.deleteStorage(
+                LSS.DeleteStorageRequest.newBuilder()
+                    .setBucket(bucket)
+                    .build());
+        } catch (StatusRuntimeException e) {
+            LOG.error("Can't delete temp bucket '{}': ({}) {}", bucket, e.getStatus(), e.getMessage(), e);
+        }
     }
 }

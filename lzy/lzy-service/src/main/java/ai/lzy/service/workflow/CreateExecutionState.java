@@ -1,6 +1,5 @@
 package ai.lzy.service.workflow;
 
-import ai.lzy.service.data.StorageType;
 import ai.lzy.v1.common.LMST;
 import io.grpc.Status;
 
@@ -10,20 +9,27 @@ final class CreateExecutionState {
     private final String userId;
     private final String workflowName;
     private final String executionId;
+    private final LMST.StorageConfig storageConfig;
+    private final String storageName;
+
     private String sessionId;
     private String stdoutChannelId;
     private String stderrChannelId;
     private String portalId;
-
-    private StorageType storageType;
-    private LMST.StorageConfig storageConfig;
-
     private Status errorStatus;
 
-    public CreateExecutionState(String userId, String workflowName) {
+    public CreateExecutionState(String userId, String workflowName, String storageName,
+                                LMST.StorageConfig storageConfig)
+    {
         this.userId = userId;
         this.workflowName = workflowName;
+        this.storageConfig = storageConfig;
+        this.storageName = storageName;
         this.executionId = workflowName + "_" + UUID.randomUUID();
+    }
+
+    public String getStorageName() {
+        return storageName;
     }
 
     public String getUserId() {
@@ -70,20 +76,8 @@ final class CreateExecutionState {
         this.portalId = portalId;
     }
 
-    public void setStorageType(boolean internalStorage) {
-        storageType = internalStorage ? StorageType.INTERNAL : StorageType.USER;
-    }
-
-    public StorageType getStorageType() {
-        return storageType;
-    }
-
     public LMST.StorageConfig getStorageConfig() {
         return storageConfig;
-    }
-
-    public void setStorageConfig(LMST.StorageConfig storageConfig) {
-        this.storageConfig = storageConfig;
     }
 
     public boolean isInvalid() {
@@ -110,24 +104,17 @@ final class CreateExecutionState {
         return "executionId: " + executionId;
     }
 
-    private String printStorageType() {
-        return "storageType: " + storageType.name();
+    private String printStorageName() {
+        return "storageName: " + storageName;
     }
 
     @Override
     public String toString() {
-        var sb = new StringBuilder();
-        sb.append("{ ");
-
-        sb.append(printUserId());
-        sb.append(", ").append(printWorkflowName());
-        sb.append(", ").append(printExecutionId());
-
-        if (storageType != null) {
-            sb.append(", ").append(printStorageType());
-        }
-
-        sb.append(" }");
-        return sb.toString();
+        return "{ " +
+            printUserId() +
+            ", " + printWorkflowName() +
+            ", " + printExecutionId() +
+            ", " + printStorageName() +
+            " }";
     }
 }

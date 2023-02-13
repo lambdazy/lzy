@@ -1,6 +1,5 @@
 package ai.lzy.service.graph;
 
-import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import io.grpc.Status;
@@ -22,11 +21,12 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
     @Test
     public void executeSequenceOfGraphs() {
         var workflowName = "workflow_1";
+        var s3locator =
+            authorizedWorkflowClient.getOrCreateDefaultStorage(
+                LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var createWorkflowResponse = authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName).build());
-
+            .setWorkflowName(workflowName).setSnapshotStorage(s3locator).build());
         var executionId = createWorkflowResponse.getExecutionId();
-        var s3locator = createWorkflowResponse.getInternalSnapshotStorage();
 
         var firstOperation =
             LWF.Operation.newBuilder()
@@ -147,9 +147,12 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
     @Test
     public void failedWithAlreadyUsedSlotUri() {
         var workflowName = "workflow_1";
+        var storageConfig =
+            authorizedWorkflowClient.getOrCreateDefaultStorage(
+                LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         LWFS.StartWorkflowResponse workflow = authorizedWorkflowClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build());
-        LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(storageConfig)
+                .build());
 
         var firstOperation =
             LWF.Operation.newBuilder()
@@ -218,9 +221,12 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
     @Test
     public void failedWithUnknownExecutionId() {
         var workflowName = "workflow_1";
+        var storageConfig =
+            authorizedWorkflowClient.getOrCreateDefaultStorage(
+                    LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         LWFS.StartWorkflowResponse workflow = authorizedWorkflowClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).build());
-        LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
+            LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(storageConfig)
+                .build());
 
         var operations = List.of(
             LWF.Operation.newBuilder()

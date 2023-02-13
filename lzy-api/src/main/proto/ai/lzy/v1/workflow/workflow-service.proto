@@ -29,19 +29,17 @@ service LzyWorkflowService {
 
   rpc GetAvailablePools (GetAvailablePoolsRequest) returns (GetAvailablePoolsResponse);
 
-  rpc GetStorageCredentials (GetStorageCredentialsRequest) returns (GetStorageCredentialsResponse);
+  rpc GetOrCreateDefaultStorage (GetOrCreateDefaultStorageRequest) returns (GetOrCreateDefaultStorageResponse);
 }
 
 message StartWorkflowRequest {
   string workflowName = 1;
-
-  // if not set then internal SnapshotStorage is created
-  /* optional */ ai.lzy.v1.common.StorageConfig snapshotStorage = 2;
+  ai.lzy.v1.common.StorageConfig snapshotStorage = 2;
+  string storageName = 3;
 }
 
 message StartWorkflowResponse {
   string executionId = 1;
-  /* optional */ ai.lzy.v1.common.StorageConfig internalSnapshotStorage = 2;
 }
 
 message FinishWorkflowRequest {
@@ -143,9 +141,9 @@ message GetAvailablePoolsResponse {
 
 // ==================== GetStorage =====================
 
-message GetStorageCredentialsRequest {
+message GetOrCreateDefaultStorageRequest {
 }
 
-message GetStorageCredentialsResponse {
+message GetOrCreateDefaultStorageResponse {
   ai.lzy.v1.common.StorageConfig storage = 1;
 }

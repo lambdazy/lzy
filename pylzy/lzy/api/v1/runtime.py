@@ -2,8 +2,10 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING, Callable, List, Optional
 
+from lzy.storage.api import Storage
+
 if TYPE_CHECKING:
-    from lzy.api.v1 import LzyWorkflow, WorkflowServiceClient
+    from lzy.api.v1 import LzyWorkflow
 
 from lzy.api.v1.call import LzyCall
 
@@ -16,10 +18,6 @@ class ProgressStep(Enum):
 
 
 class Runtime(ABC):
-    @abstractmethod
-    def workflow_client(self) -> Optional["WorkflowServiceClient"]:
-        pass
-
     @abstractmethod
     async def start(self, workflow: "LzyWorkflow") -> str:
         pass
@@ -38,4 +36,8 @@ class Runtime(ABC):
 
     @abstractmethod
     async def destroy(self) -> None:
+        pass
+
+    @abstractmethod
+    async def storage(self) -> Optional[Storage]:
         pass

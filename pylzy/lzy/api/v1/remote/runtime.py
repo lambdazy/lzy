@@ -20,6 +20,8 @@ from typing import (
     cast,
 )
 
+from lzy.storage.api import Storage
+
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
     DataDescription,
@@ -73,6 +75,7 @@ def wrap_error(message: str = "Something went wrong"):
 class RemoteRuntime(Runtime):
     def __init__(self):
         self.__workflow_client: WorkflowServiceClient = WorkflowServiceClient()
+        self.__storage: Optional[Storage] = None
 
         self.__workflow: Optional[LzyWorkflow] = None
         self.__execution_id: Optional[str] = None
@@ -80,24 +83,21 @@ class RemoteRuntime(Runtime):
         self.__std_slots_listener: Optional[Task] = None
         self.__running = False
 
-    def workflow_client(self) -> Optional[WorkflowServiceClient]:
-        return self.__workflow_client
+    async def storage(self) -> Optional[Storage]:
+        if not self.__storage:
+            self.__storage = await self.__workflow_client.get_or_create_storage()
+        return self.__storage
 
     async def start(self, workflow: LzyWorkflow) -> str:
+        storage = workflow.owner.storage_registry.default_config()
+        storage_name = workflow.owner.storage_registry.default_storage_name()
+        if storage is None or storage_name is None:
+            raise ValueError("No provided storage")
+
+        exec_id = await self.__workflow_client.start_workflow(workflow.name, storage, storage_name)
         self.__running = True
         self.__workflow = workflow
-        client = self.__workflow_client
-
-        default_creds = self.__workflow.owner.storage_registry.default_config()
-        exec_id, creds = await client.start_workflow(
-            self.__workflow.name, default_creds
-        )
-
         self.__execution_id = exec_id
-        if creds is not None:
-            storage_name = self.__workflow.owner.storage_registry.provided_storage_name()
-            self.__workflow.owner.storage_registry.register_storage(storage_name, creds, default=True)
-
         self.__std_slots_listener = asyncio.create_task(
             self.__listen_to_std_slots(exec_id)
         )
@@ -108,8 +108,8 @@ class RemoteRuntime(Runtime):
         calls: List[LzyCall],
         progress: Callable[[ProgressStep], None],
     ) -> None:
-        assert self.__execution_id is not None
-        assert self.__workflow is not None
+        if not self.__running:
+            raise ValueError("Runtime is not running")
 
         client = self.__workflow_client
         pools = await client.get_pool_specs(self.__execution_id)
@@ -126,7 +126,7 @@ class RemoteRuntime(Runtime):
         )  # Running long op in threadpool
         _LOG.debug(f"Starting executing graph {graph}")
 
-        graph_id = await client.execute_graph(self.__workflow.name, self.__execution_id, graph)
+        graph_id = await client.execute_graph(cast(LzyWorkflow, self.__workflow).name, self.__execution_id, graph)
         _LOG.debug(f"Requesting remote execution, graph_id={graph_id}")
 
         progress(ProgressStep.WAITING)
@@ -154,19 +154,14 @@ class RemoteRuntime(Runtime):
 
     async def abort(self) -> None:
         client = self.__workflow_client
+        if not self.__running:
+            return
         try:
-            if not self.__running:
-                return
-
-            assert self.__execution_id is not None
-            assert self.__workflow is not None
-
-            await client.abort_workflow(self.__workflow.name, self.__execution_id, "Workflow execution aborted")
-
+            await client.abort_workflow(cast(LzyWorkflow, self.__workflow).name, self.__execution_id,
+                                        "Workflow execution aborted")
             self.__execution_id = None
             self.__workflow = None
             self.__std_slots_listener = None
-
         finally:
             self.__running = False
 

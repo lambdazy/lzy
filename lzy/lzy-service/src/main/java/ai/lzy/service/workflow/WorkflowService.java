@@ -7,7 +7,6 @@ import ai.lzy.model.db.Storage;
 import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.PortalSlotsListener;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.data.StorageType;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
@@ -17,9 +16,7 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
-import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
-import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.GetAvailablePoolsRequest;
@@ -46,6 +43,7 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 
+
 @Singleton
 public class WorkflowService {
     public static volatile boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
@@ -58,19 +56,12 @@ public class WorkflowService {
 
     private final Duration allocationTimeout;
     private final Duration allocatorVmCacheTimeout;
-    final Duration bucketCreationTimeout;
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
-    private final RenewableJwt internalUserCredentials;
-    private final ManagedChannel channelManagerChannel;
 
     final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     final LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOpService;
-
-    final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
-    final LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOpService;
-
     final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
 
     private final VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient;
@@ -86,13 +77,11 @@ public class WorkflowService {
                            LzyServiceStorage storage, WorkflowDao workflowDao, ExecutionDao executionDao,
                            @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
-                           @Named("StorageServiceChannel") ManagedChannel storageChannel,
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
-        bucketCreationTimeout = config.getStorage().getBucketCreationTimeout();
         startupPortalConfig = config.getPortal();
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
@@ -103,21 +92,12 @@ public class WorkflowService {
         this.executionDao = executionDao;
 
         this.cleanExecutionCompanion = cleanExecutionCompanion;
-
-        this.internalUserCredentials = internalUserCredentials;
-        this.channelManagerChannel = channelManagerChannel;
-
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
         this.vmPoolClient = newBlockingClient(
             VmPoolServiceGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
         this.allocOpService = newBlockingClient(
             LongRunningServiceGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
-
-        this.storageServiceClient = newBlockingClient(
-            LzyStorageServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
-        this.storageOpService = newBlockingClient(
-            LongRunningServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
 
         this.channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
@@ -129,17 +109,14 @@ public class WorkflowService {
 
     public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> response) {
         var newExecution = StartExecutionCompanion.of(request, this, startupPortalConfig);
-
         LOG.info("Start new execution: " + newExecution.getState());
-
         Consumer<Status> replyError = (status) -> {
             LOG.error("Fail to start new execution: status={}, msg={}.", status,
                 status.getDescription() + ", creationState: " + newExecution.getState());
             response.onError(status.asRuntimeException());
         };
 
-        newExecution.setStorage();
-
+        newExecution.checkStorage();
         if (newExecution.isInvalid()) {
             replyError.accept(newExecution.getErrorStatus());
             return;
@@ -187,13 +164,7 @@ public class WorkflowService {
         }
 
         LOG.info("New execution started: " + newExecution.getState());
-
-        var storage = newExecution.getState().getStorageType() == StorageType.INTERNAL
-            ? newExecution.getState().getStorageConfig()
-            : LMST.StorageConfig.getDefaultInstance();
-
-        response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId)
-            .setInternalSnapshotStorage(storage).build());
+        response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId).build());
         response.onCompleted();
     }
 
