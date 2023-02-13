@@ -3,28 +3,23 @@ package ai.lzy.portal.slots;
 import ai.lzy.fs.fs.LzyOutputSlotBase;
 import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.portal.storage.Repository;
+import ai.lzy.storage.StorageClient;
 import ai.lzy.v1.slots.LSA;
-import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import org.apache.logging.log4j.Logger;
 
-import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.util.Objects;
-import java.util.stream.Stream;
 
 import static ai.lzy.v1.common.LMS.SlotStatus.State.OPEN;
 
 public class SnapshotOutputSlot extends LzyOutputSlotBase implements SnapshotSlot {
     private final URI uri;
-    private final Repository<Stream<ByteString>> repository;
+    private final StorageClient storageClient;
     private final Path storage;
 
     private final boolean hasInputSlot;
@@ -33,30 +28,21 @@ public class SnapshotOutputSlot extends LzyOutputSlotBase implements SnapshotSlo
     private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
 
     public SnapshotOutputSlot(SlotInstance slotInstance, S3Snapshot slot, Path storage,
-                              URI uri, Repository<Stream<ByteString>> repository)
+                              URI uri, StorageClient storageClient)
     {
         super(slotInstance);
         this.uri = uri;
-        this.repository = repository;
         this.storage = storage;
         this.slot = slot;
         this.hasInputSlot = Objects.nonNull(slot.getInputSlot());
+        this.storageClient = storageClient;
     }
 
-    private static void write(Stream<ByteString> data, File sink, Logger log) throws IOException {
-        try (var storage = new BufferedOutputStream(new FileOutputStream(sink))) {
-            data.forEach(chunk -> {
-                try {
-                    log.debug("Received chunk of size {}", chunk.size());
-                    chunk.writeTo(storage);
-                } catch (IOException ioe) {
-                    log.warn("Unable write chunk of data of size " + chunk.size()
-                        + " to file " + sink.getAbsolutePath(), ioe);
-                }
-            });
-        }
+    private static void write(StorageClient client, URI uri, File sink)
+        throws IOException, InterruptedException
+    {
+        client.read(uri, sink.toPath());
     }
-
 
     @Override
     public void readFromPosition(long offset, StreamObserver<LSA.SlotDataChunk> responseObserver) {
@@ -74,7 +60,7 @@ public class SnapshotOutputSlot extends LzyOutputSlotBase implements SnapshotSlo
         } else if (slot.getState().compareAndSet(S3Snapshot.State.INITIAL, S3Snapshot.State.PREPARING)) {
             state = SnapshotSlotStatus.SYNCING;
             try {
-                write(repository.get(uri), storage.toFile(), log);
+                write(storageClient, uri, storage.toFile());
             } catch (Exception e) {
                 log.error("Cannot sync data with remote storage", e);
                 state = SnapshotSlotStatus.FAILED;

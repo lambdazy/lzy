@@ -19,6 +19,11 @@
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>storage-api</artifactId>
+            <version>1.2-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>allocator-api</artifactId>
             <version>1.2-SNAPSHOT</version>
         </dependency>

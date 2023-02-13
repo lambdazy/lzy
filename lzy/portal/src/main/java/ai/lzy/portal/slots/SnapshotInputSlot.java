@@ -1,9 +1,8 @@
 package ai.lzy.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
-import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.portal.storage.Repository;
+import ai.lzy.storage.StorageClient;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
@@ -12,10 +11,8 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -27,7 +24,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     private final OutputStream outputStream;
 
     private final URI uri;
-    private final Repository<Stream<ByteString>> repository;
+    private final StorageClient storageClient;
 
     private final S3Snapshot slot;
     private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
@@ -35,7 +32,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     private final Runnable slotSyncHandler;
 
     public SnapshotInputSlot(SlotInstance slotInstance, S3Snapshot slot, Path storage, URI uri,
-                             Repository<Stream<ByteString>> repository, @Nullable Runnable syncHandler)
+                             StorageClient storageClient, @Nullable Runnable syncHandler)
         throws IOException
     {
         super(slotInstance);
@@ -43,7 +40,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
         this.storage = storage;
         this.outputStream = Files.newOutputStream(storage);
         this.uri = uri;
-        this.repository = repository;
+        this.storageClient = storageClient;
         this.slotSyncHandler = syncHandler;
     }
 
@@ -71,8 +68,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
             // store local snapshot to S3
             try {
                 state = SnapshotSlotStatus.SYNCING;
-                FileChannel channel = FileChannel.open(storage, StandardOpenOption.READ);
-                repository.put(uri, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true, LOG));
+                storageClient.write(uri, storage);
                 state = SnapshotSlotStatus.SYNCED;
                 if (slotSyncHandler != null) {
                     slotSyncHandler.run();

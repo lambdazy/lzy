@@ -71,8 +71,10 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.channelmanager.ProtoConverter.*;
+import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.*;
+import static org.junit.Assert.assertTrue;
 
 public class PortalTestBase {
     private static final Logger LOG = LogManager.getLogger(PortalTestBase.class);
@@ -95,6 +97,7 @@ public class PortalTestBase {
     private S3Mock s3;
     private String userId;
     private String workflowName;
+    private String executionId;
 
     protected MocksServer mocksServer;
     private Map<String, WorkerDesc> workers;
@@ -104,6 +107,7 @@ public class PortalTestBase {
     protected LzyPortalGrpc.LzyPortalBlockingStub unauthorizedPortalClient;
     private LzyPortalGrpc.LzyPortalBlockingStub authorizedPortalClient;
     private LzySlotsApiGrpc.LzySlotsApiBlockingStub portalSlotsClient;
+    private LongRunningServiceGrpc.LongRunningServiceBlockingStub portalOpsClient;
 
     private LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerPrivateClient;
     private Map<String, String> createdChannels;
@@ -142,6 +146,7 @@ public class PortalTestBase {
 
         userId = "uid";
         workflowName = "wf";
+        executionId = "exec";
 
         try (final var iamClient = new IamClient(iamTestContext.getClientConfig())) {
             var user = iamClient.createUser(config.getPortalId());
@@ -220,6 +225,15 @@ public class PortalTestBase {
             LzySlotsApiGrpc.newBlockingStub(portalSlotsChannel),
             "Test",
             NO_AUTH_TOKEN); // TODO: Auth
+        portalOpsClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(portalApiChannel), "TestClient",
+            () -> internalUserCredentials.get().token());
+    }
+
+    protected void finishPortal() {
+        var op = authorizedPortalClient.finish(LzyPortalApi.FinishRequest.getDefaultInstance());
+        op = awaitOperationDone(portalOpsClient, op.getId(), Duration.ofSeconds(5));
+        assertTrue(op.getDone());
+        assertTrue(op.hasResponse());
     }
 
     protected String prepareTask(int taskNum, boolean newWorker, boolean isInput, String snapshotId) {
@@ -302,7 +316,7 @@ public class PortalTestBase {
                     .build())
                 .build())
             .setTaskId(taskId)
-            .setExecutionId("exec")
+            .setExecutionId(executionId)
             .build());
 
         while (!op.getDone()) {
@@ -369,7 +383,7 @@ public class PortalTestBase {
 
     protected String createChannel(String name) {
         final var response = channelManagerPrivateClient.create(
-            makeCreateChannelCommand(userId, workflowName, UUID.randomUUID().toString(), name));
+            makeCreateChannelCommand(userId, workflowName, executionId, name));
         System.out.println("Channel '" + name + "' created: " + response.getChannelId());
         createdChannels.put(name, response.getChannelId());
         return response.getChannelId();
@@ -386,7 +400,7 @@ public class PortalTestBase {
 
     protected void openPortalSlots(LzyPortalApi.OpenSlotsRequest request) {
         var response = authorizedPortalClient.openSlots(request);
-        Assert.assertTrue(response.getDescription(), response.getSuccess());
+        assertTrue(response.getDescription(), response.getSuccess());
     }
 
     protected Status openPortalSlotsWithFail(LzyPortalApi.OpenSlotsRequest request) {
