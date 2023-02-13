@@ -160,7 +160,7 @@ class LocalRuntime(Runtime):
     async def abort(self) -> None:
         pass
 
-    async def destroy(self) -> None:
+    async def finish(self) -> None:
         pass
 
     async def __from_storage_to_file(self, url: str, path: str) -> None:

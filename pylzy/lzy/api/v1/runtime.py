@@ -35,7 +35,7 @@ class Runtime(ABC):
         pass
 
     @abstractmethod
-    async def destroy(self) -> None:
+    async def finish(self) -> None:
         pass
 
     @abstractmethod
