@@ -14,7 +14,7 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Objects;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -47,7 +47,7 @@ public class PortalCommonTest extends PortalTestBase {
         finishPortal();
 
         var storageConfig = GrpcUtils.makeAmazonSnapshot("snapshot1", BUCKET_NAME, S3_ADDRESS).getStorageConfig();
-        var s3client = StorageClients.provider(storageConfig).get(ForkJoinPool.commonPool());
+        var s3client = StorageClients.provider(storageConfig).get(Executors.newFixedThreadPool(5));
         var tempfile = File.createTempFile("portal_", "_test");
         tempfile.deleteOnExit();
         s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());
@@ -87,7 +87,7 @@ public class PortalCommonTest extends PortalTestBase {
         finishPortal();
 
         var storageConfig = GrpcUtils.makeAmazonSnapshot("snapshot1", BUCKET_NAME, S3_ADDRESS).getStorageConfig();
-        var s3client = StorageClients.provider(storageConfig).get(ForkJoinPool.commonPool());
+        var s3client = StorageClients.provider(storageConfig).get(Executors.newFixedThreadPool(5));
         var tempfile = File.createTempFile("portal_", "_test");
         tempfile.deleteOnExit();
         s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());
