@@ -1,16 +1,13 @@
 package ai.lzy.model.grpc;
 
 import ai.lzy.model.DataScheme;
-import ai.lzy.model.graph.*;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.v1.common.LMD;
-import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMS;
 
 import java.net.URI;
-import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 public class ProtoConverter {
@@ -52,14 +49,6 @@ public class ProtoConverter {
             .setSchemeFormat(dataScheme.schemeFormat())
             .setSchemeContent(dataScheme.schemeContent())
             .putAllMetadata(dataScheme.metadata())
-            .build();
-    }
-
-    public static LME.Provisioning toProto(Provisioning provisioning) {
-        return LME.Provisioning.newBuilder()
-            .addAllTags(provisioning.tags().stream()
-                .map(tag -> LME.Provisioning.Tag.newBuilder().setTag(tag).build())
-                .collect(Collectors.toList()))
             .build();
     }
 

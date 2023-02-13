@@ -29,7 +29,7 @@ public class EnvironmentFactory {
         this.hasGpu = gpuCount > 0;
     }
 
-    public Environment create(String fsRoot, LME.EnvSpec env) {
+    public AuxEnvironment create(String fsRoot, LME.EnvSpec env) {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");

@@ -3,7 +3,7 @@ package ai.lzy.graph.algo;
 import ai.lzy.graph.model.ChannelDescription;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.TaskDescription;
-import ai.lzy.model.slot.Slot;
+import ai.lzy.v1.common.LMS;
 import jakarta.inject.Singleton;
 
 import java.util.*;
@@ -12,7 +12,8 @@ import java.util.*;
 public class GraphBuilderImpl implements GraphBuilder {
 
     public DirectedGraph<TaskVertex, ChannelEdge> build(GraphDescription graphDescription)
-        throws GraphValidationException {
+        throws GraphValidationException
+    {
         // TODO(artolord) add more validations
         final DirectedGraph<TaskVertex, ChannelEdge> graph = new DirectedGraph<>();
         final Map<String, ChannelHolder> channels = new HashMap<>();
@@ -26,16 +27,16 @@ public class GraphBuilderImpl implements GraphBuilder {
             }
 
             final Set<String> inputs = Set.copyOf(
-                task.operation().slots().stream()
-                    .filter(s -> s.direction() == Slot.Direction.INPUT)
-                    .map(Slot::name)
+                task.operation().getSlotsList().stream()
+                    .filter(s -> s.getDirection() == LMS.Slot.Direction.INPUT)
+                    .map(LMS.Slot::getName)
                     .toList()
             );
 
             final Set<String> outputs = Set.copyOf(
-                task.operation().slots().stream()
-                    .filter(s -> s.direction() == Slot.Direction.OUTPUT)
-                    .map(Slot::name)
+                task.operation().getSlotsList().stream()
+                    .filter(s -> s.getDirection() == LMS.Slot.Direction.OUTPUT)
+                    .map(LMS.Slot::getName)
                     .toList()
             );
 
