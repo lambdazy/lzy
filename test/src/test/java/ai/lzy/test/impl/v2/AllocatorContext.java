@@ -83,6 +83,9 @@ public class AllocatorContext {
         return stub;
     }
 
+    public ApplicationContext context() {
+        return context;
+    }
 
     @Singleton
     public static class WorkerAllocatorContext extends AllocatorContext {

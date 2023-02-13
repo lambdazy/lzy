@@ -100,11 +100,18 @@ public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
         }
 
         if (op.hasError()) {
-            System.err.println("--> " + op.getError());
+            logger.error("Task {} execution failed: [{}] {}",
+                state.id(), op.getError().getCode(), op.getError().getMessage());
+
+            fail(Status.newBuilder()
+                .setCode(io.grpc.Status.Code.INTERNAL.value())
+                .setMessage("Some internal error while waiting for execution")
+                .build());
+
+            return null;
         }
 
         final LWS.ExecuteResponse resp;
-
         try {
             resp = op.getResponse().unpack(LWS.ExecuteResponse.class);
         } catch (InvalidProtocolBufferException e) {
@@ -118,6 +125,7 @@ public class AwaitExecutionCompleted extends WorkflowJobProvider<TaskState> {
 
             return null;
         }
+
         final TaskStatus.Builder builder = TaskStatus.newBuilder()
             .setTaskId(state.id())
             .setWorkflowId(state.executionId());
