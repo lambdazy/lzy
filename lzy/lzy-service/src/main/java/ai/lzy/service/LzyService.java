@@ -44,7 +44,6 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 
 import static ai.lzy.longrunning.IdempotencyUtils.*;
@@ -386,7 +385,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     @Override
     public void getOrCreateDefaultStorage(GetOrCreateDefaultStorageRequest request,
-                                      StreamObserver<GetOrCreateDefaultStorageResponse> responseObserver)
+                                          StreamObserver<GetOrCreateDefaultStorageResponse> responseObserver)
     {
         final String userId = AuthenticationContext.currentSubject().id();
         final String bucketName = StorageUtils.createInternalBucketName(userId);
@@ -396,21 +395,24 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         try {
             LOG.info("Creating new temporary storage bucket if it does not exist: { bucketName: {}, userId: {} }",
                 bucketName, userId);
-
-            var idempotencyKey = UUID.randomUUID().toString();
-            LongRunning.Operation createOp = withIdempotencyKey(storageServiceClient, idempotencyKey)
+            LongRunning.Operation createOp = withIdempotencyKey(storageServiceClient, IdempotencyUtils.md5(request))
                 .createStorage(LSS.CreateStorageRequest.newBuilder()
                     .setUserId(userId)
                     .setBucket(bucketName)
                     .build());
 
             createOp = awaitOperationDone(storageOpService, createOp.getId(), bucketCreationTimeout);
-
             if (!createOp.getDone()) {
-                responseObserver.onError(Status.DEADLINE_EXCEEDED.withDescription(
-                    "Cannot wait create bucket operation response: { opId: {} }" +
-                        createOp.getId()).asException());
-                return;
+                try {
+                    // do not wait until op is cancelled here
+                    //noinspection ResultOfMethodCallIgnored
+                    storageOpService.cancel(
+                        LongRunning.CancelOperationRequest.newBuilder().setOperationId(createOp.getId()).build());
+                } finally {
+                    responseObserver.onError(Status.DEADLINE_EXCEEDED.withDescription(
+                        "Cannot wait create bucket operation response: { opId: {} }" +
+                            createOp.getId()).asException());
+                }
             }
 
             if (createOp.hasError()) {
