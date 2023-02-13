@@ -5,11 +5,11 @@ import ru.yandex.qe.s3.transfer.download.DownloadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.concurrent.ExecutionException;
 
 public abstract class StorageClientWithTransmitter implements StorageClient {
@@ -26,8 +26,10 @@ public abstract class StorageClientWithTransmitter implements StorageClient {
     public void read(URI uri, Path destination) throws InterruptedException, IOException {
         var downloadRequest = downloadRequest(uri);
         var future = transmitter().downloadC(downloadRequest, data -> {
-            try (var source = new BufferedInputStream(data.getInputStream())) {
-                Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+            try (var source = new BufferedInputStream(data.getInputStream());
+                 var dest = new BufferedOutputStream(new FileOutputStream(destination.toFile())))
+            {
+                source.transferTo(dest);
             }
         });
         try {

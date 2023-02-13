@@ -97,6 +97,7 @@ public class PortalTestBase {
     private S3Mock s3;
     private String userId;
     private String workflowName;
+    private String executionId;
 
     protected MocksServer mocksServer;
     private Map<String, WorkerDesc> workers;
@@ -145,6 +146,7 @@ public class PortalTestBase {
 
         userId = "uid";
         workflowName = "wf";
+        executionId = "exec";
 
         try (final var iamClient = new IamClient(iamTestContext.getClientConfig())) {
             var user = iamClient.createUser(config.getPortalId());
@@ -315,7 +317,7 @@ public class PortalTestBase {
                     .build())
                 .build())
             .setTaskId(taskId)
-            .setExecutionId("exec")
+            .setExecutionId(executionId)
             .build());
 
         while (!op.getDone()) {
@@ -382,7 +384,7 @@ public class PortalTestBase {
 
     protected String createChannel(String name) {
         final var response = channelManagerPrivateClient.create(
-            makeCreateChannelCommand(userId, workflowName, UUID.randomUUID().toString(), name));
+            makeCreateChannelCommand(userId, workflowName, executionId, name));
         System.out.println("Channel '" + name + "' created: " + response.getChannelId());
         createdChannels.put(name, response.getChannelId());
         return response.getChannelId();

@@ -14,6 +14,7 @@ import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 
+import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.net.URI;
 import java.nio.file.Path;
@@ -58,8 +59,8 @@ public final class S3ClientWithTransmitter extends StorageClientWithTransmitter 
     @Override
     protected UploadRequest uploadRequest(URI uri, Path source) {
         var amazonUri = new AmazonS3URI(uri);
-        return new UploadRequestBuilder().bucket(amazonUri.getBucket())
-            .key(amazonUri.getKey()).stream(() -> new FileInputStream(source.toFile())).build();
+        return new UploadRequestBuilder().bucket(amazonUri.getBucket()).key(amazonUri.getKey())
+            .stream(() -> new BufferedInputStream(new FileInputStream(source.toFile()))).build();
     }
 
     @Override
