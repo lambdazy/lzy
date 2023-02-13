@@ -171,6 +171,7 @@ public class PortalTestBase {
         stopS3();
         for (var worker : workers.values()) {
             worker.worker.stop();
+            worker.channel.shutdown();
         }
 
         mocksServer.stop();
