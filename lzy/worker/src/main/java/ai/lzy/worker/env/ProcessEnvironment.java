@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 public class ProcessEnvironment extends BaseEnvironment {
 
     public ProcessEnvironment() {
-        super("process-env");
+        super();
     }
 
     @Override

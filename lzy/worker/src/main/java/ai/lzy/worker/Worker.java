@@ -24,7 +24,7 @@ import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.worker.LWS.ExecuteRequest;
 import ai.lzy.v1.worker.LWS.ExecuteResponse;
 import ai.lzy.v1.worker.WorkerApiGrpc;
-import ai.lzy.worker.env.Environment;
+import ai.lzy.worker.env.AuxEnvironment;
 import ai.lzy.worker.env.EnvironmentFactory;
 import ai.lzy.worker.env.EnvironmentInstallationException;
 import com.google.common.annotations.VisibleForTesting;
@@ -288,9 +288,10 @@ public class Worker {
 
                 LOG.info("Configuring worker");
 
-                final Environment env = envFactory.create(lzyFsRoot, request.getTaskDesc().getOperation().getEnv());
+                final AuxEnvironment env = envFactory.create(lzyFsRoot, request.getTaskDesc().getOperation().getEnv());
 
                 try {
+                    env.base().install(outQueue, errQueue);
                     env.install(outQueue, errQueue);
                 } catch (EnvironmentInstallationException e) {
                     LOG.error("Unable to install environment", e);

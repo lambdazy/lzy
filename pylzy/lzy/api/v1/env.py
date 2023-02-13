@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Sequence, Dict
+from typing import Optional, Sequence, Dict, Mapping
 
 
 class DockerPullPolicy(Enum):
@@ -16,6 +16,7 @@ class Env:
     docker_image: Optional[str] = None
     docker_pull_policy: Optional[DockerPullPolicy] = None
     local_modules_path: Optional[Sequence[str]] = None
+    env_variables: Mapping[str, str] = field(default_factory=dict)
 
     def override(self, other: "Env") -> "Env":
         return Env(
@@ -25,7 +26,8 @@ class Env:
             docker_image=other.docker_image if other.docker_image else self.docker_image,
             docker_pull_policy=other.docker_pull_policy if other.docker_pull_policy else self.docker_pull_policy,
             local_modules_path=other.local_modules_path if other.local_modules_path is not None else
-            self.local_modules_path
+            self.local_modules_path,
+            env_variables={**self.env_variables, **other.env_variables}
         )
 
     def validate(self) -> None:

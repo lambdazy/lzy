@@ -225,7 +225,8 @@ class Lzy:
         gpu_type: Optional[str] = None,
         gpu_count: Optional[int] = None,
         ram_size_gb: Optional[int] = None,
-        env: Env = Env()
+        env: Env = Env(),
+        propagate_env_variables: bool = True
     ) -> LzyWorkflow:
         self.__register_default_runtime_storage()
 
@@ -239,7 +240,8 @@ class Lzy:
         libraries = {} if not libraries else libraries
         local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
         env = env.override(
-            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
+            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
+                env_variables={} if not propagate_env_variables else os.environ)
         )
         env.validate()
 

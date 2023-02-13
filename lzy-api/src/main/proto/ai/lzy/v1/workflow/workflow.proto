@@ -32,7 +32,7 @@ message Operation {
     string storageUri = 2;
   }
 
-  message PythonEnvSpec {  // TODO(artolord) remove this and move to upper level
+  message PythonEnvSpec {
     string yaml = 2;  // Conda yaml to install before execution
     repeated LocalModule localModules = 3;
 
