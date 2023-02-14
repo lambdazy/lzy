@@ -395,11 +395,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         try {
             LOG.info("Creating new temporary storage bucket if it does not exist: { bucketName: {}, userId: {} }",
                 bucketName, userId);
-            LongRunning.Operation createOp = withIdempotencyKey(storageServiceClient, IdempotencyUtils.md5(request))
-                .createStorage(LSS.CreateStorageRequest.newBuilder()
-                    .setUserId(userId)
-                    .setBucket(bucketName)
-                    .build());
+            LongRunning.Operation createOp =
+                withIdempotencyKey(storageServiceClient, userId + "_" + bucketName)
+                    .createStorage(LSS.CreateStorageRequest.newBuilder()
+                        .setUserId(userId)
+                        .setBucket(bucketName)
+                        .build());
 
             createOp = awaitOperationDone(storageOpService, createOp.getId(), bucketCreationTimeout);
             if (!createOp.getDone()) {
