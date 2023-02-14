@@ -30,7 +30,7 @@ class SnapshotTests(TestCase):
 
         serializers = LzySerializerRegistry()
         self.snapshot = DefaultSnapshot("some_wf", serializers, storage_config.uri, self.storages.client("storage"),
-                                        "storage", SerializedDataHasher("sha256"))
+                                        "storage")
 
     def tearDown(self) -> None:
         self.service.stop()
@@ -78,7 +78,7 @@ class SnapshotTests(TestCase):
     def test_serializer_not_found(self):
         serializers = SerializerRegistryMock()
         snapshot = DefaultSnapshot("some_wf", serializers, self.storages.config('storage').uri,
-                                   self.storages.client("storage"), "storage", SerializedDataHasher("sha256"))
+                                   self.storages.client("storage"), "storage")
 
         with self.assertRaisesRegex(TypeError, "Cannot find serializer for type"):
             snapshot.create_entry("name", str)
@@ -87,7 +87,7 @@ class SnapshotTests(TestCase):
         serializers = SerializerRegistryMock()
         serializers.register_serializer(NotAvailablePrimitiveSerializer())
         snapshot = DefaultSnapshot("some_wf", serializers, self.storages.config('storage').uri,
-                                   self.storages.client("storage"), "storage", SerializedDataHasher("sha256"))
+                                   self.storages.client("storage"), "storage")
 
         with self.assertRaisesRegex(TypeError, "is not available, please install"):
             snapshot.create_entry("name", str)
