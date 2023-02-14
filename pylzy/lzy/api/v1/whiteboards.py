@@ -110,12 +110,12 @@ class WritableWhiteboard:
             if field.default != dataclasses.MISSING:
                 entry = workflow.snapshot.create_entry(declaration_meta.name + "." + field.name, field.type)
 
-                async def coro():
+                async def put_and_copy():
                     await workflow.snapshot.put_data(entry.id, field.default)
                     await workflow.owner.storage_client.copy(entry.storage_uri,
                                                              f"{whiteboard_uri}/{field.name}.default")
 
-                data_to_load.append(coro())
+                data_to_load.append(put_and_copy())
                 defaults[field.name] = lzy_proxy(entry.id, (field.type,), workflow, Just(field.default))
 
             fields.append(WhiteboardField(name=field.name, scheme=build_scheme(serializer.schema(field.type))))

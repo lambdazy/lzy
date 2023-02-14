@@ -1,8 +1,8 @@
-from dataclasses import dataclass
+from typing import cast
 from unittest import TestCase
 
-from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
 from lzy.api.v1 import Lzy, op
+from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock, StorageClientMock
 
 
 class LzyEntriesTests(TestCase):
@@ -36,7 +36,7 @@ class LzyEntriesTests(TestCase):
         self.assertEqual(entry_id_1, entry_id_2)
         self.assertEqual(entry_id_1, entry_id_3)
 
-    def test_same_local_data_have_same_storage_uri(self):
+    def test_same_local_data_have_same_storage_uri_and_stored_once(self):
         # noinspection PyUnusedLocal
         @op
         def first_model(w: int) -> None:
@@ -76,6 +76,9 @@ class LzyEntriesTests(TestCase):
         self.assertEqual(uri_1, uri_2)
         self.assertEqual(uri_2, uri_3)
         self.assertEqual(uri_3, uri_4)
+
+        storage_client = cast(StorageClientMock, self.lzy.storage_client)
+        self.assertEqual(1, storage_client.write_counts[uri_1])
 
     def test_simple_op_uri_generation(self):
         @op

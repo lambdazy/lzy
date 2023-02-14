@@ -39,7 +39,6 @@ class LzyCall:
         self.__env = env
         self.__description = description
 
-        # prefix = f"{workflow.owner.storage_uri}/lzy_runs/{workflow.name}/{workflow.execution_id}/data"
         self.__entry_ids: List[str] = []
         for i, typ in enumerate(sign.func.output_types):
             name = sign.func.callable.__name__ + ".return_" + str(i)

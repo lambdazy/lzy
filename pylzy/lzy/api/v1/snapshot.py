@@ -178,10 +178,12 @@ class DefaultSnapshot(Snapshot):
             self.__entry_id_to_entry[entry_id].set_hash(data_hash)
             self.update_entry(entry_id, f"/{data_hash}")
 
-            with tqdm(total=length, desc=f"Uploading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
-                      unit_divisor=1024, colour=get_color()) as bar:
-                await self.__storage_client.write(entry.storage_uri, cast(BinaryIO, f),
-                                                  progress=lambda x: bar.update(x))
+            exists = await self.__storage_client.blob_exists(entry.storage_uri)
+            if not exists:
+                with tqdm(total=length, desc=f"Uploading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
+                          unit_divisor=1024, colour=get_color()) as bar:
+                    await self.__storage_client.write(entry.storage_uri, cast(BinaryIO, f),
+                                                      progress=lambda x: bar.update(x))
 
         self.__filled_entries.add(entry_id)
 

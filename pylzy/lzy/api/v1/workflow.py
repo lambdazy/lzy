@@ -216,15 +216,6 @@ class LzyWorkflow:
                     data_to_load.append(self.snapshot.put_data(eid, kwarg))
                     self.__filled_entry_ids.add(eid)
 
-            # prefix = f"{workflow.owner.storage_uri}/lzy_runs/{workflow.name}/data"
-            # self.__entry_ids: List[str] = []
-            # for i, typ in enumerate(sign.func.output_types):
-            #     name = sign.func.callable.__name__ + ".return_" + str(i)
-            #     uri = f"{prefix}/{name}.{self.__id}"
-            #     eid = workflow.snapshot.create_entry(name, typ).id
-            #     self.__entry_ids.append(eid)
-            #     workflow.snapshot.update_entry(eid, uri)
-
         await asyncio.gather(*data_to_load)
 
         for call in self.__call_queue:
