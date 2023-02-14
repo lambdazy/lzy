@@ -44,10 +44,7 @@ import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
@@ -147,7 +144,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             if (!sessions.isEmpty()) {
                 LOG.info("Found {} not completed sessions removal", sessions.size());
                 sessions.forEach(s -> {
-                    var reqid = requireNonNull(s.deleteReqid());
+                    var reqid = Optional.ofNullable(s.deleteReqid()).orElse("unknown");
                     var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, reqid));
                     withContext(ctx, () ->
                         allocationContext.submit(new DeleteSessionAction(s, s.deleteOpId(), allocationContext)));
