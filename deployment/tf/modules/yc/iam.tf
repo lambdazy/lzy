@@ -5,7 +5,6 @@ locals {
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "iam"
   }
-  iam-port     = 8443
   iam-k8s-name = "iam"
   iam-internal-user-name = "lzy-internal-agent"
   iam-internal-cred-name = "Internal agent key"

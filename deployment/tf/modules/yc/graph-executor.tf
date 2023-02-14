@@ -5,7 +5,6 @@ locals {
     "app.kubernetes.io/part-of" = "graph-executor"
     "lzy.ai/app"                = "graph"
   }
-  graph-port     = 8122
   graph-k8s-name = "graph"
   graph-image = var.graph-image
 }
