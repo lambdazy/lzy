@@ -14,7 +14,7 @@ import java.util.function.Supplier;
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
     private static final String RESOURCES_PATH = "/tmp/resources/";
-    private static final String LOCAL_MODULES_PATH = "/tmp/resources/";
+    private static final String LOCAL_MODULES_PATH = "/tmp/local_modules/";
 
 
     private final HashMap<String, DockerEnvironment> createdContainers = new HashMap<>();
