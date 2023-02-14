@@ -98,9 +98,7 @@ class RemoteRuntime(Runtime):
         self.__running = True
         self.__workflow = workflow
         self.__execution_id = exec_id
-        self.__std_slots_listener = asyncio.create_task(
-            self.__listen_to_std_slots(exec_id)
-        )
+        self.__std_slots_listener = asyncio.create_task(self.__listen_to_std_slots(exec_id))
         return cast(str, exec_id)
 
     async def exec(
@@ -159,32 +157,24 @@ class RemoteRuntime(Runtime):
         try:
             await client.abort_workflow(cast(LzyWorkflow, self.__workflow).name, self.__execution_id,
                                         "Workflow execution aborted")
+        finally:
+            self.__running = False
             self.__execution_id = None
             self.__workflow = None
             self.__std_slots_listener = None
-        finally:
-            self.__running = False
 
-    async def destroy(self):
+    async def finish(self):
         client = self.__workflow_client
+        if not self.__running:
+            return
         try:
-            if not self.__running:
-                return
-
-            assert self.__execution_id is not None
-            assert self.__workflow is not None
-            assert self.__std_slots_listener is not None
-
             await client.finish_workflow(self.__workflow.name, self.__execution_id, "Workflow completed")
-
             await self.__std_slots_listener  # read all stdout and stderr
-
+        finally:
+            self.__running = False
             self.__execution_id = None
             self.__workflow = None
             self.__std_slots_listener = None
-
-        finally:
-            self.__running = False
 
     async def __load_local_modules(self, module_paths: Iterable[str]) -> Sequence[str]:
         """Returns sequence of urls"""
@@ -351,7 +341,7 @@ class RemoteRuntime(Runtime):
             pool = self.__resolve_pool(call.provisioning, pools)
 
             if pool is None:
-                raise RuntimeError(
+                raise ValueError(
                     f"Cannot resolve pool for operation "
                     f"{call.signature.func.name}:\nAvailable: {pools}\n Expected: {call.provisioning}"
                 )
