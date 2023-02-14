@@ -53,7 +53,7 @@ class RuntimeMock(Runtime):
     async def abort(self) -> None:
         pass
 
-    async def destroy(self) -> None:
+    async def finish(self) -> None:
         pass
 
 
