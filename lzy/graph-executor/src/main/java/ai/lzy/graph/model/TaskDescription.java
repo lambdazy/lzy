@@ -4,7 +4,6 @@ import ai.lzy.v1.common.LMO;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.hubspot.jackson.datatype.protobuf.builtin.serializers.MessageSerializer;
 
 import java.util.Map;
 import java.util.Objects;
@@ -14,8 +13,6 @@ import java.util.Objects;
 @JsonDeserialize
 public record TaskDescription(
         String id,
-        @JsonSerialize(using = MessageSerializer.class)
-        @JsonDeserialize(using = OperationDeserializer.class)
         LMO.Operation operation,
         Map<String, String> slotsToChannelsAssignments
 ) {

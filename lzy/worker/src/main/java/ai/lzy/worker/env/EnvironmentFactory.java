@@ -61,7 +61,7 @@ public class EnvironmentFactory {
                 createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
             }
         } else {
-            baseEnv = localProcessEnv;
+            baseEnv = localProcessEnv.withEnv(env.getEnvVariablesMap());
         }
 
         if (env.hasPyenv()) {

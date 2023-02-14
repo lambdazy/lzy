@@ -44,7 +44,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     @Inject
     public GraphExecutionDaoImpl(GraphExecutorDataSource storage) {
         this.storage = storage;
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = new ObjectMapper().findAndRegisterModules();
     }
 
     @Override

@@ -5,13 +5,24 @@ import ai.lzy.worker.StreamQueue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 public class ProcessEnvironment extends BaseEnvironment {
+    private List<String> env = new ArrayList<>();
 
     public ProcessEnvironment() {
         super();
+    }
+
+    public ProcessEnvironment withEnv(Map<String, String> env) {
+        this.env = env.entrySet().stream()
+            .map(e -> e.getKey() + "=" + e.getValue())
+            .toList();
+        return this;
     }
 
     @Override
@@ -24,9 +35,8 @@ public class ProcessEnvironment extends BaseEnvironment {
 
     @Override
     public LzyProcess runProcess(String[] command, String[] envp) {
-        if (envp != null) {
-            envp = inheritEnvp(envp);
-        }
+        envp = inheritEnvp(envp);
+
         try {
             final Process exec = Runtime.getRuntime().exec(command, envp);
             return new LzyProcess() {
@@ -73,11 +83,16 @@ public class ProcessEnvironment extends BaseEnvironment {
     public void close() throws Exception {
     }
 
-    private String[] inheritEnvp(String[] envp) {
+    private String[] inheritEnvp(@Nullable String[] envp) {
         List<String> systemEnvs = System.getenv().entrySet().stream()
             .map(entry -> entry.getKey() + "=" + entry.getValue())
             .collect(Collectors.toList());
-        systemEnvs.addAll(List.of(envp));
+
+        systemEnvs.addAll(env);
+
+        if (envp != null) {
+            systemEnvs.addAll(List.of(envp));
+        }
         return systemEnvs.toArray(String[]::new);
 
     }
