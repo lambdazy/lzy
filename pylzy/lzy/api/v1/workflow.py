@@ -67,7 +67,6 @@ class LzyWorkflow:
         self.__snapshot: Optional[Snapshot] = None
         self.__execution_id: Optional[str] = None
         self.__entry_index = EntryIndex()
-        self.__hasher = SerializedDataHasher("sha256")
 
     @property
     def owner(self) -> "Lzy":
@@ -138,7 +137,7 @@ class LzyWorkflow:
         try:
             self.__execution_id = LzyEventLoop.run_async(self.__start())
             self.__snapshot = DefaultSnapshot(self.__name, self.owner.serializer_registry, self.__owner.storage_uri,
-                                              self.owner.storage_client, self.owner.storage_name, self.__hasher)
+                                              self.owner.storage_client, self.owner.storage_name)
             return self
         except Exception as e:
             try:
@@ -233,7 +232,7 @@ class LzyWorkflow:
                 if eid not in self.__filled_entry_ids:
                     self.snapshot.update_entry(eid, f"/${op_name}_${op_version}_${inputs_hash}/return_${str(i)}")
                     entry = self.snapshot.get(eid)
-                    entry.set_hash(self.__hasher.hash_of_str(entry.storage_uri))
+                    entry.set_hash(SerializedDataHasher.hash_of_str(entry.storage_uri))
                     self.__filled_entry_ids.add(eid)
 
         await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))

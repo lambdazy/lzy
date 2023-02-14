@@ -73,15 +73,12 @@ class Snapshot(ABC):  # pragma: no cover
 
 
 class SerializedDataHasher:
-    def __init__(self, algo: str):
-        if algo not in hashlib.algorithms_available:
-            raise ValueError(f"{algo} hash algorithm is not available in the running Python interpreter")
-        self.__algo = algo
-
-    def hash_of_str(self, uri: str) -> str:
+    @staticmethod
+    def hash_of_str(uri: str) -> str:
         return hashlib.sha256(uri.encode('utf-8')).hexdigest()
 
-    def hash_of_file(self, file_obj: FileIO) -> str:
+    @staticmethod
+    def hash_of_file(file_obj: FileIO) -> str:
         blocksize: int = 4096
         hsh = hashlib.sha256()
         while True:
@@ -99,13 +96,11 @@ class DefaultSnapshot(Snapshot):
             serializer_registry: SerializerRegistry,
             storage_uri: str,
             storage_client: AsyncStorageClient,
-            storage_name: str,
-            hasher: SerializedDataHasher
+            storage_name: str
     ):
         self.__serializer_registry = serializer_registry
         self.__storage_client = storage_client
         self.__storage_name = storage_name
-        self.__hasher = hasher
         self.__input_prefix = f"{storage_uri}/lzy_runs/${workflow_name}/inputs"
         self.__op_result_prefix = f"${storage_uri}/lzy_runs/${workflow_name}/ops"
         self.__entry_id_to_entry: Dict[str, SnapshotEntry] = {}
@@ -172,7 +167,7 @@ class DefaultSnapshot(Snapshot):
             length = f.tell()
             f.seek(0)
 
-            data_hash: str = self.__hasher.hash_of_file(f)
+            data_hash: str = SerializedDataHasher.hash_of_file(f)
             f.seek(0)
 
             self.__entry_id_to_entry[entry_id].set_hash(data_hash)
