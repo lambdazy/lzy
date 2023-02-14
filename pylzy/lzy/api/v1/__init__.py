@@ -1,7 +1,7 @@
 import datetime
 import inspect
 import os
-from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable
+from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable, Mapping
 
 from lzy.api.v1.call import LzyCall, wrap_call
 from lzy.api.v1.env import DockerPullPolicy, Env
@@ -225,9 +225,13 @@ class Lzy:
         gpu_type: Optional[str] = None,
         gpu_count: Optional[int] = None,
         ram_size_gb: Optional[int] = None,
-        env: Env = Env(),
-        propagate_env_variables: bool = True
+        env_variables: Optional[Mapping[str, str]] = None,
+        env: Env = Env()
     ) -> LzyWorkflow:
+
+        if env_variables is None:
+            env_variables = {}
+
         self.__register_default_runtime_storage()
 
         provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
@@ -241,7 +245,7 @@ class Lzy:
         local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
         env = env.override(
             Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
-                env_variables={} if not propagate_env_variables else os.environ)
+                env_variables=env_variables)
         )
         env.validate()
 
