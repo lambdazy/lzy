@@ -4,15 +4,14 @@ set -e
 DOCKER_BUILDKIT=1
 MAJOR=1
 
-if [[ $# -lt 4 ]]; then
-  echo "Usage: $0 <git-branch-name> <docker-registry-prefix> <custom-tag> <stored-worker-base-tag> [--base [--install]]"
+if [[ $# -lt 3 ]]; then
+  echo "Usage: $0 <docker-registry-prefix> <custom-tag> <stored-worker-base-tag> [--base [--install]]"
   exit
 fi
 
-BRANCH=$(echo "$1" | awk '{print tolower($0)}')
-DOCKER_REGISTRY=$2
-CUSTOM_TAG=$3
-STORED_WORKER_BASE_TAG=$4
+DOCKER_REGISTRY=$1
+CUSTOM_TAG=$2
+STORED_WORKER_BASE_TAG=$3
 
 BASE=false
 INSTALL=false
@@ -118,12 +117,12 @@ for IMAGE in $IMAGES; do
   else
     NEW_TAG="$CUSTOM_TAG"
   fi
-  NEW_NAME="$DOCKER_REGISTRY/$IMAGE:$BRANCH-$NEW_TAG"
+  NEW_NAME="$DOCKER_REGISTRY/$IMAGE:$NEW_TAG"
 
   docker tag "$IMAGE" "$NEW_NAME" && docker image rm "$IMAGE"
   echo "Pushing image $IMAGE: $NEW_NAME"
   docker push "$NEW_NAME" && docker image rm "$NEW_NAME"
-  echo "::set-output name=${IMAGE#lzy-}-image::$BRANCH-$NEW_TAG" # for github actions
+  echo "::set-output name=${IMAGE#lzy-}-image::$NEW_TAG" # for github actions
   echo ""
   PUSHED_IMAGES="$PUSHED_IMAGES${NL}$IMAGE-image = \"$NEW_NAME\""
 done
