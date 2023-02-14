@@ -278,8 +278,8 @@ public class Worker {
                 }
             });
 
-            final var stdoutSpec = op.getStdout();
-            final var stderrSpec = op.getStderr();
+            final var stdoutSpec = op.hasStdout() ? op.getStdout() : null;
+            final var stderrSpec = op.hasStderr() ? op.getStderr() : null;
 
             final var outQueue = generateStreamQueue(tid, stdoutSpec, "stdout");
             final var errQueue = generateStreamQueue(tid, stderrSpec, "stderr");

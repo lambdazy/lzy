@@ -159,7 +159,11 @@ public class SchedulerTest {
     public static LMS.Slot buildSlot(String name, LMS.Slot.Direction direction) {
 
         return LMS.Slot.newBuilder()
-            .setContentType(LMD.DataScheme.newBuilder().build())
+            .setContentType(LMD.DataScheme.newBuilder()
+                .setSchemeFormat("plain")
+                .setDataFormat("text")
+                .build())
+            .setMedia(LMS.Slot.Media.FILE)
             .setName(name)
             .setDirection(direction)
             .build();
