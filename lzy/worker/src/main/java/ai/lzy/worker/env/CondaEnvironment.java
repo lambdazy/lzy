@@ -1,7 +1,5 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.logs.MetricEvent;
-import ai.lzy.logs.MetricEventLogger;
 import ai.lzy.model.graph.PythonEnv;
 import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
@@ -24,16 +22,18 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class CondaEnvironment implements AuxEnvironment {
-    private static boolean RECONFIGURE_CONDA = true;  // Only for tests
+    private static volatile boolean RECONFIGURE_CONDA = true;  // Only for tests
 
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private static final Lock lockForMultithreadingTests = new ReentrantLock();
 
     private final PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
-    private final String localModulesDir;
     private final String envName;
     private final String resourcesPath;
+    private final String localModulesPathPrefix;
+
+    private Path localModulesAbsolutePath = null;
 
     @VisibleForTesting
     public static void reconfigureConda(boolean reconfigure) {
@@ -43,13 +43,14 @@ public class CondaEnvironment implements AuxEnvironment {
     public CondaEnvironment(
         PythonEnv pythonEnv,
         BaseEnvironment baseEnv,
-        String resourcesPath
+        String resourcesPath,
+        String localModulesPath
     )
     {
         this.resourcesPath = resourcesPath;
+        this.localModulesPathPrefix = localModulesPath;
         this.pythonEnv = pythonEnv;
         this.baseEnv = baseEnv;
-        this.localModulesDir = Path.of("/", "tmp", "local_modules" + UUID.randomUUID()).toString();
 
         var yaml = new Yaml();
         Map<String, Object> data = yaml.load(pythonEnv.yaml());
@@ -62,17 +63,6 @@ public class CondaEnvironment implements AuxEnvironment {
         return baseEnv;
     }
 
-    private void readToFile(File file, InputStream stream) throws IOException {
-        try (FileOutputStream output = new FileOutputStream(file.getAbsolutePath(), true)) {
-            byte[] buffer = new byte[4096];
-            int len = 0;
-            while (len != -1) {
-                output.write(buffer, 0, len);
-                len = stream.read(buffer);
-            }
-        }
-    }
-
     private void extractFiles(File file, String destinationDirectory) throws IOException {
         LOG.info("CondaEnvironment::extractFiles trying to unzip module archive "
             + file.getAbsolutePath());
@@ -81,15 +71,12 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
-    private String localModulesDirectoryAbsolutePath() {
-        return localModulesDir;
-    }
-
     public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
         try {
+            final var condaPackageRegistry = baseEnv.getPackageRegistry();
             if (RECONFIGURE_CONDA) {
-                if (CondaPackageRegistry.isInstalled(pythonEnv.yaml())) {
+                if (condaPackageRegistry.isInstalled(pythonEnv.yaml())) {
 
                     LOG.info("Conda env {} already configured, skipping", envName);
 
@@ -130,20 +117,23 @@ public class CondaEnvironment implements AuxEnvironment {
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
 
-                    CondaPackageRegistry.notifyInstalled(new StringReader(pythonEnv.yaml()));
-
+                    condaPackageRegistry.notifyInstalled(pythonEnv.yaml());
+                    //noinspection ResultOfMethodCallIgnored
                     condaFile.delete();
                 }
             }
 
-            File directory = new File(localModulesDirectoryAbsolutePath());
-            boolean created = directory.mkdirs();
-            if (!created) {
+            Path localModulesPath = Path.of(this.localModulesPathPrefix, UUID.randomUUID().toString());
+            try {
+                Files.createDirectories(localModulesPath);
+            } catch (IOException e) {
                 String errorMessage = "Failed to create directory to download local modules into;\n"
-                    + "  Directory name: " + localModulesDirectoryAbsolutePath() + "\n";
+                    + "  Directory name: " + localModulesPath + "\n";
                 LOG.error(errorMessage);
                 throw new EnvironmentInstallationException(errorMessage);
             }
+            this.localModulesAbsolutePath = localModulesPath.toAbsolutePath();
+
             LOG.info("CondaEnvironment::installPyenv created directory to download local modules into");
             for (var entry : pythonEnv.localModules()) {
                 String name = entry.name();
@@ -157,7 +147,7 @@ public class CondaEnvironment implements AuxEnvironment {
                     Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 }
 
-                extractFiles(tempFile, localModulesDirectoryAbsolutePath());
+                extractFiles(tempFile, localModulesAbsolutePath.toString());
                 tempFile.deleteOnExit();
             }
         } catch (IOException e) {
@@ -169,8 +159,9 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, String[] envp) {
         LOG.info("Executing command " + command);
-        String[] bashCmd = new String[] {"bash", "-c", "eval \"$(conda shell.bash hook)\" " +
-            "&& conda activate " + envName + " && " + command};
+        String[] bashCmd =
+            new String[] {"bash", "-c", "cd " + localModulesAbsolutePath + " && eval \"$(conda shell.bash hook)\" " +
+                "&& conda activate " + envName + " && " + command};
         return baseEnv.runProcess(bashCmd, envp);
     }
 
@@ -186,7 +177,7 @@ public class CondaEnvironment implements AuxEnvironment {
     @Override
     public LzyProcess runProcess(String[] command, String[] envp) {
         List<String> envList = new ArrayList<>();
-        envList.add("LOCAL_MODULES=" + localModulesDirectoryAbsolutePath());
+        envList.add("LOCAL_MODULES=" + localModulesAbsolutePath);
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));
         }

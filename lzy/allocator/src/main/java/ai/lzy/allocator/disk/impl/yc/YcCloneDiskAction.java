@@ -98,18 +98,14 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
 
         InjectedFailures.failCloneDisk1();
 
-        try {
-            withRetries(log(), () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
-            state = state.withCreateSnapshotOperationId(ycOpId);
-        } catch (Exception e) {
-            metrics().cloneDiskRetryableError.inc();
-            log().debug("Cannot save new state for YcCloneDisk::CreateSnapshot {}/{}, reschedule...",
-                opId(), state.ycCreateSnapshotOperationId());
-            return StepResult.RESTART;
-        }
-
-        log().info("Wait YC at YcCloneDisk::CreateSnapshot {}/{}...", opId(), state.ycCreateSnapshotOperationId());
-        return StepResult.RESTART;
+        return saveState(
+            () -> {
+                state = state.withCreateSnapshotOperationId(ycOpId);
+                log().info("Wait YC at YcCloneDisk::CreateSnapshot {}/{}...",
+                    opId(), state.ycCreateSnapshotOperationId());
+            },
+            () -> metrics().cloneDiskRetryableError.inc()
+        );
     }
 
     private StepResult waitSnapshot() {
@@ -197,16 +193,10 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
             return StepResult.FINISH;
         }
 
-        try {
-            withRetries(log(), () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
-            state = state.withSnapshotId(snapshotId);
-            return StepResult.CONTINUE;
-        } catch (Exception e) {
-            metrics().cloneDiskRetryableError.inc();
-            log().debug("Cannot save new state for YcCloneDisk::CreateSnapshot op {}/{} ({}), reschedule...",
-                opId(), state.ycCreateSnapshotOperationId(), state.snapshotId());
-            return StepResult.RESTART;
-        }
+        return saveState(
+            () -> state = state.withSnapshotId(snapshotId),
+            () -> metrics().cloneDiskRetryableError.inc()
+        );
     }
 
     private StepResult startCreateDisk() {
@@ -259,18 +249,13 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
 
         InjectedFailures.failCloneDisk2();
 
-        try {
-            withRetries(log(), () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
-            state = state.withCreateDiskOperationId(ycCreateDiskOperationId);
-        } catch (Exception e) {
-            metrics().cloneDiskRetryableError.inc();
-            log().debug("Cannot save new state for YcCloneDisk::CreateDisk {}/{}, reschedule...",
-                opId(), state.ycCreateDiskOperationId());
-            return StepResult.RESTART;
-        }
-
-        log().info("Wait YC at YcCloneDisk::CreateDisk {}/{}...", opId(), state.ycCreateDiskOperationId());
-        return StepResult.RESTART;
+        return saveState(
+            () -> {
+                state = state.withCreateDiskOperationId(ycCreateDiskOperationId);
+                log().info("Wait YC at YcCloneDisk::CreateDisk {}/{}...", opId(), state.ycCreateDiskOperationId());
+            },
+            () -> metrics().cloneDiskRetryableError.inc()
+        );
     }
 
     private StepResult waitDisk() {
@@ -435,17 +420,14 @@ final class YcCloneDiskAction extends YcDiskActionBase<YcCloneDiskState> {
 
         InjectedFailures.failCloneDisk3();
 
-        try {
-            withRetries(log(), () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
-            state = state.withDeleteSnapshotOperationId(ycOp.getId());
-        } catch (Exception e) {
-            log().debug("Cannot save new state for YcCloneDisk::DeleteSnapshot {}/{}, reschedule...",
-                opId(), state.ycDeleteSnapshotOperationId());
-            return StepResult.RESTART;
-        }
-
-        log().info("Wait YC at YcCloneDisk::DeleteSnapshot {}/{}...", opId(), state.ycDeleteSnapshotOperationId());
-        return StepResult.RESTART;
+        return saveState(
+            () -> {
+                state = state.withDeleteSnapshotOperationId(ycOp.getId());
+                log().info("Wait YC at YcCloneDisk::DeleteSnapshot {}/{}...",
+                    opId(), state.ycDeleteSnapshotOperationId());
+            },
+            () -> { }
+        );
     }
 
     private StepResult waitCleanup() {

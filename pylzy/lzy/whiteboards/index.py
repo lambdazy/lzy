@@ -1,3 +1,4 @@
+import atexit
 import datetime
 import json
 import os
@@ -5,19 +6,21 @@ import tempfile
 from json import JSONDecodeError
 from typing import Optional, Sequence, cast, AsyncIterable, BinaryIO
 
-from google.protobuf.json_format import MessageToJson, Parse, ParseDict
+# noinspection PyPackageRequirements
+from google.protobuf.json_format import MessageToJson, ParseDict
 # noinspection PyPackageRequirements
 from google.protobuf.timestamp_pb2 import Timestamp
 # noinspection PyPackageRequirements
+from grpc.aio import Channel
+from lzy.utils.event_loop import LzyEventLoop
 from serialzy.api import SerializerRegistry
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, TimeBounds
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import GetRequest, GetResponse, ListResponse, ListRequest, \
     RegisterWhiteboardRequest, UpdateWhiteboardRequest
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceStub
-from lzy.api.v1 import WorkflowServiceClient
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
-from lzy.utils.grpc import build_channel, add_headers_interceptor, build_token
+from lzy.utils.grpc import build_channel, add_headers_interceptor, build_token, RetryConfig, retry
 from lzy.whiteboards.api import WhiteboardIndexClient, WhiteboardManager
 from lzy.whiteboards.wrapper import WhiteboardWrapper
 
@@ -25,21 +28,33 @@ WB_USER_ENV = "LZY_USER"
 WB_KEY_PATH_ENV = "LZY_KEY_PATH"
 WB_ENDPOINT_ENV = "LZY_WHITEBOARD_ENDPOINT"
 
+RETRY_CONFIG = RetryConfig(
+    initial_backoff_ms=1000,
+    max_retry=120,
+    backoff_multiplier=1,
+    max_backoff_ms=10000
+)
+CHANNEL: Optional[Channel] = None
+
+
+@atexit.register
+def __channel_cleanup():
+    if CHANNEL:
+        # noinspection PyTypeChecker
+        LzyEventLoop.run_async(CHANNEL.close())
+
 
 class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
     def __init__(self):
-        self.__channel = None
         self.__stub = None
-        self.__is_started = False
 
     async def __start(self) -> None:
-        if self.__is_started:
+        if self.__stub:
             return
-        self.__is_started = True
 
         user = os.getenv(WB_USER_ENV)
         key_path = os.getenv(WB_KEY_PATH_ENV)
-        endpoint: str = os.getenv(WB_ENDPOINT_ENV, "api.lzy.ai:8899")
+        endpoint: str = os.getenv(WB_ENDPOINT_ENV, "whiteboard.lzy.ai:8122")
 
         if user is None:
             raise ValueError(f"User must be specified by env variable {WB_USER_ENV} or `user` argument")
@@ -47,13 +62,15 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
             raise ValueError(f"Key path must be specified by env variable {WB_KEY_PATH_ENV} or `key_path` argument")
 
         token = build_token(cast(str, user), cast(str, key_path))
-        self.__channel = build_channel(
-            endpoint, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
-        )
-        await self.__channel.channel_ready()
 
-        self.__stub = LzyWhiteboardServiceStub(self.__channel)
+        global CHANNEL
+        if not CHANNEL:
+            CHANNEL = build_channel(
+                endpoint, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
+            )
+        self.__stub = LzyWhiteboardServiceStub(CHANNEL)
 
+    @retry(config=RETRY_CONFIG, action_name="getting whiteboard")
     async def get(self, id_: str) -> Optional[Whiteboard]:
         await self.__start()
         resp: GetResponse = await self.__stub.Get(GetRequest(
@@ -61,6 +78,7 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
         ))
         return resp.whiteboard
 
+    # TODO (tomato): add fair pagination and retries
     async def query(
         self,
         name: Optional[str] = None,
@@ -91,14 +109,15 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
                 )
             )
         )
-        # TODO (tomato): make fair pagination
         for wb in resp.whiteboards:
             yield wb
 
+    @retry(config=RETRY_CONFIG, action_name="registering whiteboard")
     async def register(self, wb: Whiteboard) -> None:
         await self.__start()
         await self.__stub.RegisterWhiteboard(RegisterWhiteboardRequest(whiteboard=wb))
 
+    @retry(config=RETRY_CONFIG, action_name="updating whiteboard")
     async def update(self, wb: Whiteboard):
         await self.__start()
         await self.__stub.UpdateWhiteboard(UpdateWhiteboardRequest(whiteboard=wb))
@@ -106,11 +125,9 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
 
 class WhiteboardIndexedManager(WhiteboardManager):
     def __init__(self,
-                 workflow_client: Optional[WorkflowServiceClient],
                  index_client: WhiteboardIndexClient,
                  storage_registry: StorageRegistry,
                  serializer_registry: SerializerRegistry):
-        self.__workflow_client = workflow_client
         self.__index_client = index_client
         self.__storage_registry = storage_registry
         self.__serializer_registry = serializer_registry
@@ -203,8 +220,6 @@ class WhiteboardIndexedManager(WhiteboardManager):
         if storage_uri is not None or storage_name is not None:
             raise NotImplementedError("Fetching whiteboard by storage uri is not supported yet")
 
-        await self.__update_default_storage()
-
         async for whiteboard in self.__index_client.query(name, tags, not_before, not_after):
             yield WhiteboardWrapper(self.__storage_registry, self.__serializer_registry, whiteboard)
 
@@ -216,21 +231,12 @@ class WhiteboardIndexedManager(WhiteboardManager):
         else:
             storage_client = self.__storage_registry.default_client()
             if storage_client is None:
-                await self.__update_default_storage()
-                storage_client = self.__storage_registry.default_client()
-                if storage_client is None:
-                    raise RuntimeError("No default storage client")
+                raise RuntimeError("No default storage client")
 
         return storage_client
 
-    async def __update_default_storage(self):
-        if self.__workflow_client is not None:
-            storage_creds = await self.__workflow_client.get_default_storage()
-            storage_name = self.__storage_registry.provided_storage_name()
-            self.__storage_registry.register_storage(storage_name, storage_creds, default=True)
-
-    async def __get_meta_from_storage(self,
-                                      storage_client: AsyncStorageClient,
+    @staticmethod
+    async def __get_meta_from_storage(storage_client: AsyncStorageClient,
                                       wb_meta_uri: str) -> Optional[Whiteboard]:
 
         exists = await storage_client.blob_exists(wb_meta_uri)
@@ -243,6 +249,6 @@ class WhiteboardIndexedManager(WhiteboardManager):
             try:
                 wb = ParseDict(json.load(f), Whiteboard())
             except JSONDecodeError as e:
-                raise RuntimeError("Whiteboard corrupted, failed to load")
+                raise RuntimeError("Whiteboard corrupted, failed to load", e)
 
         return wb

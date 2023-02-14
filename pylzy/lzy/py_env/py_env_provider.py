@@ -1,5 +1,7 @@
 import inspect
 import json
+import os
+import time
 from collections import defaultdict
 
 import sys
@@ -29,17 +31,38 @@ def all_installed_packages() -> Dict[str, str]:
 
 
 class AutomaticPyEnvProvider(PyEnvProvider):
-    def __init__(self, pypi_cache_file_path: str = "/tmp/pypi_packages_cache"):
-        self.__pypi_libs_cache: Dict[str, List[str]] = defaultdict(list)
-        self.__pypi_cache_file_path = pypi_cache_file_path
+    def __init__(self,
+                 existed_cache_file_path: str = "/tmp/pypi_existed_packages_cache",
+                 nonexistent_cache_file_path: str = "/tmp/pypi_nonexistent_packages_cache",
+                 cache_invalidation_period_hours: int = 24):
+        self.__existed_cache: Dict[str, List[str]] = defaultdict(list)
+        self.__nonexistent_cache: Dict[str, List[str]] = defaultdict(list)
 
-        cache_path = Path(pypi_cache_file_path)
-        if cache_path.exists():
+        self.__existed_cache_file_path = existed_cache_file_path
+        self.__nonexistent_cache_file_path = nonexistent_cache_file_path
+        self.__nonexistent_cache_creation_time = time.time()
+
+        existed_cache_path = Path(existed_cache_file_path)
+        if existed_cache_path.exists():
             try:
-                with open(cache_path, "r") as file:
-                    self.__pypi_libs_cache.update(json.load(file))
+                with open(existed_cache_path, "r") as file:
+                    self.__existed_cache.update(json.load(file))
             except Exception as e:
-                _LOG.warning("Error while pypi packages cache loading", e)
+                _LOG.warning("Error while pypi existed packages cache loading", e)
+
+        nonexistent_cache_path = Path(nonexistent_cache_file_path)
+        if nonexistent_cache_path.exists():
+            try:
+                with open(nonexistent_cache_path, "r") as file:
+                    creation_time = float(file.readline())
+                    modification_seconds_diff = time.time() - creation_time
+                    modification_hours_diff, _ = divmod(modification_seconds_diff, 3600)
+                    if modification_hours_diff >= cache_invalidation_period_hours:
+                        return  # do not load cache
+                    self.__nonexistent_cache_creation_time = creation_time
+                    self.__nonexistent_cache.update(json.load(file))
+            except Exception as e:
+                _LOG.warning("Error while pypi nonexistent packages cache loading", e)
 
     def provide(self, namespace: Dict[str, Any]) -> PyEnv:
         dist_versions: Dict[str, str] = all_installed_packages()
@@ -65,11 +88,18 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                 return
 
             # and find it among installed ones
+            all_from_pypi: bool = False
             if name in distributions:
-                package_name = distributions[name][0]
-                if package_name in dist_versions and self.__exists_in_pypi(package_name, dist_versions[package_name]):
-                    remote_packages[package_name] = dist_versions[package_name]
-                    return
+                all_from_pypi = len(distributions[name]) > 0
+                for package_name in distributions[name]:
+                    if package_name in dist_versions and self.__exists_in_pypi(package_name,
+                                                                               dist_versions[package_name]):
+                        remote_packages[package_name] = dist_versions[package_name]
+                    else:
+                        all_from_pypi = False
+
+            if all_from_pypi:
+                return
 
             # if module is not found in distributions, try to find it as local one
             if module in local_modules:
@@ -109,13 +139,13 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                 return str(module.__file__)
             else:
                 # case for namespace package
-                return [module_path for module_path in module.__path__]
+                return [module_path for module_path in set(module.__path__)]
 
         def append_to_module_paths(f: str, paths: List[str]):  # type: ignore
             for module_path in paths:
-                if module_path.startswith(f):
+                if module_path.startswith(f"{f}{os.sep}"):
                     paths.remove(module_path)
-                elif f.startswith(module_path):
+                elif f.startswith(f"{module_path}{os.sep}"):
                     return
             paths.append(f)
 
@@ -137,12 +167,17 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         return PyEnv(py_version, remote_packages, module_paths)
 
     def __save_pypi_cache(self):
-        with open(self.__pypi_cache_file_path, "w") as file:
-            json.dump(self.__pypi_libs_cache, file)
+        with open(self.__existed_cache_file_path, "w") as file:
+            json.dump(self.__existed_cache, file)
+        with open(self.__nonexistent_cache_file_path, "w") as file:
+            file.write(f"{str(self.__nonexistent_cache_creation_time)}\n")
+            json.dump(self.__nonexistent_cache, file)
 
     def __exists_in_pypi(self, package_name: str, package_version: str) -> bool:
-        if package_name in self.__pypi_libs_cache and package_version in self.__pypi_libs_cache[package_name]:
+        if package_name in self.__existed_cache and package_version in self.__existed_cache[package_name]:
             return True
+        elif package_name in self.__nonexistent_cache and package_version in self.__nonexistent_cache[package_name]:
+            return False
 
         _LOG.info(f"Checking {package_name}=={package_version} exists in pypi...")
         with requests.Session() as session:
@@ -151,5 +186,8 @@ class AutomaticPyEnvProvider(PyEnvProvider):
             )
             response = session.get(f"https://pypi.python.org/pypi/{package_name}/{package_version}/json")
         result: bool = 200 <= response.status_code < 300
-        self.__pypi_libs_cache[package_name].append(package_version)
+        if result:
+            self.__existed_cache[package_name].append(package_version)
+        else:
+            self.__nonexistent_cache[package_name].append(package_version)
         return result

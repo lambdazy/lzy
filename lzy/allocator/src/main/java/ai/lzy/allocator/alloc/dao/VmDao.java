@@ -14,59 +14,61 @@ import java.util.Map;
 public interface VmDao {
 
     @Nullable
-    Vm get(String vmId, TransactionHandle transaction) throws SQLException;
+    Vm get(String vmId, @Nullable TransactionHandle tx) throws SQLException;
 
+    List<Vm> getSessionVms(String sessionId, @Nullable TransactionHandle tx) throws SQLException;
 
-    Vm create(Vm.Spec vmSpec, String opId, Instant startedAt, Instant opDeadline, String vmOtt, String allocatorId,
-              @Nullable TransactionHandle tx) throws SQLException;
+    Vm create(Vm.Spec vmSpec, Vm.AllocateState allocState, @Nullable TransactionHandle tx) throws SQLException;
 
-    void delete(String sessionId, @Nullable TransactionHandle tx) throws SQLException;
+    void delete(String vmId, Vm.DeletingState deleteState, @Nullable TransactionHandle tx) throws SQLException;
 
+    void cleanupVm(String vmId, @Nullable TransactionHandle tx) throws SQLException;
 
     /**
      * Find an IDLE VM with given spec and set its status to RUNNING
      */
     @Nullable
-    Vm acquire(Vm.Spec vmSpec, @Nullable TransactionHandle transaction) throws SQLException;
+    Vm acquire(Vm.Spec vmSpec, @Nullable TransactionHandle tx) throws SQLException;
 
-    void release(String vmId, Instant deadline, @Nullable TransactionHandle transaction) throws SQLException;
+    void release(String vmId, Instant deadline, @Nullable TransactionHandle tx) throws SQLException;
+
+    record CachedVms(
+        int atPoolAndSession,
+        int atSession,
+        int atOwner
+    ) {}
+
+    CachedVms countCachedVms(Vm.Spec vmSpec, String owner, @Nullable TransactionHandle tx) throws SQLException;
 
 
-    void setAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle transaction)
+    void setAllocatorMeta(String vmId, Map<String, String> meta, @Nullable TransactionHandle tx) throws SQLException;
+
+    @Nullable
+    Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle tx) throws SQLException;
+
+    void setVmSubjectId(String vmId, String vmSubjectId, @Nullable TransactionHandle tx) throws SQLException;
+
+    void setTunnelPod(String vmId, String tunnelPodName, @Nullable TransactionHandle tx) throws SQLException;
+
+    void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle tx)
         throws SQLException;
 
-    void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle transaction)
+    List<VolumeClaim> getVolumeClaims(String vmId, @Nullable TransactionHandle tx) throws SQLException;
+
+    void setVmRunning(String vmId, Map<String, String> vmMeta, Instant activityDeadline, TransactionHandle tx)
         throws SQLException;
 
-    void setVmSubjectId(String vmId, String vmSubjectId, @Nullable TransactionHandle transaction) throws SQLException;
-
-    void setTunnelPod(String vmId, String tunnelPodName, @Nullable TransactionHandle transaction) throws SQLException;
-
-    void setVmRunning(String vmId, Map<String, String> vmMeta, Instant activityDeadline, TransactionHandle transaction)
-        throws SQLException;
-
-    void setStatus(String vmId, Vm.Status status, @Nullable TransactionHandle transaction) throws SQLException;
-
-    void setLastActivityTime(String vmId, Instant time) throws SQLException;
-
-    void setDeadline(String vmId, Instant time) throws SQLException;
-
-    void deleteVm(String vmId, @Nullable TransactionHandle transaction) throws SQLException;
-
-    @VisibleForTesting
-    List<Vm> list(String sessionId) throws SQLException;
+    void updateActivityDeadline(String vmId, Instant deadline) throws SQLException;
 
     @VisibleForTesting
     List<Vm> listAlive() throws SQLException;
 
-    List<Vm> listVmsToClean(int limit) throws SQLException;
+    List<Vm> listExpiredVms(int limit) throws SQLException;
 
-    @Nullable
-    Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle transaction) throws SQLException;
+    List<Vm> loadActiveVmsActions(String workerId, @Nullable TransactionHandle tx) throws SQLException;
 
-    List<VolumeClaim> getVolumeClaims(String vmId, @Nullable TransactionHandle transaction) throws SQLException;
+    List<Vm> loadRunningVms(String workerId, @Nullable TransactionHandle tx) throws SQLException;
 
-    List<Vm> loadAllocatingVms(String allocatorId, @Nullable TransactionHandle transaction) throws SQLException;
-
-    List<String> findFailedVms(@Nullable TransactionHandle transaction) throws SQLException;
+    @VisibleForTesting
+    boolean hasDeadVm(String vmId) throws SQLException;
 }

@@ -133,9 +133,9 @@ jobs:
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
           cd ..
 
-      - name: 'java unit tests and install'
+      - name: 'java compile'
         timeout-minutes: 10
-        run: mvn clean install -DskipTests
+        run: mvn -T 8 clean install -DskipTests -Dmaven.test.skip -Dmaven.javadoc.skip=true
 
       - name: 'SchedulerTest'
         timeout-minutes: 5
@@ -146,17 +146,6 @@ jobs:
         timeout-minutes: 5
         run: |
           cd test && mvn test -Dtest=WorkflowTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
-
-      - name: 'Build worker image'
-        timeout-minutes: 15
-        run: |
-          BRANCH=${{ (github.head_ref || github.ref_name) }}
-          WORKER_BASE_IMAGE=$(deployment/latest-docker-image-on-branches.sh worker-base $BRANCH master)
-          docker pull $WORKER_BASE_IMAGE
-          WORKER_BASE_TAG="$(echo $WORKER_BASE_IMAGE | awk -F: '{print $2}')"
-          mkdir -p lzy/worker/docker/tmp-for-context
-          cp -R pylzy lzy/worker/docker/tmp-for-context/pylzy
-          docker build --build-arg "WORKER_BASE_TAG=$WORKER_BASE_TAG" -t worker -f lzy/worker/docker/Worker.Dockerfile lzy/worker
 
       - name: 'UserImagePyTest'
         timeout-minutes: 10
@@ -189,6 +178,7 @@ jobs:
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
 
       - name: 'clean pylzy'
+        if: always()
         run: |
           cd pylzy/
           eval "$(conda shell.bash hook)" && ./scripts/clean.sh

@@ -19,8 +19,9 @@ from lzy.logs.config import get_logger
 
 from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
     FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse, \
-    AbortWorkflowRequest, AbortWorkflowResponse
+    AbortWorkflowRequest, AbortWorkflowResponse, GetOrCreateDefaultStorageResponse, GetOrCreateDefaultStorageRequest
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
+# noinspection PyUnresolvedReferences
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient
 from lzy.api.v1.runtime import ProgressStep
 from lzy.py_env.api import PyEnvProvider, PyEnv
@@ -38,7 +39,7 @@ class RuntimeMock(Runtime):
     def __init__(self):
         self.calls: List[LzyCall] = []
 
-    def workflow_client(self) -> Optional["WorkflowServiceClient"]:
+    async def storage(self) -> Optional[Storage]:
         return None
 
     async def start(self, workflow: "LzyWorkflow") -> str:
@@ -94,7 +95,7 @@ class OperationsServiceMock(LongRunningServiceServicer):
 
 class WorkflowServiceMock(LzyWorkflowServiceServicer):
     def __init__(self, op_service: OperationsServiceMock):
-        self.fail = False
+        self.fail_on_start = False
         self.created = False
         self.__op_service = op_service
 
@@ -103,42 +104,21 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
     ) -> StartWorkflowResponse:
         _LOG.info(f"Creating wf {request}")
 
-        if self.fail:
-            self.fail = False
+        if self.fail_on_start:
+            self.fail_on_start = False
             context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
         self.created = True
-        return StartWorkflowResponse(
-            executionId="exec_id",
-            internalSnapshotStorage=StorageConfig(
-                uri="s3://bucket/prefix",
-                s3=S3Credentials(endpoint="", accessToken="", secretToken=""),
-            ),
-        )
+        return StartWorkflowResponse(executionId="exec_id")
 
     def AbortWorkflow(self, request: AbortWorkflowRequest, context) -> AbortWorkflowResponse:
         _LOG.info(f"Aborting wf {request}")
-
-        if self.fail:
-            self.fail = False
-            context.abort(grpc.StatusCode.INTERNAL, "some_error")
-
-        assert request.workflowName == "some_name"
-        assert request.executionId == "exec_id"
-
         return AbortWorkflowResponse()
 
     def FinishWorkflow(
         self, request: FinishWorkflowRequest, context: grpc.ServicerContext
     ) -> Operation:
         _LOG.info(f"Finishing workflow {request}")
-
-        if self.fail:
-            self.fail = False
-            context.abort(grpc.StatusCode.INTERNAL, "some_error")
-
-        assert request.workflowName == "some_name"
-        assert request.executionId == "exec_id"
 
         packed = Any()
         packed.Pack(FinishWorkflowResponse())
@@ -153,16 +133,19 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
     ) -> Iterator[ReadStdSlotsResponse]:
         _LOG.info(f"Registered listener")
 
-        if self.fail:
-            self.fail = False
-            context.abort(grpc.StatusCode.INTERNAL, "some_error")
-
         yield ReadStdSlotsResponse(
             stdout=ReadStdSlotsResponse.Data(data=("Some stdout",))
         )
         yield ReadStdSlotsResponse(
             stderr=ReadStdSlotsResponse.Data(data=("Some stderr",))
         )
+
+    def GetOrCreateDefaultStorage(self, request: GetOrCreateDefaultStorageRequest,
+                                  context: grpc.ServicerContext) -> GetOrCreateDefaultStorageResponse:
+        return GetOrCreateDefaultStorageResponse(storage=StorageConfig(
+            uri="s3://bucket/prefix",
+            s3=S3Credentials(endpoint="", accessToken="", secretToken=""),
+        ))
 
 
 class StorageRegistryMock(StorageRegistry):
@@ -179,9 +162,6 @@ class StorageRegistryMock(StorageRegistry):
         return Storage.azure_blob_storage("", "")
 
     def default_storage_name(self) -> Optional[str]:
-        return "storage_name"
-
-    def provided_storage_name(self) -> str:
         return "storage_name"
 
     def client(self, storage_name: str) -> Optional[AsyncStorageClient]:

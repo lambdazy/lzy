@@ -1,7 +1,6 @@
 package ai.lzy.allocator;
 
-import ai.lzy.allocator.alloc.VmAllocator;
-import ai.lzy.allocator.alloc.dao.VmDao;
+import ai.lzy.allocator.alloc.AllocationContext;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.gc.GarbageCollector;
 import ai.lzy.allocator.services.AllocatorPrivateService;
@@ -15,7 +14,6 @@ import ai.lzy.longrunning.OperationsService;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
 import ai.lzy.v1.AllocatorPrivateGrpc;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -27,8 +25,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.locks.LockSupport;
 import javax.inject.Named;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
@@ -42,8 +42,7 @@ public class AllocatorMain {
     private final ServiceConfig config;
     private final Server server;
     private final GarbageCollector gc;
-    private final VmDao vmDao;
-    private final VmAllocator alloc;
+    private final AllocationContext allocationContext;
     private final MetricReporter metricReporter;
 
     public AllocatorMain(MetricReporter metricReporter, AllocatorService allocator,
@@ -51,12 +50,11 @@ public class AllocatorMain {
                          ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
                          @Named("AllocatorOperationsService") OperationsService operationsService,
                          @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                         VmDao vmDao, VmAllocator alloc)
+                         AllocationContext allocationContext)
     {
         this.config = config;
         this.gc = gc;
-        this.vmDao = vmDao;
-        this.alloc = alloc;
+        this.allocationContext = allocationContext;
         this.metricReporter = metricReporter;
 
         LOG.info("Starting {} with id {}", APP, Objects.requireNonNull(config.getInstanceId()));
@@ -107,13 +105,36 @@ public class AllocatorMain {
         server.awaitTermination();
     }
 
-    @VisibleForTesting
-    public void destroyAll() throws SQLException {
+    public void destroyAllForTests() throws SQLException {
         LOG.info("Deallocating all vms");
-        final var vms = vmDao.listAlive();
-        vms.forEach(vm -> {
-            // TODO: remove vm subject
-            alloc.deallocate(vm.vmId());
+        final var vms = allocationContext.vmDao().listAlive();
+        var ops = vms.stream()
+            .map(vm -> {
+                switch (vm.status()) {
+                    case ALLOCATING, DELETING -> { return null; }
+                    case RUNNING, IDLE -> { }
+                }
+                try {
+                    return allocationContext.submitDeleteVmAction(vm, "Force clean", "test", LOG);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+            })
+            .filter(Objects::nonNull)
+            .toList();
+
+        ops.forEach(opId -> {
+            while (true) {
+                try {
+                    var op = allocationContext.operationsDao().get(opId, null);
+                    if (op == null || op.done()) {
+                        return;
+                    }
+                    LockSupport.parkNanos(Duration.ofMillis(50).toNanos());
+                } catch (SQLException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         });
     }
 

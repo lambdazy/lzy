@@ -18,7 +18,6 @@ import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LSS;
-import ai.lzy.v1.storage.LSS.CreateS3BucketResponse;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc.LzyStorageServiceBlockingStub;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -54,9 +53,11 @@ public class StorageTest extends BaseTestWithIam {
     private static final int DEFAULT_TIMEOUT_SEC = 300;
 
     @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
     @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {
+    });
 
     private ApplicationContext storageCtx;
     private StorageConfig storageConfig;
@@ -121,7 +122,7 @@ public class StorageTest extends BaseTestWithIam {
     @Test
     public void testUnauthenticated() {
         try {
-            unauthorizedStorageClient.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
+            unauthorizedStorageClient.createStorage(LSS.CreateStorageRequest.newBuilder()
                 .setUserId("test-user")
                 .setBucket("bucket-1")
                 .build());
@@ -131,7 +132,7 @@ public class StorageTest extends BaseTestWithIam {
         }
 
         try {
-            unauthorizedStorageClient.getS3BucketCredentials(LSS.GetS3BucketCredentialsRequest.newBuilder()
+            unauthorizedStorageClient.getStorageCredentials(LSS.GetStorageCredentialsRequest.newBuilder()
                 .setUserId("test-user")
                 .setBucket("bucket-1")
                 .build());
@@ -141,7 +142,7 @@ public class StorageTest extends BaseTestWithIam {
         }
 
         try {
-            unauthorizedStorageClient.deleteS3Bucket(LSS.DeleteS3BucketRequest.newBuilder()
+            unauthorizedStorageClient.deleteStorage(LSS.DeleteStorageRequest.newBuilder()
                 .setBucket("bucket-1")
                 .build());
             Assert.fail();
@@ -158,7 +159,7 @@ public class StorageTest extends BaseTestWithIam {
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
 
         try {
-            client.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
+            client.createStorage(LSS.CreateStorageRequest.newBuilder()
                 .setUserId("test-user")
                 .setBucket("bucket-1")
                 .build());
@@ -168,7 +169,7 @@ public class StorageTest extends BaseTestWithIam {
         }
 
         try {
-            client.getS3BucketCredentials(LSS.GetS3BucketCredentialsRequest.newBuilder()
+            client.getStorageCredentials(LSS.GetStorageCredentialsRequest.newBuilder()
                 .setUserId("test-user")
                 .setBucket("bucket-1")
                 .build());
@@ -178,7 +179,7 @@ public class StorageTest extends BaseTestWithIam {
         }
 
         try {
-            client.deleteS3Bucket(LSS.DeleteS3BucketRequest.newBuilder()
+            client.deleteStorage(LSS.DeleteStorageRequest.newBuilder()
                 .setBucket("bucket-1")
                 .build());
             Assert.fail();
@@ -189,7 +190,7 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testSuccess() throws IOException {
-        var respOp = authorizedStorageClient.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
+        var respOp = authorizedStorageClient.createStorage(LSS.CreateStorageRequest.newBuilder()
             .setUserId("test-user")
             .setBucket("bucket-1")
             .build());
@@ -199,7 +200,7 @@ public class StorageTest extends BaseTestWithIam {
             DEFAULT_TIMEOUT_SEC, TimeUnit.SECONDS);
 
         var resp = opClient.get(LongRunning.GetOperationRequest.newBuilder()
-            .setOperationId(respOp.getId()).build()).getResponse().unpack(CreateS3BucketResponse.class);
+            .setOperationId(respOp.getId()).build()).getResponse().unpack(LSS.CreateStorageResponse.class);
 
         assertTrue(resp.toString(), resp.hasS3());
         assertTrue(resp.toString(), resp.getS3().getAccessToken().isEmpty());
@@ -218,14 +219,15 @@ public class StorageTest extends BaseTestWithIam {
         var content = new String(obj.getObjectContent().readAllBytes(), StandardCharsets.UTF_8);
         Assert.assertEquals("content", content);
 
-        var credsResp = authorizedStorageClient.getS3BucketCredentials(LSS.GetS3BucketCredentialsRequest.newBuilder()
-            .setUserId("test-user")
-            .setBucket("bucket-1")
-            .build());
+        var credsResp = authorizedStorageClient
+            .getStorageCredentials(LSS.GetStorageCredentialsRequest.newBuilder()
+                .setUserId("test-user")
+                .setBucket("bucket-1")
+                .build());
         assertTrue(credsResp.hasAmazon());
         Assert.assertEquals(resp.getS3(), credsResp.getAmazon());
 
-        authorizedStorageClient.deleteS3Bucket(LSS.DeleteS3BucketRequest.newBuilder()
+        authorizedStorageClient.deleteStorage(LSS.DeleteStorageRequest.newBuilder()
             .setBucket("bucket-1")
             .build());
 
@@ -261,7 +263,7 @@ public class StorageTest extends BaseTestWithIam {
                 assertFalse(op.hasError());
 
                 try {
-                    assertTrue(op.getResponse().unpack(CreateS3BucketResponse.class).hasS3());
+                    assertTrue(op.getResponse().unpack(LSS.CreateStorageResponse.class).hasS3());
                 } catch (InvalidProtocolBufferException e) {
                     fail(e.getMessage());
                 }
@@ -272,7 +274,7 @@ public class StorageTest extends BaseTestWithIam {
         var userId = "some-valid-user-id";
         var bucketName = "tmp-bucket-" + userId;
 
-        return client.createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
+        return client.createStorage(LSS.CreateStorageRequest.newBuilder()
             .setUserId(userId).setBucket(bucketName).build());
     }
 }

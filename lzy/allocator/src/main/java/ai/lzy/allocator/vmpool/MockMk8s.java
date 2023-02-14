@@ -4,12 +4,16 @@ import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
 
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 import javax.inject.Singleton;
+
+import static ai.lzy.allocator.vmpool.CpuTypes.CASCADE_LAKE;
+import static ai.lzy.allocator.vmpool.GpuTypes.NO_GPU;
 
 @Singleton
 @Primary
@@ -26,6 +30,12 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
             HostAndPort.fromString("localhost:1256"),
             "", ClusterType.User)
     ));
+
+    private final Map<String, VmPoolSpec> vmPools = Map.of(
+        "s", new VmPoolSpec("s", CASCADE_LAKE.value(), 2, NO_GPU.value(), 0, 4, Set.of("ru-central1-a")),
+        "m", new VmPoolSpec("m", CASCADE_LAKE.value(), 4, NO_GPU.value(), 0, 4, Set.of("ru-central1-a"))
+    );
+
     private final Map<String, ClusterDescription> idsToClusters;
 
     public MockMk8s() {
@@ -57,7 +67,12 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
 
     @Override
     public Map<String, VmPoolSpec> getUserVmPools() {
-        return Map.of("s", new VmPoolSpec("s", CpuTypes.CASCADE_LAKE.value(),
-            2, GpuTypes.NO_GPU.value(), 0, 4, Set.of("ru-central1-a")));
+        return vmPools;
+    }
+
+    @Nullable
+    @Override
+    public VmPoolSpec findPool(String poolLabel) {
+        return vmPools.get(poolLabel.toLowerCase(Locale.ROOT));
     }
 }

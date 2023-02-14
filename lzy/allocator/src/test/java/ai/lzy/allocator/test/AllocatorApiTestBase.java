@@ -6,7 +6,11 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.AllocatorGrpc;
@@ -18,46 +22,52 @@ import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
 import io.fabric8.kubernetes.api.model.*;
-import io.fabric8.kubernetes.client.server.mock.KubernetesServer;
+import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import jakarta.annotation.Nullable;
+import okhttp3.mockwebserver.MockWebServer;
 import org.junit.Assert;
 import org.junit.Rule;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.InetAddress;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
+import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+import static java.util.Objects.requireNonNull;
 
 public class AllocatorApiTestBase extends BaseTestWithIam {
 
     protected static final long TIMEOUT_SEC = 10;
+    protected static final String ZONE = "test-zone";
 
     protected static final String POD_PATH = "/api/v1/namespaces/%s/pods".formatted(NAMESPACE_VALUE);
     protected static final String PERSISTENT_VOLUME_PATH = "/api/v1/persistentvolumes";
     protected static final String PERSISTENT_VOLUME_CLAIM_PATH = "/api/v1/namespaces/%s/persistentvolumeclaims"
         .formatted(NAMESPACE_VALUE);
     protected static final ClusterRegistry.ClusterType CLUSTER_TYPE = ClusterRegistry.ClusterType.User;
-
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -71,17 +81,18 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceApiBlockingStub;
     protected DiskServiceGrpc.DiskServiceBlockingStub diskService;
     protected AllocatorMain allocatorApp;
-    protected KubernetesServer kubernetesServer;
+    protected KubernetesMockServer kubernetesServer;
     protected ManagedChannel channel;
     protected ClusterRegistry clusterRegistry;
+    protected OperationsExecutor operationsExecutor;
 
     protected void updateStartupProperties(Map<String, Object> props) {}
 
     protected void setUp() throws IOException {
         super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
 
-        kubernetesServer = new KubernetesServer();
-        kubernetesServer.before();
+        kubernetesServer = new KubernetesMockServer(new MockWebServer(), new ConcurrentHashMap<>(), false);
+        kubernetesServer.init(InetAddress.getLoopbackAddress(), 0);
         kubernetesServer.expect().post().withPath("/api/v1/pods")
             .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
 
@@ -107,7 +118,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         allocatorCtx = ApplicationContext.run(props);
         ((MockKuberClientFactory) allocatorCtx.getBean(KuberClientFactory.class)).setClientSupplier(
-            () -> kubernetesServer.getKubernetesMockServer().createClient()
+            () -> kubernetesServer.createClient()
         );
 
         var config = allocatorCtx.getBean(ServiceConfig.class);
@@ -131,6 +142,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             () -> credentials.get().token());
 
         clusterRegistry = allocatorCtx.getBean(ClusterRegistry.class);
+        operationsExecutor = allocatorCtx.getBean(OperationsExecutor.class,
+            Qualifiers.byName("AllocatorOperationsExecutor"));
     }
 
     protected void tearDown() {
@@ -151,32 +164,52 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         allocatorCtx.getBean(AllocatorDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
 
         allocatorCtx.stop();
-        kubernetesServer.after();
+        kubernetesServer.destroy();
         super.after();
     }
 
     protected String createSession(Duration idleTimeout) {
-        var op = createSessionOp(UUID.randomUUID().toString(), idleTimeout, null);
+        return createSession(UUID.randomUUID().toString(), idleTimeout);
+    }
+
+    protected String createSession(String owner, Duration idleTimeout) {
+        var op = createSessionOp(owner, idleTimeout, null);
         return Utils.extractSessionId(op);
     }
 
-    protected LongRunning.Operation createSessionOp(String owner, Duration idleTimeout, @Nullable String token) {
-        var stub = authorizedAllocatorBlockingStub;
+    protected LongRunning.Operation deleteSession(String sessionId, boolean wait) {
+        var op = withGrpcContext(() ->
+            authorizedAllocatorBlockingStub.deleteSession(
+                VmAllocatorApi.DeleteSessionRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .build()));
 
-        if (token != null) {
-            stub = withIdempotencyKey(stub, token);
+        if (wait) {
+            op = waitOperation(operationServiceApiBlockingStub, op, 5);
         }
 
-        var op = stub.createSession(
-            VmAllocatorApi.CreateSessionRequest.newBuilder()
-                .setOwner(owner)
-                .setCachePolicy(
-                    VmAllocatorApi.CachePolicy.newBuilder()
-                        .setIdleTimeout(idleTimeout)
-                        .build())
-                .build());
-        Assert.assertTrue(op.getDone());
         return op;
+    }
+
+    protected LongRunning.Operation createSessionOp(String owner, Duration idleTimeout, @Nullable String token) {
+        return withGrpcContext(() -> {
+            var stub = authorizedAllocatorBlockingStub;
+
+            if (token != null) {
+                stub = withIdempotencyKey(stub, token);
+            }
+
+            var op = stub.createSession(
+                VmAllocatorApi.CreateSessionRequest.newBuilder()
+                    .setOwner(owner)
+                    .setCachePolicy(
+                        VmAllocatorApi.CachePolicy.newBuilder()
+                            .setIdleTimeout(idleTimeout)
+                            .build())
+                    .build());
+            Assert.assertTrue(op.getDone());
+            return op;
+        });
     }
 
     protected LongRunning.Operation waitOpSuccess(LongRunning.Operation operation) {
@@ -191,7 +224,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
         Assert.assertFalse(updatedOperation.hasResponse());
         Assert.assertTrue(updatedOperation.hasError());
-        Assert.assertEquals(expectedErrorStatus.getCode().value(), updatedOperation.getError().getCode());
+        Assert.assertEquals(expectedErrorStatus.getCode(),
+            Status.fromCodeValue(updatedOperation.getError().getCode()).getCode());
     }
 
     protected void mockGetPod(String podName) {
@@ -216,17 +250,19 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected void registerVm(String vmId, String clusterId) {
         TimeUtils.waitFlagUp(() -> {
             try {
-                //noinspection ResultOfMethodCallIgnored
-                privateAllocatorBlockingStub.register(
-                    VmAllocatorPrivateApi.RegisterRequest.newBuilder()
-                        .setVmId(vmId)
-                        .putMetadata(NAMESPACE_KEY, NAMESPACE_VALUE)
-                        .putMetadata(CLUSTER_ID_KEY, clusterId)
-                        .build()
-                );
-                return true;
+                return withGrpcContext(() -> {
+                    privateAllocatorBlockingStub.register(
+                        VmAllocatorPrivateApi.RegisterRequest.newBuilder()
+                            .setVmId(vmId)
+                            .putMetadata(NAMESPACE_KEY, NAMESPACE_VALUE)
+                            .putMetadata(CLUSTER_ID_KEY, clusterId)
+                            .build()
+                    );
+                    return true;
+                });
             } catch (StatusRuntimeException e) {
                 if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
+                    System.err.println("Fail to register VM %s: %s".formatted(vmId, e.getStatus().toString()));
                     return false;
                 }
                 throw new RuntimeException(e);
@@ -281,7 +317,9 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return future;
     }
 
-    protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete, int responseCode) {
+    protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete,
+                                                   int responseCode)
+    {
         kubernetesServer.expect().delete()
             .withPath(resourcePath + "/" + resourceName)
             .andReply(responseCode, (req) -> {
@@ -299,5 +337,64 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
                 onDelete.run();
                 return new StatusDetails();
             }).once();
+    }
+
+    protected record AllocatedVm(
+        String vmId,
+        String podName,
+        Subject iamSubj
+    ) {}
+
+    protected AllocatedVm allocateVm(String sessionId, @Nullable String idempotencyKey) throws Exception {
+        return allocateVm(sessionId, "S", idempotencyKey);
+    }
+
+    protected AllocatedVm allocateVm(String sessionId, String pool, @Nullable String idempotencyKey) throws Exception {
+        final var future = awaitAllocationRequest();
+
+        var allocOp = withGrpcContext(() -> {
+            var stub = authorizedAllocatorBlockingStub;
+            if (idempotencyKey != null) {
+                stub = withIdempotencyKey(stub, idempotencyKey);
+            }
+
+            return stub.allocate(
+                VmAllocatorApi.AllocateRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .setPoolLabel(pool)
+                    .setZone(ZONE)
+                    .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)
+                    .addWorkload(VmAllocatorApi.AllocateRequest.Workload.getDefaultInstance())
+                    .build());
+        });
+
+        if (allocOp.getDone()) {
+            var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+            var vmSubj = super.getSubject(AuthProvider.INTERNAL, vmId, SubjectType.VM);
+            Assert.assertNotNull(vmSubj);
+            return new AllocatedVm(vmId, "unknown", vmSubj);
+        }
+
+        var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+
+        final String podName = future.get();
+        mockGetPod(podName);
+
+        String clusterId = withGrpcContext(() ->
+            requireNonNull(clusterRegistry.findCluster(pool, ZONE, CLUSTER_TYPE)).clusterId());
+        registerVm(vmId, clusterId);
+
+        allocOp = waitOpSuccess(allocOp);
+        Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
+
+        var vmSubj = super.getSubject(AuthProvider.INTERNAL, vmId, SubjectType.VM);
+        Assert.assertNotNull(vmSubj);
+
+        return new AllocatedVm(vmId, podName, vmSubj);
+    }
+
+    protected void freeVm(String vmId) {
+        withGrpcContext(() ->
+            authorizedAllocatorBlockingStub.free(VmAllocatorApi.FreeRequest.newBuilder().setVmId(vmId).build()));
     }
 }

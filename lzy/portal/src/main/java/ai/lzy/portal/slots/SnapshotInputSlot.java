@@ -1,9 +1,8 @@
 package ai.lzy.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
-import ai.lzy.fs.slots.OutFileSlot;
 import ai.lzy.model.slot.SlotInstance;
-import ai.lzy.portal.storage.Repository;
+import ai.lzy.storage.StorageClient;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
@@ -12,10 +11,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
-import java.nio.channels.FileChannel;
 import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -23,56 +19,50 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     private static final Logger LOG = LogManager.getLogger(SnapshotInputSlot.class);
     private static final ThreadGroup READER_TG = new ThreadGroup("input-slot-readers");
 
-    private final Path storage;
+    private final SnapshotEntry snapshot;
+    private final StorageClient storageClient;
     private final OutputStream outputStream;
 
-    private final URI uri;
-    private final Repository<Stream<ByteString>> repository;
-
-    private final S3Snapshot slot;
+    private final Runnable slotSyncHandler;
     private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
 
-    private final Runnable slotSyncHandler;
-
-    public SnapshotInputSlot(SlotInstance slotInstance, S3Snapshot slot, Path storage, URI uri,
-                             Repository<Stream<ByteString>> repository, @Nullable Runnable syncHandler)
+    public SnapshotInputSlot(SlotInstance slotData, SnapshotEntry snapshot, StorageClient storageClient,
+                             @Nullable Runnable syncHandler)
         throws IOException
     {
-        super(slotInstance);
-        this.slot = slot;
-        this.storage = storage;
-        this.outputStream = Files.newOutputStream(storage);
-        this.uri = uri;
-        this.repository = repository;
+        super(slotData);
+        this.snapshot = snapshot;
+        this.storageClient = storageClient;
+        this.outputStream = Files.newOutputStream(snapshot.getTempfile());
         this.slotSyncHandler = syncHandler;
     }
 
     @Override
     public void connect(URI slotUri, Stream<ByteString> dataProvider) {
-        slot.getState().set(S3Snapshot.State.PREPARING);
+        snapshot.getState().set(SnapshotEntry.State.PREPARING);
         super.connect(slotUri, dataProvider);
         LOG.info("Attempt to connect to " + slotUri + " slot " + this);
 
         onState(LMS.SlotStatus.State.OPEN, () -> {
             try {
+                outputStream.flush();
                 outputStream.close();
             } catch (IOException e) {
-                LOG.error("Error while closing file {}: {}", storage, e.getMessage(), e);
+                LOG.error("Error while closing file {}: {}", snapshot.getTempfile(), e.getMessage(), e);
             }
         });
 
         var t = new Thread(READER_TG, () -> {
             // read all data to local storage (file), then OPEN the slot
             readAll();
-            slot.getState().set(S3Snapshot.State.DONE);
-            synchronized (slot) {
-                slot.notifyAll();
+            snapshot.getState().set(SnapshotEntry.State.DONE);
+            synchronized (snapshot) {
+                snapshot.notifyAll();
             }
             // store local snapshot to S3
             try {
                 state = SnapshotSlotStatus.SYNCING;
-                FileChannel channel = FileChannel.open(storage, StandardOpenOption.READ);
-                repository.put(uri, OutFileSlot.readFileChannel(definition().name(), 0, channel, () -> true));
+                storageClient.write(snapshot.getStorageUri(), snapshot.getTempfile());
                 state = SnapshotSlotStatus.SYNCED;
                 if (slotSyncHandler != null) {
                     slotSyncHandler.run();
@@ -97,6 +87,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     public synchronized void destroy() {
         super.destroy();
         try {
+            outputStream.flush();
             outputStream.close();
         } catch (IOException e) {
             LOG.warn("Can not close storage for {}: {}", this, e.getMessage());
@@ -105,7 +96,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
 
     @Override
     public String toString() {
-        return "SnapshotInputSlot: " + definition().name() + " -> " + storage.toString();
+        return "SnapshotInputSlot: " + definition().name() + " -> " + snapshot.getTempfile().toString();
     }
 
     @Override

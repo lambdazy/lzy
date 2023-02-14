@@ -10,7 +10,7 @@ import java.util.Map;
 import java.util.Set;
 
 public interface ExecutionDao {
-    void create(String userId, String executionId, String storageType, LMST.StorageConfig storageConfig,
+    void create(String userId, String executionId, String storageName, LMST.StorageConfig storageConfig,
                 @Nullable TransactionHandle transaction) throws SQLException;
 
     void delete(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
@@ -29,8 +29,8 @@ public interface ExecutionDao {
                                @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    void updateFinishData(String userId, @Nullable String workflowName, String executionId, Status status,
-                          @Nullable TransactionHandle transaction) throws SQLException;
+    void updateFinishData(String userId, String executionId, Status status, @Nullable TransactionHandle transaction)
+        throws SQLException;
 
     void setErrorExecutionStatus(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
 

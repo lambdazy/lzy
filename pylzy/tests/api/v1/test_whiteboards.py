@@ -5,7 +5,7 @@ import uuid
 from concurrent import futures
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import cast, BinaryIO
+from typing import cast, BinaryIO, Tuple, Optional, Union, List
 from unittest import TestCase
 
 # noinspection PyPackageRequirements
@@ -42,6 +42,11 @@ class Whiteboard:
 class WhiteboardWithDefaults:
     desc: str
     num: int = 10
+
+
+@op
+def func() -> int:
+    return 42
 
 
 class WhiteboardTests(TestCase):
@@ -197,10 +202,6 @@ class WhiteboardTests(TestCase):
         self.assertEqual("str", fetched_wb.desc)
 
     def test_whiteboard_op_result(self):
-        @op
-        def func() -> int:
-            return 42
-
         with self.lzy.workflow(self.workflow_name) as wf:
             wb = wf.create_whiteboard(WhiteboardWithDefaults)
             wb.desc = "str"
@@ -211,10 +212,6 @@ class WhiteboardTests(TestCase):
         self.assertEqual("str", fetched_wb.desc)
 
     def test_whiteboard_op_result_after_materialization(self):
-        @op
-        def func() -> int:
-            return 42
-
         with self.lzy.workflow(self.workflow_name) as wf:
             wb = wf.create_whiteboard(WhiteboardWithDefaults)
             num = func()
@@ -287,26 +284,38 @@ class WhiteboardTests(TestCase):
                 print(wb.desc)
 
     def test_whiteboard_serializer_not_found(self):
+        registry = self.lzy._Lzy__serializer_registry
         self.lzy._Lzy__serializer_registry = SerializerRegistryMock()
-        with self.assertRaisesRegex(TypeError, "Cannot find serializer for type"):
-            with self.lzy.workflow(self.workflow_name) as wf:
-                wf.create_whiteboard(WhiteboardWithDefaults)
+        try:
+            with self.assertRaisesRegex(TypeError, "Cannot find serializer for type"):
+                with self.lzy.workflow(self.workflow_name) as wf:
+                    wf.create_whiteboard(WhiteboardWithDefaults)
+        finally:
+            self.lzy._Lzy__serializer_registry = registry
 
     def test_whiteboard_serializer_unavailable(self):
         serializers = SerializerRegistryMock()
         serializers.register_serializer(NotAvailablePrimitiveSerializer())
+        registry = self.lzy._Lzy__serializer_registry
         self.lzy._Lzy__serializer_registry = serializers
-        with self.assertRaisesRegex(TypeError, "is not available, please install"):
-            with self.lzy.workflow(self.workflow_name) as wf:
-                wf.create_whiteboard(WhiteboardWithDefaults)
+        try:
+            with self.assertRaisesRegex(TypeError, "is not available, please install"):
+                with self.lzy.workflow(self.workflow_name) as wf:
+                    wf.create_whiteboard(WhiteboardWithDefaults)
+        finally:
+            self.lzy._Lzy__serializer_registry = registry
 
     def test_whiteboard_serializer_unstable(self):
         serializers = SerializerRegistryMock()
         serializers.register_serializer(NotStablePrimitiveSerializer())
+        registry = self.lzy._Lzy__serializer_registry
         self.lzy._Lzy__serializer_registry = serializers
-        with self.assertRaisesRegex(TypeError, "we cannot serialize them in a portable format"):
-            with self.lzy.workflow(self.workflow_name) as wf:
-                wf.create_whiteboard(WhiteboardWithDefaults)
+        try:
+            with self.assertRaisesRegex(TypeError, "we cannot serialize them in a portable format"):
+                with self.lzy.workflow(self.workflow_name) as wf:
+                    wf.create_whiteboard(WhiteboardWithDefaults)
+        finally:
+            self.lzy._Lzy__serializer_registry = registry
 
     def test_whiteboard_list(self):
         with self.lzy.workflow(self.workflow_name) as wf:
@@ -375,3 +384,111 @@ class WhiteboardTests(TestCase):
             with self.lzy.workflow(self.workflow_name) as wf:
                 wb = wf.create_whiteboard(WhiteboardWithDefaults)
                 wb.desc = 2
+
+    def test_tuples(self):
+        @whiteboard(name="tuple_wb")
+        @dataclass
+        class TupleWb:
+            t: Tuple[str, str]
+
+        @op
+        def returns_tuple_1() -> (str, str):
+            return "str1", "str2"
+
+        @op
+        def returns_tuple_2() -> Tuple[str, str]:
+            return "str1", "str2"
+
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb1 = wf.create_whiteboard(TupleWb)
+            wb1.t = returns_tuple_1()
+
+            wb2 = wf.create_whiteboard(TupleWb)
+            wb2.t = returns_tuple_2()
+
+        self.assertEqual(("str1", "str2"), self.lzy.whiteboard(id_=wb1.id).t)
+        self.assertEqual(("str1", "str2"), self.lzy.whiteboard(id_=wb2.id).t)
+
+    def test_optional(self):
+        @whiteboard(name="optional_wb")
+        @dataclass
+        class OptionalWb:
+            field: Optional[int]
+
+        @op
+        def returns_none() -> None:
+            return None
+
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb_not_none = wf.create_whiteboard(OptionalWb)
+            wb_not_none.field = func()
+
+            wb_none_local = wf.create_whiteboard(OptionalWb)
+            wb_none_local.field = None
+
+            wb_op_none = wf.create_whiteboard(OptionalWb)
+            # noinspection PyNoneFunctionAssignment
+            wb_op_none.field = returns_none()
+
+        self.assertEqual(42, self.lzy.whiteboard(id_=wb_not_none.id).field)
+        self.assertEqual(None, self.lzy.whiteboard(id_=wb_none_local.id).field)
+        self.assertEqual(None, self.lzy.whiteboard(id_=wb_op_none.id).field)
+
+    def test_union(self):
+        @whiteboard(name="union_wb")
+        @dataclass
+        class UnionWb:
+            field: Union[int, List[int]]
+
+        @op
+        def returns_union() -> Union[int, List[int]]:
+            return [1, 2, 3]
+
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb_int = wf.create_whiteboard(UnionWb)
+            wb_int.field = func()
+
+            wb_list_local = wf.create_whiteboard(UnionWb)
+            wb_list_local.field = [1, 2, 3]
+
+            wb_op_list = wf.create_whiteboard(UnionWb)
+            # noinspection PyNoneFunctionAssignment
+            wb_op_list.field = returns_union()
+
+        self.assertEqual(42, self.lzy.whiteboard(id_=wb_int.id).field)
+        self.assertEqual([1, 2, 3], self.lzy.whiteboard(id_=wb_list_local.id).field)
+        self.assertEqual([1, 2, 3], self.lzy.whiteboard(id_=wb_op_list.id).field)
+
+    def test_list(self):
+        @whiteboard(name="list_wb")
+        @dataclass
+        class ListWb:
+            field: List[int]
+
+        @op
+        def returns_list_int() -> List[int]:
+            return [1, 2, 3]
+
+        @op
+        def returns_list_str() -> List[str]:
+            return ["1", "2", "3"]
+
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb = wf.create_whiteboard(ListWb)
+            wb.field = returns_list_int()
+        self.assertEqual([1, 2, 3], self.lzy.whiteboard(id_=wb.id).field)
+
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb = wf.create_whiteboard(ListWb)
+            wb.field = [1, 2, 3]
+        self.assertEqual([1, 2, 3], self.lzy.whiteboard(id_=wb.id).field)
+
+        with self.assertRaises(TypeError):
+            with self.lzy.workflow(self.workflow_name) as wf:
+                wb = wf.create_whiteboard(ListWb)
+                wb.field = returns_list_str()
+
+        with self.assertRaises(TypeError):
+            with self.lzy.workflow(self.workflow_name) as wf:
+                wb = wf.create_whiteboard(ListWb)
+                wb.field = ["1", "2", "3"]

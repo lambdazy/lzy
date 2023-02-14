@@ -18,7 +18,9 @@ import org.apache.commons.collections4.SetUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.*;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.*;
 import java.util.function.Function;
@@ -32,7 +34,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     private static final String QUERY_INSERT_EXECUTION = """
         INSERT INTO workflow_executions (execution_id, user_id, created_at, storage,
             storage_uri, storage_credentials, execution_status)
-        VALUES (?, ?, ?, cast(? as storage_type), ?, ?, cast(? as execution_status))""";
+        VALUES (?, ?, ?, ?, ?, ?, cast(? as execution_status))""";
 
     private static final String QUERY_DELETE_EXECUTION = """
         DELETE FROM workflow_executions
@@ -124,7 +126,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         WHERE execution_id = ?
         """;
 
-    private static final String QUERY_EXPIRED_EXECUTIONS = """
+    private static final String QUERY_PICK_EXPIRED_EXECUTION = """
         SELECT execution_id
         FROM workflow_executions
         WHERE execution_status = 'ERROR'
@@ -139,7 +141,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void create(String userId, String executionId, String storageType, LMST.StorageConfig storageConfig,
+    public void create(String userId, String executionId, String storageName, LMST.StorageConfig storageConfig,
                        @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
@@ -147,7 +149,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 statement.setString(1, executionId);
                 statement.setString(2, userId);
                 statement.setTimestamp(3, Timestamp.from(Instant.now()));
-                statement.setString(4, storageType.toUpperCase(Locale.ROOT));
+                statement.setString(4, storageName);
                 statement.setString(5, storageConfig.getUri());
                 statement.setString(6, objectMapper.writeValueAsString(storageConfig));
                 statement.setString(7, ExecutionStatus.RUN.name());
@@ -230,49 +232,39 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updateFinishData(String userId, @Nullable String workflowName, String executionId,
-                                 Status status, @Nullable TransactionHandle outerTx) throws SQLException
+    public void updateFinishData(String userId, String executionId, Status status, @Nullable TransactionHandle tx)
+        throws SQLException
     {
-        try (var tx = TransactionHandle.getOrCreate(storage, outerTx)) {
-            if (workflowName == null) {
-                WorkflowDaoImpl.findAndSetActiveExecutionToNull(userId, executionId, storage, tx);
-            } else {
-                WorkflowDaoImpl.setActiveExecutionToNull(userId, workflowName, executionId, storage, tx);
-            }
+        DbOperation.execute(tx, storage, conn -> {
+            try (var getFinishStmt = conn.prepareStatement(QUERY_GET_EXEC_FINISH_DATA + " FOR UPDATE")) {
+                getFinishStmt.setString(1, executionId);
+                getFinishStmt.setString(2, userId);
+                ResultSet rs = getFinishStmt.executeQuery();
 
-            DbOperation.execute(tx, storage, conn -> {
-                try (var getFinishStmt = conn.prepareStatement(QUERY_GET_EXEC_FINISH_DATA + " FOR UPDATE")) {
-                    getFinishStmt.setString(1, executionId);
-                    getFinishStmt.setString(2, userId);
-                    ResultSet rs = getFinishStmt.executeQuery();
-
-                    if (rs.next()) {
-                        if (rs.getTimestamp("finished_at") != null) {
-                            LOG.error("Attempt to finish already finished execution: " +
-                                    "{ executionId: {}, finished_at: {}, reason: {} }",
-                                executionId, rs.getTimestamp("finished_at"), rs.getString("finished_with_error"));
-                            throw new IllegalStateException("Workflow execution already finished");
-                        }
-
-                        try (var updateStmt = conn.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA)) {
-                            updateStmt.setTimestamp(1, Timestamp.from(Instant.now()));
-                            updateStmt.setString(2, status.getDescription());
-                            updateStmt.setInt(3, status.getCode().value());
-                            updateStmt.setString(4, executionId);
-
-                            updateStmt.executeUpdate();
-                        }
-                    } else {
-                        LOG.error("Attempt to finish unknown execution: { userId: {}, executionId: {} }",
-                            userId, executionId);
-                        throw new NotFoundException("Cannot find execution '%s' of user '%s'".formatted(executionId,
-                            userId));
+                if (rs.next()) {
+                    if (rs.getTimestamp("finished_at") != null) {
+                        LOG.error("Attempt to finish already finished execution: " +
+                                "{ executionId: {}, finished_at: {}, reason: {} }",
+                            executionId, rs.getTimestamp("finished_at"), rs.getString("finished_with_error"));
+                        throw new IllegalStateException("Workflow execution already finished");
                     }
-                }
-            });
 
-            tx.commit();
-        }
+                    try (var updateStmt = conn.prepareStatement(QUERY_UPDATE_EXECUTION_FINISH_DATA)) {
+                        updateStmt.setTimestamp(1, Timestamp.from(Instant.now()));
+                        updateStmt.setString(2, status.getDescription());
+                        updateStmt.setInt(3, status.getCode().value());
+                        updateStmt.setString(4, executionId);
+
+                        updateStmt.executeUpdate();
+                    }
+                } else {
+                    LOG.error("Attempt to finish unknown execution: { userId: {}, executionId: {} }",
+                        userId, executionId);
+                    throw new NotFoundException("Cannot find execution '%s' of user '%s'".formatted(executionId,
+                        userId));
+                }
+            }
+        });
     }
 
     @Override
@@ -560,7 +552,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         String[] res = {null};
 
         DbOperation.execute(null, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_EXPIRED_EXECUTIONS)) {
+            try (var statement = con.prepareStatement(QUERY_PICK_EXPIRED_EXECUTION)) {
                 ResultSet rs = statement.executeQuery();
 
                 if (rs.next()) {

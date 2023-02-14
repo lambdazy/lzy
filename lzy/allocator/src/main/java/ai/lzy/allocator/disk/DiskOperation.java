@@ -10,6 +10,7 @@ public record DiskOperation(
     String ownerInstanceId,
     Type diskOpType,
     String state,
+    String reqid,
     Runnable deferredAction
 ) {
     public enum Type {
@@ -19,6 +20,7 @@ public record DiskOperation(
     }
 
     public DiskOperation withDeferredAction(Runnable deferredAction) {
-        return new DiskOperation(opId, descr, startedAt, deadline, ownerInstanceId, diskOpType, state, deferredAction);
+        return new DiskOperation(opId, descr, startedAt, deadline, ownerInstanceId, diskOpType, state, reqid,
+            deferredAction);
     }
 }

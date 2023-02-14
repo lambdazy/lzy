@@ -8,6 +8,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -23,8 +24,8 @@ public class DiskOpDao {
     private static final Logger LOG = LogManager.getLogger(DiskOpDao.class);
 
     private static final String QUERY_CREATE_DISK_OP = """
-        INSERT INTO disk_op (op_id, started_at, deadline, owner_instance, op_type, state_json)
-        VALUES (?, ?, ?, ?, ?::disk_operation_type, ?)""";
+        INSERT INTO disk_op (op_id, started_at, deadline, owner_instance, op_type, state_json, reqid, description)
+        VALUES (?, ?, ?, ?, ?::disk_operation_type, ?, ?, ?)""";
 
     private static final String QUERY_UPDATE_DISK_OP = """
         UPDATE disk_op
@@ -36,7 +37,7 @@ public class DiskOpDao {
         WHERE op_id = ?""";
 
     private static final String QUERY_GET_DISK_OP = """
-        SELECT started_at, deadline, owner_instance, op_type::TEXT, state_json
+        SELECT started_at, deadline, owner_instance, op_type::TEXT, state_json, reqid, description
         FROM disk_op
         WHERE op_id = ? AND NOT failed""";
 
@@ -45,14 +46,8 @@ public class DiskOpDao {
         SET failed = TRUE, fail_reason = ?
         WHERE op_id = ?""";
 
-    private static final String QUERY_GET_FAILED_DISK_OPS = """
-        SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json, fail_reason
-        FROM disk_op
-        WHERE failed
-        LIMIT ?""";
-
     private static final String QUERY_GET_ACTIVE_DISK_OPS = """
-        SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json
+        SELECT op_id, started_at, deadline, owner_instance, op_type::TEXT, state_json, reqid, description
         FROM disk_op
         WHERE owner_instance = ? AND NOT failed""";
 
@@ -65,13 +60,16 @@ public class DiskOpDao {
 
     public void createDiskOp(DiskOperation diskOp, @Nullable TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, conn -> {
-            try (var st = conn.prepareStatement(QUERY_CREATE_DISK_OP)) {
-                st.setString(1, diskOp.opId());
-                st.setTimestamp(2, Timestamp.from(diskOp.startedAt().truncatedTo(ChronoUnit.SECONDS)));
-                st.setTimestamp(3, Timestamp.from(diskOp.deadline().truncatedTo(ChronoUnit.SECONDS)));
-                st.setString(4, diskOp.ownerInstanceId());
-                st.setString(5, diskOp.diskOpType().name());
-                st.setString(6, diskOp.state());
+            try (PreparedStatement st = conn.prepareStatement(QUERY_CREATE_DISK_OP)) {
+                int idx = 0;
+                st.setString(++idx, diskOp.opId());
+                st.setTimestamp(++idx, Timestamp.from(diskOp.startedAt().truncatedTo(ChronoUnit.SECONDS)));
+                st.setTimestamp(++idx, Timestamp.from(diskOp.deadline().truncatedTo(ChronoUnit.SECONDS)));
+                st.setString(++idx, diskOp.ownerInstanceId());
+                st.setString(++idx, diskOp.diskOpType().name());
+                st.setString(++idx, diskOp.state());
+                st.setString(++idx, diskOp.reqid());
+                st.setString(++idx, diskOp.descr());
                 st.executeUpdate();
             }
         });
@@ -79,7 +77,7 @@ public class DiskOpDao {
 
     public void updateDiskOp(String opId, String newState, @Nullable TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, conn -> {
-            try (var st = conn.prepareStatement(QUERY_UPDATE_DISK_OP)) {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_UPDATE_DISK_OP)) {
                 st.setString(1, newState);
                 st.setString(2, opId);
                 st.executeUpdate();
@@ -89,7 +87,7 @@ public class DiskOpDao {
 
     public boolean deleteDiskOp(String opId, @Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, conn -> {
-            try (var st = conn.prepareStatement(QUERY_DELETE_DISK_OP)) {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_DELETE_DISK_OP)) {
                 st.setString(1, opId);
                 return st.executeUpdate() > 0;
             }
@@ -100,7 +98,7 @@ public class DiskOpDao {
     public DiskOperation getDiskOp(String opId, @Nullable TransactionHandle tx) throws SQLException {
         final DiskOperation[] ref = {null};
         DbOperation.execute(tx, storage, conn -> {
-            try (var st = conn.prepareStatement(QUERY_GET_DISK_OP)) {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_GET_DISK_OP)) {
                 st.setString(1, opId);
 
                 var rs = st.executeQuery();
@@ -114,7 +112,7 @@ public class DiskOpDao {
 
     public void failDiskOp(String opId, String reason, @Nullable TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, conn -> {
-            try (var st = conn.prepareStatement(QUERY_FAIL_DISK_OP)) {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_FAIL_DISK_OP)) {
                 st.setString(1, reason);
                 st.setString(2, opId);
                 st.executeUpdate();
@@ -127,7 +125,7 @@ public class DiskOpDao {
     {
         final List<DiskOperation> ops = new ArrayList<>();
         DbOperation.execute(tx, storage, conn -> {
-            try (var st = conn.prepareStatement(QUERY_GET_ACTIVE_DISK_OPS)) {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_GET_ACTIVE_DISK_OPS)) {
                 st.setString(1, ownerInstanceId);
                 var rs = st.executeQuery();
                 while (rs.next()) {
@@ -142,12 +140,13 @@ public class DiskOpDao {
     private static DiskOperation readDiskOp(ResultSet rs) throws SQLException {
         return new DiskOperation(
             rs.getString(1),
-            "",
+            rs.getString(8),
             rs.getTimestamp(2).toInstant(),
             rs.getTimestamp(3).toInstant(),
             rs.getString(4),
             DiskOperation.Type.valueOf(rs.getString(5)),
             rs.getString(6),
+            rs.getString(7),
             null);
     }
 }

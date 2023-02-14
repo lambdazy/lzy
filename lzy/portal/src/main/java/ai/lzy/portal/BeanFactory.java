@@ -123,4 +123,24 @@ public class BeanFactory {
                 }
             });
     }
+
+    @Bean(preDestroy = "shutdown")
+    @Singleton
+    @Named("SnapshotStorageExecutor")
+    public ExecutorService storagePool() {
+        return new ThreadPoolExecutor(5, 20, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+            new ThreadFactory() {
+                private static final Logger LOG = LogManager.getLogger(PortalService.class);
+
+                private final AtomicInteger counter = new AtomicInteger(1);
+
+                @Override
+                public Thread newThread(@Nonnull Runnable r) {
+                    var th = new Thread(r, "snapshot-storage-" + counter.getAndIncrement());
+                    th.setUncaughtExceptionHandler(
+                        (t, e) -> LOG.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
+                    return th;
+                }
+            });
+    }
 }

@@ -35,6 +35,25 @@ def materialize(obj: Any) -> Any:
     return obj.__lzy_origin__  # type: ignore
 
 
+def materialize_if_sequence_of_lzy_proxies(obj: Any) -> Any:
+    if not isinstance(obj, tuple) and not isinstance(obj, list):
+        return obj
+    elif len(obj) == 0:
+        return obj
+    elif not is_lzy_proxy(obj[0]):
+        return obj
+
+    # currently, we do not support nested sequences of lazy proxies
+    result = []
+    for elem in obj:
+        if is_lzy_proxy(elem):
+            result.append(materialize(elem))
+
+    if type(obj) == tuple:
+        return tuple(result)
+    return result
+
+
 def lzy_proxy(entry_id: str, types: Sequence[Type], wflow: "LzyWorkflow", value: Result = Nothing()) -> Any:
     async def __materialize() -> Any:
 

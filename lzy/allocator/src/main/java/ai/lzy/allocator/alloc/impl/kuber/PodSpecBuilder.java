@@ -7,6 +7,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Volume.AccessMode;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.vmpool.VmPoolSpec;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
@@ -27,6 +28,7 @@ public class PodSpecBuilder {
     public static final String AFFINITY_TOPOLOGY_KEY = "kubernetes.io/hostname";
 
     private final Vm.Spec vmSpec;
+    private final VmPoolSpec poolSpec;
     private final Pod pod;
     private final ServiceConfig config;
     private final List<Container> containers = new ArrayList<>();
@@ -35,16 +37,17 @@ public class PodSpecBuilder {
     private final List<PodAffinityTerm> podAffinityTerms = new ArrayList<>();
     private final List<PodAffinityTerm> podAntiAffinityTerms = new ArrayList<>();
 
-    public PodSpecBuilder(Vm.Spec vmSpec, KubernetesClient client, ServiceConfig config, String templatePath,
-                          String podNamePrefix)
+    public PodSpecBuilder(Vm.Spec vmSpec, VmPoolSpec poolSpec, KubernetesClient client, ServiceConfig config,
+                          String templatePath, String podNamePrefix)
     {
         this.vmSpec = vmSpec;
+        this.poolSpec = poolSpec;
         pod = loadPodTemplate(client, templatePath);
 
         this.config = config;
 
-        String vmId = vmSpec.vmId().toLowerCase(Locale.ROOT);
-        final String podName = podNamePrefix + vmId;
+        String vmId = vmSpec.vmId();
+        final String podName = podNamePrefix + vmId.toLowerCase(Locale.ROOT);
 
         // k8s pod name can only contain symbols [-a-z0-9]
         final var name = podName.replaceAll("[^-a-z0-9]", "-");
@@ -56,7 +59,7 @@ public class PodSpecBuilder {
         labels.putAll(Map.of(
             KuberLabels.LZY_POD_NAME_LABEL, podName,
             KuberLabels.LZY_POD_SESSION_ID_LABEL, vmSpec.sessionId(),
-            KuberLabels.LZY_VM_ID_LABEL, vmId
+            KuberLabels.LZY_VM_ID_LABEL, vmId.toLowerCase(Locale.ROOT)
         ));
         pod.getMetadata().setLabels(labels);
 
@@ -115,6 +118,10 @@ public class PodSpecBuilder {
                             .withNewFieldRef("v1", "status.podIP")
                             .build()
                     )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.VM_GPU_COUNT)
+                    .withValue(String.valueOf(poolSpec.gpuCount()))
                     .build(),
                 new EnvVarBuilder()
                     .withName(AllocatorAgent.VM_NODE_IP_ADDRESS)

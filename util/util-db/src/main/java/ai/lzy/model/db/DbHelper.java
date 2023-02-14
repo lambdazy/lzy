@@ -68,6 +68,7 @@ public enum DbHelper {
                     }
                 } else {
                     logger.error("Got non-retryable database error: [{}] {}.", e.getSQLState(), e.getMessage());
+                    //Runtime.getRuntime().halt(42);
                     throw error.fail(e);
                 }
             } catch (Exception e) {
@@ -112,12 +113,12 @@ public enum DbHelper {
             }
             var delay = nextDelay;
             nextDelay *= coeff;
-            return delay;
+            return delay + (int) (50 * Math.random());
         }
     }
 
     public static RetryPolicy defaultRetryPolicy() {
-        return new DefaultRetryPolicy(3, 50, 2);
+        return new DefaultRetryPolicy(5, 50, 2);
     }
 
     public static final class RetryCountExceededException extends Exception {

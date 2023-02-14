@@ -3,18 +3,17 @@
 ### Whiteboards
 
 Whiteboard is a way how graph execution results can be stored and versioned in ʎzy.
-Whiteboard can be declared in a form of a `dataclass`: 
+Whiteboard can be declared in a form of a `dataclass`:
 
 ```python
 @dataclass
-@whiteboard(tags=['best_model'])
+@whiteboard(name="best_model")
 class BestModel:
     model: Optional[CatBoostClassifier] = None
-    params: Optional[Dict[str, int]] = None
     score: float = 0.0
 ```
 
-Note that it is necessary to specify tags for a Whiteboard. Tags are used for querying.
+Note that it is necessary to specify name for a Whiteboard. Names are used for querying.
 
 Whiteboard can be filled in during the graph execution:
 
@@ -25,7 +24,7 @@ def dataset() -> Bunch:
     return data_set
 
 
-@op(gpu=Gpu.any())
+@op(gpu_count=1, gpu_type=GpuType.V100.name)
 def search_best_model(data_set: Bunch) -> GridSearchCV:
     grid = {'max_depth': [3, 4, 5], 'n_estimators': [100, 200, 300]}
     cb_model = CatBoostClassifier()
@@ -34,30 +33,30 @@ def search_best_model(data_set: Bunch) -> GridSearchCV:
     return search
 
 
-env = LzyRemoteEnv()
-wb = BestModel()
-with env.workflow("training", whiteboard=wb):
+lzy = Lzy()
+with lzy.workflow("training") as wf:
+    wb = wf.create_whiteboard(BestModel, tags=["training", "catboost"])
     data_set = dataset()
     search = search_best_model(data_set)
     wb.model = search.best_estimator_
-    wb.params = search.best_params_
     wb.score = search.best_score_
-    print(wb.__id__)
+    print(wb.id)
 ```
 
 Whiteboard can be loaded by `id`:
 
 ```python
-wb = env.whiteboard('<id>', BestModel)
-print(wb.params['max_depth'])
+wb = lzy.whiteboard(id_=‘<id>’)
+print(wb.score)
 ```
 
-Another way is to load all whiteboards for the given type and creation datetime:
+Another way is to load all whiteboards for the given name, tags, and creation datetime:
+
 ```python
-wbs = env.whiteboards([BestModel], from_date=..., to_date=...)
+wbs = lzy.whiteboards(name="best_model", tags=["training"], not_before=..., not_after=...)
 ```
 
 ---
 
-In the [**next**](7-views.md) part, we will show how to load only data that is really needed for the business task.
+In the [**next**](7-integrations.md) part, we will demonstrate how ʎzy is integrated with popular open-source libraries.
 

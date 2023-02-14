@@ -1,16 +1,11 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.alloc.AllocatorMetrics;
-import ai.lzy.allocator.alloc.VmAllocator;
+import ai.lzy.allocator.alloc.AllocationContext;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
-import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.services.AllocatorService;
-import ai.lzy.allocator.storage.AllocatorDataSource;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.v1.VmAllocatorApi;
@@ -32,13 +27,10 @@ public class AllocatorProxy extends AllocatorService {
     private volatile Runnable onFree = () -> {};
 
     public AllocatorProxy(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
-                          SessionDao sessionsDao, DiskDao diskDao, VmAllocator allocator,
-                          TunnelAllocator tunnelAllocator, ServiceConfig config, AllocatorDataSource storage,
-                          AllocatorMetrics metrics, @Named("AllocatorOperationsExecutor") OperationsExecutor executor,
-                          @Named("AllocatorSubjectServiceClient") SubjectServiceGrpcClient subjectClient)
+                          SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
+                          ServiceConfig config, ServiceConfig.CacheLimits cacheLimits)
     {
-        super(vmDao, operationsDao, sessionsDao, diskDao, allocator, tunnelAllocator, config, storage, metrics,
-            executor, subjectClient);
+        super(vmDao, operationsDao, sessionsDao, diskDao, allocationContext, config, cacheLimits);
     }
 
     @Override
@@ -51,7 +43,7 @@ public class AllocatorProxy extends AllocatorService {
 
     @Override
     public void deleteSession(VmAllocatorApi.DeleteSessionRequest request,
-                              StreamObserver<VmAllocatorApi.DeleteSessionResponse> responseObserver)
+                              StreamObserver<LongRunning.Operation> responseObserver)
     {
         onDeleteSession.run();
         super.deleteSession(request, responseObserver);

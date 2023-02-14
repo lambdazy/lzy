@@ -1,5 +1,6 @@
 package ai.lzy.test.scenarios;
 
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.graph.AuxEnv;
 import ai.lzy.model.graph.BaseEnv;
@@ -8,8 +9,10 @@ import ai.lzy.model.operation.Operation;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
+import ai.lzy.test.impl.v2.AllocatorContext;
 import ai.lzy.test.impl.v2.ChannelManagerContext;
 import ai.lzy.test.impl.v2.GraphExecutorContext;
+import ai.lzy.test.impl.v2.IamContext;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
@@ -21,7 +24,6 @@ import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.Timeout;
 
 import java.util.List;
 import java.util.Map;
@@ -36,17 +38,24 @@ public class SchedulerTest {
     public final ApplicationContextRule ctx = new ApplicationContextRule();
 
     @Rule
+    public final ContextRule<IamContext> iam = new ContextRule<>(ctx, IamContext.class);
+
+    @Rule
     public final ContextRule<GraphExecutorContext> graphExecutor = new ContextRule<>(ctx, GraphExecutorContext.class);
 
     @Rule
     public final ContextRule<ChannelManagerContext> channelManager
         = new ContextRule<>(ctx, ChannelManagerContext.class);
 
-    @Rule
-    public Timeout globalTimeout = Timeout.seconds(60);
+    @Test(timeout = 120_000)
+    public void testGE() throws Exception {
+        var cacheLimits = ctx.getCtx().getBean(AllocatorContext.WorkerAllocatorContext.class).context()
+            .getBean(ServiceConfig.CacheLimits.class);
+        cacheLimits.setUserLimit(Integer.MAX_VALUE);
+        cacheLimits.setSessionLimit(Integer.MAX_VALUE);
+        cacheLimits.setSessionPoolLimit(null);
+        cacheLimits.setAnySessionPoolLimit(Integer.MAX_VALUE);
 
-    @Test
-    public void testGE() throws InterruptedException {
         final var ch1 = buildChannel("1");
         final var ch2 = buildChannel("2");
         final var ch3 = buildChannel("3");
@@ -105,9 +114,9 @@ public class SchedulerTest {
     }
 
     @NotNull
-    private String buildChannel(String chanelName) {
+    private String buildChannel(String channelName) {
         final var client = channelManager.context().privateClient();
-        final var response = client.create(makeCreateChannelCommand("Semjon.Semjonych", "wf", "ex_id", chanelName));
+        final var response = client.create(makeCreateChannelCommand("Semjon.Semjonych", "wf", "wf_id", channelName));
         return response.getChannelId();
     }
 

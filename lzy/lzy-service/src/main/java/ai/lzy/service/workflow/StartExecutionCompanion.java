@@ -11,21 +11,18 @@ import ai.lzy.model.Constants;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.util.StorageUtils;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
-import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.micronaut.core.util.StringUtils;
 import jakarta.annotation.Nullable;
 
-import java.net.URI;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -39,15 +36,13 @@ import static ai.lzy.service.workflow.WorkflowService.LOG;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 final class StartExecutionCompanion {
-    private final LWFS.StartWorkflowRequest request;
     private final CreateExecutionState state;
     private final WorkflowService owner;
     private final LzyServiceConfig.StartupPortalConfig cfg;
 
-    StartExecutionCompanion(LWFS.StartWorkflowRequest request, CreateExecutionState initial,
+    StartExecutionCompanion(CreateExecutionState initial,
                             WorkflowService owner, LzyServiceConfig.StartupPortalConfig cfg)
     {
-        this.request = request;
         this.state = initial;
         this.owner = owner;
         this.cfg = cfg;
@@ -56,8 +51,10 @@ final class StartExecutionCompanion {
     static StartExecutionCompanion of(LWFS.StartWorkflowRequest request, WorkflowService owner,
                                       LzyServiceConfig.StartupPortalConfig cfg)
     {
-        var initState = new CreateExecutionState(currentSubject().id(), request.getWorkflowName());
-        return new StartExecutionCompanion(request, initState, owner, cfg);
+        var initState =
+            new CreateExecutionState(currentSubject().id(), request.getWorkflowName(), request.getStorageName(),
+                request.getSnapshotStorage());
+        return new StartExecutionCompanion(initState, owner, cfg);
     }
 
     public boolean isInvalid() {
@@ -81,95 +78,6 @@ final class StartExecutionCompanion {
         return state;
     }
 
-    public void setStorage() {
-        var internalSnapshotStorage = !request.hasSnapshotStorage();
-        state.setStorageType(internalSnapshotStorage);
-
-        if (internalSnapshotStorage) {
-            try {
-                var bucketName = StorageUtils.createInternalBucketName(state.getUserId());
-
-                LOG.info("Creating new temporary storage bucket: { bucketName: {}, userId: {} }",
-                    bucketName, state.getUserId());
-
-                var idempotencyKey = UUID.randomUUID().toString();
-                LongRunning.Operation createOp = withIdempotencyKey(owner.storageServiceClient, idempotencyKey)
-                    .createS3Bucket(LSS.CreateS3BucketRequest.newBuilder()
-                        .setUserId(state.getUserId())
-                        .setBucket(bucketName)
-                        .build());
-
-                createOp = awaitOperationDone(owner.storageOpService, createOp.getId(), owner.bucketCreationTimeout);
-
-                if (!createOp.getDone()) {
-                    state.fail(Status.DEADLINE_EXCEEDED, "Cannot wait create bucket operation response: { opId: {} }" +
-                        createOp.getId());
-                    return;
-                }
-
-                if (createOp.hasError()) {
-                    var status = createOp.getError();
-                    state.fail(Status.fromCodeValue(status.getCode()), "Cannot process create S3 bucket operation: " +
-                        "{ operationId: %s }, error: %s".formatted(createOp.getId(), status.getMessage()));
-                    return;
-                }
-
-                LSS.CreateS3BucketResponse response = createOp.getResponse().unpack(LSS.CreateS3BucketResponse.class);
-
-                var storageConfig = switch (response.getCredentialsCase()) {
-                    case S3 -> LMST.StorageConfig.newBuilder().setS3(response.getS3())
-                        .setUri(URI.create("s3://" + bucketName).toString())
-                        .build();
-                    case AZURE -> LMST.StorageConfig.newBuilder().setAzure(response.getAzure())
-                        .setUri(URI.create("azure://" + bucketName).toString())
-                        .build();
-                    default -> {
-                        LOG.error("Unsupported bucket storage type {}", response.getCredentialsCase());
-                        deleteTempUserBucket(bucketName);
-                        yield null;
-                    }
-                };
-
-                if (storageConfig == null) {
-                    state.fail(Status.INTERNAL, "Cannot create temp bucket");
-                    return;
-                }
-
-                state.setStorageConfig(storageConfig);
-            } catch (StatusRuntimeException e) {
-                state.fail(e.getStatus(), "Cannot create temp bucket: " + e.getMessage());
-            } catch (InvalidProtocolBufferException e) {
-                LOG.error("Cannot deserialize create S3 bucket response from operation: " + e.getMessage());
-                state.fail(Status.INTERNAL, "Cannot create temp bucket: " + e.getMessage());
-            }
-        } else {
-            var userStorage = request.getSnapshotStorage();
-            if (userStorage.getCredentialsCase() == LMST.StorageConfig.CredentialsCase.CREDENTIALS_NOT_SET) {
-                state.fail(Status.INVALID_ARGUMENT, "Credentials are not set");
-            } else {
-                state.setStorageConfig(userStorage);
-            }
-        }
-    }
-
-    private void deleteTempUserBucket(String bucket) {
-        if (StringUtils.isEmpty(bucket)) {
-            return;
-        }
-
-        LOG.info("Deleting temp storage bucket '{}'", bucket);
-
-        try {
-            @SuppressWarnings("unused")
-            var resp = owner.storageServiceClient.deleteS3Bucket(
-                LSS.DeleteS3BucketRequest.newBuilder()
-                    .setBucket(bucket)
-                    .build());
-        } catch (StatusRuntimeException e) {
-            LOG.error("Can't delete temp bucket '{}': ({}) {}", bucket, e.getStatus(), e.getMessage(), e);
-        }
-    }
-
     /**
      * Returns previous active execution id.
      */
@@ -178,8 +86,9 @@ final class StartExecutionCompanion {
         String prevExecutionId = null;
 
         try (var tx = TransactionHandle.create(owner.storage)) {
-            withRetries(LOG, () -> owner.executionDao.create(state.getUserId(), state.getExecutionId(),
-                state.getStorageType().name(), state.getStorageConfig(), tx));
+            withRetries(LOG,
+                () -> owner.executionDao.create(state.getUserId(), state.getExecutionId(), state.getStorageName(),
+                    state.getStorageConfig(), tx));
             prevExecutionId = withRetries(LOG,
                 () -> owner.workflowDao.upsert(state.getUserId(), state.getWorkflowName(), state.getExecutionId(), tx));
 
@@ -192,12 +101,24 @@ final class StartExecutionCompanion {
         return prevExecutionId;
     }
 
+    public void checkStorage() {
+        var userStorage = state.getStorageConfig();
+        if (userStorage.getCredentialsCase() == LMST.StorageConfig.CredentialsCase.CREDENTIALS_NOT_SET) {
+            state.fail(Status.INVALID_ARGUMENT, "Credentials are not set");
+        }
+    }
+
     public void startPortal(String dockerImage, int portalPort, int slotsApiPort,
                             String stdoutChannelName, String stderrChannelName,
                             String channelManagerAddress, String iamAddress, String whiteboardAddress,
                             Duration allocationTimeout, Duration allocateVmCacheTimeout)
     {
+        LOG.info("Attempt to start portal for workflow execution: { wfName: {}, execId: {} }",
+            state.getWorkflowName(), state.getExecutionId());
+
         try {
+            InjectedFailures.fail9();
+
             createPortalStdChannels(stdoutChannelName, stderrChannelName);
 
             withRetries(LOG, () -> owner.executionDao.updateStdChannelIds(state.getExecutionId(),
@@ -209,6 +130,8 @@ final class StartExecutionCompanion {
 
             withRetries(LOG, () -> owner.executionDao.updatePortalVmAllocateSession(state.getExecutionId(),
                 state.getSessionId(), state.getPortalId(), null));
+
+            InjectedFailures.fail10();
 
             var allocateVmOp = startAllocation(dockerImage, channelManagerAddress, iamAddress,
                 whiteboardAddress, portalPort, slotsApiPort);
@@ -226,6 +149,8 @@ final class StartExecutionCompanion {
 
             withRetries(LOG, () ->
                 owner.executionDao.updateAllocateOperationData(state.getExecutionId(), opId, vmId, null));
+
+            InjectedFailures.fail11();
 
             allocateVmOp = awaitOperationDone(owner.allocOpService, opId, allocationTimeout);
 
@@ -251,6 +176,10 @@ final class StartExecutionCompanion {
                 /* transaction */ null
             ));
 
+            InjectedFailures.fail12();
+        } catch (InjectedFailures.TerminateException e) {
+            LOG.error("Got InjectedFailure exception: " + e.getMessage());
+            state.fail(Status.INTERNAL, "Cannot start portal: " + e.getMessage());
         } catch (StatusRuntimeException e) {
             LOG.error("Cannot start portal", e);
             state.fail(e.getStatus(), "Cannot start portal");

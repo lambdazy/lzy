@@ -5,7 +5,7 @@ from inspect import getfullargspec
 from itertools import chain, zip_longest
 from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeVar, Optional, List, Type
 
-from beartype.door import is_subhint
+from serialzy.api import SerializerRegistry
 # noinspection PyProtectedMember
 from serialzy.types import get_type
 
@@ -15,7 +15,7 @@ from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize, is_lzy_proxy
-from lzy.api.v1.utils.types import infer_real_types, get_default_args
+from lzy.api.v1.utils.types import infer_real_types, get_default_args, check_types_serialization_compatible, is_subtype
 from lzy.api.v1.workflow import LzyWorkflow
 
 T = TypeVar("T")  # pylint: disable=invalid-name
@@ -154,7 +154,8 @@ def wrap_call(
         env_updated.validate()
 
         signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot,
-                                                      active_workflow.entry_index, *args, **kwargs)
+                                                      active_workflow.entry_index,
+                                                      active_workflow.owner.serializer_registry, *args, **kwargs)
         lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description, lazy_arguments)
         active_workflow.register_call(lzy_call)
 
@@ -196,7 +197,11 @@ def wrap_call(
 
 
 def infer_and_validate_call_signature(
-    f: Callable, output_type: Sequence[type], snapshot: Snapshot, entry_index: EntryIndex, *args, **kwargs
+    f: Callable, output_type: Sequence[type],
+    snapshot: Snapshot,
+    entry_index: EntryIndex,
+    serializer_registry: SerializerRegistry,
+    *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
     args_mapping = {}
@@ -229,7 +234,8 @@ def infer_and_validate_call_signature(
 
         if name in argspec.annotations:
             typ = entry_type if entry_type else get_type(arg)
-            if not is_subhint(typ, argspec.annotations[name]):
+            compatible = check_types_serialization_compatible(argspec.annotations[name], typ, serializer_registry)
+            if not compatible or not is_subtype(typ, argspec.annotations[name]):
                 raise TypeError(
                     f"Invalid types: argument {name} has type {argspec.annotations[name]} "
                     f"but passed type {typ}")

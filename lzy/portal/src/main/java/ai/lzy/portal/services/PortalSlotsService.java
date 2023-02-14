@@ -12,7 +12,7 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
-import ai.lzy.portal.slots.SnapshotProvider;
+import ai.lzy.portal.slots.SnapshotSlots;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.grpc.ContextAwareTask;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
@@ -58,22 +58,22 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
     private StdoutSlot stdoutSlot;
     private StdoutSlot stderrSlot;
-    private final SnapshotProvider snapshots;
+    private final SnapshotSlots snapshots;
     private final SlotsManager slotsManager;
 
     private final LocalOperationService operationService;
     private final ExecutorService workersPool;
 
-    public PortalSlotsService(PortalConfig config, SnapshotProvider snapshots,
-                              @Named("PortalTokenSupplier") Supplier<String> tokenFactory,
+    public PortalSlotsService(PortalConfig config, @Named("PortalTokenSupplier") Supplier<String> tokenFactory,
                               @Named("PortalChannelManagerChannel") ManagedChannel channelManagerChannel,
                               @Named("PortalOperationsService") LocalOperationService operationService,
-                              @Named("PortalServiceExecutor") ExecutorService workersPool)
+                              @Named("PortalServiceExecutor") ExecutorService workersPool,
+                              @Named("SnapshotStorageExecutor") ExecutorService storagePool)
     {
         this.portalId = config.getPortalId();
         this.config = config;
 
-        this.snapshots = snapshots;
+        this.snapshots = new SnapshotSlots(storagePool);
 
         final var channelManagerClient = newBlockingClient(
             LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel),
@@ -520,7 +520,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         return Collections.emptyList();
     }
 
-    public SnapshotProvider getSnapshots() {
+    public SnapshotSlots getSnapshots() {
         return snapshots;
     }
 }

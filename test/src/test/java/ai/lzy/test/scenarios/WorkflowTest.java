@@ -35,13 +35,14 @@ public class WorkflowTest {
         var stub = workflow.context().stub();
 
         var workflowName = "wf";
+        var creds =
+            stub.getOrCreateDefaultStorage(LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
         var wf = stub.startWorkflow(LWFS.StartWorkflowRequest
             .newBuilder()
             .setWorkflowName(workflowName)
+            .setSnapshotStorage(creds)
             .build()
         );
-
-        var creds = wf.getInternalSnapshotStorage();
 
         var graph = stub.executeGraph(ExecuteGraphRequest.newBuilder()
             .setWorkflowName(workflowName)

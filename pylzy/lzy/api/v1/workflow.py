@@ -141,15 +141,17 @@ class LzyWorkflow:
                                               self.owner.storage_client, self.owner.storage_name, self.__hasher)
             return self
         except Exception as e:
-            self.__destroy()
-            raise e
+            try:
+                self.__abort()
+            finally:
+                raise e
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         try:
             if not self.__started:
                 raise RuntimeError("Workflow not started")
             if exc_type is None:
-                LzyEventLoop.run_async(self._barrier())
+                self.barrier()
         finally:
             if exc_type is None:
                 self.__destroy()
@@ -185,13 +187,14 @@ class LzyWorkflow:
     async def __start(self) -> str:
         if self.__started:
             raise RuntimeError("Workflow already started")
-        self.__started = True
         if type(self).instance is not None:
             raise RuntimeError("Simultaneous workflows are not supported")
-        type(self).instance = self
 
         _LOG.info(f"Starting workflow '{self.name}'")
-        return await self.__owner.runtime.start(self)
+        workflow_id = await self.__owner.runtime.start(self)
+        self.__started = True
+        type(self).instance = self
+        return workflow_id
 
     async def _barrier(self) -> None:
         if len(self.__call_queue) == 0:

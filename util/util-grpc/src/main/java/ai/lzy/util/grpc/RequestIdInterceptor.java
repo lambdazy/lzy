@@ -25,7 +25,10 @@ public class RequestIdInterceptor {
             public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers,
                                                                          ServerCallHandler<ReqT, RespT> next)
             {
-                var rid = generateRequestId ? UUID.randomUUID().toString() : GrpcHeaders.getRequestId();
+                var rid = GrpcHeaders.getRequestId();
+                if (rid == null && generateRequestId) {
+                    rid = "gen-" + UUID.randomUUID();
+                }
                 LOG.debug("Server request id: {}", rid);
 
                 if (rid == null) {
@@ -68,18 +71,26 @@ public class RequestIdInterceptor {
     }
 
     public static ClientInterceptor client() {
+        return client(false);
+    }
+
+    public static ClientInterceptor client(boolean generateRequestId) {
         return new ClientInterceptor() {
             @Override
             public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> method,
                                                                        CallOptions callOptions, Channel next)
             {
-                var rid = GrpcHeaders.getRequestId();
-                LOG.debug("Client request id: {}", rid);
+                var rId = GrpcHeaders.getRequestId();
+                if (rId == null && generateRequestId) {
+                    rId = "gen-" + UUID.randomUUID();
+                }
+                LOG.debug("Client request id: {}", rId);
 
-                if (rid == null) {
+                if (rId == null) {
                     return next.newCall(method, callOptions);
                 }
 
+                var rid = rId;
                 var ridContext = GrpcHeaders.createContext(Map.of(GrpcHeaders.X_REQUEST_ID, rid));
                 var logContext = Map.of("rid", rid);
 

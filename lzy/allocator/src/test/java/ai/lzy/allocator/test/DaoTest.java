@@ -151,7 +151,7 @@ public class DaoTest {
         Assert.assertEquals("owner", s1.owner());
         Assert.assertEquals(Duration.ofSeconds(10), s1.cachePolicy().minIdleTimeout());
 
-        sessionDao.delete(s.sessionId(), null);
+        sessionDao.delete(s.sessionId(), s.createOpId(), "reqid-1", null);
         Assert.assertNull(sessionDao.get(s.sessionId(), null));
     }
 
@@ -193,7 +193,16 @@ public class DaoTest {
             List.of(volumeRequest),
             null,
             ClusterRegistry.ClusterType.User);
-        final var vm = vmDao.create(vmSpec, allocOp.id(), now(), now().plus(Duration.ofDays(1)), "ott", "x", null);
+        final var vmAllocState = new Vm.AllocateState(
+            allocOp.id(),
+            now(),
+            now().plus(Duration.ofDays(1)),
+            "worker",
+            "reqid",
+            "ott",
+            null,
+            null);
+        final var vm = vmDao.create(vmSpec, vmAllocState, null);
 
         final var vm1 = vmDao.get(vm.vmId(), null);
         Assert.assertNotNull(vm1);
@@ -216,12 +225,12 @@ public class DaoTest {
         vm2 = vmDao.get(vm2.vmId(), null);
         Assert.assertEquals(Vm.Status.RUNNING, vm2.status());
 
-        final var vms = vmDao.list(session.sessionId());
+        final var vms = vmDao.getSessionVms(session.sessionId(), null);
         Assert.assertEquals(List.of(vm2), vms);
 
         vmDao.release(vm2.vmId(), now().minus(Duration.ofSeconds(10)), null);
 
-        final var vms2 = vmDao.listVmsToClean(100);
+        final var vms2 = vmDao.listExpiredVms(100);
         Assert.assertEquals(1, vms2.size());
         Assert.assertEquals(vm.vmId(), vms2.get(0).vmId());
 

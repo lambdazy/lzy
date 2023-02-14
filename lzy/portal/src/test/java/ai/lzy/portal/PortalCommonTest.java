@@ -1,17 +1,109 @@
 package ai.lzy.portal;
 
+import ai.lzy.portal.slots.StorageClients;
+import ai.lzy.test.GrpcUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
+import java.net.URI;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.HashSet;
+import java.util.Objects;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static ai.lzy.test.GrpcUtils.makeInputFileSlot;
 import static ai.lzy.test.GrpcUtils.makeOutputFileSlot;
 
 public class PortalCommonTest extends PortalTestBase {
+    @Test
+    public void testPortalSnapshotWithLongSlotName() throws InterruptedException, IOException {
+        var portalStdout = readPortalSlot("portal:stdout");
+        var portalStderr = readPortalSlot("portal:stderr");
+
+        System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
+
+        String firstWorkerId = prepareTask(1, true, true, "snapshot1");
+        String slotName = IntStream.range(0, 100).boxed().map(Objects::toString)
+            .collect(Collectors.joining("_", "/slot_", "_1"));
+
+        System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
+
+        var taskOutputSlot = makeOutputFileSlot(slotName);
+
+        String firstTaskId = startTask(1, ("echo 'i-am-a-hacker' > /tmp/lzy_worker_1" +
+            "%s && echo 'hello'").formatted(slotName), taskOutputSlot, null);
+
+        Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
+        waitPortalCompleted();
+        finishPortal();
+
+        var storageConfig = GrpcUtils.makeAmazonSnapshot("snapshot1", BUCKET_NAME, S3_ADDRESS).getStorageConfig();
+        var s3client = StorageClients.provider(storageConfig).get(Executors.newFixedThreadPool(5));
+        var tempfile = File.createTempFile("portal_", "_test");
+        tempfile.deleteOnExit();
+        s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());
+        String[] content = {null};
+        try (var reader = new BufferedReader(new FileReader(tempfile))) {
+            content[0] = reader.readLine();
+        }
+        Assert.assertEquals("i-am-a-hacker", content[0]);
+
+        // task_1 clean up
+        System.out.println("-- cleanup task1 scenario --");
+        destroyChannel("channel_1");
+        destroyChannel("task_1:stdout");
+        destroyChannel("task_1:stderr");
+    }
+
+    @Test
+    public void testSnapshotStoredToS3() throws Exception {
+        var portalStdout = readPortalSlot("portal:stdout");
+        var portalStderr = readPortalSlot("portal:stderr");
+
+        System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
+
+        String firstWorkerId = prepareTask(1, true, true, "snapshot1");
+
+        System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
+
+        var taskOutputSlot = makeOutputFileSlot("/slot_1");
+
+        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_worker_1/slot_1 && echo 'hello'",
+            taskOutputSlot, null);
+
+        Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+        Assert.assertTrue(portalStdout.isEmpty());
+        Assert.assertTrue(portalStderr.isEmpty());
+        waitPortalCompleted();
+        finishPortal();
+
+        var storageConfig = GrpcUtils.makeAmazonSnapshot("snapshot1", BUCKET_NAME, S3_ADDRESS).getStorageConfig();
+        var s3client = StorageClients.provider(storageConfig).get(Executors.newFixedThreadPool(5));
+        var tempfile = File.createTempFile("portal_", "_test");
+        tempfile.deleteOnExit();
+        s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());
+        String[] content = {null};
+        try (var reader = new BufferedReader(new FileReader(tempfile))) {
+            content[0] = reader.readLine();
+        }
+        Assert.assertEquals("i-am-a-hacker", content[0]);
+
+        // task_1 clean up
+        System.out.println("-- cleanup task1 scenario --");
+        destroyChannel("channel_1");
+        destroyChannel("task_1:stdout");
+        destroyChannel("task_1:stderr");
+    }
+
     @Test
     public void makeSnapshotOnPortalThenReadIt() throws Exception {
         var portalStdout = readPortalSlot("portal:stdout");

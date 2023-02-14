@@ -71,8 +71,8 @@ public class InMemoryS3Storage implements StorageService {
     }
 
     @Override
-    public void processCreateBucketOperation(CreateS3BucketRequest request, Operation operation,
-                                             StreamObserver<LongRunning.Operation> responseObserver)
+    public void processCreateStorageOperation(CreateStorageRequest request, Operation operation,
+                                              StreamObserver<LongRunning.Operation> responseObserver)
     {
         var userId = request.getUserId();
         var bucketName = request.getBucket();
@@ -99,7 +99,7 @@ public class InMemoryS3Storage implements StorageService {
             return;
         }
 
-        var response = Any.pack(CreateS3BucketResponse.newBuilder()
+        var response = Any.pack(CreateStorageResponse.newBuilder()
             .setS3(LMST.S3Credentials.newBuilder()
                 .setEndpoint(endpoint)
                 .build())
@@ -125,7 +125,7 @@ public class InMemoryS3Storage implements StorageService {
     }
 
     @Override
-    public void deleteBucket(DeleteS3BucketRequest request, StreamObserver<DeleteS3BucketResponse> response) {
+    public void deleteStorage(DeleteStorageRequest request, StreamObserver<DeleteStorageResponse> response) {
         LOG.debug("InMemoryS3Storage::deleteBucket, bucket={}", request.getBucket());
 
         try {
@@ -137,18 +137,18 @@ public class InMemoryS3Storage implements StorageService {
             response.onError(Status.INTERNAL.withCause(e).asException());
         }
 
-        response.onNext(DeleteS3BucketResponse.getDefaultInstance());
+        response.onNext(DeleteStorageResponse.getDefaultInstance());
         response.onCompleted();
     }
 
     @Override
-    public void getBucketCreds(GetS3BucketCredentialsRequest request,
-                               StreamObserver<GetS3BucketCredentialsResponse> response)
+    public void getStorageCreds(GetStorageCredentialsRequest request,
+                                StreamObserver<GetStorageCredentialsResponse> response)
     {
         LOG.debug("InMemoryS3Storage::getBucketCredentials, userId={}, bucket={}",
             request.getUserId(), request.getBucket());
 
-        response.onNext(GetS3BucketCredentialsResponse.newBuilder()
+        response.onNext(GetStorageCredentialsResponse.newBuilder()
             .setAmazon(LMST.S3Credentials.newBuilder()
                 .setEndpoint(endpoint)
                 .build())

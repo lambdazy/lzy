@@ -30,7 +30,7 @@ public class StorageServiceGrpc extends LzyStorageServiceGrpc.LzyStorageServiceI
     }
 
     @Override
-    public void createS3Bucket(LSS.CreateS3BucketRequest request,
+    public void createStorage(LSS.CreateStorageRequest request,
                                StreamObserver<LongRunning.Operation> responseObserver)
     {
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
@@ -65,20 +65,20 @@ public class StorageServiceGrpc extends LzyStorageServiceGrpc.LzyStorageServiceI
             return;
         }
 
-        service.processCreateBucketOperation(request, op, responseObserver);
+        service.processCreateStorageOperation(request, op, responseObserver);
     }
 
     @Override
-    public void deleteS3Bucket(LSS.DeleteS3BucketRequest request,
-                               StreamObserver<LSS.DeleteS3BucketResponse> responseObserver)
+    public void deleteStorage(LSS.DeleteStorageRequest request,
+                               StreamObserver<LSS.DeleteStorageResponse> responseObserver)
     {
-        service.deleteBucket(request, responseObserver);
+        service.deleteStorage(request, responseObserver);
     }
 
     @Override
-    public void getS3BucketCredentials(LSS.GetS3BucketCredentialsRequest request,
-                                       StreamObserver<LSS.GetS3BucketCredentialsResponse> responseObserver)
+    public void getStorageCredentials(LSS.GetStorageCredentialsRequest request,
+                                       StreamObserver<LSS.GetStorageCredentialsResponse> responseObserver)
     {
-        service.getBucketCreds(request, responseObserver);
+        service.getStorageCreds(request, responseObserver);
     }
 }

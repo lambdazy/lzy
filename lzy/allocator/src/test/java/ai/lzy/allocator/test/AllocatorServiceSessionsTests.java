@@ -81,12 +81,8 @@ public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
     public void testCreateAndDeleteSession() {
         var sessionId = createSession(Durations.fromSeconds(100));
 
-        var deleteSessionResponse = authorizedAllocatorBlockingStub.deleteSession(
-            VmAllocatorApi.DeleteSessionRequest.newBuilder()
-                .setSessionId(sessionId)
-                .build());
-
-        Assert.assertNotNull(deleteSessionResponse);
+        var op = deleteSession(sessionId, true);
+        Assert.assertTrue(op.toString(), op.hasResponse());
     }
 
     @Test

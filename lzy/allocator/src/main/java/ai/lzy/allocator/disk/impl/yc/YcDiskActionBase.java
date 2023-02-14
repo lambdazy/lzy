@@ -15,6 +15,8 @@ import yandex.cloud.api.operation.OperationServiceGrpc;
 
 import java.sql.SQLException;
 
+import static ai.lzy.model.db.DbHelper.withRetries;
+
 abstract class YcDiskActionBase<S> extends OperationRunnerBase {
 
     protected final DiskManager.OuterOperation op;
@@ -36,6 +38,18 @@ abstract class YcDiskActionBase<S> extends OperationRunnerBase {
     @Override
     protected void onExpired(TransactionHandle tx) throws SQLException {
         diskOpDao().deleteDiskOp(opId(), tx);
+    }
+
+    protected final StepResult saveState(Runnable onSuccess, Runnable onFail) {
+        try {
+            withRetries(log(), () -> diskOpDao().updateDiskOp(opId(), toJson(state), null));
+            onSuccess.run();
+            return StepResult.CONTINUE;
+        } catch (Exception e) {
+            log().debug("{} Cannot save state, reschedule...", logPrefix());
+            onFail.run();
+            return StepResult.RESTART;
+        }
     }
 
     protected final String opId() {

@@ -11,6 +11,7 @@ import lombok.Setter;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @Setter
@@ -113,5 +114,27 @@ public class ServiceConfig {
         private Duration leaseDuration = Duration.ofMinutes(30);
         private Duration gracefulShutdownDuration = Duration.ofSeconds(10);
         private Duration keepTimeout = Duration.ofDays(7);
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("cache-limits")
+    public static final class CacheLimits {
+        private int userLimit = 5;
+        private int sessionLimit = 3;
+        @Nullable
+        private Map<String, Integer> sessionPoolLimit = null;
+        private int anySessionPoolLimit = 1;
+
+        public int getLimit(String pool) {
+            if (sessionPoolLimit == null) {
+                return anySessionPoolLimit;
+            }
+            var limit = sessionPoolLimit.get(pool);
+            if (limit == null) {
+                return anySessionPoolLimit;
+            }
+            return limit;
+        }
     }
 }

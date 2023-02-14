@@ -54,9 +54,11 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         var workflowName = "workflow_1";
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
+                LMST.StorageConfig storageConfig = stub.getOrCreateDefaultStorage(
+                    LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
                 LWFS.StartWorkflowResponse workflow = stub.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                    .setWorkflowName(workflowName).build());
-                LWF.Graph graph = buildSimpleGraph(workflow.getInternalSnapshotStorage());
+                    .setWorkflowName(workflowName).setSnapshotStorage(storageConfig).build());
+                LWF.Graph graph = buildSimpleGraph(storageConfig);
                 var executionId = workflow.getExecutionId();
 
                 return new AbstractMap.SimpleEntry<>(executionId, graph);
@@ -75,8 +77,10 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         var workflowName = "workflow_1";
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
+                LMST.StorageConfig storageConfig = stub.getOrCreateDefaultStorage(
+                    LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
                 LWFS.StartWorkflowResponse workflow = stub.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                    .setWorkflowName(workflowName).build());
+                    .setWorkflowName(workflowName).setSnapshotStorage(storageConfig).build());
 
                 var executionId = workflow.getExecutionId();
                 var graph = LWF.Graph.newBuilder()
@@ -102,9 +106,10 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         var workflowName = "workflow_1";
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
+                LMST.StorageConfig storageConfig = stub.getOrCreateDefaultStorage(
+                    LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
                 LWFS.StartWorkflowResponse workflow = stub.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                    .setWorkflowName(workflowName).build());
-                LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
+                    .setWorkflowName(workflowName).setSnapshotStorage(storageConfig).build());
 
                 var operation =
                     LWF.Operation.newBuilder()
@@ -147,9 +152,10 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         var workflowName = "workflow_1";
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
+                LMST.StorageConfig storageConfig = stub.getOrCreateDefaultStorage(
+                    LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
                 LWFS.StartWorkflowResponse workflow = stub.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                    .setWorkflowName(workflowName).build());
-                LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
+                    .setWorkflowName(workflowName).setSnapshotStorage(storageConfig).build());
 
                 var operationsWithCycleDependency = List.of(
                     LWF.Operation.newBuilder()
@@ -216,9 +222,10 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         var workflowName = "workflow_1";
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
+                LMST.StorageConfig storageConfig = stub.getOrCreateDefaultStorage(
+                    LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
                 LWFS.StartWorkflowResponse workflow = stub.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                    .setWorkflowName(workflowName).build());
-                LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
+                    .setWorkflowName(workflowName).setSnapshotStorage(storageConfig).build());
 
                 var unknownStorageUri = buildSlotUri("snapshot_a_1", storageConfig);
 
@@ -265,9 +272,10 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         var workflowName = "workflow_1";
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
+                LMST.StorageConfig storageConfig = stub.getOrCreateDefaultStorage(
+                    LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
                 LWFS.StartWorkflowResponse workflow = stub.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                    .setWorkflowName(workflowName).build());
-                LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
+                    .setWorkflowName(workflowName).setSnapshotStorage(storageConfig).build());
 
                 var operation =
                     LWF.Operation.newBuilder()
@@ -277,7 +285,7 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
                             .setPath("/tmp/lzy_worker_1/a")
                             .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                             .build())
-                        .setPoolSpecName("m")
+                        .setPoolSpecName("not-existing-spec")
                         .build();
 
                 var executionId = workflow.getExecutionId();
@@ -305,9 +313,10 @@ public abstract class AbstractGraphExecutionTest extends BaseTest {
         var workflowName = "workflow_1";
         return new TestScenario<>(authorizedWorkflowClient,
             stub -> {
+                LMST.StorageConfig storageConfig = stub.getOrCreateDefaultStorage(
+                    LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
                 LWFS.StartWorkflowResponse workflow = stub.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-                    .setWorkflowName(workflowName).build());
-                LMST.StorageConfig storageConfig = workflow.getInternalSnapshotStorage();
+                    .setWorkflowName(workflowName).setSnapshotStorage(storageConfig).build());
 
                 var operation =
                     LWF.Operation.newBuilder()

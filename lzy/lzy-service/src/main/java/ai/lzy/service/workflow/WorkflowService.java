@@ -7,7 +7,6 @@ import ai.lzy.model.db.Storage;
 import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.PortalSlotsListener;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.data.StorageType;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
@@ -17,9 +16,7 @@ import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
-import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
-import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.GetAvailablePoolsRequest;
@@ -42,14 +39,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
-import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 
+
 @Singleton
 public class WorkflowService {
-    public static boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
+    public static volatile boolean PEEK_RANDOM_PORTAL_PORTS = false;  // Only for tests
     static final Logger LOG = LogManager.getLogger(WorkflowService.class);
 
     private final LzyServiceConfig.StartupPortalConfig startupPortalConfig;
@@ -59,19 +56,12 @@ public class WorkflowService {
 
     private final Duration allocationTimeout;
     private final Duration allocatorVmCacheTimeout;
-    final Duration bucketCreationTimeout;
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
-    private final RenewableJwt internalUserCredentials;
-    private final ManagedChannel channelManagerChannel;
 
     final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     final LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOpService;
-
-    final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
-    final LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOpService;
-
     final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
 
     private final VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient;
@@ -87,13 +77,11 @@ public class WorkflowService {
                            LzyServiceStorage storage, WorkflowDao workflowDao, ExecutionDao executionDao,
                            @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
-                           @Named("StorageServiceChannel") ManagedChannel storageChannel,
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
-        bucketCreationTimeout = config.getStorage().getBucketCreationTimeout();
         startupPortalConfig = config.getPortal();
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
@@ -104,21 +92,12 @@ public class WorkflowService {
         this.executionDao = executionDao;
 
         this.cleanExecutionCompanion = cleanExecutionCompanion;
-
-        this.internalUserCredentials = internalUserCredentials;
-        this.channelManagerChannel = channelManagerChannel;
-
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
         this.vmPoolClient = newBlockingClient(
             VmPoolServiceGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
         this.allocOpService = newBlockingClient(
             LongRunningServiceGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
-
-        this.storageServiceClient = newBlockingClient(
-            LzyStorageServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
-        this.storageOpService = newBlockingClient(
-            LongRunningServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
 
         this.channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
@@ -130,17 +109,14 @@ public class WorkflowService {
 
     public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> response) {
         var newExecution = StartExecutionCompanion.of(request, this, startupPortalConfig);
-
         LOG.info("Start new execution: " + newExecution.getState());
-
         Consumer<Status> replyError = (status) -> {
             LOG.error("Fail to start new execution: status={}, msg={}.", status,
                 status.getDescription() + ", creationState: " + newExecution.getState());
             response.onError(status.asRuntimeException());
         };
 
-        newExecution.setStorage();
-
+        newExecution.checkStorage();
         if (newExecution.isInvalid()) {
             replyError.accept(newExecution.getErrorStatus());
             return;
@@ -150,9 +126,12 @@ public class WorkflowService {
         var executionId = newExecution.getExecutionId();
 
         if (previousActiveExecutionId != null) {
+            LOG.info("Attempt to clean previous active execution of workflow: { wfName: {}, prevExId: {} }",
+                request.getWorkflowName(), previousActiveExecutionId);
+
             Status errorStatus = Status.INTERNAL.withDescription("Cancelled by new execution start");
-            if (cleanExecutionCompanion.tryToMarkExecutionAsBroken(newExecution.getOwner(), request.getWorkflowName(),
-                previousActiveExecutionId, errorStatus))
+            if (cleanExecutionCompanion.tryToFinishExecution(newExecution.getOwner(), previousActiveExecutionId,
+                errorStatus))
             {
                 cleanExecutionCompanion.cleanExecution(previousActiveExecutionId);
             }
@@ -171,79 +150,26 @@ public class WorkflowService {
             channelManagerAddress, iamAddress, whiteboardAddress, allocationTimeout, allocatorVmCacheTimeout);
 
         if (newExecution.isInvalid()) {
-            // todo: delete workflow too in case of created in this execution
-            try {
-                withRetries(LOG, () -> workflowDao.setActiveExecutionToNull(newExecution.getOwner(),
-                    request.getWorkflowName(), executionId, null));
-            } catch (Exception e) {
-                LOG.warn("Cannot deactivate execution of workflow: { workflowName: {}, executionId: {}, error: {} }",
-                    request.getWorkflowName(), executionId, e.getMessage());
-            }
+            LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
+                request.getWorkflowName(), executionId);
 
-            deleteExecution(executionId);
+            if (cleanExecutionCompanion.tryToFinishWorkflow(newExecution.getOwner(), request.getWorkflowName(),
+                executionId, newExecution.getErrorStatus()))
+            {
+                cleanExecutionCompanion.cleanExecution(executionId);
+            }
 
             replyError.accept(newExecution.getErrorStatus());
             return;
         }
 
         LOG.info("New execution started: " + newExecution.getState());
-
-        var storage = newExecution.getState().getStorageType() == StorageType.INTERNAL
-            ? newExecution.getState().getStorageConfig()
-            : LMST.StorageConfig.getDefaultInstance();
-
-        response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId)
-            .setInternalSnapshotStorage(storage).build());
+        response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId).build());
         response.onCompleted();
     }
 
     public void completeExecution(String executionId, Operation operation) {
         cleanExecutionCompanion.completeExecution(executionId, operation);
-    }
-
-    private void deleteExecution(String executionId) {
-        LOG.info("Delete broken execution: { executionId: {} }", executionId);
-
-        PortalDescription portalDesc;
-        try {
-            portalDesc = withRetries(LOG, () -> executionDao.getPortalDescription(executionId));
-        } catch (Exception e) {
-            LOG.error("Cannot get portal for execution {}", executionId, e);
-            return;
-        }
-
-        if (portalDesc != null && portalDesc.vmAddress() != null) {
-            cleanExecutionCompanion.stopPortal(executionId, portalDesc.vmAddress());
-        }
-
-        var destroyChannelsOp = cleanExecutionCompanion.destroyChannels(executionId);
-        if (destroyChannelsOp != null) {
-            var opId = destroyChannelsOp.getId();
-            var channelManagerOpsClient = newBlockingClient(
-                LongRunningServiceGrpc.newBlockingStub(channelManagerChannel), APP,
-                () -> internalUserCredentials.get().token());
-
-            destroyChannelsOp = awaitOperationDone(channelManagerOpsClient, opId, Duration.ofSeconds(5));
-
-            if (!destroyChannelsOp.getDone()) {
-                LOG.warn("Cannot wait channel manager destroy all execution channels: { executionId: {} }",
-                    executionId);
-            }
-        }
-
-        if (portalDesc != null && portalDesc.vmId() != null) {
-            cleanExecutionCompanion.freeVm(executionId, portalDesc.vmId());
-        }
-
-        if (portalDesc != null && portalDesc.allocatorSessionId() != null) {
-            cleanExecutionCompanion.deleteSession(executionId, portalDesc.allocatorSessionId());
-        }
-
-        try {
-            withRetries(LOG, () -> executionDao.delete(executionId, null));
-        } catch (Exception e) {
-            LOG.error("Cannot delete execution data from dao: { executionId: {} }", executionId, e);
-        }
     }
 
     public void readStdSlots(LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> response) {

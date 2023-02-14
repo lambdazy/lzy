@@ -3,6 +3,7 @@ package ai.lzy.worker;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
+import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.longrunning.IdempotencyUtils;
@@ -14,13 +15,15 @@ import ai.lzy.model.Signal;
 import ai.lzy.model.TaskDesc;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.operation.Operation.StdSlotDesc;
+import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.longrunning.LongRunning;
-import ai.lzy.v1.worker.LWS.*;
+import ai.lzy.v1.worker.LWS.ExecuteRequest;
+import ai.lzy.v1.worker.LWS.ExecuteResponse;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import ai.lzy.worker.env.Environment;
 import ai.lzy.worker.env.EnvironmentFactory;
@@ -44,8 +47,12 @@ import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
@@ -119,7 +126,9 @@ public class Worker {
         Objects.requireNonNull(allocatorToken);
 
         operationService = new LocalOperationService(vmId);
-        this.envFactory = new EnvironmentFactory(defaultUserImage);
+
+        String gpuCount = System.getenv(AllocatorAgent.VM_GPU_COUNT);
+        this.envFactory = new EnvironmentFactory(defaultUserImage, gpuCount == null ? 0 : Integer.parseInt(gpuCount));
 
         server = newGrpcServer("0.0.0.0", apiPort, GrpcUtils.NO_AUTH)
             .addService(new WorkerApiImpl())
@@ -281,7 +290,7 @@ public class Worker {
                 LOG.info("Configuring worker");
 
                 final Environment env = envFactory.create(lzyFsRoot, ProtoConverter.fromProto(
-                        request.getTaskDesc().getOperation().getEnv()));
+                    request.getTaskDesc().getOperation().getEnv()));
 
                 try {
                     env.install(outQueue, errQueue);
@@ -300,7 +309,7 @@ public class Worker {
                             .build();
                 }
 
-                LOG.info("Executing task");
+                LOG.info("Executing task {}", tid);
 
                 try {
                     var exec = new Execution(tid, task.operation().command(), "", lzyFs.getMountPoint().toString());
@@ -315,10 +324,12 @@ public class Worker {
 
                     if (rc == 0) {
                         message = "Success";
+                        waitOutputSlots(request, lzySlots);
                     } else {
                         message = "Error while executing command on worker. " +
                                 "See your stdout/stderr to see more info";
                     }
+
                     return ExecuteResponse.newBuilder()
                             .setRc(rc)
                             .setDescription(message)
@@ -341,22 +352,86 @@ public class Worker {
             }
         }
 
-        private StreamQueue generateStreamQueue(String tid, StdSlotDesc stdoutSpec, String name) {
+        private void waitOutputSlots(ExecuteRequest request, ArrayList<LzySlot> lzySlots) throws InterruptedException {
+            var outputChannelsIds = lzySlots.stream()
+                .filter(slot -> slot.definition().direction() == Slot.Direction.OUTPUT)
+                .map(slot -> slot.instance().channelId())
+                .collect(Collectors.toSet());
+
+            LOG.info("Task execution successfully completed, wait for OUTPUT slots [{}]...",
+                String.join(", ", outputChannelsIds));
+
+            while (!outputChannelsIds.isEmpty()) {
+                var outputChannels = lzyFs.getSlotsManager()
+                    .getChannelsStatus(request.getExecutionId(), outputChannelsIds);
+
+                if (outputChannels == null) {
+                    Thread.sleep(Duration.ofSeconds(1).toMillis());
+                    continue;
+                }
+
+                if (outputChannels.isEmpty()) {
+                    LOG.warn("We don't have any information about channels, just wait a little...");
+                    LockSupport.parkNanos(Duration.ofSeconds(30).toNanos());
+                    break;
+                }
+
+                for (var channel : outputChannels) {
+                    if (!channel.hasSpec()) {
+                        LOG.warn("Channel {} not found, maybe it's not ALIVE", channel.getChannelId());
+                        outputChannelsIds.remove(channel.getChannelId());
+                        continue;
+                    }
+
+                    if (channel.getSenders().hasPortalSlot()) {
+                        LOG.info("Channel {} has portal in senders", channel.getChannelId());
+                        outputChannelsIds.remove(channel.getChannelId());
+                    } else {
+                        var slotName = channel.getSenders().getWorkerSlot().getSlot().getName();
+                        var slot = (LzyOutputSlot) lzySlots.stream()
+                            .filter(s -> s.name().equals(slotName))
+                            .findFirst()
+                            .get();
+
+                        var readers = channel.getReceivers().getWorkerSlotsCount() +
+                            (channel.getReceivers().hasPortalSlot() ? 1 : 0);
+
+                        if (slot.getCompletedReads() >= readers) {
+                            LOG.info("Channel {} already read ({}) by all consumers ({})",
+                                channel.getChannelId(), slot.getCompletedReads(), readers);
+                            outputChannelsIds.remove(channel.getChannelId());
+                        } else {
+                            LOG.info(
+                                "Channel {} neither has portal in senders nor completely read, wait...",
+                                channel.getChannelId());
+                        }
+                    }
+                }
+
+                if (!outputChannelsIds.isEmpty()) {
+                    Thread.sleep(Duration.ofSeconds(1).toMillis());
+                }
+            }
+        }
+
+        private StreamQueue generateStreamQueue(String tid, @Nullable StdSlotDesc stdoutSpec, String name) {
             final OutputStream stdout;
             if (stdoutSpec != null) {
                 stdout = new PipedOutputStream();
+
                 final PipedInputStream i;
                 try {
                     i = new PipedInputStream((PipedOutputStream) stdout);
                 } catch (IOException e) {
                     throw new RuntimeException(e);
                 }
-                final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(tid,
-                    new TextLinesOutSlot(stdoutSpec.slotName()), stdoutSpec.channelId());
-                slot.setStream(new LineNumberReader(new InputStreamReader(
-                    i,
-                    StandardCharsets.UTF_8
-                )));
+
+                final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(
+                    tid,
+                    new TextLinesOutSlot(stdoutSpec.slotName()),
+                    stdoutSpec.channelId());
+
+                slot.setStream(new LineNumberReader(new InputStreamReader(i, StandardCharsets.UTF_8)));
             } else {
                 stdout = OutputStream.nullOutputStream();
             }
