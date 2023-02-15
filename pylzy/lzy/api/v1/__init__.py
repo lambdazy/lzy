@@ -60,7 +60,8 @@ def op(
     ram_size_gb: Optional[int] = None,
     env: Env = Env(),
     description: str = "",
-    lazy_arguments: bool = False
+    lazy_arguments: bool = False,
+    docker_only: bool = False
 ):
     def deco(f):
         """
@@ -88,7 +89,8 @@ def op(
 
         nonlocal env
         env = env.override(
-            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
+            Env(python_version, libraries, conda_yaml_path, docker_image,
+                docker_pull_policy, local_modules_path, docker_only)
         )
 
         # yep, create lazy constructor and return it
@@ -225,6 +227,7 @@ class Lzy:
         gpu_type: Optional[str] = None,
         gpu_count: Optional[int] = None,
         ram_size_gb: Optional[int] = None,
+        docker_only: bool = False,
         env: Env = Env()
     ) -> LzyWorkflow:
         self.__register_default_runtime_storage()
@@ -239,7 +242,8 @@ class Lzy:
         libraries = {} if not libraries else libraries
         local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
         env = env.override(
-            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
+            Env(python_version, libraries, conda_yaml_path, docker_image,
+                docker_pull_policy, local_modules_path, docker_only)
         )
         env.validate()
 

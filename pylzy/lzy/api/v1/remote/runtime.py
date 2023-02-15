@@ -113,8 +113,10 @@ class RemoteRuntime(Runtime):
         pools = await client.get_pool_specs(self.__execution_id)
 
         modules: Set[str] = set()
+
         for call in calls:
-            modules.update(cast(Sequence[str], call.env.local_modules_path))
+            if not call.env.docker_only:
+                modules.update(cast(Sequence[str], call.env.local_modules_path))
 
         urls = await self.__load_local_modules(modules)
 
@@ -353,13 +355,15 @@ class RemoteRuntime(Runtime):
             else:
                 docker_image = None
 
-            conda_yaml: Optional[str]
-            if call.env.conda_yaml_path:
-                with open(call.env.conda_yaml_path, "r") as file:
-                    conda_yaml = file.read()
-            else:
-                conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
-                                                 cast(Dict[str, str], call.env.libraries))
+            conda_yaml: Optional[str] = None
+
+            if not call.env.docker_only:
+                if call.env.conda_yaml_path:
+                    with open(call.env.conda_yaml_path, "r") as file:
+                        conda_yaml = file.read()
+                else:
+                    conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
+                                                     cast(Dict[str, str], call.env.libraries))
 
             request = ProcessingRequest(
                 get_logging_config(),
@@ -394,7 +398,7 @@ class RemoteRuntime(Runtime):
                             Operation.PythonEnvSpec.LocalModule(name=name, url=url)
                             for (name, url) in modules
                         ],
-                    ),
+                    ) if not call.env.docker_only else None,  # execute in bash env if without conda
                     poolSpecName=pool.poolSpecName,
                 )
             )

@@ -15,8 +15,8 @@ class Env:
     conda_yaml_path: Optional[str] = None
     docker_image: Optional[str] = None
     docker_pull_policy: Optional[DockerPullPolicy] = None
-    docker_use_conda: bool = True
     local_modules_path: Optional[Sequence[str]] = None
+    docker_only: bool = False
 
     def override(self, other: "Env") -> "Env":
         return Env(
@@ -27,7 +27,7 @@ class Env:
             docker_pull_policy=other.docker_pull_policy if other.docker_pull_policy else self.docker_pull_policy,
             local_modules_path=other.local_modules_path if other.local_modules_path is not None else
             self.local_modules_path,
-            docker_use_conda=self.docker_use_conda or other.docker_use_conda
+            docker_only=self.docker_only or other.docker_only
         )
 
     def validate(self) -> None:
