@@ -12,7 +12,6 @@ locals {
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "lzy-service"
   }
-  lzy-service-port     = 8899
   lzy-service-k8s-name = "lzy-service"
   lzy-service-image = var.lzy-service-image
 }

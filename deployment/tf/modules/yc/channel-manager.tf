@@ -5,7 +5,6 @@ locals {
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "channel-manager"
   }
-  channel-manager-port     = 8122
   channel-manager-k8s-name = "channel-manager"
   channel-manager-image = var.channel-manager-image
 }

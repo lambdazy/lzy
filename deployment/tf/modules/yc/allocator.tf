@@ -24,7 +24,6 @@ locals {
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "allocator"
   }
-  allocator-port     = 10239
   allocator-k8s-name = "allocator"
   allocator-image = var.allocator-image
 }
@@ -54,8 +53,8 @@ resource "kubernetes_stateful_set" "allocator" {
             host_port      = local.allocator-port
           }
           port {
-            container_port = 17080
-            host_port = 17080
+            container_port = local.allocator-metrics-port
+            host_port = local.allocator-metrics-port
           }
 
           env {

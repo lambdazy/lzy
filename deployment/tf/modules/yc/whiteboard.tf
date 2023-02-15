@@ -6,7 +6,6 @@ locals {
     "app.kubernetes.io/name"    = "whiteboard"
     "lzy.ai/app"                = "whiteboard"
   }
-  whiteboard-port     = 8122
   whiteboard-k8s-name = "whiteboard"
   whiteboard-image = var.whiteboard-image
 }

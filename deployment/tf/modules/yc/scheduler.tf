@@ -5,7 +5,6 @@ locals {
     "app.kubernetes.io/part-of" = "graph-executor"
     "lzy.ai/app"                = "scheduler"
   }
-  scheduler-port     = 8765
   scheduler-k8s-name = "scheduler"
   scheduler-image = var.scheduler-image
 }
