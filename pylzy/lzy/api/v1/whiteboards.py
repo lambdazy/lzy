@@ -2,7 +2,7 @@ import dataclasses
 import datetime
 import uuid
 from dataclasses import dataclass
-from typing import Optional, Type, Dict, Any, Iterable, Set, TYPE_CHECKING, Sequence
+from typing import Optional, Type, Dict, Any, Iterable, Set, TYPE_CHECKING, Sequence, cast
 
 # noinspection PyPackageRequirements
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -162,7 +162,8 @@ class WritableWhiteboard:
             entry = self.__workflow.snapshot.get(self.__workflow.entry_index.get_entry_id(value))
             self.__validate_types(entry.typ, key_type, key)
             if entry.id in self.__workflow.filled_entry_ids:
-                LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(entry.storage_uri, storage_uri))
+                LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(
+                    cast(str, entry.storage_uri), storage_uri))
             else:
                 self.__workflow.snapshot.must_be_copied(entry.id, storage_uri)
         else:
@@ -171,7 +172,7 @@ class WritableWhiteboard:
             self.__validate_types(typ, key_type, key)
             entry = self.__workflow.snapshot.create_entry(self.__model.name + "." + key, key_type)
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
-            LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(entry.storage_uri, storage_uri))
+            LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(cast(str, entry.storage_uri), storage_uri))
             self.__workflow.entry_index.add_entry_id(value, entry.id)
             self.__workflow.filled_entry_ids.add(entry.id)
 

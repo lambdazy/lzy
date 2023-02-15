@@ -218,9 +218,9 @@ class LzyWorkflow:
         await asyncio.gather(*data_to_load)
 
         for call in self.__call_queue:
-            args_inputs_hash: str = '_'.join(map(lambda eid: self.snapshot.get(eid).hash, call.arg_entry_ids))
+            args_inputs_hash: str = '_'.join(map(lambda eid: cast(str, self.snapshot.get(eid).hash), call.arg_entry_ids))
             kwargs_inputs_hash: str = '_'.join(map(
-                lambda name: self.snapshot.get(call.kwarg_entry_ids[name]).hash,
+                lambda name: cast(str, self.snapshot.get(call.kwarg_entry_ids[name]).hash),
                 sorted(call.kwargs.keys())
             ))
             inputs_hash: str = '_'.join([args_inputs_hash, kwargs_inputs_hash])
@@ -232,7 +232,7 @@ class LzyWorkflow:
                 if eid not in self.__filled_entry_ids:
                     self.snapshot.update_entry(eid, f"/${op_name}_${op_version}_${inputs_hash}/return_${str(i)}")
                     entry = self.snapshot.get(eid)
-                    entry.set_hash(SerializedDataHasher.hash_of_str(entry.storage_uri))
+                    entry.set_hash(SerializedDataHasher.hash_of_str(cast(str, entry.storage_uri)))
                     self.__filled_entry_ids.add(eid)
 
         await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))

@@ -92,7 +92,7 @@ class LocalRuntime(Runtime):
             for eid in call.arg_entry_ids:
                 entry = self.__workflow.snapshot.get(eid)
                 entry_path = folder + "/" + eid
-                args_read.append(self.__from_storage_to_file(entry.storage_uri, entry_path))
+                args_read.append(self.__from_storage_to_file(cast(str, entry.storage_uri), entry_path))
                 arg_descriptions.append((entry.typ, entry_path[len(folder):]))
             await asyncio.gather(*args_read)
 
@@ -100,7 +100,7 @@ class LocalRuntime(Runtime):
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
                 entry_path = folder + "/" + eid
-                kwargs_read.append(self.__from_storage_to_file(entry.storage_uri, entry_path))
+                kwargs_read.append(self.__from_storage_to_file(cast(str, entry.storage_uri), entry_path))
                 kwarg_descriptions[name] = (entry.typ, entry_path[len(folder):])
             await asyncio.gather(*kwargs_read)
 
@@ -154,7 +154,7 @@ class LocalRuntime(Runtime):
             data_to_put = []
             for i, eid in enumerate(call.entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
-                data_to_put.append(self.__from_file_to_storage(entry.storage_uri, folder + "/" + eid))
+                data_to_put.append(self.__from_file_to_storage(cast(str, entry.storage_uri), folder + "/" + eid))
             await asyncio.gather(*data_to_put)
 
     async def abort(self) -> None:
