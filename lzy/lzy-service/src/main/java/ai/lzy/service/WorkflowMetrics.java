@@ -14,7 +14,7 @@ public class WorkflowMetrics {
     }
 
     public final Gauge activeExecutions = Gauge
-        .build("activeExecutions", "Active Executions Count")
+        .build("active_executions", "Active Executions Count")
         .subsystem(LZY_SERVICE)
         .labelNames("user")
         .register();
