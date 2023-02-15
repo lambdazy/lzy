@@ -18,6 +18,10 @@ mvn build-helper:parse-version versions:set \
   -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion}\${parsedVersion.qualifier?}"
 
 NEXT_SNAPSHOT_VERSION=$(project_version)
+mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -f ..
+mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -f ../util
+mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -f ../coverage
+mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -f ../lzy
 git add -u ..
 git commit -m "set version $NEXT_SNAPSHOT_VERSION"
 
