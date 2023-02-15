@@ -11,7 +11,7 @@ cd parent
 CURRENT_VERSION=$(project_version | awk -F'-' '{print $1}')
 
 echo "CURRENT VERSION IS $CURRENT_VERSION"
-git branch "R-$CURRENT_VERSION"
+git branch "releases/R-$CURRENT_VERSION"
 
 # x.y+1-SNAPSHOT
 mvn build-helper:parse-version versions:set \
@@ -25,7 +25,7 @@ mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -f ../lzy
 git add -u ..
 git commit -m "set version $NEXT_SNAPSHOT_VERSION"
 
-git checkout "R-$CURRENT_VERSION"
+git checkout "releases/R-$CURRENT_VERSION"
 
 # x.y.0
 mvn build-helper:parse-version versions:set \
@@ -36,6 +36,6 @@ echo "$RELEASE_VERSION" > ../pylzy/lzy/version/version
 git add -u ..
 git commit -m "set version $RELEASE_VERSION"
 git tag "R-$RELEASE_VERSION"
-git push origin "R-$CURRENT_VERSION" #branch
+git push origin "releases/R-$CURRENT_VERSION" #branch
 git push origin "R-$RELEASE_VERSION" #tag
 git push origin master

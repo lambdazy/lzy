@@ -7,10 +7,10 @@ fi
 
 BRANCH=$1
 
-echo "$BRANCH" | grep -E "R-[0-9]+\.[0-9]+" -
+echo "$BRANCH" | grep -E "releases/R-[0-9]+\.[0-9]+" -
 
 if [[ $? -ne 0 ]]; then
-  echo "Branch format doesnt' fit correct release branch pattern - R-[0-9]+\.[0-9]+"
+  echo "Branch format doesn't fit correct release branch pattern - releases/R-[0-9]+\.[0-9]+"
   exit 1
 fi
 
