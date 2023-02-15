@@ -42,6 +42,7 @@ import org.apache.logging.log4j.util.Strings;
 import java.net.URI;
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
@@ -72,6 +73,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final Duration bucketCreationTimeout;
 
     private final Storage storage;
+    private final WorkflowMetrics metrics;
     private final OperationDao operationDao;
     private final WorkflowDao workflowDao;
     private final ExecutionDao executionDao;
@@ -83,7 +85,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                       CleanExecutionCompanion cleanExecutionCompanion, LzyServiceConfig config,
                       @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                       @Named("StorageServiceChannel") ManagedChannel storageChannel
-        /*, GarbageCollector gc */, @Named("LzyServiceServerExecutor") ExecutorService workersPool)
+                      /*, GarbageCollector gc */, @Named("LzyServiceServerExecutor") ExecutorService workersPool,
+                      WorkflowMetrics metrics)
     {
         this.cleanExecutionCompanion = cleanExecutionCompanion;
         this.instanceId = config.getInstanceId();
@@ -96,6 +99,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         this.executionDao = executionDao;
         this.graphDao = graphDao;
         this.storage = storage;
+        this.metrics = metrics;
 
         this.storageServiceClient = newBlockingClient(
             LzyStorageServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
@@ -118,7 +122,13 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             if (!execGraphStates.isEmpty()) {
                 LOG.warn("Found {} not completed operations on lzy-service {}", execGraphStates.size(), instanceId);
 
-                execGraphStates.forEach(state -> workersPool.submit(() -> graphExecutionService.executeGraph(state)));
+                var activeExecutions = new HashSet<String>();
+                execGraphStates.forEach(state -> {
+                    if (activeExecutions.add(state.getExecutionId())) {
+                        metrics.activeExecutions.labels(state.getUserId()).inc();
+                    }
+                    workersPool.submit(() -> graphExecutionService.executeGraph(state));
+                });
             } else {
                 LOG.info("Not completed lzy-service operations weren't found.");
             }
@@ -194,7 +204,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        workersPool.submit(() -> workflowService.completeExecution(executionId, op));
+        workersPool.submit(() -> workflowService.completeExecution(userId, executionId, op));
 
         response.onNext(op.toProto());
         response.onCompleted();

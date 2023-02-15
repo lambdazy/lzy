@@ -6,6 +6,7 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.PortalSlotsListener;
+import ai.lzy.service.WorkflowMetrics;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.PortalDescription;
@@ -59,6 +60,7 @@ public class WorkflowService {
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
+    private final WorkflowMetrics metrics;
 
     final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     final LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOpService;
@@ -78,7 +80,7 @@ public class WorkflowService {
                            @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
-                           @Named("IamServiceChannel") ManagedChannel iamChannel)
+                           @Named("IamServiceChannel") ManagedChannel iamChannel, WorkflowMetrics metrics)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
@@ -86,6 +88,7 @@ public class WorkflowService {
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
+        this.metrics = metrics;
 
         this.storage = storage;
         this.workflowDao = workflowDao;
@@ -166,10 +169,12 @@ public class WorkflowService {
         LOG.info("New execution started: " + newExecution.getState());
         response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId).build());
         response.onCompleted();
+
+        metrics.activeExecutions.labels(newExecution.getOwner()).inc();
     }
 
-    public void completeExecution(String executionId, Operation operation) {
-        cleanExecutionCompanion.completeExecution(executionId, operation);
+    public void completeExecution(String userId, String executionId, Operation operation) {
+        cleanExecutionCompanion.completeExecution(userId, executionId, operation);
     }
 
     public void readStdSlots(LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> response) {

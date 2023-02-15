@@ -77,6 +77,7 @@ public class BaseTest {
 
     protected RenewableJwt internalUserCredentials;
     protected AuthServerInterceptor authInterceptor;
+    protected WorkflowMetrics metrics;
 
     @Before
     public void setUp() throws IOException, InterruptedException {
@@ -146,6 +147,8 @@ public class BaseTest {
 
         operationServiceClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(lzyServiceChannel),
             "TestClient", () -> internalUserCredentials.get().token());
+
+        metrics = context.getBean(WorkflowMetrics.class);
     }
 
     @After

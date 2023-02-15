@@ -1,20 +1,22 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.metrics.MetricReporter;
-import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Histogram;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 
-import javax.inject.Singleton;
 
 @Singleton
-@Requires(bean = MetricReporter.class)
 public class AllocatorMetrics {
 
     private static final String ALLOCATOR = "allocator";
     private static final String ALLOCATOR_PRIVATE = "allocator_private";
     private static final String VM_POOL_LABEL = "pool";
+
+    public AllocatorMetrics(@Named("AllocatorMetricReporter") MetricReporter ignored) {
+    }
 
     public final Gauge activeSessions = Gauge
         .build("active_sessions", "Active Allocator Sessions")
