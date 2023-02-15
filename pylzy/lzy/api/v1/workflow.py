@@ -218,7 +218,8 @@ class LzyWorkflow:
         await asyncio.gather(*data_to_load)
 
         for call in self.__call_queue:
-            args_inputs_hash: str = '_'.join(map(lambda eid: cast(str, self.snapshot.get(eid).hash), call.arg_entry_ids))
+            args_inputs_hash: str = '_'.join(map(lambda eid: cast(str, self.snapshot.get(eid).hash),
+                                                 call.arg_entry_ids))
             kwargs_inputs_hash: str = '_'.join(map(
                 lambda name: cast(str, self.snapshot.get(call.kwarg_entry_ids[name]).hash),
                 sorted(call.kwargs.keys())
