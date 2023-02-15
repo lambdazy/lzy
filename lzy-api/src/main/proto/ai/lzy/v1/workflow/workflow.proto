@@ -19,13 +19,13 @@ message Operation {
 
   /* optional */ string dockerImage = 6;  // If not set, running on default Lzy image
 
-  oneof env {
+  oneof execution_context {
     /* optional */ PythonEnvSpec python = 7;  // If not set, running in default bash env
   }
 
   string poolSpecName = 8;  // Label to execute operation in
 
-  /* optional */ map<string, string> envVariables = 9;  // Environment variables to run operation with
+  /* optional */ map<string, string> env = 9;  // Environment variables to run operation with
 
   message SlotDescription {
     string path = 1;

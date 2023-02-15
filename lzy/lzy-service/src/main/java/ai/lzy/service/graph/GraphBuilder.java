@@ -233,7 +233,7 @@ class GraphBuilder {
                 makeCreateChannelCommand(userId, workflowName, executionId, channelNameForStderrSlot)).getChannelId();
 
             tasks.add(buildTaskWithZone(taskId, operation, zoneName, stdoutChannelId, stderrChannelId, slot2Channel,
-                slot2description, portalClient, operation.getEnvVariablesMap()));
+                slot2description, portalClient, operation.getEnvMap()));
         }
 
         return tasks;
@@ -310,7 +310,7 @@ class GraphBuilder {
             env.setProcessEnv(LME.ProcessEnv.newBuilder().build());
         }
 
-        env.putAllEnvVariables(envMap);
+        env.putAllEnv(envMap);
 
         var taskOperation = LMO.Operation.newBuilder()
             .setEnv(env.build())

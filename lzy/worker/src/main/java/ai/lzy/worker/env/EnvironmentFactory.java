@@ -36,9 +36,6 @@ public class EnvironmentFactory {
             return envForTests.get();
         }
 
-        if (env.hasAuxEnv() || env.hasBaseEnv()) {  // To support deprecated api
-            return getDeprecatedEnvironment(fsRoot, env);
-        }
         final BaseEnvironment baseEnv;
 
         if (!Strings.isBlank(env.getDockerImage())) {
@@ -51,7 +48,7 @@ public class EnvironmentFactory {
                 .addMount(RESOURCES_PATH, RESOURCES_PATH)
                 .addMount(LOCAL_MODULES_PATH, LOCAL_MODULES_PATH)
                 .addRsharedMount(fsRoot, fsRoot)
-                .setEnvs(env.getEnvVariablesMap())
+                .setEnvs(env.getEnvMap())
                 .build();
 
             if (createdContainers.containsKey(image)) {
@@ -61,7 +58,7 @@ public class EnvironmentFactory {
                 createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
             }
         } else {
-            baseEnv = localProcessEnv.withEnv(env.getEnvVariablesMap());
+            baseEnv = localProcessEnv.withEnv(env.getEnvMap());
         }
 
         if (env.hasPyenv()) {
@@ -72,46 +69,6 @@ public class EnvironmentFactory {
             LOG.error("Error while creating env: undefined env");
             throw Status.UNIMPLEMENTED.withDescription("Provided unsupported env")
                 .asRuntimeException();
-        }
-    }
-
-    private AuxEnvironment getDeprecatedEnvironment(String fsRoot, LME.EnvSpec env) {
-        BaseEnvironment baseEnv = null;
-
-        if (env.hasBaseEnv()) {
-            LOG.info("Docker baseEnv provided, using DockerEnvironment");
-
-            String image = env.getBaseEnv().getName();
-            if (Strings.isBlank(image) || image.equals("default")) {
-                image = defaultImage;
-            }
-
-            var config = BaseEnvConfig.newBuilder()
-                .withGpu(hasGpu)
-                .withImage(image)
-                .addMount(RESOURCES_PATH, RESOURCES_PATH)
-                .addMount(LOCAL_MODULES_PATH, LOCAL_MODULES_PATH)
-                .addRsharedMount(fsRoot, fsRoot)
-                .build();
-
-            if (createdContainers.containsKey(config.image())) {
-                baseEnv = createdContainers.get(config.image());
-            } else {
-                baseEnv = new DockerEnvironment(config);
-                createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
-            }
-
-        } else {
-            LOG.info("No baseEnv provided, using ProcessEnvironment");
-            baseEnv = localProcessEnv;
-        }
-
-        if (env.hasAuxEnv() && env.getAuxEnv().hasPyenv()) {
-            LOG.info("Conda auxEnv provided, using CondaEnvironment");
-            return new CondaEnvironment(env.getAuxEnv().getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
-        } else {
-            LOG.info("No auxEnv provided, using SimpleBashEnvironment");
-            return new SimpleBashEnvironment(baseEnv, env.getEnvVariablesMap());
         }
     }
 

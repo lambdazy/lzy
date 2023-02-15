@@ -31,7 +31,7 @@ public class EnvTest {
     public void testEnvVariables() throws Exception {
         var env = factory.create("", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .putEnvVariables("LOL", "kek")
+            .putEnv("LOL", "kek")
             .build());
 
         var proc = env.runProcess("echo $LOL");
