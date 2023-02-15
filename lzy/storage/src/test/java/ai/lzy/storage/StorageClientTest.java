@@ -10,7 +10,6 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import io.findify.s3mock.S3Mock;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -22,15 +21,12 @@ import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.Assert.assertEquals;
 
-@Ignore
 public class StorageClientTest {
     S3Mock s3Storage;
     Path storageTestDir;
@@ -110,53 +106,6 @@ public class StorageClientTest {
         }
         for (String filename : files) {
             storageClient.read(URI.create("s3://" + bucket + "/" + filename), storageTestDir.resolve(filename));
-        }
-
-        for (String filename : files) {
-            assertEquals(fileSize, Files.size(storageTestDir.resolve(filename)));
-        }
-    }
-
-    @Test
-    @Ignore("Must not halt")
-    public void testMultipleConcurrentReaders() throws IOException, InterruptedException {
-        var files = List.of(
-            "test-file-0", "test-file-1", "test-file-2", "test-file-3", "test-file-4"
-        );
-
-        for (String filename : files) {
-            createSparseFile(filename);
-            storageClient.write(URI.create("s3://" + bucket + "/" + filename), storageTestDir.resolve(filename));
-        }
-
-        int n = 5;
-        var readyLatch = new CountDownLatch(n);
-        var doneLatch = new CountDownLatch(n);
-        var executor = Executors.newFixedThreadPool(n);
-        var failed = new AtomicBoolean(false);
-
-        for (int i = 0; i < n; ++i) {
-            var filename = files.get(i);
-            executor.submit(() -> {
-                try {
-                    readyLatch.countDown();
-                    readyLatch.await();
-
-                    storageClient.read(URI.create("s3://" + bucket + "/" + filename), storageTestDir.resolve(filename));
-                } catch (Exception e) {
-                    failed.set(true);
-                    e.printStackTrace(System.err);
-                } finally {
-                    doneLatch.countDown();
-                }
-            });
-        }
-
-        doneLatch.await();
-        executor.shutdown();
-
-        if (failed.get()) {
-            throw new RuntimeException("Some of concurrent call was failed");
         }
 
         for (String filename : files) {
