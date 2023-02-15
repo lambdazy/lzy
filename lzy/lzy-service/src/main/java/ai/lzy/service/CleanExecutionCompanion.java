@@ -55,6 +55,7 @@ public class CleanExecutionCompanion {
 
     private final PortalClientProvider portalClients;
     private final ManagedChannel channelManagerChannel;
+    private final WorkflowMetrics metrics;
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
@@ -65,7 +66,8 @@ public class CleanExecutionCompanion {
                                    @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                    @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                    @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
-                                   @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel)
+                                   @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
+                                   WorkflowMetrics metrics)
     {
         this.storage = storage;
         this.workflowDao = workflowDao;
@@ -77,6 +79,7 @@ public class CleanExecutionCompanion {
 
         this.portalClients = portalClients;
         this.channelManagerChannel = channelManagerChannel;
+        this.metrics = metrics;
         this.channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
             () -> internalUserCredentials.get().token());
@@ -104,6 +107,8 @@ public class CleanExecutionCompanion {
                 tx.commit();
             }
         });
+
+        metrics.activeExecutions.labels(userId).dec();
     }
 
     public boolean tryToFinishExecution(String userId, String executionId, Status reason) {
@@ -123,6 +128,7 @@ public class CleanExecutionCompanion {
             return false;
         }
 
+        metrics.activeExecutions.labels(userId).dec();
         return true;
     }
 
@@ -150,10 +156,11 @@ public class CleanExecutionCompanion {
             return false;
         }
 
+        metrics.activeExecutions.labels(userId).dec();
         return true;
     }
 
-    public void completeExecution(String executionId, Operation completeOperation) {
+    public void completeExecution(String userId, String executionId, Operation completeOperation) {
         LOG.info("Attempt to complete execution: { executionId: {} }", executionId);
 
         stopGraphs(executionId);
@@ -222,6 +229,8 @@ public class CleanExecutionCompanion {
                     tx.commit();
                 }
             });
+
+            metrics.activeExecutions.labels(userId).dec();
         } catch (Exception e) {
             LOG.warn("Cannot update execution status: { executionId: {} }", executionId, e);
             try {

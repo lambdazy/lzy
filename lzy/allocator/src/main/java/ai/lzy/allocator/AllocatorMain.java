@@ -19,6 +19,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.runtime.Micronaut;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,7 +30,6 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.locks.LockSupport;
-import javax.inject.Named;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
@@ -45,7 +45,7 @@ public class AllocatorMain {
     private final AllocationContext allocationContext;
     private final MetricReporter metricReporter;
 
-    public AllocatorMain(MetricReporter metricReporter, AllocatorService allocator,
+    public AllocatorMain(@Named("AllocatorMetricReporter") MetricReporter metricReporter, AllocatorService allocator,
                          AllocatorPrivateService allocatorPrivate, DiskService diskService,
                          ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
                          @Named("AllocatorOperationsService") OperationsService operationsService,

@@ -175,6 +175,8 @@ public class WorkflowTest extends BaseTest {
 
     @Test
     public void startAndFinishExecutionWithInternalStorage() {
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
+
         var workflowName = "workflow_2";
         var creds =
             authorizedWorkflowClient.getOrCreateDefaultStorage(
@@ -182,6 +184,8 @@ public class WorkflowTest extends BaseTest {
         var executionId = authorizedWorkflowClient.startWorkflow(
             LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(creds).build()
         ).getExecutionId();
+
+        assertEquals(1, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
 
         String[] destroyedExecutionChannels = {null};
         onChannelsDestroy(exId -> destroyedExecutionChannels[0] = exId);
@@ -202,6 +206,8 @@ public class WorkflowTest extends BaseTest {
         assertTrue(finishOp.getDone());
         assertTrue(finishOp.hasResponse());
 
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
+
         assertEquals(executionId, destroyedExecutionChannels[0]);
         assertTrue(deleteSessionFlag.get());
         assertTrue(freeVmFlag.get());
@@ -221,6 +227,8 @@ public class WorkflowTest extends BaseTest {
 
         assertEquals(Status.FAILED_PRECONDITION.getCode(), thrownAlreadyFinished.getStatus().getCode());
         assertEquals(Status.FAILED_PRECONDITION.getCode(), thrownUnknownWorkflowExecution.getStatus().getCode());
+
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
 
     @Test
@@ -310,6 +318,8 @@ public class WorkflowTest extends BaseTest {
                 .build()
         );
 
+        assertEquals(1, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
+
         var firstExecutionId = firstExecution.getExecutionId();
 
         var operations = List.of(
@@ -367,6 +377,8 @@ public class WorkflowTest extends BaseTest {
                 .build()
         );
 
+        assertEquals(1, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
+
         var secondExecutionId = secondExecution.getExecutionId();
 
         var finishOp = authorizedWorkflowClient.finishWorkflow(
@@ -383,6 +395,8 @@ public class WorkflowTest extends BaseTest {
         assertSame(deleteSessionCount.get(), 2);
         assertSame(freeVmCount.get(), 2);
         assertSame(stopGraphCount.get(), 1);
+
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
 
     @Test
@@ -395,6 +409,8 @@ public class WorkflowTest extends BaseTest {
                 .build()
         );
         var executionId = execution.getExecutionId();
+
+        assertEquals(1, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
 
         var graphs = IntStream.range(0, 10).boxed().map(i -> {
                 var output1 = LWF.Operation.SlotDescription.newBuilder()
@@ -447,6 +463,8 @@ public class WorkflowTest extends BaseTest {
 
         authorizedWorkflowClient.abortWorkflow(LWFS.AbortWorkflowRequest.newBuilder()
             .setWorkflowName(workflowName).setExecutionId(executionId).build());
+
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
 
         assertTrue(stoppedGraphs.containsAll(graphIds));
         assertTrue(graphIds.containsAll(stoppedGraphs));
@@ -551,6 +569,8 @@ public class WorkflowTest extends BaseTest {
                 LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName).setSnapshotStorage(creds).build())
             .getExecutionId();
 
+        assertEquals(1, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
+
         var portalAddress = HostAndPort.fromParts("localhost", config.getPortal().getPortalApiPort());
         var portalChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
         var portalClient = LzyPortalGrpc.newBlockingStub(portalChannel).withInterceptors(
@@ -561,7 +581,11 @@ public class WorkflowTest extends BaseTest {
         portalChannel.shutdown();
         portalChannel.awaitTermination(5, TimeUnit.SECONDS);
 
-        authorizedWorkflowClient.finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
+        var op = authorizedWorkflowClient.finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
             .setWorkflowName(workflowName).setExecutionId(exId).build());
+
+        awaitOperationDone(operationServiceClient, op.getId(), Duration.ofMinutes(1));
+
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
 }

@@ -50,4 +50,21 @@ public class LzyServiceConfig {
 
     @ConfigurationBuilder("storage")
     private final StorageClientConfiguration storage = new StorageClientConfiguration();
+
+
+    public enum MetricsKind {
+        Disabled,
+        Logger,
+        Prometheus,
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("metrics")
+    public static final class MetricsConfig {
+        private MetricsKind kind = MetricsKind.Disabled;
+        private int port = 17080;
+        private String loggerName = "LogMetricReporter";
+        private String loggerLevel = "info";
+    }
 }

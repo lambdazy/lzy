@@ -2,6 +2,10 @@ package ai.lzy.service;
 
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
+import ai.lzy.metrics.DummyMetricReporter;
+import ai.lzy.metrics.LogMetricReporter;
+import ai.lzy.metrics.MetricReporter;
+import ai.lzy.metrics.PrometheusMetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -19,8 +23,10 @@ import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
+import io.prometheus.client.CollectorRegistry;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -110,5 +116,19 @@ public class BeanFactory {
     @Named("GraphDaoObjectMapper")
     public ObjectMapper mapper() {
         return new ObjectMapper().registerModule(new ProtobufModule());
+    }
+
+    @Singleton
+    @Bean(preDestroy = "stop")
+    @Named("LzyServiceMetricReporter")
+    public MetricReporter metricReporter(LzyServiceConfig.MetricsConfig config) {
+        CollectorRegistry.defaultRegistry.clear();
+
+        return switch (config.getKind()) {
+            case Disabled -> new DummyMetricReporter();
+            case Logger -> new LogMetricReporter(config.getLoggerName(),
+                Level.valueOf(config.getLoggerLevel().toUpperCase()));
+            case Prometheus -> new PrometheusMetricReporter(config.getPort());
+        };
     }
 }

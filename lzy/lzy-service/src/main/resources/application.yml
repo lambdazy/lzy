@@ -22,3 +22,7 @@ lzy-service:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"
     internal-user-private-key: ""
+
+  metrics:
+    kind: 'Prometheus'
+    port: 17081
