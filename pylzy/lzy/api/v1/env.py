@@ -42,3 +42,6 @@ class Env:
 
         if self.local_modules_path is None:
             raise ValueError("local_modules_path is not set")
+
+        if self.docker_only and self.docker_image is None:
+            raise ValueError("docker_only is set, but docker image is not set")

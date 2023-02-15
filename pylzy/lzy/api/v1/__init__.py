@@ -67,6 +67,12 @@ def op(
     if env_variables is None:
         env_variables = {}
 
+    if docker_only and (conda_yaml_path is not None
+                        or local_modules_path is not None
+                        or libraries is not None
+                        or python_version is not None):
+        raise ValueError("docker_only set, but some other env property requires sharing local env")
+
     def deco(f):
         """
         Decorator which will try to infer return type of function
@@ -240,6 +246,15 @@ class Lzy:
             env_variables = {}
 
         self.__register_default_runtime_storage()
+
+        if docker_only and (conda_yaml_path is not None
+                            or local_modules_path is not None
+                            or libraries is not None
+                            or python_version is not None):
+            raise ValueError("docker_only set, but some other env property requires sharing local env")
+
+        if docker_only and docker_image is None:
+            raise ValueError("docker_only is set, but docker image is not set")
 
         provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
         provisioning.validate()

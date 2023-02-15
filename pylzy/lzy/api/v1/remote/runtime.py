@@ -358,7 +358,7 @@ class RemoteRuntime(Runtime):
             python_env: Optional[Operation.PythonEnvSpec]
 
             if docker_image and call.env.docker_only:
-                python_env = None  # execute in bash env if without conda
+                python_env = None  # don't use conda for 'docker_only' ops
             else:
                 if call.env.conda_yaml_path:
                     with open(call.env.conda_yaml_path, "r") as file:
