@@ -1,8 +1,6 @@
 package ai.lzy.graph.model;
 
-import ai.lzy.model.operation.Operation;
-import ai.lzy.model.operation.OperationDeserializer;
-import ai.lzy.model.operation.OperationSerializer;
+import ai.lzy.v1.common.LMO;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -15,9 +13,7 @@ import java.util.Objects;
 @JsonDeserialize
 public record TaskDescription(
         String id,
-        @JsonSerialize(using = OperationSerializer.class)
-        @JsonDeserialize(using = OperationDeserializer.class)
-        Operation operation,
+        LMO.Operation operation,
         Map<String, String> slotsToChannelsAssignments
 ) {
     @Override

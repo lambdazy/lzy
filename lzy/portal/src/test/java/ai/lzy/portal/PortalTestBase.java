@@ -27,6 +27,7 @@ import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
@@ -292,6 +293,9 @@ public class PortalTestBase {
         var op = desc.workerStub.execute(LWS.ExecuteRequest.newBuilder()
             .setTaskDesc(LMO.TaskDesc.newBuilder()
                 .setOperation(LMO.Operation.newBuilder()
+                    .setEnv(LME.EnvSpec.newBuilder()
+                        .setProcessEnv(LME.ProcessEnv.newBuilder().build())
+                        .build())
                     .setName("zygote_" + taskNum)
                     .setCommand(fuze)
                     .setStdout(LMO.Operation.StdSlotDesc.newBuilder()

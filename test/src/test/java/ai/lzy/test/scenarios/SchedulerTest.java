@@ -1,12 +1,6 @@
 package ai.lzy.test.scenarios;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.model.DataScheme;
-import ai.lzy.model.graph.AuxEnv;
-import ai.lzy.model.graph.BaseEnv;
-import ai.lzy.model.graph.Env;
-import ai.lzy.model.operation.Operation;
-import ai.lzy.model.slot.Slot;
 import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.AllocatorContext;
@@ -14,6 +8,10 @@ import ai.lzy.test.impl.v2.ChannelManagerContext;
 import ai.lzy.test.impl.v2.GraphExecutorContext;
 import ai.lzy.test.impl.v2.IamContext;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.common.LMD;
+import ai.lzy.v1.common.LME;
+import ai.lzy.v1.common.LMO;
+import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
@@ -30,6 +28,8 @@ import java.util.Map;
 import java.util.stream.Stream;
 
 import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
+import static ai.lzy.v1.common.LMS.Slot.Direction.INPUT;
+import static ai.lzy.v1.common.LMS.Slot.Direction.OUTPUT;
 
 public class SchedulerTest {
     static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
@@ -123,16 +123,22 @@ public class SchedulerTest {
     private GraphExecutor.TaskDesc buildTask(String id, String command, List<String> inputs,
                                              List<String> outputs, Map<String, String> bindings)
     {
-        final var op = new Operation(
-            buildEnv(),
-            new Operation.Requirements("s", "A"),
-            command,
-            Stream.concat(
-                inputs.stream().map(t -> buildSlot(t, Slot.Direction.INPUT)),
-                outputs.stream().map(t -> buildSlot(t, Slot.Direction.OUTPUT))
-            ).toList(),
-            "", "", null, null
-        ).toProto();
+        final var op = LMO.Operation.newBuilder()
+            .setEnv(
+                LME.EnvSpec.newBuilder()
+                    .setProcessEnv(LME.ProcessEnv.newBuilder().build())
+                    .build()
+            )
+            .setRequirements(LMO.Requirements.newBuilder()
+                .setPoolLabel("s")
+                .setZone("A")
+                .build())
+            .setCommand(command)
+            .addAllSlots(Stream.concat(
+                inputs.stream().map(t -> buildSlot(t, INPUT)),
+                outputs.stream().map(t -> buildSlot(t, OUTPUT))
+            ).toList())
+            .build();
 
         return GraphExecutor.TaskDesc.newBuilder()
             .setOperation(op)
@@ -150,42 +156,17 @@ public class SchedulerTest {
             .build();
     }
 
-    private Env buildEnv() {
-        return new Env() {
-            @Override
-            public BaseEnv baseEnv() {
-                return null;
-            }
+    public static LMS.Slot buildSlot(String name, LMS.Slot.Direction direction) {
 
-            @Override
-            public AuxEnv auxEnv() {
-                return null;
-            }
-        };
-    }
-
-    private Slot buildSlot(String name, Slot.Direction direction) {
-        return new Slot() {
-            @Override
-            public String name() {
-                return name;
-            }
-
-            @Override
-            public Media media() {
-                return Media.FILE;
-            }
-
-            @Override
-            public Direction direction() {
-                return direction;
-            }
-
-            @Override
-            public DataScheme contentType() {
-                return DataScheme.PLAIN;
-            }
-        };
+        return LMS.Slot.newBuilder()
+            .setContentType(LMD.DataScheme.newBuilder()
+                .setSchemeFormat("plain")
+                .setDataFormat("text")
+                .build())
+            .setMedia(LMS.Slot.Media.FILE)
+            .setName(name)
+            .setDirection(direction)
+            .build();
     }
 
 }

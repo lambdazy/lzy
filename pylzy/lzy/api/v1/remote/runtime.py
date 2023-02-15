@@ -401,6 +401,7 @@ class RemoteRuntime(Runtime):
                     inputSlots=input_slots,
                     outputSlots=output_slots,
                     command=command,
+                    env=call.env.env_variables,
                     dockerImage=docker_image if docker_image is not None else "",
                     python=python_env,
                     poolSpecName=pool.poolSpecName,

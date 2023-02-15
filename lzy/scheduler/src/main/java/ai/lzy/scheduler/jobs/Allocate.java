@@ -61,7 +61,7 @@ public class Allocate extends WorkflowJobProvider<TaskState> {
         }
 
         var allocateDesc = allocator.allocate(task.userId(), task.workflowName(), session,
-            task.description().operation().requirements());
+            task.description().getOperation().getRequirements());
 
         final String vmId;
         try {

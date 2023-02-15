@@ -1,10 +1,9 @@
 package ai.lzy.worker;
 
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.message.FormattedMessage;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -71,5 +70,83 @@ public class StreamQueue extends Thread {
         this.stopping.set(true);
         this.interrupt();
         this.join();
+    }
+
+    public static class LogHandle implements AutoCloseable {
+        private static final String PREFIX = "[SYS] ";
+
+        private OutputStream out;
+        private OutputStream err;
+        private final Logger logger;
+
+
+        public LogHandle(StreamQueue outQueue, StreamQueue errQueue, Logger logger) {
+            this.logger = logger;
+            out = new PipedOutputStream();
+            err = new PipedOutputStream();
+
+            try {
+                outQueue.add(new PipedInputStream((PipedOutputStream) out));
+            } catch (IOException e) {
+                logger.error("Cannot init io stream for stdout, running without user logs");
+
+                try {
+                    out.close();
+                } catch (IOException ex) {
+                    // ignored
+                }
+
+                out = OutputStream.nullOutputStream();
+            }
+
+            try {
+                errQueue.add(new PipedInputStream((PipedOutputStream) err));
+            } catch (IOException e) {
+                logger.error("Cannot init io stream for stderr, running without user logs");
+
+                try {
+                    err.close();
+                } catch (IOException ex) {
+                    // ignored
+                }
+
+                err = OutputStream.nullOutputStream();
+            }
+        }
+
+        public void logOut(String pattern, Object... values) {
+            var formatted  = PREFIX + new FormattedMessage(pattern, values);
+
+            logger.info(formatted);
+
+            try {
+                out.write(formatted.getBytes());
+            } catch (IOException e) {
+                logger.error("Cannot write into stdout: ", e);
+            }
+        }
+
+        public void logErr(String pattern, Object... values) {
+            var formatted  = PREFIX + new FormattedMessage(pattern, values);
+
+            logger.info(formatted);
+
+            try {
+                err.write(formatted.getBytes());
+            } catch (IOException e) {
+                logger.error("Cannot write into stderr: ", e);
+            }
+        }
+
+
+        @Override
+        public void close() {
+            try {
+                out.close();
+                err.close();
+            } catch (IOException e) {
+                logger.error("Cannot close out/error streams: ", e);
+            }
+        }
     }
 }

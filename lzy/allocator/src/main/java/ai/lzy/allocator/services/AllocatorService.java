@@ -16,7 +16,6 @@ import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoConverter;
@@ -44,7 +43,11 @@ import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
@@ -57,7 +60,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
 @Singleton
-@Requires(beans = MetricReporter.class, notEnv = "test-mock")
+@Requires(notEnv = "test-mock")
 public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorService.class);
 
