@@ -7,7 +7,6 @@ import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.exceptions.CreateSlotException;
 import ai.lzy.portal.exceptions.SnapshotNotFound;
 import ai.lzy.portal.exceptions.SnapshotUniquenessException;
-import ai.lzy.storage.StorageClient;
 import ai.lzy.v1.portal.LzyPortal;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,15 +19,12 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
-import static ai.lzy.portal.slots.StorageClients.provider;
-
 public class SnapshotSlots {
     private static final Logger LOG = LogManager.getLogger(SnapshotSlots.class);
 
     private final Map<URI, SnapshotEntry> snapshots = new HashMap<>(); // snapshot storage uri -> snapshot entry
     private final Map<String, URI> name2uri = new HashMap<>(); // slot name -> snapshot storage uri
 
-    private final Map<StorageClients.Provider<? extends StorageClient>, StorageClient> storageClients = new HashMap<>();
     private final ExecutorService downloadUploadExecutor;
 
     public SnapshotSlots(ExecutorService downloadUploadExecutor) {
@@ -45,10 +41,7 @@ public class SnapshotSlots {
             throw new SnapshotUniquenessException("Slot already associated with snapshot data");
         }
 
-        StorageClient storageClient = storageClients.computeIfAbsent(
-            provider(snapshotData.getStorageConfig()),
-            provider -> provider.get(downloadUploadExecutor)
-        );
+        var storageClient = StorageClients.provider(snapshotData.getStorageConfig()).get(downloadUploadExecutor);
         var uri = URI.create(snapshotData.getStorageConfig().getUri());
 
         boolean alreadyHasData;
