@@ -23,7 +23,7 @@ CURRENT_VERSION=$(project_version | awk -F'-' '{print $1}')
 echo "CURRENT VERSION IS $CURRENT_VERSION"
 git branch "releases/R-$CURRENT_VERSION"
 
-if [[ $MAJOR ]]; then
+if [[ $MAJOR == true ]]; then
   # x+1.0-SNAPSHOT
   mvn build-helper:parse-version versions:set \
     -DnewVersion="\${parsedVersion.nextMajorVersion}.0\${parsedVersion.qualifier?}"
