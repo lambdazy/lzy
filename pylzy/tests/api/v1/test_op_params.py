@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
+from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
 from lzy.api.v1 import Lzy, op, Env, DockerPullPolicy
 from lzy.api.v1.provisioning import GpuType, Provisioning, CpuType
 from lzy.api.v1.call import LzyCall
@@ -246,3 +246,16 @@ class LzyOpParamsTests(TestCase):
         self.assertEqual("image2", call.env.docker_image)
         self.assertEqual("path1", call.env.conda_yaml_path)
         self.assertTrue(len(call.env.local_modules_path) > 0)
+
+    def test_env_variables(self):
+
+        @op(env_variables={"a": "a1", "b": "b"})
+        def foo() -> None:
+            pass
+
+        with self.lzy.workflow("test", env_variables={"a": "a2", "c": "c"}) as wf:
+            foo()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertEqual(call.env.env_variables, {"a": "a1", "b": "b", "c": "c"})

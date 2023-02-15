@@ -1,88 +1,79 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.model.graph.Env;
-import ai.lzy.model.graph.PythonEnv;
+import ai.lzy.v1.common.LME;
 import com.google.common.annotations.VisibleForTesting;
+import io.grpc.Status;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 
 import java.util.HashMap;
+import java.util.Map;
 import java.util.function.Supplier;
 
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
+    private static final String RESOURCES_PATH = "/tmp/resources/";
+    private static final String LOCAL_MODULES_PATH = "/tmp/local_modules/";
+
 
     private final HashMap<String, DockerEnvironment> createdContainers = new HashMap<>();
     private final ProcessEnvironment localProcessEnv = new ProcessEnvironment();
-    private static Supplier<Environment> envForTests = null;
+    private static Supplier<AuxEnvironment> envForTests = null;
 
     private final String defaultImage;
     private final boolean hasGpu;
-    private final boolean isDockerSupported;
 
     public EnvironmentFactory(String defaultImage, int gpuCount) {
         this.defaultImage = defaultImage;
         this.hasGpu = gpuCount > 0;
-        this.isDockerSupported = true;
     }
 
-    public Environment create(String fsRoot, Env env) {
+    public AuxEnvironment create(String fsRoot, LME.EnvSpec env) {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
             return envForTests.get();
         }
 
-        final String resourcesPathStr = "/tmp/resources/";
-        final String localModulesPathStr = "/tmp/local_modules/";
+        final BaseEnvironment baseEnv;
 
-        BaseEnvironment baseEnv = null;
-        if (isDockerSupported && env.baseEnv() != null) {
-            LOG.info("Docker baseEnv provided, using DockerEnvironment");
+        if (!Strings.isBlank(env.getDockerImage())) {
+            var image = env.getDockerImage();
+            LOG.info("Creating env with docker image {}", image);
 
-            String image = env.baseEnv().name();
-            if (image == null || image.equals("default")) {
-                image = defaultImage;
-            }
-            BaseEnvConfig config = BaseEnvConfig.newBuilder()
+            var config = BaseEnvConfig.newBuilder()
                 .withGpu(hasGpu)
                 .withImage(image)
-                .addMount(resourcesPathStr, resourcesPathStr)
-                .addMount(localModulesPathStr, localModulesPathStr)
+                .addMount(RESOURCES_PATH, RESOURCES_PATH)
+                .addMount(LOCAL_MODULES_PATH, LOCAL_MODULES_PATH)
                 .addRsharedMount(fsRoot, fsRoot)
+                .setEnvs(env.getEnvMap())
                 .build();
 
-            if (createdContainers.containsKey(config.image())) {
-                baseEnv = createdContainers.get(config.image());
-            }
-
-            if (baseEnv != null) {
-                LOG.info("Found existed Docker Environment, id={}", baseEnv.baseEnvId());
+            if (createdContainers.containsKey(image)) {
+                baseEnv = createdContainers.get(image);
             } else {
-                baseEnv = DockerEnvironment.create(config);
+                baseEnv = new DockerEnvironment(config);
                 createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
             }
         } else {
-            if (env.baseEnv() == null) {
-                LOG.info("No baseEnv provided, using ProcessEnvironment");
-            } else if (!isDockerSupported) {
-                LOG.info("Docker support disabled, using ProcessEnvironment, "
-                         + "baseEnv {} ignored", env.baseEnv().name());
-            }
-            baseEnv = localProcessEnv;
+            baseEnv = localProcessEnv.withEnv(env.getEnvMap());
         }
 
-        if (env.auxEnv() instanceof PythonEnv) {
-            LOG.info("Conda auxEnv provided, using CondaEnvironment");
-            return new CondaEnvironment((PythonEnv) env.auxEnv(), baseEnv, resourcesPathStr, localModulesPathStr);
+        if (env.hasPyenv()) {
+            return new CondaEnvironment(env.getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
+        } else if (env.hasProcessEnv()) {
+            return new SimpleBashEnvironment(baseEnv, Map.of());
         } else {
-            LOG.info("No auxEnv provided, using SimpleBashEnvironment");
-            return new SimpleBashEnvironment(baseEnv);
+            LOG.error("Error while creating env: undefined env");
+            throw Status.UNIMPLEMENTED.withDescription("Provided unsupported env")
+                .asRuntimeException();
         }
     }
 
     @VisibleForTesting
-    public static void envForTests(Supplier<Environment> env) {
+    public static void envForTests(Supplier<AuxEnvironment> env) {
         envForTests = env;
     }
 

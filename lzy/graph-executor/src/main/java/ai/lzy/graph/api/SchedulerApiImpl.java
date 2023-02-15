@@ -2,9 +2,9 @@ package ai.lzy.graph.api;
 
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.model.TaskDescription;
-import ai.lzy.model.TaskDesc;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcChannels;
+import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskScheduleRequest;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskStatusRequest;
@@ -44,7 +44,15 @@ public class SchedulerApiImpl implements SchedulerApi {
             .setUserId(userId)
             .setWorkflowName(workflowName)
             .setWorkflowId(workflowId)
-            .setTask(new TaskDesc(task.operation(), task.slotsToChannelsAssignments()).toProto())
+            .setTask(LMO.TaskDesc.newBuilder()
+                .setOperation(task.operation())
+                .addAllSlotAssignments(task.slotsToChannelsAssignments().entrySet().stream()
+                    .map(e -> LMO.SlotToChannelAssignment.newBuilder()
+                        .setChannelId(e.getValue())
+                        .setSlotName(e.getKey())
+                        .build())
+                    .toList())
+                .build())
             .build());
         return res.getStatus();
     }

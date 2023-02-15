@@ -3,7 +3,6 @@ package ai.lzy.scheduler;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.ReturnCodes;
-import ai.lzy.model.TaskDesc;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.scheduler.db.JobsOperationDao;
@@ -86,7 +85,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             request.getWorkflowId(),
             request.getWorkflowName(),
             request.getUserId(),
-            TaskDesc.fromProto(request.getTask()),
+            request.getTask(),
             null,
             null,
             null,

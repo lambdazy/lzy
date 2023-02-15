@@ -1,7 +1,7 @@
 import datetime
 import inspect
 import os
-from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable
+from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable, Mapping
 
 from lzy.api.v1.call import LzyCall, wrap_call
 from lzy.api.v1.env import DockerPullPolicy, Env
@@ -60,8 +60,12 @@ def op(
     ram_size_gb: Optional[int] = None,
     env: Env = Env(),
     description: str = "",
-    lazy_arguments: bool = False
+    lazy_arguments: bool = False,
+    env_variables: Optional[Mapping[str, str]] = None
 ):
+    if env_variables is None:
+        env_variables = {}
+
     def deco(f):
         """
         Decorator which will try to infer return type of function
@@ -88,7 +92,8 @@ def op(
 
         nonlocal env
         env = env.override(
-            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
+            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
+                env_variables=env_variables)
         )
 
         # yep, create lazy constructor and return it
@@ -225,8 +230,13 @@ class Lzy:
         gpu_type: Optional[str] = None,
         gpu_count: Optional[int] = None,
         ram_size_gb: Optional[int] = None,
+        env_variables: Optional[Mapping[str, str]] = None,
         env: Env = Env()
     ) -> LzyWorkflow:
+
+        if env_variables is None:
+            env_variables = {}
+
         self.__register_default_runtime_storage()
 
         provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
@@ -239,7 +249,8 @@ class Lzy:
         libraries = {} if not libraries else libraries
         local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
         env = env.override(
-            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
+            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
+                env_variables=env_variables)
         )
         env.validate()
 

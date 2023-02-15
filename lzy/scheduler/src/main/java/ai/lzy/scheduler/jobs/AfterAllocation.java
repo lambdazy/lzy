@@ -109,7 +109,7 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
             var operation = client.execute(LWS.ExecuteRequest.newBuilder()
                 .setTaskId(task.id())
                 .setExecutionId(task.executionId())
-                .setTaskDesc(task.description().toProto())
+                .setTaskDesc(task.description())
                 .build());
 
             try {

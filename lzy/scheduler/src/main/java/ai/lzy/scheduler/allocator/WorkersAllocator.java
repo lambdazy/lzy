@@ -1,12 +1,12 @@
 package ai.lzy.scheduler.allocator;
 
-import ai.lzy.model.operation.Operation;
+import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.longrunning.LongRunning;
 
 public interface WorkersAllocator {
 
     AllocateResult allocate(String userId, String workflowName,
-                                   String sessionId, Operation.Requirements requirements);
+                                   String sessionId, LMO.Requirements requirements);
 
     String createSession(String userId, String workflowName, String idempotencyKey);
 

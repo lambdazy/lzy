@@ -14,10 +14,10 @@ import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.graph.queue.QueueManager;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.model.operation.Operation;
-import ai.lzy.model.slot.Slot;
+import ai.lzy.v1.common.LMD;
+import ai.lzy.v1.common.LMO;
+import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.inject.qualifiers.Qualifiers;
@@ -31,6 +31,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
+import static ai.lzy.v1.common.LMS.Slot.Direction.INPUT;
+import static ai.lzy.v1.common.LMS.Slot.Direction.OUTPUT;
 import static ai.lzy.v1.scheduler.Scheduler.TaskStatus.StatusCase.ERROR;
 import static ai.lzy.v1.scheduler.Scheduler.TaskStatus.StatusCase.EXECUTING;
 
@@ -391,38 +393,29 @@ public class GraphExecutorTest {
         }
     }
 
-    public static Operation buildOperation(List<String> inputs, List<String> outputs) {
+    public static LMO.Operation buildOperation(List<String> inputs, List<String> outputs) {
         final var slots = Stream.concat(
                 inputs.stream()
-                    .map(s -> buildSlot(s, Slot.Direction.INPUT)),
+                    .map(s -> buildSlot(s, INPUT)),
                 outputs.stream()
-                    .map(s -> buildSlot(s, Slot.Direction.OUTPUT)))
+                    .map(s -> buildSlot(s, OUTPUT)))
             .toList();
-        return new Operation(null, new Operation.Requirements("", ""), "", slots, "", "", null, null);
+        return LMO.Operation.newBuilder()
+            .setRequirements(LMO.Requirements.newBuilder()
+                .setZone("")
+                .setPoolLabel("")
+                .build())
+            .addAllSlots(slots)
+            .build();
     }
 
-    public static Slot buildSlot(String name, Slot.Direction direction) {
-        return new Slot() {
-            @Override
-            public String name() {
-                return name;
-            }
+    public static LMS.Slot buildSlot(String name, LMS.Slot.Direction direction) {
 
-            @Override
-            public Media media() {
-                return Media.FILE;
-            }
-
-            @Override
-            public Direction direction() {
-                return direction;
-            }
-
-            @Override
-            public DataScheme contentType() {
-                return DataScheme.PLAIN;
-            }
-        };
+        return LMS.Slot.newBuilder()
+            .setContentType(LMD.DataScheme.newBuilder().build())
+            .setName(name)
+            .setDirection(direction)
+            .build();
     }
 
     public static class GraphDescriptionBuilder {
