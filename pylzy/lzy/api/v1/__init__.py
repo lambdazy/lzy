@@ -60,8 +60,12 @@ def op(
     ram_size_gb: Optional[int] = None,
     env: Env = Env(),
     description: str = "",
-    lazy_arguments: bool = False
+    lazy_arguments: bool = False,
+    env_variables: Optional[Mapping[str, str]] = None
 ):
+    if env_variables is None:
+        env_variables = {}
+
     def deco(f):
         """
         Decorator which will try to infer return type of function
@@ -88,7 +92,8 @@ def op(
 
         nonlocal env
         env = env.override(
-            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path)
+            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
+                env_variables=env_variables)
         )
 
         # yep, create lazy constructor and return it
