@@ -12,6 +12,11 @@ on:
         description: 'Update base worker docker image'
         required: false
         default: false
+      stored-worker-base:
+        type: string
+        description: 'Stored base worker docker image tag'
+        required: false
+        default: 'master-1.0'
 jobs:
 
   build-and-push-dockers:
@@ -39,7 +44,7 @@ jobs:
         run: |
           FLAGS="--install"
           if [[ ${{ github.event.inputs.worker-base }} == true ]]; then FLAGS="$FLAGS --base"; fi
-          bash deployment/build-worker-images.sh "${{ github.ref_name }}" lzydock "${{ github.event.inputs.tag }}" "" $FLAGS
+          bash deployment/build-worker-images.sh lzydock "${{ github.event.inputs.tag }}" "${{ inputs.stored-worker-base }}" $FLAGS
 
       - name: 'Clean docker files'
         run: |
