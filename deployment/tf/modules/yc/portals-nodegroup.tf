@@ -41,7 +41,7 @@ resource "yandex_kubernetes_node_group" "portals" {
 
   scale_policy {
     fixed_scale {
-      size = 10
+      size = var.portals_pool_size
     }
   }
 }
