@@ -42,6 +42,21 @@ service Allocator {
 
   // Return control of vm to allocator
   rpc Free (FreeRequest) returns (FreeResponse);
+
+  rpc Mount (MountRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "MountResponse"
+    };
+  }
+
+  rpc Unmount (UnmountRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "UnmountResponse"
+    };
+  }
+
 }
 
 // ========= Create session ==========
@@ -143,3 +158,24 @@ message FreeRequest {
 }
 
 message FreeResponse {}
+
+// ========= Mount disk ==========
+
+message MountRequest {
+  string vm_id = 1;
+
+  Volume volume = 2;
+  Mount volume_mount = 3;
+}
+
+message MountResponse {
+}
+
+// ========= Unmount disk ==========
+
+message UnmountRequest {
+  string volume_name = 1;
+}
+
+message UnmountResponse {
+}

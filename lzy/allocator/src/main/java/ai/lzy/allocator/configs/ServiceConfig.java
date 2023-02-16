@@ -22,6 +22,7 @@ public class ServiceConfig {
     private List<String> hosts = new ArrayList<>(); // either [<ipv4>] or [<ipv4>,<ipv6>]
     private Integer port;
     private Duration allocationTimeout;
+    private Duration mountTimeout;
     private Duration heartbeatTimeout;
     private List<String> serviceClusters = new ArrayList<>();
     private List<String> userClusters = new ArrayList<>();

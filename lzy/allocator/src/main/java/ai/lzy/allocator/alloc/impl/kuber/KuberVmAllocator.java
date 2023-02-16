@@ -94,7 +94,7 @@ public class KuberVmAllocator implements VmAllocator {
         var allocState = vm.allocateState();
 
         try (final var client = factory.build(cluster)) {
-            var podSpecBuilder = new PodSpecBuilder(vmSpec, pool, client, config,
+            var podSpecBuilder = new VmPodSpecBuilder(vmSpec, pool, client, config,
                 VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX);
 
             final String podName = podSpecBuilder.getPodName();

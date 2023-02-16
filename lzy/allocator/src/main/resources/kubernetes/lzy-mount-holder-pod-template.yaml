@@ -2,12 +2,12 @@ apiVersion: v1
 kind: Pod
 metadata:
   labels:
-    app.kubernetes.io/name: lzy-vm-mount-helper
+    app.kubernetes.io/name: lzy-vm-mount-holder
     app.kubernetes.io/part-of: lzy
-    lzy.ai/app: vm
+    lzy.ai/app: mount-holder
 spec:
   containers:
-    - name: mount-helper
+    - name: mount-holder
       image: alpine:3.14
       imagePullPolicy: Always
       securityContext:

@@ -529,7 +529,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                         var session = sessionsDao.get(vm.sessionId(), tx);
                         if (session == null) {
-                            LOG.error("Corrupted vm with incorrect session id: {}", vm);
+                            LOG.error("Corrupted vm {} with incorrect session id: {}", vm.vmId(), vm.sessionId());
                             return Status.INTERNAL.withDescription("Session %s not found".formatted(vm.sessionId()));
                         }
 
@@ -586,6 +586,72 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         } else {
             responseObserver.onError(status.asException());
         }
+    }
+
+    @Override
+    public void mount(MountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+        LOG.info("Mount request {}", ProtoPrinter.safePrinter().shortDebugString(request));
+
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationsDao, idempotencyKey, responseObserver, LOG)) {
+            return;
+        }
+
+        final Vm vm;
+        try {
+            vm = withRetries(LOG, () -> vmDao.get(request.getVmId(), null));
+        } catch (Exception ex) {
+            LOG.error("Cannot get vm {}: {}", request.getVmId(), ex.getMessage(), ex);
+            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            return;
+        }
+
+        if (vm == null) {
+            LOG.error("Cannot find vm {}", request.getVmId());
+            responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot find vm").asException());
+            return;
+        }
+
+        final Session session;
+        try {
+            session = withRetries(LOG, () -> sessionsDao.get(vm.sessionId(), null));
+        } catch (Exception ex) {
+            LOG.error("Cannot get session {}: {}", vm.sessionId(), ex.getMessage(), ex);
+            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            return;
+        }
+
+        if (session == null) {
+            LOG.error("Corrupted vm {} with incorrect session id: {}", vm.vmId(), vm.sessionId());
+            responseObserver.onError(Status.INTERNAL
+                .withDescription("Session %s not found".formatted(vm.sessionId())).asException());
+            return;
+        }
+
+        try {
+        withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    var volumes = prepareVolumeRequests(List.of(request.getVolume()), tx);
+
+
+
+                } catch (StatusException e) {
+                    //
+                }
+            });
+        } catch (Exception ex) {
+            LOG.error("Error while mount // vm {}: {}", request.getVmId(), ex.getMessage(), ex);
+            responseObserver.onError(Status.INTERNAL.withDescription("Error while free").asException());
+            return;
+        }
+
+
+        super.mount(request, responseObserver);
+    }
+
+    @Override
+    public void unmount(UnmountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+        super.unmount(request, responseObserver);
     }
 
     private List<VolumeRequest> prepareVolumeRequests(List<VolumeApi.Volume> volumes, TransactionHandle transaction)
