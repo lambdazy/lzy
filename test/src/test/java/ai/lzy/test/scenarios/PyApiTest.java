@@ -33,7 +33,7 @@ public class PyApiTest {
                 1. Importing external modules (catboost)
                 2. Functions which accept and return complex objects
          */
-        pythonContext.context().evalAndAssertScenarioResult("catboost_integration_cpu", List.of("catboost"));
+        pythonContext.context().evalAndAssertScenarioResult("catboost_integration_cpu");
     }
 
     @Test
