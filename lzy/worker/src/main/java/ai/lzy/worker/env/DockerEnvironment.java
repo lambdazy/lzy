@@ -52,13 +52,13 @@ public class DockerEnvironment extends BaseEnvironment {
             try {
                 prepareImage(config, handle);
             } catch (Exception e) {
-                handle.logErr("Error while pulling image: ", e);
+                handle.logErr("Error while pulling image: {}", e);
                 throw new RuntimeException(e);
             }
 
             var sourceImage = config.image();
 
-            handle.logErr("Creating container from image={} ... , config = {}", sourceImage, config);
+            handle.logOut("Creating container from image={} ... , config = {}", sourceImage, config);
 
             final List<Mount> dockerMounts = new ArrayList<>();
             config.mounts().forEach(m -> {
@@ -89,11 +89,11 @@ public class DockerEnvironment extends BaseEnvironment {
                 .exec();
 
             final String containerId = container.getId();
-            handle.logErr("Creating container from image={} done, id={}", sourceImage, containerId);
+            handle.logOut("Creating container from image={} done, id={}", sourceImage, containerId);
 
-            handle.logErr("Starting env container with id {} ...", containerId);
+            handle.logOut("Starting env container with id {} ...", containerId);
             client.startContainerCmd(container.getId()).exec();
-            handle.logErr("Starting env container with id {} done", containerId);
+            handle.logOut("Starting env container with id {} done", containerId);
 
             this.containerId = containerId;
         }
@@ -235,7 +235,7 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     private void prepareImage(BaseEnvConfig config, StreamQueue.LogHandle handle) {
-        handle.logErr("Pulling image {} ...", config.image());
+        handle.logOut("Pulling image {} ...", config.image());
         final var pullingImage = client
             .pullImageCmd(config.image())
             .exec(new PullImageResultCallback());
@@ -245,7 +245,7 @@ public class DockerEnvironment extends BaseEnvironment {
             handle.logErr("Pulling image {} was interrupted", config.image());
             throw new RuntimeException(e);
         }
-        handle.logErr("Pulling image {} done", config.image());
+        handle.logOut("Pulling image {} done", config.image());
     }
 
     public static DockerClient generateClient(@Nullable LME.DockerCredentials credentials) {
