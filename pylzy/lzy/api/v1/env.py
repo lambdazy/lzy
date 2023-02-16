@@ -9,6 +9,13 @@ class DockerPullPolicy(Enum):
 
 
 @dataclass
+class DockerCredentials:
+    registry: str
+    username: str
+    password: str
+
+
+@dataclass
 class Env:
     python_version: Optional[str] = None
     libraries: Dict[str, str] = field(default_factory=dict)
@@ -18,6 +25,7 @@ class Env:
     local_modules_path: Optional[Sequence[str]] = None
     docker_only: bool = False
     env_variables: Mapping[str, str] = field(default_factory=dict)
+    docker_credentials: Optional[DockerCredentials] = None
 
     def override(self, other: "Env") -> "Env":
         return Env(
@@ -29,7 +37,8 @@ class Env:
             local_modules_path=other.local_modules_path if other.local_modules_path is not None else
             self.local_modules_path,
             docker_only=self.docker_only or other.docker_only,
-            env_variables={**self.env_variables, **other.env_variables}
+            env_variables={**self.env_variables, **other.env_variables},
+            docker_credentials=other.docker_credentials if other.docker_credentials else self.docker_credentials
         )
 
     def validate(self) -> None:

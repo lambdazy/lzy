@@ -4,7 +4,7 @@ import os
 from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable, Mapping
 
 from lzy.api.v1.call import LzyCall, wrap_call
-from lzy.api.v1.env import DockerPullPolicy, Env
+from lzy.api.v1.env import DockerPullPolicy, Env, DockerCredentials
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.api.v1.provisioning import Provisioning, GpuType, CpuType
 from lzy.api.v1.remote.runtime import RemoteRuntime
@@ -62,7 +62,8 @@ def op(
     description: str = "",
     lazy_arguments: bool = False,
     env_variables: Optional[Mapping[str, str]] = None,
-    docker_only: bool = False
+    docker_only: bool = False,
+    docker_credentials: Optional[DockerCredentials] = None
 ):
     if env_variables is None:
         env_variables = {}
@@ -101,7 +102,7 @@ def op(
         nonlocal env
         env = env.override(
             Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
-                env_variables=env_variables, docker_only=docker_only)
+                env_variables=env_variables, docker_only=docker_only, docker_credentials=docker_credentials)
         )
 
         # yep, create lazy constructor and return it
@@ -240,6 +241,7 @@ class Lzy:
         ram_size_gb: Optional[int] = None,
         docker_only: bool = False,
         env_variables: Optional[Mapping[str, str]] = None,
+        docker_credentials: Optional[DockerCredentials] = None,
         env: Env = Env()
     ) -> LzyWorkflow:
 
@@ -268,8 +270,8 @@ class Lzy:
         libraries = {} if not libraries else libraries
         local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
         env = env.override(
-            Env(python_version, libraries, conda_yaml_path, docker_image,
-                docker_pull_policy, local_modules_path, docker_only=docker_only, env_variables=env_variables)
+            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
+                docker_only=docker_only, env_variables=env_variables, docker_credentials=docker_credentials)
         )
         env.validate()
 

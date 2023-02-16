@@ -293,6 +293,20 @@ class GraphBuilder {
 
         env.setDockerImage(operation.getDockerImage());
 
+        if (operation.hasDockerCredentials()) {
+            env.setDockerCredentials(LME.DockerCredentials.newBuilder()
+                .setUsername(operation.getDockerCredentials().getUsername())
+                .setPassword(operation.getDockerCredentials().getPassword())
+                .setRegistryName(operation.getDockerCredentials().getRegistryName())
+                .build());
+        }
+
+        if (operation.getDockerPullPolicy() == LWF.Operation.DockerPullPolicy.ALWAYS) {
+            env.setDockerPullPolicy(LME.DockerPullPolicy.ALWAYS);
+        } else {
+            env.setDockerPullPolicy(LME.DockerPullPolicy.IF_NOT_EXISTS);
+        }
+
         if (operation.hasPython()) {
             env.setPyenv(
                 LME.PythonEnv.newBuilder()

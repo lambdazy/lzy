@@ -1,5 +1,6 @@
 package ai.lzy.worker.env;
 
+import ai.lzy.v1.common.LME;
 import ai.lzy.worker.StreamQueue;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
@@ -238,5 +239,14 @@ public class DockerEnvironment extends BaseEnvironment {
             throw new RuntimeException(e);
         }
         handle.logErr("Pulling image {} done", config.image());
+    }
+
+    public static void login(LME.DockerCredentials credentials) {
+        DOCKER.authCmd()
+            .withAuthConfig(new AuthConfig()
+                .withUsername(credentials.getUsername())
+                .withPassword(credentials.getPassword())
+                .withRegistryAddress(credentials.getRegistryName()))
+            .exec();
     }
 }

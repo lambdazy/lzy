@@ -42,6 +42,10 @@ public class EnvironmentFactory {
             var image = env.getDockerImage();
             LOG.info("Creating env with docker image {}", image);
 
+            if (env.hasDockerCredentials()) {
+                DockerEnvironment.login(env.getDockerCredentials());
+            }
+
             var config = BaseEnvConfig.newBuilder()
                 .withGpu(hasGpu)
                 .withImage(image)
@@ -52,7 +56,20 @@ public class EnvironmentFactory {
                 .build();
 
             if (createdContainers.containsKey(image)) {
-                baseEnv = createdContainers.get(image);
+                var cachedEnv = createdContainers.get(image);
+
+                if (env.getDockerPullPolicy() == LME.DockerPullPolicy.ALWAYS) {
+                    try {
+                        cachedEnv.close();
+                    } catch (Exception e) {
+                        LOG.error("Cannot kill docker container {}", cachedEnv.containerId);
+                    }
+                    baseEnv = new DockerEnvironment(config);
+                    createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
+                } else {
+                    baseEnv = cachedEnv;
+                }
+
             } else {
                 baseEnv = new DockerEnvironment(config);
                 createdContainers.put(config.image(), (DockerEnvironment) baseEnv);

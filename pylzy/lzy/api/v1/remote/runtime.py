@@ -20,6 +20,7 @@ from typing import (
     cast,
 )
 
+from lzy.api.v1 import DockerPullPolicy
 from lzy.storage.api import Storage
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
@@ -403,6 +404,13 @@ class RemoteRuntime(Runtime):
                     command=command,
                     env=call.env.env_variables,
                     dockerImage=docker_image if docker_image is not None else "",
+                    dockerCredentials=Operation.DockerCredentials(
+                        registryName=call.env.docker_credentials.registry,
+                        username=call.env.docker_credentials.username,
+                        password=call.env.docker_credentials.password
+                    ) if call.env.docker_credentials else None,
+                    dockerPullPolicy=Operation.ALWAYS if call.env.docker_pull_policy == DockerPullPolicy.ALWAYS
+                    else Operation.IF_NOT_EXISTS,
                     python=python_env,
                     poolSpecName=pool.poolSpecName,
                 )
