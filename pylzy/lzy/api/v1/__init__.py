@@ -71,7 +71,8 @@ def op(
                         or local_modules_path is not None
                         or libraries is not None
                         or python_version is not None):
-        raise ValueError("docker_only set, but some other env property requires sharing local env")
+        raise ValueError("'docker_only' is not compatible with explicit python env settings "
+                         "(conda_yaml_path, local_modules_path, libraries, python_version)")
 
     def deco(f):
         """
@@ -251,7 +252,8 @@ class Lzy:
                             or local_modules_path is not None
                             or libraries is not None
                             or python_version is not None):
-            raise ValueError("docker_only set, but some other env property requires sharing local env")
+            raise ValueError("'docker_only' is not compatible with explicit python env"
+                             " settings (conda_yaml_path, local_modules_path, libraries, python_version)")
 
         if docker_only and docker_image is None:
             raise ValueError("docker_only is set, but docker image is not set")
