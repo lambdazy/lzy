@@ -113,8 +113,10 @@ class RemoteRuntime(Runtime):
         pools = await client.get_pool_specs(self.__execution_id)
 
         modules: Set[str] = set()
+
         for call in calls:
-            modules.update(cast(Sequence[str], call.env.local_modules_path))
+            if not call.env.docker_only:
+                modules.update(cast(Sequence[str], call.env.local_modules_path))
 
         urls = await self.__load_local_modules(modules)
 
@@ -353,13 +355,25 @@ class RemoteRuntime(Runtime):
             else:
                 docker_image = None
 
-            conda_yaml: Optional[str]
-            if call.env.conda_yaml_path:
-                with open(call.env.conda_yaml_path, "r") as file:
-                    conda_yaml = file.read()
+            python_env: Optional[Operation.PythonEnvSpec]
+
+            if docker_image and call.env.docker_only:
+                python_env = None  # don't use conda for 'docker_only' ops
             else:
-                conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
-                                                 cast(Dict[str, str], call.env.libraries))
+                if call.env.conda_yaml_path:
+                    with open(call.env.conda_yaml_path, "r") as file:
+                        conda_yaml = file.read()
+                else:
+                    conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
+                                                     cast(Dict[str, str], call.env.libraries))
+
+                python_env = Operation.PythonEnvSpec(
+                    yaml=conda_yaml,
+                    localModules=[
+                        Operation.PythonEnvSpec.LocalModule(name=name, url=url)
+                        for (name, url) in modules
+                    ],
+                )
 
             request = ProcessingRequest(
                 get_logging_config(),
@@ -389,13 +403,7 @@ class RemoteRuntime(Runtime):
                     command=command,
                     env=call.env.env_variables,
                     dockerImage=docker_image if docker_image is not None else "",
-                    python=Operation.PythonEnvSpec(
-                        yaml=conda_yaml,
-                        localModules=[
-                            Operation.PythonEnvSpec.LocalModule(name=name, url=url)
-                            for (name, url) in modules
-                        ],
-                    ),
+                    python=python_env,
                     poolSpecName=pool.poolSpecName,
                 )
             )
