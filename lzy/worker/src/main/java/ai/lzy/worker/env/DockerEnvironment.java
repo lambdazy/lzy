@@ -85,7 +85,7 @@ public class DockerEnvironment extends BaseEnvironment {
                 .withAttachStdout(true)
                 .withAttachStderr(true)
                 .withTty(true)
-                .withEnv(config.envs())
+                .withEnv(config.envVars())
                 .exec();
 
             final String containerId = container.getId();
