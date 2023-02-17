@@ -51,7 +51,8 @@ class LzyCall:
                 self.__args_entry_ids.append(workflow.entry_index.get_entry_id(arg))
             elif not is_lzy_proxy(arg):
                 arg_name = sign.func.arg_names[i]
-                entry = workflow.snapshot.create_entry("local", sign.func.input_types[arg_name])
+                name = sign.func.callable.__name__ + "." + arg_name
+                entry = workflow.snapshot.create_entry(name, sign.func.input_types[arg_name])
                 self.__args_entry_ids.append(entry.id)
                 workflow.entry_index.add_entry_id(arg, entry.id)
             else:
