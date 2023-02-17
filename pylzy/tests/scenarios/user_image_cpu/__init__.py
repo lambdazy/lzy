@@ -5,7 +5,7 @@ from localq import two
 
 
 def is_inside_container() -> bool:
-    return os.environ.get("CUSTOM_IMAGE") == "true"
+    return os.environ.get("LZY_INNER_CONTAINER") == "true"
 
 
 @op(docker_image="lzydock/user-test:1.3.1")

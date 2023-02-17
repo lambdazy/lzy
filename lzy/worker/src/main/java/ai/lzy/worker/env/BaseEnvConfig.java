@@ -24,7 +24,6 @@ public record BaseEnvConfig(
             ", mounts=[" + mounts.stream()
             .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
             .collect(Collectors.joining(", ")) + "]" +
-            ", envVars=[" + String.join(",", envVars) + "]" +
             '}';
     }
 
@@ -57,10 +56,8 @@ public record BaseEnvConfig(
             return this;
         }
 
-        public Builder setEnvVars(Map<String, String> envVars) {
-            this.envVars = envVars.entrySet().stream()
-                .map(e -> e.getKey() + "=" + e.getValue())
-                .toList();
+        public Builder withEnvVars(Map<String, String> envVars) {
+            envVars.forEach((key, value) -> this.envVars.add(key + "=" + value));
             return this;
         }
 

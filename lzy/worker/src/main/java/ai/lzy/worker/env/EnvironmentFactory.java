@@ -42,9 +42,6 @@ public class EnvironmentFactory {
             var image = env.getDockerImage();
             LOG.info("Creating env with docker image {}", image);
 
-            var envVars = new HashMap<>(env.getEnvMap());
-            envVars.put("CUSTOM_IMAGE", "true");
-
             var credentials = env.hasDockerCredentials() ? env.getDockerCredentials() : null;
 
             var config = BaseEnvConfig.newBuilder()
@@ -53,7 +50,8 @@ public class EnvironmentFactory {
                 .addMount(RESOURCES_PATH, RESOURCES_PATH)
                 .addMount(LOCAL_MODULES_PATH, LOCAL_MODULES_PATH)
                 .addRsharedMount(fsRoot, fsRoot)
-                .setEnvVars(envVars)
+                .withEnvVars(env.getEnvMap())
+                .withEnvVars(Map.of("LZY_INNER_CONTAINER", "true"))
                 .build();
 
             var cachedEnv = createdContainers.get(image);

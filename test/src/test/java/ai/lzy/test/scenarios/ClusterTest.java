@@ -32,10 +32,10 @@ public class ClusterTest {
     @Test
     public void testUserImageGpu() {
         /* This scenario checks for:
-                1. Execution is running inside container from custom image
+                1. Execution is running inside container from user image
                 2. Execution is running on gpu
          */
-        pythonContext.evalAndAssertScenarioResult("custom_image_gpu", List.of("tensorflow"));
+        pythonContext.evalAndAssertScenarioResult("user_image_gpu", List.of("tensorflow"));
     }
 
     @Test

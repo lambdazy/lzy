@@ -12,7 +12,7 @@ def get_available_gpus() -> List[str]:
 
 
 def is_inside_container() -> bool:
-    return os.environ.get("CUSTOM_IMAGE") == "true"
+    return os.environ.get("LZY_INNER_CONTAINER") == "true"
 
 
 @op(gpu_type=GpuType.V100.name, gpu_count=1)
