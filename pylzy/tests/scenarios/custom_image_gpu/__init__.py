@@ -27,6 +27,7 @@ def matrix_mult(a: List[List[float]], b: List[List[float]]) -> List[List[float]]
 
     return m_c.numpy().tolist()
 
+
 if __name__ == "__main__":
     lzy = Lzy()
 

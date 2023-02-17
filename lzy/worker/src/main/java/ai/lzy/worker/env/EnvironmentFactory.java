@@ -42,7 +42,7 @@ public class EnvironmentFactory {
             var image = env.getDockerImage();
             LOG.info("Creating env with docker image {}", image);
 
-            var envVars = env.getEnvMap();
+            var envVars = new HashMap<>(env.getEnvMap());
             envVars.put("CUSTOM_IMAGE", "true");
 
             var credentials = env.hasDockerCredentials() ? env.getDockerCredentials() : null;
