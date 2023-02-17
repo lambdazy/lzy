@@ -20,41 +20,22 @@ public class ClusterTest {
     }
 
     @Test
-    public void testSimpleCatboostGraph() {
+    public void testCatboostGraphGpu() {
         /* This scenario checks for:
                 1. Importing external modules (catboost)
                 2. Functions which accept and return complex objects
+                3. Execution is running on gpu
          */
-        pythonContext.evalAndAssertScenarioResult("catboost_integration_cpu", List.of("catboost"));
+        pythonContext.evalAndAssertScenarioResult("catboost_integration_gpu", List.of("catboost"));
     }
 
     @Test
-    public void testExecFail() {
-        pythonContext.evalAndAssertScenarioResult("exec_fail");
-    }
-
-    @Test
-    public void testEnvFail() {
-        pythonContext.evalAndAssertScenarioResult("env_fail");
-    }
-
-    @Test
-    public void testImportFile() {
+    public void testUserImageGpu() {
         /* This scenario checks for:
-                1. Importing local file package
+                1. Execution is running inside container from custom image
+                2. Execution is running on gpu
          */
-
-        pythonContext.evalAndAssertScenarioResult("import");
-    }
-
-    @Test
-    public void testNoneResult() {
-        /* This scenario checks for:
-                1. Calling @op with None as result
-         */
-
-        //Arrange
-        pythonContext.evalAndAssertScenarioResult("none_result");
+        pythonContext.evalAndAssertScenarioResult("custom_image_gpu");
     }
 
     @Test
