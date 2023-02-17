@@ -73,7 +73,7 @@
         <net.lingala.zip4j.version>2.11.2</net.lingala.zip4j.version>
         <okhttp.version>4.10.0</okhttp.version>
 
-        <netty.version>c</netty.version>
+        <netty.version>4.1.84.Final</netty.version>
 
         <!-- opentracing -->
         <opentracing-ahttp.version>0.3.3</opentracing-ahttp.version>
