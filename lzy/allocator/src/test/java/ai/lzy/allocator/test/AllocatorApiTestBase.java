@@ -147,7 +147,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected void tearDown() {
-        allocatorApp.stop();
+        allocatorApp.stop(true);
         try {
             allocatorApp.awaitTermination();
         } catch (InterruptedException ignored) {

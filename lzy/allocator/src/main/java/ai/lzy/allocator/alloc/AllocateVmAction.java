@@ -70,7 +70,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
 
         if (deleteVmAction != null) {
             log().info("{} Submit DeleteVmAction operation {}", logPrefix(), deleteVmAction.id());
-            allocationContext.submit(deleteVmAction);
+            allocationContext.startNew(deleteVmAction);
             deleteVmAction = null;
         }
     }

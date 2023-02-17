@@ -1,17 +1,19 @@
 micronaut:
   server:
+    host: '127.0.0.1'
     port: 8082
 
 allocator:
   instance-id: "single-allocator"
 
   service-clusters: []
-
   user-clusters: []
 
   address: 'localhost:1234'
   heartbeat-timeout: 1m
   allocation-timeout: 15m
+
+  enable-http-debug: false
 
   gc:
     initial-delay: 10s

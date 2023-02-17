@@ -102,7 +102,7 @@ public class DeleteSessionAction extends OperationRunnerBase {
 
                 case RUNNING, IDLE -> {
                     try {
-                        allocationContext.submitDeleteVmAction(
+                        allocationContext.startDeleteVmAction(
                             vm, "Delete VM %s on session %s remove".formatted(vm, sessionId), reqid, log());
                     } catch (Exception e) {
                         log().error("{} Cannot cleanup expired VM {}: {}", logPrefix(), vm.vmId(), e.getMessage());

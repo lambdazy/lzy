@@ -63,7 +63,7 @@ public class AllocatorContext {
     public void close() {
         try {
             main.destroyAllForTests();
-            main.stop();
+            main.stop(false);
             main.awaitTermination();
 
             channel.shutdown();

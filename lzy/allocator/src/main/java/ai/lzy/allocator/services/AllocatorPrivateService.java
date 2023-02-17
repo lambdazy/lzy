@@ -195,7 +195,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                     }
                 });
 
-                allocationContext.submit(action);
+                allocationContext.startNew(action);
             } catch (Exception e) {
                 LOG.error("Cannot cleanup failed register: {}", vmRef[0], e);
             }
