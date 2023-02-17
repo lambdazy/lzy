@@ -351,7 +351,7 @@ public class PortalTestBase {
         var worker = new Worker(workerId,
             config.getAllocatorAddress(), config.getIamAddress(), allocatorDuration,
             port, GrpcUtils.rollPort(), "/tmp/lzy_" + workerId + "/",
-            config.getChannelManagerAddress(), "localhost", "token_" + workerId, "default");
+            config.getChannelManagerAddress(), "localhost", "token_" + workerId);
 
         var workerChannel = ai.lzy.util.grpc.GrpcUtils.newGrpcChannel("localhost:" + port, WorkerApiGrpc.SERVICE_NAME);
 

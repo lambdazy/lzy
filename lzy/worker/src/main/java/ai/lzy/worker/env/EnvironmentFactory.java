@@ -53,9 +53,9 @@ public class EnvironmentFactory {
                 .setEnvs(env.getEnvMap())
                 .build();
 
-            if (createdContainers.containsKey(image)) {
-                var cachedEnv = createdContainers.get(image);
+            var cachedEnv = createdContainers.get(image);
 
+            if (cachedEnv != null) {
                 if (env.getDockerPullPolicy() == LME.DockerPullPolicy.ALWAYS) {
                     try {
                         cachedEnv.close();
