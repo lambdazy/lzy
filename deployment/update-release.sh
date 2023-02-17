@@ -26,6 +26,10 @@ cd parent
 mvn build-helper:parse-version versions:set \
   -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion}"
 NEW_VERSION=$(project_version)
+mvn versions:set -DnewVersion="$NEW_VERSION" -f ..
+mvn versions:set -DnewVersion="$NEW_VERSION" -f ../util
+mvn versions:set -DnewVersion="$NEW_VERSION" -f ../coverage
+mvn versions:set -DnewVersion="$NEW_VERSION" -f ../lzy
 echo "$NEW_VERSION" > ../pylzy/lzy/version/version
 
 git add -u ..
@@ -33,3 +37,6 @@ git commit -m "set version $NEW_VERSION"
 git tag "R-$NEW_VERSION"
 git push origin "$BRANCH"
 git push origin "R-$NEW_VERSION"
+
+echo "release-branch=$BRANCH" >> "$GITHUB_OUTPUT"
+echo "release-version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
