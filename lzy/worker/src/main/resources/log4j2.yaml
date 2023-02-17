@@ -23,4 +23,4 @@ Configuration:
 
     Logger:
       - name: "ai.lzy"
-        level: debug
+        level: info

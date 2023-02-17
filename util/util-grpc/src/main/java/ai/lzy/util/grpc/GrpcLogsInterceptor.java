@@ -25,9 +25,9 @@ public class GrpcLogsInterceptor {
                     @Override
                     public void sendMessage(RespT message) {
                         if (SERVER_LOG.isTraceEnabled()) {
-                            SERVER_LOG.info("{}::<{}>: response: ({})", methodName, callId, printMessageSafe(message));
+                            SERVER_LOG.debug("{}::<{}>: response: ({})", methodName, callId, printMessageSafe(message));
                         } else {
-                            SERVER_LOG.info("{}::<{}>: response: <...>", methodName, callId);
+                            SERVER_LOG.debug("{}::<{}>: response: <...>", methodName, callId);
                         }
                         super.sendMessage(message);
                     }
