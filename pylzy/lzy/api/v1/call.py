@@ -39,43 +39,34 @@ class LzyCall:
         self.__env = env
         self.__description = description
 
-        self.__entry_ids: List[str] = []
-        for i, typ in enumerate(sign.func.output_types):
-            name = sign.func.callable.__name__ + ".return_" + str(i)
-            eid = workflow.snapshot.create_entry(name, typ).id
-            self.__entry_ids.append(eid)
-
         self.__args_entry_ids: List[str] = []
         for i, arg in enumerate(sign.args):
             if workflow.entry_index.has_entry_id(arg):
-                self.__args_entry_ids.append(workflow.entry_index.get_entry_id(arg))
-            elif not is_lzy_proxy(arg):
-                arg_name = sign.func.arg_names[i]
-                name = sign.func.callable.__name__ + "." + arg_name
-                entry = workflow.snapshot.create_entry(name, sign.func.input_types[arg_name])
-                self.__args_entry_ids.append(entry.id)
-                workflow.entry_index.add_entry_id(arg, entry.id)
+                entry_id = workflow.entry_index.get_entry_id(arg)
             else:
                 arg_name = sign.func.arg_names[i]
-                name = sign.func.callable.__name__ + "." + arg_name
-                entry = workflow.snapshot.create_entry(name, sign.func.input_types[arg_name])
-                self.__args_entry_ids.append(entry.id)
-                workflow.entry_index.add_entry_id(arg, entry.id)
+                entry_id = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + arg_name,
+                                                          typ=sign.func.input_types[arg_name]).id
+                workflow.entry_index.add_entry_id(arg, entry_id)
+
+            self.__args_entry_ids.append(entry_id)
 
         self.__kwargs_entry_ids: Dict[str, str] = {}
         for kwarg_name, kwarg in sign.kwargs.items():
-            entry_id: str
             if workflow.entry_index.has_entry_id(kwarg):
                 entry_id = workflow.entry_index.get_entry_id(kwarg)
-            elif not is_lzy_proxy(kwarg):
-                entry_id = workflow.snapshot.create_entry("local", sign.func.input_types[kwarg_name]).id
-                workflow.entry_index.add_entry_id(kwarg, entry_id)
             else:
-                name = sign.func.callable.__name__ + "." + kwarg_name
-                entry_id = workflow.snapshot.create_entry(name, sign.func.input_types[kwarg_name]).id
+                entry_id = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + kwarg_name,
+                                                          typ=sign.func.input_types[kwarg_name]).id
                 workflow.entry_index.add_entry_id(kwarg, entry_id)
 
             self.__kwargs_entry_ids[kwarg_name] = entry_id
+
+        self.__entry_ids: List[str] = []
+        for i, arg_typ in enumerate(sign.func.output_types):
+            name = sign.func.callable.__name__ + ".return_" + str(i)
+            entry_id = workflow.snapshot.create_entry(name, arg_typ).id
+            self.__entry_ids.append(entry_id)
 
     @property
     def provisioning(self) -> Provisioning:

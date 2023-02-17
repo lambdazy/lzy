@@ -283,17 +283,13 @@ class RemoteRuntime(Runtime):
             for i, eid in enumerate(call.arg_entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/{entry.name}"
-                input_slots.append(
-                    Operation.SlotDescription(
-                        path=slot_path, storageUri=cast(str, entry.storage_uri)
-                    )
-                )
+                input_slots.append(Operation.SlotDescription(path=slot_path, storageUri=entry.storage_uri))
                 arg_descriptions.append((entry.typ, slot_path))
 
                 scheme = entry.data_scheme
 
-                data_descriptions[cast(str, entry.storage_uri)] = DataDescription(
-                    storageUri=cast(str, entry.storage_uri),
+                data_descriptions[entry.storage_uri] = DataDescription(
+                    storageUri=entry.storage_uri,
                     dataScheme=DataScheme(
                         dataFormat=scheme.data_format,
                         schemeFormat=scheme.schema_format,
@@ -307,15 +303,11 @@ class RemoteRuntime(Runtime):
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/{entry.name}"
-                input_slots.append(
-                    Operation.SlotDescription(
-                        path=slot_path, storageUri=cast(str, cast(str, entry.storage_uri))
-                    )
-                )
+                input_slots.append(Operation.SlotDescription(path=slot_path, storageUri=entry.storage_uri))
                 kwarg_descriptions[name] = (entry.typ, slot_path)
 
-                data_descriptions[cast(str, entry.storage_uri)] = DataDescription(
-                    storageUri=cast(str, entry.storage_uri),
+                data_descriptions[entry.storage_uri] = DataDescription(
+                    storageUri=entry.storage_uri,
                     dataScheme=DataScheme(
                         dataFormat=entry.data_scheme.data_format,
                         schemeFormat=entry.data_scheme.schema_format,
@@ -329,14 +321,10 @@ class RemoteRuntime(Runtime):
             for i, eid in enumerate(call.entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/{entry.name}"
-                output_slots.append(
-                    Operation.SlotDescription(
-                        path=slot_path, storageUri=cast(str, entry.storage_uri)
-                    )
-                )
+                output_slots.append(Operation.SlotDescription(path=slot_path, storageUri=entry.storage_uri))
 
-                data_descriptions[cast(str, entry.storage_uri)] = DataDescription(
-                    storageUri=cast(str, entry.storage_uri),
+                data_descriptions[entry.storage_uri] = DataDescription(
+                    storageUri=entry.storage_uri,
                     dataScheme=DataScheme(
                         dataFormat=entry.data_scheme.data_format,
                         schemeFormat=entry.data_scheme.schema_format,

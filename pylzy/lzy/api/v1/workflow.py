@@ -202,42 +202,48 @@ class LzyWorkflow:
         _LOG.info(f"Building graph from calls "
                   f"{' -> '.join(call.signature.func.callable.__name__ for call in self.__call_queue)}")
 
-        data_to_load = []
+        local_data_put_tasks = []
         for call in self.__call_queue:
+            _LOG.debug(f"Put local args data to storage for call {call.signature.func.name}")
             for arg, eid in zip(call.args, call.arg_entry_ids):
                 if not is_lzy_proxy(arg) and eid not in self.__filled_entry_ids:
-                    data_to_load.append(self.snapshot.put_data(eid, arg))
+                    local_data_put_tasks.append(self.snapshot.put_data(eid, arg))
                     self.__filled_entry_ids.add(eid)
 
             for name, kwarg in call.kwargs.items():
                 eid = call.kwarg_entry_ids[name]
                 if not is_lzy_proxy(kwarg) and eid not in self.__filled_entry_ids:
-                    data_to_load.append(self.snapshot.put_data(eid, kwarg))
+                    local_data_put_tasks.append(self.snapshot.put_data(eid, kwarg))
                     self.__filled_entry_ids.add(eid)
 
-        await asyncio.gather(*data_to_load)
+        await asyncio.gather(*local_data_put_tasks)
 
         for call in self.__call_queue:
-            args_inputs_hash: str = '_'.join(map(lambda eid: cast(str, self.snapshot.get(eid).hash),
-                                                 call.arg_entry_ids))
-            kwargs_inputs_hash: str = '_'.join(map(
-                lambda name: cast(str, self.snapshot.get(call.kwarg_entry_ids[name]).hash),
-                sorted(call.kwargs.keys())
-            ))
-            inputs_hash: str = '_'.join([args_inputs_hash, kwargs_inputs_hash])
+            args_hashes = map(lambda eid: self.snapshot.get(eid).data_hash, call.arg_entry_ids)
+            kwargs_hashes = map(lambda name: f"{name}:{self.snapshot.get(call.kwarg_entry_ids[name]).data_hash}",
+                                sorted(call.kwargs.keys()))
 
-            op_name: str = call.signature.func.callable.__name__
-            op_version: str = '1.0'
+            inputs_hashes_concat = '_'.join([*args_hashes, *kwargs_hashes])
+
+            op_name = call.signature.func.callable.__name__
+            op_version = '1.0'
 
             for i, eid in enumerate(call.entry_ids):
                 if eid not in self.__filled_entry_ids:
-                    self.snapshot.update_entry(eid, f"/${op_name}_${op_version}_${inputs_hash}/return_${str(i)}")
+                    uri_suffix = f"/{op_name}_{op_version}_{inputs_hashes_concat}/return_{str(i)}"
+                    self.snapshot.set_storage_uri_for_entry(eid, uri_suffix)
                     entry = self.snapshot.get(eid)
-                    entry.set_hash(SerializedDataHasher.hash_of_str(cast(str, entry.storage_uri)))
+                    entry.data_hash = SerializedDataHasher.hash_of_str(entry.storage_uri)
                     self.__filled_entry_ids.add(eid)
 
         await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))
 
-        await self.snapshot.processed_copying(self.owner.storage_client.copy)
+        wb_copy_tasks = []
+        for wb in self.__whiteboards:
+            _LOG.debug(f"Put whiteboard {wb.name} delayed fields data to storage")
+            for key, from_eid in wb.unloaded_fields.items():
+                wb_copy_tasks.append(self.snapshot.copy_data(from_eid, f"{wb.storage_uri}/{key}"))
+
+        await asyncio.gather(*wb_copy_tasks)
 
         self.__call_queue = []

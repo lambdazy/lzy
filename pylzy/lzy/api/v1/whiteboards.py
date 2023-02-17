@@ -69,7 +69,7 @@ class WritableWhiteboard:
     __internal_fields = {
         "_WritableWhiteboard__fields_dict", "_WritableWhiteboard__fields_assigned",
         "_WritableWhiteboard__model", "_WritableWhiteboard__workflow", "_WritableWhiteboard__fields",
-        "_WritableWhiteboard__validate_types"
+        "_WritableWhiteboard__validate_types", "_WritableWhiteboard__unloaded_fields"
     }
 
     def __init__(
@@ -144,6 +144,7 @@ class WritableWhiteboard:
         self.__model = whiteboard
         self.__fields_assigned: Set[str] = set()
         self.__workflow = workflow
+        self.__unloaded_fields: Dict[str, str] = dict()
 
     def __setattr__(self, key: str, value: Any):
         if key in WritableWhiteboard.__internal_fields:  # To complete constructor
@@ -162,17 +163,16 @@ class WritableWhiteboard:
             entry = self.__workflow.snapshot.get(self.__workflow.entry_index.get_entry_id(value))
             self.__validate_types(entry.typ, key_type, key)
             if entry.id in self.__workflow.filled_entry_ids:
-                LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(
-                    cast(str, entry.storage_uri), storage_uri))
+                LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(entry.storage_uri, storage_uri))
             else:
-                self.__workflow.snapshot.must_be_copied(entry.id, storage_uri)
+                self.__unloaded_fields[key] = entry.id
         else:
             value = materialize_if_sequence_of_lzy_proxies(value)
             typ = get_type(value)
             self.__validate_types(typ, key_type, key)
             entry = self.__workflow.snapshot.create_entry(self.__model.name + "." + key, key_type)
             LzyEventLoop.run_async(self.__workflow.snapshot.put_data(entry_id=entry.id, data=value))
-            LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(cast(str, entry.storage_uri), storage_uri))
+            LzyEventLoop.run_async(self.__workflow.owner.storage_client.copy(entry.storage_uri, storage_uri))
             self.__workflow.entry_index.add_entry_id(value, entry.id)
             self.__workflow.filled_entry_ids.add(entry.id)
 
@@ -209,3 +209,7 @@ class WritableWhiteboard:
     @property
     def storage_uri(self) -> str:
         return self.__model.storage.uri
+
+    @property
+    def unloaded_fields(self) -> Dict[str, str]:
+        return self.__unloaded_fields

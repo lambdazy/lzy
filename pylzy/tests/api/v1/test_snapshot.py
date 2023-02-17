@@ -53,14 +53,14 @@ class SnapshotTests(TestCase):
 
     def test_get_not_uploaded_entry(self):
         entry = self.snapshot.create_entry("name", str)
-        self.snapshot.update_entry(entry.id, f"{self.storages.config('storage').uri}/name")
+        self.snapshot.set_storage_uri_for_entry(entry.id, f"{self.storages.config('storage').uri}/name")
         ret = asyncio.run(self.snapshot.get_data(entry.id))
         self.assertIsInstance(ret, Nothing)
 
     def test_update(self):
         entry = self.snapshot.create_entry("name", str)
-        self.snapshot.update_entry(entry.id, f"{self.storages.config('storage').uri}/name")
-        self.snapshot.update_entry(entry.id, f"{self.storages.config('storage').uri}/name2")
+        self.snapshot.set_storage_uri_for_entry(entry.id, f"{self.storages.config('storage').uri}/name")
+        self.snapshot.set_storage_uri_for_entry(entry.id, f"{self.storages.config('storage').uri}/name2")
 
         asyncio.run(self.snapshot.put_data(entry.id, "some_str"))
         ret = asyncio.run(self.snapshot.get_data(entry.id))
@@ -73,7 +73,7 @@ class SnapshotTests(TestCase):
         asyncio.run(self.snapshot.put_data(entry.id, "some_str"))
 
         with self.assertRaisesRegex(ValueError, "data has been already uploaded"):
-            self.snapshot.update_entry(entry.id, f"{self.storages.config('storage').uri}/name2")
+            self.snapshot.set_storage_uri_for_entry(entry.id, f"{self.storages.config('storage').uri}/name2")
 
     def test_serializer_not_found(self):
         serializers = SerializerRegistryMock()
