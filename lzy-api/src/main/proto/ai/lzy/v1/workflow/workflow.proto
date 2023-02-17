@@ -18,7 +18,7 @@ message Operation {
   repeated SlotDescription outputSlots = 5;
 
   /* optional */ string dockerImage = 6;  // If not set, running on default Lzy image
-  /* optional */ DockerCredentials dockerCredentials = 10 [(validation.sensitive) = true];  // Credentials to run docker pull with
+  /* optional */ DockerCredentials dockerCredentials = 10;  // Credentials to run docker pull with
   DockerPullPolicy dockerPullPolicy = 11;
 
   oneof execution_context {
@@ -47,7 +47,7 @@ message Operation {
   message DockerCredentials {
     string registryName  = 1;  // docker.io, cr.yandex, ...
     string username      = 2;
-    string password      = 3;
+    string password      = 3 [(validation.sensitive) = true];
   }
 
   enum DockerPullPolicy {
