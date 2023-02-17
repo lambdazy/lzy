@@ -9,6 +9,16 @@ fi
 REGISTRY_PREFIX=$1
 TAG=$2
 
+SSL=false
+
+for ARG in "$@"; do
+  case "$ARG" in
+  --ssl)
+    SSL=true
+    ;;
+  esac
+done
+
 IMAGES=""
 
 function build_image {
@@ -24,10 +34,14 @@ function build_image {
 
 mkdir -p frontend/src/docs
 cp docs/tutorials/* frontend/src/docs
-build_image site-frontend frontend '--build-arg conf=nginx.conf'
-
-touch lzy/site/fake-keystore.jks
-build_image site lzy/site '--build-arg keystore=fake-keystore.jks'
+if [[ $SSL == true ]]; then
+  build_image site-frontend frontend
+  build_image site lzy/site
+else
+  build_image site-frontend frontend '--build-arg conf=nginx.conf'
+  touch lzy/site/fake-keystore.jks
+  build_image site lzy/site '--build-arg keystore=fake-keystore.jks'
+fi
 
 build_image allocator lzy/allocator
 build_image channel-manager lzy/channel-manager
