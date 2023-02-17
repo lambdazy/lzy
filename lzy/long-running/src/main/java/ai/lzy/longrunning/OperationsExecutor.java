@@ -100,6 +100,7 @@ public final class OperationsExecutor {
         assert ok;
         LOG.info("{} tasks dropped", q.size());
         LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
+        runningOperations.set(0);
         executor = create(executor.getCorePoolSize(), executor.getMaximumPoolSize(), onError, injectedFailure);
     }
 
