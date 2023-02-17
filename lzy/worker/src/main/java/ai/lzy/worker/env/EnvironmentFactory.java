@@ -60,7 +60,7 @@ public class EnvironmentFactory {
                     try {
                         cachedEnv.close();
                     } catch (Exception e) {
-                        LOG.error("Cannot kill docker container {}", cachedEnv.containerId);
+                        LOG.error("Cannot kill docker container {}", cachedEnv.containerId, e);
                     }
                     baseEnv = new DockerEnvironment(config, credentials);
                     createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
