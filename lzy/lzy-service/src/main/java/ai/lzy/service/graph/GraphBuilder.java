@@ -293,6 +293,25 @@ class GraphBuilder {
 
         env.setDockerImage(operation.getDockerImage());
 
+        if (operation.hasDockerCredentials()) {
+            env.setDockerCredentials(LME.DockerCredentials.newBuilder()
+                .setUsername(operation.getDockerCredentials().getUsername())
+                .setPassword(operation.getDockerCredentials().getPassword())
+                .setRegistryName(operation.getDockerCredentials().getRegistryName())
+                .build());
+        }
+
+        var policy = switch (operation.getDockerPullPolicy()) {
+            case ALWAYS -> LME.DockerPullPolicy.ALWAYS;
+            case IF_NOT_EXISTS -> LME.DockerPullPolicy.IF_NOT_EXISTS;
+            case UNSPECIFIED -> LME.DockerPullPolicy.IF_NOT_EXISTS;  // default
+            case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT
+                .withDescription("Wrong docker pull policy")
+                .asRuntimeException();
+        };
+
+        env.setDockerPullPolicy(policy);
+
         if (operation.hasPython()) {
             env.setPyenv(
                 LME.PythonEnv.newBuilder()

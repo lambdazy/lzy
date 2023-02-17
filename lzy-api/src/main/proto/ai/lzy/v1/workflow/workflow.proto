@@ -18,6 +18,8 @@ message Operation {
   repeated SlotDescription outputSlots = 5;
 
   /* optional */ string dockerImage = 6;  // If not set, running on default Lzy image
+  /* optional */ DockerCredentials dockerCredentials = 10;  // Credentials to run docker pull with
+  DockerPullPolicy dockerPullPolicy = 11;
 
   oneof execution_context {
     /* optional */ PythonEnvSpec python = 7;  // If not set, running in default bash env
@@ -25,7 +27,7 @@ message Operation {
 
   string poolSpecName = 8;  // Label to execute operation in
 
-  /* optional */ map<string, string> env = 9;  // Environment variables to run operation with
+  /* optional */ map<string, string> env = 9 [(validation.sensitive) = true];  // Environment variables to run operation with
 
   message SlotDescription {
     string path = 1;
@@ -40,6 +42,18 @@ message Operation {
       string name = 1;  // Name of module
       string url = 2;  // Url in storage to get module from
     }
+  }
+
+  message DockerCredentials {
+    string registryName  = 1;  // docker.io, cr.yandex, ...
+    string username      = 2;
+    string password      = 3 [(validation.sensitive) = true];
+  }
+
+  enum DockerPullPolicy {
+    UNSPECIFIED   = 0;
+    ALWAYS        = 1;  // Always pull the newest version of image
+    IF_NOT_EXISTS = 2;  // Pull image once and cache it for next executions
   }
 }
 

@@ -105,3 +105,7 @@ variable "workers_nodegroups_definition" {
     error_message = "Amount of workers node-groups cannot be zero"
   }
 }
+
+variable "portals_pool_size" {
+  type = number
+}

@@ -115,7 +115,7 @@ public class StreamQueue extends Thread {
         }
 
         public void logOut(String pattern, Object... values) {
-            var formatted  = PREFIX + new FormattedMessage(pattern, values);
+            var formatted  = PREFIX + new FormattedMessage(pattern, values) + "\n";
 
             logger.info(formatted);
 
@@ -127,7 +127,7 @@ public class StreamQueue extends Thread {
         }
 
         public void logErr(String pattern, Object... values) {
-            var formatted  = PREFIX + new FormattedMessage(pattern, values);
+            var formatted  = PREFIX + new FormattedMessage(pattern, values) + "\n";
 
             logger.info(formatted);
 

@@ -1,5 +1,6 @@
 package ai.lzy.worker.env;
 
+import ai.lzy.v1.common.LME;
 import ai.lzy.worker.StreamQueue;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
@@ -7,6 +8,7 @@ import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.model.*;
+import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientBuilder;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,15 +28,16 @@ import javax.annotation.Nullable;
 public class DockerEnvironment extends BaseEnvironment {
 
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
-    private static final DockerClient DOCKER = DockerClientBuilder.getInstance().build();
 
     @Nullable public String containerId = null;
 
     private final BaseEnvConfig config;
+    private final DockerClient client;
 
-    public DockerEnvironment(BaseEnvConfig config) {
+    public DockerEnvironment(BaseEnvConfig config, @Nullable LME.DockerCredentials credentials) {
         super();
         this.config = config;
+        this.client = generateClient(credentials);
     }
 
     @Override
@@ -46,11 +49,16 @@ public class DockerEnvironment extends BaseEnvironment {
                 return;
             }
 
-            prepareImage(config, handle);
+            try {
+                prepareImage(config, handle);
+            } catch (Exception e) {
+                handle.logErr("Error while pulling image: {}", e);
+                throw new RuntimeException(e);
+            }
 
             var sourceImage = config.image();
 
-            handle.logErr("Creating container from image={} ... , config = {}", sourceImage, config);
+            handle.logOut("Creating container from image={} ... , config = {}", sourceImage, config);
 
             final List<Mount> dockerMounts = new ArrayList<>();
             config.mounts().forEach(m -> {
@@ -72,7 +80,7 @@ public class DockerEnvironment extends BaseEnvironment {
                 ));
             }
 
-            final var container = DOCKER.createContainerCmd(sourceImage)
+            final var container = client.createContainerCmd(sourceImage)
                 .withHostConfig(hostConfig)
                 .withAttachStdout(true)
                 .withAttachStderr(true)
@@ -81,11 +89,11 @@ public class DockerEnvironment extends BaseEnvironment {
                 .exec();
 
             final String containerId = container.getId();
-            handle.logErr("Creating container from image={} done, id={}", sourceImage, containerId);
+            handle.logOut("Creating container from image={} done, id={}", sourceImage, containerId);
 
-            handle.logErr("Starting env container with id {} ...", containerId);
-            DOCKER.startContainerCmd(container.getId()).exec();
-            handle.logErr("Starting env container with id {} done", containerId);
+            handle.logOut("Starting env container with id {} ...", containerId);
+            client.startContainerCmd(container.getId()).exec();
+            handle.logOut("Starting env container with id {} done", containerId);
 
             this.containerId = containerId;
         }
@@ -113,7 +121,7 @@ public class DockerEnvironment extends BaseEnvironment {
         }
 
         LOG.info("Creating cmd {}", String.join(" ", command));
-        final ExecCreateCmd execCmd = DOCKER.execCreateCmd(containerId)
+        final ExecCreateCmd execCmd = client.execCreateCmd(containerId)
             .withCmd(command)
             .withAttachStdout(true)
             .withAttachStderr(true);
@@ -126,7 +134,7 @@ public class DockerEnvironment extends BaseEnvironment {
 
         var feature = new CompletableFuture<>();
 
-        var startCmd = DOCKER.execStartCmd(exec.getId())
+        var startCmd = client.execStartCmd(exec.getId())
             .exec(new ResultCallbackTemplate<>() {
                 @Override
                 public void onComplete() {
@@ -190,7 +198,7 @@ public class DockerEnvironment extends BaseEnvironment {
             public int waitFor() throws InterruptedException {
                 try {
                     feature.get();
-                    return Math.toIntExact(DOCKER.inspectExecCmd(exec.getId()).exec().getExitCodeLong());
+                    return Math.toIntExact(client.inspectExecCmd(exec.getId()).exec().getExitCodeLong());
                 } catch (InterruptedException e) {
                     try {
                         startCmd.close();
@@ -207,7 +215,7 @@ public class DockerEnvironment extends BaseEnvironment {
             @Override
             public void signal(int sigValue) {
                 if (containerId != null) {
-                    DOCKER.killContainerCmd(containerId)
+                    client.killContainerCmd(containerId)
                         .withSignal(String.valueOf(sigValue))
                         .exec();
                 }
@@ -218,7 +226,7 @@ public class DockerEnvironment extends BaseEnvironment {
     @Override
     public void close() throws Exception {
         if (containerId != null) {
-            DOCKER.killContainerCmd(containerId).exec();
+            client.killContainerCmd(containerId).exec();
         }
     }
 
@@ -226,9 +234,9 @@ public class DockerEnvironment extends BaseEnvironment {
         return config;
     }
 
-    private static void prepareImage(BaseEnvConfig config, StreamQueue.LogHandle handle) {
-        handle.logErr("Pulling image {} ...", config.image());
-        final var pullingImage = DOCKER
+    private void prepareImage(BaseEnvConfig config, StreamQueue.LogHandle handle) {
+        handle.logOut("Pulling image {} ...", config.image());
+        final var pullingImage = client
             .pullImageCmd(config.image())
             .exec(new PullImageResultCallback());
         try {
@@ -237,6 +245,19 @@ public class DockerEnvironment extends BaseEnvironment {
             handle.logErr("Pulling image {} was interrupted", config.image());
             throw new RuntimeException(e);
         }
-        handle.logErr("Pulling image {} done", config.image());
+        handle.logOut("Pulling image {} done", config.image());
+    }
+
+    public static DockerClient generateClient(@Nullable LME.DockerCredentials credentials) {
+        if (credentials != null) {
+            return DockerClientBuilder.getInstance(new DefaultDockerClientConfig.Builder()
+                .withRegistryUrl(credentials.getRegistryName())
+                .withRegistryUsername(credentials.getUsername())
+                .withRegistryPassword(credentials.getPassword())
+                .build()
+            ).build();
+        } else {
+            return DockerClientBuilder.getInstance().build();
+        }
     }
 }
