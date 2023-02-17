@@ -1,5 +1,6 @@
 package ai.lzy.allocator.services;
 
+import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Body;
@@ -14,6 +15,7 @@ import java.util.function.Supplier;
 
 import static ai.lzy.allocator.model.debug.InjectedFailures.*;
 
+@Requires(property = "allocator.enable-http-debug", value = "true")
 @Controller(value = "/debug/inject-failure", consumes = MediaType.ALL, produces = MediaType.TEXT_PLAIN)
 public class InjectedFailuresController {
 

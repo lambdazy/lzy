@@ -133,7 +133,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         }
                         case IDLE, RUNNING -> throw new RuntimeException("Unexpected Vm state %s".formatted(vm));
                     };
-                    allocationContext.submit(action);
+                    allocationContext.startNew(action);
                 });
             } else {
                 LOG.info("Not completed allocations weren't found.");
@@ -150,7 +150,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     var reqid = Optional.ofNullable(s.deleteReqid()).orElse("unknown");
                     var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, reqid));
                     withContext(ctx, () ->
-                        allocationContext.submit(new DeleteSessionAction(s, s.deleteOpId(), allocationContext)));
+                        allocationContext.startNew(new DeleteSessionAction(s, s.deleteOpId(), allocationContext)));
                 });
             }
         } catch (SQLException e) {
@@ -281,7 +281,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             responseObserver.onNext(ret.getKey().toProto());
             responseObserver.onCompleted();
 
-            allocationContext.submit(ret.getValue());
+            allocationContext.startNew(ret.getValue());
         } else {
             responseObserver.onError(Status.NOT_FOUND.asException());
         }
@@ -488,7 +488,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         if (allocateCont != null) {
             InjectedFailures.failAllocateVm0();
-            allocationContext.submit(allocateCont);
+            allocationContext.startNew(allocateCont);
         }
     }
 
@@ -535,7 +535,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                             LOG.info("VM {} scheduled to remove (cache is full)", vm.vmId());
 
-                            allocationContext.submit(action);
+                            allocationContext.startNew(action);
                         } else {
                             var cacheDeadline = Instant.now().plus(session.cachePolicy().minIdleTimeout());
                             vmDao.release(vm.vmId(), cacheDeadline, tx);

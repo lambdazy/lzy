@@ -94,7 +94,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
 
     @After
     public void after() {
-        allocatorApp.stop();
+        allocatorApp.stop(false);
         try {
             allocatorApp.awaitTermination();
         } catch (InterruptedException ignored) {

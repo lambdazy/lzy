@@ -95,7 +95,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
         for (var op : ops) {
             LOG.info("Restore {}", op);
             op = diskManager.restoreDiskOperation(op);
-            executor.submit(op.deferredAction());
+            executor.startNew(op.deferredAction());
         }
     }
 
@@ -188,7 +188,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
             if (diskOperation != null) {
                 InjectedFailures.failCreateDisk0();
-                executor.submit(diskOperation.deferredAction());
+                executor.startNew(diskOperation.deferredAction());
             }
         } catch (InvalidConfigurationException e) {
             LOG.error("Cannot create disk for owner {}: {}", request.getUserId(), e.getMessage());
@@ -286,7 +286,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
             if (diskOperation != null) {
                 InjectedFailures.failCloneDisk0();
-                executor.submit(diskOperation.deferredAction());
+                executor.startNew(diskOperation.deferredAction());
             }
         } catch (Exception e) {
             if (idempotencyKey != null &&
@@ -360,7 +360,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
 
             if (diskOperation != null) {
                 InjectedFailures.failDeleteDisk0();
-                executor.submit(diskOperation.deferredAction());
+                executor.startNew(diskOperation.deferredAction());
             }
         } catch (Exception e) {
             if (idempotencyKey != null &&

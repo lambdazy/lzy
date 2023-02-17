@@ -33,6 +33,8 @@ public class ServiceConfig {
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();
 
+    private boolean enableHttpDebug = false;
+
     @Getter
     @Setter
     @ConfigurationProperties("thread-allocator")
@@ -113,7 +115,6 @@ public class ServiceConfig {
         private Duration cleanupPeriod = Duration.ofMinutes(5);
         private Duration leaseDuration = Duration.ofMinutes(30);
         private Duration gracefulShutdownDuration = Duration.ofSeconds(10);
-        private Duration keepTimeout = Duration.ofDays(7);
     }
 
     @Getter

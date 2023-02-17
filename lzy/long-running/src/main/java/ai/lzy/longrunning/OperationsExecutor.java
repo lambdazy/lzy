@@ -6,11 +6,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.time.Instant;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Predicate;
@@ -18,54 +16,92 @@ import java.util.function.Predicate;
 public final class OperationsExecutor {
     private static final Logger LOG = LogManager.getLogger(OperationsExecutor.class);
 
-    private volatile ScheduledThreadPoolExecutor delegate;
+    private volatile ScheduledThreadPoolExecutor executor;
     private final AtomicInteger counter = new AtomicInteger(1);
     private final Runnable onError;
     private final Predicate<Error> injectedFailure;
+    private final AtomicBoolean terminating = new AtomicBoolean(false);
+    private final AtomicInteger runningOperations = new AtomicInteger(0);
 
     public OperationsExecutor(int corePoolSize, int maxPoolSize, Runnable onError, Predicate<Error> injectedFailure) {
         this.onError = onError;
         this.injectedFailure = injectedFailure;
-        this.delegate = create(corePoolSize, maxPoolSize, onError, injectedFailure);
+        this.executor = create(corePoolSize, maxPoolSize, onError, injectedFailure);
     }
 
-    public Future<?> submit(Runnable task) {
-        return delegate.submit(task);
+    public void startNew(Runnable op) {
+        if (terminating.get()) {
+            throw new RejectedExecutionException("Cannot start new operation, service is terminating...");
+        }
+
+        try {
+            runningOperations.getAndIncrement();
+            executor.submit(op);
+        } catch (Exception e) {
+            runningOperations.getAndDecrement();
+            throw e;
+        }
     }
 
-    public Future<?> schedule(Runnable command, long delay, TimeUnit unit) {
-        return delegate.schedule(command, delay, unit);
+    public void retryAfter(Runnable op, Duration delay) {
+        try {
+            runningOperations.getAndIncrement();
+            executor.schedule(op, delay.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            runningOperations.getAndDecrement();
+            throw e;
+        }
     }
 
     @PreDestroy
     public void shutdown() {
-        LOG.info("Shutdown OperationsExecutor service. Tasks in queue: {}, running tasks: {}.",
-            delegate.getQueue().size(), delegate.getActiveCount());
+        shutdown(Duration.ofMinutes(1));
+    }
 
-        delegate.shutdown();
-
-        try {
-            var allDone = delegate.awaitTermination(1, TimeUnit.MINUTES);
-            if (!allDone) {
-                LOG.error("Not all actions were completed in timeout, tasks in queue: {}, running tasks: {}",
-                    delegate.getQueue().size(), delegate.getActiveCount());
-                delegate.shutdownNow();
+    public void shutdown(Duration timeout) {
+        if (!terminating.compareAndSet(false, true)) {
+            while (!executor.isShutdown()) {
+                LockSupport.parkNanos(Duration.ofMillis(50).toNanos());
             }
-        } catch (InterruptedException e) {
-            LOG.error("Graceful termination interrupted, tasks in queue: {}, running tasks: {}.",
-                delegate.getQueue().size(), delegate.getActiveCount());
+            return;
         }
+
+        if (executor.isShutdown()) {
+            return;
+        }
+
+        LOG.info("Shutdown OperationsExecutor service. Tasks in queue: {}, running tasks: {}, total: {}.",
+            executor.getQueue().size(), executor.getActiveCount(), runningOperations.get());
+
+        var deadline = Instant.now().plus(timeout);
+        int step = 0;
+        while (runningOperations.get() > 0 && Instant.now().isBefore(deadline)) {
+            LockSupport.parkNanos(Duration.ofMillis(100).toNanos());
+            if (++step % 100 == 0) {
+                LOG.info("Remains {} running operation(s)...", runningOperations.get());
+            }
+        }
+
+        if (runningOperations.get() > 0) {
+            LOG.error("Not all actions were completed in timeout, tasks in queue: {}, running tasks: {}",
+                executor.getQueue().size(), executor.getActiveCount());
+        }
+
+        executor.shutdownNow();
+
+        LOG.info("OperationsExecutor terminated");
     }
 
     @VisibleForTesting
     public void dropAll() throws InterruptedException {
         LOG.info("Drop all tasks");
-        var q = delegate.shutdownNow();
-        var ok = delegate.awaitTermination(5, TimeUnit.SECONDS);
+        var q = executor.shutdownNow();
+        var ok = executor.awaitTermination(5, TimeUnit.SECONDS);
         assert ok;
         LOG.info("{} tasks dropped", q.size());
         LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
-        delegate = create(delegate.getCorePoolSize(), delegate.getMaximumPoolSize(), onError, injectedFailure);
+        runningOperations.set(0);
+        executor = create(executor.getCorePoolSize(), executor.getMaximumPoolSize(), onError, injectedFailure);
     }
 
     private ScheduledThreadPoolExecutor create(int corePoolSize, int maxPoolSize, Runnable onError,
@@ -84,6 +120,7 @@ public final class OperationsExecutor {
         {
             @Override
             protected void afterExecute(Runnable r, Throwable t) {
+                runningOperations.getAndDecrement();
                 super.afterExecute(r, t);
                 if (t == null && r instanceof Future<?> f) {
                     try {
