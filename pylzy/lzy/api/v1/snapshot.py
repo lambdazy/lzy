@@ -36,6 +36,8 @@ class SnapshotEntry:
 
     @property
     def storage_uri(self) -> str:
+        if self._storage_uri is None:
+            raise ValueError(f"Storage uri for snapshot entry {id} is not set")
         return cast(str, self._storage_uri)
 
     @storage_uri.setter
@@ -44,6 +46,8 @@ class SnapshotEntry:
 
     @property
     def data_hash(self) -> str:
+        if self._data_hash is None:
+            raise ValueError(f"Data hash for snapshot entry {id} is not set")
         return cast(str, self._data_hash)
 
     @data_hash.setter
@@ -143,19 +147,21 @@ class DefaultSnapshot(Snapshot):
         if entry is None:
             raise ValueError(f"Entry with id={entry_id} does not exist")
 
-        if entry.storage_uri is None:
+        try:
+            storage_uri = entry.storage_uri
+        except ValueError:
+            _LOG.debug(f"Error while getting data for entry {entry_id}")
             return Nothing()
 
-        exists = await self.__storage_client.blob_exists(entry.storage_uri)
+        exists = await self.__storage_client.blob_exists(storage_uri)
         if not exists:
             return Nothing()
 
         with tempfile.NamedTemporaryFile() as f:
-            size = await self.__storage_client.size_in_bytes(entry.storage_uri)
+            size = await self.__storage_client.size_in_bytes(storage_uri)
             with tqdm(total=size, desc=f"Downloading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                       unit_divisor=1024, colour=get_color()) as bar:
-                await self.__storage_client.read(entry.storage_uri, cast(BinaryIO, f),
-                                                 progress=lambda x: bar.update(x))
+                await self.__storage_client.read(storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
                 f.seek(0)
                 res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(cast(BinaryIO, f))
                 return Just(res)
