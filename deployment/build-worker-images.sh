@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 
 set -e
 
@@ -29,7 +29,10 @@ for ARG in "$@"; do
   esac
 done
 
-cd pylzy/ && ./scripts/gen_proto.sh && cd ..
+cd pylzy/
+./scripts/gen_proto.sh
+cd ..
+
 if [[ $INSTALL = true ]]; then
   mvn clean install -DskipTests
 fi
