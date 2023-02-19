@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 <docker-registry-prefix> <docker-images-tag>"
+    echo "Usage: $0 <docker-registry-prefix> <docker-images-tag> [--ssl]"
     echo "Requires previously built application and docker logged in the desired repository."
     exit 1
 fi
