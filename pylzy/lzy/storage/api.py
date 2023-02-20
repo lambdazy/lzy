@@ -22,10 +22,16 @@ class S3Credentials:
     secret_access_key: str
 
 
+@dataclasses.dataclass
+class FSCredentials:
+    pass
+
+
 StorageCredentials = Union[
     AzureCredentials,
     S3Credentials,
     AzureSasCredentials,
+    FSCredentials
 ]
 
 
@@ -48,6 +54,10 @@ class Storage:
     @staticmethod
     def azure_blob_storage_sas(uri: str, endpoint: str, signature: str) -> "Storage":
         return Storage(AzureSasCredentials(endpoint, signature), uri)
+
+    @staticmethod
+    def fs_storage(uri: str) -> "Storage":
+        return Storage(FSCredentials(), uri)
 
 
 class AsyncStorageClient(ABC):
