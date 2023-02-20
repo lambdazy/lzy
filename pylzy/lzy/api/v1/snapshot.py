@@ -10,7 +10,6 @@ from typing import Any, Dict, Type, cast, BinaryIO, Set, Union, List
 from serialzy.api import Schema, SerializerRegistry
 from tqdm import tqdm
 
-from lzy.api.v1.utils.proxy_adapter import type_is_lzy_proxy
 from lzy.logs.config import get_logger, get_color
 from lzy.proxy.result import Just, Nothing, Result
 from lzy.storage.api import AsyncStorageClient
@@ -111,8 +110,7 @@ class DefaultSnapshot(Snapshot):
         self.__serializer_registry = serializer_registry
         self.__storage_client = storage_client
         self.__storage_name = storage_name
-        self.__input_prefix = f"{storage_uri}/lzy_runs/{workflow_name}/inputs"
-        self.__op_result_prefix = f"{storage_uri}/lzy_runs/{workflow_name}/ops"
+        self.__storage_uri_prefix = f"{storage_uri}/lzy_runs/{workflow_name}/data"
         self.__entry_id_to_entry: Dict[str, SnapshotEntry] = {}
         self.__filled_entries: Set[str] = set()
         self.__copy_queue: Dict[str, List[str]] = dict()
@@ -136,10 +134,7 @@ class DefaultSnapshot(Snapshot):
         if entry_id in self.__filled_entries:
             raise ValueError(f"Cannot set storage uri for entry {entry_id}: data has been already uploaded")
         entry = self.get(entry_id)
-        if type_is_lzy_proxy(entry.typ):
-            entry.storage_uri = self.__op_result_prefix + storage_uri_suffix
-        else:
-            entry.storage_uri = self.__input_prefix + storage_uri_suffix
+        entry.storage_uri = self.__storage_uri_prefix + storage_uri_suffix
 
     async def get_data(self, entry_id: str) -> Result[Any]:
         _LOG.debug(f"Getting data for entry {entry_id}")

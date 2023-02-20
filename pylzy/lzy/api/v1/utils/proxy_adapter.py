@@ -16,10 +16,6 @@ def is_lzy_proxy(obj: Any) -> bool:
     return hasattr(cls, __lzy_proxied) and getattr(cls, __lzy_proxied)
 
 
-def type_is_lzy_proxy(typ: Type) -> bool:
-    return hasattr(typ, __lzy_proxied) and getattr(typ, __lzy_proxied)
-
-
 def get_proxy_entry_id(obj: Any) -> str:
     if not is_lzy_proxy(obj):
         raise ValueError(f'Object {obj} is not a lazy proxy')
