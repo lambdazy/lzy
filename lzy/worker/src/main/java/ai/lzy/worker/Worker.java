@@ -86,6 +86,7 @@ public class Worker {
     private final AtomicReference<Execution> execution = new AtomicReference<>(null);
     private final EnvironmentFactory envFactory;
     private final Server server;
+    private final int apiPort;
 
     public Worker(String vmId, String allocatorAddress, String iamAddress, Duration allocatorHeartbeatPeriod,
                   String channelManagerAddress, String host, String allocatorToken)
@@ -93,16 +94,15 @@ public class Worker {
         var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
 
         final int fsPort;
-        final int apiPort;
         final String fsRoot;
 
         if (SELECT_RANDOM_VALUES) {
             fsPort = FreePortFinder.find(10000, 20000);
-            apiPort = FreePortFinder.find(20000, 30000);
+            this.apiPort = FreePortFinder.find(20000, 30000);
             fsRoot = "/tmp/lzy" + UUID.randomUUID();
         } else {
             fsPort = DEFAULT_FS_PORT;
-            apiPort = DEFAULT_API_PORT;
+            this.apiPort = DEFAULT_API_PORT;
             fsRoot = "/tmp/lzy";
         }
 
@@ -260,6 +260,11 @@ public class Worker {
     @VisibleForTesting
     public static void useLocalhostAsHost(boolean use) {
         USE_LOCALHOST_AS_HOST = use;
+    }
+
+    @VisibleForTesting
+    public int apiPort() {
+        return apiPort;
     }
 
     public static void main(String[] args) {

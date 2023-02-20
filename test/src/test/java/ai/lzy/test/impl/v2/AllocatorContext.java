@@ -5,6 +5,7 @@ import ai.lzy.scheduler.allocator.AllocatorImpl;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.AllocatorGrpc;
+import ai.lzy.worker.Worker;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
@@ -45,7 +46,7 @@ public class AllocatorContext {
 
         this.context = ApplicationContext.run(opts);
         this.main = context.getBean(AllocatorMain.class);
-        AllocatorImpl.randomWorkerPorts.set(true);
+        Worker.selectRandomValues(true);
         try {
             main.start();
         } catch (IOException e) {

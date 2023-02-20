@@ -11,15 +11,13 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
-import java.time.Duration;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static ai.lzy.test.GrpcUtils.makeInputFileSlot;
-import static ai.lzy.test.GrpcUtils.makeOutputFileSlot;
 
 public class PortalCommonTest extends PortalTestBase {
     @Test
@@ -29,33 +27,34 @@ public class PortalCommonTest extends PortalTestBase {
 
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
-        String firstWorkerId = prepareTask(1, true, true, "snapshot1");
         String slotName = IntStream.range(0, 100).boxed().map(Objects::toString)
             .collect(Collectors.joining("_", "/slot_", "_1"));
 
-        System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
+        var snapshotId = "snapshot_" + UUID.randomUUID();
 
-        var taskOutputSlot = makeOutputFileSlot(slotName);
+        try (var worker = startWorker()){
+            System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
-        String firstTaskId = startTask(1, ("echo 'i-am-a-hacker' > /tmp/lzy_worker_1" +
-            "%s && echo 'hello'").formatted(slotName), taskOutputSlot, null);
+            String firstTaskId = startTask(("echo 'i-am-a-hacker' > $LZY_MOUNT" +
+                "%s && echo 'hello'").formatted(slotName), slotName, worker, true, snapshotId);
 
-        Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
-        waitPortalCompleted();
-        finishPortal();
+            Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+            Assert.assertTrue(portalStdout.isEmpty());
+            Assert.assertTrue(portalStderr.isEmpty());
+            waitPortalCompleted();
+            finishPortal();
 
-        var storageConfig = GrpcUtils.makeAmazonSnapshot("snapshot1", BUCKET_NAME, S3_ADDRESS).getStorageConfig();
-        var s3client = StorageClients.provider(storageConfig).get(Executors.newFixedThreadPool(5));
-        var tempfile = File.createTempFile("portal_", "_test");
-        tempfile.deleteOnExit();
-        s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());
-        String[] content = {null};
-        try (var reader = new BufferedReader(new FileReader(tempfile))) {
-            content[0] = reader.readLine();
+            var storageConfig = GrpcUtils.makeAmazonSnapshot(snapshotId, BUCKET_NAME, S3_ADDRESS).getStorageConfig();
+            var s3client = StorageClients.provider(storageConfig).get(Executors.newFixedThreadPool(5));
+            var tempfile = File.createTempFile("portal_", "_test");
+            tempfile.deleteOnExit();
+            s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());
+            String[] content = {null};
+            try (var reader = new BufferedReader(new FileReader(tempfile))) {
+                content[0] = reader.readLine();
+            }
+            Assert.assertEquals("i-am-a-hacker", content[0]);
         }
-        Assert.assertEquals("i-am-a-hacker", content[0]);
 
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");
@@ -69,33 +68,33 @@ public class PortalCommonTest extends PortalTestBase {
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
 
-        System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
+        try (var worker = startWorker()) {
 
-        String firstWorkerId = prepareTask(1, true, true, "snapshot1");
+            System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
-        System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
+            var taskOutputSlot = "/" + UUID.randomUUID();
+            var snapshotId = "snapshot_" + UUID.randomUUID();
 
-        var taskOutputSlot = makeOutputFileSlot("/slot_1");
+            String firstTaskId = startTask("echo 'i-am-a-hacker' > $LZY_MOUNT/%s && echo 'hello'"
+                .formatted(taskOutputSlot), taskOutputSlot, worker, true, snapshotId);
 
-        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_worker_1/slot_1 && echo 'hello'",
-            taskOutputSlot, null);
+            Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+            Assert.assertTrue(portalStdout.isEmpty());
+            Assert.assertTrue(portalStderr.isEmpty());
+            waitPortalCompleted();
+            finishPortal();
 
-        Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
-        waitPortalCompleted();
-        finishPortal();
-
-        var storageConfig = GrpcUtils.makeAmazonSnapshot("snapshot1", BUCKET_NAME, S3_ADDRESS).getStorageConfig();
-        var s3client = StorageClients.provider(storageConfig).get(Executors.newFixedThreadPool(5));
-        var tempfile = File.createTempFile("portal_", "_test");
-        tempfile.deleteOnExit();
-        s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());
-        String[] content = {null};
-        try (var reader = new BufferedReader(new FileReader(tempfile))) {
-            content[0] = reader.readLine();
+            var storageConfig = GrpcUtils.makeAmazonSnapshot(snapshotId, BUCKET_NAME, S3_ADDRESS).getStorageConfig();
+            var s3client = StorageClients.provider(storageConfig).get(Executors.newFixedThreadPool(5));
+            var tempfile = File.createTempFile("portal_", "_test");
+            tempfile.deleteOnExit();
+            s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());
+            String[] content = {null};
+            try (var reader = new BufferedReader(new FileReader(tempfile))) {
+                content[0] = reader.readLine();
+            }
+            Assert.assertEquals("i-am-a-hacker", content[0]);
         }
-        Assert.assertEquals("i-am-a-hacker", content[0]);
 
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");
@@ -110,49 +109,43 @@ public class PortalCommonTest extends PortalTestBase {
         var portalStderr = readPortalSlot("portal:stderr");
 
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
-
-        String firstWorkerId = prepareTask(1, true, true, "snapshot_1");
-
-        System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
-
-        var taskOutputSlot = makeOutputFileSlot("/slot_1");
-
-        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_worker_1/slot_1 && echo 'hello'",
-            taskOutputSlot, null);
-
-        Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
-        waitPortalCompleted();
-
-        // task_1 clean up
-        System.out.println("-- cleanup task1 scenario --");
-        destroyChannel("channel_1");
-        destroyChannel("task_1:stdout");
-        destroyChannel("task_1:stderr");
-
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
-        System.out.println("\n----- PREPARE PORTAL FOR TASK 2 -----------------------------------------\n");
-
-        ///// consumer task  /////
-
-        prepareTask(2, false, false, "snapshot_1");
-
-        Thread.sleep(Duration.ofSeconds(1).toMillis());
-        System.out.println("\n----- RUN TASK 2 -----------------------------------------\n");
-
         var tmpFile = File.createTempFile("lzy", "test-result");
         tmpFile.deleteOnExit();
+        var snapshotId = "snapshot_" + UUID.randomUUID();
 
-        var taskInputSlot = makeInputFileSlot("/slot_2");
+        try (var worker = startWorker()) {
 
-        String secondTaskId = startTask(2, "echo 'x' && /tmp/lzy_worker_1/sbin/cat /tmp/lzy_worker_1/slot_2 > "
-            + tmpFile.getAbsolutePath(), taskInputSlot, "worker_1");
+            System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
-        Assert.assertEquals("[LZY-REMOTE-" + secondTaskId + "] - x\n", portalStdout.take());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
-        waitPortalCompleted();
+            var taskOutputSlot = "/" + UUID.randomUUID();
+
+            String firstTaskId = startTask("echo 'i-am-a-hacker' > $LZY_MOUNT%s && echo 'hello'"
+                .formatted(taskOutputSlot),
+                taskOutputSlot, worker, true, snapshotId);
+
+            Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+            Assert.assertTrue(portalStdout.isEmpty());
+            Assert.assertTrue(portalStderr.isEmpty());
+            waitPortalCompleted();
+
+            // task_1 clean up
+            System.out.println("-- cleanup task1 scenario --");
+            destroyChannel("channel_1");
+            destroyChannel("task_1:stdout");
+            destroyChannel("task_1:stderr");
+
+            System.out.println("\n----- RUN TASK 2 -----------------------------------------\n");
+
+            var taskInputSlot = "/" + UUID.randomUUID();
+
+            String secondTaskId = startTask("echo 'x' && $LZY_MOUNT/sbin/cat $LZY_MOUNT%s > ".formatted(taskInputSlot)
+                + tmpFile.getAbsolutePath(), taskInputSlot, worker, false, snapshotId);
+
+            Assert.assertEquals("[LZY-REMOTE-" + secondTaskId + "] - x\n", portalStdout.take());
+            Assert.assertTrue(portalStdout.isEmpty());
+            Assert.assertTrue(portalStderr.isEmpty());
+            waitPortalCompleted();
+        }
 
         // task_2 clean up
         System.out.println("-- cleanup task2 scenario --");
@@ -173,20 +166,24 @@ public class PortalCommonTest extends PortalTestBase {
         var portalStderr = readPortalSlot("portal:stderr");
 
         System.out.println("\n----- PREPARE PORTAL FOR TASKS -----------------------------------------\n");
+        String firstTaskId;
+        String secondTaskId;
+        var snapshotId1 = "snapshot_" + UUID.randomUUID();
+        var snapshotId2 = "snapshot_" + UUID.randomUUID();
 
-        String firstWorkerId = prepareTask(1, true, true, "snapshot_1");
-        String secondWorkerId = prepareTask(2, true, true, "snapshot_2");
+        try(var worker1 = startWorker()) {
 
-        System.out.println("\n----- RUN TASKS -----------------------------------------\n");
+            System.out.println("\n----- RUN TASKS -----------------------------------------\n");
 
-        var task1OutputSlot = makeOutputFileSlot("/slot_1");
-        var task2OutputSlot = makeOutputFileSlot("/slot_2");
+            var task1OutputSlot = "/" + UUID.randomUUID();
+            var task2OutputSlot = "/" + UUID.randomUUID();
 
-        String firstTaskId = startTask(1, "echo 'hello from task_1' > /tmp/lzy_worker_1/slot_1 && "
-            + "echo 'hello from task_1'", task1OutputSlot, null);
-        String secondTaskId = startTask(2, "echo 'hello from task_2' > /tmp/lzy_worker_2/slot_2 && "
-            + "echo 'hello from task_2'", task2OutputSlot, null);
-        waitPortalCompleted();
+            firstTaskId = startTask("echo 'hello from task_1' > $LZY_MOUNT/%s && ".formatted(task1OutputSlot)
+                + "echo 'hello from task_1'", task1OutputSlot, worker1, true, snapshotId1);
+            secondTaskId = startTask("echo 'hello from task_2' > $LZY_MOUNT/%s && ".formatted(task2OutputSlot)
+                + "echo 'hello from task_2'", task2OutputSlot, worker1, true, snapshotId2);
+            waitPortalCompleted();
+        }
 
         System.out.println("\n----- TASKS DONE -----------------------------------------\n");
 
@@ -221,62 +218,58 @@ public class PortalCommonTest extends PortalTestBase {
 
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
-        String firstWorkerId = prepareTask(1, true, true, "snapshot_1");
-
         System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
-        var taskOutputSlot = makeOutputFileSlot("/slot_1");
-
-        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_worker_1/slot_1 && echo 'hello'",
-            taskOutputSlot, null);
-
-        Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
-        waitPortalCompleted();
-
-        // task_1 clean up
-        System.out.println("-- cleanup task1 scenario --");
-        destroyChannel("channel_1");
-        destroyChannel("task_1:stdout");
-        destroyChannel("task_1:stderr");
-
-        System.out.println("\n----- PREPARE PORTAL FOR TASK 2, TASK 3 -----------------------------------------\n");
-
-        ///// consumer tasks  /////
-
-        String secondWorkerId = prepareTask(2, true, false, "snapshot_1");
-        String thirdWorkerId = prepareTask(3, true, false, "snapshot_1");
-
-        System.out.println("\n----- RUN TASK 2 -----------------------------------------\n");
-
         var tmpFile2 = File.createTempFile("lzy", "test-result-2");
-        tmpFile2.deleteOnExit();
-
-        var taskInputSlot2 = makeInputFileSlot("/slot_2");
-
-        String secondTaskId = startTask(2, "echo 'x' && /tmp/lzy_worker_2/sbin/cat /tmp/lzy_worker_2/slot_2 > "
-            + tmpFile2.getAbsolutePath(), taskInputSlot2, null);
-
-        Assert.assertEquals("[LZY-REMOTE-" + secondTaskId + "] - x\n", portalStdout.take());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
-        waitPortalCompleted();
-
-        System.out.println("\n----- RUN TASK 3 -----------------------------------------\n");
-
         var tmpFile3 = File.createTempFile("lzy", "test-result-3");
-        tmpFile3.deleteOnExit();
+        var snapshotId = "snapshot_" + UUID.randomUUID();
 
-        var taskInputSlot3 = makeInputFileSlot("/slot_3");
+        try(var worker1 = startWorker()) {
 
-        String thirdTaskId = startTask(3, "echo 'x' && /tmp/lzy_worker_3/sbin/cat /tmp/lzy_worker_3/slot_3 > "
-            + tmpFile3.getAbsolutePath(), taskInputSlot3, null);
+            var taskOutputSlot = "/" + UUID.randomUUID();
 
-        Assert.assertEquals("[LZY-REMOTE-" + thirdTaskId + "] - x\n", portalStdout.take());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
-        waitPortalCompleted();
+            String firstTaskId = startTask("echo 'i-am-a-hacker' > $LZY_MOUNT/%s && echo 'hello'"
+                .formatted(taskOutputSlot), taskOutputSlot, worker1, true, snapshotId);
+
+            Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+            Assert.assertTrue(portalStdout.isEmpty());
+            Assert.assertTrue(portalStderr.isEmpty());
+            waitPortalCompleted();
+
+            // task_1 clean up
+            System.out.println("-- cleanup task1 scenario --");
+            destroyChannel("channel_1");
+            destroyChannel("task_1:stdout");
+            destroyChannel("task_1:stderr");
+
+            System.out.println("\n----- RUN TASK 2 -----------------------------------------\n");
+            tmpFile2.deleteOnExit();
+
+            var taskInputSlot2 = "/" + UUID.randomUUID();
+
+            String secondTaskId = startTask("echo 'x' && $LZY_MOUNT/sbin/cat $LZY_MOUNT/%s > ".formatted(taskInputSlot2)
+                .formatted(taskInputSlot2) + tmpFile2.getAbsolutePath(), taskInputSlot2, worker1, false, snapshotId);
+
+            Assert.assertEquals("[LZY-REMOTE-" + secondTaskId + "] - x\n", portalStdout.take());
+            Assert.assertTrue(portalStdout.isEmpty());
+            Assert.assertTrue(portalStderr.isEmpty());
+            waitPortalCompleted();
+
+            System.out.println("\n----- RUN TASK 3 -----------------------------------------\n");
+
+
+            tmpFile3.deleteOnExit();
+
+            var taskInputSlot3 = "/" + UUID.randomUUID();
+
+            String thirdTaskId = startTask("echo 'x' && $LZY_MOUNT/sbin/cat $LZY_MOUNT/%s > ".formatted(taskInputSlot3)
+                + tmpFile3.getAbsolutePath(), taskInputSlot3, worker1, false, snapshotId);
+
+            Assert.assertEquals("[LZY-REMOTE-" + thirdTaskId + "] - x\n", portalStdout.take());
+            Assert.assertTrue(portalStdout.isEmpty());
+            Assert.assertTrue(portalStderr.isEmpty());
+            waitPortalCompleted();
+        }
 
         // task_3 clean up
         // task_2 clean up
@@ -304,55 +297,50 @@ public class PortalCommonTest extends PortalTestBase {
         var portalStdout = readPortalSlot("portal:stdout");
         var portalStderr = readPortalSlot("portal:stderr");
 
+        var snapshotId = "snapshot_" + UUID.randomUUID();
+
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
-
-        String firstWorkerId = prepareTask(1, true, true, "snapshot_1");
-
-        System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
-
-        var taskOutputSlot = makeOutputFileSlot("/slot_1");
-        String firstTaskId = startTask(1, "echo 'i-am-a-hacker' > /tmp/lzy_worker_1/slot_1 && echo 'hello'",
-            taskOutputSlot, null);
-
-        Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
-        waitPortalCompleted();
-
-        // task_1 clean up
-        System.out.println("-- cleanup task1 scenario --");
-        destroyChannel("channel_1");
-        destroyChannel("task_1:stdout");
-        destroyChannel("task_1:stderr");
-
-        System.out.println("\n----- PREPARE PORTAL FOR TASK 2, TASK 3 -----------------------------------------\n");
-
-        ///// consumer tasks  /////
-
-        String secondWorkerId = prepareTask(2, true, false, "snapshot_1");
-        String thirdWorkerId = prepareTask(3, true, false, "snapshot_1");
-
-        System.out.println("\n----- RUN TASK 2 & TASK 3 -----------------------------------------\n");
-
         var tmpFile2 = File.createTempFile("lzy", "test-result-2");
         tmpFile2.deleteOnExit();
 
         var tmpFile3 = File.createTempFile("lzy", "test-result-3");
         tmpFile3.deleteOnExit();
 
-        var taskInputSlot2 = makeInputFileSlot("/slot_2");
-        var taskInputSlot3 = makeInputFileSlot("/slot_3");
+        try(var worker1 = startWorker()) {
 
-        startTask(2, "/tmp/lzy_worker_2/sbin/cat /tmp/lzy_worker_2/slot_2 > "
-            + tmpFile2.getAbsolutePath(), taskInputSlot2, null);
-        startTask(3, "/tmp/lzy_worker_3/sbin/cat /tmp/lzy_worker_3/slot_3 > "
-            + tmpFile3.getAbsolutePath(), taskInputSlot3, null);
+            System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
-        // wait
-        waitPortalCompleted();
+            var taskOutputSlot = "/" + UUID.randomUUID();
+            String firstTaskId = startTask("echo 'i-am-a-hacker' > $LZY_MOUNT/%s && echo 'hello'"
+                .formatted(taskOutputSlot), taskOutputSlot, worker1, true, snapshotId);
 
-        // wait
-        waitPortalCompleted();
+            Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
+            Assert.assertTrue(portalStdout.isEmpty());
+            Assert.assertTrue(portalStderr.isEmpty());
+            waitPortalCompleted();
+
+            // task_1 clean up
+            System.out.println("-- cleanup task1 scenario --");
+            destroyChannel("channel_1");
+            destroyChannel("task_1:stdout");
+            destroyChannel("task_1:stderr");
+
+            System.out.println("\n----- RUN TASK 2 & TASK 3 -----------------------------------------\n");
+
+            var taskInputSlot2 = "/" + UUID.randomUUID();
+            var taskInputSlot3 = "/" + UUID.randomUUID();
+
+            startTask("$LZY_MOUNT/sbin/cat $LZY_MOUNT/%s > ".formatted(taskInputSlot2)
+                + tmpFile2.getAbsolutePath(), taskInputSlot2, worker1, false, snapshotId);
+            startTask("$LZY_MOUNT/sbin/cat $LZY_MOUNT/%s > ".formatted(taskInputSlot3)
+                + tmpFile3.getAbsolutePath(), taskInputSlot3, worker1, false, snapshotId);
+
+            // wait
+            waitPortalCompleted();
+
+            // wait
+            waitPortalCompleted();
+        }
 
         // task_3 clean up
         // task_2 clean up

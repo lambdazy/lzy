@@ -25,4 +25,10 @@ Configuration:
         level: warn
 
       - name: ai.lzy
+        level: info
+
+      - name: ai.lzy.portal
         level: debug
+
+      - name: GrpcServer
+        level: error

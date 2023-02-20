@@ -6,6 +6,7 @@ import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.PythonContext;
 import ai.lzy.worker.env.CondaEnvironment;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
