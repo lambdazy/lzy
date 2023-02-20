@@ -105,7 +105,7 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
     }
 
     @Test
-    public void testBindTwiceWithIdempotency() {
+    public void idempotentConcurrentBind() throws Exception {
         final String executionId = UUID.randomUUID().toString();
         final String channelName = "ch1";
         var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
@@ -116,9 +116,7 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
 
         var idempotentClient = withIdempotencyKey(publicClient, bindCmd.getSlotInstance().getSlotUri());
 
-        var op1 = idempotentClient.bind(bindCmd);
-        var op2 = idempotentClient.bind(bindCmd);
-        assertEquals(op1.getId(), op2.getId());
+        idempotentConcurrentOperationTest(10, () -> idempotentClient.bind(bindCmd));
     }
 
     @Test
@@ -144,7 +142,7 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
     }
 
     @Test
-    public void testUnbindTwiceWithIdempotency() {
+    public void idempotentConcurrentUnbind() throws Exception {
         final String executionId = UUID.randomUUID().toString();
         final String channelName = "ch1";
         var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
@@ -159,9 +157,7 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
 
         var idempotentClient = withIdempotencyKey(publicClient, bindCmd.getSlotInstance().getSlotUri());
 
-        var op1 = idempotentClient.unbind(unbindCmd);
-        var op2 = idempotentClient.unbind(unbindCmd);
-        assertEquals(op1.getId(), op2.getId());
+        idempotentConcurrentOperationTest(10, () -> idempotentClient.unbind(unbindCmd));
     }
 
     @Test
@@ -176,6 +172,20 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
 
         awaitOperationResponse(op1.getId());
         awaitOperationResponse(op2.getId());
+    }
+
+    @Test
+    public void idempotentConcurrentDestroy() throws Exception {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch1";
+        var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
+        final String channelId = createResponse.getChannelId();
+
+        final var destroyCmd = makeChannelDestroyCommand(channelId);
+
+        var idempotentClient = withIdempotencyKey(privateClient, channelId);
+
+        idempotentConcurrentOperationTest(10, () -> idempotentClient.destroy(destroyCmd));
     }
 
     @Test
