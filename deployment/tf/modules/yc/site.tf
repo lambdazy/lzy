@@ -1,11 +1,12 @@
 locals {
   backoffice-labels = {
-    app                         = "lzy-backoffice"
-    "app.kubernetes.io/name"    = "lzy-backoffice"
-    "lzy.ai/app"                = "backoffice"
+    app                      = "lzy-backoffice"
+    "app.kubernetes.io/name" = "lzy-backoffice"
+    "lzy.ai/app"             = "backoffice"
   }
 
-  backoffice-k8s-name          = "lzy-backoffice"
+  backoffice-k8s-name     = "lzy-backoffice"
+  github-redirect-address = var.domain_name != null ? var.domain_name : yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address
 }
 
 resource "kubernetes_secret" "oauth_github" {
@@ -61,7 +62,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             }
           }
         }
-      container {
+        container {
           name              = "${local.backoffice-k8s-name}-backend"
           image             = var.backoffice-backend-image
           image_pull_policy = "Always"
@@ -84,11 +85,11 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             }
           }
           env {
-            name = "SITE_SCHEDULER_ADDRESS"
+            name  = "SITE_SCHEDULER_ADDRESS"
             value = "${kubernetes_service.scheduler_service.spec[0].cluster_ip}:${local.scheduler-port}"
           }
           env {
-            name = "SITE_IAM_ADDRESS"
+            name  = "SITE_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
@@ -96,7 +97,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
@@ -105,12 +106,12 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
-                key = "key"
+                key  = "key"
               }
             }
           }
           env {
-            name = "SITE_IAM_ADDRESS"
+            name  = "SITE_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           port {
@@ -129,9 +130,9 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             "-Dmicronaut.ssl.key-store.password=${var.ssl-keystore-password}",
             "-Dmicronaut.ssl.key-store.type=JKS",
             "-Dmicronaut.ssl.enabled=true",
-            "-Dsite.hostname=https://${yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address}:8443",
+            "-Dsite.hostname=https://${local.github-redirect-address}:8443",
             "-Dmicronaut.server.dual-protocol=true"
-          ] : [
+            ] : [
             "-Dmicronaut.env.deduction=true",
             "-Dmicronaut.ssl.enabled=false",
             "-Dsite.hostname=http://${yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address}:8080",
@@ -170,8 +171,8 @@ resource "kubernetes_deployment" "lzy_backoffice" {
 
 resource "kubernetes_service" "lzy_backoffice" {
   metadata {
-    name        = "${local.backoffice-k8s-name}-service"
-    labels      = local.backoffice-labels
+    name   = "${local.backoffice-k8s-name}-service"
+    labels = local.backoffice-labels
   }
   spec {
     load_balancer_ip = yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address
