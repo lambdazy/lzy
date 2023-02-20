@@ -21,11 +21,9 @@ public class EnvironmentFactory {
     private final ProcessEnvironment localProcessEnv = new ProcessEnvironment();
     private static Supplier<AuxEnvironment> envForTests = null;
 
-    private final String defaultImage;
     private final boolean hasGpu;
 
-    public EnvironmentFactory(String defaultImage, int gpuCount) {
-        this.defaultImage = defaultImage;
+    public EnvironmentFactory(int gpuCount) {
         this.hasGpu = gpuCount > 0;
     }
 

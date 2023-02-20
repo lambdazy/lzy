@@ -95,10 +95,23 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
                 return null;
             }
 
+            var apiPort = vmDesc.getMetadataMap().get("API_PORT");
+
+            if (apiPort == null) {
+                logger.error("Not found public api port im metadata for vm {} for op {}",
+                    vmDesc.getVmId(), operationId);
+
+                fail(Status.newBuilder()
+                    .setCode(Code.INTERNAL.getNumber())
+                    .setMessage("Cannot allocate vm")
+                    .build());
+                return null;
+            }
 
             return state.copy()
                 .workerHost(address.getValue())
                 .workerPublicKey(pk)
+                .workerPort(Integer.valueOf(apiPort))
                 .build();
         } catch (InvalidProtocolBufferException e) {
             logger.error("Cannot unpack response of allocate op for operation {}", operationId, e);

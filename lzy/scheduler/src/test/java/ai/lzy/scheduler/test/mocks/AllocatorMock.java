@@ -9,6 +9,7 @@ import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse.VmEndpoint;
 import ai.lzy.v1.common.LMO;
+import ai.lzy.v1.longrunning.LongRunning;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.micronaut.context.annotation.Primary;
@@ -42,7 +43,7 @@ public class AllocatorMock implements WorkersAllocator {
     }
 
     @Override
-    public AllocateResult allocate(String userId, String workflowName, String sessionId,
+    public LongRunning.Operation allocate(String userId, String workflowName, String sessionId,
                                           LMO.Requirements requirements)
     {
         var address = onAllocate.call(workflowName, userId, sessionId);
@@ -77,7 +78,7 @@ public class AllocatorMock implements WorkersAllocator {
         opService.registerOperation(op);
         opService.updateResponse(op.id(), resp);
 
-        return new AllocateResult(op.toProto(), port, port);
+        return op.toProto();
     }
 
     @Override

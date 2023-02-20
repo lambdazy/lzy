@@ -14,7 +14,7 @@ public class EnvTest {
 
     @Before
     public void before() {
-        this.factory = new EnvironmentFactory("", 0);
+        this.factory = new EnvironmentFactory(0);
     }
 
     @Test

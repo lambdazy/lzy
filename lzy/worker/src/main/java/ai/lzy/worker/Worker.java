@@ -15,6 +15,7 @@ import ai.lzy.model.Signal;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.TextLinesOutSlot;
+import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcUtils;
@@ -47,10 +48,7 @@ import java.nio.file.Path;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
@@ -61,21 +59,20 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
+    private static final int DEFAULT_FS_PORT = 9876;
+    private static final int DEFAULT_API_PORT = 9877;
     private static boolean USE_LOCALHOST_AS_HOST = false;
+    private static boolean SELECT_RANDOM_VALUES = false;
     private static RsaUtils.RsaKeys RSA_KEYS = null;  // only for tests
 
     private static final Options options = new Options();
 
     static {
-        options.addOption("p", "port", true, "Worker gRPC port.");
-        options.addOption("q", "fs-port", true, "LzyFs gRPC port.");
         options.addOption(null, "allocator-address", true, "Lzy allocator address [host:port]");
         options.addOption("ch", "channel-manager", true, "Channel manager address [host:port]");
         options.addOption("i", "iam", true, "Iam address [host:port]");
-        options.addOption("m", "lzy-mount", true, "Lzy FS mount point");
         options.addOption("h", "host", true, "Worker and FS host name");
         options.addOption(null, "vm-id", true, "Vm id from allocator");
-        options.addOption(null, "user-default-image", true, "Image, used for inner container by default");
         options.addOption(null, "allocator-heartbeat-period", true, "Allocator heartbeat period in duration format");
 
         // for tests only
@@ -91,13 +88,25 @@ public class Worker {
     private final Server server;
 
     public Worker(String vmId, String allocatorAddress, String iamAddress, Duration allocatorHeartbeatPeriod,
-                  int apiPort, int fsPort, String fsRoot, String channelManagerAddress, String host,
-                  String allocatorToken, String defaultUserImage)
+                  String channelManagerAddress, String host, String allocatorToken)
     {
         var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
 
-        LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, realHost);
+        final int fsPort;
+        final int apiPort;
+        final String fsRoot;
 
+        if (SELECT_RANDOM_VALUES) {
+            fsPort = FreePortFinder.find(10000, 20000);
+            apiPort = FreePortFinder.find(20000, 30000);
+            fsRoot = "/tmp/lzy" + UUID.randomUUID();
+        } else {
+            fsPort = DEFAULT_FS_PORT;
+            apiPort = DEFAULT_API_PORT;
+            fsRoot = "/tmp/lzy";
+        }
+
+        LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, realHost);
 
         if (realHost == null) {
             if (USE_LOCALHOST_AS_HOST) {
@@ -128,7 +137,7 @@ public class Worker {
         operationService = new LocalOperationService(vmId);
 
         String gpuCount = System.getenv(AllocatorAgent.VM_GPU_COUNT);
-        this.envFactory = new EnvironmentFactory(defaultUserImage, gpuCount == null ? 0 : Integer.parseInt(gpuCount));
+        this.envFactory = new EnvironmentFactory(gpuCount == null ? 0 : Integer.parseInt(gpuCount));
 
         server = newGrpcServer("0.0.0.0", apiPort, GrpcUtils.NO_AUTH)
             .addService(new WorkerApiImpl())
@@ -169,7 +178,11 @@ public class Worker {
 
         try {
             allocatorAgent = new AllocatorAgent(allocatorToken, vmId, allocatorAddress, allocatorHeartbeatPeriod);
-            allocatorAgent.start(Map.of("PUBLIC_KEY", iamKeys.publicKey()));
+            allocatorAgent.start(Map.of(
+                "PUBLIC_KEY", iamKeys.publicKey(),
+                "API_PORT", String.valueOf(apiPort),
+                "FS_PORT", String.valueOf(fsPort)
+            ));
         } catch (AllocatorAgent.RegisterException e) {
             throw new RuntimeException(e);
         }
@@ -210,9 +223,8 @@ public class Worker {
             final var worker = new Worker(
                 vmId, parse.getOptionValue("allocator-address"), parse.getOptionValue("iam"),
                 allocHeartbeat == null ? null : Duration.parse(allocHeartbeat),
-                Integer.parseInt(parse.getOptionValue('p')), Integer.parseInt(parse.getOptionValue('q')),
-                parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),
-                parse.getOptionValue("allocator-token"), parse.getOptionValue("user-default-image"));
+                parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),
+                parse.getOptionValue("allocator-token"));
 
             try {
                 worker.awaitTermination();
@@ -238,6 +250,11 @@ public class Worker {
     @VisibleForTesting
     public static void setRsaKeysForTests(@Nullable RsaUtils.RsaKeys keys) {
         RSA_KEYS = keys;
+    }
+
+    @VisibleForTesting
+    public static void selectRandomValues(boolean val) {
+        SELECT_RANDOM_VALUES = val;
     }
 
     @VisibleForTesting
