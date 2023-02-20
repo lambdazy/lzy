@@ -423,6 +423,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         allocationContext.metrics().allocateFromCacheDuration
                             .observe(Duration.between(op.createdAt(), now).getSeconds());
 
+                        allocationContext.metrics().runningVms.labels(existingVm.poolLabel()).inc();
                         allocationContext.metrics().cachedVms.labels(existingVm.poolLabel()).dec();
                         allocationContext.metrics().cachedVmsTime.labels(existingVm.poolLabel())
                             .inc(Duration.between(existingVm.idleState().idleSice(), now).getSeconds());
@@ -530,22 +531,31 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                             LOG.info("Vms cache is full ({}), about to delete VM {}...", cachedVms, vm.vmId());
 
                             var action = allocationContext.createDeleteVmAction(vm, "VMs cache is full", reqid, tx);
-
                             tx.commit();
 
                             LOG.info("VM {} scheduled to remove (cache is full)", vm.vmId());
 
                             allocationContext.startNew(action);
                         } else {
-                            var cacheDeadline = Instant.now().plus(session.cachePolicy().minIdleTimeout());
-                            vmDao.release(vm.vmId(), cacheDeadline, tx);
+                            if (session.cachePolicy().minIdleTimeout().isZero()) {
+                                LOG.info("Free VM {} according to cache policy...", vm.vmId());
 
-                            tx.commit();
+                                var action = allocationContext.createDeleteVmAction(vm, "Free VM", reqid, tx);
+                                tx.commit();
 
-                            LOG.info("VM {} released to session {} cache until {}",
-                                vm.vmId(), vm.sessionId(), cacheDeadline);
+                                LOG.info("VM {} scheduled to remove", vm.vmId());
 
-                            allocationContext.metrics().cachedVms.labels(vm.poolLabel()).inc();
+                                allocationContext.startNew(action);
+                            } else {
+                                var cacheDeadline = Instant.now().plus(session.cachePolicy().minIdleTimeout());
+                                vmDao.release(vm.vmId(), cacheDeadline, tx);
+                                tx.commit();
+
+                                LOG.info("VM {} released to session {} cache until {}",
+                                    vm.vmId(), vm.sessionId(), cacheDeadline);
+
+                                allocationContext.metrics().cachedVms.labels(vm.poolLabel()).inc();
+                            }
                         }
 
                         allocationContext.metrics().runningVms.labels(vm.poolLabel()).dec();

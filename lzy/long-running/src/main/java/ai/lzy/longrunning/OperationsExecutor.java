@@ -29,6 +29,10 @@ public final class OperationsExecutor {
         this.executor = create(corePoolSize, maxPoolSize, onError, injectedFailure);
     }
 
+    public int operationsCount() {
+        return runningOperations.get();
+    }
+
     public void startNew(Runnable op) {
         if (terminating.get()) {
             throw new RejectedExecutionException("Cannot start new operation, service is terminating...");
