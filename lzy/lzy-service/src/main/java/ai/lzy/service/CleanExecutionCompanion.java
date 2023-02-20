@@ -303,7 +303,7 @@ public class CleanExecutionCompanion {
         LOG.info("Destroy channels of execution: { executionId: {} }", executionId);
 
         try {
-            var idempotentChannelManagerClient = withIdempotencyKey(channelManagerClient, executionId);
+            var idempotentChannelManagerClient = withIdempotencyKey(channelManagerClient, "destroyAll/" + executionId);
 
             return idempotentChannelManagerClient.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder()
                 .setExecutionId(executionId).build());

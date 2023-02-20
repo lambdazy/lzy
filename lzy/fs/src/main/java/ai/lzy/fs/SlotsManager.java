@@ -149,7 +149,8 @@ public class SlotsManager implements AutoCloseable {
             synchronized (SlotsManager.this) {
                 LOG.info("UnBind slot {} from channel {}", spec, channelId);
                 try {
-                    var idempotentChannelManagerClient = withIdempotencyKey(channelManager, slotUri.toString());
+                    String idempotencyKey = "unbind/" + slotUri.toString();
+                    var idempotentChannelManagerClient = withIdempotencyKey(channelManager, idempotencyKey);
 
                     var unbindSlotOp = idempotentChannelManagerClient.unbind(makeUnbindSlotCommand(slotUri));
                     LOG.info("Unbind slot requested, operationId={}", unbindSlotOp.getId());
@@ -183,7 +184,8 @@ public class SlotsManager implements AutoCloseable {
             }
         });
 
-        var idempotentChannelManagerClient = withIdempotencyKey(channelManager, slot.instance().uri().toString());
+        String idempotencyKey = "bind/" + slotUri.toString();
+        var idempotentChannelManagerClient = withIdempotencyKey(channelManager, idempotencyKey);
 
         var bindSlotOp = idempotentChannelManagerClient.bind(makeBindSlotCommand(slot.instance(), this.isPortal));
         LOG.info("Bind slot requested, operationId={}", bindSlotOp.getId());
