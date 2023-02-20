@@ -56,6 +56,7 @@ import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcHeaders.createContext;
 import static ai.lzy.util.grpc.GrpcHeaders.withContext;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
@@ -509,6 +510,16 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         if (vm == null) {
                             LOG.error("Cannot find vm {}", request.getVmId());
                             return Status.NOT_FOUND.withDescription("Cannot find vm");
+                        }
+
+                        if (vm.status() == Vm.Status.ALLOCATING) {
+                            LOG.error("Free vm {} in status ALLOCATING, trying to cancel allocation op {}",
+                                vm, vm.allocOpId());
+
+                            operationsDao.fail(
+                                vm.allocOpId(), toProto(Status.CANCELLED.withDescription("Unexpected free")), tx);
+                            tx.commit();
+                            return Status.OK;
                         }
 
                         if (vm.status() != Vm.Status.RUNNING) {

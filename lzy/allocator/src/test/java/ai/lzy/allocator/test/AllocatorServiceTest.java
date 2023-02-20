@@ -322,6 +322,45 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     }
 
     @Test
+    public void unexpectedlyFreeWhileAllocate() throws Exception {
+        var sessionId = createSession(Durations.ZERO);
+
+        final var future = awaitAllocationRequest();
+
+        var allocOp = withGrpcContext(() -> authorizedAllocatorBlockingStub.allocate(
+            AllocateRequest.newBuilder()
+                .setSessionId(sessionId)
+                .setPoolLabel("S")
+                .setZone(ZONE)
+                .setClusterType(AllocateRequest.ClusterType.USER)
+                .addWorkload(AllocateRequest.Workload.getDefaultInstance())
+                .build()));
+
+        var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+
+        final String podName = future.get();
+        mockGetPod(podName);
+
+        var deleted = new CountDownLatch(1);
+        mockDeletePod(podName, deleted::countDown, HttpURLConnection.HTTP_OK);
+
+        assertVmMetrics("S", 1, 0, 0);
+
+        freeVm(vmId);
+        Assert.assertTrue(deleted.await(5, TimeUnit.SECONDS));
+
+        allocOp = operationServiceApiBlockingStub.get(
+            LongRunning.GetOperationRequest.newBuilder()
+                .setOperationId(allocOp.getId())
+                .build());
+        Assert.assertTrue(allocOp.getDone());
+        Assert.assertTrue(allocOp.hasError());
+        Assert.assertEquals(Status.Code.CANCELLED.value(), allocOp.getError().getCode());
+
+        assertVmMetrics("S", 0, 0, 0);
+    }
+
+    @Test
     public void eventualFreeAfterFail() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
