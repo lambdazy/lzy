@@ -10,6 +10,7 @@ import ai.lzy.channelmanager.operation.ChannelOperation;
 import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.operation.ChannelOperationManager;
 import ai.lzy.channelmanager.test.InjectedFailures;
+import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -32,6 +33,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
@@ -109,6 +111,11 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
+            return;
+        }
+
         final String channelId = request.getChannelId();
         String operationDescription = "Destroy channel " + channelId;
         LOG.info(operationDescription + " started");
@@ -123,7 +130,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         final Operation operation = Operation.create("ChannelManager", operationDescription, /* deadline */ null,
-            Any.pack(LCMPS.ChannelDestroyMetadata.getDefaultInstance()));
+            idempotencyKey, Any.pack(LCMPS.ChannelDestroyMetadata.getDefaultInstance()));
 
         if (channel == null) {
             LOG.warn(operationDescription + " skipped, channel not found");
@@ -187,6 +194,11 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
+            return;
+        }
+
         final String executionId = request.getExecutionId();
         String operationDescription = "Destroying all channels for execution " + executionId;
         LOG.info(operationDescription + " started");
@@ -202,7 +214,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         final Operation operation = Operation.create("ChannelManager", operationDescription, /* deadline */ null,
-            Any.pack(LCMPS.ChannelDestroyAllMetadata.getDefaultInstance()));
+            idempotencyKey, Any.pack(LCMPS.ChannelDestroyAllMetadata.getDefaultInstance()));
 
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);

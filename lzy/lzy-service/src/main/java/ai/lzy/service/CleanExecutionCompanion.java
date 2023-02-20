@@ -39,6 +39,7 @@ import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
@@ -302,7 +303,9 @@ public class CleanExecutionCompanion {
         LOG.info("Destroy channels of execution: { executionId: {} }", executionId);
 
         try {
-            return channelManagerClient.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder()
+            var idempotentChannelManagerClient = withIdempotencyKey(channelManagerClient, executionId);
+
+            return idempotentChannelManagerClient.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder()
                 .setExecutionId(executionId).build());
         } catch (StatusRuntimeException e) {
             LOG.warn("Cannot destroy channels of execution: { executionId: {}, error: {} }",

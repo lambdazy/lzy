@@ -13,6 +13,7 @@ import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.operation.ChannelOperationManager;
 import ai.lzy.channelmanager.test.InjectedFailures;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -35,6 +36,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
@@ -74,6 +76,11 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         if (!validationResult.isOk()) {
             LOG.error("BindRequest failed: {}", validationResult.description());
             response.onError(Status.INVALID_ARGUMENT.withDescription(validationResult.description()).asException());
+            return;
+        }
+
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
             return;
         }
 
@@ -120,7 +127,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         }
 
         final Operation operation = Operation.create("ChannelManager", operationDescription, /* deadline */ null,
-            Any.pack(LCMS.BindMetadata.getDefaultInstance()));
+            idempotencyKey, Any.pack(LCMS.BindMetadata.getDefaultInstance()));
 
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
@@ -184,6 +191,11 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
+            return;
+        }
+
         String operationDescription = "Unbind slot %s".formatted(request.getSlotUri());
         LOG.info(operationDescription + " started");
 
@@ -227,7 +239,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         }
 
         final Operation operation = Operation.create("ChannelManager", operationDescription, /* deadline */ null,
-            Any.pack(LCMS.UnbindMetadata.getDefaultInstance()));
+            idempotencyKey, Any.pack(LCMS.UnbindMetadata.getDefaultInstance()));
 
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);

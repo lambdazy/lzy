@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.UUID;
 
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -104,6 +105,23 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
     }
 
     @Test
+    public void testBindTwiceWithIdempotency() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch1";
+        var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
+        final String channelId = createResponse.getChannelId();
+
+        final var bindCmd = makeBindCommand(channelId, "inSlotW",
+            LMS.Slot.Direction.INPUT, BindRequest.SlotOwner.WORKER);
+
+        var idempotentClient = withIdempotencyKey(publicClient, bindCmd.getSlotInstance().getSlotUri());
+
+        var op1 = idempotentClient.bind(bindCmd);
+        var op2 = idempotentClient.bind(bindCmd);
+        assertEquals(op1.getId(), op2.getId());
+    }
+
+    @Test
     public void testUnbindTwice() {
         final String executionId = UUID.randomUUID().toString();
         final String channelName = "ch1";
@@ -123,7 +141,27 @@ public class ChannelManagerApiTest extends ChannelManagerBaseApiTest {
         } catch (StatusRuntimeException e) {
             assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
+    }
 
+    @Test
+    public void testUnbindTwiceWithIdempotency() {
+        final String executionId = UUID.randomUUID().toString();
+        final String channelName = "ch1";
+        var createResponse = privateClient.create(makeChannelCreateCommand(executionId, channelName));
+        final String channelId = createResponse.getChannelId();
+
+        final var bindCmd = makeBindCommand(channelId, "inSlotW",
+            LMS.Slot.Direction.INPUT, BindRequest.SlotOwner.WORKER);
+        var op = publicClient.bind(bindCmd);
+        awaitOperationResponse(op.getId());
+
+        final var unbindCmd = makeUnbindCommand(bindCmd.getSlotInstance().getSlotUri());
+
+        var idempotentClient = withIdempotencyKey(publicClient, bindCmd.getSlotInstance().getSlotUri());
+
+        var op1 = idempotentClient.unbind(unbindCmd);
+        var op2 = idempotentClient.unbind(unbindCmd);
+        assertEquals(op1.getId(), op2.getId());
     }
 
     @Test

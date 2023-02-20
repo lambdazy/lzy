@@ -37,6 +37,7 @@ import static ai.lzy.channelmanager.ProtoConverter.makeBindSlotCommand;
 import static ai.lzy.channelmanager.ProtoConverter.makeUnbindSlotCommand;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.UriScheme.LzyFs;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.SUSPENDED;
 
@@ -148,7 +149,9 @@ public class SlotsManager implements AutoCloseable {
             synchronized (SlotsManager.this) {
                 LOG.info("UnBind slot {} from channel {}", spec, channelId);
                 try {
-                    var unbindSlotOp = channelManager.unbind(makeUnbindSlotCommand(slotUri));
+                    var idempotentChannelManagerClient = withIdempotencyKey(channelManager, slotUri.toString());
+
+                    var unbindSlotOp = idempotentChannelManagerClient.unbind(makeUnbindSlotCommand(slotUri));
                     LOG.info("Unbind slot requested, operationId={}", unbindSlotOp.getId());
 
                     unbindSlotOp = awaitOperationDone(operationService, unbindSlotOp.getId(), Duration.ofSeconds(10));
@@ -180,8 +183,11 @@ public class SlotsManager implements AutoCloseable {
             }
         });
 
-        var bindSlotOp = channelManager.bind(makeBindSlotCommand(slot.instance(), this.isPortal));
+        var idempotentChannelManagerClient = withIdempotencyKey(channelManager, slot.instance().uri().toString());
+
+        var bindSlotOp = idempotentChannelManagerClient.bind(makeBindSlotCommand(slot.instance(), this.isPortal));
         LOG.info("Bind slot requested, operationId={}", bindSlotOp.getId());
+
         bindSlotOp = awaitOperationDone(operationService, bindSlotOp.getId(), Duration.ofSeconds(10));
         if (!bindSlotOp.getDone()) {
             throw new RuntimeException("Bind operation " + bindSlotOp.getId() + " hangs");
