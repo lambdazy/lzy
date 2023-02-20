@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
+import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
@@ -139,6 +140,12 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             try {
                 withRetries(LOG, () -> operationDao.create(operation, null));
             } catch (Exception e) {
+                if (idempotencyKey != null &&
+                    handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, response, LOG))
+                {
+                    return;
+                }
+
                 LOG.error(operationDescription + " failed, cannot create operation, "
                           + "got exception: {}", e.getMessage(), e);
                 response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
@@ -161,14 +168,20 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                 try (final var guard = lockManager.withLock(channelId);
                      final var tx = TransactionHandle.create(storage))
                 {
+                    operationDao.create(operation, tx);
                     channelDao.markChannelDestroying(channelId, tx);
                     channelOperationDao.create(channelOperation, tx);
-                    operationDao.create(operation, tx);
 
                     tx.commit();
                 }
             });
         } catch (Exception e) {
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, response, LOG))
+            {
+                return;
+            }
+
             LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;
@@ -231,6 +244,12 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                 }
             });
         } catch (Exception e) {
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, response, LOG))
+            {
+                return;
+            }
+
             LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;

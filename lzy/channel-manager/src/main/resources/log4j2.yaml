@@ -15,8 +15,11 @@ Configuration:
         ref: Console
 
     Logger:
-      - name: "ai.lzy"
+      - name: "ai.lzy.channelmanager"
         level: debug
+
+      - name: "ai.lzy"
+        level: info
 
       - name: io.micronaut
         level: info
