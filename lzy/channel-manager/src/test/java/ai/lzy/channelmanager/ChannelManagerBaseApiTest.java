@@ -48,6 +48,7 @@ import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 
@@ -59,9 +60,14 @@ import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Supplier;
 
 import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
@@ -224,6 +230,47 @@ public class ChannelManagerBaseApiTest {
         return UnbindRequest.newBuilder()
             .setSlotUri(slotUri)
             .build();
+    }
+
+    protected void idempotentConcurrentOperationTest(int threads, Supplier<LongRunning.Operation> request)
+        throws InterruptedException
+    {
+        final var readyLatch = new CountDownLatch(threads);
+        final var doneLatch = new CountDownLatch(threads);
+        final var executor = Executors.newFixedThreadPool(threads);
+        final var opIds = new String[threads];
+        final var failed = new AtomicBoolean(false);
+
+        for (int i = 0; i < threads; ++i) {
+            final int index = i;
+            executor.submit(() -> {
+                try {
+                    readyLatch.countDown();
+                    readyLatch.await();
+
+                    var op = request.get();
+                    op = awaitOperationResponse(op.getId());
+
+                    Assert.assertFalse(op.getId().isEmpty());
+                    Assert.assertFalse(op.hasError());
+                    Assert.assertTrue(op.hasResponse());
+
+                    opIds[index] = op.getId();
+                } catch (Exception e) {
+                    failed.set(true);
+                    e.printStackTrace(System.err);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        doneLatch.await();
+        executor.shutdown();
+
+        Assert.assertFalse(failed.get());
+        Assert.assertFalse(opIds[0].isEmpty());
+        Assert.assertTrue(Arrays.stream(opIds).allMatch(opId -> opId.equals(opIds[0])));
     }
 
     protected LongRunning.Operation awaitOperationResponse(String operationId) {
