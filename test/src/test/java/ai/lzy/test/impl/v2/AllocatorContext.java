@@ -1,7 +1,6 @@
 package ai.lzy.test.impl.v2;
 
 import ai.lzy.allocator.AllocatorMain;
-import ai.lzy.scheduler.allocator.AllocatorImpl;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.AllocatorGrpc;
