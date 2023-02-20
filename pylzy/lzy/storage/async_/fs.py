@@ -19,6 +19,8 @@ class FsStorageClient(AsyncStorageClient):
                 read = file.read(8096)
                 if not read:
                     break
+                if progress:
+                    progress(len(read))
                 dest.write(read)
 
     async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
@@ -31,6 +33,8 @@ class FsStorageClient(AsyncStorageClient):
                 read = data.read(8096)
                 if not read:
                     break
+                if progress:
+                    progress(len(read))
                 file.write(read)
 
     async def blob_exists(self, uri: str) -> bool:
