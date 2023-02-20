@@ -142,6 +142,8 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         waitOpError(operation, Status.INTERNAL);
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+
+        assertVmMetrics("S", 0, 0, 0);
     }
 
     @Test
@@ -170,6 +172,8 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         waitOpError(operation, Status.DEADLINE_EXCEEDED);
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+
+        assertVmMetrics("S", 0, 0, 0);
     }
 
     @Test
@@ -221,13 +225,19 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var sessionId = createSession(Durations.ZERO);
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
-        var vm1 = allocateAndFreeVm(sessionId,
-            vm -> mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
+        var vm1 = allocateAndFreeVm(
+            sessionId,
+            vm -> {
+                assertVmMetrics("S", -1, 1, 0);
+                mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+            });
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
 
         var vmSubj = super.getSubject(AuthProvider.INTERNAL, vm1.vmId(), SubjectType.VM);
         Assert.assertNull(vmSubj);
+
+        assertVmMetrics("S", -1, 0, 0);
     }
 
     @Test
@@ -251,6 +261,8 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         vmId = allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId();
         Assert.assertEquals(vm1.vmId(), vmId);
+
+        assertVmMetrics("S", -1, 1, 0);
     }
 
     @Test
@@ -337,6 +349,8 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var cachedVm = allocateAndFreeVm(sessionId,
             vm -> mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
 
+        assertVmMetrics("S", -1, 0, 1);
+
         var operationSecond = authorizedAllocatorBlockingStub.allocate(
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
@@ -357,15 +371,21 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         Assert.assertEquals(cachedVm.vmId(), allocateMetadataSecond.getVmId());
         Assert.assertEquals(cachedVm.iamSubj(), vmSubj2);
 
+        assertVmMetrics("S", -1, 1, 0);
+
         //noinspection ResultOfMethodCallIgnored
         authorizedAllocatorBlockingStub.free(
             FreeRequest.newBuilder().setVmId(allocateMetadataSecond.getVmId()).build());
 
         Assert.assertEquals(cachedVm.vmId(), allocateMetadataSecond.getVmId());
+        assertVmMetrics("S", -1, 0, 1);
+
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
 
         var vmSubj = super.getSubject(AuthProvider.INTERNAL, cachedVm.vmId(), SubjectType.VM);
         Assert.assertNull(vmSubj);
+
+        assertVmMetrics("S", 0, 0, 0);
     }
 
     @Test
