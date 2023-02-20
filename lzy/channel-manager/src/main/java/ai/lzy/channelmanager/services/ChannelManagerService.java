@@ -80,17 +80,16 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
-            return;
-        }
-
         final String slotUri = request.getSlotInstance().getSlotUri();
         final String channelId = request.getSlotInstance().getChannelId();
         String operationDescription = "Bind %s %s slot %s to channel %s"
             .formatted(request.getSlotOwner(), request.getSlotInstance().getSlot().getDirection(), slotUri, channelId);
         LOG.info(operationDescription + " started");
 
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
+            return;
+        }
 
         final Channel channel;
         try {
@@ -192,13 +191,13 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
+        String operationDescription = "Unbind slot %s".formatted(request.getSlotUri());
+        LOG.info(operationDescription + " started");
+
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
             return;
         }
-
-        String operationDescription = "Unbind slot %s".formatted(request.getSlotUri());
-        LOG.info(operationDescription + " started");
 
         final String slotUri = request.getSlotUri();
         final Endpoint endpoint;

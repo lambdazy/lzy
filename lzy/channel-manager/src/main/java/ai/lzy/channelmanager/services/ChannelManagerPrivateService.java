@@ -112,14 +112,14 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
+        final String channelId = request.getChannelId();
+        String operationDescription = "Destroy channel " + channelId;
+        LOG.info(operationDescription + " started");
+
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
             return;
         }
-
-        final String channelId = request.getChannelId();
-        String operationDescription = "Destroy channel " + channelId;
-        LOG.info(operationDescription + " started");
 
         final Channel channel;
         try {
@@ -207,14 +207,14 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
+        final String executionId = request.getExecutionId();
+        String operationDescription = "Destroying all channels for execution " + executionId;
+        LOG.info(operationDescription + " started");
+
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
             return;
         }
-
-        final String executionId = request.getExecutionId();
-        String operationDescription = "Destroying all channels for execution " + executionId;
-        LOG.info(operationDescription + " started");
 
         final List<String> channelsToDestroy;
         try {
