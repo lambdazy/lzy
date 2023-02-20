@@ -32,7 +32,7 @@ public class PortalCommonTest extends PortalTestBase {
 
         var snapshotId = "snapshot_" + UUID.randomUUID();
 
-        try (var worker = startWorker()){
+        try (var worker = startWorker()) {
             System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 
             String firstTaskId = startTask(("echo 'i-am-a-hacker' > $LZY_MOUNT" +
@@ -171,7 +171,7 @@ public class PortalCommonTest extends PortalTestBase {
         var snapshotId1 = "snapshot_" + UUID.randomUUID();
         var snapshotId2 = "snapshot_" + UUID.randomUUID();
 
-        try(var worker1 = startWorker()) {
+        try (var worker1 = startWorker()) {
 
             System.out.println("\n----- RUN TASKS -----------------------------------------\n");
 
@@ -224,7 +224,7 @@ public class PortalCommonTest extends PortalTestBase {
         var tmpFile3 = File.createTempFile("lzy", "test-result-3");
         var snapshotId = "snapshot_" + UUID.randomUUID();
 
-        try(var worker1 = startWorker()) {
+        try (var worker1 = startWorker()) {
 
             var taskOutputSlot = "/" + UUID.randomUUID();
 
@@ -306,7 +306,7 @@ public class PortalCommonTest extends PortalTestBase {
         var tmpFile3 = File.createTempFile("lzy", "test-result-3");
         tmpFile3.deleteOnExit();
 
-        try(var worker1 = startWorker()) {
+        try (var worker1 = startWorker()) {
 
             System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
 

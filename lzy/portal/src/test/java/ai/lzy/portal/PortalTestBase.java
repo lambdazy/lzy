@@ -102,7 +102,7 @@ public class PortalTestBase {
     private static String executionId;
 
     protected static MocksServer mocksServer;
-    private final static AtomicReference<WorkerDesc> worker = new AtomicReference<>(null);
+    private static final AtomicReference<WorkerDesc> worker = new AtomicReference<>(null);
     private static ManagedChannel portalApiChannel;
     private static ManagedChannel portalSlotsChannel;
     protected static LzyPortalGrpc.LzyPortalBlockingStub unauthorizedPortalClient;
@@ -253,7 +253,8 @@ public class PortalTestBase {
     }
 
     protected String startTask(String fuze, String workerSlotName, WorkerDesc desc,
-                               boolean isPortalInput, String snapshotId) {
+                               boolean isPortalInput, String snapshotId)
+    {
         var uniqId = UUID.randomUUID().toString();
 
         String channelName = "channel_" + uniqId;
