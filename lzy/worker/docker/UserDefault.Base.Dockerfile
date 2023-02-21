@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 ### deps
 RUN apt-get update && \
-    apt-get install -y wget libsndfile1 ffmpeg libgomp1 && \
+    apt-get install -y wget sox libsndfile1 ffmpeg libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
 ### conda setup
