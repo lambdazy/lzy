@@ -103,10 +103,12 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
                 .setVmId(vmId)
                 .build());
 
-        authorizedAllocatorBlockingStub.deleteSession(
+        var op = authorizedAllocatorBlockingStub.deleteSession(
             VmAllocatorApi.DeleteSessionRequest.newBuilder()
                 .setSessionId(sessionId)
                 .build());
+        waitOpSuccess(op);
+
         Assert.assertEquals(0, (int) metrics.activeSessions.get());
 
         TimeUtils.waitFlagUp(() -> operationsExecutor.operationsCount() == 0, 5, TimeUnit.SECONDS);
