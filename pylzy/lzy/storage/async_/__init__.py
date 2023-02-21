@@ -5,7 +5,7 @@ from lzy.storage.api import (
     AsyncStorageClient,
     AzureCredentials,
     AzureSasCredentials,
-    StorageCredentials,
+    StorageCredentials, FSCredentials,
 )
 
 
@@ -37,6 +37,15 @@ def _(credentials: AzureSasCredentials) -> AsyncStorageClient:
     from lzy.storage.async_.azure import AzureClientAsync
 
     return AzureClientAsync.from_sas_cred(credentials)
+
+
+# noinspection PyUnusedLocal
+@_from.register
+def _(credentials: FSCredentials) -> AsyncStorageClient:
+    # use local imports to import unnecessary libs as late as possible to avoid version conflicts
+    from lzy.storage.async_.fs import FsStorageClient
+
+    return FsStorageClient()
 
 
 def from_credentials(credentials: StorageCredentials) -> AsyncStorageClient:
