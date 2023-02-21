@@ -36,13 +36,11 @@ mkdir -p frontend/src/docs
 cp docs/tutorials/* frontend/src/docs
 if [[ $SSL == true ]]; then
   build_image site-frontend frontend
-  build_image site lzy/site
 else
   build_image site-frontend frontend '--build-arg conf=nginx.conf'
-  touch lzy/site/fake-keystore.jks
-  build_image site lzy/site '--build-arg keystore=fake-keystore.jks'
 fi
 
+build_image site lzy/site
 build_image allocator lzy/allocator
 build_image channel-manager lzy/channel-manager
 build_image graph-executor lzy/graph-executor
