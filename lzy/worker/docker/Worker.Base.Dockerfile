@@ -15,7 +15,7 @@ RUN distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
 
 RUN apt-get -y update && \
     apt-get -y install ca-certificates openssh-client iptables nvidia-container-toolkit \
-                       libsndfile1 ffmpeg libgomp1 && \
+                       sox libsndfile1 ffmpeg libgomp1 && \
     rm -rf /var/lib/apt/lists/*
 
 ### dind installation, by https://github.com/cruizba/ubuntu-dind
