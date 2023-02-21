@@ -26,18 +26,20 @@ git branch "releases/R-$CURRENT_VERSION"
 if [[ $MAJOR == true ]]; then
   # x+1.0-SNAPSHOT
   mvn build-helper:parse-version versions:set \
-    -DnewVersion="\${parsedVersion.nextMajorVersion}.0\${parsedVersion.qualifier?}"
+    -DnewVersion="\${parsedVersion.nextMajorVersion}.0\${parsedVersion.qualifier?}" \
+    -DgenerateBackupPoms=false -DprocessAllModules
 else
   # x.y+1-SNAPSHOT
   mvn build-helper:parse-version versions:set \
-    -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion}\${parsedVersion.qualifier?}"
+    -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion}\${parsedVersion.qualifier?}" \
+    -DgenerateBackupPoms=false -DprocessAllModules
 fi
 
 NEXT_SNAPSHOT_VERSION=$(project_version)
-mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -f ..
-mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -f ../util
-mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -f ../coverage
-mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -f ../lzy
+mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ..
+mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../util
+mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../coverage
+mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../lzy
 git add -u ..
 git commit -m "set version $NEXT_SNAPSHOT_VERSION"
 
@@ -45,7 +47,8 @@ git checkout "releases/R-$CURRENT_VERSION"
 
 # x.y.0
 mvn build-helper:parse-version versions:set \
-  -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.0"
+  -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.0" \
+  -DgenerateBackupPoms=false -DprocessAllModules
 
 RELEASE_VERSION=$(project_version)
 echo "$RELEASE_VERSION" > ../pylzy/lzy/version/version
