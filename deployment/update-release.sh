@@ -24,12 +24,13 @@ git checkout "$BRANCH"
 cd parent
 # x.y.z+1
 mvn build-helper:parse-version versions:set \
-  -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion}"
+  -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion}" \
+  -DgenerateBackupPoms=false -DprocessAllModules
 NEW_VERSION=$(project_version)
-mvn versions:set -DnewVersion="$NEW_VERSION" -f ..
-mvn versions:set -DnewVersion="$NEW_VERSION" -f ../util
-mvn versions:set -DnewVersion="$NEW_VERSION" -f ../coverage
-mvn versions:set -DnewVersion="$NEW_VERSION" -f ../lzy
+mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ..
+mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../util
+mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../coverage
+mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../lzy
 echo "$NEW_VERSION" > ../pylzy/lzy/version/version
 
 git add -u ..
