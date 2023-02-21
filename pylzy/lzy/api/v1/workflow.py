@@ -219,9 +219,12 @@ class LzyWorkflow:
         await asyncio.gather(*local_data_put_tasks)
 
         for call in self.__call_queue:
-            args_hashes = map(lambda eid: self.snapshot.get(eid).data_hash, call.arg_entry_ids)
-            kwargs_hashes = map(lambda name: f"{name}:{self.snapshot.get(call.kwarg_entry_ids[name]).data_hash}",
-                                sorted(call.kwargs.keys()))
+            _LOG.debug(f"Generates storage uris for results of op call {call.signature.func.name}")
+            args_hashes = map(lambda entry_id: self.snapshot.get(entry_id).data_hash, call.arg_entry_ids)
+
+            kwargs_hashes = []
+            for name in sorted(call.kwargs.keys()):
+                kwargs_hashes.append(f"{name}:{self.snapshot.get(call.kwarg_entry_ids[name]).data_hash}")
 
             inputs_hashes_concat = '_'.join([*args_hashes, *kwargs_hashes])
 
@@ -230,9 +233,9 @@ class LzyWorkflow:
 
             for i, eid in enumerate(call.entry_ids):
                 if eid not in self.__filled_entry_ids:
-                    uri_suffix = f"/{op_name}_{op_version}_{inputs_hashes_concat}/return_{str(i)}"
-                    self.snapshot.set_storage_uri_for_entry(eid, uri_suffix)
                     entry = self.snapshot.get(eid)
+                    uri_suffix = f"/{op_name}_{op_version}_{inputs_hashes_concat}/return_{str(i)}"
+                    entry.storage_uri = f"{self.__owner.storage_uri}/lzy_runs/{self.__name}/ops" + uri_suffix
                     entry.data_hash = SerializedDataHasher.hash_of_str(entry.storage_uri)
                     self.__filled_entry_ids.add(eid)
 

@@ -60,10 +60,6 @@ class Snapshot(ABC):  # pragma: no cover
         pass
 
     @abstractmethod
-    def set_storage_uri_for_entry(self, entry_id: str, storage_uri_suffix: str) -> None:
-        pass
-
-    @abstractmethod
     async def get_data(self, entry_id: str) -> Result[Any]:
         pass
 
@@ -110,7 +106,7 @@ class DefaultSnapshot(Snapshot):
         self.__serializer_registry = serializer_registry
         self.__storage_client = storage_client
         self.__storage_name = storage_name
-        self.__storage_uri_prefix = f"{storage_uri}/lzy_runs/{workflow_name}/data"
+        self.__storage_uri_prefix = f"{storage_uri}/lzy_runs/{workflow_name}/inputs"
         self.__entry_id_to_entry: Dict[str, SnapshotEntry] = {}
         self.__filled_entries: Set[str] = set()
         self.__copy_queue: Dict[str, List[str]] = dict()
@@ -129,12 +125,6 @@ class DefaultSnapshot(Snapshot):
         self.__entry_id_to_entry[e.id] = e
         _LOG.debug(f"Created entry {e}")
         return e
-
-    def set_storage_uri_for_entry(self, entry_id: str, storage_uri_suffix: str) -> None:
-        if entry_id in self.__filled_entries:
-            raise ValueError(f"Cannot set storage uri for entry {entry_id}: data has been already uploaded")
-        entry = self.get(entry_id)
-        entry.storage_uri = self.__storage_uri_prefix + storage_uri_suffix
 
     async def get_data(self, entry_id: str) -> Result[Any]:
         _LOG.debug(f"Getting data for entry {entry_id}")
@@ -178,7 +168,7 @@ class DefaultSnapshot(Snapshot):
             data_hash: str = SerializedDataHasher.hash_of_file(cast(FileIO, f))
 
             self.__entry_id_to_entry[entry_id].data_hash = data_hash
-            self.set_storage_uri_for_entry(entry_id, storage_uri_suffix=f"/{data_hash}")
+            entry.storage_uri = self.__storage_uri_prefix + data_hash
 
             exists = await self.__storage_client.blob_exists(entry.storage_uri)
             if not exists:
