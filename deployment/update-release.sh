@@ -18,7 +18,7 @@ function project_version() {
     mvn help:evaluate -Dexpression=project.version -q -DforceStdout
 }
 
-git pull origin "$BRANCH"
+git fetch origin "$BRANCH:$BRANCH"
 git checkout "$BRANCH"
 
 cd parent
