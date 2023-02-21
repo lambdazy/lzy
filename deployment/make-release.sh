@@ -55,3 +55,6 @@ git tag "R-$RELEASE_VERSION"
 git push origin "releases/R-$CURRENT_VERSION" #branch
 git push origin "R-$RELEASE_VERSION" #tag
 git push origin master
+
+echo "release-branch=$BRANCH" >> "$GITHUB_OUTPUT"
+echo "release-version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
