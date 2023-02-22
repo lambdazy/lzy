@@ -10,6 +10,7 @@ import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse.VmEndpoint;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.worker.MetadataConstants;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.micronaut.context.annotation.Primary;
@@ -65,7 +66,8 @@ public class AllocatorMock implements WorkersAllocator {
             .setVmId(vmId)
             .setPoolId("s")
             .setSessionId(sessionId)
-            .putMetadata("PUBLIC_KEY", pk)
+            .putMetadata(MetadataConstants.PUBLIC_KEY, pk)
+            .putMetadata(MetadataConstants.API_PORT, String.valueOf(port))
             .addEndpoints(VmEndpoint.newBuilder()
                 .setType(VmEndpoint.VmEndpointType.INTERNAL_IP)
                 .setValue(host)
