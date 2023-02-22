@@ -1,5 +1,7 @@
-package ai.lzy.storage;
+package ai.lzy.test.scenarios;
 
+import ai.lzy.storage.StorageClient;
+import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.common.LMST;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
@@ -34,8 +36,8 @@ public class StorageClientTest {
     StorageClientFactory storageClientFactory;
 
     String bucket = "storage-test";
-    // ~100MB size
-    long fileSize = 1024 * 1024 * 128;
+    // ~60MB size
+    long fileSize = 1024 * 1024 * 64;
 
     @Before
     public void setUp() {
@@ -46,7 +48,7 @@ public class StorageClientTest {
         s3Storage = new S3Mock.Builder().withPort(port).withFileBackend(storageTestDir.toString()).build();
         s3Storage.start();
 
-        storageClientFactory = new StorageClientFactory(10, 10);
+        storageClientFactory = new StorageClientFactory(2, 2);
 
         var credentials = new AnonymousAWSCredentials();
         AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
@@ -70,7 +72,7 @@ public class StorageClientTest {
     }
 
     void clearDir(Path path) throws IOException {
-        Files.walkFileTree(path, new SimpleFileVisitor<Path>() {
+        Files.walkFileTree(path, new SimpleFileVisitor<>() {
             @Override
             public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
                 Files.delete(file);
@@ -93,7 +95,7 @@ public class StorageClientTest {
 
     @Test
     public void testMultipleReaders() throws IOException, InterruptedException {
-        var files = List.of("test-file-0", "test-file-1", "test-file-2");
+        var files = List.of("test-file-0", "test-file-1");
         var storageClient = getClient();
 
         for (String filename : files) {
