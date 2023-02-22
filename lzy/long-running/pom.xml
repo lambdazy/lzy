@@ -7,7 +7,7 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.3.4</version>
+        <version>1.3.5</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>long-running</artifactId>
@@ -28,12 +28,12 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-db</artifactId>
-            <version>1.3.4</version>
+            <version>1.3.5</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-grpc</artifactId>
-            <version>1.3.4</version>
+            <version>1.3.5</version>
         </dependency>
 
         <dependency>
