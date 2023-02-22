@@ -2,6 +2,10 @@ FROM amazoncorretto:19
 
 COPY target/allocator.jar app/app.jar
 
+COPY cacerts cacerts
+RUN export JAVA_HOME=$JDK_home_path
+RUN cp -f cacerts $JAVA_HOME/lib/security/cacerts
+
 ENTRYPOINT ["java", \
             "-Xmx4G", \
             "-Dsun.jnu.encoding=UTF-8", \
