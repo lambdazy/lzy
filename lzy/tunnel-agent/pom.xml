@@ -4,11 +4,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.4.2</version>
+        <version>1.4.3</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>tunnel-agent</artifactId>
-    <version>1.4.2</version>
+    <version>1.4.3</version>
 
     <properties>
         <exec.mainClass>ai.lzy.tunnel.TunnelAgentMain</exec.mainClass>

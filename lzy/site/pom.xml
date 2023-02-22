@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.4.2</version>
+        <version>1.4.3</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>site</artifactId>
-    <version>1.4.2</version>
+    <version>1.4.3</version>
     <packaging>${packaging}</packaging>
 
     <properties>
@@ -24,13 +24,13 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam-api</artifactId>
-            <version>1.4.2</version>
+            <version>1.4.3</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>scheduler-api</artifactId>
-            <version>1.4.2</version>
+            <version>1.4.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
@@ -115,7 +115,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
-            <version>1.4.2</version>
+            <version>1.4.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>

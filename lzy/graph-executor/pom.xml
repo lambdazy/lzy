@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.4.2</version>
+        <version>1.4.3</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>graph-executor</artifactId>
-    <version>1.4.2</version>
+    <version>1.4.3</version>
 
     <properties>
         <exec.mainClass>ai.lzy.graph.GraphExecutorApi</exec.mainClass>
@@ -23,7 +23,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>graph-executor-api</artifactId>
-            <version>1.4.2</version>
+            <version>1.4.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
@@ -33,7 +33,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam-api</artifactId>
-            <version>1.4.2</version>
+            <version>1.4.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
@@ -44,7 +44,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running</artifactId>
-            <version>1.4.2</version>
+            <version>1.4.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
