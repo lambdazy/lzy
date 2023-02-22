@@ -4,7 +4,7 @@ allocator:
   address: 'localhost:8799'
 
   allocation-timeout: 5s
-  heartbeat-timeout: 1m
+  heartbeat-timeout: 5s
 
   gc:
     initial-delay: 0s

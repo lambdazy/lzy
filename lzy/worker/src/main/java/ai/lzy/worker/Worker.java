@@ -15,6 +15,7 @@ import ai.lzy.model.Signal;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.TextLinesOutSlot;
+import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcUtils;
@@ -32,6 +33,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.context.ApplicationContext;
+import jakarta.inject.Singleton;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.DefaultParser;
@@ -44,38 +47,33 @@ import org.apache.logging.log4j.Logger;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.security.NoSuchAlgorithmException;
-import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-import static ai.lzy.util.auth.credentials.CredentialsUtils.readPrivateKey;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
+@Singleton
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
-    private static boolean USE_LOCALHOST_AS_HOST = false;
+    private static final int DEFAULT_FS_PORT = 9876;
+    private static final int DEFAULT_API_PORT = 9877;
+    private static final AtomicBoolean USE_LOCALHOST_AS_HOST = new AtomicBoolean(false);
+    private static final AtomicBoolean SELECT_RANDOM_VALUES = new AtomicBoolean(false);
     private static RsaUtils.RsaKeys RSA_KEYS = null;  // only for tests
 
     private static final Options options = new Options();
 
     static {
-        options.addOption("p", "port", true, "Worker gRPC port.");
-        options.addOption("q", "fs-port", true, "LzyFs gRPC port.");
         options.addOption(null, "allocator-address", true, "Lzy allocator address [host:port]");
         options.addOption("ch", "channel-manager", true, "Channel manager address [host:port]");
         options.addOption("i", "iam", true, "Iam address [host:port]");
-        options.addOption("m", "lzy-mount", true, "Lzy FS mount point");
         options.addOption("h", "host", true, "Worker and FS host name");
         options.addOption(null, "vm-id", true, "Vm id from allocator");
-        options.addOption(null, "user-default-image", true, "Image, used for inner container by default");
         options.addOption(null, "allocator-heartbeat-period", true, "Allocator heartbeat period in duration format");
 
         // for tests only
@@ -89,48 +87,26 @@ public class Worker {
     private final AtomicReference<Execution> execution = new AtomicReference<>(null);
     private final EnvironmentFactory envFactory;
     private final Server server;
+    private final ServiceConfig config;
 
-    public Worker(String vmId, String allocatorAddress, String iamAddress, Duration allocatorHeartbeatPeriod,
-                  int apiPort, int fsPort, String fsRoot, String channelManagerAddress, String host,
-                  String allocatorToken, String defaultUserImage)
-    {
-        var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
+    public Worker(ServiceConfig config) {
+        this.config = config;
 
-        LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", vmId, apiPort, fsPort, realHost);
+        LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", config.getVmId(),
+            config.getApiPort(), config.getFsPort(), config.getHost());
 
-
-        if (realHost == null) {
-            if (USE_LOCALHOST_AS_HOST) {
-                realHost = "localhost";  // For tests
-            } else {
-                LOG.error("Cannot resolve host of vm");
-                stop();
-                throw new RuntimeException("Cannot resolve host of vm");
-            }
-        }
-
-        allocatorToken = allocatorToken != null ? allocatorToken : System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT);
-        final RsaUtils.RsaKeys iamKeys;
-
-        if (RSA_KEYS == null) {
-            try {
-                iamKeys = RsaUtils.generateRsaKeys();
-            } catch (IOException | InterruptedException e) {
-                LOG.error("Cannot generate keys");
-                throw new RuntimeException(e);
-            }
-        } else {
-            iamKeys = RSA_KEYS;
-        }
+        var allocatorToken = config.getAllocatorToken() != null
+            ? config.getAllocatorToken()
+            : System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT);
 
         Objects.requireNonNull(allocatorToken);
 
-        operationService = new LocalOperationService(vmId);
+        operationService = new LocalOperationService(config.getVmId());
 
         String gpuCount = System.getenv(AllocatorAgent.VM_GPU_COUNT);
-        this.envFactory = new EnvironmentFactory(defaultUserImage, gpuCount == null ? 0 : Integer.parseInt(gpuCount));
+        this.envFactory = new EnvironmentFactory(gpuCount == null ? 0 : Integer.parseInt(gpuCount));
 
-        server = newGrpcServer("0.0.0.0", apiPort, GrpcUtils.NO_AUTH)
+        server = newGrpcServer("0.0.0.0", config.getApiPort(), GrpcUtils.NO_AUTH)
             .addService(new WorkerApiImpl())
             .addService(operationService)
             .build();
@@ -143,18 +119,17 @@ public class Worker {
         }
 
         try {
-            final var cm = HostAndPort.fromString(channelManagerAddress);
-            final var iam = HostAndPort.fromString(iamAddress);
+            final var cm = HostAndPort.fromString(config.getChannelManagerAddress());
+            final var iam = HostAndPort.fromString(config.getIam().getAddress());
 
-            lzyFsRoot = fsRoot;
+            lzyFsRoot = config.getMountPoint();
             lzyFs = new LzyFsServer(
-                vmId,
-                Path.of(fsRoot),
-                HostAndPort.fromParts(realHost, fsPort),
+                config.getVmId(),
+                Path.of(config.getMountPoint()),
+                HostAndPort.fromParts(config.getHost(), config.getFsPort()),
                 cm,
                 iam,
-                new RenewableJwt(vmId, "INTERNAL",
-                    Duration.ofMinutes(15), readPrivateKey(iamKeys.privateKey())),
+                config.getIam().createRenewableToken(),
                 operationService,
                 false
             );
@@ -163,13 +138,16 @@ public class Worker {
             LOG.error("Error while building uri", e);
             server.shutdown();
             throw new RuntimeException(e);
-        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
-            throw new RuntimeException(e);
         }
 
         try {
-            allocatorAgent = new AllocatorAgent(allocatorToken, vmId, allocatorAddress, allocatorHeartbeatPeriod);
-            allocatorAgent.start(Map.of("PUBLIC_KEY", iamKeys.publicKey()));
+            allocatorAgent = new AllocatorAgent(allocatorToken, config.getVmId(), config.getAllocatorAddress(),
+                config.getAllocatorHeartbeatPeriod());
+            allocatorAgent.start(Map.of(
+                MetadataConstants.PUBLIC_KEY, config.getPublicKey(),
+                MetadataConstants.API_PORT, String.valueOf(config.getApiPort()),
+                MetadataConstants.FS_PORT, String.valueOf(config.getFsPort())
+            ));
         } catch (AllocatorAgent.RegisterException e) {
             throw new RuntimeException(e);
         }
@@ -207,12 +185,15 @@ public class Worker {
             var vmId = parse.getOptionValue("vm-id");
             vmId = vmId == null ? System.getenv(AllocatorAgent.VM_ID_KEY) : vmId;
 
-            final var worker = new Worker(
-                vmId, parse.getOptionValue("allocator-address"), parse.getOptionValue("iam"),
-                allocHeartbeat == null ? null : Duration.parse(allocHeartbeat),
-                Integer.parseInt(parse.getOptionValue('p')), Integer.parseInt(parse.getOptionValue('q')),
-                parse.getOptionValue('m'), parse.getOptionValue("channel-manager"), parse.getOptionValue('h'),
-                parse.getOptionValue("allocator-token"), parse.getOptionValue("user-default-image"));
+            var allocatorAddress = parse.getOptionValue("allocator-address");
+            var allocHeartbeatDur = allocHeartbeat == null ? null : Duration.parse(allocHeartbeat);
+            var iamAddress = parse.getOptionValue("iam");
+            var channelManagerAddress = parse.getOptionValue("channel-manager");
+            var host = parse.getOptionValue('h');
+            var allocatorToken = parse.getOptionValue("allocator-token");
+
+            var worker = startWorker(vmId, allocatorAddress, iamAddress, allocHeartbeatDur, channelManagerAddress, host,
+                allocatorToken);
 
             try {
                 worker.awaitTermination();
@@ -236,13 +217,87 @@ public class Worker {
     }
 
     @VisibleForTesting
+    public static Worker startWorker(String vmId, String allocatorAddress, String iamAddress,
+                                     Duration allocatorHeartbeatPeriod,
+                                     String channelManagerAddress, String host, String allocatorToken)
+    {
+        var realHost = host != null ? host : System.getenv(AllocatorAgent.VM_IP_ADDRESS);
+
+        final int fsPort;
+        final String fsRoot;
+        final int apiPort;
+
+        if (SELECT_RANDOM_VALUES.get()) {
+            fsPort = FreePortFinder.find(10000, 20000);
+            apiPort = FreePortFinder.find(20000, 30000);
+            fsRoot = "/tmp/lzy" + UUID.randomUUID();
+        } else {
+            fsPort = DEFAULT_FS_PORT;
+            apiPort = DEFAULT_API_PORT;
+            fsRoot = "/tmp/lzy";
+        }
+
+        if (realHost == null) {
+            if (USE_LOCALHOST_AS_HOST.get()) {
+                realHost = "localhost";  // For tests
+            } else {
+                LOG.error("Cannot resolve host of vm");
+                throw new RuntimeException("Cannot resolve host of vm");
+            }
+        }
+
+        final RsaUtils.RsaKeys iamKeys;
+
+        if (RSA_KEYS == null) {
+            try {
+                iamKeys = RsaUtils.generateRsaKeys();
+            } catch (IOException | InterruptedException e) {
+                LOG.error("Cannot generate keys");
+                throw new RuntimeException(e);
+            }
+        } else {
+            iamKeys = RSA_KEYS;
+        }
+
+        var properties = new HashMap<String, Object>(Map.of(
+            "worker.vm-id", vmId,
+            "worker.allocator-address", allocatorAddress,
+            "worker.channel-manager-address", channelManagerAddress,
+            "worker.host", realHost,
+            "worker.allocator-token", allocatorToken,
+            "worker.fs-port", fsPort,
+            "worker.api-port", apiPort,
+            "worker.mount-point", fsRoot,
+            "worker.iam.address", iamAddress,
+            "worker.iam.internal-user-name", vmId
+        ));
+
+        properties.put("worker.iam.internal-user-private-key", iamKeys.privateKey());
+        properties.put("worker.public-key", iamKeys.publicKey());
+        properties.put("worker.allocator-heartbeat-period", allocatorHeartbeatPeriod);
+
+        var ctx = ApplicationContext.run(properties);
+        return ctx.getBean(Worker.class);
+    }
+
+    @VisibleForTesting
     public static void setRsaKeysForTests(@Nullable RsaUtils.RsaKeys keys) {
         RSA_KEYS = keys;
     }
 
     @VisibleForTesting
+    public static void selectRandomValues(boolean val) {
+        SELECT_RANDOM_VALUES.set(val);
+    }
+
+    @VisibleForTesting
     public static void useLocalhostAsHost(boolean use) {
-        USE_LOCALHOST_AS_HOST = use;
+        USE_LOCALHOST_AS_HOST.set(use);
+    }
+
+    @VisibleForTesting
+    public int apiPort() {
+        return config.getApiPort();
     }
 
     public static void main(String[] args) {

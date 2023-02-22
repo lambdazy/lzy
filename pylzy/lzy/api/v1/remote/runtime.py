@@ -174,7 +174,6 @@ class RemoteRuntime(Runtime):
             return
         try:
             await client.finish_workflow(self.__workflow.name, self.__execution_id, "Workflow completed")
-            await self.__std_slots_listener  # read all stdout and stderr
         finally:
             self.__running = False
             self.__execution_id = None

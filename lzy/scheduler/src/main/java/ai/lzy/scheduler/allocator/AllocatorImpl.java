@@ -1,7 +1,6 @@
 package ai.lzy.scheduler.allocator;
 
 import ai.lzy.iam.config.IamClientConfiguration;
-import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.grpc.GrpcChannels;
@@ -12,6 +11,7 @@ import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
 import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
@@ -21,9 +21,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.PreDestroy;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -33,13 +30,8 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 @Singleton
 public class AllocatorImpl implements WorkersAllocator {
     private static final Logger LOG = LogManager.getLogger(AllocatorImpl.class);
-
-
-    public static final AtomicBoolean randomWorkerPorts = new AtomicBoolean(false);
-
     private final ServiceConfig config;
     private final AllocatorGrpc.AllocatorBlockingStub allocator;
-    private final AtomicInteger testWorkerCounter = new AtomicInteger(0);
     private final ManagedChannel iamChannel;
     private final ManagedChannel allocatorChannel;
     private final ManagedChannel opChannel;
@@ -97,42 +89,18 @@ public class AllocatorImpl implements WorkersAllocator {
     }
 
     @Override
-    public AllocateResult allocate(String userId, String workflowName,
+    public LongRunning.Operation allocate(String userId, String workflowName,
                                           String sessionId, LMO.Requirements requirements)
     {
-        final int port;
-        final int fsPort;
-        final String mountPoint;
-
-        if (randomWorkerPorts.get()) {
-            port = FreePortFinder.find(10000, 11000);
-            fsPort = FreePortFinder.find(11000, 12000);
-            mountPoint = "/tmp/lzy" + testWorkerCounter.incrementAndGet();
-        } else {
-            port = 9999;
-            fsPort = 9988;
-            mountPoint = "/tmp/lzy";
-        }
-
-        final var ports = Map.of(
-            port, port,
-            fsPort, fsPort
-        );
-
         final var args = List.of(
-            "-p", String.valueOf(port),
-            "-q", String.valueOf(fsPort),
             "--channel-manager", config.getChannelManagerAddress(),
-            "-i", config.getIam().getAddress(),
-            "--lzy-mount", mountPoint,
-            "--user-default-image", config.getUserDefaultImage()
+            "-i", config.getIam().getAddress()
         );
 
         final var workload = Workload.newBuilder()
             .setName("worker")
             .setImage(config.getWorkerImage())
             .addAllArgs(args)
-            .putAllPortBindings(ports)
             .build();
 
         final var request = VmAllocatorApi.AllocateRequest.newBuilder()
@@ -143,7 +111,7 @@ public class AllocatorImpl implements WorkersAllocator {
             .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)
             .build();
 
-        return new AllocateResult(allocator.allocate(request), port, fsPort);
+        return allocator.allocate(request);
     }
 
     @Override

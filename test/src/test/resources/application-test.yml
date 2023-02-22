@@ -47,15 +47,27 @@ allocator:
     folder-id: 'b1gqcrinonvsj9u3th3h'
     default-operation-timeout: '1m'
 
-  gc-period: 30s
-  heartbeat-timeout: 1m
-  allocation-timeout: 15m
+  gc:
+    initial-delay: 10s
+    cleanup-period: 5s
+    lease-duration: 30m
+    graceful-shutdown-duration: 5s
+
+  heartbeat-timeout: 5s
+  allocation-timeout: 20s
 
   kuber-tunnel-allocator:
     enabled: false
 
   mock-mk8s:
     enabled: true
+
+  cache-limits:
+    user-limit: 5
+    session-limit: 3
+    any-session-pool-limit: 2
+    session-pool-limit:
+      portals: 2
 
 scheduler:
   base-env-default-image: ""

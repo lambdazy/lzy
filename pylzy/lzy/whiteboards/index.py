@@ -12,6 +12,8 @@ from google.protobuf.json_format import MessageToJson, ParseDict
 from google.protobuf.timestamp_pb2 import Timestamp
 # noinspection PyPackageRequirements
 from grpc.aio import Channel
+
+from lzy.logs.config import get_logger
 from lzy.utils.event_loop import LzyEventLoop
 from serialzy.api import SerializerRegistry
 
@@ -167,6 +169,8 @@ class WhiteboardIndexedManager(WhiteboardManager):
         if updated_wb.status == Whiteboard.Status.FINALIZED:
             wb_finalized_marker_uri = f"{uri}/.finalized"
             with tempfile.NamedTemporaryFile() as f:
+                f.write(b"\n")
+                f.seek(0)
                 await storage_client.write(wb_finalized_marker_uri, cast(BinaryIO, f))
 
         await self.__index_client.update(wb)
