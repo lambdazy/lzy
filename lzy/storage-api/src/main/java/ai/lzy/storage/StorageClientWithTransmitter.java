@@ -14,7 +14,6 @@ import java.util.concurrent.ExecutionException;
 
 public abstract class StorageClientWithTransmitter implements StorageClient {
     protected static final String DEFAULT_TRANSMITTER_NAME = "transmitter";
-    protected static final int DEFAULT_BYTE_BUFFER_SIZE = 10;
 
     protected abstract Transmitter transmitter();
 

@@ -64,16 +64,16 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     private final LocalOperationService operationService;
     private final ExecutorService workersPool;
 
-    public PortalSlotsService(PortalConfig config, @Named("PortalTokenSupplier") Supplier<String> tokenFactory,
+    public PortalSlotsService(PortalConfig config, SnapshotSlots snapshotSlots,
+                              @Named("PortalTokenSupplier") Supplier<String> tokenFactory,
                               @Named("PortalChannelManagerChannel") ManagedChannel channelManagerChannel,
                               @Named("PortalOperationsService") LocalOperationService operationService,
-                              @Named("PortalServiceExecutor") ExecutorService workersPool,
-                              @Named("SnapshotStorageExecutor") ExecutorService storagePool)
+                              @Named("PortalServiceExecutor") ExecutorService workersPool)
     {
         this.portalId = config.getPortalId();
         this.config = config;
 
-        this.snapshots = new SnapshotSlots(storagePool);
+        this.snapshots = snapshotSlots;
 
         final var channelManagerClient = newBlockingClient(
             LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel),

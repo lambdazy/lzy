@@ -5,7 +5,6 @@ import ai.lzy.util.azure.blobstorage.AzureTransmitterFactory;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.blob.BlobUrlParts;
-import com.google.common.util.concurrent.MoreExecutors;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequest;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
@@ -19,19 +18,23 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 
+import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
+
 public final class AzureClientWithTransmitter extends StorageClientWithTransmitter {
     private final BlobServiceClient azureClient;
     private final Transmitter transmitter;
 
-    public AzureClientWithTransmitter(String connectionString, ExecutorService transmitterThreadPool) {
+    public AzureClientWithTransmitter(String connectionString, int byteBufferPoolSize, ExecutorService transferPool,
+                                      ExecutorService chunkPool, ExecutorService consumerPool)
+    {
         this.azureClient = new BlobServiceClientBuilder().connectionString(connectionString).buildClient();
         this.transmitter = new AzureTransmitterFactory(azureClient) {
             Transmitter withUserThreadPool() {
                 return create(
-                    createByteBufferPool(DEFAULT_TRANSMITTER_NAME, byteBufferSizeType, DEFAULT_BYTE_BUFFER_SIZE),
-                    MoreExecutors.listeningDecorator(transmitterThreadPool),
-                    MoreExecutors.listeningDecorator(transmitterThreadPool),
-                    MoreExecutors.listeningDecorator(transmitterThreadPool)
+                    createByteBufferPool(DEFAULT_TRANSMITTER_NAME, byteBufferSizeType, byteBufferPoolSize),
+                    listeningDecorator(transferPool),
+                    listeningDecorator(chunkPool),
+                    listeningDecorator(consumerPool)
                 );
             }
         }.withUserThreadPool();

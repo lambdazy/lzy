@@ -7,7 +7,9 @@ import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.exceptions.CreateSlotException;
 import ai.lzy.portal.exceptions.SnapshotNotFound;
 import ai.lzy.portal.exceptions.SnapshotUniquenessException;
+import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.portal.LzyPortal;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,18 +19,18 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
 
+@Singleton
 public class SnapshotSlots {
     private static final Logger LOG = LogManager.getLogger(SnapshotSlots.class);
 
     private final Map<URI, SnapshotEntry> snapshots = new HashMap<>(); // snapshot storage uri -> snapshot entry
     private final Map<String, URI> name2uri = new HashMap<>(); // slot name -> snapshot storage uri
 
-    private final ExecutorService downloadUploadExecutor;
+    private final StorageClientFactory storageClientFactory;
 
-    public SnapshotSlots(ExecutorService downloadUploadExecutor) {
-        this.downloadUploadExecutor = downloadUploadExecutor;
+    public SnapshotSlots(StorageClientFactory storageClientFactory) {
+        this.storageClientFactory = storageClientFactory;
     }
 
     public synchronized LzySlot createSlot(LzyPortal.PortalSlotDesc.Snapshot snapshotData, SlotInstance slotData)
@@ -41,7 +43,7 @@ public class SnapshotSlots {
             throw new SnapshotUniquenessException("Slot already associated with snapshot data");
         }
 
-        var storageClient = StorageClients.provider(snapshotData.getStorageConfig()).get(downloadUploadExecutor);
+        var storageClient = storageClientFactory.provider(snapshotData.getStorageConfig()).get();
         var uri = URI.create(snapshotData.getStorageConfig().getUri());
 
         boolean alreadyHasData;
