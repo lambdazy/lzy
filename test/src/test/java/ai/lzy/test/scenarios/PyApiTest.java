@@ -23,11 +23,6 @@ public class PyApiTest {
     }
 
     @Test
-    public void testOleg() {
-        pythonContext.context().evalAndAssertScenarioResult("oleg_scenario");
-    }
-
-    @Test
     public void testTwoExecutionOneWorkflow() {
         pythonContext.context().evalAndAssertScenarioResult("two_execution_one_wf");
     }

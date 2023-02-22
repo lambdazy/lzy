@@ -10,6 +10,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public class StorageClientFactory {
@@ -67,13 +68,9 @@ public class StorageClientFactory {
         stop.accept(consumePool);
     }
 
-    public interface Provider<T extends StorageClient> {
-        T get();
-    }
-
     record S3Provider(String endpoint, String accessToken, String secretToken, int byteBufferSize,
                       ExecutorService downloadUploadPool, ExecutorService chunkPool, ExecutorService consumePool)
-        implements Provider<S3ClientWithTransmitter>
+        implements Supplier<S3ClientWithTransmitter>
     {
         @Override
         public S3ClientWithTransmitter get() {
@@ -84,7 +81,7 @@ public class StorageClientFactory {
 
     record AzureProvider(String connectionStr, int byteBufferSize, ExecutorService transferPool,
                          ExecutorService chunkPool, ExecutorService consumePool)
-        implements Provider<AzureClientWithTransmitter>
+        implements Supplier<AzureClientWithTransmitter>
     {
         @Override
         public AzureClientWithTransmitter get() {
@@ -92,7 +89,7 @@ public class StorageClientFactory {
         }
     }
 
-    public Provider<? extends StorageClientWithTransmitter> provider(LMST.StorageConfig storageConfig) {
+    public Supplier<? extends StorageClientWithTransmitter> provider(LMST.StorageConfig storageConfig) {
         if (storageConfig.hasAzure()) {
             return new AzureProvider(storageConfig.getAzure().getConnectionString(), byteBufferPoolSize, transferPool,
                 chunkPool, consumePool);
