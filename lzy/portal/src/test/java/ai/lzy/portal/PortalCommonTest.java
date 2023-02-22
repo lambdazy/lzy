@@ -1,8 +1,10 @@
 package ai.lzy.portal;
 
-import ai.lzy.portal.slots.StorageClients;
+import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.test.GrpcUtils;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 import java.io.BufferedReader;
@@ -14,7 +16,6 @@ import java.nio.file.Files;
 import java.time.Duration;
 import java.util.HashSet;
 import java.util.Objects;
-import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -22,6 +23,23 @@ import static ai.lzy.test.GrpcUtils.makeInputFileSlot;
 import static ai.lzy.test.GrpcUtils.makeOutputFileSlot;
 
 public class PortalCommonTest extends PortalTestBase {
+
+    private StorageClientFactory storageClientFactory;
+
+    @Override
+    @Before
+    public void before() throws Exception {
+        super.before();
+        storageClientFactory = new StorageClientFactory(10, 10);
+    }
+
+    @Override
+    @After
+    public void after() throws InterruptedException {
+        super.after();
+        storageClientFactory.destroy();
+    }
+
     @Test
     public void testPortalSnapshotWithLongSlotName() throws InterruptedException, IOException {
         var portalStdout = readPortalSlot("portal:stdout");
@@ -47,7 +65,7 @@ public class PortalCommonTest extends PortalTestBase {
         finishPortal();
 
         var storageConfig = GrpcUtils.makeAmazonSnapshot("snapshot1", BUCKET_NAME, S3_ADDRESS).getStorageConfig();
-        var s3client = StorageClients.provider(storageConfig).get(Executors.newFixedThreadPool(5));
+        var s3client = storageClientFactory.provider(storageConfig).get();
         var tempfile = File.createTempFile("portal_", "_test");
         tempfile.deleteOnExit();
         s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());
@@ -87,7 +105,7 @@ public class PortalCommonTest extends PortalTestBase {
         finishPortal();
 
         var storageConfig = GrpcUtils.makeAmazonSnapshot("snapshot1", BUCKET_NAME, S3_ADDRESS).getStorageConfig();
-        var s3client = StorageClients.provider(storageConfig).get(Executors.newFixedThreadPool(5));
+        var s3client = storageClientFactory.provider(storageConfig).get();
         var tempfile = File.createTempFile("portal_", "_test");
         tempfile.deleteOnExit();
         s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());

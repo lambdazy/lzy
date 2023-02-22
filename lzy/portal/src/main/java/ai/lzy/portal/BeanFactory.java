@@ -8,6 +8,7 @@ import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.services.PortalService;
 import ai.lzy.portal.services.PortalSlotsService;
+import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
@@ -124,23 +125,9 @@ public class BeanFactory {
             });
     }
 
-    @Bean(preDestroy = "shutdown")
+    @Bean(preDestroy = "destroy")
     @Singleton
-    @Named("SnapshotStorageExecutor")
-    public ExecutorService storagePool() {
-        return new ThreadPoolExecutor(5, 20, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
-            new ThreadFactory() {
-                private static final Logger LOG = LogManager.getLogger(PortalService.class);
-
-                private final AtomicInteger counter = new AtomicInteger(1);
-
-                @Override
-                public Thread newThread(@Nonnull Runnable r) {
-                    var th = new Thread(r, "snapshot-storage-" + counter.getAndIncrement());
-                    th.setUncaughtExceptionHandler(
-                        (t, e) -> LOG.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
-                    return th;
-                }
-            });
+    public StorageClientFactory storageClientFactory() {
+        return new StorageClientFactory(10, 10);
     }
 }
