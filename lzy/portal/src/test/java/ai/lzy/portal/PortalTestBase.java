@@ -344,7 +344,7 @@ public class PortalTestBase {
             throw new RuntimeException(e);
         }
 
-        var worker = new Worker(workerId,
+        var worker = Worker.startWorker(workerId,
             config.getAllocatorAddress(), config.getIamAddress(), allocatorDuration,
             config.getChannelManagerAddress(), "localhost", "token_" + workerId);
 
