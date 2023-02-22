@@ -10,6 +10,7 @@ import ai.lzy.channelmanager.operation.ChannelOperation;
 import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.operation.ChannelOperationManager;
 import ai.lzy.channelmanager.test.InjectedFailures;
+import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -32,6 +33,8 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
+import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
@@ -113,6 +116,11 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         String operationDescription = "Destroy channel " + channelId;
         LOG.info(operationDescription + " started");
 
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
+            return;
+        }
+
         final Channel channel;
         try {
             channel = withRetries(LOG, () -> channelDao.findChannel(channelId, null));
@@ -123,7 +131,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         final Operation operation = Operation.create("ChannelManager", operationDescription, /* deadline */ null,
-            Any.pack(LCMPS.ChannelDestroyMetadata.getDefaultInstance()));
+            idempotencyKey, Any.pack(LCMPS.ChannelDestroyMetadata.getDefaultInstance()));
 
         if (channel == null) {
             LOG.warn(operationDescription + " skipped, channel not found");
@@ -132,6 +140,12 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             try {
                 withRetries(LOG, () -> operationDao.create(operation, null));
             } catch (Exception e) {
+                if (idempotencyKey != null &&
+                    handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, response, LOG))
+                {
+                    return;
+                }
+
                 LOG.error(operationDescription + " failed, cannot create operation, "
                           + "got exception: {}", e.getMessage(), e);
                 response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
@@ -154,14 +168,20 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                 try (final var guard = lockManager.withLock(channelId);
                      final var tx = TransactionHandle.create(storage))
                 {
+                    operationDao.create(operation, tx);
                     channelDao.markChannelDestroying(channelId, tx);
                     channelOperationDao.create(channelOperation, tx);
-                    operationDao.create(operation, tx);
 
                     tx.commit();
                 }
             });
         } catch (Exception e) {
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, response, LOG))
+            {
+                return;
+            }
+
             LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;
@@ -191,6 +211,11 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         String operationDescription = "Destroying all channels for execution " + executionId;
         LOG.info(operationDescription + " started");
 
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
+            return;
+        }
+
         final List<String> channelsToDestroy;
         try {
             final List<Channel> channels = withRetries(LOG, () -> channelDao.listChannels(executionId));
@@ -202,7 +227,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         final Operation operation = Operation.create("ChannelManager", operationDescription, /* deadline */ null,
-            Any.pack(LCMPS.ChannelDestroyAllMetadata.getDefaultInstance()));
+            idempotencyKey, Any.pack(LCMPS.ChannelDestroyAllMetadata.getDefaultInstance()));
 
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
@@ -219,6 +244,12 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                 }
             });
         } catch (Exception e) {
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, response, LOG))
+            {
+                return;
+            }
+
             LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;

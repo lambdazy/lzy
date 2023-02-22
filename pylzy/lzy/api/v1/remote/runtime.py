@@ -21,7 +21,7 @@ from typing import (
 )
 
 from lzy.api.v1 import DockerPullPolicy
-from lzy.storage.api import Storage
+from lzy.storage.api import Storage, FSCredentials
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
@@ -94,6 +94,8 @@ class RemoteRuntime(Runtime):
         storage_name = workflow.owner.storage_registry.default_storage_name()
         if storage is None or storage_name is None:
             raise ValueError("No provided storage")
+        if isinstance(storage.credentials, FSCredentials):
+            raise ValueError("Local FS storage cannot be default for remote runtime")
 
         exec_id = await self.__workflow_client.start_workflow(workflow.name, storage, storage_name)
         self.__running = True

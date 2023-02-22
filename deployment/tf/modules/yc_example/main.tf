@@ -86,4 +86,5 @@ module "yc" {
       }
     }
   }
+  portals_pool_size = 1
 }

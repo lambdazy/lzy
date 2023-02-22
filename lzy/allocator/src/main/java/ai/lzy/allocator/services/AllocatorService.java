@@ -56,6 +56,7 @@ import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcHeaders.createContext;
 import static ai.lzy.util.grpc.GrpcHeaders.withContext;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
@@ -423,6 +424,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         allocationContext.metrics().allocateFromCacheDuration
                             .observe(Duration.between(op.createdAt(), now).getSeconds());
 
+                        allocationContext.metrics().runningVms.labels(existingVm.poolLabel()).inc();
                         allocationContext.metrics().cachedVms.labels(existingVm.poolLabel()).dec();
                         allocationContext.metrics().cachedVmsTime.labels(existingVm.poolLabel())
                             .inc(Duration.between(existingVm.idleState().idleSice(), now).getSeconds());
@@ -510,6 +512,16 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                             return Status.NOT_FOUND.withDescription("Cannot find vm");
                         }
 
+                        if (vm.status() == Vm.Status.ALLOCATING) {
+                            LOG.error("Free vm {} in status ALLOCATING, trying to cancel allocation op {}",
+                                vm, vm.allocOpId());
+
+                            operationsDao.fail(
+                                vm.allocOpId(), toProto(Status.CANCELLED.withDescription("Unexpected free")), tx);
+                            tx.commit();
+                            return Status.OK;
+                        }
+
                         if (vm.status() != Vm.Status.RUNNING) {
                             LOG.error("Free vm {} in status {}, expected RUNNING", vm, vm.status());
                             return Status.FAILED_PRECONDITION.withDescription("State is " + vm.status());
@@ -530,22 +542,31 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                             LOG.info("Vms cache is full ({}), about to delete VM {}...", cachedVms, vm.vmId());
 
                             var action = allocationContext.createDeleteVmAction(vm, "VMs cache is full", reqid, tx);
-
                             tx.commit();
 
                             LOG.info("VM {} scheduled to remove (cache is full)", vm.vmId());
 
                             allocationContext.startNew(action);
                         } else {
-                            var cacheDeadline = Instant.now().plus(session.cachePolicy().minIdleTimeout());
-                            vmDao.release(vm.vmId(), cacheDeadline, tx);
+                            if (session.cachePolicy().minIdleTimeout().isZero()) {
+                                LOG.info("Free VM {} according to cache policy...", vm.vmId());
 
-                            tx.commit();
+                                var action = allocationContext.createDeleteVmAction(vm, "Free VM", reqid, tx);
+                                tx.commit();
 
-                            LOG.info("VM {} released to session {} cache until {}",
-                                vm.vmId(), vm.sessionId(), cacheDeadline);
+                                LOG.info("VM {} scheduled to remove", vm.vmId());
 
-                            allocationContext.metrics().cachedVms.labels(vm.poolLabel()).inc();
+                                allocationContext.startNew(action);
+                            } else {
+                                var cacheDeadline = Instant.now().plus(session.cachePolicy().minIdleTimeout());
+                                vmDao.release(vm.vmId(), cacheDeadline, tx);
+                                tx.commit();
+
+                                LOG.info("VM {} released to session {} cache until {}",
+                                    vm.vmId(), vm.sessionId(), cacheDeadline);
+
+                                allocationContext.metrics().cachedVms.labels(vm.poolLabel()).inc();
+                            }
                         }
 
                         allocationContext.metrics().runningVms.labels(vm.poolLabel()).dec();

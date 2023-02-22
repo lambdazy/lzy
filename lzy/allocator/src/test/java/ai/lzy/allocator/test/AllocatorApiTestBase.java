@@ -1,9 +1,11 @@
 package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.AllocatorMain;
+import ai.lzy.allocator.alloc.AllocatorMetrics;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.gc.GarbageCollector;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.iam.resources.subjects.AuthProvider;
@@ -85,6 +87,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected ManagedChannel channel;
     protected ClusterRegistry clusterRegistry;
     protected OperationsExecutor operationsExecutor;
+    protected AllocatorMetrics metrics;
+    protected GarbageCollector gc;
 
     protected void updateStartupProperties(Map<String, Object> props) {}
 
@@ -144,6 +148,9 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         clusterRegistry = allocatorCtx.getBean(ClusterRegistry.class);
         operationsExecutor = allocatorCtx.getBean(OperationsExecutor.class,
             Qualifiers.byName("AllocatorOperationsExecutor"));
+
+        metrics = allocatorCtx.getBean(AllocatorMetrics.class);
+        gc = allocatorCtx.getBean(GarbageCollector.class);
     }
 
     protected void tearDown() {
@@ -396,5 +403,17 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected void freeVm(String vmId) {
         withGrpcContext(() ->
             authorizedAllocatorBlockingStub.free(VmAllocatorApi.FreeRequest.newBuilder().setVmId(vmId).build()));
+    }
+
+    protected void assertVmMetrics(String pool, int allocating, int running, int cached) {
+        if (allocating >= 0) {
+            Assert.assertEquals(allocating, (int) metrics.runningAllocations.labels(pool).get());
+        }
+        if (running >= 0) {
+            Assert.assertEquals(running, (int) metrics.runningVms.labels(pool).get());
+        }
+        if (cached >= 0) {
+            Assert.assertEquals(cached, (int) metrics.cachedVms.labels(pool).get());
+        }
     }
 }

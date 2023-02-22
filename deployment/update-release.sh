@@ -18,14 +18,19 @@ function project_version() {
     mvn help:evaluate -Dexpression=project.version -q -DforceStdout
 }
 
-git pull origin "$BRANCH"
+git fetch origin "$BRANCH:$BRANCH"
 git checkout "$BRANCH"
 
 cd parent
 # x.y.z+1
 mvn build-helper:parse-version versions:set \
-  -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion}"
+  -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.\${parsedVersion.nextIncrementalVersion}" \
+  -DgenerateBackupPoms=false -DprocessAllModules
 NEW_VERSION=$(project_version)
+mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ..
+mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../util
+mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../coverage
+mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../lzy
 echo "$NEW_VERSION" > ../pylzy/lzy/version/version
 
 git add -u ..
@@ -33,3 +38,6 @@ git commit -m "set version $NEW_VERSION"
 git tag "R-$NEW_VERSION"
 git push origin "$BRANCH"
 git push origin "R-$NEW_VERSION"
+
+echo "release-branch=$BRANCH" >> "$GITHUB_OUTPUT"
+echo "release-version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
