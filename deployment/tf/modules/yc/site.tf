@@ -128,6 +128,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           args = var.ssl-enabled ? [
             "-Dmicronaut.env.deduction=true",
             "-Dmicronaut.ssl.key-store.password=${var.ssl-keystore-password}",
+            "-Dmicronaut.ssl.key-store.path=file:/app/keystore/keystore.jks",
             "-Dmicronaut.ssl.key-store.type=JKS",
             "-Dmicronaut.ssl.enabled=true",
             "-Dsite.hostname=https://${local.github-redirect-address}:8443",
@@ -138,6 +139,14 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             "-Dsite.hostname=http://${yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address}:8080",
             "-Dmicronaut.server.dual-protocol=false"
           ]
+
+          dynamic "volume_mount" {
+            for_each = var.ssl-enabled ? [1] : []
+            content {
+              name       = "keystore"
+              mount_path = "/app/keystore"
+            }
+          }
         }
 
         dynamic "volume" {
@@ -153,6 +162,20 @@ resource "kubernetes_deployment" "lzy_backoffice" {
               items {
                 key  = "cert-key"
                 path = "cert.key"
+              }
+            }
+          }
+        }
+
+        dynamic "volume" {
+          for_each = var.ssl-enabled ? [1] : []
+          content {
+            name = "keystore"
+            secret {
+              secret_name = "keystore"
+              items {
+                key  = "keystore"
+                path = "keystore.jks"
               }
             }
           }

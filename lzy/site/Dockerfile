@@ -2,9 +2,6 @@ FROM amazoncorretto:17
 
 RUN yum -y install openssl && yum clean all
 
-ARG keystore=keystore.jks
-COPY $keystore app/keystore.jks
-
 COPY target/site.jar app/app.jar
 
 ENTRYPOINT ["java", \
