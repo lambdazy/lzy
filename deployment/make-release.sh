@@ -36,10 +36,6 @@ else
 fi
 
 NEXT_SNAPSHOT_VERSION=$(project_version)
-mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ..
-mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../util
-mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../coverage
-mvn versions:set -DnewVersion="$NEXT_SNAPSHOT_VERSION" -DgenerateBackupPoms=false -DprocessAllModules -f ../lzy
 git add -u ..
 git commit -m "set version $NEXT_SNAPSHOT_VERSION"
 
