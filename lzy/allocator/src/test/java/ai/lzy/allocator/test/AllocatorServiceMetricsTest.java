@@ -79,10 +79,11 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
     public void metrics2() throws Exception {
         var vmId = allocateVm();
 
-        authorizedAllocatorBlockingStub.deleteSession(
+        var op = authorizedAllocatorBlockingStub.deleteSession(
             VmAllocatorApi.DeleteSessionRequest.newBuilder()
                 .setSessionId(sessionId)
                 .build());
+        waitOpSuccess(op);
         Assert.assertEquals(0, (int) metrics.activeSessions.get());
 
         TimeUtils.waitFlagUp(() -> operationsExecutor.operationsCount() == 0, 5, TimeUnit.SECONDS);
