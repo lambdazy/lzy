@@ -255,6 +255,9 @@ class RemoteRuntime(Runtime):
             else:
                 sys.stderr.write(data.data)
 
+        sys.stdout.flush()
+        sys.stderr.flush()
+
     def __build_graph(
         self,
         calls: List[LzyCall],
