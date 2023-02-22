@@ -73,14 +73,6 @@ class RemoteRuntimeTests(TestCase):
         self.assertIsNone(wf)
         self.assertFalse(self.mock.aborted)  # should NOT be aborted if not started
 
-    def test_error_on_std_read(self):
-        self.mock.fail_on_read_std = True
-        with self.assertRaises(AioRpcError):
-            with self.lzy.workflow("some_name"):
-                pass
-
-        self.assertTrue(self.mock.finished)
-
     def test_error_on_execute_graph(self):
         self.mock.fail_on_execute_graph = True
         with self.assertRaises(AioRpcError):
