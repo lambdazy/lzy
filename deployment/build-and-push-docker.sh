@@ -1,13 +1,23 @@
 #!/bin/bash -e
 
 if [[ $# -lt 2 ]]; then
-    echo "Usage: $0 <docker-registry-prefix> <docker-images-tag>"
+    echo "Usage: $0 <docker-registry-prefix> <docker-images-tag> [--ssl]"
     echo "Requires previously built application and docker logged in the desired repository."
     exit 1
 fi
 
 REGISTRY_PREFIX=$1
 TAG=$2
+
+SSL=false
+
+for ARG in "$@"; do
+  case "$ARG" in
+  --ssl)
+    SSL=true
+    ;;
+  esac
+done
 
 IMAGES=""
 
@@ -24,11 +34,13 @@ function build_image {
 
 mkdir -p frontend/src/docs
 cp docs/tutorials/* frontend/src/docs
-build_image site-frontend frontend '--build-arg conf=nginx.conf'
+if [[ $SSL == true ]]; then
+  build_image site-frontend frontend
+else
+  build_image site-frontend frontend '--build-arg conf=nginx.conf'
+fi
 
-touch lzy/site/fake-keystore.jks
-build_image site lzy/site '--build-arg keystore=fake-keystore.jks'
-
+build_image site lzy/site
 build_image allocator lzy/allocator
 build_image channel-manager lzy/channel-manager
 build_image graph-executor lzy/graph-executor

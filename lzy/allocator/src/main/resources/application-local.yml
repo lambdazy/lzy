@@ -1,12 +1,14 @@
 allocator:
+  instance-id: 'allocator.local'
 
   service-clusters: []
-
   user-clusters: []
 
   address: 'localhost:1234'
   heartbeat-timeout: 1m
   allocation-timeout: 15m
+
+  enable-http-debug: true
 
   gc:
     cleanup-period: 20s
@@ -20,7 +22,7 @@ allocator:
 
   thread-allocator:
     enabled: true
-    vm-jar-file: 'worker/target/worker.jar'
+    vm-jar-file: 'lzy/worker/target/worker.jar'
     vm-class-name: 'ai.lzy.worker.Worker'
 
   mock-mk8s:

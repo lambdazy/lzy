@@ -19,6 +19,9 @@ class DefaultStorageRegistry(StorageRegistry):
         self.__default_client: Optional[AsyncStorageClient] = None
 
     def register_storage(self, name: str, storage: Storage, default: bool = False):
+        if name in self.__clients_map:
+            raise ValueError(f'Storage with name {name} has been already registered')
+
         self.__credentials_map[name] = storage
         client = from_credentials(storage.credentials)
         self.__clients_map[name] = client
@@ -28,6 +31,9 @@ class DefaultStorageRegistry(StorageRegistry):
             self.__default_client = client
 
     def unregister_storage(self, name: str):
+        if name not in self.__clients_map:
+            raise ValueError(f'Storage with name {name} has not been registered')
+
         self.__credentials_map.pop(name)
         self.__clients_map.pop(name)
         if self.__default_name == name:

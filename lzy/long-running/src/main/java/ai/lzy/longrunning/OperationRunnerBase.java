@@ -17,7 +17,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -62,7 +61,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
                         switch (update.code()) {
                             case ALREADY_DONE, CONTINUE -> { }
                             case RESTART -> {
-                                executor.schedule(this, update.delay().toMillis(), TimeUnit.MILLISECONDS);
+                                executor.retryAfter(this, update.delay());
                                 return;
                             }
                             case FINISH -> {
@@ -72,7 +71,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
                         }
                     }
                     case RESTART -> {
-                        executor.schedule(this, stepResult.delay().toMillis(), TimeUnit.MILLISECONDS);
+                        executor.retryAfter(this, stepResult.delay());
                         return;
                     }
                     case FINISH -> {
@@ -98,7 +97,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
         } catch (Exception e) {
             op = null;
             log.error("{} Cannot load operation: {}. Retry later...", logPrefix, e.getMessage());
-            executor.schedule(this, 1, TimeUnit.SECONDS);
+            executor.retryAfter(this, Duration.ofSeconds(1));
             return false;
         }
 
@@ -140,7 +139,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
             });
         } catch (Exception e) {
             log.error("{} DB error: {}. Retry later...", logPrefix, e.getMessage());
-            executor.schedule(this, 1, TimeUnit.SECONDS);
+            executor.retryAfter(this, Duration.ofSeconds(1));
             return false;
         }
     }
@@ -159,7 +158,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
             });
         } catch (Exception e) {
             log.error("{} DB error: {}. Retry later...", logPrefix, e.getMessage());
-            executor.schedule(this, 1, TimeUnit.SECONDS);
+            executor.retryAfter(this, Duration.ofSeconds(1));
             return false;
         }
     }
@@ -197,7 +196,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
             notifyFinished();
         } catch (Exception e) {
             log.error("{} Cannot fail operation: {}. Retry later...", logPrefix, e.getMessage());
-            executor.schedule(this, 1, TimeUnit.SECONDS);
+            executor.retryAfter(this, Duration.ofSeconds(1));
         }
         return true;
     }

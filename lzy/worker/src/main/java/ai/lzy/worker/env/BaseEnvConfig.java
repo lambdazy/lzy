@@ -1,13 +1,15 @@
 package ai.lzy.worker.env;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public record BaseEnvConfig(
     String image,
     List<MountDescription> mounts,
     boolean needGpu,
-    List<String> envs  // In format <NAME>=<value>
+    List<String> envVars  // In format <NAME>=<value>
 ) {
 
     public static Builder newBuilder() {
@@ -32,7 +34,7 @@ public record BaseEnvConfig(
         String image = null;
         boolean gpu = false;
         List<MountDescription> mounts = new ArrayList<>();
-        List<String> envs = new ArrayList<>();
+        List<String> envVars = new ArrayList<>();
 
         public Builder withImage(String name) {
             this.image = name;
@@ -54,15 +56,13 @@ public record BaseEnvConfig(
             return this;
         }
 
-        public Builder setEnvs(Map<String, String> envs) {
-            this.envs = envs.entrySet().stream()
-                .map(e -> e.getKey() + "=" + e.getValue())
-                .toList();
+        public Builder withEnvVars(Map<String, String> envVars) {
+            envVars.forEach((key, value) -> this.envVars.add(key + "=" + value));
             return this;
         }
 
         public BaseEnvConfig build() {
-            return new BaseEnvConfig(image, mounts, gpu, envs);
+            return new BaseEnvConfig(image, mounts, gpu, envVars);
         }
 
     }

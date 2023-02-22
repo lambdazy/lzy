@@ -33,14 +33,14 @@ public record AllocationContext(
     @Named("AllocatorSelfWorkerId") String selfWorkerId
 )
 {
-    public void submit(Runnable action) {
-        executor.submit(action);
+    public void startNew(Runnable action) {
+        executor.startNew(action);
     }
 
-    public String submitDeleteVmAction(Vm vm, String description, String reqid, Logger log) throws Exception {
+    public String startDeleteVmAction(Vm vm, String description, String reqid, Logger log) throws Exception {
         log.info("About to delete VM {}: {}", vm.vmId(), description);
         var action = createDeleteVmAction(vm, description, reqid, log);
-        submit(action);
+        startNew(action);
 
         switch (vm.status()) {
             case RUNNING -> {

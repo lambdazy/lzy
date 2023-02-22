@@ -6,7 +6,6 @@ import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.AmazonS3URI;
-import com.google.common.util.concurrent.MoreExecutors;
 import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequest;
@@ -20,12 +19,15 @@ import java.net.URI;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 
+import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
+
 public final class S3ClientWithTransmitter extends StorageClientWithTransmitter {
     private final AmazonS3 amazonS3Client;
     private final Transmitter transmitter;
 
     public S3ClientWithTransmitter(String endpoint, String accessToken, String secretToken,
-                                   ExecutorService transmitterThreadPool)
+                                   int byteBufferPoolSize, ExecutorService transferPool,
+                                   ExecutorService chunkPool, ExecutorService consumerPool)
     {
         this.amazonS3Client = AmazonS3ClientBuilder.standard()
             .withCredentials(new AWSStaticCredentialsProvider(new BasicAWSCredentials(accessToken, secretToken)))
@@ -35,10 +37,10 @@ public final class S3ClientWithTransmitter extends StorageClientWithTransmitter 
         this.transmitter = new AmazonTransmitterFactory(amazonS3Client) {
             Transmitter withUserThreadPool() {
                 return create(
-                    createByteBufferPool(DEFAULT_TRANSMITTER_NAME, byteBufferSizeType, DEFAULT_BYTE_BUFFER_SIZE),
-                    MoreExecutors.listeningDecorator(transmitterThreadPool),
-                    MoreExecutors.listeningDecorator(transmitterThreadPool),
-                    MoreExecutors.listeningDecorator(transmitterThreadPool)
+                    createByteBufferPool(DEFAULT_TRANSMITTER_NAME, byteBufferSizeType, byteBufferPoolSize),
+                    listeningDecorator(transferPool),
+                    listeningDecorator(chunkPool),
+                    listeningDecorator(consumerPool)
                 );
             }
         }.withUserThreadPool();

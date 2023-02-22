@@ -1,19 +1,12 @@
-import asyncio
 import importlib
 import uuid
 from typing import List, Optional, Union, Tuple, Dict
 from unittest import TestCase, skip
 
-from lzy.api.v1.exceptions import LzyExecutionException
-# noinspection PyPackageRequirements
-from moto.moto_server.threaded_moto_server import ThreadedMotoServer
-
-from lzy.storage.registry import DefaultStorageRegistry
-from tests.api.v1.mocks import EnvProviderMock
 from lzy.api.v1 import Lzy, op, LocalRuntime, materialize
+from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.utils.proxy_adapter import materialized, is_lzy_proxy
-from lzy.storage.api import Storage, S3Credentials
-from tests.api.v1.utils import create_bucket
+from tests.api.v1.mocks import EnvProviderMock
 
 
 @op
@@ -71,31 +64,9 @@ def entry_id(lazy_proxy):
 
 
 class LzyWorkflowTests(TestCase):
-    endpoint_url = None
-    service = None
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        cls.service = ThreadedMotoServer(port=12345)
-        cls.service.start()
-        cls.endpoint_url = "http://localhost:12345"
-        asyncio.run(create_bucket(cls.endpoint_url))
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        cls.service.stop()
-
     def setUp(self):
         self.workflow_name = "workflow_" + str(uuid.uuid4())
-        storage_config = Storage(
-            uri="s3://bucket/prefix",
-            credentials=S3Credentials(self.endpoint_url, access_key_id="", secret_access_key="")
-        )
-
-        self.lzy = Lzy(runtime=LocalRuntime(),
-                       py_env_provider=EnvProviderMock(),
-                       storage_registry=DefaultStorageRegistry())
-        self.lzy.storage_registry.register_storage("default", storage_config, default=True)
+        self.lzy = Lzy(runtime=LocalRuntime(), py_env_provider=EnvProviderMock())
 
     def test_lists(self):
         @op

@@ -48,7 +48,8 @@ public class EnvironmentFactory {
                 .addMount(RESOURCES_PATH, RESOURCES_PATH)
                 .addMount(LOCAL_MODULES_PATH, LOCAL_MODULES_PATH)
                 .addRsharedMount(fsRoot, fsRoot)
-                .setEnvs(env.getEnvMap())
+                .withEnvVars(env.getEnvMap())
+                .withEnvVars(Map.of("LZY_INNER_CONTAINER", "true"))
                 .build();
 
             var cachedEnv = createdContainers.get(image);

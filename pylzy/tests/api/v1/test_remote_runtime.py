@@ -21,6 +21,7 @@ from ai.lzy.v1.long_running.operation_pb2_grpc import (
 from api.v1.mocks import WorkflowServiceMock, WhiteboardIndexClientMock, OperationsServiceMock, EnvProviderMock
 from lzy.api.v1 import Lzy, op
 from lzy.logs.config import get_logger
+from lzy.storage.api import Storage
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -119,3 +120,10 @@ class RemoteRuntimeTests(TestCase):
             with self.lzy.workflow("some_name", interactive=False):
                 pass
         self.assertFalse(self.mock.started)
+
+    def test_local_fs_storage_default(self):
+        self.lzy.storage_registry.register_storage("local", Storage.fs_storage("/tmp/default_lzy_storage"),
+                                                   default=True)
+        with self.assertRaises(ValueError):
+            with self.lzy.workflow("some_name", interactive=False):
+                pass

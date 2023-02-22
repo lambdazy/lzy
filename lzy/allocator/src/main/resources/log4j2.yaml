@@ -44,3 +44,9 @@ Configuration:
 
       - name: ai.lzy.longrunning.OperationsExecutor
         level: debug
+
+      - name: io.micronaut.runtime
+        level: info
+
+      - name: io.micronaut.http
+        level: info

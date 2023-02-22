@@ -88,7 +88,7 @@ public class DiskApiTest extends BaseTestWithIam {
 
     @After
     public void after() {
-        allocatorApp.stop();
+        allocatorApp.stop(false);
         try {
             allocatorApp.awaitTermination();
         } catch (InterruptedException e) {

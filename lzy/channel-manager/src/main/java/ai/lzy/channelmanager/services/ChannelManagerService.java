@@ -13,6 +13,7 @@ import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.operation.ChannelOperationManager;
 import ai.lzy.channelmanager.test.InjectedFailures;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -35,6 +36,8 @@ import java.time.Instant;
 import java.util.Objects;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
+import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
@@ -83,6 +86,10 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             .formatted(request.getSlotOwner(), request.getSlotInstance().getSlot().getDirection(), slotUri, channelId);
         LOG.info(operationDescription + " started");
 
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
+            return;
+        }
 
         final Channel channel;
         try {
@@ -112,15 +119,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        Status preconditionsStatus = checkBindPreconditions(request, channelId, channel);
-        if (!preconditionsStatus.isOk()) {
-            LOG.error(operationDescription + " failed, {}", preconditionsStatus.getDescription());
-            response.onError(preconditionsStatus.asException());
-            return;
-        }
-
         final Operation operation = Operation.create("ChannelManager", operationDescription, /* deadline */ null,
-            Any.pack(LCMS.BindMetadata.getDefaultInstance()));
+            idempotencyKey, Any.pack(LCMS.BindMetadata.getDefaultInstance()));
 
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
@@ -131,10 +131,12 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         final var slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         final var slotOwner = fromProto(request.getSlotOwner());
         try {
-            preconditionsStatus = withRetries(LOG, () -> {
+            Status preconditionsStatus = withRetries(LOG, () -> {
                 try (final var guard = lockManager.withLock(channelId);
                      final var tx = TransactionHandle.create(storage))
                 {
+                    operationDao.create(operation, tx);
+
                     final Status preconditionsActualStatus;
 
                     final Channel actualChannel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, tx);
@@ -146,7 +148,6 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
                     channelDao.insertBindingEndpoint(slotInstance, slotOwner, tx);
                     channelOperationDao.create(channelOperation, tx);
-                    operationDao.create(operation, tx);
 
                     tx.commit();
 
@@ -159,6 +160,12 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 return;
             }
         } catch (Exception e) {
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, response, LOG))
+            {
+                return;
+            }
+
             LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;
@@ -186,6 +193,11 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         String operationDescription = "Unbind slot %s".formatted(request.getSlotUri());
         LOG.info(operationDescription + " started");
+
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
+            return;
+        }
 
         final String slotUri = request.getSlotUri();
         final Endpoint endpoint;
@@ -227,7 +239,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         }
 
         final Operation operation = Operation.create("ChannelManager", operationDescription, /* deadline */ null,
-            Any.pack(LCMS.UnbindMetadata.getDefaultInstance()));
+            idempotencyKey, Any.pack(LCMS.UnbindMetadata.getDefaultInstance()));
 
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
@@ -240,6 +252,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 try (final var guard = lockManager.withLock(channelId);
                      final var tx = TransactionHandle.create(storage))
                 {
+                    operationDao.create(operation, tx);
+
                     final Status preconditionsActualStatus;
 
                     final Channel actualChannel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, tx);
@@ -251,7 +265,6 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
                     channelDao.markEndpointUnbinding(slotUri, tx);
                     channelOperationDao.create(channelOperation, tx);
-                    operationDao.create(operation, tx);
 
                     tx.commit();
 
@@ -264,6 +277,12 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 return;
             }
         } catch (Exception e) {
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, response, LOG))
+            {
+                return;
+            }
+
             LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;
