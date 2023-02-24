@@ -32,7 +32,6 @@ resource "kubernetes_deployment" "storage" {
           image_pull_policy = "Always"
           port {
             container_port = local.storage-port
-            host_port      = local.storage-port
           }
 
           env {
@@ -139,8 +138,6 @@ resource "kubernetes_deployment" "storage" {
         node_selector = {
           type = "lzy"
         }
-        dns_policy    = "ClusterFirstWithHostNet"
-        host_network  = true
       }
     }
   }

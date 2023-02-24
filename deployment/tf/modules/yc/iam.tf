@@ -108,7 +108,6 @@ resource "kubernetes_deployment" "iam" {
           }
           port {
             container_port = local.iam-port
-            host_port      = local.iam-port
           }
         }
         node_selector = {
@@ -128,8 +127,6 @@ resource "kubernetes_deployment" "iam" {
             }
           }
         }
-        host_network = true
-        dns_policy   = "ClusterFirstWithHostNet"
       }
     }
   }

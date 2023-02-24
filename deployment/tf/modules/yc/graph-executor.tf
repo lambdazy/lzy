@@ -33,7 +33,6 @@ resource "kubernetes_deployment" "graph-executor" {
           image_pull_policy = "Always"
           port {
             container_port = local.graph-port
-            host_port      = local.graph-port
           }
 
           env {
@@ -124,8 +123,6 @@ resource "kubernetes_deployment" "graph-executor" {
             }
           }
         }
-        dns_policy    = "ClusterFirstWithHostNet"
-        host_network  = true
       }
     }
   }

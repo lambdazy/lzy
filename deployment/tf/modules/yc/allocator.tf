@@ -50,11 +50,9 @@ resource "kubernetes_stateful_set" "allocator" {
           image_pull_policy = "Always"
           port {
             container_port = local.allocator-port
-            host_port      = local.allocator-port
           }
           port {
             container_port = local.allocator-metrics-port
-            host_port = local.allocator-metrics-port
           }
 
           env {
@@ -222,8 +220,6 @@ resource "kubernetes_stateful_set" "allocator" {
             }
           }
         }
-        dns_policy    = "ClusterFirstWithHostNet"
-        host_network  = true
       }
     }
     service_name = ""

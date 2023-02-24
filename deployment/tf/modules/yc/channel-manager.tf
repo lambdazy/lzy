@@ -33,7 +33,6 @@ resource "kubernetes_deployment" "channel-manager" {
           image_pull_policy = "Always"
           port {
             container_port = local.channel-manager-port
-            host_port      = local.channel-manager-port
           }
 
           env {
@@ -117,8 +116,6 @@ resource "kubernetes_deployment" "channel-manager" {
             }
           }
         }
-        dns_policy    = "ClusterFirstWithHostNet"
-        host_network  = true
       }
     }
   }

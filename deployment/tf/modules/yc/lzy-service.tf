@@ -39,7 +39,6 @@ resource "kubernetes_deployment" "lzy-service" {
           image_pull_policy = "Always"
           port {
             container_port = local.lzy-service-port
-            host_port      = local.lzy-service-port
           }
 
           env {
@@ -189,8 +188,6 @@ resource "kubernetes_deployment" "lzy-service" {
             }
           }
         }
-        dns_policy    = "ClusterFirstWithHostNet"
-        host_network  = true
       }
     }
   }

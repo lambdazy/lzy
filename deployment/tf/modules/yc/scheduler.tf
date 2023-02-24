@@ -33,7 +33,6 @@ resource "kubernetes_deployment" "scheduler" {
           image_pull_policy = "Always"
           port {
             container_port = local.scheduler-port
-            host_port      = local.scheduler-port
           }
           env {
             name  = "SCHEDULER_DATABASE_USERNAME"
@@ -198,8 +197,6 @@ resource "kubernetes_deployment" "scheduler" {
             }
           }
         }
-        dns_policy    = "ClusterFirstWithHostNet"
-        host_network  = true
       }
     }
   }

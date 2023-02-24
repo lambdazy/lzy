@@ -47,12 +47,10 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           port {
             name           = "frontend"
             container_port = local.backoffice-frontend-port
-            host_port      = local.backoffice-frontend-port
           }
           port {
             name           = "frontendtls"
             container_port = local.backoffice-frontend-tls-port
-            host_port      = local.backoffice-frontend-tls-port
           }
           dynamic "volume_mount" {
             for_each = var.ssl-enabled ? [1] : []
@@ -117,12 +115,12 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           port {
             name           = "backend"
             container_port = local.backoffice-backend-port
-            host_port      = local.backoffice-backend-port
+#            host_port      = local.backoffice-backend-port
           }
           port {
             name           = "backendtls"
             container_port = local.backoffice-backend-tls-port
-            host_port      = local.backoffice-backend-tls-port
+#            host_port      = local.backoffice-backend-tls-port
           }
 
           args = var.ssl-enabled ? [
@@ -184,8 +182,6 @@ resource "kubernetes_deployment" "lzy_backoffice" {
         node_selector = {
           type = "lzy"
         }
-        host_network = true
-        dns_policy   = "ClusterFirstWithHostNet"
       }
     }
   }
