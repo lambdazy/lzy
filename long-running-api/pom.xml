@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.4.3</version>
+        <version>1.4.4</version>
         <relativePath>../parent</relativePath>
     </parent>
     <artifactId>long-running-api</artifactId>
-    <version>1.4.3</version>
+    <version>1.4.4</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>

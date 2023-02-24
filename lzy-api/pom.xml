@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.4.3</version>
+        <version>1.4.4</version>
         <relativePath>../parent</relativePath>
     </parent>
     <artifactId>lzy-api</artifactId>
-    <version>1.4.3</version>
+    <version>1.4.4</version>
     <packaging>${packaging}</packaging>
 
     <properties>
@@ -22,12 +22,12 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running-api</artifactId>
-            <version>1.4.3</version>
+            <version>1.4.4</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>model</artifactId>
-            <version>1.4.3</version>
+            <version>1.4.4</version>
         </dependency>
         <dependency>
             <groupId>io.grpc</groupId>
