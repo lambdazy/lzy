@@ -34,7 +34,14 @@ resource "kubernetes_deployment" "channel-manager" {
           port {
             container_port = local.channel-manager-port
           }
+          port {
+            container_port = local.channel-manager-metrics-port
+          }
 
+          env {
+            name = "CHANNEL_MANAGER_METRICS_PORT"
+            value = local.channel-manager-metrics-port
+          }
           env {
             name = "CHANNEL_MANAGER_ADDRESS"
             value = "0.0.0.0:${local.channel-manager-port}"
@@ -97,6 +104,15 @@ resource "kubernetes_deployment" "channel-manager" {
           env {
             name = "CHANNEL_MANAGER_WHITEBOARD_ADDRESS"
             value = "http://${kubernetes_service.whiteboard_service.spec[0].cluster_ip}:${local.whiteboard-port}"
+          }
+        }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
           }
         }
         node_selector = {

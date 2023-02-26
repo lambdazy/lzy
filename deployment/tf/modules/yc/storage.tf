@@ -34,6 +34,15 @@ resource "kubernetes_deployment" "storage" {
             container_port = local.storage-port
           }
 
+          port {
+            container_port = local.storage-metrics-port
+          }
+
+          env {
+            name  = "STORAGE_METRICS_PORT"
+            value = local.storage-metrics-port
+          }
+
           env {
             name = "STORAGE_ADDRESS"
             value = "0.0.0.0:${local.storage-port}"
@@ -133,6 +142,15 @@ resource "kubernetes_deployment" "storage" {
           env {
             name = "STORAGE_S3_YC_SECRET_TOKEN"
             value = yandex_iam_service_account_static_access_key.admin-sa-static-key.secret_key
+          }
+        }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
           }
         }
         node_selector = {

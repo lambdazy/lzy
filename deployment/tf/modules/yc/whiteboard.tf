@@ -36,6 +36,15 @@ resource "kubernetes_deployment" "whiteboard" {
             container_port = local.whiteboard-port
           }
 
+          port {
+            container_port = local.whiteboard-metrics-port
+          }
+
+          env {
+            name  = "WHITEBOARD_METRICS_PORT"
+            value = local.whiteboard-metrics-port
+          }
+
           env {
             name = "WHITEBOARD_ADDRESS"
             value = "0.0.0.0:${local.whiteboard-port}"
@@ -90,6 +99,15 @@ resource "kubernetes_deployment" "whiteboard" {
                 key = "key"
               }
             }
+          }
+        }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
           }
         }
         node_selector = {

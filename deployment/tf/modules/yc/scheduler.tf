@@ -34,6 +34,13 @@ resource "kubernetes_deployment" "scheduler" {
           port {
             container_port = local.scheduler-port
           }
+          port {
+            container_port = local.scheduler-metrics-port
+          }
+          env {
+            name  = "SCHEDULER_METRICS_PORT"
+            value = local.scheduler-metrics-port
+          }
           env {
             name  = "SCHEDULER_DATABASE_USERNAME"
             value_from {
@@ -178,6 +185,15 @@ resource "kubernetes_deployment" "scheduler" {
           env {
             name = "SCHEDULER_WORKER_PROCESSOR_IDLE_HEARTBEAT_PERIOD"
             value = "5m"
+          }
+        }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
           }
         }
         node_selector = {

@@ -40,6 +40,14 @@ resource "kubernetes_deployment" "lzy-service" {
           port {
             container_port = local.lzy-service-port
           }
+          port {
+            container_port = local.lzy-service-metrics-port
+          }
+
+          env {
+            name  = "LZY_SERVICE_METRICS_PORT"
+            value = local.lzy-service-metrics-port
+          }
 
           env {
             name = "LZY_SERVICE_ADDRESS"
@@ -171,6 +179,16 @@ resource "kubernetes_deployment" "lzy-service" {
             value = "20s"
           }
         }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
+          }
+        }
+
         node_selector = {
           type = "lzy"
         }

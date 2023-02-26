@@ -34,6 +34,14 @@ resource "kubernetes_deployment" "graph-executor" {
           port {
             container_port = local.graph-port
           }
+          port {
+            container_port = local.graph-executor-metrics-port
+          }
+
+          env {
+            name  = "GRAPH_EXECUTOR_METRICS_PORT"
+            value = local.graph-executor-metrics-port
+          }
 
           env {
             name = "GRAPH_EXECUTOR_PORT"
@@ -106,6 +114,16 @@ resource "kubernetes_deployment" "graph-executor" {
             }
           }
         }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
+          }
+        }
+
         node_selector = {
           type = "lzy"
         }
