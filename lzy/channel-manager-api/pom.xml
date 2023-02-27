@@ -4,11 +4,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.4.5</version>
+        <version>1.4.6</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>channel-manager-api</artifactId>
-    <version>1.4.5</version>
+    <version>1.4.6</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -19,7 +19,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>model</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
 
         <dependency>
@@ -37,7 +37,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>slots-api</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>

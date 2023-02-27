@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ai.lzy</groupId>
     <artifactId>coverage</artifactId>
-    <version>1.4.5</version>
+    <version>1.4.6</version>
 
     <properties>
         <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
@@ -15,7 +15,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>allocator</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.grpc</groupId>
@@ -26,37 +26,37 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>channel-manager</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>fs</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>graph-executor</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>lzy-service</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>portal</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>scheduler</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
             <exclusions>
                 <exclusion>
                     <groupId>io.grpc</groupId>
@@ -67,22 +67,22 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>worker</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>storage</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>whiteboard</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running</artifactId>
-            <version>1.4.5</version>
+            <version>1.4.6</version>
         </dependency>
     </dependencies>
 
