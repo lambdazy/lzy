@@ -292,3 +292,27 @@ class LzyOpParamsTests(TestCase):
         with self.assertRaises(ValueError):
             with self.lzy.workflow("test"):
                 func_with_docker()
+
+    def test_local_modules(self):
+        @op
+        def func_with_env() -> None:
+            pass
+
+        with self.lzy.workflow("test", local_modules_path=["lol_kek"]) as wf:
+            func_with_env()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertTrue("lol_kek" in call.env.local_modules_path)
+
+    def test_local_modules_op(self):
+        @op(local_modules_path=["lol_kek"])
+        def func_with_env() -> None:
+            pass
+
+        with self.lzy.workflow("test") as wf:
+            func_with_env()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertTrue("lol_kek" in call.env.local_modules_path)
