@@ -590,6 +590,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void mount(MountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+        if (!validateRequest(request, responseObserver)) {
+            return;
+        }
+
         LOG.info("Mount request {}", ProtoPrinter.safePrinter().shortDebugString(request));
 
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
@@ -628,12 +632,21 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
+        final var op = Operation.create(
+            session.owner(),
+            "Mount: disk=%s, vm=%s".formatted(request.getVolume().getDiskVolume().getDiskId(), request.getZone()),
+            config.getAllocationTimeout(),
+            idempotencyKey,
+            AllocateMetadata.getDefaultInstance());
+
         try {
         withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     var volumes = prepareVolumeRequests(List.of(request.getVolume()), tx);
 
 
+                    operationsDao.create(op, tx);
+                    sessionsDao.touch(session.sessionId(), tx);
 
                 } catch (StatusException e) {
                     //
@@ -773,5 +786,25 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return null;
         }
         return new Vm.TunnelSettings(proxyV6Address, tunnelIndex);
+    }
+
+    private static boolean validateRequest(MountRequest request, StreamObserver<LongRunning.Operation> response) {
+        if (request.getVmId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("vm_id not set").asException());
+            return false;
+        }
+        if (request.hasVolumeMount()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("pool_label not set").asException());
+            return false;
+        }
+        if (request.getZone().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("zone not set").asException());
+            return false;
+        }
+        if (request.getWorkloadCount() == 0) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("workload not set").asException());
+            return false;
+        }
+        return true;
     }
 }

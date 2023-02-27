@@ -26,6 +26,7 @@ public class ServiceConfig {
     private Duration heartbeatTimeout;
     private List<String> serviceClusters = new ArrayList<>();
     private List<String> userClusters = new ArrayList<>();
+    private String mountHolderImage;
 
     public String getAddress() {
         String ipv6Host = hosts.stream().filter(host -> host.contains(":")).findFirst().orElse(null);

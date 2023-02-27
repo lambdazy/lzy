@@ -85,9 +85,7 @@ public final class MountAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        var volumeDesc = new VolumeRequest.ResourceVolumeDescription(
-
-        )
+        var volumeDesc = new VolumeRequest.ResourceVolumeDescription()
 
         volumeManager.create()
 
