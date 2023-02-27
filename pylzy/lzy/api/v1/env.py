@@ -28,14 +28,20 @@ class Env:
     docker_credentials: Optional[DockerCredentials] = None
 
     def override(self, other: "Env") -> "Env":
+        local_modules = set()
+        if self.local_modules_path:
+            local_modules.update(self.local_modules_path)
+
+        if other.local_modules_path:
+            local_modules.update(other.local_modules_path)
+
         return Env(
             python_version=other.python_version if other.python_version else self.python_version,
             libraries={**self.libraries, **other.libraries},
             conda_yaml_path=other.conda_yaml_path if other.conda_yaml_path else self.conda_yaml_path,
             docker_image=other.docker_image if other.docker_image else self.docker_image,
             docker_pull_policy=other.docker_pull_policy if other.docker_pull_policy else self.docker_pull_policy,
-            local_modules_path=other.local_modules_path if other.local_modules_path is not None else
-            self.local_modules_path,
+            local_modules_path=[*local_modules],
             docker_only=self.docker_only or other.docker_only,
             env_variables={**self.env_variables, **other.env_variables},
             docker_credentials=other.docker_credentials if other.docker_credentials else self.docker_credentials
