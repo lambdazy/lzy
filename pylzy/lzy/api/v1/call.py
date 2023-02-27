@@ -29,7 +29,9 @@ class LzyCall:
         provisioning: Provisioning,
         env: Env,
         description: str = "",
-        lazy_arguments: bool = True
+        version: str = "1.0",
+        cache: bool = False,
+        lazy_arguments: bool = False
     ):
         self.__lazy_arguments = lazy_arguments
         self.__id = str(uuid.uuid4())
@@ -38,6 +40,8 @@ class LzyCall:
         self.__provisioning = provisioning
         self.__env = env
         self.__description = description
+        self.__version = version
+        self.__cache = cache
 
         self.__args_entry_ids: List[str] = []
         for i, arg in enumerate(sign.args):
@@ -116,6 +120,14 @@ class LzyCall:
     def lazy_arguments(self) -> bool:
         return self.__lazy_arguments
 
+    @property
+    def version(self) -> str:
+        return self.__version
+
+    @property
+    def cache(self) -> bool:
+        return self.__cache
+
 
 def wrap_call(
     f: Callable[..., Any],
@@ -123,7 +135,9 @@ def wrap_call(
     provisioning: Provisioning,
     env: Env,
     description: str = "",
-    lazy_arguments: bool = True
+    version: str = "1.0",
+    cache: bool = False,
+    lazy_arguments: bool = False
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
@@ -147,7 +161,7 @@ def wrap_call(
         signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot,
                                                       active_workflow.entry_index,
                                                       active_workflow.owner.serializer_registry, *args, **kwargs)
-        lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description, lazy_arguments)
+        lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description, version, cache, lazy_arguments)
         active_workflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return

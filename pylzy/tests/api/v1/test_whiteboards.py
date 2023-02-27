@@ -49,7 +49,7 @@ def func() -> int:
     return 42
 
 
-@op
+@op(cache=True)
 def concat(num: int, line: str) -> str:
     return f"{line}: {num}"
 
@@ -379,7 +379,7 @@ class WhiteboardTests(TestCase):
         self.assertEqual(entry_wb_desc, entry_concat_desc)
         self.assertEqual("str: 42", res)
 
-    def test_whiteboard_local_data_as_op_args(self):
+    def test_whiteboard_with_cache_1(self):
         with self.lzy.workflow(self.workflow_name) as wf:
             wb_1 = wf.create_whiteboard(Whiteboard)
             wb_2 = wf.create_whiteboard(WhiteboardWithDefaults)
@@ -399,7 +399,7 @@ class WhiteboardTests(TestCase):
 
         self.assertEqual(op_1_result_uri, op_2_result_uri)
 
-    def test_whiteboard_op_result_as_op_arg(self):
+    def test_whiteboard_with_cache_2(self):
         with self.lzy.workflow(self.workflow_name) as wf:
             wb = wf.create_whiteboard(WhiteboardWithDefaults)
             wb.desc = "str"

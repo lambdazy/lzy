@@ -60,6 +60,8 @@ def op(
     ram_size_gb: Optional[int] = None,
     env: Env = Env(),
     description: str = "",
+    version: str = "1.0",
+    cache: bool = False,
     lazy_arguments: bool = False,
     env_variables: Optional[Mapping[str, str]] = None,
     docker_only: bool = False,
@@ -107,7 +109,7 @@ def op(
 
         # yep, create lazy constructor and return it
         # instead of function
-        return wrap_call(f, output_types, provisioning, env, description, lazy_arguments)
+        return wrap_call(f, output_types, provisioning, env, description, version, cache, lazy_arguments)
 
     if func is None:
         return deco

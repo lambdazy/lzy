@@ -5,22 +5,42 @@ from lzy.api.v1 import Lzy, op
 from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock, StorageClientMock
 
 
+# noinspection PyUnusedLocal
+@op(cache=True)
+def accept_int_first(i: int) -> None:
+    pass
+
+
+# noinspection PyUnusedLocal
+@op(cache=True)
+def accept_int_second(i: int) -> None:
+    pass
+
+
+@op(cache=True)
+def foo_simple(name: str, param: int) -> str:
+    return f"{name}: {param}"
+
+
+@op(cache=True)
+def foo_with_args(*args) -> str:
+    return ', '.join(args)
+
+
+@op(cache=True)
+def foo_with_kwargs(*args, **kwargs) -> str:
+    args_str: str = ', '.join(map(lambda i, arg: f"{i}: {arg}", enumerate(args)))
+    kwargs_str: str = ', '.join(map(lambda name, arg: f"{name}: {arg}", kwargs.items()))
+    return ', '.join([args_str, kwargs_str])
+
+
 class LzyEntriesTests(TestCase):
     def setUp(self):
         self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock(), py_env_provider=EnvProviderMock())
 
     def test_same_args_have_same_entry_id(self):
-        # noinspection PyUnusedLocal
-        @op
-        def accept_int_first(i: int) -> None:
-            pass
-
-        # noinspection PyUnusedLocal
-        @op
-        def accept_int_second(i: int) -> None:
-            pass
-
         num = 42
+
         with self.lzy.workflow("test") as wf:
             accept_int_first(num)
             accept_int_first(num)
@@ -36,165 +56,113 @@ class LzyEntriesTests(TestCase):
         self.assertEqual(entry_id_1, entry_id_2)
         self.assertEqual(entry_id_1, entry_id_3)
 
-    def test_same_local_data_have_same_storage_uri_and_stored_once(self):
-        # noinspection PyUnusedLocal
-        @op
-        def first_model(w: int) -> None:
-            pass
-
-        # noinspection PyUnusedLocal
-        @op
-        def second_model(w: int) -> None:
-            pass
-
+    def test_same_local_data_stored_once(self):
         weight = 42
 
+        self.lzy.auth(user="igor", key_path="")
+
         with self.lzy.workflow("test") as exec_1:
-            first_model(weight)
-            first_model(weight)
-            second_model(weight)
+            accept_int_first(weight)
+            accept_int_first(weight)
+            accept_int_second(weight)
 
         # noinspection PyUnresolvedReferences
-        eid_1 = exec_1.owner.runtime.calls[0].arg_entry_ids[0]
+        uri_1 = exec_1.snapshot.get(exec_1.owner.runtime.calls[0].arg_entry_ids[0]).storage_uri
         # noinspection PyUnresolvedReferences
-        eid_2 = exec_1.owner.runtime.calls[1].arg_entry_ids[0]
+        uri_2 = exec_1.snapshot.get(exec_1.owner.runtime.calls[1].arg_entry_ids[0]).storage_uri
         # noinspection PyUnresolvedReferences
-        eid_3 = exec_1.owner.runtime.calls[2].arg_entry_ids[0]
-
-        uri_1 = exec_1.snapshot.get(eid_1).storage_uri
-        uri_2 = exec_1.snapshot.get(eid_2).storage_uri
-        uri_3 = exec_1.snapshot.get(eid_3).storage_uri
+        uri_3 = exec_1.snapshot.get(exec_1.owner.runtime.calls[2].arg_entry_ids[0]).storage_uri
 
         with self.lzy.workflow("test") as exec_2:
-            second_model(weight)
+            accept_int_second(weight)
 
         # noinspection PyUnresolvedReferences
-        eid_4 = exec_2.owner.runtime.calls[0].arg_entry_ids[0]
-
-        uri_4 = exec_2.snapshot.get(eid_4).storage_uri
+        uri_4 = exec_2.snapshot.get(exec_2.owner.runtime.calls[0].arg_entry_ids[0]).storage_uri
 
         self.assertEqual(uri_1, uri_2)
         self.assertEqual(uri_2, uri_3)
         self.assertEqual(uri_3, uri_4)
 
         storage_client = cast(StorageClientMock, self.lzy.storage_client)
-        self.assertEqual(1, storage_client.write_counts[uri_1])
+        self.assertEqual(1, storage_client.store_counts[uri_1])
 
-    def test_diff_user_diff_entries(self):
-        # noinspection PyUnusedLocal
-        @op
-        def first_model(w: int) -> None:
-            pass
-
-        # noinspection PyUnusedLocal
-        @op
-        def second_model(w: int) -> None:
-            pass
-
+    def test_uris_gen_with_diff_users(self):
         weight = 42
 
-        first_user = "artem"
-        self.lzy.auth(user=first_user, key_path="")
-
+        self.lzy.auth(user="artem", key_path="")
         with self.lzy.workflow("test") as exec_1:
-            first_model(weight)
-            first_model(weight)
-            second_model(weight)
-
+            accept_int_second(weight)
         # noinspection PyUnresolvedReferences
-        eid_1 = exec_1.owner.runtime.calls[0].arg_entry_ids[0]
+        arg_uri_1 = exec_1.snapshot.get(exec_1.owner.runtime.calls[0].arg_entry_ids[0]).storage_uri
         # noinspection PyUnresolvedReferences
-        eid_2 = exec_1.owner.runtime.calls[1].arg_entry_ids[0]
-        # noinspection PyUnresolvedReferences
-        eid_3 = exec_1.owner.runtime.calls[2].arg_entry_ids[0]
+        res_uri_1 = exec_1.snapshot.get(exec_1.owner.runtime.calls[0].entry_ids[0]).storage_uri
 
-        uri_1 = exec_1.snapshot.get(eid_1).storage_uri
-        uri_2 = exec_1.snapshot.get(eid_2).storage_uri
-        uri_3 = exec_1.snapshot.get(eid_3).storage_uri
-
-        second_user = "sergey"
-        self.lzy.auth(user=second_user, key_path="")
-
+        self.lzy.auth(user="sergey", key_path="")
         with self.lzy.workflow("test") as exec_2:
-            second_model(weight)
-
+            accept_int_second(weight)
         # noinspection PyUnresolvedReferences
-        eid_4 = exec_2.owner.runtime.calls[0].arg_entry_ids[0]
+        arg_uri_2 = exec_2.snapshot.get(exec_2.owner.runtime.calls[0].arg_entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        res_uri_2 = exec_2.snapshot.get(exec_2.owner.runtime.calls[0].entry_ids[0]).storage_uri
 
-        uri_4 = exec_2.snapshot.get(eid_4).storage_uri
+        self.lzy.auth(user="artem", key_path="")
+        with self.lzy.workflow("test") as exec_3:
+            accept_int_second(weight)
+        # noinspection PyUnresolvedReferences
+        arg_uri_3 = exec_3.snapshot.get(exec_3.owner.runtime.calls[0].arg_entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        res_uri_3 = exec_3.snapshot.get(exec_3.owner.runtime.calls[0].entry_ids[0]).storage_uri
 
-        self.assertEqual(uri_1, uri_2)
-        self.assertEqual(uri_2, uri_3)
-        self.assertNotEqual(uri_3, uri_4)
+        self.assertNotEqual(arg_uri_1, arg_uri_2)
+        self.assertNotEqual(res_uri_1, res_uri_2)
+        self.assertEqual(arg_uri_1, arg_uri_3)
+        self.assertEqual(res_uri_1, res_uri_3)
 
-    def test_simple_op_uri_generation(self):
-        @op
-        def foo_simple(name: str, param: int) -> str:
-            return f"{name}: {param}"
-
+    def test_uris_gen_with_simple_op(self):
         n: str = 'length'
         p: int = 42
 
         with self.lzy.workflow("test") as test_1:
             foo_simple(n, p)
-
-        # noinspection PyUnresolvedReferences
-        reid_1 = test_1.owner.runtime.calls[0].entry_ids[0]
-        ruri_1 = test_1.snapshot.get(reid_1).storage_uri
-
-        with self.lzy.workflow("test") as test_2:
             foo_simple('length', 42)
-
         # noinspection PyUnresolvedReferences
-        reid_2 = test_2.owner.runtime.calls[0].entry_ids[0]
-        ruri_2 = test_2.snapshot.get(reid_2).storage_uri
+        ruri_1 = test_1.snapshot.get(test_1.owner.runtime.calls[0].entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        ruri_2 = test_1.snapshot.get(test_1.owner.runtime.calls[1].entry_ids[0]).storage_uri
 
         with self.lzy.workflow("another") as another_exec:
             foo_simple(n, p)
-
         # noinspection PyUnresolvedReferences
-        reid_3 = another_exec.owner.runtime.calls[0].entry_ids[0]
-        ruri_3 = another_exec.snapshot.get(reid_3).storage_uri
+        ruri_3 = another_exec.snapshot.get(another_exec.owner.runtime.calls[0].entry_ids[0]).storage_uri
 
         self.assertEqual(ruri_1, ruri_2)
         self.assertNotEqual(ruri_1, ruri_3)
 
-    def test_op_with_vararg(self):
-        @op
-        def foo_with_args(*args) -> str:
-            return ', '.join(args)
-
+    def test_uris_gen_with_vararg(self):
         n: str = 'length'
         p: int = 42
 
         with self.lzy.workflow("test") as test_1:
             foo_with_args(n, p)
-
-        # noinspection PyUnresolvedReferences
-        reid_1 = test_1.owner.runtime.calls[0].entry_ids[0]
-        ruri_1 = test_1.snapshot.get(reid_1).storage_uri
-
-        with self.lzy.workflow("test") as test_2:
+            foo_with_args(n, p)
             foo_with_args(p, n)
-
-        # noinspection PyUnresolvedReferences
-        reid_2 = test_2.owner.runtime.calls[0].entry_ids[0]
-        ruri_2 = test_2.snapshot.get(reid_2).storage_uri
-
-        with self.lzy.workflow("test") as test_3:
             foo_with_args(n, p, 'Hello, world!')
 
         # noinspection PyUnresolvedReferences
-        reid_3 = test_3.owner.runtime.calls[0].entry_ids[0]
-        ruri_3 = test_3.snapshot.get(reid_3).storage_uri
+        ruri_0 = test_1.snapshot.get(test_1.owner.runtime.calls[0].entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        ruri_1 = test_1.snapshot.get(test_1.owner.runtime.calls[1].entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        ruri_2 = test_1.snapshot.get(test_1.owner.runtime.calls[2].entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        ruri_3 = test_1.snapshot.get(test_1.owner.runtime.calls[3].entry_ids[0]).storage_uri
 
         with self.lzy.workflow("another") as another_exec:
             foo_with_args(n, p)
-
         # noinspection PyUnresolvedReferences
-        reid_4 = another_exec.owner.runtime.calls[0].entry_ids[0]
-        ruri_4 = another_exec.snapshot.get(reid_4).storage_uri
+        ruri_4 = another_exec.snapshot.get(another_exec.owner.runtime.calls[0].entry_ids[0]).storage_uri
 
+        self.assertEqual(ruri_0, ruri_1)
         self.assertNotEqual(ruri_1, ruri_2)
         self.assertNotEqual(ruri_2, ruri_3)
         self.assertNotEqual(ruri_3, ruri_1)
@@ -202,64 +170,61 @@ class LzyEntriesTests(TestCase):
         self.assertNotEqual(ruri_4, ruri_2)
         self.assertNotEqual(ruri_4, ruri_3)
 
-    def test_op_with_kwargs(self):
-        @op
-        def foo_with_kwargs(*args, **kwargs) -> str:
-            args_str: str = ', '.join(map(lambda i, arg: f"{i}: {arg}", enumerate(args)))
-            kwargs_str: str = ', '.join(map(lambda name, arg: f"{name}: {arg}", kwargs.items()))
-            return ', '.join([args_str, kwargs_str])
-
+    def test_uris_gen_with_kwargs(self):
         n: int = 13
         k: int = 42
-
-        eids = []
         uris = []
 
         with self.lzy.workflow("test") as test_0:
             foo_with_kwargs(n, k)
-
-        # noinspection PyUnresolvedReferences
-        eids.append(test_0.owner.runtime.calls[0].entry_ids[0])
-        uris.append(test_0.snapshot.get(eids[0]).storage_uri)
-
-        with self.lzy.workflow("test") as test_1:
             foo_with_kwargs(name=n, param=k)
-
-        # noinspection PyUnresolvedReferences
-        eids.append(test_1.owner.runtime.calls[0].entry_ids[0])
-        uris.append(test_1.snapshot.get(eids[1]).storage_uri)
-
-        with self.lzy.workflow("test") as test_2:
             foo_with_kwargs(param=n, name=k)
-
-        # noinspection PyUnresolvedReferences
-        eids.append(test_2.owner.runtime.calls[0].entry_ids[0])
-        uris.append(test_2.snapshot.get(eids[2]).storage_uri)
-
-        with self.lzy.workflow("test") as test_3:
             foo_with_kwargs(n, param=k)
-
-        # noinspection PyUnresolvedReferences
-        eids.append(test_3.owner.runtime.calls[0].entry_ids[0])
-        uris.append(test_3.snapshot.get(eids[3]).storage_uri)
-
-        with self.lzy.workflow("test") as test_4:
             foo_with_kwargs(n, name=k)
-
         # noinspection PyUnresolvedReferences
-        eids.append(test_4.owner.runtime.calls[0].entry_ids[0])
-        uris.append(test_4.snapshot.get(eids[4]).storage_uri)
+        uris.append(test_0.snapshot.get(test_0.owner.runtime.calls[0].entry_ids[0]).storage_uri)
+        # noinspection PyUnresolvedReferences
+        uris.append(test_0.snapshot.get(test_0.owner.runtime.calls[1].entry_ids[0]).storage_uri)
+        # noinspection PyUnresolvedReferences
+        uris.append(test_0.snapshot.get(test_0.owner.runtime.calls[2].entry_ids[0]).storage_uri)
+        # noinspection PyUnresolvedReferences
+        uris.append(test_0.snapshot.get(test_0.owner.runtime.calls[3].entry_ids[0]).storage_uri)
+        # noinspection PyUnresolvedReferences
+        uris.append(test_0.snapshot.get(test_0.owner.runtime.calls[4].entry_ids[0]).storage_uri)
 
         for i, lhs in enumerate(uris):
             for j, rhs in enumerate(uris):
                 if i != j:
                     self.assertNotEqual(lhs, rhs, msg=f"uri_{i} should not be equal uri_{j}")
 
-        with self.lzy.workflow("test") as test_5:
+        with self.lzy.workflow("test") as test_1:
             foo_with_kwargs(name=k, param=n)
-
         # noinspection PyUnresolvedReferences
-        eids.append(test_5.owner.runtime.calls[0].entry_ids[0])
-        uris.append(test_5.snapshot.get(eids[5]).storage_uri)
+        uris.append(test_1.snapshot.get(test_1.owner.runtime.calls[0].entry_ids[0]).storage_uri)
 
         self.assertEqual(uris[2], uris[5])
+
+    def test_gen_uris_with_shared_ops(self):
+        n: int = 13
+        k: int = 42
+
+        with self.lzy.workflow("test") as test_0:
+            foo_with_args(n, k)
+            foo_with_kwargs(kwarg_1=n, kwarg_2=k)
+        # noinspection PyUnresolvedReferences
+        ruri_0 = test_0.snapshot.get(test_0.owner.runtime.calls[0].entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        ruri_1 = test_0.snapshot.get(test_0.owner.runtime.calls[1].entry_ids[0]).storage_uri
+
+        with self.lzy.workflow("test") as test_1:
+            a = n
+            b = k
+            foo_with_args(a, b)
+            foo_with_kwargs(kwarg_2=b, kwarg_1=a)
+        # noinspection PyUnresolvedReferences
+        ruri_2 = test_1.snapshot.get(test_1.owner.runtime.calls[0].entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        ruri_3 = test_1.snapshot.get(test_1.owner.runtime.calls[1].entry_ids[0]).storage_uri
+
+        self.assertEqual(ruri_0, ruri_2)
+        self.assertEqual(ruri_1, ruri_3)
