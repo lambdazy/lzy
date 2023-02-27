@@ -1,24 +1,38 @@
 package ai.lzy.worker;
 
+import ai.lzy.v1.common.LMO;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.FormattedMessage;
 
+import javax.annotation.Nullable;
 import java.io.*;
 import java.util.Arrays;
+import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class StreamQueue extends Thread {
-    private final OutputStream out;
+    @Nullable private final OutputStream out;
     private final LinkedBlockingQueue<InputStream> inputs = new LinkedBlockingQueue<>();
     private final Logger logger;
     private final String streamName;
     private final AtomicBoolean stopping = new AtomicBoolean(false);
 
-    public StreamQueue(OutputStream out, Logger log, String streamName) {
+    public StreamQueue(@Nullable OutputStream out, @Nullable LMO.KafkaTopic topic, Logger log, String streamName) {
         this.out = out;
         this.logger = log;
         this.streamName = streamName;
+        if (topic != null) {
+            var props = new Properties();
+            props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            props.put("value.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            props.put("bootstrap.servers", "");
+            props.put("")
+
+            var kafkaClient = new KafkaProducer<String, String>(new Properties());
+        }
     }
 
     public void add(InputStream stream) {

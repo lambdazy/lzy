@@ -28,6 +28,7 @@ public class LzyServiceConfig {
     private Duration gcLeaderPeriod;
 
     private StartupPortalConfig portal;
+    private boolean useKafkaForStdSlots = false;
 
     @Getter
     @Setter
