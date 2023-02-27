@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional, Sequence, Dict, Mapping
+from typing import Optional, Sequence, Dict, Mapping, Set
 
 
 class DockerPullPolicy(Enum):
@@ -28,7 +28,7 @@ class Env:
     docker_credentials: Optional[DockerCredentials] = None
 
     def override(self, other: "Env") -> "Env":
-        local_modules = set()
+        local_modules: Set[str] = set()
         if self.local_modules_path:
             local_modules.update(self.local_modules_path)
 
