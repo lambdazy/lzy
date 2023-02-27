@@ -1,15 +1,14 @@
 import dataclasses
-import hashlib
 import sys
 import tempfile
 import uuid
 from abc import ABC, abstractmethod
-from io import FileIO
-from typing import Any, Dict, Type, cast, BinaryIO, Set, Union, List
+from typing import Any, Dict, Type, cast, BinaryIO, Set, Union, List, Optional
 
 from serialzy.api import Schema, SerializerRegistry
 from tqdm import tqdm
 
+from lzy.api.v1.utils.hashing import HashingFile
 from lzy.logs.config import get_logger, get_color
 from lzy.proxy.result import Just, Nothing, Result
 from lzy.storage.api import AsyncStorageClient
@@ -30,8 +29,8 @@ class SnapshotEntry:
     typ: Type
     data_scheme: Schema
     storage_name: str
-    _storage_uri: Union[str, None] = None
-    _data_hash: Union[str, None] = None
+    _storage_uri: Optional[str] = None
+    _data_hash: Optional[str] = None
 
     @property
     def storage_uri(self) -> str:
@@ -76,28 +75,9 @@ class Snapshot(ABC):  # pragma: no cover
         pass
 
 
-class SerializedDataHasher:
-    @staticmethod
-    def hash_of_str(uri: str) -> str:
-        return hashlib.md5(uri.encode('utf-8')).hexdigest()
-
-    @staticmethod
-    def hash_of_file(file_obj: FileIO) -> str:
-        blocksize: int = 4096
-        hsh = hashlib.md5()
-        while True:
-            buf = file_obj.read(blocksize)
-            if not buf:
-                break
-            hsh.update(buf)
-        file_obj.seek(0)
-        return hsh.hexdigest()
-
-
 class DefaultSnapshot(Snapshot):
     def __init__(
             self,
-            workflow_name: str,
             serializer_registry: SerializerRegistry,
             storage_uri: str,
             storage_client: AsyncStorageClient,
@@ -106,7 +86,7 @@ class DefaultSnapshot(Snapshot):
         self.__serializer_registry = serializer_registry
         self.__storage_client = storage_client
         self.__storage_name = storage_name
-        self.__storage_uri_prefix = f"{storage_uri}/lzy_runs/{workflow_name}/inputs"
+        self.__storage_uri = storage_uri
         self.__entry_id_to_entry: Dict[str, SnapshotEntry] = {}
         self.__filled_entries: Set[str] = set()
         self.__copy_queue: Dict[str, List[str]] = dict()
@@ -157,18 +137,15 @@ class DefaultSnapshot(Snapshot):
         if entry is None:
             raise ValueError(f"Entry with id={entry_id} does not exist")
 
-        with tempfile.NamedTemporaryFile() as f:
-            _LOG.debug(f"Serializing {entry.name}...")
+        with HashingFile(tempfile.NamedTemporaryFile()) as f:
+            _LOG.debug(f"Serializing and calculating data hash of {entry.name}...")
             serializer = self.__serializer_registry.find_serializer_by_type(entry.typ)
             serializer.serialize(data, f)
             length = f.tell()
             f.seek(0)
 
-            _LOG.debug(f"Evaluating hash of data for entry {entry.name}...")
-            data_hash: str = SerializedDataHasher.hash_of_file(cast(FileIO, f))
-
-            self.__entry_id_to_entry[entry_id].data_hash = data_hash
-            entry.storage_uri = self.__storage_uri_prefix + data_hash
+            self.__entry_id_to_entry[entry_id].data_hash = f.md5
+            entry.storage_uri = self.__storage_uri + f.md5
 
             exists = await self.__storage_client.blob_exists(entry.storage_uri)
             if not exists:

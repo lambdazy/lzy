@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -12,7 +13,8 @@ from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
-from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot, SerializedDataHasher
+from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
+from lzy.api.v1.utils.hashing import md5_of_str
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy
 from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
 from lzy.api.v1.whiteboards import WritableWhiteboard
@@ -28,6 +30,8 @@ _LOG = get_logger(__name__)
 if TYPE_CHECKING:
     from lzy.api.v1 import Lzy
     from lzy.api.v1.call import LzyCall
+
+USER_ENV = "LZY_USER"
 
 
 class LzyWorkflow:
@@ -54,6 +58,7 @@ class LzyWorkflow:
         self.__name = name
         self.__eager = eager
         self.__owner = owner
+        self.__user = os.getenv("LZY_USER")
         self.__call_queue: List["LzyCall"] = []
         self.__started = False
 
@@ -135,9 +140,17 @@ class LzyWorkflow:
 
     def __enter__(self) -> "LzyWorkflow":
         try:
+            parts = [self.__owner.storage_uri]
+            user = os.getenv(USER_ENV)
+            # user may not be set in tests
+            if user is not None:
+                parts.append(user)
+            parts.extend(['lzy_runs', self.__name, 'inputs'])
+            storage_uri = '/'.join(parts)
+
             self.__execution_id = LzyEventLoop.run_async(self.__start())
-            self.__snapshot = DefaultSnapshot(self.__name, self.owner.serializer_registry, self.__owner.storage_uri,
-                                              self.owner.storage_client, self.owner.storage_name)
+            self.__snapshot = DefaultSnapshot(self.owner.serializer_registry, storage_uri, self.owner.storage_client,
+                                              self.owner.storage_name)
             return self
         except Exception as e:
             try:
@@ -236,7 +249,7 @@ class LzyWorkflow:
                     entry = self.snapshot.get(eid)
                     uri_suffix = f"/{op_name}_{op_version}_{inputs_hashes_concat}/return_{str(i)}"
                     entry.storage_uri = f"{self.__owner.storage_uri}/lzy_runs/{self.__name}/ops" + uri_suffix
-                    entry.data_hash = SerializedDataHasher.hash_of_str(entry.storage_uri)
+                    entry.data_hash = md5_of_str(entry.storage_uri)
                     self.__filled_entry_ids.add(eid)
 
         await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))

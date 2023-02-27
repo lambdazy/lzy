@@ -2,7 +2,7 @@ import dataclasses
 import datetime
 import uuid
 from dataclasses import dataclass
-from typing import Optional, Type, Dict, Any, Iterable, Set, TYPE_CHECKING, Sequence, cast
+from typing import Optional, Type, Dict, Any, Iterable, Set, TYPE_CHECKING, Sequence
 
 # noinspection PyPackageRequirements
 from google.protobuf.timestamp_pb2 import Timestamp

@@ -80,6 +80,53 @@ class LzyEntriesTests(TestCase):
         storage_client = cast(StorageClientMock, self.lzy.storage_client)
         self.assertEqual(1, storage_client.write_counts[uri_1])
 
+    def test_diff_user_diff_entries(self):
+        # noinspection PyUnusedLocal
+        @op
+        def first_model(w: int) -> None:
+            pass
+
+        # noinspection PyUnusedLocal
+        @op
+        def second_model(w: int) -> None:
+            pass
+
+        weight = 42
+
+        first_user = "artem"
+        self.lzy.auth(user=first_user, key_path="")
+
+        with self.lzy.workflow("test") as exec_1:
+            first_model(weight)
+            first_model(weight)
+            second_model(weight)
+
+        # noinspection PyUnresolvedReferences
+        eid_1 = exec_1.owner.runtime.calls[0].arg_entry_ids[0]
+        # noinspection PyUnresolvedReferences
+        eid_2 = exec_1.owner.runtime.calls[1].arg_entry_ids[0]
+        # noinspection PyUnresolvedReferences
+        eid_3 = exec_1.owner.runtime.calls[2].arg_entry_ids[0]
+
+        uri_1 = exec_1.snapshot.get(eid_1).storage_uri
+        uri_2 = exec_1.snapshot.get(eid_2).storage_uri
+        uri_3 = exec_1.snapshot.get(eid_3).storage_uri
+
+        second_user = "sergey"
+        self.lzy.auth(user=second_user, key_path="")
+
+        with self.lzy.workflow("test") as exec_2:
+            second_model(weight)
+
+        # noinspection PyUnresolvedReferences
+        eid_4 = exec_2.owner.runtime.calls[0].arg_entry_ids[0]
+
+        uri_4 = exec_2.snapshot.get(eid_4).storage_uri
+
+        self.assertEqual(uri_1, uri_2)
+        self.assertEqual(uri_2, uri_3)
+        self.assertNotEqual(uri_3, uri_4)
+
     def test_simple_op_uri_generation(self):
         @op
         def foo_simple(name: str, param: int) -> str:
