@@ -186,7 +186,7 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
                         op.operation.id(), op.toString());
                 }
             } else {
-                LOG.info("[{}] Got operation is in progress: { opId: {} }", name, op.operation.id());
+                LOG.debug("[{}] Got operation is in progress: { opId: {} }", name, op.operation.id());
             }
             protoOp = op.operation.toProto();
         }

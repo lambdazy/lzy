@@ -127,4 +127,9 @@ public class Utils {
             }
         }
     }
+
+    public static String toFormattedString(java.time.Duration duration) {
+        return String.format("%d:%02d:%02d.%03d",
+            duration.toHoursPart(), duration.toMinutesPart(), duration.toSecondsPart(), duration.toMillisPart());
+    }
 }

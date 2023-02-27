@@ -29,7 +29,7 @@ public class BaseTestWithAllocator {
 
     public void after() throws SQLException, InterruptedException {
         allocator.destroyAllForTests();
-        allocator.stop();
+        allocator.stop(false);
         allocator.awaitTermination();
         context.stop();
     }

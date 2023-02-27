@@ -25,11 +25,12 @@ from lzy.api.v1.runtime import (
 
 
 class LocalRuntime(Runtime):
-    def __init__(self):
+    def __init__(self, file_storage_uri: str = "file:///tmp/lzy_storage"):
         self.__workflow: Optional["LzyWorkflow"] = None
+        self.__storage: Storage = Storage.fs_storage(file_storage_uri)
 
     async def storage(self) -> Optional[Storage]:
-        return None
+        return self.__storage
 
     async def start(self, workflow: "LzyWorkflow") -> str:
         self.__workflow = workflow
@@ -160,7 +161,7 @@ class LocalRuntime(Runtime):
     async def abort(self) -> None:
         pass
 
-    async def destroy(self) -> None:
+    async def finish(self) -> None:
         pass
 
     async def __from_storage_to_file(self, url: str, path: str) -> None:

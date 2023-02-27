@@ -233,7 +233,7 @@ class GraphBuilder {
                 makeCreateChannelCommand(userId, workflowName, executionId, channelNameForStderrSlot)).getChannelId();
 
             tasks.add(buildTaskWithZone(taskId, operation, zoneName, stdoutChannelId, stderrChannelId, slot2Channel,
-                slot2description, portalClient));
+                slot2description, portalClient, operation.getEnvMap()));
         }
 
         return tasks;
@@ -243,7 +243,8 @@ class GraphBuilder {
                                        String zoneName, String stdoutChannelId, String stderrChannelId,
                                        Map<String, String> slot2Channel,
                                        Map<String, LWF.DataDescription> slot2description,
-                                       LzyPortalGrpc.LzyPortalBlockingStub portalClient)
+                                       LzyPortalGrpc.LzyPortalBlockingStub portalClient,
+                                       Map<String, String> envMap)
     {
         var inputSlots = new ArrayList<LMS.Slot>();
         var outputSlots = new ArrayList<LMS.Slot>();
@@ -290,23 +291,45 @@ class GraphBuilder {
             .setZone(zoneName).setPoolLabel(operation.getPoolSpecName()).build();
         var env = LME.EnvSpec.newBuilder();
 
-        if (!operation.getDockerImage().isBlank()) {
-            env.setBaseEnv(LME.BaseEnv.newBuilder().setName(operation.getDockerImage()).build());
-        }
-        if (operation.hasPython()) {
-            env.setAuxEnv(LME.AuxEnv.newBuilder().setPyenv(
-                    LME.PythonEnv.newBuilder()
-                        .setYaml(operation.getPython().getYaml())
-                        .addAllLocalModules(
-                            operation.getPython().getLocalModulesList().stream()
-                                .map(module -> LME.LocalModule.newBuilder()
-                                    .setName(module.getName())
-                                    .setUri(module.getUrl())
-                                    .build()
-                                ).toList()
-                        ).build())
+        env.setDockerImage(operation.getDockerImage());
+
+        if (operation.hasDockerCredentials()) {
+            env.setDockerCredentials(LME.DockerCredentials.newBuilder()
+                .setUsername(operation.getDockerCredentials().getUsername())
+                .setPassword(operation.getDockerCredentials().getPassword())
+                .setRegistryName(operation.getDockerCredentials().getRegistryName())
                 .build());
         }
+
+        var policy = switch (operation.getDockerPullPolicy()) {
+            case ALWAYS -> LME.DockerPullPolicy.ALWAYS;
+            case IF_NOT_EXISTS -> LME.DockerPullPolicy.IF_NOT_EXISTS;
+            case UNSPECIFIED -> LME.DockerPullPolicy.IF_NOT_EXISTS;  // default
+            case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT
+                .withDescription("Wrong docker pull policy")
+                .asRuntimeException();
+        };
+
+        env.setDockerPullPolicy(policy);
+
+        if (operation.hasPython()) {
+            env.setPyenv(
+                LME.PythonEnv.newBuilder()
+                    .setYaml(operation.getPython().getYaml())
+                    .addAllLocalModules(
+                        operation.getPython().getLocalModulesList().stream()
+                            .map(module -> LME.LocalModule.newBuilder()
+                                .setName(module.getName())
+                                .setUri(module.getUrl())
+                                .build()
+                            ).toList()
+                    ).build()
+            );
+        } else {
+            env.setProcessEnv(LME.ProcessEnv.newBuilder().build());
+        }
+
+        env.putAllEnv(envMap);
 
         var taskOperation = LMO.Operation.newBuilder()
             .setEnv(env.build())

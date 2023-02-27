@@ -1,6 +1,5 @@
 package ai.lzy.graph.model;
 
-import ai.lzy.model.operation.Operation;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutor.SlotToChannelAssignment;
 import ai.lzy.v1.graph.GraphExecutor.TaskDesc;
@@ -26,7 +25,7 @@ public record GraphDescription(
         final List<TaskDescription> taskDescriptions = tasks.stream()
             .map(t -> new TaskDescription(
                 t.getId(),
-                Operation.fromProto(t.getOperation()),
+                t.getOperation(),
                 t.getSlotAssignmentsList()
                     .stream()
                     .collect(Collectors.toMap(

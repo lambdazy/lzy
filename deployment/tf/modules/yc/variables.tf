@@ -1,12 +1,12 @@
 variable "installation_name" {
-  type = string
+  type    = string
   default = "dev"
 }
 
 // docker images
 
 variable "iam-image" {
-  type    = string
+  type = string
 }
 
 variable "allocator-image" {
@@ -42,7 +42,7 @@ variable "yc-endpoint" {
 }
 
 variable "zone" {
-  type = string
+  type    = string
   default = "ru-central1-a"
 }
 
@@ -75,12 +75,12 @@ variable "unified-agent-image" {
 }
 
 variable "ssl-enabled" {
-  type = bool
+  type    = bool
   default = false
 }
 
 variable "ssl-keystore-password" {
-  type = string
+  type    = string
   default = ""
 }
 
@@ -104,4 +104,14 @@ variable "workers_nodegroups_definition" {
     condition     = length(var.workers_nodegroups_definition) > 0
     error_message = "Amount of workers node-groups cannot be zero"
   }
+}
+
+variable "portals_pool_size" {
+  type = number
+}
+
+variable "domain_name" {
+  type     = string
+  default  = "lzy.ai"
+  nullable = true
 }

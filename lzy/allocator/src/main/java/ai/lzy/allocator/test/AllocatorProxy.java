@@ -7,7 +7,6 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.metrics.MetricReporter;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import io.grpc.stub.StreamObserver;
@@ -17,7 +16,7 @@ import jakarta.inject.Singleton;
 import lombok.Setter;
 
 @Singleton
-@Requires(beans = MetricReporter.class, env = "test-mock")
+@Requires(env = "test-mock")
 @Setter
 public class AllocatorProxy extends AllocatorService {
 

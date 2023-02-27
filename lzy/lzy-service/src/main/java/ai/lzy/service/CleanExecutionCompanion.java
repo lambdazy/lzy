@@ -39,6 +39,7 @@ import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
@@ -55,6 +56,7 @@ public class CleanExecutionCompanion {
 
     private final PortalClientProvider portalClients;
     private final ManagedChannel channelManagerChannel;
+    private final WorkflowMetrics metrics;
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
@@ -65,7 +67,8 @@ public class CleanExecutionCompanion {
                                    @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                    @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                    @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
-                                   @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel)
+                                   @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
+                                   WorkflowMetrics metrics)
     {
         this.storage = storage;
         this.workflowDao = workflowDao;
@@ -77,6 +80,7 @@ public class CleanExecutionCompanion {
 
         this.portalClients = portalClients;
         this.channelManagerChannel = channelManagerChannel;
+        this.metrics = metrics;
         this.channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
             () -> internalUserCredentials.get().token());
@@ -104,6 +108,8 @@ public class CleanExecutionCompanion {
                 tx.commit();
             }
         });
+
+        metrics.activeExecutions.labels(userId).dec();
     }
 
     public boolean tryToFinishExecution(String userId, String executionId, Status reason) {
@@ -123,6 +129,7 @@ public class CleanExecutionCompanion {
             return false;
         }
 
+        metrics.activeExecutions.labels(userId).dec();
         return true;
     }
 
@@ -150,10 +157,11 @@ public class CleanExecutionCompanion {
             return false;
         }
 
+        metrics.activeExecutions.labels(userId).dec();
         return true;
     }
 
-    public void completeExecution(String executionId, Operation completeOperation) {
+    public void completeExecution(String userId, String executionId, Operation completeOperation) {
         LOG.info("Attempt to complete execution: { executionId: {} }", executionId);
 
         stopGraphs(executionId);
@@ -222,6 +230,8 @@ public class CleanExecutionCompanion {
                     tx.commit();
                 }
             });
+
+            metrics.activeExecutions.labels(userId).dec();
         } catch (Exception e) {
             LOG.warn("Cannot update execution status: { executionId: {} }", executionId, e);
             try {
@@ -293,7 +303,9 @@ public class CleanExecutionCompanion {
         LOG.info("Destroy channels of execution: { executionId: {} }", executionId);
 
         try {
-            return channelManagerClient.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder()
+            var idempotentChannelManagerClient = withIdempotencyKey(channelManagerClient, "destroyAll/" + executionId);
+
+            return idempotentChannelManagerClient.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder()
                 .setExecutionId(executionId).build());
         } catch (StatusRuntimeException e) {
             LOG.warn("Cannot destroy channels of execution: { executionId: {}, error: {} }",

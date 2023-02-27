@@ -49,7 +49,11 @@ public class LzyFSTest {
     @After
     public void tearDown() throws IOException {
         lzyFS.umount();
-        FileUtils.deleteDirectory(new File(LZY_MOUNT));
+        try {
+            FileUtils.deleteDirectory(new File(LZY_MOUNT));
+        } catch (Exception e) {
+            // ignored
+        }
     }
 
     @Test

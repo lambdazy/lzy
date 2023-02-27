@@ -1,7 +1,5 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.alloc.AllocatorMetrics;
-import ai.lzy.allocator.gc.GarbageCollector;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.util.Durations;
@@ -10,7 +8,6 @@ import io.grpc.Status;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -23,18 +20,13 @@ import static java.util.Objects.requireNonNull;
 
 public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
 
-    private AllocatorMetrics metrics;
-    private GarbageCollector gc;
     private String sessionId;
 
     @Before
     public void before() throws IOException {
         super.setUp();
 
-        metrics = allocatorCtx.getBean(AllocatorMetrics.class);
-        gc = allocatorCtx.getBean(GarbageCollector.class);
-
-        sessionId = createSession(Durations.fromSeconds(0));
+        sessionId = createSession(Durations.fromMillis(1));
         //Assert.assertEquals(1, (int) metrics.activeSessions.get());
     }
 
@@ -84,17 +76,17 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
     // createSession()
     //   do allocate/deleteSession() VM and observe runningAllocations/runningVms/cachedVms metrics
     @Test
-    @Ignore
     public void metrics2() throws Exception {
         var vmId = allocateVm();
 
-        authorizedAllocatorBlockingStub.deleteSession(
+        var op = authorizedAllocatorBlockingStub.deleteSession(
             VmAllocatorApi.DeleteSessionRequest.newBuilder()
                 .setSessionId(sessionId)
                 .build());
+        waitOpSuccess(op);
         Assert.assertEquals(0, (int) metrics.activeSessions.get());
 
-        gc.forceRun();
+        TimeUtils.waitFlagUp(() -> operationsExecutor.operationsCount() == 0, 5, TimeUnit.SECONDS);
 
         Assert.assertEquals(0, (int) metrics.runningAllocations.labels("S").get());
         Assert.assertEquals(0, (int) metrics.runningVms.labels("S").get());
@@ -104,7 +96,6 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
     // createSession()
     //   do allocate/free/deleteSession() VM and observe runningAllocations/runningVms/cachedVms metrics
     @Test
-    @Ignore
     public void metrics3() throws Exception {
         var vmId = allocateVm();
 
@@ -113,13 +104,15 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
                 .setVmId(vmId)
                 .build());
 
-        authorizedAllocatorBlockingStub.deleteSession(
+        var op = authorizedAllocatorBlockingStub.deleteSession(
             VmAllocatorApi.DeleteSessionRequest.newBuilder()
                 .setSessionId(sessionId)
                 .build());
+        waitOpSuccess(op);
+
         Assert.assertEquals(0, (int) metrics.activeSessions.get());
 
-        gc.forceRun();
+        TimeUtils.waitFlagUp(() -> operationsExecutor.operationsCount() == 0, 5, TimeUnit.SECONDS);
 
         Assert.assertEquals(0, (int) metrics.runningAllocations.labels("S").get());
         Assert.assertEquals(0, (int) metrics.runningVms.labels("S").get());

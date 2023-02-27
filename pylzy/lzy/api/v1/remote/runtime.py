@@ -20,7 +20,8 @@ from typing import (
     cast,
 )
 
-from lzy.storage.api import Storage
+from lzy.api.v1 import DockerPullPolicy
+from lzy.storage.api import Storage, FSCredentials
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
@@ -93,14 +94,14 @@ class RemoteRuntime(Runtime):
         storage_name = workflow.owner.storage_registry.default_storage_name()
         if storage is None or storage_name is None:
             raise ValueError("No provided storage")
+        if isinstance(storage.credentials, FSCredentials):
+            raise ValueError("Local FS storage cannot be default for remote runtime")
 
         exec_id = await self.__workflow_client.start_workflow(workflow.name, storage, storage_name)
         self.__running = True
         self.__workflow = workflow
         self.__execution_id = exec_id
-        self.__std_slots_listener = asyncio.create_task(
-            self.__listen_to_std_slots(exec_id)
-        )
+        self.__std_slots_listener = asyncio.create_task(self.__listen_to_std_slots(exec_id))
         return cast(str, exec_id)
 
     async def exec(
@@ -115,8 +116,10 @@ class RemoteRuntime(Runtime):
         pools = await client.get_pool_specs(self.__execution_id)
 
         modules: Set[str] = set()
+
         for call in calls:
-            modules.update(cast(Sequence[str], call.env.local_modules_path))
+            if not call.env.docker_only:
+                modules.update(cast(Sequence[str], call.env.local_modules_path))
 
         urls = await self.__load_local_modules(modules)
 
@@ -159,32 +162,23 @@ class RemoteRuntime(Runtime):
         try:
             await client.abort_workflow(cast(LzyWorkflow, self.__workflow).name, self.__execution_id,
                                         "Workflow execution aborted")
+        finally:
+            self.__running = False
             self.__execution_id = None
             self.__workflow = None
             self.__std_slots_listener = None
-        finally:
-            self.__running = False
 
-    async def destroy(self):
+    async def finish(self):
         client = self.__workflow_client
+        if not self.__running:
+            return
         try:
-            if not self.__running:
-                return
-
-            assert self.__execution_id is not None
-            assert self.__workflow is not None
-            assert self.__std_slots_listener is not None
-
             await client.finish_workflow(self.__workflow.name, self.__execution_id, "Workflow completed")
-
-            await self.__std_slots_listener  # read all stdout and stderr
-
+        finally:
+            self.__running = False
             self.__execution_id = None
             self.__workflow = None
             self.__std_slots_listener = None
-
-        finally:
-            self.__running = False
 
     async def __load_local_modules(self, module_paths: Iterable[str]) -> Sequence[str]:
         """Returns sequence of urls"""
@@ -260,6 +254,9 @@ class RemoteRuntime(Runtime):
                 sys.stdout.write(prefix + data.data + suffix)
             else:
                 sys.stderr.write(data.data)
+
+        sys.stdout.flush()
+        sys.stderr.flush()
 
     def __build_graph(
         self,
@@ -339,7 +336,7 @@ class RemoteRuntime(Runtime):
             pool = self.__resolve_pool(call.provisioning, pools)
 
             if pool is None:
-                raise RuntimeError(
+                raise ValueError(
                     f"Cannot resolve pool for operation "
                     f"{call.signature.func.name}:\nAvailable: {pools}\n Expected: {call.provisioning}"
                 )
@@ -351,13 +348,25 @@ class RemoteRuntime(Runtime):
             else:
                 docker_image = None
 
-            conda_yaml: Optional[str]
-            if call.env.conda_yaml_path:
-                with open(call.env.conda_yaml_path, "r") as file:
-                    conda_yaml = file.read()
+            python_env: Optional[Operation.PythonEnvSpec]
+
+            if docker_image and call.env.docker_only:
+                python_env = None  # don't use conda for 'docker_only' ops
             else:
-                conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
-                                                 cast(Dict[str, str], call.env.libraries))
+                if call.env.conda_yaml_path:
+                    with open(call.env.conda_yaml_path, "r") as file:
+                        conda_yaml = file.read()
+                else:
+                    conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
+                                                     cast(Dict[str, str], call.env.libraries))
+
+                python_env = Operation.PythonEnvSpec(
+                    yaml=conda_yaml,
+                    localModules=[
+                        Operation.PythonEnvSpec.LocalModule(name=name, url=url)
+                        for (name, url) in modules
+                    ],
+                )
 
             request = ProcessingRequest(
                 get_logging_config(),
@@ -385,14 +394,16 @@ class RemoteRuntime(Runtime):
                     inputSlots=input_slots,
                     outputSlots=output_slots,
                     command=command,
+                    env=call.env.env_variables,
                     dockerImage=docker_image if docker_image is not None else "",
-                    python=Operation.PythonEnvSpec(
-                        yaml=conda_yaml,
-                        localModules=[
-                            Operation.PythonEnvSpec.LocalModule(name=name, url=url)
-                            for (name, url) in modules
-                        ],
-                    ),
+                    dockerCredentials=Operation.DockerCredentials(
+                        registryName=call.env.docker_credentials.registry,
+                        username=call.env.docker_credentials.username,
+                        password=call.env.docker_credentials.password
+                    ) if call.env.docker_credentials else None,
+                    dockerPullPolicy=Operation.ALWAYS if call.env.docker_pull_policy == DockerPullPolicy.ALWAYS
+                    else Operation.IF_NOT_EXISTS,
+                    python=python_env,
                     poolSpecName=pool.poolSpecName,
                 )
             )

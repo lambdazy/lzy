@@ -4,7 +4,6 @@ locals {
     "app.kubernetes.io/name"    = "storage"
     "lzy.ai/app"                = "storage"
   }
-  storage-port     = 8122
   storage-k8s-name = "storage"
   storage-image = var.storage-image
 }

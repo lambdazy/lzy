@@ -77,6 +77,7 @@ public class BeanFactory {
 
     @Singleton
     @Bean(preDestroy = "stop")
+    @Named("AllocatorMetricReporter")
     public MetricReporter metricReporter(ServiceConfig.MetricsConfig config) {
         CollectorRegistry.defaultRegistry.clear();
 
@@ -118,7 +119,8 @@ public class BeanFactory {
     @Bean(preDestroy = "shutdown")
     @Named("AllocatorOperationsExecutor")
     public OperationsExecutor operationsExecutor(@Named("AllocatorOperationsService") OperationsService opSrv,
-                                                 VmDao vmDao, DiskDao diskDao, DiskOpDao diskOpDao, MetricReporter mr)
+                                                 VmDao vmDao, DiskDao diskDao, DiskOpDao diskOpDao,
+                                                 @Named("AllocatorMetricReporter") MetricReporter mr)
     {
         final Counter errors = Counter
             .build("executor_errors", "Executor unexpected errors")

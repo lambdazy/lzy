@@ -209,7 +209,7 @@ public class OutFileSlot extends LzyOutputSlotBase implements LzyFileSlot {
 
             try {
                 read = channel.read(bb);
-                log.info("Slot {} hasNext read {}", filename, read);
+                log.debug("Slot {} hasNext read {}", filename, read);
             } catch (IOException e) {
                 log.error("Error while reading from file channel: ", e);
                 responseObserver.onError(Status.INTERNAL.asException());
@@ -251,7 +251,7 @@ public class OutFileSlot extends LzyOutputSlotBase implements LzyFileSlot {
                 try {
                     bb.clear();
                     int read = channel.read(bb);
-                    log.info("Slot {} hasNext read {}", filename, read);
+                    log.debug("Slot {} hasNext read {}", filename, read);
                     return read >= 0;
                 } catch (IOException e) {
                     log.warn("Unable to read line from reader", e);

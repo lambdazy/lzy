@@ -19,17 +19,20 @@ import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.runtime.Micronaut;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import sun.misc.Signal;
 
 import java.io.IOException;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.LockSupport;
-import javax.inject.Named;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
@@ -44,8 +47,9 @@ public class AllocatorMain {
     private final GarbageCollector gc;
     private final AllocationContext allocationContext;
     private final MetricReporter metricReporter;
+    private final AtomicBoolean terminated = new AtomicBoolean(false);
 
-    public AllocatorMain(MetricReporter metricReporter, AllocatorService allocator,
+    public AllocatorMain(@Named("AllocatorMetricReporter") MetricReporter metricReporter, AllocatorService allocator,
                          AllocatorPrivateService allocatorPrivate, DiskService diskService,
                          ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
                          @Named("AllocatorOperationsService") OperationsService operationsService,
@@ -93,11 +97,30 @@ public class AllocatorMain {
         gc.start();
     }
 
-    public void stop() {
-        LOG.info("Shutdown allocator at {}...", config.getAddress());
+    public void stop(boolean graceful) {
+        if (!terminated.compareAndSet(false, true)) {
+            return;
+        }
+
+        LOG.info("{}hutdown allocator at {}...", graceful ? "Graceful s" : "S", config.getAddress());
         server.shutdown();
-        metricReporter.stop();
         gc.shutdown();
+
+        if (graceful) {
+            try {
+                if (!server.awaitTermination(20, TimeUnit.SECONDS)) {
+                    LOG.error("GRPC Server was not terminated in 10 minutes. Force stop.");
+                    server.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                LOG.error("GRPC Server shutdown was terminated: {}", e.getMessage(), e);
+            }
+            LOG.info("GRPC server terminated");
+
+            allocationContext.executor().shutdown(Duration.ofMinutes(5));
+        }
+
+        metricReporter.stop();
     }
 
     public void awaitTermination() throws InterruptedException {
@@ -115,7 +138,7 @@ public class AllocatorMain {
                     case RUNNING, IDLE -> { }
                 }
                 try {
-                    return allocationContext.submitDeleteVmAction(vm, "Force clean", "test", LOG);
+                    return allocationContext.startDeleteVmAction(vm, "Force clean", "test", LOG);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -139,6 +162,8 @@ public class AllocatorMain {
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
+        System.out.println("Current path is:: " + System.getProperty("user.dir"));
+
         final var context = Micronaut.build(args)
             .banner(true)
             .eagerInitSingletons(true)
@@ -152,9 +177,14 @@ public class AllocatorMain {
 
         final var main = context.getBean(AllocatorMain.class);
         main.start();
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            LOG.info("Stopping allocator service");
-            main.stop();
-        }));
+
+        Signal.handle(new Signal("TERM"), sig -> {
+            main.stop(true);
+            System.exit(0);
+        });
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> main.stop(false), "main-shutdown-hook"));
+
+        main.awaitTermination();
     }
 }

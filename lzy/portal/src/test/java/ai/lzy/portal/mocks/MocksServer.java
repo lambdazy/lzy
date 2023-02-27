@@ -9,7 +9,6 @@ public class MocksServer {
     private final Server server;
 
     public MocksServer(int port) {
-
         this.server = GrpcUtils.newGrpcServer("localhost", port, GrpcUtils.NO_AUTH)
             .addService(new AllocatorPrivateAPIMock())
             .build();
@@ -23,5 +22,4 @@ public class MocksServer {
         server.shutdown();
         server.awaitTermination();
     }
-
 }

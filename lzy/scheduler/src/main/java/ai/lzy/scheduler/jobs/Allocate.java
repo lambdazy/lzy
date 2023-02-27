@@ -60,15 +60,15 @@ public class Allocate extends WorkflowJobProvider<TaskState> {
             return null;
         }
 
-        var allocateDesc = allocator.allocate(task.userId(), task.workflowName(), session,
-            task.description().operation().requirements());
+        var allocationOp = allocator.allocate(task.userId(), task.workflowName(), session,
+            task.description().getOperation().getRequirements());
 
         final String vmId;
         try {
-            vmId = allocateDesc.allocationOp().getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+            vmId = allocationOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
         } catch (InvalidProtocolBufferException e) {
             logger.error("Error while getting vmId from meta {} for task {}",
-                allocateDesc.allocationOp().getMetadata(),
+                allocationOp.getMetadata(),
                 task.id(), e);
             fail(Status.newBuilder()
                 .setCode(Code.INTERNAL.value())
@@ -78,9 +78,8 @@ public class Allocate extends WorkflowJobProvider<TaskState> {
         }
 
         return task.copy()
-            .allocatorOperationId(allocateDesc.allocationOp().getId())
+            .allocatorOperationId(allocationOp.getId())
             .vmId(vmId)
-            .workerPort(allocateDesc.workerPort())
             .build();
     }
 

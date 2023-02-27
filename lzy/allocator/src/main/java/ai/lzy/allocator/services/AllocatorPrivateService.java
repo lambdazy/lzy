@@ -8,7 +8,6 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationCompletedException;
-import ai.lzy.metrics.MetricReporter;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorPrivateGrpc.AllocatorPrivateImplBase;
@@ -20,7 +19,6 @@ import ai.lzy.v1.VmAllocatorPrivateApi.RegisterResponse;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,7 +34,6 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
-@Requires(beans = MetricReporter.class)
 public class AllocatorPrivateService extends AllocatorPrivateImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorPrivateService.class);
 
@@ -198,7 +195,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                     }
                 });
 
-                allocationContext.submit(action);
+                allocationContext.startNew(action);
             } catch (Exception e) {
                 LOG.error("Cannot cleanup failed register: {}", vmRef[0], e);
             }

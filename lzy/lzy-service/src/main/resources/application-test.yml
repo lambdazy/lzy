@@ -65,3 +65,7 @@ lzy-service:
     docker-image: ""
     pool-label: "portals"
     pool-zone: "ru-central1-a"
+
+  metrics:
+    kind: 'Disabled'
+    logger-level: 'error'

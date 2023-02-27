@@ -1,4 +1,0 @@
-ARG USER_TEST_TAG
-FROM lzydock/user-test:${USER_TEST_TAG}
-
-ENV CUSTOM_ENV=true

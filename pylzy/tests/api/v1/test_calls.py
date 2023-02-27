@@ -388,3 +388,13 @@ class LzyCallsTests(TestCase):
             with self.lzy.workflow("test"):
                 # noinspection PyTypeChecker
                 accept_list(["a", "b", "c"])
+
+    def test_docs(self):
+        @op
+        def op_with_doc() -> None:
+            """
+            :return: None is great
+            """
+
+        doc = op_with_doc.__doc__
+        self.assertIn("None is great", doc)

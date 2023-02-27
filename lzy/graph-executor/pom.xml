@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.2-SNAPSHOT</version>
+        <version>1.5-SNAPSHOT</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>graph-executor</artifactId>
-    <version>1.2-SNAPSHOT</version>
+    <version>1.5-SNAPSHOT</version>
 
     <properties>
         <exec.mainClass>ai.lzy.graph.GraphExecutorApi</exec.mainClass>
@@ -23,33 +23,33 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>graph-executor-api</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <version>1.5-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-test</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <version>1.5-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam-api</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <version>1.5-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-auth</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <version>1.5-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <version>1.5-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-db</artifactId>
-            <version>1.2-SNAPSHOT</version>
+            <version>1.5-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -77,6 +77,10 @@
             <artifactId>jackson-dataformat-yaml</artifactId>
         </dependency>
         <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-protobuf</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
         </dependency>
@@ -99,6 +103,18 @@
         <dependency>
             <groupId>io.grpc</groupId>
             <artifactId>grpc-protobuf</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-codec-http2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-handler-proxy</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-native-unix-common</artifactId>
         </dependency>
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

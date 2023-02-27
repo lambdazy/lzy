@@ -5,6 +5,7 @@ from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Seque
 
 # noinspection PyPackageRequirements
 import grpc
+from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
 # noinspection PyPackageRequirements
 from google.protobuf.any_pb2 import Any
 from serialzy.serializers.primitive import PrimitiveSerializer
@@ -19,10 +20,11 @@ from lzy.logs.config import get_logger
 
 from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
     FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse, \
-    AbortWorkflowRequest, AbortWorkflowResponse, GetOrCreateDefaultStorageResponse, GetOrCreateDefaultStorageRequest
+    AbortWorkflowRequest, AbortWorkflowResponse, GetOrCreateDefaultStorageResponse, GetOrCreateDefaultStorageRequest, \
+    ExecuteGraphRequest, ExecuteGraphResponse, GetAvailablePoolsRequest, GetAvailablePoolsResponse
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
 # noinspection PyUnresolvedReferences
-from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient
+from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient, Provisioning
 from lzy.api.v1.runtime import ProgressStep
 from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.serialization.registry import LzySerializerRegistry
@@ -51,7 +53,7 @@ class RuntimeMock(Runtime):
     async def abort(self) -> None:
         pass
 
-    async def destroy(self) -> None:
+    async def finish(self) -> None:
         pass
 
 
@@ -103,7 +105,17 @@ class OperationsServiceMock(LongRunningServiceServicer):
 class WorkflowServiceMock(LzyWorkflowServiceServicer):
     def __init__(self, op_service: OperationsServiceMock):
         self.fail_on_start = False
-        self.created = False
+        self.fail_on_read_std = False
+        self.fail_on_execute_graph = False
+        self.fail_on_get_pools = False
+        self.fail_on_get_storage = False
+
+        self.return_empty_pools = False
+
+        self.started = False
+        self.aborted = False
+        self.finished = False
+
         self.__op_service = op_service
 
     def StartWorkflow(
@@ -115,16 +127,15 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             self.fail_on_start = False
             context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
-        self.created = True
+        self.started = True
         return StartWorkflowResponse(executionId="exec_id")
 
     def AbortWorkflow(self, request: AbortWorkflowRequest, context) -> AbortWorkflowResponse:
         _LOG.info(f"Aborting wf {request}")
+        self.aborted = True
         return AbortWorkflowResponse()
 
-    def FinishWorkflow(
-        self, request: FinishWorkflowRequest, context: grpc.ServicerContext
-    ) -> Operation:
+    def FinishWorkflow(self, request: FinishWorkflowRequest, context: grpc.ServicerContext) -> Operation:
         _LOG.info(f"Finishing workflow {request}")
 
         packed = Any()
@@ -132,13 +143,27 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         op = Operation(id="operation_id", done=True, response=packed)
 
         self.__op_service.register_operation(op)
+        self.finished = True
 
         return op
+
+    def ExecuteGraph(self, request: ExecuteGraphRequest, context: grpc.ServicerContext) -> ExecuteGraphResponse:
+        _LOG.info(f"Executing graph {request}")
+
+        if self.fail_on_execute_graph:
+            self.fail_on_execute_graph = False
+            context.abort(grpc.StatusCode.INTERNAL, "some_error")
+
+        return ExecuteGraphResponse()
 
     def ReadStdSlots(
         self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
     ) -> Iterator[ReadStdSlotsResponse]:
         _LOG.info(f"Registered listener")
+
+        if self.fail_on_read_std:
+            self.fail_on_read_std = False
+            context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
         yield ReadStdSlotsResponse(
             stdout=ReadStdSlotsResponse.Data(data=("Some stdout",))
@@ -149,10 +174,38 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
 
     def GetOrCreateDefaultStorage(self, request: GetOrCreateDefaultStorageRequest,
                                   context: grpc.ServicerContext) -> GetOrCreateDefaultStorageResponse:
+        _LOG.info(f"Get default storage")
+
+        if self.fail_on_get_storage:
+            self.fail_on_get_storage = False
+            context.abort(grpc.StatusCode.INTERNAL, "some_error")
+
         return GetOrCreateDefaultStorageResponse(storage=StorageConfig(
             uri="s3://bucket/prefix",
             s3=S3Credentials(endpoint="", accessToken="", secretToken=""),
         ))
+
+    def GetAvailablePools(self, request: GetAvailablePoolsRequest,
+                          context: grpc.ServicerContext) -> GetAvailablePoolsResponse:
+        if self.fail_on_get_pools:
+            self.fail_on_get_pools = False
+            context.abort(grpc.StatusCode.INTERNAL, "some_error")
+
+        if self.return_empty_pools:
+            self.return_empty_pools = False
+            return GetAvailablePoolsResponse(poolSpecs=[])
+
+        default = Provisioning.default()
+        return GetAvailablePoolsResponse(poolSpecs=[
+            VmPoolSpec(
+                poolSpecName='S',
+                cpuCount=default.cpu_count,
+                cpuType=default.cpu_type,
+                gpuCount=default.gpu_count,
+                gpuType=default.gpu_type,
+                ramGb=default.ram_size_gb
+            )
+        ])
 
 
 class StorageRegistryMock(StorageRegistry):

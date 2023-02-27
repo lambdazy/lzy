@@ -1,5 +1,6 @@
 import asyncio
 import os
+import traceback
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -161,14 +162,24 @@ class LzyWorkflow:
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         try:
             if not self.__started:
-                raise RuntimeError("Workflow not started")
+                _LOG.warning("Exiting workflow that has not been started")
+                return
             if exc_type is None:
-                self.barrier()
+                try:
+                    self.barrier()
+                except Exception as e:
+                    exc_type = type(e)
+                    exc_val = e
+                    # noinspection PyUnusedLocal
+                    exc_tb = traceback.format_exc()
         finally:
             if exc_type is None:
                 self.__destroy()
             else:
-                self.__abort()
+                try:
+                    self.__abort()
+                finally:
+                    raise exc_val
 
     def __abort(self):
         _LOG.info(f"Abort workflow '{self.name}'")
@@ -187,7 +198,7 @@ class LzyWorkflow:
 
     async def __stop(self):
         _LOG.info(f"Finishing workflow '{self.name}'")
-        await self.__owner.runtime.destroy()
+        await self.__owner.runtime.finish()
         wbs_to_finalize = []
         while len(self.__whiteboards) > 0:
             whiteboard = self.__whiteboards.pop()

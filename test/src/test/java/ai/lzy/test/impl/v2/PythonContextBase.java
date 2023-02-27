@@ -1,5 +1,6 @@
 package ai.lzy.test.impl.v2;
 
+import ai.lzy.test.impl.Utils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.LineIterator;
 import org.apache.logging.log4j.LogManager;
@@ -12,6 +13,8 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -166,9 +169,12 @@ public class PythonContextBase {
 
     public void evalAndAssertScenarioResult(String scenarioName, List<String> extraPyLibs) {
         LOG.info("Starting scenario: " + scenarioName);
+        var startTime = Instant.now();
         var result = evalScenario(Map.of(), scenarioName, extraPyLibs);
+        var finishTime = Instant.now();
         LOG.info(scenarioName + ": STDOUT: {}", result.stdout());
         LOG.info(scenarioName + ": STDERR: {}", result.stderr());
+        LOG.info(scenarioName + ": time spent: {}", Utils.toFormattedString(Duration.between(startTime, finishTime)));
         assertWithExpected(scenarioName, result);
     }
 
