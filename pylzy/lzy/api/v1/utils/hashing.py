@@ -1,6 +1,6 @@
 import hashlib
 from functools import wraps
-from hashlib import _Hash
+from typing import cast
 
 
 def md5_of_str(uri: str) -> str:
@@ -10,11 +10,11 @@ def md5_of_str(uri: str) -> str:
 class HashingFile:
     def __init__(self, file):
         self.file = file
-        self.__md5: _Hash = hashlib.md5()
+        self.__md5 = hashlib.md5()
 
     @property
     def md5(self) -> str:
-        return self.__md5.hexdigest()
+        return cast(str, self.__md5.hexdigest())
 
     def __getattr__(self, name):
         file = self.__dict__['file']
