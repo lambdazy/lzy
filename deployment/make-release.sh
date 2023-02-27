@@ -57,3 +57,4 @@ git push origin master
 
 echo "release-branch=$BRANCH" >> "$GITHUB_OUTPUT"
 echo "release-version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+echo "release-tag=R-$NEW_VERSION" >> "$GITHUB_OUTPUT"
