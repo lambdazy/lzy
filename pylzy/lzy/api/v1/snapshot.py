@@ -8,7 +8,7 @@ from typing import Any, Dict, Type, cast, BinaryIO, Set, Union, List, Optional
 from serialzy.api import Schema, SerializerRegistry
 from tqdm import tqdm
 
-from lzy.api.v1.utils.hashing import HashingFile
+from lzy.api.v1.utils.hashing import HashingIO
 from lzy.logs.config import get_logger, get_color
 from lzy.proxy.result import Just, Nothing, Result
 from lzy.storage.api import AsyncStorageClient
@@ -137,7 +137,7 @@ class DefaultSnapshot(Snapshot):
         if entry is None:
             raise ValueError(f"Entry with id={entry_id} does not exist")
 
-        with HashingFile(tempfile.NamedTemporaryFile()) as f:
+        with HashingIO(tempfile.NamedTemporaryFile()) as f:
             _LOG.debug(f"Serializing and calculating data hash of {entry.name}...")
             serializer = self.__serializer_registry.find_serializer_by_type(entry.typ)
             serializer.serialize(data, f)
