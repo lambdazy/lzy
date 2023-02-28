@@ -60,7 +60,7 @@ def op(
     ram_size_gb: Optional[int] = None,
     env: Env = Env(),
     description: str = "",
-    version: str = "1.0",
+    version: str = "0.0",
     cache: bool = False,
     lazy_arguments: bool = False,
     env_variables: Optional[Mapping[str, str]] = None,

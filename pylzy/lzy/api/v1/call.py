@@ -29,7 +29,7 @@ class LzyCall:
         provisioning: Provisioning,
         env: Env,
         description: str = "",
-        version: str = "1.0",
+        version: str = "0.0",
         cache: bool = False,
         lazy_arguments: bool = False
     ):
@@ -135,7 +135,7 @@ def wrap_call(
     provisioning: Provisioning,
     env: Env,
     description: str = "",
-    version: str = "1.0",
+    version: str = "0.0",
     cache: bool = False,
     lazy_arguments: bool = False
 ) -> Callable[..., Any]:
