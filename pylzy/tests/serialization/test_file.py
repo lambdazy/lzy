@@ -1,10 +1,22 @@
+import os
 import tempfile
+from typing import BinaryIO
 from unittest import TestCase
 
 from serialzy.api import StandardDataFormats, StandardSchemaFormats, Schema
 
+from lzy.serialization.file import FileSerializer
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.types import File
+
+
+class FileSerializerNoPermissions(FileSerializer):
+    def _serialize(self, obj: File, dest: BinaryIO) -> None:
+        with obj.open("rb") as f:
+            data = f.read(4096)
+            while len(data) > 0:
+                dest.write(data)
+                data = f.read(4096)
 
 
 class FileSerializationTests(TestCase):
@@ -16,11 +28,33 @@ class FileSerializationTests(TestCase):
         with tempfile.NamedTemporaryFile() as source:
             source.write(content.encode())
             source.flush()
+            os.chmod(source.name, 0o777)
 
             file = File(source.name)
             serializer = self.registry.find_serializer_by_type(File)
             with tempfile.TemporaryFile() as tmp:
                 serializer.serialize(file, tmp)
+                tmp.flush()
+                tmp.seek(0)
+                deserialized_file = serializer.deserialize(tmp, File)
+
+        self.assertEqual('0o777', oct(deserialized_file.stat().st_mode & 0o777))
+        with deserialized_file.open() as file:
+            self.assertEqual(content, file.read())
+        self.assertTrue(serializer.stable())
+        self.assertIn("pylzy", serializer.meta())
+
+    def test_compatibility_with_no_permissions(self):
+        content = "test string"
+        with tempfile.NamedTemporaryFile() as source:
+            source.write(content.encode())
+            source.flush()
+
+            file = File(source.name)
+            no_permissions_serializer = FileSerializerNoPermissions()
+            serializer = self.registry.find_serializer_by_type(File)
+            with tempfile.TemporaryFile() as tmp:
+                no_permissions_serializer.serialize(file, tmp)
                 tmp.flush()
                 tmp.seek(0)
                 deserialized_file = serializer.deserialize(tmp, File)
