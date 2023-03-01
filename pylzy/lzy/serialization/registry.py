@@ -27,8 +27,8 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
         self.register_serializer(FileSerializer())
         self.__inited = True
 
-        for typ, serializer in self._type_registry.items():
-            if serializer.available():
+        for typ, serializers in self._type_registry.items():
+            if any(s.available for s in serializers):
                 copyreg.dispatch_table[typ] = self.__reducer
 
     def register_serializer(self, serializer: Serializer, priority: Optional[int] = None) -> None:
@@ -39,8 +39,11 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
         if self.__inited:
             self.__user_serializers.add(type(serializer))
 
-        if serializer.available() and isinstance(serializer.supported_types(), Type):  # type: ignore
-            copyreg.dispatch_table[serializer.supported_types()] = self.__reducer
+        try:
+            if isinstance(serializer.supported_types(), Type):  # type: ignore
+                copyreg.dispatch_table[serializer.supported_types()] = self.__reducer
+        except (ImportError, ModuleNotFoundError):
+            pass
 
     def unregister_serializer(self, serializer: Serializer):
         super().unregister_serializer(serializer)
@@ -48,8 +51,11 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
         if typ in self.__user_serializers:
             self.__user_serializers.remove(typ)
 
-        if serializer.available() and isinstance(serializer.supported_types(), Type):  # type: ignore
-            del copyreg.dispatch_table[serializer.supported_types()]
+        try:
+            if isinstance(serializer.supported_types(), Type):  # type: ignore
+                del copyreg.dispatch_table[serializer.supported_types()]
+        except (ImportError, ModuleNotFoundError):
+            pass
 
     def imports(self) -> Sequence[SerializerImport]:
         result = []
