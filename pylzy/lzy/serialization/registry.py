@@ -28,7 +28,8 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
         self.__inited = True
 
         for typ, serializer in self._type_registry.items():
-            copyreg.dispatch_table[typ] = self.__reducer
+            if serializer.available():
+                copyreg.dispatch_table[typ] = self.__reducer
 
     def register_serializer(self, serializer: Serializer, priority: Optional[int] = None) -> None:
         if type(serializer).__module__ == "__main__":
@@ -38,7 +39,7 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
         if self.__inited:
             self.__user_serializers.add(type(serializer))
 
-        if isinstance(serializer.supported_types(), Type):  # type: ignore
+        if serializer.available() and isinstance(serializer.supported_types(), Type):  # type: ignore
             copyreg.dispatch_table[serializer.supported_types()] = self.__reducer
 
     def unregister_serializer(self, serializer: Serializer):
@@ -47,7 +48,7 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
         if typ in self.__user_serializers:
             self.__user_serializers.remove(typ)
 
-        if isinstance(serializer.supported_types(), Type):  # type: ignore
+        if serializer.available() and isinstance(serializer.supported_types(), Type):  # type: ignore
             del copyreg.dispatch_table[serializer.supported_types()]
 
     def imports(self) -> Sequence[SerializerImport]:
