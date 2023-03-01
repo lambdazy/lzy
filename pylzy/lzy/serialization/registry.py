@@ -1,6 +1,8 @@
 import importlib
+import copyreg
 from dataclasses import dataclass
-from typing import Optional, Sequence, Type, Set
+from io import BytesIO
+from typing import Optional, Sequence, Type, Set, Any
 
 from serialzy.api import Serializer
 from serialzy.registry import DefaultSerializerRegistry
@@ -19,9 +21,14 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
     def __init__(self):
         self.__inited = False
         self.__user_serializers: Set[Type[Serializer]] = set()
+
         super().__init__()
+
         self.register_serializer(FileSerializer())
         self.__inited = True
+
+        for typ, serializer in self._type_registry.items():
+            copyreg.dispatch_table[typ] = self.__reducer
 
     def register_serializer(self, serializer: Serializer, priority: Optional[int] = None) -> None:
         if type(serializer).__module__ == "__main__":
@@ -31,11 +38,17 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
         if self.__inited:
             self.__user_serializers.add(type(serializer))
 
+        if isinstance(serializer.supported_types(), Type):
+            copyreg.dispatch_table[serializer.supported_types()] = self.__reducer
+
     def unregister_serializer(self, serializer: Serializer):
         super().unregister_serializer(serializer)
         typ = type(serializer)
         if typ in self.__user_serializers:
             self.__user_serializers.remove(typ)
+
+        if isinstance(serializer.supported_types(), Type):
+            del copyreg.dispatch_table[serializer.supported_types()]
 
     def imports(self) -> Sequence[SerializerImport]:
         result = []
@@ -49,3 +62,19 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
             module = importlib.import_module(imp.module_name)
             serializer = getattr(module, imp.class_name)
             self.register_serializer(serializer(), imp.priority)
+
+    def __constructor(self, data_format: str, data: bytes) -> Any:
+        serializer = self.find_serializer_by_data_format(data_format)
+        if serializer is None:
+            raise ValueError(f'Cannot find serializer for data format {data_format}')
+        value = serializer.deserialize(BytesIO(data))
+        return value
+
+    def __reducer(self, obj: Any):
+        serializer = self.find_serializer_by_instance(obj)
+        if serializer is None:
+            raise ValueError(f'Cannot find serializer for type {type(obj)}')
+
+        buffer = BytesIO()
+        serializer.serialize(obj, buffer)
+        return self.__constructor, (serializer.data_format(), buffer.getvalue())
