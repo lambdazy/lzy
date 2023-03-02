@@ -55,7 +55,7 @@ module "yc" {
   whiteboard-image          = "lzydock/whiteboard:${var.docker_whiteboard_image_tag}"
   backoffice-backend-image  = "lzydock/site:${var.docker_backend_image_tag}"
   backoffice-frontend-image = "lzydock/site-frontend:${var.docker_frontend_image_tag}"
-  unified-agent-image       = "lzydock/unified_agent:${var.docker_unified_agent_image_tag}"
+  unified-agent-image       = "cr.yandex/yc/unified-agent"
 
   workers_nodegroups_definition = {
     "s" = {
