@@ -33,7 +33,14 @@ resource "kubernetes_deployment" "graph-executor" {
           image_pull_policy = "Always"
           port {
             container_port = local.graph-port
-            host_port      = local.graph-port
+          }
+          port {
+            container_port = local.graph-executor-metrics-port
+          }
+
+          env {
+            name  = "GRAPH_EXECUTOR_METRICS_PORT"
+            value = local.graph-executor-metrics-port
           }
 
           env {
@@ -107,6 +114,16 @@ resource "kubernetes_deployment" "graph-executor" {
             }
           }
         }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
+          }
+        }
+
         node_selector = {
           type = "lzy"
         }
@@ -124,8 +141,6 @@ resource "kubernetes_deployment" "graph-executor" {
             }
           }
         }
-        dns_policy    = "ClusterFirstWithHostNet"
-        host_network  = true
       }
     }
   }

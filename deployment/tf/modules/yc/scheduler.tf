@@ -33,7 +33,13 @@ resource "kubernetes_deployment" "scheduler" {
           image_pull_policy = "Always"
           port {
             container_port = local.scheduler-port
-            host_port      = local.scheduler-port
+          }
+          port {
+            container_port = local.scheduler-metrics-port
+          }
+          env {
+            name  = "SCHEDULER_METRICS_PORT"
+            value = local.scheduler-metrics-port
           }
           env {
             name  = "SCHEDULER_DATABASE_USERNAME"
@@ -181,6 +187,15 @@ resource "kubernetes_deployment" "scheduler" {
             value = "5m"
           }
         }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
+          }
+        }
         node_selector = {
           type = "lzy"
         }
@@ -198,8 +213,6 @@ resource "kubernetes_deployment" "scheduler" {
             }
           }
         }
-        dns_policy    = "ClusterFirstWithHostNet"
-        host_network  = true
       }
     }
   }

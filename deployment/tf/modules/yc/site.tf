@@ -47,12 +47,10 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           port {
             name           = "frontend"
             container_port = local.backoffice-frontend-port
-            host_port      = local.backoffice-frontend-port
           }
           port {
             name           = "frontendtls"
             container_port = local.backoffice-frontend-tls-port
-            host_port      = local.backoffice-frontend-tls-port
           }
           dynamic "volume_mount" {
             for_each = var.ssl-enabled ? [1] : []
@@ -114,15 +112,22 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             name  = "SITE_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
+          env {
+            name  = "SITE_METRICS_PORT"
+            value = local.site-metrics-port
+          }
           port {
             name           = "backend"
             container_port = local.backoffice-backend-port
-            host_port      = local.backoffice-backend-port
+#            host_port      = local.backoffice-backend-port
           }
           port {
             name           = "backendtls"
             container_port = local.backoffice-backend-tls-port
-            host_port      = local.backoffice-backend-tls-port
+#            host_port      = local.backoffice-backend-tls-port
+          }
+          port {
+            container_port = local.site-metrics-port
           }
 
           args = var.ssl-enabled ? [
@@ -146,6 +151,15 @@ resource "kubernetes_deployment" "lzy_backoffice" {
               name       = "keystore"
               mount_path = "/app/keystore"
             }
+          }
+        }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
           }
         }
 
@@ -184,8 +198,6 @@ resource "kubernetes_deployment" "lzy_backoffice" {
         node_selector = {
           type = "lzy"
         }
-        host_network = true
-        dns_policy   = "ClusterFirstWithHostNet"
       }
     }
   }

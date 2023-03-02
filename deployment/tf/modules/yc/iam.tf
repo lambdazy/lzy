@@ -106,11 +106,27 @@ resource "kubernetes_deployment" "iam" {
             name  = "IAM_INTERNAL_CREDENTIAL_TYPE"
             value = local.iam-internal-cred-type
           }
+          env {
+            name  = "IAM_METRICS_PORT"
+            value = local.iam-metrics-port
+          }
           port {
             container_port = local.iam-port
-            host_port      = local.iam-port
+          }
+          port {
+            container_port = local.iam-metrics-port
           }
         }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
+          }
+        }
+
         node_selector = {
           type = "lzy"
         }
@@ -128,8 +144,6 @@ resource "kubernetes_deployment" "iam" {
             }
           }
         }
-        host_network = true
-        dns_policy   = "ClusterFirstWithHostNet"
       }
     }
   }

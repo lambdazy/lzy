@@ -34,7 +34,15 @@ resource "kubernetes_deployment" "whiteboard" {
           image_pull_policy = "Always"
           port {
             container_port = local.whiteboard-port
-            host_port      = local.whiteboard-port
+          }
+
+          port {
+            container_port = local.whiteboard-metrics-port
+          }
+
+          env {
+            name  = "WHITEBOARD_METRICS_PORT"
+            value = local.whiteboard-metrics-port
           }
 
           env {
@@ -93,11 +101,18 @@ resource "kubernetes_deployment" "whiteboard" {
             }
           }
         }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
+          }
+        }
         node_selector = {
           type = "lzy"
         }
-        dns_policy    = "ClusterFirstWithHostNet"
-        host_network  = true
       }
     }
   }
