@@ -4,10 +4,15 @@ from lzy.api.v1 import op, whiteboard, Lzy
 from lzy.types import File
 
 
+@dataclasses.dataclass
+class CustomFileField:
+    file: File
+
+
 # noinspection PyShadowingNames
 @op(gpu_type="NO_GPU")
-def a(f1: File) -> (File, File, File):
-    with f1.open("a") as fl:
+def a(f1: CustomFileField) -> (File, File, File):
+    with f1.file.open("a") as fl:
         fl.write("buzz")
 
     with open("/tmp/b.txt", "w") as fl:
@@ -16,7 +21,7 @@ def a(f1: File) -> (File, File, File):
     with open("/tmp/c.txt", "w") as fl:
         fl.write("Kek")
 
-    return f1, File("/tmp/b.txt"), File("/tmp/c.txt")
+    return f1.file, File("/tmp/b.txt"), File("/tmp/c.txt")
 
 
 @op(gpu_type="NO_GPU")
@@ -41,7 +46,7 @@ if __name__ == "__main__":
         with open("/tmp/a.txt", "w") as f:
             f.write("fizz")
         file = File("/tmp/a.txt")
-        f1, f2, f3 = a(file)
+        f1, f2, f3 = a(CustomFileField(file))
         with f1.open("r") as f:
             for line in f.readlines():
                 print(line)
