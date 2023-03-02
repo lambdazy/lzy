@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package ai.lzy.v1.headers;
+
+import "ai/lzy/v1/validation/validation.proto";
+
+option java_outer_classname = "LH";
+option java_package = "ai.lzy.v1.headers";
+
+message UserLogsHeader {
+  /* optional */ KafkaTopicDescription kafka_topic_desc = 1;
+
+  message KafkaTopicDescription {
+    repeated string bootstrap_servers = 1;
+    string username = 2;  // username of producer
+    string password = 3 [(validation.sensitive) = true];  // plaintext SASL password of producer
+    string topic = 4;  // topic name for logs
+  }
+}

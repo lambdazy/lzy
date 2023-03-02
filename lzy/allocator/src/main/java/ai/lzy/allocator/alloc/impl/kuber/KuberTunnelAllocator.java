@@ -33,7 +33,8 @@ public class KuberTunnelAllocator implements TunnelAllocator {
     private final ServiceConfig config;
 
     public KuberTunnelAllocator(ClusterRegistry clusterRegistry, VmPoolRegistry poolRegistry,
-                                KuberClientFactory factory, ServiceConfig config) {
+                                KuberClientFactory factory, ServiceConfig config)
+    {
         this.clusterRegistry = clusterRegistry;
         this.poolRegistry = poolRegistry;
         this.factory = factory;

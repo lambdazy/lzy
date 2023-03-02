@@ -24,18 +24,22 @@ import ai.lzy.v1.workflow.LWFS.GetAvailablePoolsRequest;
 import ai.lzy.v1.workflow.LWFS.GetAvailablePoolsResponse;
 import ai.lzy.v1.workflow.LWFS.StartWorkflowRequest;
 import ai.lzy.v1.workflow.LWFS.StartWorkflowResponse;
+import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
@@ -74,6 +78,7 @@ public class WorkflowService {
     private final CleanExecutionCompanion cleanExecutionCompanion;
     final ExecutionDao executionDao;
     private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
+    private final LzyServiceConfig config;
 
     public WorkflowService(LzyServiceConfig config, CleanExecutionCompanion cleanExecutionCompanion,
                            LzyServiceStorage storage, WorkflowDao workflowDao, ExecutionDao executionDao,
@@ -88,6 +93,7 @@ public class WorkflowService {
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
+        this.config = config;
         this.metrics = metrics;
 
         this.storage = storage;
@@ -189,6 +195,50 @@ public class WorkflowService {
             if (portalDesc.portalStatus() != PortalDescription.PortalStatus.VM_READY) {
                 response.onError(Status.FAILED_PRECONDITION
                     .withDescription("Portal is creating, retry later.").asException());
+                return;
+            }
+
+            if (config.getKafka().isEnabled()) {
+                var props = new Properties();
+                props.setProperty("bootstrap.servers", Strings.join(config.getKafka().getBootstrapServers(), ','));
+                props.setProperty("enable.auto.commit", "false");
+                props.setProperty("group.id", UUID.randomUUID().toString());
+                props.setProperty("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+                props.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+                props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+                props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required " +
+                    "  username=\"" + config.getKafka().getUsername() + "\"" +
+                    "  password=\"" + config.getKafka().getPassword() + "\";");
+
+                try (var consumer = new KafkaConsumer<String, byte[]>(props)) {
+                    consumer.subscribe(List.of(executionId + "/user_logs"));
+                    consumer.seek(new TopicPartition(executionId + "/user_logs", 0), request.getOffset());
+                    while (!Context.current().isCancelled()) {
+                        var res = consumer.poll(Duration.ofMillis(100));
+                        if (res.count() > 0) {
+
+                            var outData = LWFS.ReadStdSlotsResponse.Data.newBuilder();
+                            var errData = LWFS.ReadStdSlotsResponse.Data.newBuilder();
+                            long offset = 0;
+
+                            for (var record : res) {
+                                offset = Long.max(record.offset(), offset);
+                                if (record.key().equals("out")) {
+                                    outData.addData(new String(record.value(), StandardCharsets.UTF_8));
+                                } else {
+                                    errData.addData(new String(record.value(), StandardCharsets.UTF_8));
+                                }
+                            }
+
+                            response.onNext(LWFS.ReadStdSlotsResponse.newBuilder()
+                                .setStderr(errData.build())
+                                .setStdout(outData.build())
+                                .setCurrentOffset(offset)
+                                .build());
+                        }
+                    }
+                }
+                response.onCompleted();
                 return;
             }
 

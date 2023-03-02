@@ -1,7 +1,7 @@
 package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
-import ai.lzy.worker.StreamQueue;
+import ai.lzy.logs.StreamQueue;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.ExecCreateCmd;
@@ -41,62 +41,59 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
-
-        try (var handle = new StreamQueue.LogHandle(out, err, LOG)) {
-            if (containerId != null) {
-                handle.logOut("Using already running container from cache");
-                return;
-            }
-
-            try {
-                prepareImage(config, handle);
-            } catch (Exception e) {
-                handle.logErr("Error while pulling image: {}", e);
-                throw new RuntimeException(e);
-            }
-
-            var sourceImage = config.image();
-
-            handle.logOut("Creating container from image={} ... , config = {}", sourceImage, config);
-
-            final List<Mount> dockerMounts = new ArrayList<>();
-            config.mounts().forEach(m -> {
-                var mount = new Mount().withType(MountType.BIND).withSource(m.source()).withTarget(m.target());
-                if (m.isRshared()) {
-                    mount.withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED));
-                }
-                dockerMounts.add(mount);
-            });
-
-            final HostConfig hostConfig = new HostConfig();
-            hostConfig.withMounts(dockerMounts);
-
-            // --gpus all
-            if (config.needGpu()) {
-                hostConfig.withDeviceRequests(List.of(new DeviceRequest()
-                    .withDriver("nvidia")
-                    .withCapabilities(List.of(List.of("gpu")))
-                ));
-            }
-
-            final var container = client.createContainerCmd(sourceImage)
-                .withHostConfig(hostConfig)
-                .withAttachStdout(true)
-                .withAttachStderr(true)
-                .withTty(true)
-                .withEnv(config.envVars())
-                .exec();
-
-            final String containerId = container.getId();
-            handle.logOut("Creating container from image={} done, id={}", sourceImage, containerId);
-
-            handle.logOut("Starting env container with id {} ...", containerId);
-            client.startContainerCmd(container.getId()).exec();
-            handle.logOut("Starting env container with id {} done", containerId);
-
-            this.containerId = containerId;
+    public void install(StreamQueue.LogHandle handle) throws EnvironmentInstallationException {
+        if (containerId != null) {
+            handle.logOut("Using already running container from cache");
+            return;
         }
+
+        try {
+            prepareImage(config, handle);
+        } catch (Exception e) {
+            handle.logErr("Error while pulling image: {}", e);
+            throw new RuntimeException(e);
+        }
+
+        var sourceImage = config.image();
+
+        handle.logOut("Creating container from image={} ... , config = {}", sourceImage, config);
+
+        final List<Mount> dockerMounts = new ArrayList<>();
+        config.mounts().forEach(m -> {
+            var mount = new Mount().withType(MountType.BIND).withSource(m.source()).withTarget(m.target());
+            if (m.isRshared()) {
+                mount.withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED));
+            }
+            dockerMounts.add(mount);
+        });
+
+        final HostConfig hostConfig = new HostConfig();
+        hostConfig.withMounts(dockerMounts);
+
+        // --gpus all
+        if (config.needGpu()) {
+            hostConfig.withDeviceRequests(List.of(new DeviceRequest()
+                .withDriver("nvidia")
+                .withCapabilities(List.of(List.of("gpu")))
+            ));
+        }
+
+        final var container = client.createContainerCmd(sourceImage)
+            .withHostConfig(hostConfig)
+            .withAttachStdout(true)
+            .withAttachStderr(true)
+            .withTty(true)
+            .withEnv(config.envVars())
+            .exec();
+
+        final String containerId = container.getId();
+        handle.logOut("Creating container from image={} done, id={}", sourceImage, containerId);
+
+        handle.logOut("Starting env container with id {} ...", containerId);
+        client.startContainerCmd(container.getId()).exec();
+        handle.logOut("Starting env container with id {} done", containerId);
+
+        this.containerId = containerId;
     }
 
     @Override

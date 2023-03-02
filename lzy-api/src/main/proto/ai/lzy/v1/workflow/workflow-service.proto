@@ -114,6 +114,10 @@ message StopGraphResponse {}
 
 message ReadStdSlotsRequest {
   string executionId = 1;
+
+  // Offset of data to read from.
+  // If 0 or not set, read from beginning
+  /* optional */ uint64 offset = 2;
 }
 
 message ReadStdSlotsResponse {
@@ -121,6 +125,8 @@ message ReadStdSlotsResponse {
     Data stdout = 1;
     Data stderr = 2;
   }
+
+  uint64 currentOffset = 3;  // Current offset of slot to restore after reconnect
 
   message Data {
     repeated string data = 1;

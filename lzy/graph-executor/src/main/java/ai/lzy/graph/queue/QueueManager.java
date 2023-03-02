@@ -13,6 +13,7 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
+import ai.lzy.util.grpc.GrpcHeaders;
 import io.grpc.StatusException;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
@@ -188,12 +189,17 @@ public class QueueManager extends Thread {
             if (state == null) {
                 return;
             }
-            final GraphExecutionState newState;
-            if (stoppingGraphs.containsKey(stateKey)) {
-                newState = processor.stop(state, stoppingGraphs.remove(stateKey));
-            } else {
-                newState = processor.exec(state);
-            }
+            final GraphExecutionState newState =
+                GrpcHeaders.withContext()
+                .withHeader(GrpcHeaders.USER_LOGS_HEADER_KEY, state.description().logsHeader())
+                .run(() -> {
+                    if (stoppingGraphs.containsKey(stateKey)) {
+                        return processor.stop(state, stoppingGraphs.remove(stateKey));
+                    } else {
+                        return processor.exec(state);
+                    }
+                });
+
             dao.updateAndFree(newState);
             if (!Set.of(Status.FAILED, Status.COMPLETED).contains(newState.status())) {
                 putIntoQueue(stateKey);

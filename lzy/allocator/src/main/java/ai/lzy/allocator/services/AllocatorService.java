@@ -123,14 +123,14 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                 vms.forEach(vm -> {
                     var action = switch (vm.status()) {
-                        case ALLOCATING -> {
-                            var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, vm.allocateState().reqid()));
-                            yield withContext(ctx, () -> new AllocateVmAction(vm, allocationContext, true));
-                        }
+                        case ALLOCATING -> GrpcHeaders.withContext()
+                            .withHeader(GrpcHeaders.X_REQUEST_ID, vm.allocateState().reqid())
+                            .run(() -> new AllocateVmAction(vm, allocationContext, true));
                         case DELETING -> {
-                            var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, vm.deleteState().reqid()));
                             var deleteOpId = vm.deleteState().operationId();
-                            yield withContext(ctx, () -> new DeleteVmAction(vm, deleteOpId, allocationContext));
+                            yield GrpcHeaders.withContext()
+                                .withHeader(GrpcHeaders.X_REQUEST_ID, vm.deleteState().reqid())
+                                .run(() -> new DeleteVmAction(vm, deleteOpId, allocationContext));
                         }
                         case IDLE, RUNNING -> throw new RuntimeException("Unexpected Vm state %s".formatted(vm));
                     };

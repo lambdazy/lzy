@@ -1,6 +1,6 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.worker.StreamQueue;
+import ai.lzy.logs.StreamQueue;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -11,7 +11,7 @@ public interface Environment extends AutoCloseable {
      * Install environment. Must be called before execution
      * Consumes stream queues to add stdout and stderr to
      */
-    void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException;
+    void install(StreamQueue.LogHandle logHandle) throws EnvironmentInstallationException;
 
     LzyProcess runProcess(String... command);
 

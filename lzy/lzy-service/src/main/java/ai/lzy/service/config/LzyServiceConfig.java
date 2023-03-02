@@ -9,6 +9,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 
 @Getter
 @Setter
@@ -28,7 +30,7 @@ public class LzyServiceConfig {
     private Duration gcLeaderPeriod;
 
     private StartupPortalConfig portal;
-    private boolean useKafkaForStdSlots = false;
+    private KafkaConfig kafka = new KafkaConfig();
 
     @Getter
     @Setter
@@ -67,5 +69,16 @@ public class LzyServiceConfig {
         private int port = 17080;
         private String loggerName = "LogMetricReporter";
         private String loggerLevel = "info";
+    }
+
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("kafka")
+    public static final class KafkaConfig {
+        private boolean enabled = false;
+        private List<String> bootstrapServers = new ArrayList<>();
+        private String username;
+        private String password;
     }
 }

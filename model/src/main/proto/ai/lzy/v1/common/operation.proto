@@ -10,10 +10,8 @@ option java_package = "ai.lzy.v1.common";
 
 message Operation {
   message StdSlotDesc {
-    oneof stream_type {
-      KafkaTopic kafka = 1;
-      LzySlot lzy_slot = 2;
-    }
+    string name = 1;
+    string channelId = 2;
   }
 
   EnvSpec env = 1;
@@ -35,17 +33,6 @@ message Requirements {
 
 message SlotToChannelAssignment {
   string slot_name = 1;
-  string channel_id = 2;
-}
-
-message KafkaTopic {
-  string username = 1;
-  string password = 2;
-  string topic = 3;
-}
-
-message LzySlot {
-  string name = 1;
   string channel_id = 2;
 }
 

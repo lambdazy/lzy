@@ -6,6 +6,7 @@ import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LineReaderSlot;
+import ai.lzy.logs.StreamQueue;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.LocalOperationService.OperationSnapshot;
@@ -16,7 +17,6 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
@@ -333,37 +333,33 @@ public class Worker {
                 }
             });
 
-            final var stdoutSpec = op.hasStdout() ? op.getStdout() : null;
-            final var stderrSpec = op.hasStderr() ? op.getStderr() : null;
+            try (final var logHandle = StreamQueue.LogHandle.fromHeaders(LOG)) {
 
-            final var outQueue = generateStreamQueue(tid, stdoutSpec, "stdout");
-            final var errQueue = generateStreamQueue(tid, stderrSpec, "stderr");
-
-            outQueue.start();
-            errQueue.start();
-
-            try {
+                final var stdoutSpec = op.hasStdout() ? op.getStdout() : null;
+                final var stderrSpec = op.hasStderr() ? op.getStderr() : null;
+                logHandle.addErrOutput(generateStdOutputStream(tid, stderrSpec));
+                logHandle.addOutOutput(generateStdOutputStream(tid, stdoutSpec));
 
                 LOG.info("Configuring worker");
 
                 final AuxEnvironment env = envFactory.create(lzyFsRoot, request.getTaskDesc().getOperation().getEnv());
 
                 try {
-                    env.base().install(outQueue, errQueue);
-                    env.install(outQueue, errQueue);
+                    env.base().install(logHandle);
+                    env.install(logHandle);
                 } catch (EnvironmentInstallationException e) {
                     LOG.error("Unable to install environment", e);
 
                     return ExecuteResponse.newBuilder()
-                            .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
-                            .setDescription(e.getMessage())
-                            .build();
+                        .setRc(ReturnCodes.ENVIRONMENT_INSTALLATION_ERROR.getRc())
+                        .setDescription(e.getMessage())
+                        .build();
                 } catch (Exception e) {
                     LOG.error("Error while preparing env", e);
                     return ExecuteResponse.newBuilder()
-                            .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
-                            .setDescription("Internal error")
-                            .build();
+                        .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
+                        .setDescription("Internal error")
+                        .build();
                 }
 
                 LOG.info("Executing task {}", tid);
@@ -373,8 +369,8 @@ public class Worker {
 
                     exec.start(env);
 
-                    outQueue.add(exec.process().out());
-                    errQueue.add(exec.process().err());
+                    logHandle.logOut(exec.process().out());
+                    logHandle.logErr(exec.process().err());
 
                     final int rc = exec.waitFor();
                     final String message;
@@ -384,27 +380,20 @@ public class Worker {
                         waitOutputSlots(request, lzySlots);
                     } else {
                         message = "Error while executing command on worker. " +
-                                "See your stdout/stderr to see more info";
+                            "See your stdout/stderr to see more info";
                     }
 
                     return ExecuteResponse.newBuilder()
-                            .setRc(rc)
-                            .setDescription(message)
-                            .build();
+                        .setRc(rc)
+                        .setDescription(message)
+                        .build();
 
                 } catch (Exception e) {
                     LOG.error("Error while executing task, stopping worker", e);
                     return ExecuteResponse.newBuilder()
-                            .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
-                            .setDescription("Internal error")
-                            .build();
-                }
-            } finally {
-                try {
-                    outQueue.close();
-                    errQueue.close();
-                } catch (InterruptedException e) {
-                    LOG.error("Interrupted while closing out stream");
+                        .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
+                        .setDescription("Internal error")
+                        .build();
                 }
             }
         }
@@ -471,7 +460,7 @@ public class Worker {
             }
         }
 
-        private StreamQueue generateStreamQueue(String tid, @Nullable StdSlotDesc stdoutSpec, String name) {
+        private OutputStream generateStdOutputStream(String tid, @Nullable StdSlotDesc stdoutSpec) {
             final OutputStream stdout;
             if (stdoutSpec != null) {
                 stdout = new PipedOutputStream();
@@ -493,7 +482,7 @@ public class Worker {
                 stdout = OutputStream.nullOutputStream();
             }
 
-            return new StreamQueue(stdout, LOG, name);
+            return stdout;
         }
 
         @Override

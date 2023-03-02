@@ -4,14 +4,17 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.PortalClientProvider;
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
+import ai.lzy.v1.headers.LH;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus;
 import ai.lzy.v1.workflow.LWFS;
@@ -26,11 +29,15 @@ import io.grpc.stub.StreamObserver;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ListTopicsOptions;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -54,6 +61,9 @@ public class GraphExecutionService {
 
     private final PortalClientProvider portalClients;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
+    private final LzyServiceConfig.KafkaConfig kafkaConfig;
+
+    private final AdminClient kafkaAdmin;
 
     public GraphExecutionService(GraphDao graphDao, ExecutionDao executionDao,
                                  CleanExecutionCompanion cleanExecutionCompanion, PortalClientProvider portalClients,
@@ -61,10 +71,12 @@ public class GraphExecutionService {
                                  @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                  @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                                  @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
-                                 @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel)
+                                 @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
+                                 LzyServiceConfig.KafkaConfig kafkaConfig)
     {
         this.cleanExecutionCompanion = cleanExecutionCompanion;
         this.portalClients = portalClients;
+        this.kafkaConfig = kafkaConfig;
 
         this.graphDao = graphDao;
         this.operationDao = operationDao;
@@ -172,7 +184,23 @@ public class GraphExecutionService {
 
                 GraphExecutorApi.GraphExecuteResponse executeResponse;
                 try {
-                    executeResponse = idempotentGraphExecClient.execute(
+                    var builder = GrpcHeaders.withContext();
+                    if (kafkaConfig.isEnabled()) {
+
+                        kafkaAdmin.createTopics(List.of(new NewTopic("", 1, (short) 0)));
+
+                        builder.withHeader(GrpcHeaders.USER_LOGS_HEADER_KEY, LH.UserLogsHeader.newBuilder()
+                            .setKafkaTopicDesc(
+                                LH.UserLogsHeader.KafkaTopicDescription.newBuilder()
+                                    .setUsername(kafkaConfig.getUsername())
+                                    .setPassword(kafkaConfig.getPassword())
+                                    .addAllBootstrapServers(kafkaConfig.getBootstrapServers())
+                                    .setTopic(executionId + "/user_logs").build()
+                            )
+                            .build());
+                    }
+
+                    executeResponse = builder.run(() -> idempotentGraphExecClient.execute(
                         GraphExecutorApi.GraphExecuteRequest.newBuilder()
                             .setWorkflowId(executionId)
                             .setWorkflowName(state.getWorkflowName())
@@ -180,7 +208,8 @@ public class GraphExecutionService {
                             .setParentGraphId(state.getParentGraphId())
                             .addAllTasks(state.getTasks())
                             .addAllChannels(state.getChannels())
-                            .build());
+                            .build()));
+
                 } catch (StatusRuntimeException e) {
                     if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                         e.getStatus()))

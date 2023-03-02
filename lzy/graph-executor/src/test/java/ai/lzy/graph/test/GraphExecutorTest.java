@@ -15,6 +15,7 @@ import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.graph.queue.QueueManager;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.DaoException;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
@@ -454,7 +455,8 @@ public class GraphExecutorTest {
                 );
                 tasks.add(new TaskDescription(v, zygote, slotsMapping));
             }
-            return new GraphDescription(tasks, channelDescriptions);
+            return new GraphDescription(tasks, channelDescriptions,
+                GrpcHeaders.getHeader(GrpcHeaders.USER_LOGS_HEADER_KEY));
         }
     }
 

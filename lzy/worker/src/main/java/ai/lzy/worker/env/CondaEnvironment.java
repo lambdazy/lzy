@@ -1,7 +1,7 @@
 package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
-import ai.lzy.worker.StreamQueue;
+import ai.lzy.logs.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
 import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.LogManager;
@@ -71,7 +71,7 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
-    public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
+    public void install(StreamQueue.LogHandle logHandle) throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
         try {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
@@ -99,8 +99,8 @@ public class CondaEnvironment implements AuxEnvironment {
                             condaFile.getAbsolutePath())
                     );
 
-                    out.add(lzyProcess.out());
-                    err.add(lzyProcess.err());
+                    logHandle.logOut(lzyProcess.out());
+                    logHandle.logErr(lzyProcess.err());
 
                     final int rc;
                     try {

@@ -26,15 +26,19 @@ import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.CollectorRegistry;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 
+import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
@@ -130,5 +134,25 @@ public class BeanFactory {
                 Level.valueOf(config.getLoggerLevel().toUpperCase()));
             case Prometheus -> new PrometheusMetricReporter(config.getPort());
         };
+    }
+
+    @Singleton
+    @Bean(preDestroy = "close")
+    @Named("LzyServiceKafkaAdminClient")
+    @Nullable
+    public AdminClient adminClient(LzyServiceConfig.KafkaConfig config) {
+        if (config.isEnabled()) {
+            var props = new Properties();
+            props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+            props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+            props.put("bootstrap.servers", Strings.join(config.getBootstrapServers(), ','));
+            props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required " +
+                "  username=\"" + config.getUsername() + "\"" +
+                "  password=\"" + config.getPassword() + "\";");
+
+            return AdminClient.create(props);
+        } else {
+            return null;
+        }
     }
 }

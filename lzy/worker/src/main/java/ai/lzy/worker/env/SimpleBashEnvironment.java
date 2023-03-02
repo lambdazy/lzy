@@ -1,6 +1,6 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.worker.StreamQueue;
+import ai.lzy.logs.StreamQueue;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -39,7 +39,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public void install(StreamQueue out, StreamQueue err) {}
+    public void install(StreamQueue.LogHandle logHandle) {}
 
     @Override
     public LzyProcess runProcess(String... command) {

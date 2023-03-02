@@ -1,8 +1,10 @@
 package ai.lzy.graph.model;
 
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutor.SlotToChannelAssignment;
 import ai.lzy.v1.graph.GraphExecutor.TaskDesc;
+import ai.lzy.v1.headers.LH;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -10,13 +12,16 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize
 @JsonDeserialize
 public record GraphDescription(
     List<TaskDescription> tasks,
-    Map<String, ChannelDescription> channels // Map from channel id to its description
+    Map<String, ChannelDescription> channels, // Map from channel id to its description
+
+    @Nullable LH.UserLogsHeader logsHeader  // Logs header from request
 )
 {
 
@@ -43,7 +48,9 @@ public record GraphDescription(
             ))
             .collect(Collectors.toMap(ChannelDescription::id, t -> t));
 
-        return new GraphDescription(taskDescriptions, channelDescriptions);
+        var header = GrpcHeaders.getHeader(GrpcHeaders.USER_LOGS_HEADER_KEY);
+
+        return new GraphDescription(taskDescriptions, channelDescriptions, header);
     }
 
 }
