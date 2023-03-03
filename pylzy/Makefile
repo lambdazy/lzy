@@ -3,6 +3,9 @@
 build: clean
 	./scripts/build.sh
 
+install: build
+	pip install .
+
 clean:
 	./scripts/clean.sh
 
