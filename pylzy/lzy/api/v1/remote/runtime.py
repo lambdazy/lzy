@@ -280,7 +280,7 @@ class RemoteRuntime(Runtime):
 
             for i, eid in enumerate(call.arg_entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
-                slot_path = f"/{call.id}/{entry.name}"
+                slot_path = f"/{call.id}/{entry.id}"
                 input_slots.append(
                     Operation.SlotDescription(
                         path=slot_path, storageUri=entry.storage_uri
@@ -304,7 +304,7 @@ class RemoteRuntime(Runtime):
 
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
-                slot_path = f"/{call.id}/{entry.name}"
+                slot_path = f"/{call.id}/{entry.id}"
                 input_slots.append(
                     Operation.SlotDescription(
                         path=slot_path, storageUri=entry.storage_uri
@@ -326,7 +326,7 @@ class RemoteRuntime(Runtime):
 
             for i, eid in enumerate(call.entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
-                slot_path = f"/{call.id}/{entry.name}"
+                slot_path = f"/{call.id}/{entry.id}"
                 output_slots.append(
                     Operation.SlotDescription(
                         path=slot_path, storageUri=entry.storage_uri
