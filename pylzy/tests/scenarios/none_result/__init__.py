@@ -8,6 +8,7 @@ def repeatable_op(a: int) -> int:
     print(a)
     return a + 1
 
+
 @op
 def just_return_none(a: int, b: int) -> None:
     print(f"a={a},b={b}")
