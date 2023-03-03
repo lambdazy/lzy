@@ -4,11 +4,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.4.7</version>
+        <version>1.4.8</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>whiteboard</artifactId>
-    <version>1.4.7</version>
+    <version>1.4.8</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -20,32 +20,32 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running</artifactId>
-            <version>1.4.7</version>
+            <version>1.4.8</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam-api</artifactId>
-            <version>1.4.7</version>
+            <version>1.4.8</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>model</artifactId>
-            <version>1.4.7</version>
+            <version>1.4.8</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-db</artifactId>
-            <version>1.4.7</version>
+            <version>1.4.8</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-grpc</artifactId>
-            <version>1.4.7</version>
+            <version>1.4.8</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>whiteboard-api</artifactId>
-            <version>1.4.7</version>
+            <version>1.4.8</version>
         </dependency>
         <dependency>
             <groupId>com.mchange</groupId>
@@ -88,13 +88,13 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
-            <version>1.4.7</version>
+            <version>1.4.8</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-test</artifactId>
-            <version>1.4.7</version>
+            <version>1.4.8</version>
             <scope>test</scope>
         </dependency>
         <dependency>
