@@ -25,6 +25,7 @@ resource "yandex_kubernetes_node_group" "services" {
   description = "Nodegroup for lzy services"
   node_labels = {
     "type" = "lzy"
+    "lzy.ai/logging_allowed" = "true"
   }
 
   instance_template {

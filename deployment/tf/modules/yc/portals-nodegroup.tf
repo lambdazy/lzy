@@ -9,6 +9,7 @@ resource "yandex_kubernetes_node_group" "portals" {
   name        = "portals"
   description = "Nodegroup for lzy portals"
   node_labels = {
+    "lzy.ai/logging_allowed" = "true"
     "lzy.ai/node-pool-id" = "portals1"
     "lzy.ai/node-pool-label" = "portals"
     "lzy.ai/node-pool-kind" = "CPU"
