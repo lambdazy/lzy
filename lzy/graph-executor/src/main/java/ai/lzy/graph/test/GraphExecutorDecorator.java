@@ -8,6 +8,7 @@ import ai.lzy.graph.db.GraphExecutionDao;
 import ai.lzy.graph.queue.QueueManager;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Primary;
@@ -23,6 +24,7 @@ import java.util.function.Consumer;
 @Primary
 @Setter
 public class GraphExecutorDecorator extends GraphExecutorApi {
+    private volatile Consumer<GraphExecuteRequest> onExecute = (executeRequest) -> {};
     private volatile Consumer<String> onStop = (graphId) -> {};
 
     public GraphExecutorDecorator(ServiceConfig config, GraphExecutionDao dao,
@@ -32,6 +34,14 @@ public class GraphExecutorDecorator extends GraphExecutorApi {
                                   GraphBuilder graphBuilder, QueueManager queueManager, SchedulerApi schedulerApi)
     {
         super(config, dao, operationDao, iamChannel, iamToken, graphBuilder, queueManager, schedulerApi);
+    }
+
+    @Override
+    public void execute(GraphExecuteRequest request,
+                        StreamObserver<ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteResponse> responseObserver)
+    {
+        onExecute.accept(request);
+        super.execute(request, responseObserver);
     }
 
     @Override

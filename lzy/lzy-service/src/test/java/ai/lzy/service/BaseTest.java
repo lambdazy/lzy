@@ -20,6 +20,7 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import ai.lzy.v1.common.LMST;
+import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
@@ -171,6 +172,11 @@ public class BaseTest {
 
     public static String buildSlotUri(String key, LMST.StorageConfig storageConfig) {
         return storageConfig.getUri() + "/" + key;
+    }
+
+    protected void onExecuteGraph(Consumer<GraphExecuteRequest> action) {
+        var graphExecutor = graphExecutorTestContext.getContext().getBean(GraphExecutorDecorator.class);
+        graphExecutor.setOnExecute(action);
     }
 
     protected void onStopGraph(Consumer<String> action) {

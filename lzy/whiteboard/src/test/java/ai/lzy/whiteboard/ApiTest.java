@@ -50,8 +50,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
-import static ai.lzy.test.IdempotencyUtils.processConcurrently;
-import static ai.lzy.test.IdempotencyUtils.processSequentially;
+import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsConcurrently;
+import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsSequentially;
 import static org.junit.Assert.*;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
@@ -497,22 +497,22 @@ public class ApiTest extends BaseTestWithIam {
 
     @Test
     public void createWhiteboardIdempotency() {
-        processSequentially(createWbScenario());
+        processIdempotentCallsSequentially(createWbScenario());
     }
 
     @Test
     public void updateWhiteboardIdempotency() {
-        processSequentially(updateWbScenario());
+        processIdempotentCallsSequentially(updateWbScenario());
     }
 
     @Test
     public void idempotentCreateWbConcurrent() throws InterruptedException {
-        processConcurrently(createWbScenario());
+        processIdempotentCallsConcurrently(createWbScenario());
     }
 
     @Test
     public void idempotentUpdateWbConcurrent() throws InterruptedException {
-        processConcurrently(updateWbScenario());
+        processIdempotentCallsConcurrently(updateWbScenario());
     }
 
     private TestScenario<LzyWhiteboardServiceBlockingStub, Void, LWB.Whiteboard> createWbScenario() {

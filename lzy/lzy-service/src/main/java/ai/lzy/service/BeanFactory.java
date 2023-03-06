@@ -8,6 +8,7 @@ import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.PrometheusMetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceGrpc;
@@ -130,5 +131,12 @@ public class BeanFactory {
                 Level.valueOf(config.getLoggerLevel().toUpperCase()));
             case Prometheus -> new PrometheusMetricReporter(config.getPort());
         };
+    }
+
+    @Bean(preDestroy = "destroy")
+    @Singleton
+    @Named("LzyServiceStorageClientFactory")
+    public StorageClientFactory storageClientFactory() {
+        return new StorageClientFactory(10, 10);
     }
 }

@@ -9,6 +9,7 @@ import ai.lzy.portal.exceptions.SnapshotNotFound;
 import ai.lzy.portal.exceptions.SnapshotUniquenessException;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.portal.LzyPortal;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -29,7 +30,7 @@ public class SnapshotSlots {
 
     private final StorageClientFactory storageClientFactory;
 
-    public SnapshotSlots(StorageClientFactory storageClientFactory) {
+    public SnapshotSlots(@Named("PortalStorageClientFactory") StorageClientFactory storageClientFactory) {
         this.storageClientFactory = storageClientFactory;
     }
 

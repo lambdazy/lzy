@@ -34,6 +34,18 @@ def foo_with_kwargs(*args, **kwargs) -> str:
     return ', '.join([args_str, kwargs_str])
 
 
+@op(cache=True)
+def foo_with_print(name: str, value: int) -> str:
+    print(f"foo was called")
+    return f"{name} is {value}"
+
+
+@op(cache=False)
+def bar_with_print(message: str) -> str:
+    print(f"bar was called")
+    return f"message from bar: {message}"
+
+
 class LzyEntriesTests(TestCase):
     def setUp(self):
         self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock(), py_env_provider=EnvProviderMock())
@@ -228,3 +240,25 @@ class LzyEntriesTests(TestCase):
 
         self.assertEqual(ruri_0, ruri_2)
         self.assertEqual(ruri_1, ruri_3)
+
+    def test_diff_ops(self):
+        wf_name = "wf"
+        n = "number"
+        v = 42
+
+        with self.lzy.workflow(wf_name) as exec_1:
+            bar_with_print(foo_with_print(n, v))
+        # noinspection PyUnresolvedReferences
+        uri_1 = exec_1.snapshot.get(exec_1.owner.runtime.calls[1].arg_entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        ruri_1 = exec_1.snapshot.get(exec_1.owner.runtime.calls[1].entry_ids[0]).storage_uri
+
+        with self.lzy.workflow(name=wf_name) as exec_2:
+            bar_with_print(foo_with_print(n, v))
+        # noinspection PyUnresolvedReferences
+        uri_2 = exec_2.snapshot.get(exec_2.owner.runtime.calls[1].arg_entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        ruri_2 = exec_2.snapshot.get(exec_2.owner.runtime.calls[1].entry_ids[0]).storage_uri
+
+        self.assertEqual(uri_1, uri_2)
+        self.assertNotEqual(ruri_1, ruri_2)

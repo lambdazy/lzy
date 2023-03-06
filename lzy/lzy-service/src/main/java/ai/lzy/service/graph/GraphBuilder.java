@@ -118,7 +118,6 @@ class GraphBuilder {
         }
 
         var portalSlotToOpen = new ArrayList<LzyPortal.PortalSlotDesc>();
-
         var inputSlotNames = new ArrayList<String>();
 
         for (var data : fromOutput) {
@@ -141,74 +140,24 @@ class GraphBuilder {
         }
         state.setPortalInputSlots(inputSlotNames);
 
-        Map<String, String> outputSlot2channel;
-
-        synchronized (this) {
-            try {
-                var slotsUriAsOutput = fromPortal.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
-                var unknownFromPortal = withRetries(LOG, () ->
-                    executionDao.retainNonExistingSlots(executionId, slotsUriAsOutput));
-
-                withRetries(LOG, () -> executionDao.saveSlots(executionId, unknownFromPortal, null));
-            } catch (Exception e) {
-                LOG.error("Cannot save information to internal storage: " + e.getMessage());
-                throw new RuntimeException(e);
-            }
-
-            try {
-                var slotsUri = dataFlow.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
-                outputSlot2channel = withRetries(LOG, () -> executionDao.findChannels(slotsUri));
-            } catch (Exception e) {
-                LOG.error("Cannot obtain information about channels for slots. Execution: { executionId: {} } " +
-                    e.getMessage(), executionId);
-                throw new RuntimeException(e);
-            }
-
-            var newChannels = new HashMap<String, String>();
-            var withoutOpenedPortalSlot = fromPortal.stream()
-                .filter(data -> !outputSlot2channel.containsKey(data.slotUri())).toList();
-
-            for (var data : withoutOpenedPortalSlot) {
-                var slotUri = data.slotUri();
-                var portalOutputSlotName = PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
-                var channelId = channelManagerClient
-                    .create(makeCreateChannelCommand(userId, workflowName, executionId, "portal_channel_" + slotUri))
-                    .getChannelId();
-
-                newChannels.put(slotUri, channelId);
-                portalSlotToOpen.add(makePortalOutputSlot(slotUri, portalOutputSlotName, channelId, storageConfig));
-            }
-
-            try {
-                withRetries(LOG, () -> executionDao.saveChannels(newChannels, null));
-            } catch (Exception e) {
-                LOG.error("Cannot save information about channels for execution: { executionId: {} } " +
-                    e.getMessage(), executionId);
-                throw new RuntimeException(e);
-            }
-
-            outputSlot2channel.putAll(newChannels);
-        }
-
         for (var data : fromPortal) {
+            var slotUri = data.slotUri();
+            var portalOutputSlotName = PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
+            var channelId = channelManagerClient
+                .create(makeCreateChannelCommand(userId, workflowName, executionId, "portal_channel_" + slotUri))
+                .getChannelId();
+
             if (data.consumers() != null) {
                 for (var consumer : data.consumers()) {
-                    slotName2channelId.put(consumer, outputSlot2channel.get(data.slotUri()));
+                    slotName2channelId.put(consumer, channelId);
                 }
             }
+
+            portalSlotToOpen.add(makePortalOutputSlot(slotUri, portalOutputSlotName, channelId, storageConfig));
         }
 
         //noinspection ResultOfMethodCallIgnored
         portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder().addAllSlots(portalSlotToOpen).build());
-
-        try {
-            var slotsUriAsOutput = fromOutput.stream().map(DataFlowGraph.Data::slotUri).collect(Collectors.toSet());
-            withRetries(LOG, () -> executionDao.saveSlots(executionId, slotsUriAsOutput, null));
-        } catch (Exception e) {
-            LOG.error("Cannot save information to internal storage: " + e.getMessage());
-            throw new RuntimeException(e);
-        }
-
         return slotName2channelId;
     }
 

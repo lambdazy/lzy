@@ -127,6 +127,7 @@ public class BeanFactory {
 
     @Bean(preDestroy = "destroy")
     @Singleton
+    @Named("PortalStorageClientFactory")
     public StorageClientFactory storageClientFactory() {
         return new StorageClientFactory(10, 10);
     }

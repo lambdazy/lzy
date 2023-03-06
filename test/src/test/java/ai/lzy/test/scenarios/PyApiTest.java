@@ -28,6 +28,11 @@ public class PyApiTest {
     }
 
     @Test
+    public void testCachedExec() {
+        pythonContext.context().evalAndAssertScenarioResult("cached_exec");
+    }
+
+    @Test
     public void testSimpleCatboostGraph() {
         /* This scenario checks for:
                 1. Importing external modules (catboost)

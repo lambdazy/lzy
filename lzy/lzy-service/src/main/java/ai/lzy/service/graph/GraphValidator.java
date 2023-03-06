@@ -1,7 +1,7 @@
 package ai.lzy.service.graph;
 
 import ai.lzy.allocator.vmpool.VmPoolClient;
-import ai.lzy.service.data.dao.ExecutionDao;
+import ai.lzy.storage.StorageClient;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
@@ -11,26 +11,18 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Set;
-
-import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.service.util.CollectionUtils.findFirstDuplicate;
 
 class GraphValidator {
     private static final Logger LOG = LogManager.getLogger(GraphValidator.class);
 
-    private final ExecutionDao executionDao;
     private final VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient;
 
-    public GraphValidator(ExecutionDao executionDao,
-                          VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient)
-    {
-        this.executionDao = executionDao;
+    public GraphValidator(VmPoolServiceGrpc.VmPoolServiceBlockingStub vmPoolClient) {
         this.vmPoolClient = vmPoolClient;
     }
 
-    public void validate(GraphExecutionState state) {
+    public void validate(GraphExecutionState state, StorageClient storageClient) {
         Collection<LWF.Operation> operations = state.getOperations();
 
         if (operations.isEmpty()) {
@@ -38,36 +30,9 @@ class GraphValidator {
             return;
         }
 
-        var allOutputSlotsUriList = operations.stream()
-            .flatMap(op -> op.getOutputSlotsList().stream().map(LWF.Operation.SlotDescription::getStorageUri))
-            .toList();
-        var duplicate = findFirstDuplicate(allOutputSlotsUriList);
-
-        if (duplicate != null) {
-            state.fail(Status.INVALID_ARGUMENT, "Duplicated output slot URI: " + duplicate);
-            return;
-        }
-
-        Set<String> knownSlots;
-        try {
-            knownSlots = withRetries(LOG, () -> executionDao.retainExistingSlots(new HashSet<>(allOutputSlotsUriList)));
-        } catch (Exception e) {
-            state.fail(Status.INTERNAL, "Cannot obtain existing slots URIs while starting graph: " + e.getMessage());
-            return;
-        }
-
-        if (!knownSlots.isEmpty()) {
-            state.fail(Status.INVALID_ARGUMENT, "Output slots URIs { slotsUri: %s } already used in other execution"
-                .formatted(JsonUtils.printAsArray(knownSlots)));
-            return;
-        }
-
-        var nodes = operations.stream()
-            .map(op -> new DataFlowGraph.Node(op.getName(), op.getInputSlotsList(), op.getOutputSlotsList()))
-            .toList();
-        var dataflowGraph = new DataFlowGraph(nodes);
-
+        var dataflowGraph = new DataFlowGraph(operations, storageClient);
         state.setDataFlowGraph(dataflowGraph);
+        state.setOperations(dataflowGraph.getOperations());
 
         if (dataflowGraph.hasCycle()) {
             state.fail(Status.INVALID_ARGUMENT, "Try to execute graph with cycle: " + dataflowGraph.printCycle());

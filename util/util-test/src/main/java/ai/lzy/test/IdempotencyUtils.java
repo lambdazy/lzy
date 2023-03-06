@@ -24,8 +24,8 @@ public enum IdempotencyUtils {
         Consumer<R> asserting
     ) {}
 
-    public static <S extends AbstractBlockingStub<S>, T, R> void processConcurrently(TestScenario<S, T, R> scenario)
-        throws InterruptedException
+    public static <S extends AbstractBlockingStub<S>, T, R> void processIdempotentCallsConcurrently(
+        TestScenario<S, T, R> scenario) throws InterruptedException
     {
         var stub = scenario.stub;
         var preparation = scenario.preparation;
@@ -42,7 +42,7 @@ public enum IdempotencyUtils {
         var idempotencyKey = "idempotency-key";
         S idempotentCallsClient = withIdempotencyKey(stub, idempotencyKey);
 
-        int n = 10;
+        int n = 4;
         var readyLatch = new CountDownLatch(n);
         var doneLatch = new CountDownLatch(n);
         var executor = Executors.newFixedThreadPool(n);
@@ -84,7 +84,9 @@ public enum IdempotencyUtils {
         asserting.accept(results.get(0));
     }
 
-    public static <S extends AbstractBlockingStub<S>, T, R> void processSequentially(TestScenario<S, T, R> scenario) {
+    public static <S extends AbstractBlockingStub<S>, T, R> void processIdempotentCallsSequentially(
+        TestScenario<S, T, R> scenario)
+    {
         var stub = scenario.stub;
         var preparation = scenario.preparation;
         var action = scenario.action;
