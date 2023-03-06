@@ -29,9 +29,7 @@ import io.grpc.stub.StreamObserver;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.ListTopicsOptions;
-import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -187,7 +185,9 @@ public class GraphExecutionService {
                     var builder = GrpcHeaders.withContext();
                     if (kafkaConfig.isEnabled()) {
 
-                        kafkaAdmin.createTopics(List.of(new NewTopic("", 1, (short) 0)));
+                        kafkaAdmin.alterUserScramCredentials(List.of(new UserScramCredentialUpsertion()))
+
+                        kafkaAdmin.createTopics(List.of(new NewTopic(executionId + "/user_logs", 1, (short) 0)));
 
                         builder.withHeader(GrpcHeaders.USER_LOGS_HEADER_KEY, LH.UserLogsHeader.newBuilder()
                             .setKafkaTopicDesc(
