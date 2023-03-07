@@ -1,16 +1,16 @@
 resource "yandex_kubernetes_cluster" "main" {
-  name        = var.installation_name
-  description = "Main k8s cluster"
+  name            = var.installation_name
+  description     = "Main k8s cluster"
   release_channel = "RAPID"
 
-  network_id              = var.network_id
-  cluster_ipv4_range      = "10.20.0.0/16"
+  network_id         = var.network_id
+  cluster_ipv4_range = "10.20.0.0/16"
   master {
     zonal {
       zone      = var.zone
       subnet_id = yandex_vpc_subnet.custom-subnet.id
     }
-    public_ip          = true
+    public_ip = true
     maintenance_policy {
       auto_upgrade = false
     }
@@ -24,15 +24,16 @@ resource "yandex_kubernetes_node_group" "services" {
   name        = "lzy-services"
   description = "Nodegroup for lzy services"
   node_labels = {
-    "type" = "lzy"
+    "type"                   = "lzy"
+    "lzy.ai/logging_allowed" = "true"
   }
 
   instance_template {
     platform_id = "standard-v2"
 
     network_interface {
-      subnet_ids         = [yandex_vpc_subnet.custom-subnet.id]
-      ipv4               = true
+      subnet_ids = [yandex_vpc_subnet.custom-subnet.id]
+      ipv4       = true
     }
 
     resources {
