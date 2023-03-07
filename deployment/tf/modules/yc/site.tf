@@ -161,6 +161,10 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             name = "FOLDER_ID"
             value = var.folder_id
           }
+          volume_mount {
+            name       = "unified-agent-config"
+            mount_path = "/etc/yandex/unified_agent/conf.d/"
+          }
         }
 
         dynamic "volume" {
@@ -194,7 +198,16 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             }
           }
         }
-
+        volume {
+          name = "unified-agent-config"
+          config_map {
+            name = kubernetes_config_map.unified-agent-config["site"].metadata[0].name
+            items {
+              key = "config"
+              path = "config.yml"
+            }
+          }
+        }
         node_selector = {
           type = "lzy"
         }

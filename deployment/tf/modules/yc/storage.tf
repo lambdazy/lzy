@@ -152,6 +152,20 @@ resource "kubernetes_deployment" "storage" {
             name = "FOLDER_ID"
             value = var.folder_id
           }
+          volume_mount {
+            name       = "unified-agent-config"
+            mount_path = "/etc/yandex/unified_agent/conf.d/"
+          }
+        }
+        volume {
+          name = "unified-agent-config"
+          config_map {
+            name = kubernetes_config_map.unified-agent-config["storage"].metadata[0].name
+            items {
+              key = "config"
+              path = "config.yml"
+            }
+          }
         }
         node_selector = {
           type = "lzy"

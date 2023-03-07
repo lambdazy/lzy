@@ -1,0 +1,11 @@
+routes:
+  - input:
+      plugin: metrics_pull
+      config:
+        url: http://localhost:${port}
+        format:
+          prometheus: {}
+        namespace: ${namespace}
+    channel:
+      channel_ref:
+        name: cloud_monitoring
