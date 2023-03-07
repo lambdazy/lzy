@@ -10,7 +10,6 @@ RUN npm run build
 FROM nginx:1.13.12-alpine
 COPY --from=builder /app/build /usr/share/nginx/html
 EXPOSE 80
-ARG conf="nginx-ssl.conf"
 
-COPY $conf /etc/nginx/nginx.conf
+COPY nginx.conf /etc/nginx/nginx.conf
 CMD ["nginx", "-g", "daemon off;"]
