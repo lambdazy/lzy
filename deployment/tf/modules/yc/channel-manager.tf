@@ -1,12 +1,12 @@
 locals {
-  channel-manager-labels   = {
+  channel-manager-labels = {
     app                         = "channel-manager"
     "app.kubernetes.io/name"    = "channel-manager"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "channel-manager"
   }
   channel-manager-k8s-name = "channel-manager"
-  channel-manager-image = var.channel-manager-image
+  channel-manager-image    = var.channel-manager-image
 }
 
 resource "kubernetes_deployment" "channel-manager" {
@@ -43,25 +43,25 @@ resource "kubernetes_deployment" "channel-manager" {
             value = local.channel-manager-metrics-port
           }
           env {
-            name = "CHANNEL_MANAGER_ADDRESS"
+            name  = "CHANNEL_MANAGER_ADDRESS"
             value = "0.0.0.0:${local.channel-manager-port}"
           }
 
           env {
-            name  = "CHANNEL_MANAGER_DATABASE_USERNAME"
+            name = "CHANNEL_MANAGER_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.db_secret["channel-manager"].metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
           env {
-            name  = "CHANNEL_MANAGER_DATABASE_PASSWORD"
+            name = "CHANNEL_MANAGER_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.db_secret["channel-manager"].metadata[0].name
-                key = "password"
+                key  = "password"
               }
             }
           }
@@ -76,7 +76,7 @@ resource "kubernetes_deployment" "channel-manager" {
             value = "true"
           }
           env {
-            name = "CHANNEL_MANAGER_IAM_ADDRESS"
+            name  = "CHANNEL_MANAGER_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
@@ -84,7 +84,7 @@ resource "kubernetes_deployment" "channel-manager" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
@@ -93,16 +93,16 @@ resource "kubernetes_deployment" "channel-manager" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
-                key = "key"
+                key  = "key"
               }
             }
           }
           env {
-            name = "CHANNEL_MANAGER_LZY_SERVICE_ADDRESS"
+            name  = "CHANNEL_MANAGER_LZY_SERVICE_ADDRESS"
             value = "${kubernetes_service.lzy_service.spec[0].cluster_ip}:${local.lzy-service-port}"
           }
           env {
-            name = "CHANNEL_MANAGER_WHITEBOARD_ADDRESS"
+            name  = "CHANNEL_MANAGER_WHITEBOARD_ADDRESS"
             value = "http://${kubernetes_service.whiteboard_service.spec[0].cluster_ip}:${local.whiteboard-port}"
           }
         }
@@ -156,14 +156,14 @@ resource "kubernetes_service" "channel_manager_service" {
     name   = "${local.channel-manager-k8s-name}-load-balancer"
     labels = local.channel-manager-labels
     annotations = {
-      "yandex.cloud/load-balancer-type": "internal"
-      "yandex.cloud/subnet-id": yandex_vpc_subnet.custom-subnet.id
+      "yandex.cloud/load-balancer-type" : "internal"
+      "yandex.cloud/subnet-id" : yandex_vpc_subnet.custom-subnet.id
     }
   }
   spec {
     selector = local.channel-manager-labels
     port {
-      port = local.channel-manager-port
+      port        = local.channel-manager-port
       target_port = local.channel-manager-port
     }
     type = "LoadBalancer"
