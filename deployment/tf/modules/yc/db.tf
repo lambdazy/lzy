@@ -1,20 +1,20 @@
 locals {
   services = {
-    iam = "iam"
-    whiteboard = "whiteboard"
-    allocator = "allocator"
+    iam             = "iam"
+    whiteboard      = "whiteboard"
+    allocator       = "allocator"
     channel-manager = "channel-manager"
-    lzy-service = "lzy-service"
-    scheduler = "scheduler"
-    graph-executor = "graph-executor"
-    storage = "storage"
+    lzy-service     = "lzy-service"
+    scheduler       = "scheduler"
+    graph-executor  = "graph-executor"
+    storage         = "storage"
   }
 }
 
 resource "random_password" "db_passwords" {
   for_each = local.services
-  length = 16
-  special = false
+  length   = 16
+  special  = false
 }
 
 resource "yandex_mdb_postgresql_cluster" "lzy_postgresql_cluster" {
@@ -51,8 +51,8 @@ resource "yandex_mdb_postgresql_cluster" "lzy_postgresql_cluster" {
     for_each = local.services
     content {
       conn_limit = 30
-      name     = user.value
-      password = random_password.db_passwords[user.key].result
+      name       = user.value
+      password   = random_password.db_passwords[user.key].result
       permission {
         database_name = user.value
       }
@@ -75,16 +75,16 @@ resource "yandex_mdb_postgresql_cluster" "lzy_postgresql_cluster" {
 resource "kubernetes_secret" "db_secret" {
   for_each = local.services
   metadata {
-    name = "db-secret-${each.value}"
+    name      = "db-secret-${each.value}"
     namespace = "default"
   }
 
   data = {
     username = each.value,
     password = random_password.db_passwords[each.key].result,
-    db_host = yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn
-    db_port = 6432
-    db_name = each.value
+    db_host  = yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn
+    db_port  = 6432
+    db_name  = each.value
   }
 
   type = "Opaque"

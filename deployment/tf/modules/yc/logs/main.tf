@@ -101,79 +101,13 @@ resource "kubernetes_config_map" "fluent_bit_config_map" {
   }
 
   data = {
-    "fluent-bit.conf": <<-EOT
-      [SERVICE]
-          Flush         1
-          Log_Level     info
-          Daemon        off
-          Parsers_File  parsers.conf
-          HTTP_Server   On
-          HTTP_Listen   0.0.0.0
-          HTTP_Port     2020
-
-      @INCLUDE input-kubernetes.conf
-      @INCLUDE filter-kubernetes.conf
-      @INCLUDE output-elasticsearch.conf
-      EOT
-
-    "input-kubernetes.conf": <<-EOT
-      [INPUT]
-          Name              tail
-          Tag               kube.*
-          Path              /var/log/containers/*default*.log
-          Parser            docker
-          DB                /var/log/flb_kube.db
-          Mem_Buf_Limit     5MB
-          Refresh_Interval  10
-      EOT
-
-    "parsers.conf": <<-EOT
-      [PARSER]
-          NAME lzy-log
-          Format regex
-          Regex ^[^ ]*\s*[^ ]*\s*\w*\s*(?<time>[^ ]*\s*[^ ]*)\s*\[(?<thread>[^\]]+)\]\s*(?<level>[^ ]+)\s*(?<logger>[^ ]+)[^-]*-\s*(?<msg>.*)
-
-      [PARSER]
-          Name        docker
-          Format      json
-          Time_Key    time
-          Time_Format %Y-%m-%dT%H:%M:%S.%L
-          Time_Keep   On
-      EOT
-
-    "filter-kubernetes.conf": <<-EOT
-
-      [FILTER]
-          Name                parser
-          Match               kube*
-          Parser              lzy-log
-          Key_Name            log
-          Reserve_Data        On
-
-      [FILTER]
-          Name                kubernetes
-          Match               kube.*
-          Merge_Log           On
-          Merge_Log_Key       log_processed
-          K8S-Logging.Parser  On
-          K8S-Logging.Exclude Off
-      EOT
-
-    "output-elasticsearch.conf": <<-EOT
-
-      [OUTPUT]
-        Name            yc-logging
-        Match           *
-        resource_id     {kubernetes/container_name}
-        message_key     msg
-        level_key       level
-        folder_id       ${var.folder_id}
-        authorization   iam-key-file:/etc/secret/sa-key.json
-
-      [OUTPUT]
-        Name            stdout
-        Match           *
-      EOT
+    "fluent-bit.conf": file("configs/fluent-bit.conf")
+    "input-kubernetes.conf": file("configs/input-kubernetes.conf")
+    "parsers.conf": file("configs/parsers.conf")
+    "filter-kubernetes.conf": file("configs/filter-kubernetes.conf")
+    "output-elasticsearch.conf": templatefile("configs/output-elasticsearch.conf", {
+      "folder_id": var.folder_id
+    })
   }
 }
 

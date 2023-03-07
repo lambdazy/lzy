@@ -10,10 +10,10 @@ resource "yandex_kubernetes_node_group" "portals" {
   description = "Nodegroup for lzy portals"
   node_labels = {
     "lzy.ai/logging_allowed" = "true"
-    "lzy.ai/node-pool-id" = "portals1"
+    "lzy.ai/node-pool-id"    = "portals1"
     "lzy.ai/node-pool-label" = "portals"
-    "lzy.ai/node-pool-kind" = "CPU"
-    "lzy.ai/node-pool-az" = "ru-central1-a"
+    "lzy.ai/node-pool-kind"  = "CPU"
+    "lzy.ai/node-pool-az"    = "ru-central1-a"
     "lzy.ai/node-pool-state" = "ACTIVE"
   }
 
@@ -21,8 +21,8 @@ resource "yandex_kubernetes_node_group" "portals" {
     platform_id = "standard-v2"
 
     network_interface {
-      subnet_ids         = [yandex_vpc_subnet.custom-subnet.id]
-      ipv4               = true
+      subnet_ids = [yandex_vpc_subnet.custom-subnet.id]
+      ipv4       = true
     }
 
     resources {

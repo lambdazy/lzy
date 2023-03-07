@@ -13,7 +13,7 @@ module "logs_main" {
   source = "./logs"
 
   node-sa-key = local.fluentd-sa-key-json
-  folder_id = var.folder_id
+  folder_id   = var.folder_id
 
   providers = {
     kubernetes = kubernetes
@@ -24,7 +24,7 @@ module "logs_allocator" {
   source = "./logs"
 
   node-sa-key = local.fluentd-sa-key-json
-  folder_id = var.folder_id
+  folder_id   = var.folder_id
 
   providers = {
     kubernetes = kubernetes.allocator
