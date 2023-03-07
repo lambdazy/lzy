@@ -18,14 +18,14 @@ locals {
   })
 
   user-clusters = [yandex_kubernetes_cluster.main.id]
-  allocator-labels   = {
+  allocator-labels = {
     app                         = "allocator"
     "app.kubernetes.io/name"    = "allocator"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "allocator"
   }
   allocator-k8s-name = "allocator"
-  allocator-image = var.allocator-image
+  allocator-image    = var.allocator-image
 }
 
 resource "kubernetes_stateful_set" "allocator" {
@@ -60,7 +60,7 @@ resource "kubernetes_stateful_set" "allocator" {
             value = local.allocator-metrics-port
           }
           env {
-            name = "ALLOCATOR_ADDRESS"
+            name  = "ALLOCATOR_ADDRESS"
             value = "${kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.allocator-port}"
           }
 
@@ -75,20 +75,20 @@ resource "kubernetes_stateful_set" "allocator" {
           }
 
           env {
-            name  = "ALLOCATOR_DATABASE_USERNAME"
+            name = "ALLOCATOR_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.db_secret["allocator"].metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
           env {
-            name  = "ALLOCATOR_DATABASE_PASSWORD"
+            name = "ALLOCATOR_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.db_secret["allocator"].metadata[0].name
-                key = "password"
+                key  = "password"
               }
             }
           }
@@ -103,7 +103,7 @@ resource "kubernetes_stateful_set" "allocator" {
             value = "true"
           }
           env {
-            name = "ALLOCATOR_IAM_ADDRESS"
+            name  = "ALLOCATOR_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
@@ -111,7 +111,7 @@ resource "kubernetes_stateful_set" "allocator" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
@@ -120,7 +120,7 @@ resource "kubernetes_stateful_set" "allocator" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
-                key = "key"
+                key  = "key"
               }
             }
           }
@@ -145,19 +145,19 @@ resource "kubernetes_stateful_set" "allocator" {
             value = "iam.${var.yc-endpoint}"
           }
           env {
-            name = "ALLOCATOR_HEARTBEAT_TIMEOUT"
+            name  = "ALLOCATOR_HEARTBEAT_TIMEOUT"
             value = "5m"
           }
           env {
-            name = "ALLOCATOR_ALLOCATION_TIMEOUT"
+            name  = "ALLOCATOR_ALLOCATION_TIMEOUT"
             value = "15m"
           }
           env {
-            name = "ALLOCATOR_GC_CLEANUP_PERIOD"
+            name  = "ALLOCATOR_GC_CLEANUP_PERIOD"
             value = "1m"
           }
           env {
-            name = "ALLOCATOR_GC_LEASE_DURATION"
+            name  = "ALLOCATOR_GC_LEASE_DURATION"
             value = "30m"
           }
 
@@ -188,11 +188,11 @@ resource "kubernetes_stateful_set" "allocator" {
 
 
         container {
-          name = "unified-agent"
-          image = var.unified-agent-image
+          name              = "unified-agent"
+          image             = var.unified-agent-image
           image_pull_policy = "Always"
           env {
-            name = "FOLDER_ID"
+            name  = "FOLDER_ID"
             value = var.folder_id
           }
           volume_mount {
@@ -249,14 +249,14 @@ resource "kubernetes_service" "allocator_service" {
     name   = "${local.allocator-k8s-name}-load-balancer"
     labels = local.allocator-labels
     annotations = {
-      "yandex.cloud/load-balancer-type": "internal"
-      "yandex.cloud/subnet-id": yandex_vpc_subnet.custom-subnet.id
+      "yandex.cloud/load-balancer-type" : "internal"
+      "yandex.cloud/subnet-id" : yandex_vpc_subnet.custom-subnet.id
     }
   }
   spec {
     selector = local.allocator-labels
     port {
-      port = local.allocator-port
+      port        = local.allocator-port
       target_port = local.allocator-port
     }
     type = "LoadBalancer"

@@ -6,14 +6,14 @@ variable "portal_image" {
 }
 
 locals {
-  lzy-service-labels   = {
+  lzy-service-labels = {
     app                         = "lzy-service"
     "app.kubernetes.io/name"    = "lzy-service"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "lzy-service"
   }
   lzy-service-k8s-name = "lzy-service"
-  lzy-service-image = var.lzy-service-image
+  lzy-service-image    = var.lzy-service-image
 }
 resource "kubernetes_deployment" "lzy-service" {
   metadata {
@@ -50,89 +50,89 @@ resource "kubernetes_deployment" "lzy-service" {
           }
 
           env {
-            name = "LZY_SERVICE_ADDRESS"
+            name  = "LZY_SERVICE_ADDRESS"
             value = "0.0.0.0:${local.lzy-service-port}"
           }
 
           env {
-            name = "LZY_SERVICE_ALLOCATOR_ADDRESS"
+            name  = "LZY_SERVICE_ALLOCATOR_ADDRESS"
             value = "${kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.allocator-port}"
           }
           env {
-            name = "LZY_SERVICE_ALLOCATOR_VM_CACHE_TIMEOUT"
+            name  = "LZY_SERVICE_ALLOCATOR_VM_CACHE_TIMEOUT"
             value = "0s"
           }
 
           env {
-            name = "LZY_SERVICE_WHITEBOARD_ADDRESS"
+            name  = "LZY_SERVICE_WHITEBOARD_ADDRESS"
             value = "${kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.allocator-port}"
           }
 
           env {
-            name = "LZY_SERVICE_GRAPH_EXECUTOR_ADDRESS"
+            name  = "LZY_SERVICE_GRAPH_EXECUTOR_ADDRESS"
             value = "${kubernetes_service.graph_executor_service.spec[0].cluster_ip}:${local.graph-port}"
           }
 
           env {
-            name = "LZY_SERVICE_CHANNEL_MANAGER_ADDRESS"
+            name  = "LZY_SERVICE_CHANNEL_MANAGER_ADDRESS"
             value = "${kubernetes_service.channel_manager_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.channel-manager-port}"
           }
 
           env {
-            name = "LZY_SERVICE_WAIT_ALLOCATION_TIMEOUT"
+            name  = "LZY_SERVICE_WAIT_ALLOCATION_TIMEOUT"
             value = "10m"
           }
 
           env {
-            name = "LZY_SERVICE_PORTAL_PORTAL_API_PORT"
+            name  = "LZY_SERVICE_PORTAL_PORTAL_API_PORT"
             value = 9876
           }
 
           env {
-            name = "LZY_SERVICE_PORTAL_SLOTS_API_PORT"
+            name  = "LZY_SERVICE_PORTAL_SLOTS_API_PORT"
             value = 9877
           }
 
           env {
-            name = "LZY_SERVICE_PORTAL_POOL_LABEL"
+            name  = "LZY_SERVICE_PORTAL_POOL_LABEL"
             value = "portals"
           }
 
           env {
-            name = "LZY_SERVICE_PORTAL_POOL_ZONE"
+            name  = "LZY_SERVICE_PORTAL_POOL_ZONE"
             value = "ru-central1-a"
           }
 
           env {
-            name = "LZY_SERVICE_PORTAL_DOCKER_IMAGE"
+            name  = "LZY_SERVICE_PORTAL_DOCKER_IMAGE"
             value = var.portal_image
           }
 
           env {
-            name = "LZY_SERVICE_PORTAL_STDOUT_CHANNEL_NAME"
+            name  = "LZY_SERVICE_PORTAL_STDOUT_CHANNEL_NAME"
             value = "stdout"
           }
 
           env {
-            name = "LZY_SERVICE_PORTAL_STDERR_CHANNEL_NAME"
+            name  = "LZY_SERVICE_PORTAL_STDERR_CHANNEL_NAME"
             value = "stderr"
           }
 
           env {
-            name  = "LZY_SERVICE_DATABASE_USERNAME"
+            name = "LZY_SERVICE_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.db_secret["lzy-service"].metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
           env {
-            name  = "LZY_SERVICE_DATABASE_PASSWORD"
+            name = "LZY_SERVICE_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.db_secret["lzy-service"].metadata[0].name
-                key = "password"
+                key  = "password"
               }
             }
           }
@@ -147,7 +147,7 @@ resource "kubernetes_deployment" "lzy-service" {
             value = "true"
           }
           env {
-            name = "LZY_SERVICE_IAM_ADDRESS"
+            name  = "LZY_SERVICE_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
@@ -155,7 +155,7 @@ resource "kubernetes_deployment" "lzy-service" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
@@ -164,7 +164,7 @@ resource "kubernetes_deployment" "lzy-service" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
-                key = "key"
+                key  = "key"
               }
             }
           }
@@ -226,15 +226,15 @@ resource "kubernetes_deployment" "lzy-service" {
 
 resource "kubernetes_service" "lzy_service" {
   metadata {
-    name   = "${local.lzy-service-k8s-name}-load-balancer"
-    labels = local.lzy-service-labels
+    name        = "${local.lzy-service-k8s-name}-load-balancer"
+    labels      = local.lzy-service-labels
     annotations = {}
   }
   spec {
     load_balancer_ip = yandex_vpc_address.workflow_public_ip.external_ipv4_address[0].address
-    selector = local.lzy-service-labels
+    selector         = local.lzy-service-labels
     port {
-      port = local.lzy-service-port
+      port        = local.lzy-service-port
       target_port = local.lzy-service-port
     }
     type = "LoadBalancer"
