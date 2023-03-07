@@ -59,6 +59,13 @@ resource "kubernetes_deployment" "lzy_backoffice" {
               mount_path = "/etc/sec"
             }
           }
+          dynamic "volume_mount" {
+            for_each = var.ssl-enabled ? [1] : []
+            content {
+              name       = "nginx-config"
+              mount_path = "/etc/nginx"
+            }
+          }
         }
         container {
           name              = "${local.backoffice-k8s-name}-backend"
@@ -194,6 +201,19 @@ resource "kubernetes_deployment" "lzy_backoffice" {
               items {
                 key  = "keystore"
                 path = "keystore.jks"
+              }
+            }
+          }
+        }
+        dynamic "volume" {
+          for_each = var.ssl-enabled ? [1] : []
+          content {
+            name = "nginx-config"
+            config_map {
+              name = kubernetes_config_map.frontend-nginx-ssl-config[0].metadata[0].name
+              items {
+                key  = "config"
+                path = "nginx.conf"
               }
             }
           }

@@ -51,3 +51,15 @@ resource "kubernetes_config_map" "unified-agent-config" {
     }))
   }
 }
+
+resource "kubernetes_config_map" "frontend-nginx-ssl-config" {
+  count = var.ssl-enabled ? 1 : 0
+  metadata {
+    name = "frontend-nginx-ssl-config"
+  }
+  binary_data = {
+    "config" = base64encode(templatefile("${path.module}/configs/nginx-ssl.conf", {
+      domain-name = var.domain_name
+    }))
+  }
+}
