@@ -79,15 +79,12 @@ class LzyEntriesTests(TestCase):
 
         with self.lzy.workflow("test") as exec_1:
             foo(param, weight)
-            foo(param, weight)
             foo_varargs(weight)
 
         # noinspection PyUnresolvedReferences
-        uri_1 = exec_1.snapshot.get(exec_1.owner.runtime.calls[0].arg_entry_ids[0]).storage_uri
+        uri_1 = exec_1.snapshot.get(exec_1.owner.runtime.calls[0].arg_entry_ids[1]).storage_uri
         # noinspection PyUnresolvedReferences
         uri_2 = exec_1.snapshot.get(exec_1.owner.runtime.calls[1].arg_entry_ids[0]).storage_uri
-        # noinspection PyUnresolvedReferences
-        uri_3 = exec_1.snapshot.get(exec_1.owner.runtime.calls[2].arg_entry_ids[0]).storage_uri
 
         with self.lzy.workflow("test") as exec_2:
             foo_varargs(weight)
@@ -96,8 +93,7 @@ class LzyEntriesTests(TestCase):
         uri_4 = exec_2.snapshot.get(exec_2.owner.runtime.calls[0].arg_entry_ids[0]).storage_uri
 
         self.assertEqual(uri_1, uri_2)
-        self.assertEqual(uri_2, uri_3)
-        self.assertEqual(uri_3, uri_4)
+        self.assertEqual(uri_2, uri_4)
 
         storage_client = cast(StorageClientMock, self.lzy.storage_client)
         self.assertEqual(1, storage_client.store_counts[uri_1])
