@@ -49,6 +49,7 @@ public class GraphExecutionService {
     private final ExecutionDao executionDao;
     private final OperationDao operationDao;
 
+    private final CacheChecker cacheChecker;
     private final GraphValidator validator;
     private final GraphBuilder builder;
 
@@ -81,6 +82,7 @@ public class GraphExecutionService {
         var vmPoolClient = newBlockingClient(
             VmPoolServiceGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
 
+        this.cacheChecker = new CacheChecker();
         this.validator = new GraphValidator(vmPoolClient);
 
         var channelManagerClient = newBlockingClient(
@@ -110,14 +112,16 @@ public class GraphExecutionService {
                 return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), null, LOG);
             }
 
+            LOG.debug("Remove cached operations from graph: " + state);
+
+            var storageConfig = withRetries(LOG, () -> executionDao.getStorageConfig(executionId));
+            var storageClient = storageClients.provider(storageConfig).get();
+            CacheChecker.removeCachedOps(state, storageClient, LOG);
 
             if (state.getDataFlowGraph() == null || state.getZone() == null) {
                 LOG.debug("Validate dataflow graph, current state: " + state);
 
-                var storageConfig = withRetries(LOG, () -> executionDao.getStorageConfig(executionId));
-                var storageClient = storageClients.provider(storageConfig).get();
-
-                validator.validate(state, storageClient);
+                validator.validate(state);
 
                 InjectedFailures.fail2();
 

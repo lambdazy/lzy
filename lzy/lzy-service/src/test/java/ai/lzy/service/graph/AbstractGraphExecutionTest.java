@@ -25,41 +25,12 @@ abstract class AbstractGraphExecutionTest extends BaseTest {
         return startWorkflow(name, storageConfig);
     }
 
-    LWFS.StartWorkflowResponse startWorkflow(String name, LMST.StorageConfig storageConfig) {
-        return authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-            .setWorkflowName(name).setSnapshotStorage(storageConfig).build());
-    }
-
-    Graph simpleGraph() {
-        return simpleGraph(storageConfig);
-    }
-
     Graph emptyGraph() {
         return Graph.newBuilder().setName("empty-graph").build();
     }
 
-    Graph cyclicGraph() {
-        return cyclicGraph(storageConfig);
-    }
-
-    Graph withMissingOutputSlot() {
-        return withMissingOutputSlot(storageConfig);
-    }
-
-    Graph graphWithRepeatedOps() {
-        return graphWithRepeatedOps(storageConfig);
-    }
-
-    Graph nonSuitableZoneGraph() {
-        return nonSuitableZoneGraph(storageConfig);
-    }
-
-    Graph invalidZoneGraph() {
-        return invalidZoneGraph(storageConfig);
-    }
-
-    Graph unknownSlotUriGraph() {
-        return unknownSlotUriGraph(storageConfig);
+    Graph simpleGraph() {
+        return simpleGraph(storageConfig);
     }
 
     Graph simpleGraph(LMST.StorageConfig storageConfig) {
@@ -89,6 +60,10 @@ abstract class AbstractGraphExecutionTest extends BaseTest {
         );
 
         return Graph.newBuilder().setName("simple-graph").setZone("ru-central1-a").addAllOperations(operations).build();
+    }
+
+    Graph cyclicGraph() {
+        return cyclicGraph(storageConfig);
     }
 
     Graph cyclicGraph(LMST.StorageConfig storageConfig) {
@@ -133,6 +108,10 @@ abstract class AbstractGraphExecutionTest extends BaseTest {
         return Graph.newBuilder().setName("cyclic-graph").addAllOperations(operationsWithCycleDependency).build();
     }
 
+    Graph nonSuitableZoneGraph() {
+        return nonSuitableZoneGraph(storageConfig);
+    }
+
     Graph nonSuitableZoneGraph(LMST.StorageConfig storageConfig) {
         var operation =
             LWF.Operation.newBuilder()
@@ -151,6 +130,10 @@ abstract class AbstractGraphExecutionTest extends BaseTest {
         return Graph.newBuilder().setName("pool-non-exists").setZone("ru-central1-a").addOperations(operation).build();
     }
 
+    Graph invalidZoneGraph() {
+        return invalidZoneGraph(storageConfig);
+    }
+
     Graph invalidZoneGraph(LMST.StorageConfig storageConfig) {
         var operation =
             LWF.Operation.newBuilder()
@@ -164,6 +147,10 @@ abstract class AbstractGraphExecutionTest extends BaseTest {
                 .build();
 
         return Graph.newBuilder().setName("invalid-pool").addOperations(operation).build();
+    }
+
+    Graph unknownSlotUriGraph() {
+        return unknownSlotUriGraph(storageConfig);
     }
 
     Graph unknownSlotUriGraph(LMST.StorageConfig storageConfig) {
@@ -187,12 +174,16 @@ abstract class AbstractGraphExecutionTest extends BaseTest {
         return Graph.newBuilder().setName("unknown-slot-uri").addOperations(operation).build();
     }
 
+    Graph withMissingOutputSlot() {
+        return withMissingOutputSlot(storageConfig);
+    }
+
     Graph withMissingOutputSlot(LMST.StorageConfig storageConfig) {
         var operations = List.of(
             LWF.Operation.newBuilder()
                 .setName("operation-1")
-                .setCommand("$LZY_MOUNT/sbin/cat $LZY_MOUNT/a")
-                .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
+                .setCommand("echo 'i-am-a-hacker' > $LZY_MOUNT/a")
+                .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
                     .setPath("/a")
                     .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                     .build())
@@ -200,16 +191,20 @@ abstract class AbstractGraphExecutionTest extends BaseTest {
                 .build(),
             LWF.Operation.newBuilder()
                 .setName("operation-2")
-                .setCommand("$LZY_MOUNT/sbin/cat $LZY_MOUNT/b")
+                .setCommand("$LZY_MOUNT/sbin/cat $LZY_MOUNT/a")
                 .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
-                    .setPath("/b")
-                    .setStorageUri(buildSlotUri("snapshot_b_1", storageConfig))
+                    .setPath("/a")
+                    .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
                     .build())
                 .setPoolSpecName("s")
                 .build()
         );
 
         return Graph.newBuilder().setName("without-out").addAllOperations(operations).build();
+    }
+
+    Graph graphWithRepeatedOps() {
+        return graphWithRepeatedOps(storageConfig);
     }
 
     /*  Graph: 1 --> 2

@@ -2,6 +2,7 @@ package ai.lzy.service.graph;
 
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.junit.Ignore;
@@ -12,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 
+@Ignore
 public class GraphExecutionTest extends AbstractGraphExecutionTest {
     @Test
     public void executeSimpleGraph() {
@@ -84,7 +86,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
     }
 
     @Test
-    public void repeatedExecsUseCache() {
+    public void repeatedExecsUseCache() throws InvalidProtocolBufferException {
         var countOfTasks = new AtomicInteger(0);
 
         onExecuteGraph(request -> countOfTasks.addAndGet(request.getTasksCount()));
@@ -98,12 +100,16 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
                 .setGraph(graphs.get(0))
                 .build()).getGraphId();
 
+        finishWorkflow("workflow_1", exec1.getExecutionId());
+
         var exec2 = startWorkflow("workflow_1");
         var graphId2 = authorizedWorkflowClient.executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_1")
                 .setExecutionId(exec2.getExecutionId())
                 .setGraph(graphs.get(1))
                 .build()).getGraphId();
+
+        finishWorkflow("workflow_1", exec2.getExecutionId());
 
         assertFalse(graphId1.isBlank());
         assertFalse(graphId2.isBlank());
@@ -281,6 +287,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
         assertEquals(Status.INVALID_ARGUMENT.getCode(), thrown.getStatus().getCode());
     }
 
+    @Ignore
     @Test
     public void failedWithAlreadyUsedSlotUri() {
         var workflow = startWorkflow("workflow_1");

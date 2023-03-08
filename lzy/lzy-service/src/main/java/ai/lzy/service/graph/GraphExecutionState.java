@@ -42,18 +42,15 @@ public final class GraphExecutionState {
 
     private Status errorStatus;
 
-    public GraphExecutionState(String workflowName, String executionId, String opId, String parentGraphId,
-                               String userId, String zone, List<LWF.DataDescription> descriptions,
-                               List<LWF.Operation> operations)
-    {
+    public GraphExecutionState(String userId, String workflowName, String executionId, String opId, LWF.Graph graph) {
+        this.userId = userId;
         this.workflowName = workflowName;
         this.executionId = executionId;
         this.opId = opId;
-        this.parentGraphId = parentGraphId;
-        this.userId = userId;
-        this.zone = zone;
-        this.descriptions = descriptions;
-        this.operations = operations;
+        this.parentGraphId = graph.getParentGraphId();
+        this.zone = graph.getZone();
+        this.descriptions = graph.getDataDescriptionsList();
+        this.operations = graph.getOperationsList();
     }
 
     @JsonIgnore

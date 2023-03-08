@@ -1,6 +1,5 @@
 package ai.lzy.service.graph;
 
-import ai.lzy.storage.StorageClient;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
 import com.fasterxml.jackson.annotation.JsonIgnore;
@@ -11,8 +10,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.io.IOException;
-import java.net.URI;
 import java.util.*;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -51,7 +48,7 @@ class DataFlowGraph {
     @Setter
     private String dotNotation;
 
-    public DataFlowGraph(Collection<LWF.Operation> operations, StorageClient storageClient) {
+    public DataFlowGraph(Collection<LWF.Operation> operations) {
         this.operations = new ArrayList<>();
 
         dataSuppliers = new HashMap<>();
@@ -59,21 +56,10 @@ class DataFlowGraph {
 
         var i = 0;
         for (var op : operations) {
-            var alreadyPresentedInGraph = op.getOutputSlotsList().stream().map(SlotDescription::getStorageUri)
-                .allMatch(dataSuppliers::containsKey);
-            if (alreadyPresentedInGraph) {
-                continue;
-            }
+            var outputAlreadyInGraph = !op.getOutputSlotsList().isEmpty() && op.getOutputSlotsList().stream()
+                .map(SlotDescription::getStorageUri).allMatch(dataSuppliers::containsKey);
 
-            var alreadyPresentedInCache = op.getOutputSlotsList().stream().map(SlotDescription::getStorageUri)
-                .allMatch(uri -> {
-                    try {
-                        return storageClient.blobExists(URI.create(uri));
-                    } catch (IOException e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-            if (alreadyPresentedInCache) {
+            if (outputAlreadyInGraph) {
                 continue;
             }
 
@@ -267,8 +253,7 @@ class DataFlowGraph {
                 }
 
                 return new Data(supplierSlotUri, supplierSlotName, consumerSlotNames);
-            })
-            .toList();
+            }).toList();
 
         var notFoundInOutput = danglingInputSlots.entrySet().stream()
             .map(pair -> new Data(pair.getKey(), null, pair.getValue()))

@@ -170,7 +170,6 @@ class GraphBuilder {
         var tasks = new ArrayList<TaskDesc>(operations.size());
 
         for (var operation : operations) {
-            // TODO: ssokolvyak -- must not be generated here but passed in executeGraph request
             var taskId = UUID.randomUUID().toString();
 
             var channelNameForStdoutSlot = "channel_" + taskId + ":" + Slot.STDOUT_SUFFIX;

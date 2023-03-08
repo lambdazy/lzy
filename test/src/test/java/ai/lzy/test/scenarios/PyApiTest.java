@@ -28,8 +28,18 @@ public class PyApiTest {
     }
 
     @Test
-    public void testCachedExec() {
-        pythonContext.context().evalAndAssertScenarioResult("cached_exec");
+    public void testRepeatedExecsUseCache() {
+        pythonContext.context().evalAndAssertScenarioResult("repeated_execs_use_cache");
+    }
+
+    @Test
+    public void testRepeatedOpsUseCache() {
+        pythonContext.context().evalAndAssertScenarioResult("repeated_ops_use_cache");
+    }
+
+    @Test
+    public void testFullyCachedGraph() {
+        pythonContext.context().evalAndAssertScenarioResult("fully_cached_graph");
     }
 
     @Test

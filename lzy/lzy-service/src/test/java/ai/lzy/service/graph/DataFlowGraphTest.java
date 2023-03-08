@@ -29,7 +29,7 @@ public class DataFlowGraphTest {
                 .addAllOutputSlots(List.of(e))
         );
 
-        var dataflowGraph = new DataFlowGraph(operations.stream().map(LWF.Operation.Builder::build).toList(), null);
+        var dataflowGraph = new DataFlowGraph(operations.stream().map(LWF.Operation.Builder::build).toList());
 
         Assert.assertTrue(dataflowGraph.hasCycle());
     }
