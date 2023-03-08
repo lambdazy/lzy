@@ -5,22 +5,22 @@ locals {
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "iam"
   }
-  iam-k8s-name = "iam"
+  iam-k8s-name           = "iam"
   iam-internal-user-name = "lzy-internal-agent"
   iam-internal-cred-name = "Internal agent key"
   iam-internal-cred-type = "PUBLIC_KEY"
-  iam-docker-image = var.iam-image
+  iam-docker-image       = var.iam-image
 }
 
 resource "kubernetes_secret" "iam_internal_user_data" {
   metadata {
-    name      = "${local.iam-k8s-name}-user-data"
-    labels    = local.iam-labels
+    name   = "${local.iam-k8s-name}-user-data"
+    labels = local.iam-labels
   }
 
   data = {
     username = local.iam-internal-user-name
-    key = tls_private_key.internal_key.private_key_pem
+    key      = tls_private_key.internal_key.private_key_pem
   }
 
   type = "Opaque"
@@ -55,20 +55,20 @@ resource "kubernetes_deployment" "iam" {
           image_pull_policy = "Always"
 
           env {
-            name  = "IAM_DATABASE_USERNAME"
+            name = "IAM_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.db_secret["iam"].metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
           env {
-            name  = "IAM_DATABASE_PASSWORD"
+            name = "IAM_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.db_secret["iam"].metadata[0].name
-                key = "password"
+                key  = "password"
               }
             }
           }
@@ -106,9 +106,38 @@ resource "kubernetes_deployment" "iam" {
             name  = "IAM_INTERNAL_CREDENTIAL_TYPE"
             value = local.iam-internal-cred-type
           }
+          env {
+            name  = "IAM_METRICS_PORT"
+            value = local.iam-metrics-port
+          }
           port {
             container_port = local.iam-port
-            host_port      = local.iam-port
+          }
+          port {
+            container_port = local.iam-metrics-port
+          }
+        }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
+          }
+          volume_mount {
+            name       = "unified-agent-config"
+            mount_path = "/etc/yandex/unified_agent/conf.d/"
+          }
+        }
+        volume {
+          name = "unified-agent-config"
+          config_map {
+            name = kubernetes_config_map.unified-agent-config["iam"].metadata[0].name
+            items {
+              key = "config"
+              path = "config.yml"
+            }
           }
         }
         node_selector = {
@@ -128,8 +157,6 @@ resource "kubernetes_deployment" "iam" {
             }
           }
         }
-        host_network = true
-        dns_policy   = "ClusterFirstWithHostNet"
       }
     }
   }
@@ -141,8 +168,8 @@ resource "kubernetes_service" "iam" {
     labels = local.iam-labels
 
     annotations = {
-      "yandex.cloud/load-balancer-type": "internal"
-      "yandex.cloud/subnet-id": yandex_vpc_subnet.custom-subnet.id
+      "yandex.cloud/load-balancer-type" : "internal"
+      "yandex.cloud/subnet-id" : yandex_vpc_subnet.custom-subnet.id
     }
   }
   spec {

@@ -15,9 +15,15 @@ _LOG = get_logger(__name__)
 
 class FileSerializer(DefaultSchemaSerializerByReference):
     DATA_FORMAT = "raw_file"
+    PERMISSIONS_HEADER = "permissions".encode("utf-8")
 
     def _serialize(self, obj: File, dest: BinaryIO) -> None:
-        with obj.path.open("rb") as f:
+        stat = obj.stat()
+        permissions = oct(stat.st_mode & 0o777)
+        with obj.open("rb") as f:
+            dest.write(self.PERMISSIONS_HEADER)
+            dest.write(permissions.encode("utf-8"))
+
             data = f.read(4096)
             while len(data) > 0:
                 dest.write(data)
@@ -26,12 +32,22 @@ class FileSerializer(DefaultSchemaSerializerByReference):
     def _deserialize(self, source: BinaryIO, schema_type: Type, user_type: Optional[Type] = None) -> Any:
         self._check_types_valid(schema_type, user_type)
         new_path = os.path.join("/tmp", str(uuid.uuid1()))
+        permissions: Optional[str] = None
         with open(new_path, "wb") as f:
+            header = source.read(11)
+            if header == self.PERMISSIONS_HEADER:
+                permissions = source.read(5).decode("utf-8")
+            elif len(header) > 0:
+                f.write(header)  # for compatibility with files without header
+
             data = source.read(4096)
             while len(data) > 0:
                 f.write(data)
                 data = source.read(4096)
-        return File(new_path)
+        file = File(new_path)
+        if permissions:
+            file.chmod(int(permissions, 8))
+        return file
 
     def supported_types(self) -> Union[Type, Callable[[Type], bool]]:
         return File

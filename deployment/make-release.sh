@@ -36,6 +36,9 @@ else
 fi
 
 NEXT_SNAPSHOT_VERSION=$(project_version)
+NEXT_PYTHON_VERSION=$(project_version | awk -F'-' '{print $1}')
+echo "$NEXT_PYTHON_VERSION" > ../pylzy/lzy/version/version
+
 git add -u ..
 git commit -m "set version $NEXT_SNAPSHOT_VERSION"
 

@@ -33,7 +33,9 @@ def get_logging_config() -> Dict[str, Any]:
     level = os.environ.get(LZY_LOG_LEVEL, default="INFO")
     color = get_color()
 
-    lzy_config_path: Optional[str] = os.getenv("LZY_LOGGING_CONFIG_ENV", default=None)
+    # keep LZY_LOGGING_CONFIG_ENV for compatibility
+    lzy_config_path: Optional[str] = os.getenv(LZY_LOG_CONFIG_PATH, default=None) or os.getenv("LZY_LOGGING_CONFIG_ENV",
+                                                                                               default=None)
     path = Path(lzy_config_path) if lzy_config_path else Path(__file__).parent / "logging.yml"
     template = string.Template(path.read_text())
     substitute = template.substitute({

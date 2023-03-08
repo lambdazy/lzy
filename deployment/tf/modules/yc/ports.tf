@@ -1,5 +1,14 @@
 locals {
   allocator-metrics-port       = 17080
+  channel-manager-metrics-port = 17080
+  iam-metrics-port             = 17080
+  graph-executor-metrics-port  = 17080
+  lzy-service-metrics-port     = 17080
+  scheduler-metrics-port       = 17080
+  site-metrics-port            = 17080
+  storage-metrics-port         = 17080
+  whiteboard-metrics-port      = 17080
+
   allocator-port               = 10239
   whiteboard-port              = 8122
   storage-port                 = 8122
