@@ -80,7 +80,7 @@
         <dependency>
             <groupId>com.squareup.okhttp3</groupId>
             <artifactId>okhttp</artifactId>
-            <scope>compile</scope>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.yandex.cloud</groupId>
@@ -163,22 +163,6 @@
         <dependency>
             <groupId>org.flywaydb</groupId>
             <artifactId>flyway-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib</artifactId>
-            <scope>compile</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.jetbrains.kotlin</groupId>
-                    <artifactId>kotlin-stdlib-common</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.jetbrains.kotlin</groupId>
-            <artifactId>kotlin-stdlib-common</artifactId>
-            <scope>compile</scope>
         </dependency>
 
         <dependency>
