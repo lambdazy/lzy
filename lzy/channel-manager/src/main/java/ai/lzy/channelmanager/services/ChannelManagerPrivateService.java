@@ -76,7 +76,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         final String channelName = request.getChannelSpec().getChannelName();
-        String operationDescription = "Create channel " + channelName;
+        String operationDescription = "Create channel " + channelName + " of execution " + request.getExecutionId();
         LOG.info(operationDescription + " started");
 
         final String userId = request.getUserId();
