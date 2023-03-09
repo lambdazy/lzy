@@ -128,7 +128,7 @@ public class KuberVolumeManager implements VolumeManager {
                     .withLabels(Map.of(REQUESTED_VOLUME_NAME_LABEL, nfsVolumeDescription.name()))
                 .endMetadata()
                 .withNewSpec()
-                    .addToCapacity(Map.of("storage", new Quantity(diskSize + KUBER_GB_NAME)))
+                    //.addToCapacity(Map.of("storage", new Quantity(diskSize + KUBER_GB_NAME))) // Do we need it?
                     .withAccessModes(accessMode.asString())
                     .withStorageClassName(storageClass)
                     .withMountOptions(nfsVolumeDescription.mountOptions())
