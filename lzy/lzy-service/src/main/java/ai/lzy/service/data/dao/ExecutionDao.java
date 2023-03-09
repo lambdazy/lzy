@@ -1,6 +1,7 @@
 package ai.lzy.service.data.dao;
 
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.v1.common.LMST;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
@@ -69,4 +70,10 @@ public interface ExecutionDao {
 
     @Nullable
     String getExpiredExecution() throws SQLException;
+
+    void setKafkaTopicDesc(String executionId, KafkaTopicDesc topicDesc,
+                           @Nullable TransactionHandle transaction) throws SQLException;
+
+    @Nullable
+    KafkaTopicDesc getKafkaTopicDesc(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
 }
