@@ -169,15 +169,13 @@ public class KuberVolumeManager implements VolumeManager {
 
         LOG.info("Creating persistent volume claim {} for volume={}", claimName, volume);
 
-        final Volume.AccessMode accessMode = Volume.AccessMode.READ_WRITE_ONCE;
-
         final PersistentVolumeClaim volumeClaim = new PersistentVolumeClaimBuilder()
             .withNewMetadata()
                 .withName(claimName)
                 .withNamespace(DEFAULT_NAMESPACE)
             .endMetadata()
             .withNewSpec()
-                .withAccessModes(accessMode.asString())
+                .withAccessModes(volume.accessMode().asString())
                 .withVolumeName(volume.name())
                 .withStorageClassName(volume.storageClass())
                 .withResources(
@@ -191,7 +189,8 @@ public class KuberVolumeManager implements VolumeManager {
         try {
             final var claim = client.persistentVolumeClaims().resource(volumeClaim).create();
             final var claimId = claim.getMetadata().getUid();
-            LOG.info("Successfully created persistent volume claim name={} claimId={}", claimName, claimId);
+            LOG.info("Successfully created persistent volume claim name={} claimId={}, accessModes=[{}]",
+                claimName, claimId, String.join(", ", claim.getSpec().getAccessModes()));
             return new VolumeClaim(claimName, volume);
         } catch (KubernetesClientException e) {
             if (KuberUtils.isResourceAlreadyExist(e)) {
