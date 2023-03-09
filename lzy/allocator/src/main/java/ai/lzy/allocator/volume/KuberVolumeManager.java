@@ -115,7 +115,7 @@ public class KuberVolumeManager implements VolumeManager {
                 .build();
         } else if (resourceVolumeDescription instanceof NFSVolumeDescription nfsVolumeDescription) {
             diskId = volumeName; // NFS doesn't have real diskId, but it is required field for CSI
-            diskSize = nfsVolumeDescription.capacity();
+            diskSize = 1; // it's needed for volume <-> volume claim matching
 
             LOG.info("Creating persistent NFS volume for disk=" + volumeName);
 
