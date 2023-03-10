@@ -1,3 +1,4 @@
+import asyncio
 import functools
 import inspect
 import uuid
@@ -9,14 +10,14 @@ from serialzy.api import SerializerRegistry
 # noinspection PyProtectedMember
 from serialzy.types import get_type
 
-from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
-from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize, is_lzy_proxy
+from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize, is_lzy_proxy, get_proxy_entry_id
 from lzy.api.v1.utils.types import infer_real_types, get_default_args, check_types_serialization_compatible, is_subtype
 from lzy.api.v1.workflow import LzyWorkflow
+from lzy.utils.event_loop import LzyEventLoop
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -43,34 +44,38 @@ class LzyCall:
         self.__version = version
         self.__cache = cache
 
+        local_data_put_tasks = []
+
         self.__args_entry_ids: List[str] = []
         for i, arg in enumerate(sign.args):
-            if workflow.entry_index.has_entry_id(arg):
-                entry_id = workflow.entry_index.get_entry_id(arg)
+            if is_lzy_proxy(arg):
+                eid = get_proxy_entry_id(arg)
             else:
                 arg_name = sign.func.arg_names[i]
-                entry_id = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + arg_name,
-                                                          typ=sign.func.input_types[arg_name]).id
-                workflow.entry_index.add_entry_id(arg, entry_id)
-
-            self.__args_entry_ids.append(entry_id)
+                eid = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + arg_name,
+                                                     typ=sign.func.input_types[arg_name]).id
+                local_data_put_tasks.append(self.__wflow.snapshot.put_data(eid, arg))
+            self.__args_entry_ids.append(eid)
 
         self.__kwargs_entry_ids: Dict[str, str] = {}
         for kwarg_name, kwarg in sign.kwargs.items():
-            if workflow.entry_index.has_entry_id(kwarg):
-                entry_id = workflow.entry_index.get_entry_id(kwarg)
+            if is_lzy_proxy(kwarg):
+                eid = get_proxy_entry_id(kwarg)
             else:
-                entry_id = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + kwarg_name,
-                                                          typ=sign.func.input_types[kwarg_name]).id
-                workflow.entry_index.add_entry_id(kwarg, entry_id)
-
-            self.__kwargs_entry_ids[kwarg_name] = entry_id
+                eid = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + kwarg_name,
+                                                     typ=sign.func.input_types[kwarg_name]).id
+                local_data_put_tasks.append(self.__wflow.snapshot.put_data(eid, kwarg))
+            self.__kwargs_entry_ids[kwarg_name] = eid
 
         self.__entry_ids: List[str] = []
         for i, arg_typ in enumerate(sign.func.output_types):
             name = sign.func.callable.__name__ + ".return_" + str(i)
-            entry_id = workflow.snapshot.create_entry(name, arg_typ).id
-            self.__entry_ids.append(entry_id)
+            eid = workflow.snapshot.create_entry(name, arg_typ).id
+            self.__entry_ids.append(eid)
+
+        # yep, we should store local data to storage just in LzyCall.__init__
+        # because the data can be changed before dependent op will be actually executed
+        LzyEventLoop.gather(*local_data_put_tasks)
 
     @property
     def provisioning(self) -> Provisioning:
@@ -159,7 +164,6 @@ def wrap_call(
         env_updated.validate()
 
         signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot,
-                                                      active_workflow.entry_index,
                                                       active_workflow.owner.serializer_registry, *args, **kwargs)
         lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description, version, cache, lazy_arguments)
         active_workflow.register_call(lzy_call)
@@ -204,7 +208,6 @@ def wrap_call(
 def infer_and_validate_call_signature(
     f: Callable, output_type: Sequence[type],
     snapshot: Snapshot,
-    entry_index: EntryIndex,
     serializer_registry: SerializerRegistry,
     *args, **kwargs
 ) -> CallSignature:
@@ -228,8 +231,8 @@ def infer_and_validate_call_signature(
     for name, arg in chain(zip(argspec.args, args), kwargs.items()):
         # noinspection PyProtectedMember
         entry_type: Optional[Type] = None
-        if entry_index.has_entry_id(arg):
-            eid = entry_index.get_entry_id(arg)
+        if is_lzy_proxy(arg):
+            eid = get_proxy_entry_id(arg)
             entry_type = snapshot.get(eid).typ
             types_mapping[name] = entry_type
         elif name in argspec.annotations:
@@ -251,8 +254,8 @@ def infer_and_validate_call_signature(
     for arg in args[len(argspec.args):]:
         name = str(uuid.uuid4())[:8]
         generated_names.append(name)
-        if entry_index.has_entry_id(arg):
-            eid = entry_index.get_entry_id(arg)
+        if is_lzy_proxy(arg):
+            eid = get_proxy_entry_id(arg)
             entry = snapshot.get(eid)
             types_mapping[name] = entry.typ
         else:

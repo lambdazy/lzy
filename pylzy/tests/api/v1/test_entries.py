@@ -1,8 +1,14 @@
+import asyncio
 from typing import cast, List
 from unittest import TestCase
 
-from lzy.api.v1 import Lzy, op
-from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock, StorageClientMock
+from moto.moto_server.threaded_moto_server import ThreadedMotoServer
+
+from lzy.api.v1 import Lzy, op, LocalRuntime
+from lzy.storage.api import Storage, S3Credentials
+from lzy.storage.registry import DefaultStorageRegistry
+from tests.api.v1.mocks import EnvProviderMock, StorageClientMock, RuntimeMock, StorageRegistryMock
+from tests.api.v1.utils import create_bucket
 
 
 @op(cache=True)
@@ -12,13 +18,13 @@ def foo(name: str, param: int) -> str:
 
 @op(cache=True)
 def foo_varargs(*args) -> str:
-    return ', '.join(args)
+    return ', '.join(map(repr, args))
 
 
 @op(cache=True)
 def foo_kwargs(*args, **kwargs) -> str:
-    args_str: str = ', '.join(map(lambda i, arg: f"{i}: {arg}", enumerate(args)))
-    kwargs_str: str = ', '.join(map(lambda name, arg: f"{name}: {arg}", kwargs.items()))
+    args_str: str = ', '.join([f"{i}: {arg}" for i, arg in enumerate(args)])
+    kwargs_str: str = ', '.join([f"{name}: {arg}" for name, arg in kwargs.items()])
     return ', '.join([args_str, kwargs_str])
 
 
@@ -34,7 +40,7 @@ def accept_arr(ints: List[int]) -> List[int]:
 
 
 @op(cache=True)
-def accept_arr_other(ints: List[int]) -> List[int]:
+def accept_arr_and_modify(ints: List[int]) -> List[int]:
     ints.append(len(ints))
     return ints
 
@@ -43,33 +49,24 @@ class LzyEntriesTests(TestCase):
     def setUp(self):
         self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock(), py_env_provider=EnvProviderMock())
 
-    def test_same_args_have_same_entry_id(self):
-        # noinspection PyUnusedLocal
-        @op(cache=True)
-        def accept_int_first(i: int) -> None:
-            pass
-
-        # noinspection PyUnusedLocal
-        @op(cache=True)
-        def accept_int_second(i: int) -> None:
-            pass
-
+    def test_same_op_diff_entries(self):
         num = 42
 
         with self.lzy.workflow("test") as wf:
-            accept_int_first(num)
-            accept_int_first(num)
-            accept_int_second(num)
+            foo_varargs(num)
+            foo_varargs(num)
+            foo_varargs(13)
 
         # noinspection PyUnresolvedReferences
-        entry_id_1 = wf.owner.runtime.calls[0].arg_entry_ids[0]
+        entry_id_1 = wf.owner.runtime.calls[0].entry_ids[0]
         # noinspection PyUnresolvedReferences
-        entry_id_2 = wf.owner.runtime.calls[1].arg_entry_ids[0]
+        entry_id_2 = wf.owner.runtime.calls[1].entry_ids[0]
         # noinspection PyUnresolvedReferences
-        entry_id_3 = wf.owner.runtime.calls[2].arg_entry_ids[0]
+        entry_id_3 = wf.owner.runtime.calls[2].entry_ids[0]
 
-        self.assertEqual(entry_id_1, entry_id_2)
-        self.assertEqual(entry_id_1, entry_id_3)
+        self.assertNotEqual(entry_id_1, entry_id_2)
+        self.assertNotEqual(entry_id_2, entry_id_3)
+        self.assertNotEqual(entry_id_3, entry_id_1)
 
     def test_same_local_data_stored_once(self):
         weight = 42
@@ -262,7 +259,7 @@ class LzyEntriesTests(TestCase):
         self.assertEqual(uri_1, uri_2)
         self.assertNotEqual(ruri_1, ruri_2)
 
-    def test_with_args_changes_by_ref(self):
+    def test_local_data_changed_by_ref(self):
         with self.lzy.workflow("wf") as wf:
             ints = []
             for i in range(5):
@@ -290,11 +287,11 @@ class LzyEntriesTests(TestCase):
                 if i != j:
                     self.assertNotEqual(lhs, rhs, msg=f"ret_uri_{i} should not be equal ret_uri_{j}")
 
-    def test_with_args_changes_by_ref_inside_op(self):
+    def test_local_data_can_not_be_changed_by_ref_inside_op(self):
         with self.lzy.workflow("wf") as wf:
             ints = []
             for i in range(5):
-                accept_arr(ints)
+                accept_arr_and_modify(ints)
 
         snapshot = wf.snapshot
         runtime = wf.owner.runtime
@@ -310,14 +307,14 @@ class LzyEntriesTests(TestCase):
         for i, lhs in enumerate(arg_uris):
             for j, rhs in enumerate(arg_uris):
                 if i != j:
-                    self.assertNotEqual(lhs, rhs, msg=f"arg_uri_{i} should not be equal arg_uri_{j}")
+                    self.assertEqual(lhs, rhs, msg=f"arg_uri_{i} should be equal arg_uri_{j}")
 
         for i, lhs in enumerate(ret_uris):
             for j, rhs in enumerate(ret_uris):
                 if i != j:
-                    self.assertNotEqual(lhs, rhs, msg=f"ret_uri_{i} should not be equal ret_uri_{j}")
+                    self.assertEqual(lhs, rhs, msg=f"ret_uri_{i} should be equal ret_uri_{j}")
 
-    def test_with_self_arg_op(self):
+    def test_op_passed_as_arg_to_itself(self):
         with self.lzy.workflow("wf") as wf:
             a = [1, 2, 3, 4, 5]
             accept_arr(accept_arr(a))
@@ -339,4 +336,99 @@ class LzyEntriesTests(TestCase):
         self.assertEqual(entry_1.storage_uri, entry_3.storage_uri)
         self.assertEqual(entry_2.storage_uri, entry_4.storage_uri)
         self.assertNotEqual(entry_1.storage_uri, entry_2.storage_uri)
-        self.assertNotEqual(entry_1.name, entry_2.name)
+
+
+class LzyEntriesTestsWithLocalRuntime(TestCase):
+    endpoint_url = None
+    s3_service = None
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.s3_service = ThreadedMotoServer(port=12345)
+        cls.s3_service.start()
+        cls.endpoint_url = "http://localhost:12345"
+        asyncio.run(create_bucket(cls.endpoint_url))
+
+    def setUp(self):
+        self.lzy = Lzy(runtime=LocalRuntime(), py_env_provider=EnvProviderMock(),
+                       storage_registry=DefaultStorageRegistry())
+        self.storage_uri = "s3://bucket/prefix"
+        storage_config = Storage(uri=self.storage_uri,
+                                 credentials=S3Credentials(self.endpoint_url, access_key_id="", secret_access_key=""))
+        self.lzy.storage_registry.register_storage("default", storage_config, default=True)
+
+    def test_local_data_and_op_result_is_not_same_input(self):
+        with self.lzy.workflow("wf") as wf:
+            ints: List[int] = [1, 2, 3]
+            same_ints: List[int] = accept_arr(ints)
+            accept_arr(same_ints)
+
+            eid_1 = wf.call_queue[0].entry_ids[0]
+            eid_2 = wf.call_queue[1].entry_ids[0]
+
+        snapshot = wf.snapshot
+
+        # noinspection PyUnresolvedReferences
+        uri_1 = snapshot.get(eid_1).storage_uri
+        # noinspection PyUnresolvedReferences
+        uri_2 = snapshot.get(eid_2).storage_uri
+
+        self.assertEqual(ints, same_ints)
+        self.assertNotEqual(uri_1, uri_2)
+
+    def test_op_result_changed_by_ref(self):
+        arg_eids = []
+        ret_eids = []
+
+        with self.lzy.workflow("wf") as wf:
+            ints = accept_arr([])
+            for i in range(5):
+                ints.append(i)
+                accept_arr(ints)
+
+                arg_eids.append(wf.call_queue[i].arg_entry_ids[0])
+                ret_eids.append(wf.call_queue[i].entry_ids[0])
+
+        snapshot = wf.snapshot
+
+        for i, lhs in enumerate(arg_eids):
+            for j, rhs in enumerate(arg_eids):
+                if i != j:
+                    luri = snapshot.get(lhs).storage_uri
+                    ruri = snapshot.get(rhs).storage_uri
+                    self.assertNotEqual(luri, ruri, msg=f"arg_uri_{i} should not be equal arg_uri_{j}")
+
+        for i, lhs in enumerate(ret_eids):
+            for j, rhs in enumerate(ret_eids):
+                if i != j:
+                    luri = snapshot.get(lhs).storage_uri
+                    ruri = snapshot.get(rhs).storage_uri
+                    self.assertNotEqual(luri, ruri, msg=f"ret_uri_{i} should not be equal ret_uri_{j}")
+
+    def test_op_result_can_not_be_changed_by_ref_inside_op(self):
+        arg_eids = []
+        ret_eids = []
+
+        with self.lzy.workflow("wf") as wf:
+            ints = accept_arr([])
+            for i in range(5):
+                accept_arr_and_modify(ints)
+
+                arg_eids.append(wf.call_queue[i + 1].arg_entry_ids[0])
+                ret_eids.append(wf.call_queue[i + 1].entry_ids[0])
+
+        snapshot = wf.snapshot
+
+        for i, lhs in enumerate(arg_eids):
+            for j, rhs in enumerate(arg_eids):
+                if i != j:
+                    luri = snapshot.get(lhs).storage_uri
+                    ruri = snapshot.get(rhs).storage_uri
+                    self.assertEqual(luri, ruri, msg=f"arg_uri_{i} should be equal arg_uri_{j}")
+
+        for i, lhs in enumerate(ret_eids):
+            for j, rhs in enumerate(ret_eids):
+                if i != j:
+                    luri = snapshot.get(lhs).storage_uri
+                    ruri = snapshot.get(rhs).storage_uri
+                    self.assertEqual(luri, ruri, msg=f"ret_uri_{i} should be equal ret_uri_{j}")

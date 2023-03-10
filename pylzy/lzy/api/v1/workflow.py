@@ -11,7 +11,6 @@ from typing import (
     TypeVar, cast, Set, )
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
-from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
@@ -72,7 +71,6 @@ class LzyWorkflow:
 
         self.__snapshot: Optional[Snapshot] = None
         self.__execution_id: Optional[str] = None
-        self.__entry_index = EntryIndex()
 
     @property
     def owner(self) -> "Lzy":
@@ -89,10 +87,6 @@ class LzyWorkflow:
         if self.__execution_id is None:
             raise ValueError("Workflow is not yet started")
         return self.__execution_id
-
-    @property
-    def entry_index(self) -> EntryIndex:
-        return self.__entry_index
 
     @property
     def name(self) -> str:
@@ -145,7 +139,7 @@ class LzyWorkflow:
             # user may not be set in tests
             if self.__user is not None:
                 parts.append(self.__user)
-            parts.extend(['lzy_runs', self.__name, 'inputs'])
+            parts.extend(['lzy_runs', self.__name, 'inputs/'])
             storage_uri = '/'.join(parts)
 
             self.__execution_id = LzyEventLoop.run_async(self.__start())
@@ -219,55 +213,39 @@ class LzyWorkflow:
         return workflow_id
 
     async def _barrier(self) -> None:
-        if len(self.__call_queue) == 0:
-            return
+        if self.__call_queue:
+            _LOG.info(f"Building graph from calls "
+                      f"{' -> '.join(call.signature.func.callable.__name__ for call in self.__call_queue)}")
 
-        _LOG.info(f"Building graph from calls "
-                  f"{' -> '.join(call.signature.func.callable.__name__ for call in self.__call_queue)}")
+            for call in self.__call_queue:
+                if call.cache:
+                    self.__gen_results_uri_in_cache(call)
+                else:
+                    self.__gen_results_uri_skip_cache(call)
 
-        local_data_put_tasks = []
-        for call in self.__call_queue:
-            _LOG.debug(f"Put local args data to storage for call {call.signature.func.name}")
-            for arg, eid in zip(call.args, call.arg_entry_ids):
-                if not is_lzy_proxy(arg) and eid not in self.__filled_entry_ids:
-                    local_data_put_tasks.append(self.snapshot.put_data(eid, arg))
-                    self.__filled_entry_ids.add(eid)
+            await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))
+            self.__call_queue = []
 
-            for name, kwarg in call.kwargs.items():
-                eid = call.kwarg_entry_ids[name]
-                if not is_lzy_proxy(kwarg) and eid not in self.__filled_entry_ids:
-                    local_data_put_tasks.append(self.snapshot.put_data(eid, kwarg))
-                    self.__filled_entry_ids.add(eid)
+        await self.__fill_whiteboards_proxy_fields()
 
-        await asyncio.gather(*local_data_put_tasks)
-
-        for call in self.__call_queue:
-            if call.cache:
-                self.__gen_results_uri_with_cache(call)
-            else:
-                self.__gen_results_uri_skip_cache(call)
-
-        await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))
-
+    async def __fill_whiteboards_proxy_fields(self):
         wb_copy_tasks = []
         for wb in self.__whiteboards:
-            _LOG.debug(f"Put whiteboard {wb.name} delayed fields data to storage")
-            for key, from_eid in wb.unloaded_fields.items():
+            _LOG.debug(f"Fill whiteboard {wb.name} proxy fields by materialized op data")
+            for key, from_eid in wb.proxy_fields.items():
                 wb_copy_tasks.append(self.snapshot.copy_data(from_eid, f"{wb.storage_uri}/{key}"))
 
         await asyncio.gather(*wb_copy_tasks)
 
-        self.__call_queue = []
-
-    def __gen_results_uri_with_cache(self, call: 'LzyCall'):
+    def __gen_results_uri_in_cache(self, call: 'LzyCall'):
         parts = [self.__owner.storage_uri]
         # user may not be set in tests
         if self.__user is not None:
             parts.append(self.__user)
-        parts.extend(['lzy_runs', self.__name, 'ops'])
+        parts.extend(['lzy_runs', self.__name, 'ops/'])
         uri_prefix = '/'.join(parts)
 
-        args_hashes = map(lambda entry_id: self.snapshot.get(entry_id).data_hash, call.arg_entry_ids)
+        args_hashes = [self.snapshot.get(eid).data_hash for eid in call.arg_entry_ids]
         kwargs_hashes = []
         for name in sorted(call.kwargs.keys()):
             kwargs_hashes.append(f"{name}:{self.snapshot.get(call.kwarg_entry_ids[name]).data_hash}")
@@ -279,7 +257,7 @@ class LzyWorkflow:
         for i, eid in enumerate(call.entry_ids):
             if eid not in self.__filled_entry_ids:
                 entry = self.snapshot.get(eid)
-                entry.storage_uri = uri_prefix + f"/{op_name}_{op_version}_{inputs_hashes_concat}/return_{str(i)}"
+                entry.storage_uri = uri_prefix + f"{op_name}/{op_version}/{inputs_hashes_concat}/return_{str(i)}"
                 entry.data_hash = md5_of_str(entry.storage_uri)
                 self.__filled_entry_ids.add(eid)
 
@@ -287,7 +265,7 @@ class LzyWorkflow:
         for i, eid in enumerate(call.entry_ids):
             if eid not in self.__filled_entry_ids:
                 entry = self.snapshot.get(eid)
-                uri_suffix = f"/{call.signature.func.callable.__name__}.{call.id}/return_{str(i)}"
-                entry.storage_uri = f"{self.__owner.storage_uri}/lzy_runs/{self.__name}/ops" + uri_suffix
+                uri_suffix = f"{call.signature.func.callable.__name__}/{call.id}/return_{str(i)}"
+                entry.storage_uri = f"{self.__owner.storage_uri}/lzy_runs/{self.__name}/ops/" + uri_suffix
                 entry.data_hash = md5_of_str(entry.storage_uri)
                 self.__filled_entry_ids.add(eid)
