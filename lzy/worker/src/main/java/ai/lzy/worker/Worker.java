@@ -200,6 +200,9 @@ public class Worker {
         properties.put("worker.gpu-count", gpuCount);
         properties.put("worker.enable-http-debug", true);
 
+        var micronautPort = FreePortFinder.find(10000, 20000);
+        properties.put("micronaut.server.port", micronautPort);
+
         return Micronaut.build(new String[]{}).properties(properties).start();
     }
 
