@@ -6,6 +6,7 @@ import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import io.grpc.Server;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.commons.cli.CommandLine;
@@ -197,8 +198,9 @@ public class Worker {
         properties.put("worker.public-key", iamKeys.publicKey());
         properties.put("worker.allocator-heartbeat-period", allocatorHeartbeatPeriod);
         properties.put("worker.gpu-count", gpuCount);
+        properties.put("worker.enable-http-debug", true);
 
-        return ApplicationContext.run(properties);
+        return Micronaut.build(new String[]{}).properties(properties).start();
     }
 
     public static void selectRandomValues(boolean val) {
