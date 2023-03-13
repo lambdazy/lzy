@@ -28,7 +28,7 @@ public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
     private static final int DEFAULT_FS_PORT = 9876;
     private static final int DEFAULT_API_PORT = 9877;
-    private static final int DEFAULT_MICRONAUT_PORT = 9878;
+    private static final int DEFAULT_HTTP_PORT = 9878;
     private static final AtomicBoolean SELECT_RANDOM_VALUES = new AtomicBoolean(false);
 
     private static final Options options = new Options();
@@ -176,17 +176,17 @@ public class Worker {
         final int fsPort;
         final String fsRoot;
         final int apiPort;
-        final int micronautPort;
+        final int httpPort;
 
         if (SELECT_RANDOM_VALUES.get()) {
             fsPort = FreePortFinder.find(10000, 20000);
             apiPort = FreePortFinder.find(20000, 30000);
-            micronautPort = FreePortFinder.find(30000, 40000);
+            httpPort = FreePortFinder.find(30000, 40000);
             fsRoot = "/tmp/lzy" + UUID.randomUUID();
         } else {
             fsPort = DEFAULT_FS_PORT;
             apiPort = DEFAULT_API_PORT;
-            micronautPort = DEFAULT_MICRONAUT_PORT;
+            httpPort = DEFAULT_HTTP_PORT;
             fsRoot = "/tmp/lzy";
         }
 
@@ -217,7 +217,7 @@ public class Worker {
         properties.put("worker.gpu-count", gpuCount);
         properties.put("worker.enable-http-debug", true);
 
-        properties.put("micronaut.server.port", micronautPort);
+        properties.put("micronaut.server.port", httpPort);
 
         return Micronaut.build(new String[]{}).properties(properties).start();
     }
