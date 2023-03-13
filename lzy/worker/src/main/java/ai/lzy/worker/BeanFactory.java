@@ -20,7 +20,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 public class BeanFactory {
 
     @Singleton
-    @Named("LocalOperationService")
+    @Named("WorkerOperationService")
     public LocalOperationService localOperationService(ServiceConfig config) {
         return new LocalOperationService(config.getVmId());
     }
@@ -32,7 +32,7 @@ public class BeanFactory {
 
     @Singleton
     public LzyFsServer lzyFsServer(ServiceConfig config,
-                                   @Named("LocalOperationService") LocalOperationService localOperationService)
+                                   @Named("WorkerOperationService") LocalOperationService localOperationService)
     {
         final var cm = HostAndPort.fromString(config.getChannelManagerAddress());
         final var iam = HostAndPort.fromString(config.getIam().getAddress());
@@ -51,7 +51,7 @@ public class BeanFactory {
 
     @Singleton
     public WorkerApiImpl workerApiImpl(ServiceConfig config,
-                                       @Named("LocalOperationService") LocalOperationService localOperationService,
+                                       @Named("WorkerOperationService") LocalOperationService localOperationService,
                                        EnvironmentFactory environmentFactory,
                                        LzyFsServer lzyFsServer)
     {
@@ -62,7 +62,7 @@ public class BeanFactory {
     @Singleton
     @Named("WorkerServer")
     public Server server(ServiceConfig config,
-                         @Named("LocalOperationService") LocalOperationService localOperationService,
+                         @Named("WorkerOperationService") LocalOperationService localOperationService,
                          WorkerApiImpl workerApi)
     {
         return newGrpcServer("0.0.0.0", config.getApiPort(), GrpcUtils.NO_AUTH)

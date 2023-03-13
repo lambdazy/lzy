@@ -33,7 +33,7 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
+class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkerApiImpl.class);
     private final LzyFsServer lzyFs;
     private final LocalOperationService operationService;
@@ -58,11 +58,14 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
         var lzySlots = new ArrayList<LzySlot>(task.getOperation().getSlotsCount());
         var slotAssignments = task.getSlotAssignmentsList().stream()
-            .collect(Collectors.toMap(LMO.SlotToChannelAssignment::getSlotName, LMO.SlotToChannelAssignment::getChannelId));
+            .collect(Collectors.toMap(LMO.SlotToChannelAssignment::getSlotName,
+                LMO.SlotToChannelAssignment::getChannelId));
 
         for (var slot : op.getSlotsList()) {
             final var binding = slotAssignments.get(slot.getName());
             if (binding == null) {
+                LOG.error("Internal error: no channel binding found for slot {}", slot.getName());
+
                 return LWS.ExecuteResponse.newBuilder()
                     .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Internal error")
