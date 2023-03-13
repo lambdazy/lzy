@@ -4,7 +4,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ai.lzy</groupId>
     <artifactId>lzy</artifactId>
-    <version>1.6-SNAPSHOT</version>
+    <version>1.6.0</version>
     <packaging>pom</packaging>
 
     <modules>

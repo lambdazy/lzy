@@ -4,7 +4,7 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.6-SNAPSHOT</version>
+        <version>1.6.0</version>
         <relativePath>../../parent</relativePath>
     </parent>
 
@@ -21,67 +21,67 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>allocator-api</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>channel-manager-api</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam-api</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running-api</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>lzy-api</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>graph-executor-api</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>portal</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>storage</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-auth</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-db</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-grpc</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>whiteboard-api</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
         </dependency>
 
         <!-- other external deps -->
@@ -132,31 +132,31 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>allocator</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>graph-executor</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-test</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>channel-manager</artifactId>
-            <version>1.6-SNAPSHOT</version>
+            <version>1.6.0</version>
             <scope>test</scope>
         </dependency>
 
