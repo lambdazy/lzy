@@ -16,7 +16,6 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
@@ -182,15 +181,28 @@ public class Worker {
 
             var allocHeartbeat = parse.getOptionValue("allocator-heartbeat-period");
 
+            allocHeartbeat = allocHeartbeat == null
+                ? System.getenv(AllocatorAgent.VM_HEARTBEAT_PERIOD)
+                : allocHeartbeat;
+
             var vmId = parse.getOptionValue("vm-id");
             vmId = vmId == null ? System.getenv(AllocatorAgent.VM_ID_KEY) : vmId;
 
             var allocatorAddress = parse.getOptionValue("allocator-address");
+
+            allocatorAddress = allocatorAddress == null
+                ? System.getenv(AllocatorAgent.VM_ALLOCATOR_ADDRESS)
+                : allocatorAddress;
+
             var allocHeartbeatDur = allocHeartbeat == null ? null : Duration.parse(allocHeartbeat);
             var iamAddress = parse.getOptionValue("iam");
             var channelManagerAddress = parse.getOptionValue("channel-manager");
             var host = parse.getOptionValue('h');
             var allocatorToken = parse.getOptionValue("allocator-token");
+
+            allocatorToken = allocatorToken == null
+                ? System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT)
+                : allocatorToken;
 
             var worker = startWorker(vmId, allocatorAddress, iamAddress, allocHeartbeatDur, channelManagerAddress, host,
                 allocatorToken);
