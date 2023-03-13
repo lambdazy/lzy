@@ -41,7 +41,7 @@ class LzyCall:
         self.__env = env
         self.__description = description
         self.__version = version
-        self.__cache = False
+        self.__cache = cache
 
         self.__args_entry_ids: List[str] = []
         for i, arg in enumerate(sign.args):
