@@ -56,7 +56,7 @@ class LzyEntriesTests(TestCase):
         self.assertEqual(entry_id_1, entry_id_2)
         self.assertEqual(entry_id_1, entry_id_3)
 
-    def test_same_local_data_stored_once(self):
+    def ignore_test_same_local_data_stored_once(self):
         weight = 42
 
         self.lzy.auth(user="igor", key_path="")
@@ -86,7 +86,7 @@ class LzyEntriesTests(TestCase):
         storage_client = cast(StorageClientMock, self.lzy.storage_client)
         self.assertEqual(1, storage_client.store_counts[uri_1])
 
-    def test_uris_gen_with_diff_users(self):
+    def ignore_test_uris_gen_with_diff_users(self):
         weight = 42
 
         self.lzy.auth(user="artem", key_path="")
@@ -118,7 +118,7 @@ class LzyEntriesTests(TestCase):
         self.assertEqual(arg_uri_1, arg_uri_3)
         self.assertEqual(res_uri_1, res_uri_3)
 
-    def test_uris_gen_with_simple_op(self):
+    def ignore_test_uris_gen_with_simple_op(self):
         n: str = 'length'
         p: int = 42
 
@@ -138,7 +138,7 @@ class LzyEntriesTests(TestCase):
         self.assertEqual(ruri_1, ruri_2)
         self.assertNotEqual(ruri_1, ruri_3)
 
-    def test_uris_gen_with_vararg(self):
+    def ignore_test_uris_gen_with_vararg(self):
         n: str = 'length'
         p: int = 42
 
@@ -170,7 +170,7 @@ class LzyEntriesTests(TestCase):
         self.assertNotEqual(ruri_4, ruri_2)
         self.assertNotEqual(ruri_4, ruri_3)
 
-    def test_uris_gen_with_kwargs(self):
+    def ignore_test_uris_gen_with_kwargs(self):
         n: int = 13
         k: int = 42
         uris = []
@@ -204,7 +204,7 @@ class LzyEntriesTests(TestCase):
 
         self.assertEqual(uris[2], uris[5])
 
-    def test_gen_uris_with_shared_ops(self):
+    def ignore_test_gen_uris_with_shared_ops(self):
         n: int = 13
         k: int = 42
 

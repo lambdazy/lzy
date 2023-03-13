@@ -145,7 +145,7 @@ class DefaultSnapshot(Snapshot):
             f.seek(0)
 
             self.__entry_id_to_entry[entry_id].data_hash = f.md5
-            entry.storage_uri = self.__storage_uri + f.md5
+            entry.storage_uri = self.__storage_uri + f.md5 + str(uuid.uuid4())
 
             exists = await self.__storage_client.blob_exists(entry.storage_uri)
             if not exists:

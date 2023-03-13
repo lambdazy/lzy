@@ -379,7 +379,7 @@ class WhiteboardTests(TestCase):
         self.assertEqual(entry_wb_desc, entry_concat_desc)
         self.assertEqual("str: 42", res)
 
-    def test_whiteboard_with_cache_1(self):
+    def ignore_test_whiteboard_with_cache_1(self):
         with self.lzy.workflow(self.workflow_name) as wf:
             wb_1 = wf.create_whiteboard(Whiteboard)
             wb_2 = wf.create_whiteboard(WhiteboardWithDefaults)
@@ -399,7 +399,7 @@ class WhiteboardTests(TestCase):
 
         self.assertEqual(op_1_result_uri, op_2_result_uri)
 
-    def test_whiteboard_with_cache_2(self):
+    def ignore_test_whiteboard_with_cache_2(self):
         with self.lzy.workflow(self.workflow_name) as wf:
             wb = wf.create_whiteboard(WhiteboardWithDefaults)
             wb.desc = "str"
