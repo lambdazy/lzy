@@ -114,10 +114,19 @@ public class Worker {
 
             var allocHeartbeat = parse.getOptionValue("allocator-heartbeat-period");
 
+            allocHeartbeat = allocHeartbeat == null
+                ? System.getenv(AllocatorAgent.VM_HEARTBEAT_PERIOD)
+                : allocHeartbeat;
+
             var vmId = parse.getOptionValue("vm-id");
             vmId = vmId == null ? System.getenv(AllocatorAgent.VM_ID_KEY) : vmId;
 
             var allocatorAddress = parse.getOptionValue("allocator-address");
+
+            allocatorAddress = allocatorAddress == null
+                ? System.getenv(AllocatorAgent.VM_ALLOCATOR_ADDRESS)
+                : allocatorAddress;
+
             var allocHeartbeatDur = allocHeartbeat == null ? null : Duration.parse(allocHeartbeat);
             var iamAddress = parse.getOptionValue("iam");
             var channelManagerAddress = parse.getOptionValue("channel-manager");
@@ -129,6 +138,10 @@ public class Worker {
 
             var gpuCountStr = System.getenv(AllocatorAgent.VM_GPU_COUNT);
             var gpuCount = gpuCountStr == null ? 0 : Integer.parseInt(gpuCountStr);
+
+            allocatorToken = allocatorToken == null
+                ? System.getenv(AllocatorAgent.VM_ALLOCATOR_OTT)
+                : allocatorToken;
 
             var ctx = startApplication(vmId, allocatorAddress, iamAddress, allocHeartbeatDur,
                 channelManagerAddress, host, allocatorToken, gpuCount);
