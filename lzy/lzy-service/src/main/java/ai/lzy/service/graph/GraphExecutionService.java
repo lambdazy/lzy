@@ -29,13 +29,11 @@ import io.grpc.stub.StreamObserver;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import org.apache.kafka.clients.admin.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -59,9 +57,9 @@ public class GraphExecutionService {
 
     private final PortalClientProvider portalClients;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
+    private final ExecutionDao executionDao;
     private final LzyServiceConfig.KafkaConfig kafkaConfig;
 
-    private final AdminClient kafkaAdmin;
 
     public GraphExecutionService(GraphDao graphDao, ExecutionDao executionDao,
                                  CleanExecutionCompanion cleanExecutionCompanion, PortalClientProvider portalClients,
@@ -74,10 +72,11 @@ public class GraphExecutionService {
     {
         this.cleanExecutionCompanion = cleanExecutionCompanion;
         this.portalClients = portalClients;
-        this.kafkaConfig = kafkaConfig;
+        this.executionDao = executionDao;
 
         this.graphDao = graphDao;
         this.operationDao = operationDao;
+        this.kafkaConfig = kafkaConfig;
 
         this.graphExecutorClient = newBlockingClient(
             newBlockingStub(graphExecutorChannel), APP, () -> internalUserCredentials.get().token());
@@ -91,7 +90,7 @@ public class GraphExecutionService {
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
             () -> internalUserCredentials.get().token());
 
-        this.builder = new GraphBuilder(executionDao, channelManagerClient);
+        this.builder = new GraphBuilder(executionDao, channelManagerClient, kafkaConfig);
     }
 
     @Nullable
@@ -183,21 +182,23 @@ public class GraphExecutionService {
                 GraphExecutorApi.GraphExecuteResponse executeResponse;
                 try {
                     var builder = GrpcHeaders.withContext();
-                    if (kafkaConfig.isEnabled()) {
 
-                        kafkaAdmin.alterUserScramCredentials(List.of(new UserScramCredentialUpsertion()))
+                    try {
+                        var kafkaConfig = withRetries(LOG, () -> executionDao.getKafkaTopicDesc(executionId, null));
 
-                        kafkaAdmin.createTopics(List.of(new NewTopic(executionId + "/user_logs", 1, (short) 0)));
-
-                        builder.withHeader(GrpcHeaders.USER_LOGS_HEADER_KEY, LH.UserLogsHeader.newBuilder()
-                            .setKafkaTopicDesc(
-                                LH.UserLogsHeader.KafkaTopicDescription.newBuilder()
-                                    .setUsername(kafkaConfig.getUsername())
-                                    .setPassword(kafkaConfig.getPassword())
-                                    .addAllBootstrapServers(kafkaConfig.getBootstrapServers())
-                                    .setTopic(executionId + "/user_logs").build()
-                            )
-                            .build());
+                        if (kafkaConfig != null) {
+                            builder.withHeader(GrpcHeaders.USER_LOGS_HEADER_KEY, LH.UserLogsHeader.newBuilder()
+                                .setKafkaTopicDesc(
+                                    LH.UserLogsHeader.KafkaTopicDescription.newBuilder()
+                                        .setUsername(kafkaConfig.username())
+                                        .setPassword(kafkaConfig.password())
+                                        .addAllBootstrapServers(this.kafkaConfig.getBootstrapServers())
+                                        .setTopic(kafkaConfig.topicName()).build()
+                                )
+                                .build());
+                        }
+                    } catch (Exception e) {
+                        LOG.error("Cannot build header to propagate logs with kafka for execution {}", executionId, e);
                     }
 
                     executeResponse = builder.run(() -> idempotentGraphExecClient.execute(

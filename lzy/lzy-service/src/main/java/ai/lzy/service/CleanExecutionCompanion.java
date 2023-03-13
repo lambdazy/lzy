@@ -2,7 +2,9 @@ package ai.lzy.service;
 
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.PortalDescription;
@@ -28,11 +30,15 @@ import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ScramMechanism;
+import org.apache.kafka.clients.admin.UserScramCredentialDeletion;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Objects;
 
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
@@ -60,6 +66,8 @@ public class CleanExecutionCompanion {
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
+    private final AdminClient kafkaAdmin;
+    private final KafkaLogsListeners kafkaLogsListeners;
 
     public CleanExecutionCompanion(PortalClientProvider portalClients, LzyServiceStorage storage,
                                    WorkflowDao workflowDao, ExecutionDao executionDao, GraphDao graphDao,
@@ -68,7 +76,8 @@ public class CleanExecutionCompanion {
                                    @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                    @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
                                    @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
-                                   WorkflowMetrics metrics)
+                                   WorkflowMetrics metrics,
+                                   @Named("LzyServiceKafkaAdminClient") AdminClient kafkaAdmin, KafkaLogsListeners kafkaLogsListeners)
     {
         this.storage = storage;
         this.workflowDao = workflowDao;
@@ -81,6 +90,8 @@ public class CleanExecutionCompanion {
         this.portalClients = portalClients;
         this.channelManagerChannel = channelManagerChannel;
         this.metrics = metrics;
+        this.kafkaAdmin = kafkaAdmin;
+        this.kafkaLogsListeners = kafkaLogsListeners;
         this.channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
             () -> internalUserCredentials.get().token());
@@ -225,11 +236,11 @@ public class CleanExecutionCompanion {
                     executionDao.setCompletedExecutionStatus(executionId, tx);
                     operationDao.complete(completeOperation.id(), Any.pack(
                         LWFS.FinishWorkflowResponse.getDefaultInstance()), tx);
-
-                    LOG.info("Execution was completed: { executionId: {} }", executionId);
                     tx.commit();
                 }
             });
+
+            LOG.info("Execution was completed: { executionId: {} }", executionId);
 
             metrics.activeExecutions.labels(userId).dec();
         } catch (Exception e) {
@@ -289,6 +300,10 @@ public class CleanExecutionCompanion {
         if (portalDesc != null && portalDesc.allocatorSessionId() != null) {
             deleteSession(executionId, portalDesc.allocatorSessionId());
         }
+
+
+        kafkaLogsListeners.notifyFinished(executionId);
+        dropKafkaResources(executionId);
 
         try {
             withRetries(LOG, () -> executionDao.setCompletedExecutionStatus(executionId, null));
@@ -419,6 +434,35 @@ public class CleanExecutionCompanion {
         } catch (Exception e) {
             LOG.warn("Cannot delete allocator session for execution: { sessionId: {}, executionId: {} }",
                 sessionId, executionId, e);
+        }
+    }
+
+    private void dropKafkaResources(String executionId) {
+        final KafkaTopicDesc kafkaDesc;
+        try {
+            kafkaDesc = DbHelper.withRetries(LOG, () -> executionDao.getKafkaTopicDesc(executionId, null));
+        } catch (Exception e) {
+            LOG.error("Cannot get kafka topic description from db for execution {}, please clear it", executionId, e);
+            return;
+        }
+
+        if (kafkaDesc != null) {
+            LOG.debug("Deleting kafka topic {} and user {} for execution {}",
+                kafkaDesc.topicName(), kafkaDesc.username(), executionId);
+
+            try {
+                kafkaAdmin.alterUserScramCredentials(List.of(
+                    new UserScramCredentialDeletion(kafkaDesc.username(), ScramMechanism.SCRAM_SHA_512)
+                ));
+            } catch (Exception ex) {
+                LOG.error("Cannot remove kafka user for execution {}: ", executionId, ex);
+            }
+
+            try {
+                kafkaAdmin.deleteTopics(List.of(kafkaDesc.topicName()));
+            } catch (Exception ex) {
+                LOG.error("Cannot remove topic for execution {}: ", executionId, ex);
+            }
         }
     }
 }

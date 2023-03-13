@@ -91,13 +91,19 @@ public class PortalService extends LzyPortalImplBase {
         }
 
         try {
-            slotsService.getStdoutSlot().close();
+            var out = slotsService.getStdoutSlot();
+            if (out != null) {
+                out.close();
+            }
         } catch (Exception e) {
             LOG.error("Cannot finish stdout slot in portal with id <{}>: ", portalId, e);
         }
 
         try {
-            slotsService.getStderrSlot().close();
+            var err = slotsService.getStderrSlot();
+            if (err != null) {
+                err.close();
+            }
         } catch (Exception e) {
             LOG.error("Cannot finish stderr slot in portal with id <{}>: ", portalId, e);
         }
@@ -214,8 +220,28 @@ public class PortalService extends LzyPortalImplBase {
 
                     LzySlot newLzySlot = switch (slotDesc.getKindCase()) {
                         case SNAPSHOT -> slotsService.getSnapshots().createSlot(slotDesc.getSnapshot(), slotInstance);
-                        case STDOUT -> slotsService.getStdoutSlot().attach(slotInstance);
-                        case STDERR -> slotsService.getStderrSlot().attach(slotInstance);
+                        case STDOUT -> {
+                            var out = slotsService.getStdoutSlot();
+                            if (out != null) {
+                                yield out.attach(slotInstance);
+                            } else {
+                                replyError.accept(("Opening stdout slot %s for channel %s while no stdout configured")
+                                    .formatted(slotInstance.name(), slotInstance.channelId()), Status.INVALID_ARGUMENT);
+
+                                throw new RuntimeException("Cannot open stdout slot");
+                            }
+                        }
+                        case STDERR -> {
+                            var out = slotsService.getStderrSlot();
+                            if (out != null) {
+                                yield out.attach(slotInstance);
+                            } else {
+                                replyError.accept(("Opening stderr slot %s for channel %s while no stdout configured")
+                                    .formatted(slotInstance.name(), slotInstance.channelId()), Status.INVALID_ARGUMENT);
+
+                                throw new RuntimeException("Cannot open stderr slot");
+                            }
+                        }
                         default -> throw new NotImplementedException(slotDesc.getKindCase().name());
                     };
                     slotsService.getSlotsManager().registerSlot(newLzySlot);
@@ -296,7 +322,9 @@ public class PortalService extends LzyPortalImplBase {
             }
 
             try {
-                slotsService.getStdoutSlot().finish();
+                if (slotsService.getStdoutSlot() != null) {
+                    slotsService.getStdoutSlot().finish();
+                }
             } catch (Exception e) {
                 if (errorMessage == null) {
                     errorMessage = "Cannot finish stdout slot in portal";
@@ -305,7 +333,9 @@ public class PortalService extends LzyPortalImplBase {
             }
 
             try {
-                slotsService.getStderrSlot().finish();
+                if (slotsService.getStderrSlot() != null) {
+                    slotsService.getStderrSlot().finish();
+                }
             } catch (Exception e) {
                 if (errorMessage == null) {
                     errorMessage = "Cannot finish stderr slot in portal";
@@ -314,7 +344,9 @@ public class PortalService extends LzyPortalImplBase {
             }
 
             try {
-                slotsService.getStdoutSlot().await();
+                if (slotsService.getStdoutSlot() != null) {
+                    slotsService.getStdoutSlot().await();
+                }
             } catch (Exception e) {
                 if (errorMessage == null) {
                     errorMessage = "Cannot await finish stdout slot in portal";
@@ -323,7 +355,9 @@ public class PortalService extends LzyPortalImplBase {
             }
 
             try {
-                slotsService.getStderrSlot().await();
+                if (slotsService.getStderrSlot() != null) {
+                    slotsService.getStderrSlot().await();
+                }
             } catch (Exception e) {
                 if (errorMessage == null) {
                     errorMessage = "Cannot await finish stderr slot in portal";

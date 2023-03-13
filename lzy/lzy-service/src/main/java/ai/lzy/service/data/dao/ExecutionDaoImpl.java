@@ -137,7 +137,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     private static final String QUERY_UPDATE_KAFKA_TOPIC = """
         UPDATE workflow_executions
         SET kafka_topic_json = ?
-        WHERE execution_id = ?""";
+        WHERE execution_id = ? AND kafka_topic_json is null""";
 
     private static final String QUERY_GET_KAFKA_TOPIC = """
         SELECT kafka_topic_json
@@ -584,7 +584,12 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 var mapper = new ObjectMapper().findAndRegisterModules();
                 stmt.setString(1, mapper.writeValueAsString(topicDesc));
                 stmt.setString(2, executionId);
-                stmt.executeUpdate();
+                var res = stmt.executeUpdate();
+
+                if (res != 1) {
+                    throw new RuntimeException("Expected 1 updated topic desc, but updates "
+                        + res + " , execution_id: " + executionId);
+                }
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump kafka topic desc", e);
             }
@@ -598,9 +603,14 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 var mapper = new ObjectMapper().findAndRegisterModules();
                 stmt.setString(1, executionId);
                 var qs = stmt.executeQuery();
-                var kafkaJson = qs.getString(1);
 
-                return mapper.readValue(kafkaJson, KafkaTopicDesc.class);
+                if (qs.next()) {
+                    var kafkaJson = qs.getString(1);
+
+                    return mapper.readValue(kafkaJson, KafkaTopicDesc.class);
+                } else {
+                    return null;
+                }
 
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot deserialize kafka topic desc", e);

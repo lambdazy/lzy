@@ -3,8 +3,10 @@ package ai.lzy.service.workflow;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.CleanExecutionCompanion;
+import ai.lzy.service.KafkaLogsListeners;
 import ai.lzy.service.PortalSlotsListener;
 import ai.lzy.service.WorkflowMetrics;
 import ai.lzy.service.config.LzyServiceConfig;
@@ -31,6 +33,7 @@ import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
@@ -79,13 +82,18 @@ public class WorkflowService {
     final ExecutionDao executionDao;
     private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
     private final LzyServiceConfig config;
+    private final AdminClient kafkaAdmin;
+
+    private final KafkaLogsListeners kafkaLogsListeners;
 
     public WorkflowService(LzyServiceConfig config, CleanExecutionCompanion cleanExecutionCompanion,
                            LzyServiceStorage storage, WorkflowDao workflowDao, ExecutionDao executionDao,
                            @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
-                           @Named("IamServiceChannel") ManagedChannel iamChannel, WorkflowMetrics metrics)
+                           @Named("IamServiceChannel") ManagedChannel iamChannel, WorkflowMetrics metrics,
+                           @Named("LzyServiceKafkaAdminClient") AdminClient kafkaAdmin,
+                           KafkaLogsListeners kafkaLogsListeners)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
@@ -101,6 +109,8 @@ public class WorkflowService {
         this.executionDao = executionDao;
 
         this.cleanExecutionCompanion = cleanExecutionCompanion;
+        this.kafkaAdmin = kafkaAdmin;
+        this.kafkaLogsListeners = kafkaLogsListeners;
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
         this.vmPoolClient = newBlockingClient(
@@ -151,12 +161,22 @@ public class WorkflowService {
             return;
         }
 
+        if (config.getKafka().isEnabled()) {
+            newExecution.createKafkaTopic(kafkaAdmin, config.getKafka().getUsername());
+
+            if (newExecution.isInvalid()) {
+                replyError.accept(newExecution.getErrorStatus());
+                return;
+            }
+        }
+
         var portalPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getPortalApiPort();
         var slotsApiPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getSlotsApiPort();
 
         newExecution.startPortal(startupPortalConfig.getDockerImage(), portalPort, slotsApiPort,
             startupPortalConfig.getStdoutChannelName(), startupPortalConfig.getStderrChannelName(),
-            channelManagerAddress, iamAddress, whiteboardAddress, allocationTimeout, allocatorVmCacheTimeout);
+            channelManagerAddress, iamAddress, whiteboardAddress, allocationTimeout, allocatorVmCacheTimeout,
+            !config.getKafka().isEnabled());
 
         if (newExecution.isInvalid()) {
             LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
@@ -199,47 +219,12 @@ public class WorkflowService {
             }
 
             if (config.getKafka().isEnabled()) {
-                var props = new Properties();
-                props.setProperty("bootstrap.servers", Strings.join(config.getKafka().getBootstrapServers(), ','));
-                props.setProperty("enable.auto.commit", "false");
-                props.setProperty("group.id", UUID.randomUUID().toString());
-                props.setProperty("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
-                props.setProperty("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-                props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-                props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required " +
-                    "  username=\"" + config.getKafka().getUsername() + "\"" +
-                    "  password=\"" + config.getKafka().getPassword() + "\";");
+                var topicDesc = DbHelper.withRetries(LOG, () -> executionDao.getKafkaTopicDesc(executionId, null));
 
-                try (var consumer = new KafkaConsumer<String, byte[]>(props)) {
-                    consumer.subscribe(List.of(executionId + "/user_logs"));
-                    consumer.seek(new TopicPartition(executionId + "/user_logs", 0), request.getOffset());
-                    while (!Context.current().isCancelled()) {
-                        var res = consumer.poll(Duration.ofMillis(100));
-                        if (res.count() > 0) {
-
-                            var outData = LWFS.ReadStdSlotsResponse.Data.newBuilder();
-                            var errData = LWFS.ReadStdSlotsResponse.Data.newBuilder();
-                            long offset = 0;
-
-                            for (var record : res) {
-                                offset = Long.max(record.offset(), offset);
-                                if (record.key().equals("out")) {
-                                    outData.addData(new String(record.value(), StandardCharsets.UTF_8));
-                                } else {
-                                    errData.addData(new String(record.value(), StandardCharsets.UTF_8));
-                                }
-                            }
-
-                            response.onNext(LWFS.ReadStdSlotsResponse.newBuilder()
-                                .setStderr(errData.build())
-                                .setStdout(outData.build())
-                                .setCurrentOffset(offset)
-                                .build());
-                        }
-                    }
+                if (topicDesc != null) {
+                    kafkaLogsListeners.listen(request, response, topicDesc);
+                    return;
                 }
-                response.onCompleted();
-                return;
             }
 
             var resp = (ServerCallStreamObserver<LWFS.ReadStdSlotsResponse>) response;

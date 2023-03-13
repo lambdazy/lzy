@@ -1,6 +1,7 @@
 package ai.lzy.service.graph;
 
 import ai.lzy.model.slot.Slot;
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LME;
@@ -17,6 +18,7 @@ import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -36,10 +38,13 @@ class GraphBuilder {
 
     private final ExecutionDao executionDao;
     private final LzyChannelManagerPrivateBlockingStub channelManagerClient;
+    private final LzyServiceConfig.KafkaConfig config;
 
-    public GraphBuilder(ExecutionDao executionDao, LzyChannelManagerPrivateBlockingStub channelManagerClient) {
+    public GraphBuilder(ExecutionDao executionDao, LzyChannelManagerPrivateBlockingStub channelManagerClient,
+                        LzyServiceConfig.KafkaConfig config) {
         this.executionDao = executionDao;
         this.channelManagerClient = channelManagerClient;
+        this.config = config;
     }
 
     public void build(GraphExecutionState state, LzyPortalGrpc.LzyPortalBlockingStub portalClient) {
@@ -224,13 +229,21 @@ class GraphBuilder {
             // TODO: ssokolvyak -- must not be generated here but passed in executeGraph request
             var taskId = UUID.randomUUID().toString();
 
-            var channelNameForStdoutSlot = "channel_" + taskId + ":" + Slot.STDOUT_SUFFIX;
-            var stdoutChannelId = channelManagerClient.create(
-                makeCreateChannelCommand(userId, workflowName, executionId, channelNameForStdoutSlot)).getChannelId();
+            final String stdoutChannelId;
+            final String stderrChannelId;
+            if (!this.config.isEnabled()) {
 
-            var channelNameForStderrSlot = "channel_" + taskId + ":" + Slot.STDERR_SUFFIX;
-            var stderrChannelId = channelManagerClient.create(
-                makeCreateChannelCommand(userId, workflowName, executionId, channelNameForStderrSlot)).getChannelId();
+                var channelNameForStdoutSlot = "channel_" + taskId + ":" + Slot.STDOUT_SUFFIX;
+                var channelNameForStderrSlot = "channel_" + taskId + ":" + Slot.STDERR_SUFFIX;
+
+                stdoutChannelId = channelManagerClient.create(makeCreateChannelCommand(userId,
+                    workflowName, executionId, channelNameForStdoutSlot)).getChannelId();
+                stderrChannelId = channelManagerClient.create(makeCreateChannelCommand(userId,
+                    workflowName, executionId, channelNameForStderrSlot)).getChannelId();
+            } else {
+                stdoutChannelId = null;
+                stderrChannelId = null;
+            }
 
             tasks.add(buildTaskWithZone(taskId, operation, zoneName, stdoutChannelId, stderrChannelId, slot2Channel,
                 slot2description, portalClient, operation.getEnvMap()));
@@ -240,7 +253,8 @@ class GraphBuilder {
     }
 
     private TaskDesc buildTaskWithZone(String taskId, LWF.Operation operation,
-                                       String zoneName, String stdoutChannelId, String stderrChannelId,
+                                       String zoneName, @Nullable String stdoutChannelId,
+                                       @Nullable String stderrChannelId,
                                        Map<String, String> slot2Channel,
                                        Map<String, LWF.DataDescription> slot2description,
                                        LzyPortalGrpc.LzyPortalBlockingStub portalClient,
@@ -281,11 +295,19 @@ class GraphBuilder {
         var stdoutPortalSlotName = PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDOUT_SUFFIX;
         var stderrPortalSlotName = PORTAL_SLOT_PREFIX + "_" + taskId + ":" + Slot.STDERR_SUFFIX;
 
-        //noinspection ResultOfMethodCallIgnored
-        portalClient.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
-            .addSlots(makePortalInputStdoutSlot(taskId, stdoutPortalSlotName, stdoutChannelId))
-            .addSlots(makePortalInputStderrSlot(taskId, stderrPortalSlotName, stderrChannelId))
-            .build());
+        var builder = LzyPortalApi.OpenSlotsRequest.newBuilder();
+        if (stdoutChannelId != null) {
+            builder.addSlots(makePortalInputStdoutSlot(taskId, stdoutPortalSlotName, stdoutChannelId));
+        }
+
+        if (stderrChannelId != null) {
+            builder.addSlots(makePortalInputStderrSlot(taskId, stderrPortalSlotName, stderrChannelId));
+        }
+
+        if (stdoutChannelId != null || stderrChannelId != null) {
+            //noinspection ResultOfMethodCallIgnored
+            portalClient.openSlots(builder.build());
+        }
 
         var requirements = LMO.Requirements.newBuilder()
             .setZone(zoneName).setPoolLabel(operation.getPoolSpecName()).build();
@@ -337,12 +359,17 @@ class GraphBuilder {
             .setCommand(operation.getCommand())
             .addAllSlots(inputSlots)
             .addAllSlots(outputSlots)
-            .setName(operation.getName())
-            .setStdout(LMO.Operation.StdSlotDesc.newBuilder()
-                .setName("/dev/" + Slot.STDOUT_SUFFIX).setChannelId(stdoutChannelId).build())
-            .setStderr(LMO.Operation.StdSlotDesc.newBuilder()
-                .setName("/dev/" + Slot.STDERR_SUFFIX).setChannelId(stderrChannelId).build())
-            .build();
+            .setName(operation.getName());
+
+        if (stdoutChannelId != null) {
+            taskOperation.setStdout(LMO.Operation.StdSlotDesc.newBuilder()
+                .setName("/dev/" + Slot.STDOUT_SUFFIX).setChannelId(stdoutChannelId).build());
+        }
+
+        if (stderrChannelId != null) {
+            taskOperation.setStderr(LMO.Operation.StdSlotDesc.newBuilder()
+                .setName("/dev/" + Slot.STDERR_SUFFIX).setChannelId(stderrChannelId).build());
+        }
 
         return TaskDesc.newBuilder()
             .setId(taskId)

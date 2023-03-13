@@ -8,9 +8,11 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.Constants;
+import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.v1.VmAllocatorApi;
@@ -22,8 +24,17 @@ import com.google.protobuf.util.Durations;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nullable;
+import org.apache.kafka.clients.admin.*;
+import org.apache.kafka.common.acl.AccessControlEntry;
+import org.apache.kafka.common.acl.AclBinding;
+import org.apache.kafka.common.acl.AclOperation;
+import org.apache.kafka.common.acl.AclPermissionType;
+import org.apache.kafka.common.resource.PatternType;
+import org.apache.kafka.common.resource.ResourcePattern;
+import org.apache.kafka.common.resource.ResourceType;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -111,7 +122,7 @@ final class StartExecutionCompanion {
     public void startPortal(String dockerImage, int portalPort, int slotsApiPort,
                             String stdoutChannelName, String stderrChannelName,
                             String channelManagerAddress, String iamAddress, String whiteboardAddress,
-                            Duration allocationTimeout, Duration allocateVmCacheTimeout)
+                            Duration allocationTimeout, Duration allocateVmCacheTimeout, boolean createStdChannels)
     {
         LOG.info("Attempt to start portal for workflow execution: { wfName: {}, execId: {} }",
             state.getWorkflowName(), state.getExecutionId());
@@ -119,10 +130,12 @@ final class StartExecutionCompanion {
         try {
             InjectedFailures.fail9();
 
-            createPortalStdChannels(stdoutChannelName, stderrChannelName);
+            if (createStdChannels) {
+                createPortalStdChannels(stdoutChannelName, stderrChannelName);
 
-            withRetries(LOG, () -> owner.executionDao.updateStdChannelIds(state.getExecutionId(),
-                state.getStdoutChannelId(), state.getStderrChannelId(), null));
+                withRetries(LOG, () -> owner.executionDao.updateStdChannelIds(state.getExecutionId(),
+                    state.getStdoutChannelId(), state.getStderrChannelId(), null));
+            }
 
             createAllocatorSession(allocateVmCacheTimeout);
 
@@ -260,15 +273,21 @@ final class StartExecutionCompanion {
         var actualPortalPort = (portalPort == -1) ? FreePortFinder.find(10000, 11000) : portalPort;
         var actualSlotsApiPort = (slotsApiPort == -1) ? FreePortFinder.find(11000, 12000) : slotsApiPort;
 
-        var args = List.of(
+        var args = new ArrayList<>(List.of(
             "-portal.portal-id=" + state.getPortalId(),
             "-portal.portal-api-port=" + actualPortalPort,
             "-portal.slots-api-port=" + actualSlotsApiPort,
-            "-portal.stdout-channel-id=" + state.getStdoutChannelId(),
-            "-portal.stderr-channel-id=" + state.getStderrChannelId(),
             "-portal.channel-manager-address=" + channelManagerAddress,
             "-portal.iam-address=" + iamAddress,
-            "-portal.whiteboard-address=" + whiteboardAddress);
+            "-portal.whiteboard-address=" + whiteboardAddress));
+
+        if (state.getStdoutChannelId() != null) {
+            args.add("-portal.stdout-channel-id=" + state.getStdoutChannelId());
+        }
+
+        if (state.getStderrChannelId() != null) {
+            args.add("-portal.stderr-channel-id=" + state.getStderrChannelId());
+        }
 
         var portalEnvPKEY = "LZY_PORTAL_PKEY";
         var ports = Map.of(actualSlotsApiPort, actualSlotsApiPort, actualPortalPort, actualPortalPort);
@@ -290,5 +309,60 @@ final class StartExecutionCompanion {
                 .build());
     }
 
+    public void createKafkaTopic(AdminClient adminClient, String adminUsername) {
+        var topicName = "topic_" + state.getExecutionId() + ".logs";
+        var username = "user_" + state.getExecutionId() + ".logs";
+        var password = UUID.randomUUID().toString();
 
+        LOG.debug("Creating kafka topic {} for execution_id {}", topicName, state.getExecutionId());
+
+
+        try {
+            adminClient.createTopics(List.of(
+                new NewTopic(topicName, 1, (short) 0)  // Do not do replicas and partitioning for now
+            ));
+
+            adminClient.alterUserScramCredentials(List.of(
+                new UserScramCredentialUpsertion(
+                    username,
+                    new ScramCredentialInfo(ScramMechanism.SCRAM_SHA_512, 1),
+                    password)
+            ));
+
+            adminClient.createAcls(List.of(
+                new AclBinding(
+                    new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
+                    new AccessControlEntry(username, "*", AclOperation.WRITE, AclPermissionType.ALLOW)
+                ),
+                new AclBinding(
+                    new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
+                    new AccessControlEntry(adminUsername, "*", AclOperation.ALL, AclPermissionType.ALLOW)
+                )
+            ));
+
+            var topicDesc = new KafkaTopicDesc(username, password, topicName);
+
+            DbHelper.withRetries(LOG, () -> owner.executionDao.setKafkaTopicDesc(state.getExecutionId(),
+                topicDesc, null));
+        } catch (Exception e) {
+
+            LOG.error("Cannot save kafka topic data in db for execution {}", state.getExecutionId(), e);
+            state.fail(Status.INTERNAL, "Cannot create kafka topic");
+
+            try {
+                adminClient.alterUserScramCredentials(List.of(
+                    new UserScramCredentialDeletion(username, ScramMechanism.SCRAM_SHA_512)
+                ));
+            } catch (Exception ex) {
+                LOG.error("Cannot remove kafka user after error {}: ", e.getMessage(), ex);
+            }
+
+            try {
+                adminClient.deleteTopics(List.of(topicName));
+            } catch (Exception ex) {
+                LOG.error("Cannot remove topic after error {}: ", e.getMessage(), ex);
+            }
+
+        }
+    }
 }

@@ -162,6 +162,10 @@ class RemoteRuntime(Runtime):
         try:
             await client.abort_workflow(cast(LzyWorkflow, self.__workflow).name, self.__execution_id,
                                         "Workflow execution aborted")
+            try:
+                await asyncio.wait_for(self.__std_slots_listener, timeout=1)
+            except asyncio.exceptions.TimeoutError:
+                pass  # ignored
         finally:
             self.__running = False
             self.__execution_id = None
@@ -174,6 +178,10 @@ class RemoteRuntime(Runtime):
             return
         try:
             await client.finish_workflow(self.__workflow.name, self.__execution_id, "Workflow completed")
+            try:
+                await asyncio.wait_for(self.__std_slots_listener, timeout=1)
+            except asyncio.exceptions.TimeoutError:
+                pass  # ignored
         finally:
             self.__running = False
             self.__execution_id = None

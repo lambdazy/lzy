@@ -25,8 +25,10 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
+import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -56,8 +58,8 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     private final PortalConfig config;
     private final Supplier<String> token;
 
-    private StdoutSlot stdoutSlot;
-    private StdoutSlot stderrSlot;
+    @Nullable private StdoutSlot stdoutSlot = null;
+    @Nullable private StdoutSlot stderrSlot = null;
     private final SnapshotSlots snapshots;
     private final SlotsManager slotsManager;
 
@@ -98,13 +100,17 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         var stdoutSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDOUT_SUFFIX;
         var stderrSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDERR_SUFFIX;
 
-        stdoutSlot = new StdoutSlot(stdoutSlotName, portalId, config.getStdoutChannelId(),
-            slotsManager.resolveSlotUri(portalId, stdoutSlotName));
-        slotsManager.registerSlot(stdoutSlot);
+        if (config.getStdoutChannelId() != null) {
+            stdoutSlot = new StdoutSlot(stdoutSlotName, portalId, config.getStdoutChannelId(),
+                slotsManager.resolveSlotUri(portalId, stdoutSlotName));
+            slotsManager.registerSlot(stdoutSlot);
+        }
 
-        stderrSlot = new StdoutSlot(stderrSlotName, portalId, config.getStderrChannelId(),
-            slotsManager.resolveSlotUri(portalId, stderrSlotName));
-        slotsManager.registerSlot(stderrSlot);
+        if (config.getStderrChannelId() != null) {
+            stderrSlot = new StdoutSlot(stderrSlotName, portalId, config.getStderrChannelId(),
+                slotsManager.resolveSlotUri(portalId, stderrSlotName));
+            slotsManager.registerSlot(stderrSlot);
+        }
 
         LOG.info("Portal stdout/err slots successfully registered...");
     }
@@ -254,64 +260,68 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         var opSnapshot = operationService.registerOperation(op);
 
         if (op.id().equals(opSnapshot.id())) {
-            boolean done = false;
 
-            LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
-            LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
-            if (inputSlot != null) {
-                inputSlot.disconnect();
-                done = true;
-            }
-            if (outputSlot != null) {
-                outputSlot.suspend();
-                done = true;
-            }
-
-            if (!done) {
-                inputSlot = findOutSlot(slotName);
-                if (inputSlot != null) {
-                    inputSlot.disconnect();
-                    done = true;
-                }
-            }
-
-            if (!done) {
-                inputSlot = findErrSlot(slotName);
-                if (inputSlot != null) {
-                    inputSlot.disconnect();
-                    done = true;
-                }
-            }
-
-            StdoutSlot out = getStdoutSlot();
-            if (!done && out.name().equals(slotName)) {
-                out.suspend();
-                done = true;
-            }
-
-            StdoutSlot err = getStderrSlot();
-            if (!done && err.name().equals(slotName)) {
-                err.suspend();
-                done = true;
-            }
-
-            if (done) {
+            try {
+                disconnectSlot(slotName);
                 operationService.updateResponse(op.id(), LSA.DisconnectSlotResponse.getDefaultInstance());
                 response.onNext(LSA.DisconnectSlotResponse.getDefaultInstance());
                 response.onCompleted();
-                return;
+            } catch (StatusException e) {
+                operationService.updateError(op.id(), e.getStatus());
+                response.onError(e);
+            } catch (Exception e) {
+                operationService.updateError(op.id(), Status.INTERNAL.withDescription("Error while disconnect slot"));
+                LOG.error("Error while disconnection slot {}", slotInstance, e);
             }
 
-            LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
-
-            var errorStatus = Status.NOT_FOUND.withDescription("Cannot find slot " + slotName);
-            operationService.updateError(op.id(), errorStatus);
-            response.onError(errorStatus.asRuntimeException());
         } else {
             LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
 
             awaitOpAndReply(opSnapshot.id(), LSA.DisconnectSlotResponse.class, response, "Cannot disconnect slot");
         }
+    }
+
+    private void disconnectSlot(String slotName) throws StatusException {
+
+        LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
+        LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
+        if (inputSlot != null) {
+            inputSlot.disconnect();
+        }
+        if (outputSlot != null) {
+            outputSlot.suspend();
+        }
+
+        if (outputSlot != null || inputSlot != null) {
+            return;
+        }
+
+        inputSlot = findOutSlot(slotName);
+        if (inputSlot != null) {
+            inputSlot.disconnect();
+            return;
+        }
+
+        inputSlot = findErrSlot(slotName);
+        if (inputSlot != null) {
+            inputSlot.disconnect();
+            return;
+        }
+
+        StdoutSlot out = getStdoutSlot();
+        if (out != null && out.name().equals(slotName)) {
+            out.suspend();
+            return;
+        }
+
+        StdoutSlot err = getStderrSlot();
+        if (err != null && err.name().equals(slotName)) {
+            err.suspend();
+            return;
+        }
+
+        LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotName);
+        throw Status.NOT_FOUND.withDescription("Cannot find slot " + slotName).asException();
     }
 
     @Override
@@ -418,13 +428,13 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
             }
 
             StdoutSlot out = getStdoutSlot();
-            if (!done && out.name().equals(slotName)) {
+            if (!done && out != null && out.name().equals(slotName)) {
                 out.destroy();
                 done = true;
             }
 
             StdoutSlot err = getStderrSlot();
-            if (!done && err.name().equals(slotName)) {
+            if (!done && err != null && err.name().equals(slotName)) {
                 err.destroy();
                 done = true;
             }
@@ -497,18 +507,28 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         return slotsManager;
     }
 
+    @Nullable
     public LzyInputSlot findOutSlot(String name) {
+        if (stdoutSlot == null) {
+            return null;
+        }
         return stdoutSlot.find(name);
     }
 
+    @Nullable
     public LzyInputSlot findErrSlot(String name) {
+        if (stderrSlot == null) {
+            return null;
+        }
         return stderrSlot.find(name);
     }
 
+    @Nullable
     public StdoutSlot getStdoutSlot() {
         return stdoutSlot;
     }
 
+    @Nullable
     public StdoutSlot getStderrSlot() {
         return stderrSlot;
     }

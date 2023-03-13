@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Duration;
+import javax.annotation.Nullable;
 
 @Getter
 @Setter
@@ -16,8 +17,8 @@ public class PortalConfig {
     private int portalApiPort;
     private int slotsApiPort;
 
-    private String stdoutChannelId;
-    private String stderrChannelId;
+    @Nullable private String stdoutChannelId;
+    @Nullable private String stderrChannelId;
     private String channelManagerAddress;
     private String whiteboardAddress;
 

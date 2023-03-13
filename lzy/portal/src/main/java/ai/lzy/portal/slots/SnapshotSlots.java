@@ -9,6 +9,7 @@ import ai.lzy.portal.exceptions.SnapshotNotFound;
 import ai.lzy.portal.exceptions.SnapshotUniquenessException;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.portal.LzyPortal;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -97,11 +98,13 @@ public class SnapshotSlots {
         return snapshots.values().stream().flatMap(slot -> slot.getOutputSlots().stream()).toList();
     }
 
+    @Nullable
     public LzyInputSlot getInputSlot(String slotName) {
         SnapshotEntry snapshot = snapshots.get(name2uri.get(slotName));
         return Objects.nonNull(snapshot) ? snapshot.getInputSlot() : null;
     }
 
+    @Nullable
     public LzyOutputSlot getOutputSlot(String slotName) {
         SnapshotEntry snapshot = snapshots.get(name2uri.get(slotName));
         return Objects.nonNull(snapshot) ? snapshot.getOutputSlot(slotName) : null;

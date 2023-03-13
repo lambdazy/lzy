@@ -98,14 +98,20 @@ public class StreamQueue extends Thread {
                     }
                     if (kafkaClient != null && topic != null) {
                         // Using single partition to manage global order of logs
-                        kafkaClient.send(new ProducerRecord<>(topic, 0, streamName, copyOfRange(buf, 0, len)));
+                        try {
+                            kafkaClient.send(new ProducerRecord<>(topic, 0, streamName, copyOfRange(buf, 0, len)))
+                                .get();
+                        } catch (Exception e) {
+                            logger.warn("Cannot send data to kafka: ", e);
+                        }
                     }
                 }
             } catch (IOException e) {
                 logger.error("Error while writing to stream {}: ", streamName, e);
                 return;
+            } finally {
+                inputHandle.future.complete(null);
             }
-            inputHandle.future.complete(null);
         }
         try {
             synchronized (outs) {
@@ -206,7 +212,7 @@ public class StreamQueue extends Thread {
         }
 
         public CompletableFuture<Void> logOut(InputStream stream) {
-            var fut =  outQueue.add(stream);
+            var fut = outQueue.add(stream);
             futures.add(fut);
             return fut;
         }

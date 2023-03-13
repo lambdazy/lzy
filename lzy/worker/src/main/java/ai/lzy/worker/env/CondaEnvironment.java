@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -99,8 +100,8 @@ public class CondaEnvironment implements AuxEnvironment {
                             condaFile.getAbsolutePath())
                     );
 
-                    logHandle.logOut(lzyProcess.out());
-                    logHandle.logErr(lzyProcess.err());
+                    var futOut = logHandle.logOut(lzyProcess.out());
+                    var futErr = logHandle.logErr(lzyProcess.err());
 
                     final int rc;
                     try {
@@ -116,6 +117,9 @@ public class CondaEnvironment implements AuxEnvironment {
                         throw new EnvironmentInstallationException(errorMessage);
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
+
+                    futOut.get();
+                    futErr.get();
 
                     condaPackageRegistry.notifyInstalled(pythonEnv.getYaml());
                     //noinspection ResultOfMethodCallIgnored
@@ -150,7 +154,7 @@ public class CondaEnvironment implements AuxEnvironment {
                 extractFiles(tempFile, localModulesAbsolutePath.toString());
                 tempFile.deleteOnExit();
             }
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         } finally {
             lockForMultithreadingTests.unlock();
