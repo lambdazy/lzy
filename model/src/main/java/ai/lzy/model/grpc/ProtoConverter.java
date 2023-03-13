@@ -43,6 +43,14 @@ public class ProtoConverter {
             .build();
     }
 
+    public static LMS.Slot.Media toProto(Slot.Media media) {
+        return switch (media) {
+            case FILE -> LMS.Slot.Media.FILE;
+            case PIPE -> LMS.Slot.Media.PIPE;
+            case ARG -> LMS.Slot.Media.ARG;
+        };
+    }
+
     public static LMD.DataScheme toProto(DataScheme dataScheme) {
         return LMD.DataScheme.newBuilder()
             .setDataFormat(dataScheme.dataFormat())

@@ -1,9 +1,14 @@
 package ai.lzy.portal.slots;
 
 import ai.lzy.fs.slots.LzyInputSlotBase;
+import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
+import ai.lzy.portal.exceptions.CreateSlotException;
+import ai.lzy.portal.services.PortalService;
 import ai.lzy.storage.StorageClient;
 import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.portal.LzyPortal;
+import ai.lzy.v1.portal.LzyPortalApi;
 import com.google.protobuf.ByteString;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,6 +17,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
+import java.util.UUID;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
 
@@ -19,6 +25,8 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     private static final Logger LOG = LogManager.getLogger(SnapshotInputSlot.class);
     private static final ThreadGroup READER_TG = new ThreadGroup("input-slot-readers");
 
+    private final PortalService portalService;
+    private final LzyPortal.PortalSlotDesc.Snapshot snapshotData;
     private final SnapshotEntry snapshot;
     private final StorageClient storageClient;
     private final OutputStream outputStream;
@@ -26,11 +34,14 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     private final Runnable slotSyncHandler;
     private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
 
-    public SnapshotInputSlot(SlotInstance slotData, SnapshotEntry snapshot, StorageClient storageClient,
+    public SnapshotInputSlot(PortalService portalService, LzyPortal.PortalSlotDesc.Snapshot snapshotData,
+                             SlotInstance slotData, SnapshotEntry snapshot, StorageClient storageClient,
                              @Nullable Runnable syncHandler)
         throws IOException
     {
         super(slotData);
+        this.portalService = portalService;
+        this.snapshotData = snapshotData;
         this.snapshot = snapshot;
         this.storageClient = storageClient;
         this.outputStream = Files.newOutputStream(snapshot.getTempfile());
@@ -52,9 +63,30 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
             }
         });
 
+        onState(LMS.SlotStatus.State.SUSPENDED, () -> {
+            try {
+                portalService.openSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
+                    .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
+                        .setSnapshot(snapshotData)
+                        .setChannelId(instance().channelId())
+                        .setSlot(LMS.Slot.newBuilder()
+                            .setName(definition().name() + "_out_" + UUID.randomUUID())
+                            .setContentType(ProtoConverter.toProto(definition().contentType()))
+                            .setMedia(ProtoConverter.toProto(definition().media()))
+                            .setDirection(LMS.Slot.Direction.OUTPUT)
+                            .build())
+                        .build())
+                    .build());
+            } catch (CreateSlotException e) {
+                LOG.error("Portal cannot assign as sender for data: { storageUri: {} }",
+                    snapshot.getStorageUri().toString());
+            }
+        });
+
         var t = new Thread(READER_TG, () -> {
             // read all data to local storage (file), then OPEN the slot
             readAll();
+            suspend();
             snapshot.getState().set(SnapshotEntry.State.DONE);
             synchronized (snapshot) {
                 snapshot.notifyAll();
