@@ -1,4 +1,5 @@
 import asyncio
+import tempfile
 from typing import cast, List
 from unittest import TestCase
 
@@ -7,8 +8,25 @@ from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 from lzy.api.v1 import Lzy, op, LocalRuntime
 from lzy.storage.api import Storage, S3Credentials
 from lzy.storage.registry import DefaultStorageRegistry
+from lzy.types import File
 from tests.api.v1.mocks import EnvProviderMock, StorageClientMock, RuntimeMock, StorageRegistryMock
 from tests.api.v1.utils import create_bucket
+
+# Catboost requires both pandas & numpy
+# noinspection PyPackageRequirements
+import pandas as pd
+# noinspection PyPackageRequirements
+import numpy as np
+
+
+@op(cache=True)
+def accept_df(frame: pd.DataFrame) -> None:
+    pass
+
+
+@op(cache=True)
+def accept_file(script: File) -> None:
+    pass
 
 
 @op(cache=True)
@@ -94,6 +112,22 @@ class LzyEntriesTests(TestCase):
 
         storage_client = cast(StorageClientMock, self.lzy.storage_client)
         self.assertEqual(1, storage_client.store_counts[uri_1])
+
+    def test_uris_gen_for_repeating_arg(self):
+        n: str = 'length'
+
+        with self.lzy.workflow("test") as test_1:
+            foo_varargs(n, 'length', n)
+
+        # noinspection PyUnresolvedReferences
+        uri_1 = test_1.snapshot.get(test_1.owner.runtime.calls[0].arg_entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        uri_2 = test_1.snapshot.get(test_1.owner.runtime.calls[0].arg_entry_ids[1]).storage_uri
+        # noinspection PyUnresolvedReferences
+        uri_3 = test_1.snapshot.get(test_1.owner.runtime.calls[0].arg_entry_ids[2]).storage_uri
+
+        self.assertEqual(uri_1, uri_2)
+        self.assertEqual(uri_2, uri_3)
 
     def test_uris_gen_with_diff_users(self):
         weight = 42
@@ -336,6 +370,50 @@ class LzyEntriesTests(TestCase):
         self.assertEqual(entry_1.storage_uri, entry_3.storage_uri)
         self.assertEqual(entry_2.storage_uri, entry_4.storage_uri)
         self.assertNotEqual(entry_1.storage_uri, entry_2.storage_uri)
+
+    def test_cached_op_with_some_as_arg(self):
+        df = pd.DataFrame(np.random.choice(['lzy', 'yzl', 'zly'], size=(500, 3)))
+
+        with tempfile.NamedTemporaryFile() as tmp:
+            tmp.write("Hello, world!\n".encode("utf-8"))
+            with self.lzy.workflow("wf") as wf:
+                accept_df(df)
+                accept_df(df)
+                accept_file(File(tmp.name))
+                accept_file(File(tmp.name))
+
+
+        snapshot = wf.snapshot
+        runtime = wf.owner.runtime
+
+        # noinspection PyUnresolvedReferences
+        uri_1 = snapshot.get(runtime.calls[0].arg_entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        uri_2 = snapshot.get(runtime.calls[1].arg_entry_ids[0]).storage_uri
+
+        # noinspection PyUnresolvedReferences
+        uri_3 = snapshot.get(runtime.calls[2].arg_entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        uri_4 = snapshot.get(runtime.calls[3].arg_entry_ids[0]).storage_uri
+
+        self.assertEqual(uri_1, uri_2)
+        self.assertEqual(uri_3, uri_4)
+
+    def test_cached_op_with_empty_file(self):
+        with tempfile.NamedTemporaryFile() as tmp:
+            with self.lzy.workflow("wf") as wf:
+                accept_file(File(tmp.name))
+                accept_file(File(tmp.name))
+
+        snapshot = wf.snapshot
+        runtime = wf.owner.runtime
+
+        # noinspection PyUnresolvedReferences
+        uri_1 = snapshot.get(runtime.calls[0].arg_entry_ids[0]).storage_uri
+        # noinspection PyUnresolvedReferences
+        uri_2 = snapshot.get(runtime.calls[1].arg_entry_ids[0]).storage_uri
+
+        self.assertEqual(uri_1, uri_2)
 
 
 class LzyEntriesTestsWithLocalRuntime(TestCase):
