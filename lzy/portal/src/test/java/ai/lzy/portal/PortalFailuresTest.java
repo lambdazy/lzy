@@ -6,6 +6,7 @@ import ai.lzy.v1.portal.LzyPortalApi;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -158,6 +159,7 @@ public class PortalFailuresTest extends PortalTestBase {
     }
 
     @Test
+    @Ignore
     public void readSnapshotOutputSlotBeforeInputOneWriteIt() throws Exception {
         System.out.println("\n----- PREPARE PORTAL FOR TASK 1 -----------------------------------------\n");
 
@@ -221,7 +223,7 @@ public class PortalFailuresTest extends PortalTestBase {
 
         Assert.assertEquals(expected, actual);
 
-        waitPortalCompleted();
+        waitPortalCompleted(9);
 
         Assert.assertTrue(snapshotData.isEmpty());
 

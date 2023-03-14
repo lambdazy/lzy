@@ -190,51 +190,23 @@ public class PortalService extends LzyPortalImplBase {
         var snapshotId = opSnapshot.id();
 
         if (op.id().equals(snapshotId)) {
-            for (LzyPortal.PortalSlotDesc slotDesc : request.getSlotsList()) {
-                LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
-
-                final Slot slot = ProtoConverter.fromProto(slotDesc.getSlot());
-                if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot)
-                    || Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot))
-                {
-                    operationService.updateError(op.id(), Status.INTERNAL.withDescription("Invalid slot " + slot));
-                    replyError.accept("Invalid slot " + slot, Status.INTERNAL);
-                    return;
-                }
-
-                try {
-                    final String taskId = switch (slotDesc.getKindCase()) {
-                        case SNAPSHOT -> portalId;
-                        case STDERR -> slotDesc.getStderr().getTaskId();
-                        case STDOUT -> slotDesc.getStdout().getTaskId();
-                        default -> throw new NotImplementedException(slotDesc.getKindCase().name());
-                    };
-                    final SlotInstance slotInstance = new SlotInstance(slot, taskId, slotDesc.getChannelId(),
-                        slotsService.getSlotsManager().resolveSlotUri(taskId, slot.name()));
-
-                    LzySlot newLzySlot = switch (slotDesc.getKindCase()) {
-                        case SNAPSHOT -> slotsService.getSnapshots().createSlot(slotDesc.getSnapshot(), slotInstance);
-                        case STDOUT -> slotsService.getStdoutSlot().attach(slotInstance);
-                        case STDERR -> slotsService.getStderrSlot().attach(slotInstance);
-                        default -> throw new NotImplementedException(slotDesc.getKindCase().name());
-                    };
-                    slotsService.getSlotsManager().registerSlot(newLzySlot);
-                } catch (SnapshotNotFound e) {
-                    e.printStackTrace();
-                    operationService.updateError(op.id(), Status.NOT_FOUND.withDescription(e.getMessage()));
-                    replyError.accept(e.getMessage(), Status.NOT_FOUND);
-                    return;
-                } catch (SnapshotUniquenessException | NotImplementedException e) {
-                    e.printStackTrace();
-                    operationService.updateError(op.id(), Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
-                    replyError.accept(e.getMessage(), Status.INVALID_ARGUMENT);
-                    return;
-                } catch (CreateSlotException e) {
-                    e.printStackTrace();
-                    operationService.updateError(op.id(), Status.INTERNAL.withDescription(e.getMessage()));
-                    replyError.accept(e.getMessage(), Status.INTERNAL);
-                    return;
-                }
+            try {
+                openSlots(request);
+            } catch (SnapshotNotFound e) {
+                LOG.error("Error while opening portal slot: " + e.getMessage(), e);
+                operationService.updateError(op.id(), Status.NOT_FOUND.withDescription(e.getMessage()));
+                replyError.accept(e.getMessage(), Status.NOT_FOUND);
+                return;
+            } catch (SnapshotUniquenessException | NotImplementedException e) {
+                LOG.error("Error while opening portal slot: " + e.getMessage(), e);
+                operationService.updateError(op.id(), Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
+                replyError.accept(e.getMessage(), Status.INVALID_ARGUMENT);
+                return;
+            } catch (CreateSlotException e) {
+                LOG.error("Error while opening portal slot: " + e.getMessage(), e);
+                operationService.updateError(op.id(), Status.INTERNAL.withDescription(e.getMessage()));
+                replyError.accept(e.getMessage(), Status.INTERNAL);
+                return;
             }
 
             var resp = OpenSlotsResponse.newBuilder().setSuccess(true).build();
@@ -246,6 +218,36 @@ public class PortalService extends LzyPortalImplBase {
             LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
 
             awaitOpAndReply(snapshotId, OpenSlotsResponse.class, response, "Cannot open slot");
+        }
+    }
+
+    public void openSlots(OpenSlotsRequest request) throws CreateSlotException {
+        for (LzyPortal.PortalSlotDesc slotDesc : request.getSlotsList()) {
+            LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
+
+            final Slot slot = ProtoConverter.fromProto(slotDesc.getSlot());
+            if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot) ||
+                Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot))
+            {
+                throw new CreateSlotException("Invalid slot " + slot.name());
+            }
+
+            final String taskId = switch (slotDesc.getKindCase()) {
+                case SNAPSHOT -> portalId;
+                case STDERR -> slotDesc.getStderr().getTaskId();
+                case STDOUT -> slotDesc.getStdout().getTaskId();
+                default -> throw new NotImplementedException(slotDesc.getKindCase().name());
+            };
+            final SlotInstance slotInstance = new SlotInstance(slot, taskId, slotDesc.getChannelId(),
+                slotsService.getSlotsManager().resolveSlotUri(taskId, slot.name()));
+
+            LzySlot newLzySlot = switch (slotDesc.getKindCase()) {
+                case SNAPSHOT -> slotsService.getSnapshots().createSlot(slotDesc.getSnapshot(), slotInstance);
+                case STDOUT -> slotsService.getStdoutSlot().attach(slotInstance);
+                case STDERR -> slotsService.getStderrSlot().attach(slotInstance);
+                default -> throw new NotImplementedException(slotDesc.getKindCase().name());
+            };
+            slotsService.getSlotsManager().registerSlot(newLzySlot);
         }
     }
 
