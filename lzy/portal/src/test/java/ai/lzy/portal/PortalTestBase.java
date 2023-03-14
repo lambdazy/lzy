@@ -363,11 +363,11 @@ public class PortalTestBase {
         return new WorkerDesc(worker, workerChannel, stub, opStub);
     }
 
-    protected void waitPortalCompleted() {
+    protected void waitPortalCompleted(int count) {
         boolean done = false;
         while (!done) {
             var status = authorizedPortalClient.status(PortalStatusRequest.newBuilder().build());
-            done = status.getSlotsList().stream().allMatch(
+            done = status.getSlotsList().size() == count && status.getSlotsList().stream().allMatch(
                 slot -> {
                     System.out.println("[portal slot] " + JsonUtils.printSingleLine(slot));
                     return switch (slot.getSlot().getDirection()) {
