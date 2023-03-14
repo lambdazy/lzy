@@ -193,17 +193,17 @@ public class PortalService extends LzyPortalImplBase {
             try {
                 openSlots(request);
             } catch (SnapshotNotFound e) {
-                e.printStackTrace();
+                LOG.error("Error while opening portal slot: " + e.getMessage(), e);
                 operationService.updateError(op.id(), Status.NOT_FOUND.withDescription(e.getMessage()));
                 replyError.accept(e.getMessage(), Status.NOT_FOUND);
                 return;
             } catch (SnapshotUniquenessException | NotImplementedException e) {
-                e.printStackTrace();
+                LOG.error("Error while opening portal slot: " + e.getMessage(), e);
                 operationService.updateError(op.id(), Status.INVALID_ARGUMENT.withDescription(e.getMessage()));
                 replyError.accept(e.getMessage(), Status.INVALID_ARGUMENT);
                 return;
             } catch (CreateSlotException e) {
-                e.printStackTrace();
+                LOG.error("Error while opening portal slot: " + e.getMessage(), e);
                 operationService.updateError(op.id(), Status.INTERNAL.withDescription(e.getMessage()));
                 replyError.accept(e.getMessage(), Status.INTERNAL);
                 return;
@@ -226,8 +226,8 @@ public class PortalService extends LzyPortalImplBase {
             LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
 
             final Slot slot = ProtoConverter.fromProto(slotDesc.getSlot());
-            if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot)
-                || Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot))
+            if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot) ||
+                Slot.STDOUT.equals(slot) || Slot.STDERR.equals(slot))
             {
                 throw new CreateSlotException("Invalid slot " + slot.name());
             }

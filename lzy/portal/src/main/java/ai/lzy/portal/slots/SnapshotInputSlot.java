@@ -10,6 +10,7 @@ import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
 import com.google.protobuf.ByteString;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -77,9 +78,9 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
                             .build())
                         .build())
                     .build());
-            } catch (CreateSlotException e) {
-                LOG.error("Portal cannot assign as sender for data: { storageUri: {} }",
-                    snapshot.getStorageUri().toString());
+            } catch (CreateSlotException | NotImplementedException e) {
+                LOG.error("Portal cannot assign as sender for data: { storageUri: {}, error: {} }",
+                    snapshot.getStorageUri().toString(), e.getMessage(), e);
             }
         });
 
