@@ -1,7 +1,7 @@
 package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
-import ai.lzy.logs.StreamQueue;
+import ai.lzy.worker.StreamQueue;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.ExecCreateCmd;

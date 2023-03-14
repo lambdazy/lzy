@@ -1,9 +1,7 @@
 package ai.lzy.util.grpc;
 
-import ai.lzy.v1.headers.LH;
 import io.grpc.Context;
 import io.grpc.Metadata;
-import io.grpc.protobuf.ProtoUtils;
 import lombok.Lombok;
 
 import java.util.Map;
@@ -19,11 +17,6 @@ public class GrpcHeaders {
     public static final Metadata.Key<String> X_REQUEST_ID = createMetadataKey("X-Request-ID");
     public static final Metadata.Key<String> X_SUBJECT_ID = createMetadataKey("X-Subject-ID");
     public static final Metadata.Key<String> IDEMPOTENCY_KEY = createMetadataKey("Idempotency-Key");
-
-    public static final Metadata.Key<LH.UserLogsHeader> USER_LOGS_HEADER_KEY = Metadata.Key.of(
-        "User-Logs-bin",
-        ProtoUtils.metadataMarshaller(LH.UserLogsHeader.getDefaultInstance())
-    );
 
     public static Metadata getHeaders() {
         return HEADERS.get();

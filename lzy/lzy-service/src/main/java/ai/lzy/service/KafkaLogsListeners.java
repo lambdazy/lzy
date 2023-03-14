@@ -123,8 +123,6 @@ public class KafkaLogsListeners {
                                     .setCurrentOffset(offset)
                                     .build();
 
-                                LOG.debug("Sending logs for executionId {}: {}", request.getExecutionId(), resp);
-
                                 response.onNext(resp);
 
                                 lastResultNotNull = true;

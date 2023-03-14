@@ -6,7 +6,6 @@ import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LineReaderSlot;
-import ai.lzy.logs.StreamQueue;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.LocalOperationService.OperationSnapshot;
@@ -333,7 +332,11 @@ public class Worker {
                 }
             });
 
-            try (final var logHandle = StreamQueue.LogHandle.fromHeaders(LOG)) {
+            var topicDesc = request.getTaskDesc().getOperation().hasKafkaTopicDesc()
+                ? request.getTaskDesc().getOperation().getKafkaTopicDesc()
+                : null;
+
+            try (final var logHandle = StreamQueue.LogHandle.fromTopicDesc(LOG, topicDesc)) {
 
                 final var stdoutSpec = op.hasStdout() ? op.getStdout() : null;
                 final var stderrSpec = op.hasStderr() ? op.getStderr() : null;

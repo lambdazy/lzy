@@ -1,7 +1,9 @@
 package ai.lzy.service.graph;
 
+import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LME;
@@ -72,10 +74,32 @@ class GraphBuilder {
             return;
         }
 
+        final KafkaTopicDesc desc;
+        try {
+            desc = DbHelper.withRetries(LOG, () -> executionDao.getKafkaTopicDesc(executionId, null));
+        } catch (Exception e) {
+            LOG.error("Cannot get topic description from db for execution {}: ", executionId, e);
+            state.fail(Status.INTERNAL, "Cannot build graph");
+            return;
+        }
+
+        final LMO.KafkaTopicDescription kafkaTopicDescription;
+
+        if (desc != null) {
+            kafkaTopicDescription = LMO.KafkaTopicDescription.newBuilder()
+                .setTopic(desc.topicName())
+                .setUsername(desc.username())
+                .setPassword(desc.password())
+                .addAllBootstrapServers(config.getBootstrapServers())
+                .build();
+        } else {
+            kafkaTopicDescription = null;
+        }
+
         List<TaskDesc> tasks;
         try {
             tasks = buildTasksWithZone(userId, workflowName, executionId, state.getZone(), state.getOperations(),
-                slot2channelId, slot2description, portalClient);
+                slot2channelId, slot2description, portalClient, kafkaTopicDescription);
         } catch (StatusRuntimeException e) {
             state.fail(e.getStatus(), "Cannot build graph");
             LOG.error("Cannot build tasks for execution: { executionId: {}, workflowName: {} }, error: {} ",
@@ -222,7 +246,8 @@ class GraphBuilder {
                                               Collection<LWF.Operation> operations,
                                               Map<String, String> slot2Channel,
                                               Map<String, LWF.DataDescription> slot2description,
-                                              LzyPortalGrpc.LzyPortalBlockingStub portalClient)
+                                              LzyPortalGrpc.LzyPortalBlockingStub portalClient,
+                                              @Nullable LMO.KafkaTopicDescription kafkaTopic)
     {
         var tasks = new ArrayList<TaskDesc>(operations.size());
 
@@ -247,7 +272,7 @@ class GraphBuilder {
             }
 
             tasks.add(buildTaskWithZone(taskId, operation, zoneName, stdoutChannelId, stderrChannelId, slot2Channel,
-                slot2description, portalClient, operation.getEnvMap()));
+                slot2description, portalClient, operation.getEnvMap(), kafkaTopic));
         }
 
         return tasks;
@@ -259,7 +284,7 @@ class GraphBuilder {
                                        Map<String, String> slot2Channel,
                                        Map<String, LWF.DataDescription> slot2description,
                                        LzyPortalGrpc.LzyPortalBlockingStub portalClient,
-                                       Map<String, String> envMap)
+                                       Map<String, String> envMap, @Nullable LMO.KafkaTopicDescription kafkaTopic)
     {
         var inputSlots = new ArrayList<LMS.Slot>();
         var outputSlots = new ArrayList<LMS.Slot>();
@@ -361,6 +386,10 @@ class GraphBuilder {
             .addAllSlots(inputSlots)
             .addAllSlots(outputSlots)
             .setName(operation.getName());
+
+        if (kafkaTopic != null) {
+            taskOperation.setKafkaTopicDesc(kafkaTopic);
+        }
 
         if (stdoutChannelId != null) {
             taskOperation.setStdout(LMO.Operation.StdSlotDesc.newBuilder()

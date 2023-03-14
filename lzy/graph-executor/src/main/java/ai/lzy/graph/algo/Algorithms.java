@@ -7,7 +7,8 @@ public class Algorithms {
     public static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> Set<T> getNextBfsGroup(
         DirectedGraph<T, E> graph,
         List<T> currentGroup
-    ) {
+    )
+    {
         final Set<T> next = new HashSet<>();
 
         final Set<T> currentExecutions = new HashSet<>(currentGroup);
@@ -24,7 +25,8 @@ public class Algorithms {
 
     public static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> Set<T> findRoots(
         DirectedGraph<T, E> graph
-    ) {
+    )
+    {
         Set<T> used = new HashSet<>();
         Set<T> roots = new HashSet<>();
         Queue<T> processingQueue = new ArrayDeque<>();
@@ -115,7 +117,8 @@ public class Algorithms {
         List<T> order,
         Set<T> used,
         DirectedGraph<T, E> graph
-    ) {
+    )
+    {
         used.add(vertex);
         for (E edge : graph.children(vertex.name())) {
             T v = edge.output();
@@ -131,7 +134,8 @@ public class Algorithms {
         Set<T> component,
         Set<T> used,
         DirectedGraph<T, E> graph
-    ) {
+    )
+    {
         used.add(vertex);
         component.add(vertex);
         for (E edge : graph.parents(vertex.name())) {
@@ -143,7 +147,8 @@ public class Algorithms {
     }
 
     public static class CondensedGraph<T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>>
-        extends DirectedGraph<CondensedComponent<T>, CondensedEdge<T, E>> {
+        extends DirectedGraph<CondensedComponent<T>, CondensedEdge<T, E>>
+    {
         final Map<String, CondensedComponent<T>> vertexNameToComponentMap;
 
         public CondensedGraph(Map<String, CondensedComponent<T>> vertexNameToComponentMap) {
@@ -175,14 +180,16 @@ public class Algorithms {
     }
 
     public static class CondensedEdge<T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> extends
-        DirectedGraph.Edge<CondensedComponent<T>> {
+        DirectedGraph.Edge<CondensedComponent<T>>
+    {
         private final CondensedComponent<T> input;
         private final CondensedComponent<T> output;
 
         private final List<E> condensedEdges = new ArrayList<>();
 
         public CondensedEdge(CondensedComponent<T> input,
-                             CondensedComponent<T> output) {
+                             CondensedComponent<T> output)
+        {
             this.input = input;
             this.output = output;
         }

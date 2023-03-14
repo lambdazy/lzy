@@ -1,7 +1,6 @@
-package ai.lzy.logs;
+package ai.lzy.worker;
 
-import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.headers.LH;
+import ai.lzy.v1.common.LMO;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.logging.log4j.Logger;
@@ -28,21 +27,20 @@ public class StreamQueue extends Thread {
     @Nullable private final KafkaProducer<String, byte[]> kafkaClient;
     @Nullable private final String topic;
 
-    public StreamQueue(@Nullable LH.UserLogsHeader topic, Logger log, String streamName) {
+    public StreamQueue(@Nullable LMO.KafkaTopicDescription topic, Logger log, String streamName) {
         this.logger = log;
         this.streamName = streamName;
-        if (topic != null && topic.hasKafkaTopicDesc()) {
-            var kafkaDesc = topic.getKafkaTopicDesc();
+        if (topic != null) {
             var props = new Properties();
             props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
             props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-            props.put("bootstrap.servers", Strings.join(kafkaDesc.getBootstrapServersList(), ','));
+            props.put("bootstrap.servers", Strings.join(topic.getBootstrapServersList(), ','));
             props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required " +
-                "  username=\"" + kafkaDesc.getUsername() + "\"" +
-                "  password=\"" + kafkaDesc.getPassword() + "\";");
+                "  username=\"" + topic.getUsername() + "\"" +
+                "  password=\"" + topic.getPassword() + "\";");
 
             this.kafkaClient = new KafkaProducer<>(props);
-            this.topic = kafkaDesc.getTopic();
+            this.topic = topic.getTopic();
         } else {
             kafkaClient = null;
             this.topic = null;
@@ -56,7 +54,21 @@ public class StreamQueue extends Thread {
     public CompletableFuture<Void> add(InputStream stream) {
         try {
             var future  = new CompletableFuture<Void>();
-            inputs.put(new Input(future, stream));
+            inputs.put(new Input(future, stream, null));
+            return future;
+        } catch (InterruptedException e) {
+            logger.error("Error while adding stream to queue", e);
+            throw new RuntimeException("Must be unreachable");
+        }
+    }
+
+    /**
+     * Add string for writing
+     */
+    public CompletableFuture<Void> add(String s) {
+        try {
+            var future  = new CompletableFuture<Void>();
+            inputs.put(new Input(future, null, s));
             return future;
         } catch (InterruptedException e) {
             logger.error("Error while adding stream to queue", e);
@@ -83,35 +95,20 @@ public class StreamQueue extends Thread {
                 //ignored
                 continue;
             }
-            try (final var input = inputHandle.stream()) {
-                var buf = new byte[4096];
-                var len = 0;
-                while ((len = input.read(buf)) != -1) {
-                    if (logger.isDebugEnabled()) {
-                        var msg = copyOfRange(buf, 0, len);
-                        logger.debug("[{}]: {}", streamName, new String(msg));
-                    }
-                    synchronized (outs) {
-                        for (var out : outs) {
-                            out.write(buf, 0, len);
-                        }
-                    }
-                    if (kafkaClient != null && topic != null) {
-                        // Using single partition to manage global order of logs
-                        try {
-                            kafkaClient.send(new ProducerRecord<>(topic, 0, streamName, copyOfRange(buf, 0, len)))
-                                .get();
-                        } catch (Exception e) {
-                            logger.warn("Cannot send data to kafka: ", e);
-                        }
-                    }
-                }
-            } catch (IOException e) {
-                logger.error("Error while writing to stream {}: ", streamName, e);
-                return;
-            } finally {
-                inputHandle.future.complete(null);
+
+            if (inputHandle.stream() != null) {
+                writeStream(inputHandle.stream());
             }
+
+            if (inputHandle.string() != null) {
+                try {
+                    writeBuf(inputHandle.string().getBytes(), inputHandle.string().getBytes().length);
+                } catch (IOException e) {
+                    logger.warn("Cannot write buffer to stream {}: ", streamName, e);
+                }
+            }
+
+            inputHandle.future.complete(null);
         }
         try {
             synchronized (outs) {
@@ -128,6 +125,39 @@ public class StreamQueue extends Thread {
         }
     }
 
+    private void writeStream(InputStream stream) {
+        try (final var input = stream) {
+            var buf = new byte[4096];
+            var len = 0;
+            while ((len = input.read(buf)) != -1) {
+                writeBuf(buf, len);
+            }
+        } catch (IOException e) {
+            logger.error("Error while writing to stream {}: ", streamName, e);
+        }
+    }
+
+    private void writeBuf(byte[] buf, int len) throws IOException {
+        if (logger.isDebugEnabled()) {
+            var msg = copyOfRange(buf, 0, len);
+            logger.debug("[{}]: {}", streamName, new String(msg));
+        }
+        synchronized (outs) {
+            for (var out : outs) {
+                out.write(buf, 0, len);
+            }
+        }
+        if (kafkaClient != null && topic != null) {
+            // Using single partition to manage global order of logs
+            try {
+                kafkaClient.send(new ProducerRecord<>(topic, 0, streamName, copyOfRange(buf, 0, len)))
+                    .get();
+            } catch (Exception e) {
+                logger.warn("Cannot send data to kafka: ", e);
+            }
+        }
+    }
+
     /**
      * Interrupt thread and wait for all data to be written
      */
@@ -138,13 +168,10 @@ public class StreamQueue extends Thread {
         this.join();
     }
 
-    private record Input(CompletableFuture<Void> future, InputStream stream) {}
+    private record Input(CompletableFuture<Void> future, @Nullable InputStream stream, @Nullable String string) {}
 
     public static class LogHandle implements AutoCloseable {
         private static final String PREFIX = "[SYS] ";
-
-        private OutputStream out;
-        private OutputStream err;
         private final Logger logger;
         private final StreamQueue outQueue;
         private final StreamQueue errQueue;
@@ -153,47 +180,15 @@ public class StreamQueue extends Thread {
 
         public LogHandle(StreamQueue outQueue, StreamQueue errQueue, Logger logger) {
             this.logger = logger;
-            out = new PipedOutputStream();
-            err = new PipedOutputStream();
             this.outQueue = outQueue;
             this.errQueue = errQueue;
-
-            try {
-                futures.add(outQueue.add(new PipedInputStream((PipedOutputStream) out)));
-            } catch (IOException e) {
-                logger.error("Cannot init io stream for stdout, running without user logs");
-
-                try {
-                    out.close();
-                } catch (IOException ex) {
-                    // ignored
-                }
-
-                out = OutputStream.nullOutputStream();
-            }
-
-            try {
-                futures.add(errQueue.add(new PipedInputStream((PipedOutputStream) err)));
-            } catch (IOException e) {
-                logger.error("Cannot init io stream for stderr, running without user logs");
-
-                try {
-                    err.close();
-                } catch (IOException ex) {
-                    // ignored
-                }
-
-                err = OutputStream.nullOutputStream();
-            }
         }
 
-        public static LogHandle fromHeaders(Logger logger) {
-            var logHeader = GrpcHeaders.getHeader(GrpcHeaders.USER_LOGS_HEADER_KEY);
-
-            var outQueue = new StreamQueue(logHeader, logger, "out");
+        public static LogHandle fromTopicDesc(Logger logger, @Nullable LMO.KafkaTopicDescription topicDesc) {
+            var outQueue = new StreamQueue(topicDesc, logger, "out");
             outQueue.start();
 
-            var errQueue = new StreamQueue(logHeader, logger, "err");
+            var errQueue = new StreamQueue(topicDesc, logger, "err");
             errQueue.start();
 
             return new LogHandle(outQueue, errQueue, logger);
@@ -203,12 +198,7 @@ public class StreamQueue extends Thread {
             var formatted  = PREFIX + new FormattedMessage(pattern, values) + "\n";
 
             logger.info(formatted);
-
-            try {
-                out.write(formatted.getBytes());
-            } catch (IOException e) {
-                logger.error("Cannot write into stdout: ", e);
-            }
+            futures.add(outQueue.add(formatted));
         }
 
         public CompletableFuture<Void> logOut(InputStream stream) {
@@ -221,12 +211,7 @@ public class StreamQueue extends Thread {
             var formatted  = PREFIX + new FormattedMessage(pattern, values) + "\n";
 
             logger.info(formatted);
-
-            try {
-                err.write(formatted.getBytes());
-            } catch (IOException e) {
-                logger.error("Cannot write into stderr: ", e);
-            }
+            futures.add(errQueue.add(formatted));
         }
 
         public CompletableFuture<Void> logErr(InputStream stream) {
@@ -246,14 +231,12 @@ public class StreamQueue extends Thread {
         @Override
         public void close() {
             try {
-                out.close();
-                err.close();
                 for (var fut: futures) {
                     fut.get();
                 }
                 outQueue.close();
                 errQueue.close();
-            } catch (IOException | InterruptedException | ExecutionException e) {
+            } catch (InterruptedException | ExecutionException e) {
                 logger.error("Cannot close out/error streams: ", e);
             }
         }

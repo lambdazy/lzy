@@ -1,6 +1,6 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.logs.StreamQueue;
+import ai.lzy.worker.StreamQueue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -58,7 +58,9 @@ public class ProcessEnvironment extends BaseEnvironment {
                 @Override
                 public int waitFor() throws InterruptedException {
                     try {
-                        return exec.waitFor();
+                        var res = exec.waitFor();
+                        exec.destroy();
+                        return res;
                     } catch (InterruptedException e) {
                         exec.destroyForcibly().waitFor();
                         throw e;

@@ -9,12 +9,10 @@ import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.util.auth.credentials.RenewableJwt;
-import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
-import ai.lzy.v1.headers.LH;
 import ai.lzy.v1.portal.LzyPortalApi;
 import ai.lzy.v1.portal.LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus;
 import ai.lzy.v1.workflow.LWFS;
@@ -181,27 +179,7 @@ public class GraphExecutionService {
 
                 GraphExecutorApi.GraphExecuteResponse executeResponse;
                 try {
-                    var builder = GrpcHeaders.withContext();
-
-                    try {
-                        var kafkaConfig = withRetries(LOG, () -> executionDao.getKafkaTopicDesc(executionId, null));
-
-                        if (kafkaConfig != null) {
-                            builder.withHeader(GrpcHeaders.USER_LOGS_HEADER_KEY, LH.UserLogsHeader.newBuilder()
-                                .setKafkaTopicDesc(
-                                    LH.UserLogsHeader.KafkaTopicDescription.newBuilder()
-                                        .setUsername(kafkaConfig.username())
-                                        .setPassword(kafkaConfig.password())
-                                        .addAllBootstrapServers(this.kafkaConfig.getBootstrapServers())
-                                        .setTopic(kafkaConfig.topicName()).build()
-                                )
-                                .build());
-                        }
-                    } catch (Exception e) {
-                        LOG.error("Cannot build header to propagate logs with kafka for execution {}", executionId, e);
-                    }
-
-                    executeResponse = builder.run(() -> idempotentGraphExecClient.execute(
+                    executeResponse = idempotentGraphExecClient.execute(
                         GraphExecutorApi.GraphExecuteRequest.newBuilder()
                             .setWorkflowId(executionId)
                             .setWorkflowName(state.getWorkflowName())
@@ -209,7 +187,7 @@ public class GraphExecutionService {
                             .setParentGraphId(state.getParentGraphId())
                             .addAllTasks(state.getTasks())
                             .addAllChannels(state.getChannels())
-                            .build()));
+                            .build());
 
                 } catch (StatusRuntimeException e) {
                     if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,

@@ -1,7 +1,7 @@
 package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
-import ai.lzy.logs.StreamQueue;
+import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
 import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.LogManager;
@@ -109,6 +109,9 @@ public class CondaEnvironment implements AuxEnvironment {
                     } catch (InterruptedException e) {
                         throw new EnvironmentInstallationException("Environment installation cancelled");
                     }
+
+                    futOut.get();
+                    futErr.get();
                     if (rc != 0) {
                         String errorMessage = "Failed to create/update conda env\n"
                             + "  ReturnCode: " + rc + "\n"
@@ -117,9 +120,6 @@ public class CondaEnvironment implements AuxEnvironment {
                         throw new EnvironmentInstallationException(errorMessage);
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
-
-                    futOut.get();
-                    futErr.get();
 
                     condaPackageRegistry.notifyInstalled(pythonEnv.getYaml());
                     //noinspection ResultOfMethodCallIgnored

@@ -14,7 +14,8 @@ public class DirectChannelChecker implements ChannelChecker {
     private final String workflowId;
 
     public DirectChannelChecker(SchedulerApi api,
-                                Map<String, TaskExecution> taskDescIdToTaskExec, String workflowId) {
+                                Map<String, TaskExecution> taskDescIdToTaskExec, String workflowId)
+    {
         this.api = api;
         this.taskDescIdToTaskExec = taskDescIdToTaskExec;
         this.workflowId = workflowId;

@@ -26,14 +26,10 @@ public final class GrpcUtils {
             return stub.withInterceptors(
                 GrpcLogsInterceptor.client(name),
                 ClientHeaderInterceptor.authorization(token),
-                ClientHeaderInterceptor.header(GrpcHeaders.USER_LOGS_HEADER_KEY,
-                    () -> GrpcHeaders.getHeader(GrpcHeaders.USER_LOGS_HEADER_KEY)),
                 RequestIdInterceptor.client());
         } else {
             return stub.withInterceptors(
                 GrpcLogsInterceptor.client(name),
-                ClientHeaderInterceptor.header(GrpcHeaders.USER_LOGS_HEADER_KEY,
-                    () -> GrpcHeaders.getHeader(GrpcHeaders.USER_LOGS_HEADER_KEY)),
                 RequestIdInterceptor.client());
         }
     }

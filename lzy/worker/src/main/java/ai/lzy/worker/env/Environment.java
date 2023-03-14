@@ -1,6 +1,6 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.logs.StreamQueue;
+import ai.lzy.worker.StreamQueue;
 
 import java.io.InputStream;
 import java.io.OutputStream;
