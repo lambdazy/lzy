@@ -15,7 +15,6 @@ from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
 from lzy.api.v1.utils.hashing import md5_of_str
-from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy
 from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
 from lzy.api.v1.whiteboards import WritableWhiteboard
 from lzy.logs.config import get_logger
