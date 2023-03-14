@@ -49,7 +49,6 @@ public class GraphExecutionService {
     private final ExecutionDao executionDao;
     private final OperationDao operationDao;
 
-    private final CacheChecker cacheChecker;
     private final GraphValidator validator;
     private final GraphBuilder builder;
 
@@ -82,7 +81,6 @@ public class GraphExecutionService {
         var vmPoolClient = newBlockingClient(
             VmPoolServiceGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
 
-        this.cacheChecker = new CacheChecker();
         this.validator = new GraphValidator(vmPoolClient);
 
         var channelManagerClient = newBlockingClient(
@@ -116,7 +114,33 @@ public class GraphExecutionService {
 
             var storageConfig = withRetries(LOG, () -> executionDao.getStorageConfig(executionId));
             var storageClient = storageClients.provider(storageConfig).get();
-            CacheChecker.removeCachedOps(state, storageClient, LOG);
+            CacheUtils.removeCachedOps(state, storageClient, LOG);
+
+            if (state.isInvalid()) {
+                if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
+                    state.getErrorStatus()))
+                {
+                    cleanExecutionCompanion.cleanExecution(executionId);
+                }
+                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), null, LOG);
+            }
+
+            if (state.getOperations().isEmpty()) {
+                LOG.info("All graph operations results already presented in cache, nothing to execute: " + state);
+                var packed = Any.pack(ExecuteGraphResponse.getDefaultInstance());
+
+                try {
+                    return withRetries(LOG, () -> operationDao.complete(state.getOpId(), packed, null));
+                } catch (Exception e) {
+                    LOG.error("Error while executing transaction: {}", e.getMessage(), e);
+
+                    var reason = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
+                    if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId, reason)) {
+                        cleanExecutionCompanion.cleanExecution(executionId);
+                    }
+                    return operationDao.failOperation(state.getOpId(), toProto(reason), null, LOG);
+                }
+            }
 
             if (state.getDataFlowGraph() == null || state.getZone() == null) {
                 LOG.debug("Validate dataflow graph, current state: " + state);

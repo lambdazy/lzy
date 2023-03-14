@@ -4,14 +4,18 @@ import ai.lzy.graph.api.SchedulerApi;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
 import io.grpc.Status;
+import io.micronaut.context.annotation.Primary;
+import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Singleton;
 
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 
-//@Primary
-//@Requires(env = "test-mock")
+@Singleton
+@Primary
+@Requires(env = "test-mock")
 public class SchedulerApiMock implements SchedulerApi {
     private final Map<String, TaskStatus> statusByTaskId = new ConcurrentHashMap<>();
     private final Set<String> exceptions = ConcurrentHashMap.newKeySet();

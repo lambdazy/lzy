@@ -12,7 +12,6 @@ import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.DaoException;
-import ai.lzy.scheduler.test.BaseTestWithScheduler;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.storage.test.BaseTestWithStorage;
@@ -54,7 +53,6 @@ public class BaseTest {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();
     private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
-    private static final BaseTestWithScheduler schedulerTestContext = new BaseTestWithScheduler();
     private static final BaseTestWithGraphExecutor graphExecutorTestContext = new BaseTestWithGraphExecutor();
     protected static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
 
@@ -64,8 +62,6 @@ public class BaseTest {
     public PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @Rule
-    public PreparedDbRule schedulerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule graphExecutorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
@@ -108,15 +104,15 @@ public class BaseTest {
         allocatorCfgOverrides.put("allocator.iam.address", iamAddress);
         allocatorTestContext.setUp(allocatorCfgOverrides);
 
-        var schedulerCfgOverrides = preparePostgresConfig("scheduler", schedulerDb.getConnectionInfo());
-        schedulerCfgOverrides.put("scheduler.channel-manager-address", channelManagerTestContext.getAddress());
-        schedulerCfgOverrides.put("scheduler.iam.address", iamAddress);
-        schedulerTestContext.setUp(schedulerCfgOverrides);
+//        var schedulerCfgOverrides = preparePostgresConfig("scheduler", schedulerDb.getConnectionInfo());
+//        schedulerCfgOverrides.put("scheduler.channel-manager-address", channelManagerTestContext.getAddress());
+//        schedulerCfgOverrides.put("scheduler.iam.address", iamAddress);
+//        schedulerTestContext.setUp(schedulerCfgOverrides);
 
         var graphExecCfgOverrides = preparePostgresConfig("graph-executor", graphExecutorDb.getConnectionInfo());
         graphExecCfgOverrides.put("graph-executor.iam.address", iamAddress);
-        graphExecCfgOverrides.put("graph-executor.scheduler.host", "localhost");
-        graphExecCfgOverrides.put("graph-executor.scheduler.port", schedulerTestContext.getPort());
+        //graphExecCfgOverrides.put("graph-executor.scheduler.host", "localhost");
+        //graphExecCfgOverrides.put("graph-executor.scheduler.port", schedulerTestContext.getPort());
         graphExecutorTestContext.setUp(graphExecCfgOverrides);
 
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
@@ -174,7 +170,7 @@ public class BaseTest {
         lzyServer.shutdown();
         lzyServer.awaitTermination();
         graphExecutorTestContext.after();
-        schedulerTestContext.after();
+        //schedulerTestContext.after();
         channelManagerTestContext.after();
         allocatorTestContext.after();
         storageTestContext.after();

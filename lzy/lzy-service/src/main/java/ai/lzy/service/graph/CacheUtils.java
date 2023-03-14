@@ -5,6 +5,7 @@ import ai.lzy.storage.StorageClient;
 import ai.lzy.v1.workflow.LWF.Operation;
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
@@ -12,7 +13,7 @@ import java.util.ArrayList;
 
 import static ai.lzy.util.grpc.ProtoPrinter.safePrinter;
 
-class CacheChecker {
+class CacheUtils {
     public static void removeCachedOps(GraphExecutionState state, StorageClient storageClient, Logger log) {
         if (state.getOperations().isEmpty()) {
             state.fail(Status.INVALID_ARGUMENT, "Empty graph");
@@ -27,7 +28,9 @@ class CacheChecker {
                     try {
                         return storageClient.blobExists(URI.create(uri));
                     } catch (Exception e) {
-                        throw new RuntimeException(e);
+                        log.error("Error while checking blob existence: { storageUri: {} }", uri);
+                        throw new StatusRuntimeException(Status.INTERNAL.withDescription(
+                            "Cannot check blob existence"));
                     }
                 });
 

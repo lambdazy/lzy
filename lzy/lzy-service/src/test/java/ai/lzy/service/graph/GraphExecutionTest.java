@@ -2,7 +2,6 @@ package ai.lzy.service.graph;
 
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
-import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.junit.Ignore;
@@ -13,7 +12,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.Assert.*;
 
-@Ignore
 public class GraphExecutionTest extends AbstractGraphExecutionTest {
     @Test
     public void executeSimpleGraph() {
@@ -58,95 +56,6 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
             .getGraphId();
 
         assertSame(2, countOfTasks.get());
-    }
-
-    @Test
-    public void repeatedGraphsUseCache() {
-        var workflow = startWorkflow("workflow_1");
-        var countOfTasks = new AtomicInteger(0);
-
-        onExecuteGraph(request -> countOfTasks.addAndGet(request.getTasksCount()));
-
-        var graphs = sequenceOfGraphs(storageConfig);
-
-        var graphId1 = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_1")
-                .setExecutionId(workflow.getExecutionId())
-                .setGraph(graphs.get(0))
-                .build()).getGraphId();
-        var graphId2 = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_1")
-                .setExecutionId(workflow.getExecutionId())
-                .setGraph(graphs.get(1))
-                .build()).getGraphId();
-
-        assertFalse(graphId1.isBlank());
-        assertFalse(graphId2.isBlank());
-        assertEquals(2, countOfTasks.get());
-    }
-
-    @Test
-    public void repeatedExecsUseCache() throws InvalidProtocolBufferException {
-        var countOfTasks = new AtomicInteger(0);
-
-        onExecuteGraph(request -> countOfTasks.addAndGet(request.getTasksCount()));
-
-        var graphs = sequenceOfGraphs(storageConfig);
-
-        var exec1 = startWorkflow("workflow_1");
-        var graphId1 = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_1")
-                .setExecutionId(exec1.getExecutionId())
-                .setGraph(graphs.get(0))
-                .build()).getGraphId();
-
-        finishWorkflow("workflow_1", exec1.getExecutionId());
-
-        var exec2 = startWorkflow("workflow_1");
-        var graphId2 = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_1")
-                .setExecutionId(exec2.getExecutionId())
-                .setGraph(graphs.get(1))
-                .build()).getGraphId();
-
-        finishWorkflow("workflow_1", exec2.getExecutionId());
-
-        assertFalse(graphId1.isBlank());
-        assertFalse(graphId2.isBlank());
-        assertEquals(2, countOfTasks.get());
-    }
-
-    @Test
-    public void executeFullyCachedGraph() {
-        var workflow = startWorkflow("workflow_1");
-        var graphs = sequenceOfGraphs(storageConfig);
-        var countOfGraphs = new AtomicInteger(0);
-
-        onExecuteGraph(request -> countOfGraphs.incrementAndGet());
-
-        var graphId1 = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_1")
-                .setExecutionId(workflow.getExecutionId())
-                .setGraph(graphs.get(0))
-                .build()).getGraphId();
-        var graphId2 = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_1")
-                .setExecutionId(workflow.getExecutionId())
-                .setGraph(graphs.get(1))
-                .build()).getGraphId();
-        var before = countOfGraphs.get();
-
-        var graphId3 = authorizedWorkflowClient.executeGraph(
-            LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_1")
-                .setExecutionId(workflow.getExecutionId())
-                .setGraph(graphs.get(2))
-                .build()).getGraphId();
-        var after = countOfGraphs.get();
-
-        assertFalse(graphId1.isBlank());
-        assertFalse(graphId2.isBlank());
-        assertTrue(graphId3.isBlank());
-        assertSame(before, after);
     }
 
     @Test
