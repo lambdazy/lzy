@@ -4,6 +4,7 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.metrics.MetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
@@ -30,11 +31,14 @@ public class App {
 
     private final ExecutorService workersPool;
     private final Server server;
+    private final MetricReporter metricReporter;
 
     public App(LzyServiceConfig config, LzyService lzyService,
+               @Named("LzyServiceMetricReporter") MetricReporter metricReporter,
                @Named("LzyServiceOperationDao") OperationDao operationDao,
                @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
+        this.metricReporter = metricReporter;
         var authInterceptor = new AuthServerInterceptor(
             new AuthenticateServiceGrpcClient("LzyService", config.getIam().getAddress()));
 
@@ -57,9 +61,11 @@ public class App {
 
     public void start() throws IOException {
         server.start();
+        metricReporter.start();
     }
 
     public void shutdown(boolean force) {
+        metricReporter.stop();
         if (force) {
             server.shutdownNow();
             workersPool.shutdownNow();
