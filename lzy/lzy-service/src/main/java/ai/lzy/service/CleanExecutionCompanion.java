@@ -40,6 +40,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -66,6 +67,8 @@ public class CleanExecutionCompanion {
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
+
+    @Nullable
     private final AdminClient kafkaAdmin;
     private final KafkaLogsListeners kafkaLogsListeners;
 
@@ -76,7 +79,8 @@ public class CleanExecutionCompanion {
                                    @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                    @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
                                    @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
-                                   WorkflowMetrics metrics, @Named("LzyServiceKafkaAdminClient") AdminClient kafkaAdmin,
+                                   WorkflowMetrics metrics,
+                                   @Named("LzyServiceKafkaAdminClient") Optional<AdminClient> kafkaAdmin,
                                    KafkaLogsListeners kafkaLogsListeners)
     {
         this.storage = storage;
@@ -90,7 +94,7 @@ public class CleanExecutionCompanion {
         this.portalClients = portalClients;
         this.channelManagerChannel = channelManagerChannel;
         this.metrics = metrics;
-        this.kafkaAdmin = kafkaAdmin;
+        this.kafkaAdmin = kafkaAdmin.orElse(null);
         this.kafkaLogsListeners = kafkaLogsListeners;
         this.channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,

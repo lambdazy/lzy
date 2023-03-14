@@ -58,9 +58,7 @@ public class ProcessEnvironment extends BaseEnvironment {
                 @Override
                 public int waitFor() throws InterruptedException {
                     try {
-                        var res = exec.waitFor();
-                        exec.destroy();
-                        return res;
+                        return exec.waitFor();
                     } catch (InterruptedException e) {
                         exec.destroyForcibly().waitFor();
                         throw e;

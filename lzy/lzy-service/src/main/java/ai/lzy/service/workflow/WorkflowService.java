@@ -30,6 +30,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -77,6 +78,8 @@ public class WorkflowService {
     final ExecutionDao executionDao;
     private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
     private final LzyServiceConfig config;
+
+    @Nullable
     private final AdminClient kafkaAdmin;
 
     private final KafkaLogsListeners kafkaLogsListeners;
@@ -87,7 +90,7 @@ public class WorkflowService {
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel, WorkflowMetrics metrics,
-                           @Named("LzyServiceKafkaAdminClient") AdminClient kafkaAdmin,
+                           @Named("LzyServiceKafkaAdminClient") Optional<AdminClient> kafkaAdmin,
                            KafkaLogsListeners kafkaLogsListeners)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
@@ -104,7 +107,7 @@ public class WorkflowService {
         this.executionDao = executionDao;
 
         this.cleanExecutionCompanion = cleanExecutionCompanion;
-        this.kafkaAdmin = kafkaAdmin;
+        this.kafkaAdmin = kafkaAdmin.orElse(null);
         this.kafkaLogsListeners = kafkaLogsListeners;
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());

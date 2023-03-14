@@ -607,6 +607,10 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 if (qs.next()) {
                     var kafkaJson = qs.getString(1);
 
+                    if (kafkaJson == null) {
+                        return null;
+                    }
+
                     return mapper.readValue(kafkaJson, KafkaTopicDesc.class);
                 } else {
                     return null;

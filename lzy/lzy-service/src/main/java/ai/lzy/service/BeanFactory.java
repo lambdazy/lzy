@@ -32,13 +32,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
+import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
@@ -137,10 +137,8 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Bean(preDestroy = "close")
     @Named("LzyServiceKafkaAdminClient")
-    @Nullable
-    public AdminClient adminClient(LzyServiceConfig.KafkaConfig config) {
+    public Optional<AdminClient> adminClient(LzyServiceConfig.KafkaConfig config) {
         if (config.isEnabled()) {
             var props = new Properties();
             props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
@@ -150,9 +148,9 @@ public class BeanFactory {
                 "  username=\"" + config.getUsername() + "\"" +
                 "  password=\"" + config.getPassword() + "\";");
 
-            return AdminClient.create(props);
+            return Optional.of(AdminClient.create(props));
         } else {
-            return null;
+            return Optional.empty();
         }
     }
 }
