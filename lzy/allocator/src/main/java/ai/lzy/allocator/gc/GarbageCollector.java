@@ -1,5 +1,6 @@
 package ai.lzy.allocator.gc;
 
+import ai.lzy.allocator.DbAwareMetrics;
 import ai.lzy.allocator.alloc.AllocationContext;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.gc.dao.GcDao;
@@ -33,6 +34,7 @@ public class GarbageCollector {
     private final ServiceConfig.GcConfig config;
     private final GcDao gcDao;
     private final AllocationContext allocationContext;
+    private final DbAwareMetrics dbAwareMetrics;
     private final AtomicReference<Thread> gcThread = new AtomicReference<>(null);
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
         var th = new Thread(r, "gc");
@@ -46,12 +48,13 @@ public class GarbageCollector {
     private final AtomicBoolean terminated = new AtomicBoolean(false);
 
     public GarbageCollector(ServiceConfig serviceConfig, ServiceConfig.GcConfig gcConfig, GcDao gcDao,
-                            AllocationContext allocationContext)
+                            AllocationContext allocationContext, DbAwareMetrics dbAwareMetrics)
     {
         this.instanceId = serviceConfig.getInstanceId();
         this.config = gcConfig;
         this.gcDao = gcDao;
         this.allocationContext = allocationContext;
+        this.dbAwareMetrics = dbAwareMetrics;
     }
 
     public void start() {
@@ -89,6 +92,8 @@ public class GarbageCollector {
             } catch (SQLException e) {
                 LOG.error("Cannot release GC lease for {}: {}", instanceId, e.getMessage());
             }
+
+            dbAwareMetrics.shutdown();
         }
 
         try {
@@ -143,6 +148,7 @@ public class GarbageCollector {
                     LOG.debug("GC lease for {} prolonged until {}", instanceId, newDeadline);
                 } catch (Exception e) {
                     LOG.error("Cannot prolong GC lease for {}: {}", instanceId, e.getMessage());
+                    dbAwareMetrics.shutdown();
                 }
                 return;
             }
@@ -153,6 +159,9 @@ public class GarbageCollector {
                 if (newDeadline != null) {
                     LOG.info("New GC leader {}", instanceId);
                     cleanVmsFuture = schedule(new CleanVms(false), Duration.ZERO);
+                    dbAwareMetrics.start();
+                } else {
+                    dbAwareMetrics.shutdown();
                 }
             } catch (Exception e) {
                 LOG.error("Cannot acquire GC lease for {}: {}", instanceId, e.getMessage());
@@ -199,9 +208,16 @@ public class GarbageCollector {
                 LOG.error("Error during GC: " + e.getMessage(), e);
             }
 
-            // TODO: cleanup disks
+            var elapsedTime = Duration.between(startTime, Instant.now());
+            if (elapsedTime.toSeconds() < 5) {
+                // TODO: cleanup disks
+            }
 
-            // TODO: cleanup completed ops
+
+            elapsedTime = Duration.between(startTime, Instant.now());
+            if (elapsedTime.toSeconds() < 5) {
+                // TODO: cleanup completed ops
+            }
 
             LOG.info("GC step takes {}ms", Duration.between(startTime, Instant.now()).toMillis());
 
