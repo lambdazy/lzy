@@ -14,7 +14,7 @@ from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
-from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize
+from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize, is_lzy_proxy
 from lzy.api.v1.utils.types import infer_real_types, get_default_args, check_types_serialization_compatible, is_subtype
 from lzy.api.v1.workflow import LzyWorkflow
 
@@ -29,7 +29,9 @@ class LzyCall:
         provisioning: Provisioning,
         env: Env,
         description: str = "",
-        lazy_arguments: bool = True
+        version: str = "0.0",
+        cache: bool = False,
+        lazy_arguments: bool = False
     ):
         self.__lazy_arguments = lazy_arguments
         self.__id = str(uuid.uuid4())
@@ -38,37 +40,37 @@ class LzyCall:
         self.__provisioning = provisioning
         self.__env = env
         self.__description = description
-
-        prefix = f"{workflow.owner.storage_uri}/lzy_runs/{workflow.name}/{workflow.execution_id}/data"
-        self.__entry_ids: List[str] = []
-        for i, typ in enumerate(sign.func.output_types):
-            name = sign.func.callable.__name__ + ".return_" + str(i)
-            uri = f"{prefix}/{name}.{self.__id}"
-            self.__entry_ids.append(workflow.snapshot.create_entry(name, typ, uri).id)
+        self.__version = version
+        self.__cache = False
 
         self.__args_entry_ids: List[str] = []
         for i, arg in enumerate(sign.args):
             if workflow.entry_index.has_entry_id(arg):
-                self.__args_entry_ids.append(workflow.entry_index.get_entry_id(arg))
+                entry_id = workflow.entry_index.get_entry_id(arg)
             else:
                 arg_name = sign.func.arg_names[i]
-                name = sign.func.callable.__name__ + "." + arg_name
-                uri = f"{prefix}/{name}.{self.__id}"
-                entry = workflow.snapshot.create_entry(name, sign.func.input_types[arg_name], uri)
-                self.__args_entry_ids.append(entry.id)
-                workflow.entry_index.add_entry_id(arg, entry.id)
+                entry_id = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + arg_name,
+                                                          typ=sign.func.input_types[arg_name]).id
+                workflow.entry_index.add_entry_id(arg, entry_id)
+
+            self.__args_entry_ids.append(entry_id)
 
         self.__kwargs_entry_ids: Dict[str, str] = {}
         for kwarg_name, kwarg in sign.kwargs.items():
-            entry_id: str
             if workflow.entry_index.has_entry_id(kwarg):
                 entry_id = workflow.entry_index.get_entry_id(kwarg)
             else:
-                name = sign.func.callable.__name__ + "." + kwarg_name
-                uri = f"{prefix}/{name}.{self.__id}"
-                entry_id = workflow.snapshot.create_entry(name, sign.func.input_types[kwarg_name], uri).id
+                entry_id = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + kwarg_name,
+                                                          typ=sign.func.input_types[kwarg_name]).id
                 workflow.entry_index.add_entry_id(kwarg, entry_id)
+
             self.__kwargs_entry_ids[kwarg_name] = entry_id
+
+        self.__entry_ids: List[str] = []
+        for i, arg_typ in enumerate(sign.func.output_types):
+            name = sign.func.callable.__name__ + ".return_" + str(i)
+            entry_id = workflow.snapshot.create_entry(name, arg_typ).id
+            self.__entry_ids.append(entry_id)
 
     @property
     def provisioning(self) -> Provisioning:
@@ -118,6 +120,14 @@ class LzyCall:
     def lazy_arguments(self) -> bool:
         return self.__lazy_arguments
 
+    @property
+    def version(self) -> str:
+        return self.__version
+
+    @property
+    def cache(self) -> bool:
+        return self.__cache
+
 
 def wrap_call(
     f: Callable[..., Any],
@@ -125,7 +135,9 @@ def wrap_call(
     provisioning: Provisioning,
     env: Env,
     description: str = "",
-    lazy_arguments: bool = True
+    version: str = "0.0",
+    cache: bool = False,
+    lazy_arguments: bool = False
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
@@ -149,7 +161,7 @@ def wrap_call(
         signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot,
                                                       active_workflow.entry_index,
                                                       active_workflow.owner.serializer_registry, *args, **kwargs)
-        lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description, lazy_arguments)
+        lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description, version, cache, lazy_arguments)
         active_workflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return

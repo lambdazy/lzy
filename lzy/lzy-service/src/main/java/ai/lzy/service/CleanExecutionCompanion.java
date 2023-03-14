@@ -76,8 +76,8 @@ public class CleanExecutionCompanion {
                                    @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                    @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
                                    @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
-                                   WorkflowMetrics metrics,
-                                   @Named("LzyServiceKafkaAdminClient") AdminClient kafkaAdmin, KafkaLogsListeners kafkaLogsListeners)
+                                   WorkflowMetrics metrics, @Named("LzyServiceKafkaAdminClient") AdminClient kafkaAdmin,
+                                   KafkaLogsListeners kafkaLogsListeners)
     {
         this.storage = storage;
         this.workflowDao = workflowDao;

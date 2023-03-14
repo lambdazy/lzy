@@ -638,8 +638,11 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
             authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder().setVmId(vm1.vmId()).build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
-            Assert.assertEquals(e.getStatus().toString(), Status.FAILED_PRECONDITION.getCode(),
-                e.getStatus().getCode());
+            if (e.getStatus().getCode() != Status.NOT_FOUND.getCode() &&
+                e.getStatus().getCode() != Status.FAILED_PRECONDITION.getCode())
+            {
+                Assert.fail(e.getStatus().toString());
+            }
         }
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
     }

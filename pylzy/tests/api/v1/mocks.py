@@ -58,7 +58,14 @@ class RuntimeMock(Runtime):
 
 
 class StorageClientMock(AsyncStorageClient):
-    async def copy(self, from_uri: str, to_uri: str) -> None:
+    def __init__(self):
+        self.__store_counts__: Dict[str, int] = dict()
+
+    @property
+    def store_counts(self):
+        return self.__store_counts__
+
+    async def copy(self, from_uri: str, to_uri: str, progress: Optional[Callable[[int], Any]] = None) -> None:
         pass
 
     async def size_in_bytes(self, uri: str) -> int:
@@ -68,10 +75,10 @@ class StorageClientMock(AsyncStorageClient):
         pass
 
     async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], None]] = None):
-        pass
+        self.__store_counts__[uri] = self.__store_counts__.setdefault(uri, 0) + 1
 
     async def blob_exists(self, uri: str) -> bool:
-        pass
+        return True if uri in self.__store_counts__ else False
 
     def generate_uri(self, container: str, blob: str) -> str:
         pass

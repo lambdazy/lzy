@@ -1,13 +1,13 @@
 
 
 locals {
-  whiteboard-labels   = {
-    app                         = "whiteboard"
-    "app.kubernetes.io/name"    = "whiteboard"
-    "lzy.ai/app"                = "whiteboard"
+  whiteboard-labels = {
+    app                      = "whiteboard"
+    "app.kubernetes.io/name" = "whiteboard"
+    "lzy.ai/app"             = "whiteboard"
   }
   whiteboard-k8s-name = "whiteboard"
-  whiteboard-image = var.whiteboard-image
+  whiteboard-image    = var.whiteboard-image
 }
 
 resource "kubernetes_deployment" "whiteboard" {
@@ -34,29 +34,37 @@ resource "kubernetes_deployment" "whiteboard" {
           image_pull_policy = "Always"
           port {
             container_port = local.whiteboard-port
-            host_port      = local.whiteboard-port
+          }
+
+          port {
+            container_port = local.whiteboard-metrics-port
           }
 
           env {
-            name = "WHITEBOARD_ADDRESS"
+            name  = "WHITEBOARD_METRICS_PORT"
+            value = local.whiteboard-metrics-port
+          }
+
+          env {
+            name  = "WHITEBOARD_ADDRESS"
             value = "0.0.0.0:${local.whiteboard-port}"
           }
 
           env {
-            name  = "WHITEBOARD_DATABASE_USERNAME"
+            name = "WHITEBOARD_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.db_secret["whiteboard"].metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
           env {
-            name  = "WHITEBOARD_DATABASE_PASSWORD"
+            name = "WHITEBOARD_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.db_secret["whiteboard"].metadata[0].name
-                key = "password"
+                key  = "password"
               }
             }
           }
@@ -71,7 +79,7 @@ resource "kubernetes_deployment" "whiteboard" {
             value = "true"
           }
           env {
-            name = "WHITEBOARD_IAM_ADDRESS"
+            name  = "WHITEBOARD_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
@@ -79,7 +87,7 @@ resource "kubernetes_deployment" "whiteboard" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
-                key = "username"
+                key  = "username"
               }
             }
           }
@@ -88,16 +96,37 @@ resource "kubernetes_deployment" "whiteboard" {
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
-                key = "key"
+                key  = "key"
               }
+            }
+          }
+        }
+        container {
+          name = "unified-agent"
+          image = var.unified-agent-image
+          image_pull_policy = "Always"
+          env {
+            name = "FOLDER_ID"
+            value = var.folder_id
+          }
+          volume_mount {
+            name       = "unified-agent-config"
+            mount_path = "/etc/yandex/unified_agent/conf.d/"
+          }
+        }
+        volume {
+          name = "unified-agent-config"
+          config_map {
+            name = kubernetes_config_map.unified-agent-config["whiteboard"].metadata[0].name
+            items {
+              key = "config"
+              path = "config.yml"
             }
           }
         }
         node_selector = {
           type = "lzy"
         }
-        dns_policy    = "ClusterFirstWithHostNet"
-        host_network  = true
       }
     }
   }
@@ -109,10 +138,10 @@ resource "kubernetes_service" "whiteboard_service" {
     labels = local.whiteboard-labels
   }
   spec {
-    selector = local.whiteboard-labels
+    selector         = local.whiteboard-labels
     load_balancer_ip = yandex_vpc_address.whiteboard_public_ip.external_ipv4_address[0].address
     port {
-      port = local.whiteboard-port
+      port        = local.whiteboard-port
       target_port = local.whiteboard-port
     }
     type = "LoadBalancer"

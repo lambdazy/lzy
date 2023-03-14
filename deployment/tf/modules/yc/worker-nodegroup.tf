@@ -112,6 +112,7 @@ resource "yandex_kubernetes_node_group" "workers" {
   name        = "workers-${each.key}"
   description = "Nodegroup for lzy workers with label ${each.key}"
   node_labels = {
+    "lzy.ai/logging_allowed" = "true"
     "lzy.ai/node-pool-id"    = "${each.key}1"
     "lzy.ai/node-pool-label" = each.key
     "lzy.ai/node-pool-kind"  = each.value.kind

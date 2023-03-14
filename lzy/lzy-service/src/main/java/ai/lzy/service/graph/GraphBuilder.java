@@ -41,7 +41,8 @@ class GraphBuilder {
     private final LzyServiceConfig.KafkaConfig config;
 
     public GraphBuilder(ExecutionDao executionDao, LzyChannelManagerPrivateBlockingStub channelManagerClient,
-                        LzyServiceConfig.KafkaConfig config) {
+                        LzyServiceConfig.KafkaConfig config)
+    {
         this.executionDao = executionDao;
         this.channelManagerClient = channelManagerClient;
         this.config = config;

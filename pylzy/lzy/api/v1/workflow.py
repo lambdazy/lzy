@@ -1,4 +1,5 @@
 import asyncio
+import os
 import traceback
 from typing import (
     TYPE_CHECKING,
@@ -14,6 +15,7 @@ from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
+from lzy.api.v1.utils.hashing import md5_of_str
 from lzy.api.v1.utils.proxy_adapter import is_lzy_proxy
 from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
 from lzy.api.v1.whiteboards import WritableWhiteboard
@@ -29,6 +31,8 @@ _LOG = get_logger(__name__)
 if TYPE_CHECKING:
     from lzy.api.v1 import Lzy
     from lzy.api.v1.call import LzyCall
+
+USER_ENV = "LZY_USER"
 
 
 class LzyWorkflow:
@@ -55,6 +59,7 @@ class LzyWorkflow:
         self.__name = name
         self.__eager = eager
         self.__owner = owner
+        self.__user = os.getenv("LZY_USER")
         self.__call_queue: List["LzyCall"] = []
         self.__started = False
 
@@ -136,8 +141,15 @@ class LzyWorkflow:
 
     def __enter__(self) -> "LzyWorkflow":
         try:
+            parts = [self.__owner.storage_uri]
+            # user may not be set in tests
+            if self.__user is not None:
+                parts.append(self.__user)
+            parts.extend(['lzy_runs', self.__name, 'inputs'])
+            storage_uri = '/'.join(parts)
+
             self.__execution_id = LzyEventLoop.run_async(self.__start())
-            self.__snapshot = DefaultSnapshot(self.owner.serializer_registry, self.owner.storage_client,
+            self.__snapshot = DefaultSnapshot(self.owner.serializer_registry, storage_uri, self.owner.storage_client,
                                               self.owner.storage_name)
             return self
         except Exception as e:
@@ -213,21 +225,69 @@ class LzyWorkflow:
         _LOG.info(f"Building graph from calls "
                   f"{' -> '.join(call.signature.func.callable.__name__ for call in self.__call_queue)}")
 
-        data_to_load = []
+        local_data_put_tasks = []
         for call in self.__call_queue:
+            _LOG.debug(f"Put local args data to storage for call {call.signature.func.name}")
             for arg, eid in zip(call.args, call.arg_entry_ids):
-                if not is_lzy_proxy(arg):
-                    data_to_load.append(self.snapshot.put_data(eid, arg))
+                if not is_lzy_proxy(arg) and eid not in self.__filled_entry_ids:
+                    local_data_put_tasks.append(self.snapshot.put_data(eid, arg))
                     self.__filled_entry_ids.add(eid)
 
             for name, kwarg in call.kwargs.items():
                 eid = call.kwarg_entry_ids[name]
-                if not is_lzy_proxy(kwarg):
-                    data_to_load.append(self.snapshot.put_data(eid, kwarg))
+                if not is_lzy_proxy(kwarg) and eid not in self.__filled_entry_ids:
+                    local_data_put_tasks.append(self.snapshot.put_data(eid, kwarg))
                     self.__filled_entry_ids.add(eid)
 
-            self.__filled_entry_ids.update(call.entry_ids)
+        await asyncio.gather(*local_data_put_tasks)
 
-        await asyncio.gather(*data_to_load)
+        for call in self.__call_queue:
+            if call.cache:
+                self.__gen_results_uri_with_cache(call)
+            else:
+                self.__gen_results_uri_skip_cache(call)
+
         await self.__owner.runtime.exec(self.__call_queue, lambda x: _LOG.info(f"Graph status: {x.name}"))
+
+        wb_copy_tasks = []
+        for wb in self.__whiteboards:
+            _LOG.debug(f"Put whiteboard {wb.name} delayed fields data to storage")
+            for key, from_eid in wb.unloaded_fields.items():
+                wb_copy_tasks.append(self.snapshot.copy_data(from_eid, f"{wb.storage_uri}/{key}"))
+
+        await asyncio.gather(*wb_copy_tasks)
+
         self.__call_queue = []
+
+    def __gen_results_uri_with_cache(self, call: 'LzyCall'):
+        parts = [self.__owner.storage_uri]
+        # user may not be set in tests
+        if self.__user is not None:
+            parts.append(self.__user)
+        parts.extend(['lzy_runs', self.__name, 'ops'])
+        uri_prefix = '/'.join(parts)
+
+        args_hashes = map(lambda entry_id: self.snapshot.get(entry_id).data_hash, call.arg_entry_ids)
+        kwargs_hashes = []
+        for name in sorted(call.kwargs.keys()):
+            kwargs_hashes.append(f"{name}:{self.snapshot.get(call.kwarg_entry_ids[name]).data_hash}")
+
+        inputs_hashes_concat = '_'.join([*args_hashes, *kwargs_hashes])
+        op_name = call.signature.func.callable.__name__
+        op_version = call.version
+
+        for i, eid in enumerate(call.entry_ids):
+            if eid not in self.__filled_entry_ids:
+                entry = self.snapshot.get(eid)
+                entry.storage_uri = uri_prefix + f"/{op_name}_{op_version}_{inputs_hashes_concat}/return_{str(i)}"
+                entry.data_hash = md5_of_str(entry.storage_uri)
+                self.__filled_entry_ids.add(eid)
+
+    def __gen_results_uri_skip_cache(self, call: 'LzyCall'):
+        for i, eid in enumerate(call.entry_ids):
+            if eid not in self.__filled_entry_ids:
+                entry = self.snapshot.get(eid)
+                uri_suffix = f"/{call.signature.func.callable.__name__}.{call.id}/return_{str(i)}"
+                entry.storage_uri = f"{self.__owner.storage_uri}/lzy_runs/{self.__name}/ops" + uri_suffix
+                entry.data_hash = md5_of_str(entry.storage_uri)
+                self.__filled_entry_ids.add(eid)

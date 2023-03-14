@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.5-SNAPSHOT</version>
+        <version>1.6-SNAPSHOT</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>scheduler-api</artifactId>
-    <version>1.5-SNAPSHOT</version>
+    <version>1.6-SNAPSHOT</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -21,12 +21,12 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>model</artifactId>
-            <version>1.5-SNAPSHOT</version>
+            <version>1.6-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-auth</artifactId>
-            <version>1.5-SNAPSHOT</version>
+            <version>1.6-SNAPSHOT</version>
         </dependency>
 
         <dependency>

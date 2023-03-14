@@ -49,6 +49,11 @@ def func() -> int:
     return 42
 
 
+@op(cache=True)
+def concat(num: int, line: str) -> str:
+    return f"{line}: {num}"
+
+
 class WhiteboardTests(TestCase):
     endpoint_url = None
     wb_service_url = None
@@ -358,11 +363,6 @@ class WhiteboardTests(TestCase):
         self.assertEqual(0, len(whiteboards))
 
     def test_whiteboard_entries(self):
-        # noinspection PyUnusedLocal
-        @op
-        def concat(num: int, desc: str) -> str:
-            return str(num) + str(desc)
-
         with self.lzy.workflow(self.workflow_name) as wf:
             wb = wf.create_whiteboard(Whiteboard, tags=["a"])
             wb.num = 42
@@ -377,7 +377,45 @@ class WhiteboardTests(TestCase):
 
         self.assertEqual(entry_wb_num, entry_concat_num)
         self.assertEqual(entry_wb_desc, entry_concat_desc)
-        self.assertEqual("42str", res)
+        self.assertEqual("str: 42", res)
+
+    def ignore_test_whiteboard_with_cache_1(self):
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb_1 = wf.create_whiteboard(Whiteboard)
+            wb_2 = wf.create_whiteboard(WhiteboardWithDefaults)
+            wb_1.num = 1
+            wb_1.desc = "str"
+            wb_2.num = wb_1.num
+            wb_2.desc = wb_1.desc
+
+            concat(wb_2.num, wb_2.desc)
+            concat(1, "str")
+
+            reid_1 = wf.call_queue[0].entry_ids[0]
+            reid_2 = wf.call_queue[1].entry_ids[0]
+
+        op_1_result_uri = wf.snapshot.get(reid_1).storage_uri
+        op_2_result_uri = wf.snapshot.get(reid_2).storage_uri
+
+        self.assertEqual(op_1_result_uri, op_2_result_uri)
+
+    def ignore_test_whiteboard_with_cache_2(self):
+        with self.lzy.workflow(self.workflow_name) as wf:
+            wb = wf.create_whiteboard(WhiteboardWithDefaults)
+            wb.desc = "str"
+            a = func()
+            wb.num = a
+
+            concat(wb.num, wb.desc)
+            concat(a, "str")
+
+            reid_1 = wf.call_queue[1].entry_ids[0]
+            reid_2 = wf.call_queue[2].entry_ids[0]
+
+        op_1_result_uri = wf.snapshot.get(reid_1).storage_uri
+        op_2_result_uri = wf.snapshot.get(reid_2).storage_uri
+
+        self.assertEqual(op_1_result_uri, op_2_result_uri)
 
     def test_invalid_type_assignment(self):
         with self.assertRaisesRegex(TypeError, "Incompatible types"):

@@ -36,6 +36,9 @@ else
 fi
 
 NEXT_SNAPSHOT_VERSION=$(project_version)
+NEXT_PYTHON_VERSION=$(project_version | awk -F'-' '{print $1}')
+echo "$NEXT_PYTHON_VERSION" > ../pylzy/lzy/version/version
+
 git add -u ..
 git commit -m "set version $NEXT_SNAPSHOT_VERSION"
 
@@ -55,5 +58,6 @@ git push origin "releases/R-$CURRENT_VERSION" #branch
 git push origin "R-$RELEASE_VERSION" #tag
 git push origin master
 
-echo "release-branch=$BRANCH" >> "$GITHUB_OUTPUT"
-echo "release-version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+echo "release-branch=releases/R-$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+echo "release-version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+echo "release-tag=R-$RELEASE_VERSION" >> "$GITHUB_OUTPUT"

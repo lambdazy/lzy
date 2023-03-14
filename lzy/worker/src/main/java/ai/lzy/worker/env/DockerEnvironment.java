@@ -75,8 +75,13 @@ public class DockerEnvironment extends BaseEnvironment {
             hostConfig.withDeviceRequests(List.of(new DeviceRequest()
                 .withDriver("nvidia")
                 .withCapabilities(List.of(List.of("gpu")))
-            ));
-        }
+            ))
+        .withIpcMode("host")
+                    .withUlimits(List.of(
+                        new Ulimit("memlock", (long) -1, 0),
+                        new Ulimit("stack", (long) 67108864, 0)
+                    ));
+            }
 
         final var container = client.createContainerCmd(sourceImage)
             .withHostConfig(hostConfig)
