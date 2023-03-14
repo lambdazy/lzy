@@ -41,7 +41,7 @@ class LzyCall:
         self.__env = env
         self.__description = description
         self.__version = version
-        self.__cache = cache
+        self.__cache = False
 
         local_data_put_tasks = []
 

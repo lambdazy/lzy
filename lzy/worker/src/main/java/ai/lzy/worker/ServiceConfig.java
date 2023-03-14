@@ -22,6 +22,7 @@ public class ServiceConfig {
     private int apiPort;
     private String mountPoint;
     private String publicKey;
+    private int gpuCount;
 
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();

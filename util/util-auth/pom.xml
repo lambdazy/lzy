@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.5-SNAPSHOT</version>
+        <version>1.7-SNAPSHOT</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>util-auth</artifactId>
-    <version>1.5-SNAPSHOT</version>
+    <version>1.7-SNAPSHOT</version>
     <properties>
         <packaging>jar</packaging>
     </properties>

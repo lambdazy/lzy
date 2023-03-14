@@ -41,6 +41,7 @@ import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
+import ai.lzy.worker.ServiceConfig;
 import ai.lzy.worker.Worker;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -112,7 +113,6 @@ public class PortalTestBase {
 
     private static LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerPrivateClient;
     private static Map<String, String> createdChannels;
-    private static RsaUtils.RsaKeys workerKeys;
 
     static {
         Worker.selectRandomValues(true);
@@ -132,8 +132,6 @@ public class PortalTestBase {
 
         mocksServer = new MocksServer(mocksPort);
         mocksServer.start();
-        workerKeys = RsaUtils.generateRsaKeys();
-        Worker.setRsaKeysForTests(workerKeys);
 
         userId = "uid";
         workflowName = "wf";
@@ -335,20 +333,21 @@ public class PortalTestBase {
         var workerId = UUID.randomUUID().toString();
         var allocatorDuration = Duration.ofSeconds(5);
 
+        var ctx = Worker.startApplication(workerId,
+            config.getAllocatorAddress(), config.getIamAddress(), allocatorDuration,
+            config.getChannelManagerAddress(), "localhost", "token_" + workerId, 0);
+        var worker = ctx.getBean(Worker.class);
+        var config = ctx.getBean(ServiceConfig.class);
+
         try (final var iamClient = new IamClient(iamTestContext.getClientConfig())) {
-            var user = iamClient.createUser(workerId, this.workerKeys.publicKey());
+            var user = iamClient.createUser(workerId, config.getPublicKey());
             workflowName = "wf";
             iamClient.addWorkflowAccess(user, userId, workflowName);
         } catch (Exception e) {
             Assert.fail("Failed to create worker user: " + e.getMessage());
             throw new RuntimeException(e);
         }
-
-        var worker = Worker.startWorker(workerId,
-            config.getAllocatorAddress(), config.getIamAddress(), allocatorDuration,
-            config.getChannelManagerAddress(), "localhost", "token_" + workerId);
-
-        var workerChannel = ai.lzy.util.grpc.GrpcUtils.newGrpcChannel("localhost:" + worker.apiPort(),
+        var workerChannel = ai.lzy.util.grpc.GrpcUtils.newGrpcChannel("localhost:" + config.getApiPort(),
             WorkerApiGrpc.SERVICE_NAME);
 
         var stub = WorkerApiGrpc.newBlockingStub(workerChannel);
@@ -363,11 +362,11 @@ public class PortalTestBase {
         return new WorkerDesc(worker, workerChannel, stub, opStub);
     }
 
-    protected void waitPortalCompleted() {
+    protected void waitPortalCompleted(int count) {
         boolean done = false;
         while (!done) {
             var status = authorizedPortalClient.status(PortalStatusRequest.newBuilder().build());
-            done = status.getSlotsList().stream().allMatch(
+            done = status.getSlotsList().size() == count && status.getSlotsList().stream().allMatch(
                 slot -> {
                     System.out.println("[portal slot] " + JsonUtils.printSingleLine(slot));
                     return switch (slot.getSlot().getDirection()) {
