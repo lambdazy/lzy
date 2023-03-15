@@ -10,6 +10,7 @@ locals {
 resource "yandex_mdb_kafka_cluster" "main_kafka_cluster" {
   name                = "main_kafka"
   network_id          = var.network_id
+  subnet_ids  = [yandex_vpc_subnet.custom-subnet.id]
   deletion_protection = false
 
   config {
