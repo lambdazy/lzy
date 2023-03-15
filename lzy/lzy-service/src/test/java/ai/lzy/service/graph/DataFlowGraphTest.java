@@ -2,7 +2,6 @@ package ai.lzy.service.graph;
 
 import ai.lzy.v1.workflow.LWF;
 import org.junit.Assert;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
