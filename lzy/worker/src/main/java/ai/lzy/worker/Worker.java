@@ -215,9 +215,11 @@ public class Worker {
         properties.put("worker.public-key", iamKeys.publicKey());
         properties.put("worker.allocator-heartbeat-period", allocatorHeartbeatPeriod);
         properties.put("worker.gpu-count", gpuCount);
-        properties.put("worker.enable-http-debug", true);
 
+        properties.put("worker.enable-http-debug", true);
+        properties.put("micronaut.server.host", "127.0.0.1"); // ! management api on localhost only !
         properties.put("micronaut.server.port", httpPort);
+        properties.put("micronaut.server.netty.access-logger.enabled", "true");
 
         return Micronaut.build(new String[]{}).properties(properties).start();
     }
