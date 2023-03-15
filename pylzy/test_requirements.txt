@@ -2,3 +2,4 @@ pure-protobuf==2.1.1
 moto==4.1.0
 flask==2.2.2
 flask-cors==3.0.10
+numpy=1.21.6
