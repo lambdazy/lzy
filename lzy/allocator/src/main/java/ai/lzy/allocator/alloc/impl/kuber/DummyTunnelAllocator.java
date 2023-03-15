@@ -23,7 +23,7 @@ public class DummyTunnelAllocator implements TunnelAllocator {
     }
 
     @Override
-    public Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone) {
+    public Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone, int tunnelIndex) {
         throw new UnsupportedOperationException(
             "ks8 tunnel allocator needs property allocator.kuber-tunnel-allocator.enabled=true"
         );

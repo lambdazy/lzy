@@ -10,7 +10,13 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.CachePolicy;
-import ai.lzy.allocator.model.*;
+import ai.lzy.allocator.model.DiskVolumeDescription;
+import ai.lzy.allocator.model.HostPathVolumeDescription;
+import ai.lzy.allocator.model.NFSVolumeDescription;
+import ai.lzy.allocator.model.Session;
+import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.VolumeRequest;
+import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.IdempotencyUtils;
@@ -21,7 +27,14 @@ import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.VmAllocatorApi.*;
+import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
+import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
+import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
+import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
+import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
+import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
+import ai.lzy.v1.VmAllocatorApi.FreeRequest;
+import ai.lzy.v1.VmAllocatorApi.FreeResponse;
 import ai.lzy.v1.VolumeApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.common.annotations.VisibleForTesting;
@@ -39,7 +52,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.Inet6Address;
-import java.net.UnknownHostException;
+import java.net.InetAddress;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
@@ -304,8 +317,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         final Inet6Address proxyV6Address;
         if (request.hasProxyV6Address()) {
             try {
-                proxyV6Address = (Inet6Address) Inet6Address.getByName(request.getProxyV6Address());
-            } catch (UnknownHostException e) {
+                InetAddress parsedAddress = Inet6Address.getByName(request.getProxyV6Address());
+                if (parsedAddress instanceof Inet6Address) {
+                    proxyV6Address = (Inet6Address) parsedAddress;
+                } else {
+                    throw new IllegalArgumentException("Address " + request.getProxyV6Address() + " isn't v6!");
+                }
+            } catch (Exception e) {
                 LOG.error("Invalid proxy v6 address {} in allocate request", request.getProxyV6Address());
                 allocationContext.metrics().allocationError.inc();
                 responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
@@ -348,10 +366,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             .map(Workload::fromProto)
             .collect(Collectors.toList()); // not `.toList()` because we need a modifiable list here
 
-        if (proxyV6Address != null) {
+        if (proxyV6Address != null && request.hasTunnelIndex()) {
             try {
                 var tunnelWl = allocationContext.tunnelAllocator().createRequestTunnelWorkload(
-                    request.getProxyV6Address(), request.getPoolLabel(), request.getZone());
+                    request.getProxyV6Address(), request.getPoolLabel(), request.getZone(), request.getTunnelIndex());
                 initWorkloads.add(tunnelWl);
             } catch (InvalidConfigurationException e) {
                 allocationContext.metrics().allocationError.inc();
@@ -362,6 +380,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     .asException());
                 return;
             }
+        } else if (request.hasProxyV6Address() || request.hasTunnelIndex()) {
+            LOG.error("Not enough fields for tunnel allocation!");
+            allocationContext.metrics().allocationError.inc();
+            responseObserver.onError(Status.INVALID_ARGUMENT
+                .withDescription("Not enough fields for tunnel allocation")
+                .asException());
+            return;
         }
 
         InjectedFailures.failAllocateVm10();

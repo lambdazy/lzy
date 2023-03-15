@@ -12,6 +12,6 @@ public interface TunnelAllocator {
 
     void deallocateTunnel(String podName);
 
-    Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone)
+    Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone, int tunnelIndex)
         throws InvalidConfigurationException;
 }

@@ -822,4 +822,59 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
             Assert.assertEquals(Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
     }
+
+    @Test
+    public void errorWithNotExhaustiveTunnelingFields() {
+        var sessionId = createSession(Durations.ZERO);
+        var exception = Assert.assertThrows(StatusRuntimeException.class, () -> {
+            var ignored = authorizedAllocatorBlockingStub.allocate(
+                AllocateRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .setPoolLabel("S")
+                    .setZone(ZONE)
+                    .setClusterType(AllocateRequest.ClusterType.USER)
+                    .addWorkload(AllocateRequest.Workload.newBuilder()
+                        .setName("workload")
+                        .build())
+                    .setProxyV6Address("fe80::")
+                    .build());
+        });
+        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
+        Assert.assertTrue(exception.getMessage().contains("Not enough fields for tunnel allocation"));
+        exception = Assert.assertThrows(StatusRuntimeException.class, () -> {
+            var ignored = authorizedAllocatorBlockingStub.allocate(
+                AllocateRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .setPoolLabel("S")
+                    .setZone(ZONE)
+                    .setClusterType(AllocateRequest.ClusterType.USER)
+                    .addWorkload(AllocateRequest.Workload.newBuilder()
+                        .setName("workload")
+                        .build())
+                    .setTunnelIndex(42)
+                    .build());
+        });
+        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
+        Assert.assertTrue(exception.getMessage().contains("Not enough fields for tunnel allocation"));
+    }
+
+    @Test
+    public void proxyV6AddressIsValidated() {
+        var sessionId = createSession(Durations.ZERO);
+        var exception = Assert.assertThrows(StatusRuntimeException.class, () -> {
+            var ignored = authorizedAllocatorBlockingStub.allocate(
+                AllocateRequest.newBuilder()
+                    .setSessionId(sessionId)
+                    .setPoolLabel("S")
+                    .setZone(ZONE)
+                    .setClusterType(AllocateRequest.ClusterType.USER)
+                    .addWorkload(AllocateRequest.Workload.newBuilder()
+                        .setName("workload")
+                        .build())
+                    .setProxyV6Address("1.1.1.1")
+                    .build());
+        });
+        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
+        Assert.assertEquals("Address 1.1.1.1 isn't v6!", exception.getStatus().getDescription());
+    }
 }

@@ -107,9 +107,13 @@ public class KuberTunnelAllocator implements TunnelAllocator {
      * @return {@link Workload} with the init container.
      * @throws InvalidConfigurationException if allocator cannot find suit cluster for the vm spec.
      */
-    public Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone)
+    public Workload createRequestTunnelWorkload(String remoteV6, String poolLabel, String zone, int tunnelIndex)
         throws InvalidConfigurationException
     {
+        if (tunnelIndex > 255 || tunnelIndex < 0) {
+            throw new InvalidConfigurationException("Tunnel index has invalid value:" + tunnelIndex +
+                ". Allowed range is [0, 255]");
+        }
         final var cluster = clusterRegistry.findCluster(poolLabel, zone, ClusterRegistry.ClusterType.User);
         if (cluster == null) {
             throw new InvalidConfigurationException(
@@ -126,8 +130,9 @@ public class KuberTunnelAllocator implements TunnelAllocator {
                 config.getTunnelRequestContainerGrpCurlPath(),
                 "--plaintext",
                 "-d",
-                "{\"remote_v6_address\": \"%s\", \"worker_pod_v4_address\": \"$(%s)\", \"k8s_v4_pod_cidr\": \"%s\"}"
-                    .formatted(remoteV6, AllocatorAgent.VM_IP_ADDRESS, clusterPodsCidr),
+                ("{\"remote_v6_address\": \"%s\", \"worker_pod_v4_address\": \"$(%s)\", \"k8s_v4_pod_cidr\": \"%s\"," +
+                    " \"tunnel_index\": %d}")
+                    .formatted(remoteV6, AllocatorAgent.VM_IP_ADDRESS, clusterPodsCidr, tunnelIndex),
                 "$(%s):%d"
                     .formatted(AllocatorAgent.VM_NODE_IP_ADDRESS, TUNNEL_AGENT_PORT),
                 "ai.lzy.v1.tunnel.LzyTunnelAgent/CreateTunnel"
