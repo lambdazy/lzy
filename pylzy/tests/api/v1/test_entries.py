@@ -382,7 +382,6 @@ class LzyEntriesTests(TestCase):
                 accept_file(File(tmp.name))
                 accept_file(File(tmp.name))
 
-
         snapshot = wf.snapshot
         runtime = wf.owner.runtime
 

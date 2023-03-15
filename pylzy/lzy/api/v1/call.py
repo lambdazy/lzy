@@ -260,7 +260,7 @@ def infer_and_validate_call_signature(
     )
 
 
-def __infer_type(snapshot: Snapshot, arg_name: str, arg: Any, type_annotations: Optional[Dict[str, Any]] = None) -> Type:
+def __infer_type(snapshot: Snapshot, arg_name: str, arg: Any, type_annotations: Optional[Dict[str, Any]] = None):
     if is_lzy_proxy(arg):
         return snapshot.get(get_proxy_entry_id(arg)).typ
     elif type_annotations and arg_name in type_annotations:
