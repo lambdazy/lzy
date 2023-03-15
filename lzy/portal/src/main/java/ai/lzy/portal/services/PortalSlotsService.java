@@ -28,6 +28,7 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.context.ApplicationContext;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -54,28 +55,28 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     private static final Logger LOG = LogManager.getLogger(PortalSlotsService.class);
 
+    private final ApplicationContext ctx;
     private final String portalId;
     private final PortalConfig config;
     private final Supplier<String> token;
 
     @Nullable private StdoutSlot stdoutSlot = null;
     @Nullable private StdoutSlot stderrSlot = null;
-    private final SnapshotSlots snapshots;
+    private SnapshotSlots snapshots;
     private final SlotsManager slotsManager;
 
     private final LocalOperationService operationService;
     private final ExecutorService workersPool;
 
-    public PortalSlotsService(PortalConfig config, SnapshotSlots snapshotSlots,
+    public PortalSlotsService(ApplicationContext ctx, PortalConfig config,
                               @Named("PortalTokenSupplier") Supplier<String> tokenFactory,
                               @Named("PortalChannelManagerChannel") ManagedChannel channelManagerChannel,
                               @Named("PortalOperationsService") LocalOperationService operationService,
                               @Named("PortalServiceExecutor") ExecutorService workersPool)
     {
+        this.ctx = ctx;
         this.portalId = config.getPortalId();
         this.config = config;
-
-        this.snapshots = snapshotSlots;
 
         final var channelManagerClient = newBlockingClient(
             LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel),
@@ -96,6 +97,8 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
     public void start() {
         LOG.info("Registering portal stdout/err slots with config: {}", config.toSafeString());
+
+        this.snapshots = ctx.getBean(SnapshotSlots.class);
 
         var stdoutSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDOUT_SUFFIX;
         var stderrSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDERR_SUFFIX;

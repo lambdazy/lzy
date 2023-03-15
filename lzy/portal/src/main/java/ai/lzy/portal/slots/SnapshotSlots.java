@@ -7,6 +7,7 @@ import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.exceptions.CreateSlotException;
 import ai.lzy.portal.exceptions.SnapshotNotFound;
 import ai.lzy.portal.exceptions.SnapshotUniquenessException;
+import ai.lzy.portal.services.PortalService;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.portal.LzyPortal;
 import jakarta.annotation.Nullable;
@@ -29,9 +30,11 @@ public class SnapshotSlots {
     private final Map<String, URI> name2uri = new HashMap<>(); // slot name -> snapshot storage uri
 
     private final StorageClientFactory storageClientFactory;
+    private final PortalService portalService;
 
-    public SnapshotSlots(StorageClientFactory storageClientFactory) {
+    public SnapshotSlots(StorageClientFactory storageClientFactory, PortalService portalService) {
         this.storageClientFactory = storageClientFactory;
+        this.portalService = portalService;
     }
 
     public synchronized LzySlot createSlot(LzyPortal.PortalSlotDesc.Snapshot snapshotData, SlotInstance slotData)
@@ -64,7 +67,8 @@ public class SnapshotSlots {
                 SnapshotEntry snapshot = getOrCreateSnapshot(uri);
                 SnapshotInputSlot inputSlot;
                 try {
-                    inputSlot = new SnapshotInputSlot(slotData, snapshot, storageClient, null);
+                    inputSlot = new SnapshotInputSlot(portalService, snapshotData, slotData, snapshot, storageClient,
+                        null);
                 } catch (IOException e) {
                     throw new CreateSlotException(e);
                 }
