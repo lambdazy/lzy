@@ -7,12 +7,18 @@ option java_package = "ai.lzy.v1.tunnel";
 
 service LzyTunnelAgent {
   rpc CreateTunnel (CreateTunnelRequest) returns (CreateTunnelResponse);
+  rpc DeleteTunnel (DeleteTunnelRequest) returns (DeleteTunnelResponse);
 }
 
 message CreateTunnelRequest {
   string remote_v6_address = 1;
   string worker_pod_v4_address = 2;
   string k8s_v4_pod_cidr = 3;
+  int32 tunnel_index = 4;
 }
 
 message CreateTunnelResponse {}
+
+message DeleteTunnelRequest{}
+
+message DeleteTunnelResponse{}

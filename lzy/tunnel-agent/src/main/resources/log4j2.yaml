@@ -20,3 +20,5 @@ Configuration:
         level: info
         AppenderRef:
           ref: Console
+      - name: GrpcServer
+        level: debug

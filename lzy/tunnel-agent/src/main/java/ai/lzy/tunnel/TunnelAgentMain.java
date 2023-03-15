@@ -2,6 +2,7 @@ package ai.lzy.tunnel;
 
 import ai.lzy.tunnel.service.LzyTunnelAgentService;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
@@ -26,9 +27,11 @@ public class TunnelAgentMain {
             .forPort(address.getPort())
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .intercept(GrpcLogsInterceptor.server())
             .addService(tunnelAgentService)
             .addService(ProtoReflectionService.newInstance())
             .build();
+        //todo think about auth
     }
 
     public void start() throws IOException {
