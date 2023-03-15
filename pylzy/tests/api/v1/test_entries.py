@@ -421,10 +421,14 @@ class LzyEntriesTestsWithLocalRuntime(TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.s3_service = ThreadedMotoServer(port=12345)
+        cls.s3_service = ThreadedMotoServer(port=12344)
         cls.s3_service.start()
-        cls.endpoint_url = "http://localhost:12345"
+        cls.endpoint_url = "http://localhost:12344"
         asyncio.run(create_bucket(cls.endpoint_url))
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        cls.s3_service.stop()
 
     def setUp(self):
         self.lzy = Lzy(runtime=LocalRuntime(), py_env_provider=EnvProviderMock(),

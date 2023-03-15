@@ -144,7 +144,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>scheduler</artifactId>
-            <version>1.5-SNAPSHOT</version>
+            <version>1.7-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
         <dependency>
