@@ -104,15 +104,8 @@ public class BaseTest {
         allocatorCfgOverrides.put("allocator.iam.address", iamAddress);
         allocatorTestContext.setUp(allocatorCfgOverrides);
 
-//        var schedulerCfgOverrides = preparePostgresConfig("scheduler", schedulerDb.getConnectionInfo());
-//        schedulerCfgOverrides.put("scheduler.channel-manager-address", channelManagerTestContext.getAddress());
-//        schedulerCfgOverrides.put("scheduler.iam.address", iamAddress);
-//        schedulerTestContext.setUp(schedulerCfgOverrides);
-
         var graphExecCfgOverrides = preparePostgresConfig("graph-executor", graphExecutorDb.getConnectionInfo());
         graphExecCfgOverrides.put("graph-executor.iam.address", iamAddress);
-        //graphExecCfgOverrides.put("graph-executor.scheduler.host", "localhost");
-        //graphExecCfgOverrides.put("graph-executor.scheduler.port", schedulerTestContext.getPort());
         graphExecutorTestContext.setUp(graphExecCfgOverrides);
 
         WorkflowService.PEEK_RANDOM_PORTAL_PORTS = true;  // To recreate portals for all wfs
