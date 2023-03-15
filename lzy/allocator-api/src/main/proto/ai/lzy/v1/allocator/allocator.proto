@@ -106,6 +106,7 @@ message AllocateRequest {
 
   // Sets cluster type requirements for allocation
   ClusterType cluster_type = 8;
+  optional int32 tunnel_index = 9;
 }
 
 message AllocateResponse {
