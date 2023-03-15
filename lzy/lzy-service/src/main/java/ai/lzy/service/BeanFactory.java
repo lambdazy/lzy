@@ -24,6 +24,7 @@ import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.CollectorRegistry;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.kafka.clients.admin.AdminClient;
@@ -32,7 +33,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -136,21 +136,32 @@ public class BeanFactory {
         };
     }
 
+    /**
+     * Wrapper around AdminClient to make it optional and build on startup
+     */
     @Singleton
-    @Named("LzyServiceKafkaAdminClient")
-    public Optional<AdminClient> adminClient(LzyServiceConfig.KafkaConfig config) {
-        if (config.isEnabled()) {
-            var props = new Properties();
-            props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-            props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-            props.put("bootstrap.servers", Strings.join(config.getBootstrapServers(), ','));
-            props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required " +
-                "  username=\"" + config.getUsername() + "\"" +
-                "  password=\"" + config.getPassword() + "\";");
+    public static class KafkaAdminClient {
+        @Nullable private final AdminClient client;
 
-            return Optional.of(AdminClient.create(props));
-        } else {
-            return Optional.empty();
+        public KafkaAdminClient(LzyServiceConfig.KafkaConfig config) {
+            if (config.isEnabled()) {
+                var props = new Properties();
+                props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
+                props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
+                props.put("bootstrap.servers", Strings.join(config.getBootstrapServers(), ','));
+                props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required " +
+                    "  username=\"" + config.getUsername() + "\"" +
+                    "  password=\"" + config.getPassword() + "\";");
+
+                client = AdminClient.create(props);
+            } else {
+                client = null;
+            }
+        }
+
+        @Nullable
+        public AdminClient client() {
+            return client;
         }
     }
 }

@@ -5,10 +5,7 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.Storage;
-import ai.lzy.service.CleanExecutionCompanion;
-import ai.lzy.service.KafkaLogsListeners;
-import ai.lzy.service.PortalSlotsListener;
-import ai.lzy.service.WorkflowMetrics;
+import ai.lzy.service.*;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.PortalDescription;
@@ -90,7 +87,7 @@ public class WorkflowService {
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel, WorkflowMetrics metrics,
-                           @Named("LzyServiceKafkaAdminClient") Optional<AdminClient> kafkaAdmin,
+                           BeanFactory.KafkaAdminClient kafkaAdmin,
                            KafkaLogsListeners kafkaLogsListeners)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
@@ -107,7 +104,7 @@ public class WorkflowService {
         this.executionDao = executionDao;
 
         this.cleanExecutionCompanion = cleanExecutionCompanion;
-        this.kafkaAdmin = kafkaAdmin.orElse(null);
+        this.kafkaAdmin = kafkaAdmin.client();
         this.kafkaLogsListeners = kafkaLogsListeners;
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
