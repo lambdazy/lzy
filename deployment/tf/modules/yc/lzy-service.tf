@@ -186,7 +186,7 @@ resource "kubernetes_deployment" "lzy-service" {
 
           env {
             name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
-            value = join(",", [for host in yandex_mdb_kafka_cluster.main_kafka_cluster.host : host.name])
+            value = join(",", [for host in yandex_mdb_kafka_cluster.main_kafka_cluster.host : "${host.name}:9091"])
           }
 
           env {
