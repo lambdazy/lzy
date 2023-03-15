@@ -72,17 +72,13 @@ public class DockerEnvironment extends BaseEnvironment {
             final HostConfig hostConfig = new HostConfig();
             hostConfig.withMounts(dockerMounts);
 
-            // --gpus all
+            // --gpus all --ipc=host
             if (config.needGpu()) {
                 hostConfig.withDeviceRequests(List.of(new DeviceRequest()
                         .withDriver("nvidia")
                         .withCapabilities(List.of(List.of("gpu")))
                     ))
-                    .withIpcMode("host")
-                    .withUlimits(List.of(
-                        new Ulimit("memlock", (long) -1, 0),
-                        new Ulimit("stack", (long) 67108864, 0)
-                    ));
+                    .withIpcMode("host");
             }
 
             final var container = client.createContainerCmd(sourceImage)
