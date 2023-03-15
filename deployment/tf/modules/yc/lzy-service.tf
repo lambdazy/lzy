@@ -178,6 +178,36 @@ resource "kubernetes_deployment" "lzy-service" {
             name  = "LZY_SERVICE_STORAGE_BUCKET_CREATION_TIMEOUT"
             value = "20s"
           }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
+            value = yandex_mdb_kafka_cluster.main_kafka_cluster.host.name
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_USERNAME"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.kafka_secret.metadata[0].name
+                key = "username"
+              }
+            }
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.kafka_secret.metadata[0].name
+                key = "password"
+              }
+            }
+          }
         }
         container {
           name = "unified-agent"
