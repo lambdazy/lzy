@@ -82,7 +82,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         final String slotUri = request.getSlotInstance().getSlotUri();
         final String channelId = request.getSlotInstance().getChannelId();
-        String operationDescription = "Bind %s %s slot %s to channel %s"
+        String operationDescription = "Bind %s %s slot (slotUri: %s, channelId: %s)"
             .formatted(request.getSlotOwner(), request.getSlotInstance().getSlot().getDirection(), slotUri, channelId);
         LOG.info(operationDescription + " started");
 
@@ -112,7 +112,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         final String userId = channel.getUserId();
         final String workflowName = channel.getWorkflowName();
         if (!accessManager.checkAccess(subjId, userId, workflowName, ChannelOperation.Type.BIND)) {
-            LOG.error(operationDescription + "failed: PERMISSION DENIED to workflow {} of user {}",
+            LOG.error(operationDescription + "failed: PERMISSION DENIED; workflowName: {}, userId: {}",
                 workflowName, userId);
             response.onError(Status.PERMISSION_DENIED.withDescription(
                 "Don't have access to workflow " + channel.getWorkflowName()).asException());
@@ -166,7 +166,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 return;
             }
 
-            LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
+            LOG.error(operationDescription + " failed, cannot create operation (operationId: {}), got exception: {}",
+                operation.id(), e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;
         }
@@ -174,7 +175,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         // TODO test on failure after adding idempotency token
 
         response.onNext(operation.toProto());
-        LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
+        LOG.info(operationDescription + " responded, async operation scheduled; operationId: {}", operation.id());
         response.onCompleted();
 
         InjectedFailures.fail11();
@@ -191,7 +192,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             return;
         }
 
-        String operationDescription = "Unbind slot %s".formatted(request.getSlotUri());
+        String operationDescription = "Unbind slot (slotUri: %s)".formatted(request.getSlotUri());
         LOG.info(operationDescription + " started");
 
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
@@ -231,7 +232,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         final String userId = channel.getUserId();
         final String workflowName = channel.getWorkflowName();
         if (!accessManager.checkAccess(subjId, userId, workflowName, ChannelOperation.Type.UNBIND)) {
-            LOG.error(operationDescription + "failed: PERMISSION DENIED to workflow {} of user {}",
+            LOG.error(operationDescription + "failed: PERMISSION DENIED; workflowName: {}, userId: {}",
                 workflowName, userId);
             response.onError(Status.PERMISSION_DENIED.withDescription(
                 "Don't have access to workflow " + channel.getWorkflowName()).asException());
@@ -283,7 +284,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
                 return;
             }
 
-            LOG.error(operationDescription + " failed, cannot create operation, got exception: {}", e.getMessage(), e);
+            LOG.error(operationDescription + " failed, cannot create operation (operationId: {}), got exception: {}",
+                operation.id(), e.getMessage(), e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;
         }
@@ -291,7 +293,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         // TODO test on failure after adding idempotency token
 
         response.onNext(operation.toProto());
-        LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
+        LOG.info(operationDescription + " responded, async operation scheduled; operationId: {}", operation.id());
         response.onCompleted();
 
         InjectedFailures.fail12();
@@ -320,14 +322,16 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             try {
                 channel = withRetries(LOG, () -> channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null));
             } catch (Exception e) {
-                LOG.error("Get status for channel {} failed, got exception: {}", channelId, e.getMessage(), e);
+                LOG.error("Get channel status (executionId: {}, channelId: {}) failed, got exception: {}",
+                    request.getExecutionId(), channelId, e.getMessage(), e);
                 response.onError(Status.INTERNAL
                     .withDescription("Cannot load channel %s: %s".formatted(channelId, e.getMessage())).asException());
                 return;
             }
 
             if (channel == null) {
-                LOG.error("Get status for channel {} failed, channel not found", channelId);
+                LOG.error("Get channel status (executionId: {}, channelId: {}) failed, channel not found",
+                    request.getExecutionId(), channelId);
                 responseBuilder.addChannels(
                     LCM.Channel.newBuilder()
                         .setChannelId(channelId)
@@ -337,7 +341,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             }
 
             if (!channel.getExecutionId().equals(request.getExecutionId())) {
-                LOG.error("GetChannelStatusRequest failed: requested executionId {} differs from channel {} one: {}",
+                LOG.error("Get channel status (executionId: {}, channelId: {}) failed: " +
+                        "requested executionId differs from channel's executionId: {}",
                     request.getExecutionId(), channelId, channel.getExecutionId());
                 response.onError(Status.INVALID_ARGUMENT.withDescription("Hack attempt fails").asException());
                 return;
@@ -346,8 +351,8 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
             final String userId = channel.getUserId();
             final String workflowName = channel.getWorkflowName();
             if (!accessManager.checkAccess(subjId, userId, workflowName, ChannelOperation.Type.BIND)) {
-                LOG.error("GetChannelsStatus failed: PERMISSION DENIED to workflow {} of user {}",
-                    workflowName, userId);
+                LOG.error("Get channel status (executionId: {}, channelId: {}) failed: PERMISSION DENIED; " +
+                        "workflowName: {}, userId: {}", request.getExecutionId(), channelId, workflowName, userId);
                 response.onError(Status.PERMISSION_DENIED.withDescription(
                     "Don't have access to workflow " + channel.getWorkflowName()).asException());
                 return;
