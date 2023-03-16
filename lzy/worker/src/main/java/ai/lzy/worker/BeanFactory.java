@@ -2,11 +2,18 @@ package ai.lzy.worker;
 
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.fs.LzyFsServer;
+import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.util.grpc.GrpcUtils;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.worker.env.EnvironmentFactory;
 import com.google.common.net.HostAndPort;
+import io.grpc.ManagedChannel;
 import io.grpc.Server;
+import io.grpc.ServerInterceptors;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import jakarta.inject.Named;
@@ -31,21 +38,34 @@ public class BeanFactory {
     }
 
     @Singleton
+    @Bean(preDestroy = "shutdown")
+    @Named("WorkerIamGrpcChannel")
+    public ManagedChannel iamChannel(ServiceConfig config) {
+        return GrpcUtils.newGrpcChannel(config.getIam().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+    }
+
+    @Singleton
+    @Bean(preDestroy = "shutdown")
+    @Named("WorkerChannelManagerGrpcChannel")
+    public ManagedChannel channelManagerChannel(ServiceConfig config) {
+        return GrpcUtils.newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerGrpc.SERVICE_NAME);
+    }
+
+    @Singleton
     public LzyFsServer lzyFsServer(ServiceConfig config,
+                                   @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel,
+                                   @Named("WorkerChannelManagerGrpcChannel") ManagedChannel channelManagerChannel,
                                    @Named("WorkerOperationService") LocalOperationService localOperationService)
     {
-        final var cm = HostAndPort.fromString(config.getChannelManagerAddress());
-        final var iam = HostAndPort.fromString(config.getIam().getAddress());
-
         return new LzyFsServer(
             config.getVmId(),
             Path.of(config.getMountPoint()),
             HostAndPort.fromParts(config.getHost(), config.getFsPort()),
-            cm,
-            iam,
+            channelManagerChannel,
+            iamChannel,
             config.getIam().createRenewableToken(),
             localOperationService,
-            false
+            /* isPortal */ false
         );
     }
 
@@ -62,13 +82,17 @@ public class BeanFactory {
     @Singleton
     @Named("WorkerServer")
     public Server server(ServiceConfig config,
+                         @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel,
                          @Named("WorkerOperationService") LocalOperationService localOperationService,
                          WorkerApiImpl workerApi)
     {
-        // TODO: LZY-25
-        return newGrpcServer("0.0.0.0", config.getApiPort(), GrpcUtils.NO_AUTH)
-            .addService(workerApi)
-            .addService(localOperationService)
+        var app = "Worker-" + config.getVmId();
+        var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(app, iamChannel));
+        var internalOnly = new AllowInternalUserOnlyInterceptor(app, iamChannel);
+
+        return newGrpcServer("0.0.0.0", config.getApiPort(), auth)
+            .addService(ServerInterceptors.intercept(workerApi, internalOnly))
+            .addService(ServerInterceptors.intercept(localOperationService, internalOnly))
             .build();
     }
 

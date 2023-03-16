@@ -10,13 +10,12 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.util.auth.credentials.RenewableJwt;
-import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
+import jakarta.inject.Named;
 import org.apache.commons.lang3.SystemUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -30,7 +29,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 public class LzyFsServer {
@@ -39,23 +37,19 @@ public class LzyFsServer {
 
     private final Path mountPoint;
     private final HostAndPort selfService;
-    private final ManagedChannel channelManagerChannel;
     private final SlotsManager slotsManager;
     private final LzyFSManager fsManager;
     private final SlotsService slotsService;
     private final Server localServer;
     private final AtomicBoolean finished = new AtomicBoolean(false);
-    private final ManagedChannel iamChannel;
 
-    public LzyFsServer(String agentId, Path mountPoint, HostAndPort selfAddress, HostAndPort channelManagerAddress,
-                       HostAndPort iamAddress, RenewableJwt token, LocalOperationService operationService,
-                       boolean isPortal)
+    public LzyFsServer(String agentId, Path mountPoint, HostAndPort selfAddress,
+                       @Named("WorkerChannelManagerGrpcChannel") ManagedChannel channelManagerChannel,
+                       @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel,
+                       RenewableJwt token, LocalOperationService operationService, boolean isPortal)
     {
         this.mountPoint = mountPoint;
         this.selfService = selfAddress;
-
-        this.channelManagerChannel = newGrpcChannel(channelManagerAddress, LzyChannelManagerGrpc.SERVICE_NAME);
-        this.iamChannel = GrpcUtils.newGrpcChannel(iamAddress, LzyAuthenticateServiceGrpc.SERVICE_NAME);
 
         final var channelManagerClient = newBlockingClient(
             LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel),
@@ -124,18 +118,14 @@ public class LzyFsServer {
     private record LzyScriptImpl(
         Path location,
         CharSequence scriptText
-    ) implements LzyScript
-    {
-    }
+    ) implements LzyScript {}
 
     public void stop() {
         LOG.info("LzyFs shutdown request at {}, path {}", selfService, mountPoint);
         if (finished.compareAndSet(false, true)) {
             try {
                 slotsService.shutdown();
-                channelManagerChannel.shutdown();
                 localServer.shutdown();
-                iamChannel.shutdown();
             } finally {
                 try {
                     fsManager.umount();
