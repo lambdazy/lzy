@@ -89,7 +89,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-test</artifactId>
-            <version>1.7-SNAPSHOT</version>
+            <version>1.8-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
         <dependency>
