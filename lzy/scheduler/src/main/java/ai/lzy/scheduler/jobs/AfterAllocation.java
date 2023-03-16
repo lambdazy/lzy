@@ -20,7 +20,6 @@ import ai.lzy.scheduler.providers.WorkflowJobProvider;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
-import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
@@ -33,9 +32,12 @@ import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Singleton;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 @Singleton
 public class AfterAllocation extends WorkflowJobProvider<TaskState> {
@@ -95,22 +97,20 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
                 // Skipping already exists, it can be from cache
             }
 
-            var address = task.workerHost();
-            var port = task.workerPort();
+            var address = Objects.requireNonNull(task.workerHost());
+            var port = Objects.requireNonNull(task.workerPort());
 
-            var workerChannel =
-                GrpcUtils.newGrpcChannel(HostAndPort.fromParts(address, port), WorkerApiGrpc.SERVICE_NAME);
-            var client = GrpcUtils.newBlockingClient(
-                WorkerApiGrpc.newBlockingStub(workerChannel),
-                "worker", () -> credentials.get().token());
+            var workerChannel = newGrpcChannel(HostAndPort.fromParts(address, port), WorkerApiGrpc.SERVICE_NAME);
+            var client = newBlockingClient(
+                WorkerApiGrpc.newBlockingStub(workerChannel), "Scheduler", () -> credentials.get().token());
 
-            client = GrpcUtils.withIdempotencyKey(client, task.id());
-
-            var operation = client.execute(LWS.ExecuteRequest.newBuilder()
-                .setTaskId(task.id())
-                .setExecutionId(task.executionId())
-                .setTaskDesc(task.description())
-                .build());
+            var operation = withIdempotencyKey(client, task.id())
+                .execute(
+                    LWS.ExecuteRequest.newBuilder()
+                        .setTaskId(task.id())
+                        .setExecutionId(task.executionId())
+                        .setTaskDesc(task.description())
+                        .build());
 
             try {
                 workerChannel.shutdownNow();
@@ -130,21 +130,21 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
     @Override
     protected TaskState clear(TaskState state, String operationId) {
         if (state.workerOperationId() != null) {
-            var host = state.workerHost();
-            var port  = state.workerPort();
+            var host = Objects.requireNonNull(state.workerHost());
+            var port = Objects.requireNonNull(state.workerPort());
 
             var address = HostAndPort.fromParts(host, port);
 
-            var workerChannel = GrpcUtils.newGrpcChannel(address, LongRunningServiceGrpc.SERVICE_NAME);
-            var client = GrpcUtils.newBlockingClient(
-                LongRunningServiceGrpc.newBlockingStub(workerChannel),
-                "worker", () -> credentials.get().token());
+            var workerChannel = newGrpcChannel(address, LongRunningServiceGrpc.SERVICE_NAME);
+            var client = newBlockingClient(
+                LongRunningServiceGrpc.newBlockingStub(workerChannel), "Scheduler", () -> credentials.get().token());
 
-            client = GrpcUtils.withIdempotencyKey(client, state.id());
             try {
-                client.cancel(LongRunning.CancelOperationRequest.newBuilder()
-                    .setOperationId(state.workerOperationId())
-                    .build());
+                withIdempotencyKey(client, state.id())
+                    .cancel(
+                        LongRunning.CancelOperationRequest.newBuilder()
+                            .setOperationId(state.workerOperationId())
+                            .build());
             } catch (Exception e) {
                 logger.error("Error while canceling operation on worker {}", state.vmId(), e);
                 // ignored
