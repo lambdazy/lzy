@@ -28,6 +28,7 @@ import javax.annotation.Nullable;
 public class DockerEnvironment extends BaseEnvironment {
 
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
+    private static final long GB_AS_BYTES = 1073741824;
 
     @Nullable public String containerId = null;
 
@@ -72,17 +73,14 @@ public class DockerEnvironment extends BaseEnvironment {
             final HostConfig hostConfig = new HostConfig();
             hostConfig.withMounts(dockerMounts);
 
-            // --gpus all
+            // --gpus all --ipc=host --shm-size=1G
             if (config.needGpu()) {
                 hostConfig.withDeviceRequests(List.of(new DeviceRequest()
                         .withDriver("nvidia")
                         .withCapabilities(List.of(List.of("gpu")))
                     ))
                     .withIpcMode("host")
-                    .withUlimits(List.of(
-                        new Ulimit("memlock", (long) -1, 0),
-                        new Ulimit("stack", (long) 67108864, 0)
-                    ));
+                    .withShmSize(GB_AS_BYTES);
             }
 
             final var container = client.createContainerCmd(sourceImage)

@@ -34,6 +34,7 @@ public class PodSpecBuilder {
     private final List<Container> containers = new ArrayList<>();
     private final List<Container> initContainers = new ArrayList<>();
     private final Map<String, Volume> volumes = new HashMap<>();
+    private final Map<String, VolumeMount> additionalVolumeMounts = new HashMap<>();
     private final List<PodAffinityTerm> podAffinityTerms = new ArrayList<>();
     private final List<PodAffinityTerm> podAntiAffinityTerms = new ArrayList<>();
 
@@ -173,6 +174,26 @@ public class PodSpecBuilder {
         return this;
     }
 
+    public PodSpecBuilder withEmptyDirVolume(String name, String path, EmptyDirVolumeSource emptyDir) {
+        final var volume = new VolumeBuilder()
+            .withName(name)
+            .withEmptyDir(emptyDir)
+            .build();
+
+        final var mount = new VolumeMountBuilder()
+            .withName(name)
+            .withMountPath(path)
+            .build();
+
+        if (volumes.containsKey(name)) {
+            throw new IllegalArgumentException("Two volumes with the same name " + name);
+        }
+        volumes.put(name, volume);
+        additionalVolumeMounts.put(name, mount);
+
+        return this;
+    }
+
     public PodSpecBuilder withVolumes(List<VolumeClaim> volumeClaims) {
         for (var volumeClaim : volumeClaims) {
             final var volume = new VolumeBuilder()
@@ -243,16 +264,18 @@ public class PodSpecBuilder {
 
     public Pod build() {
         for (var container : containers) {
-            container.setVolumeMounts(
-                container.getVolumeMounts().stream()
-                    .map(volumeMount -> new VolumeMountBuilder()
-                        .withName(volumes.get(volumeMount.getName()).getName())
-                        .withMountPath(volumeMount.getMountPath())
-                        .withReadOnly(volumeMount.getReadOnly())
-                        .withMountPropagation(volumeMount.getMountPropagation())
-                        .build())
-                    .toList()
-            );
+            List<VolumeMount> mounts = container.getVolumeMounts().stream()
+                .map(volumeMount -> new VolumeMountBuilder()
+                    .withName(volumes.get(volumeMount.getName()).getName())
+                    .withMountPath(volumeMount.getMountPath())
+                    .withReadOnly(volumeMount.getReadOnly())
+                    .withMountPropagation(volumeMount.getMountPropagation())
+                    .build())
+                .collect(Collectors.toList());
+
+            additionalVolumeMounts.forEach((__, mount) -> mounts.add(mount));
+
+            container.setVolumeMounts(mounts);
         }
 
         pod.getSpec().setContainers(containers);
