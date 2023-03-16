@@ -35,7 +35,7 @@ import javax.annotation.Nullable;
 
 public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkerApiImpl.class);
-    public static boolean TEST_ENV = false;
+    public static volatile boolean TEST_ENV = false;
 
     private final LzyFsServer lzyFs;
     private final LocalOperationService operationService;
