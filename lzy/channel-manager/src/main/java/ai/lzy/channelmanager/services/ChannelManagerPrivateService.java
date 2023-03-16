@@ -75,10 +75,11 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
-        final String channelName = request.getChannelSpec().getChannelName();
-        String operationDescription = "Create channel " + channelName + " of execution " + request.getExecutionId();
+        String operationDescription = "Create channel (chanelName: %s, executionId: %s)"
+            .formatted(request.getChannelSpec().getChannelName(), request.getExecutionId());
         LOG.info(operationDescription + " started");
 
+        final String channelName = request.getChannelSpec().getChannelName();
         final String userId = request.getUserId();
         final String workflowName = request.getWorkflowName();
         final String executionId = request.getExecutionId();
@@ -99,7 +100,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         response.onNext(LCMPS.ChannelCreateResponse.newBuilder().setChannelId(channelId).build());
-        LOG.info(operationDescription + " done, channelId={}", channelId);
+        LOG.info(operationDescription + " done; channelId: {}", channelId);
         response.onCompleted();
     }
 
@@ -113,7 +114,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         final String channelId = request.getChannelId();
-        String operationDescription = "Destroy channel " + channelId;
+        String operationDescription = "Destroy channel (channelId: " + channelId + ")";
         LOG.info(operationDescription + " started");
 
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
@@ -190,7 +191,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         // TODO test on failure after adding idempotency token
 
         response.onNext(operation.toProto());
-        LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
+        LOG.info(operationDescription + " responded, async operation scheduled; operationId: {}", operation.id());
         response.onCompleted();
 
         InjectedFailures.fail13();
@@ -208,7 +209,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         final String executionId = request.getExecutionId();
-        String operationDescription = "Destroying all channels for execution " + executionId;
+        String operationDescription = "Destroying all channels of execution (executionId: " + executionId + ")";
         LOG.info(operationDescription + " started");
 
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
@@ -259,7 +260,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             try (final var guard = lockManager.withLock(channelId)) {
                 withRetries(LOG, () -> channelDao.markChannelDestroying(channelId, null));
             } catch (Exception e) {
-                LOG.warn("Failed to mark channel {} destroying, will do it later, got exception: {}",
+                LOG.warn("Failed to mark channel destroying (channelId: {}), will do it later, got exception: {}",
                     channelId, e.getMessage());
             }
         }
@@ -267,7 +268,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         // TODO test on failure after adding idempotency token
 
         response.onNext(operation.toProto());
-        LOG.info(operationDescription + " responded, async operation scheduled, operationId={}", operation.id());
+        LOG.info(operationDescription + " responded, async operation scheduled; operationId: {}", operation.id());
         response.onCompleted();
 
         InjectedFailures.fail14();
@@ -284,26 +285,26 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
-        LOG.info("Get status for channel {}", request.getChannelId());
+        LOG.info("Get channel status (channelId: {})", request.getChannelId());
 
         final String channelId = request.getChannelId();
         final Channel channel;
         try {
             channel = channelDao.findChannel(channelId, Channel.LifeStatus.ALIVE, null);
         } catch (Exception e) {
-            LOG.error("Get status for channel {} failed, got exception: {}", channelId, e.getMessage(), e);
+            LOG.error("Get channel status (channelId: {}) failed, got exception: {}", channelId, e.getMessage(), e);
             response.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }
 
         if (channel == null) {
-            LOG.error("Get status for channel {} failed, channel not found", request.getChannelId());
+            LOG.error("Get channel status (channelId: {}) failed, channel not found", request.getChannelId());
             response.onError(Status.NOT_FOUND.asException());
             return;
         }
 
         response.onNext(createChannelStatusResponse(channel));
-        LOG.info("Get status for channel {} done", channelId);
+        LOG.info("Get channel status (channelId: {}) done", channelId);
         response.onCompleted();
     }
 
@@ -318,7 +319,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
-        LOG.info("Get status for channels of execution {}", request.getExecutionId());
+        LOG.info("Get channels status of execution (executionId: {})", request.getExecutionId());
 
         final String executionId = request.getExecutionId();
         List<Channel> aliveChannels;
@@ -326,14 +327,14 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             aliveChannels = withRetries(LOG, () ->
                 channelDao.listChannels(executionId, Channel.LifeStatus.ALIVE));
         } catch (Exception e) {
-            LOG.error("Get status for channels of execution {} failed, "
+            LOG.error("Get channels status of execution (executionId: {}) failed, "
                       + "got exception: {}", executionId, e.getMessage(), e);
             response.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }
 
         response.onNext(createChannelStatusAllResponse(aliveChannels));
-        LOG.info("Get status for channels of execution {} done", executionId);
+        LOG.info("Get channels status of execution (executionId: {}) done", executionId);
         response.onCompleted();
     }
 
