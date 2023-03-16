@@ -45,6 +45,11 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>worker</artifactId>
+            <version>1.7-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>channel-manager</artifactId>
             <version>1.7-SNAPSHOT</version>
             <scope>test</scope>
