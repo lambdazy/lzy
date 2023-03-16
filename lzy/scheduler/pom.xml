@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.7-SNAPSHOT</version>
+        <version>1.8-SNAPSHOT</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>scheduler</artifactId>
-    <version>1.7-SNAPSHOT</version>
+    <version>1.8-SNAPSHOT</version>
 
     <properties>
         <exec.mainClass>ai.lzy.scheduler.SchedulerApi</exec.mainClass>
@@ -23,32 +23,32 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>allocator-api</artifactId>
-            <version>1.7-SNAPSHOT</version>
+            <version>1.8-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam-api</artifactId>
-            <version>1.7-SNAPSHOT</version>
+            <version>1.8-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>scheduler-api</artifactId>
-            <version>1.7-SNAPSHOT</version>
+            <version>1.8-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running</artifactId>
-            <version>1.7-SNAPSHOT</version>
+            <version>1.8-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-db</artifactId>
-            <version>1.7-SNAPSHOT</version>
+            <version>1.8-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>worker-api</artifactId>
-            <version>1.7-SNAPSHOT</version>
+            <version>1.8-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
@@ -183,7 +183,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
-            <version>1.7-SNAPSHOT</version>
+            <version>1.8-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
         <dependency>
