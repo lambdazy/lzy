@@ -1,3 +1,4 @@
 foo was called
 bar was called
 message from bar: number is 42
+again -- message from bar: number is 42

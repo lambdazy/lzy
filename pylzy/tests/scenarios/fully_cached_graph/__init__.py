@@ -25,4 +25,4 @@ with Lzy().workflow(name=workflow_name, interactive=False):
     n = "number"
     v = 42
     mes = bar_with_print(foo_with_print(n, v))
-    print(mes)
+    print(f"again -- {mes}")

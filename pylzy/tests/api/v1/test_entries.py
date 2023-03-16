@@ -19,11 +19,13 @@ import pandas as pd
 import numpy as np
 
 
+# noinspection PyUnusedLocal
 @op(cache=True)
 def accept_df(frame: pd.DataFrame) -> None:
     pass
 
 
+# noinspection PyUnusedLocal
 @op(cache=True)
 def accept_file(script: File) -> None:
     pass
@@ -291,6 +293,31 @@ class LzyEntriesTests(TestCase):
         ruri_2 = exec_2.snapshot.get(exec_2.owner.runtime.calls[1].entry_ids[0]).storage_uri
 
         self.assertEqual(uri_1, uri_2)
+        self.assertNotEqual(ruri_1, ruri_2)
+
+    def test_diff_op_versions(self):
+        # noinspection PyUnusedLocal
+        @op(cache=True, version="1.0")
+        def first_op(name: str) -> None:
+            pass
+
+        with self.lzy.workflow("test") as test_1:
+            first_op("length")
+
+        # noinspection PyUnresolvedReferences
+        ruri_1 = test_1.snapshot.get(test_1.owner.runtime.calls[0].entry_ids[0]).storage_uri
+
+        # noinspection PyUnusedLocal
+        @op(cache=True, version="1.1")
+        def first_op(name: str) -> None:
+            pass
+
+        with self.lzy.workflow("test") as test_2:
+            first_op("length")
+
+        # noinspection PyUnresolvedReferences
+        ruri_2 = test_2.snapshot.get(test_2.owner.runtime.calls[0].entry_ids[0]).storage_uri
+
         self.assertNotEqual(ruri_1, ruri_2)
 
     def test_local_data_changed_by_ref(self):
