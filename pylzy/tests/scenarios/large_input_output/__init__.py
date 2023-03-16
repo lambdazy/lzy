@@ -14,6 +14,7 @@ def accept_return_df(frame: pd.DataFrame) -> pd.DataFrame:
 
 
 with Lzy().workflow(name="wf", interactive=False):
+    np.random.seed(42)
     df = pd.DataFrame(np.random.choice(['lzy', 'yzl', 'zly'], size=(5000000, 3)))
     # noinspection PyNoneFunctionAssignment
     out = accept_return_df(df)
