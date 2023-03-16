@@ -101,7 +101,7 @@ message AllocateRequest {
   reserved 7;
   // Sets cluster type requirements for allocation
   ClusterType cluster_type = 8;
-  TunnelSettings tunnel_settings = 9;
+  optional TunnelSettings tunnel_settings = 9;
 }
 
 message TunnelSettings {

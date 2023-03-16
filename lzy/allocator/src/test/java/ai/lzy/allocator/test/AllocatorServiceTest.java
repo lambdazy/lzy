@@ -1,6 +1,5 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.SubjectType;
@@ -32,7 +31,6 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.time.Duration;
 import java.util.Arrays;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -135,7 +133,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final VmAllocatorApi.AllocateMetadata allocateMeta =
             operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
-        final String podName = KuberVmAllocator.VM_POD_NAME_PREFIX + allocateMeta.getVmId().toLowerCase(Locale.ROOT);
+        final String podName = getVmPodName(allocateMeta.getVmId());
         mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
@@ -821,60 +819,5 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
-    }
-
-    @Test
-    public void errorWithNotExhaustiveTunnelingFields() {
-        var sessionId = createSession(Durations.ZERO);
-        var exception = Assert.assertThrows(StatusRuntimeException.class, () -> {
-            var ignored = authorizedAllocatorBlockingStub.allocate(
-                AllocateRequest.newBuilder()
-                    .setSessionId(sessionId)
-                    .setPoolLabel("S")
-                    .setZone(ZONE)
-                    .setClusterType(AllocateRequest.ClusterType.USER)
-                    .addWorkload(AllocateRequest.Workload.newBuilder()
-                        .setName("workload")
-                        .build())
-                    .setProxyV6Address("fe80::")
-                    .build());
-        });
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
-        Assert.assertTrue(exception.getMessage().contains("Not enough fields for tunnel allocation"));
-        exception = Assert.assertThrows(StatusRuntimeException.class, () -> {
-            var ignored = authorizedAllocatorBlockingStub.allocate(
-                AllocateRequest.newBuilder()
-                    .setSessionId(sessionId)
-                    .setPoolLabel("S")
-                    .setZone(ZONE)
-                    .setClusterType(AllocateRequest.ClusterType.USER)
-                    .addWorkload(AllocateRequest.Workload.newBuilder()
-                        .setName("workload")
-                        .build())
-                    .setTunnelIndex(42)
-                    .build());
-        });
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
-        Assert.assertTrue(exception.getMessage().contains("Not enough fields for tunnel allocation"));
-    }
-
-    @Test
-    public void proxyV6AddressIsValidated() {
-        var sessionId = createSession(Durations.ZERO);
-        var exception = Assert.assertThrows(StatusRuntimeException.class, () -> {
-            var ignored = authorizedAllocatorBlockingStub.allocate(
-                AllocateRequest.newBuilder()
-                    .setSessionId(sessionId)
-                    .setPoolLabel("S")
-                    .setZone(ZONE)
-                    .setClusterType(AllocateRequest.ClusterType.USER)
-                    .addWorkload(AllocateRequest.Workload.newBuilder()
-                        .setName("workload")
-                        .build())
-                    .setProxyV6Address("1.1.1.1")
-                    .build());
-        });
-        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
-        Assert.assertEquals("Address 1.1.1.1 isn't v6!", exception.getStatus().getDescription());
     }
 }

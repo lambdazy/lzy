@@ -27,6 +27,7 @@ import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorGrpc;
+import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
@@ -43,6 +44,7 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -314,25 +316,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        final Inet6Address proxyV6Address;
-        if (request.hasProxyV6Address()) {
-            try {
-                InetAddress parsedAddress = Inet6Address.getByName(request.getProxyV6Address());
-                if (parsedAddress instanceof Inet6Address) {
-                    proxyV6Address = (Inet6Address) parsedAddress;
-                } else {
-                    throw new IllegalArgumentException("Address " + request.getProxyV6Address() + " isn't v6!");
-                }
-            } catch (Exception e) {
-                LOG.error("Invalid proxy v6 address {} in allocate request", request.getProxyV6Address());
-                allocationContext.metrics().allocationError.inc();
-                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asException());
-                return;
-            }
-        } else {
-            proxyV6Address = null;
-        }
-
         final Session session;
         try {
             session = withRetries(LOG, () -> sessionsDao.get(request.getSessionId(), null));
@@ -366,27 +349,27 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             .map(Workload::fromProto)
             .collect(Collectors.toList()); // not `.toList()` because we need a modifiable list here
 
-        if (proxyV6Address != null && request.hasTunnelIndex()) {
+        final Vm.TunnelSettings tunnelSettings;
+        if (request.hasTunnelSettings()) {
+            tunnelSettings = validate(request.getTunnelSettings(), responseObserver);
+            if (tunnelSettings == null) {
+                return;
+            }
             try {
                 var tunnelWl = allocationContext.tunnelAllocator().createRequestTunnelWorkload(
-                    request.getProxyV6Address(), request.getPoolLabel(), request.getZone(), request.getTunnelIndex());
+                    tunnelSettings, request.getPoolLabel(), request.getZone());
                 initWorkloads.add(tunnelWl);
             } catch (InvalidConfigurationException e) {
                 allocationContext.metrics().allocationError.inc();
-                LOG.error("Error while allocating tunnel for {}: {}", proxyV6Address, e.getMessage(), e);
+                LOG.error("Error while allocating tunnel with settings {}: {}", tunnelSettings, e.getMessage(), e);
                 responseObserver.onError(Status.INVALID_ARGUMENT
                     .withDescription("Cannot allocate tunnel for proxy %s: %s"
-                        .formatted(proxyV6Address, e.getMessage()))
+                        .formatted(tunnelSettings, e.getMessage()))
                     .asException());
                 return;
             }
-        } else if (request.hasProxyV6Address() || request.hasTunnelIndex()) {
-            LOG.error("Not enough fields for tunnel allocation!");
-            allocationContext.metrics().allocationError.inc();
-            responseObserver.onError(Status.INVALID_ARGUMENT
-                .withDescription("Not enough fields for tunnel allocation")
-                .asException());
-            return;
+        } else {
+            tunnelSettings = null;
         }
 
         InjectedFailures.failAllocateVm10();
@@ -412,7 +395,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         initWorkloads,
                         workloads,
                         volumes,
-                        proxyV6Address,
+                        tunnelSettings,
                         clusterType);
 
                     final var existingVm = vmDao.acquire(vmSpec, tx);
@@ -699,5 +682,37 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return false;
         }
         return true;
+    }
+
+    @Nullable
+    private Vm.TunnelSettings validate(VmAllocatorApi.TunnelSettings tunnelSettings,
+                                              StreamObserver<LongRunning.Operation> response) {
+        var errors = new ArrayList<>();
+        int tunnelIndex = tunnelSettings.getTunnelIndex();
+        if (tunnelIndex > 255 || tunnelIndex < 0) {
+            errors.add("Tunnel index has invalid value:" + tunnelIndex + ". Allowed range is [0, 255]");
+        }
+        Inet6Address proxyV6Address = null;
+        try {
+            InetAddress parsedAddress = Inet6Address.getByName(tunnelSettings.getProxyV6Address());
+            if (parsedAddress instanceof Inet6Address) {
+                proxyV6Address = (Inet6Address) parsedAddress;
+            } else {
+                LOG.error("Invalid proxy v6 address {} in allocate request", tunnelSettings.getProxyV6Address());
+                errors.add("Address " + tunnelSettings.getProxyV6Address() + " isn't v6!");
+            }
+        } catch (Exception e) {
+            LOG.error("Invalid proxy v6 address {} in allocate request", tunnelSettings.getProxyV6Address());
+            errors.add("Invalid proxy v6 address " + tunnelSettings.getProxyV6Address());
+        }
+        if (!errors.isEmpty()) {
+            allocationContext.metrics().allocationError.inc();
+            String errorString = errors.stream()
+                .map(x -> "'" + x + "'")
+                .collect(Collectors.joining(", ", "Tunnel settings errors: ", ""));
+            response.onError(Status.INVALID_ARGUMENT.withDescription(errorString).asException());
+            return null;
+        }
+        return new Vm.TunnelSettings(proxyV6Address, tunnelIndex);
     }
 }

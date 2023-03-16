@@ -4,6 +4,8 @@ import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.AllocatorMetrics;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
+import ai.lzy.allocator.alloc.impl.kuber.KuberTunnelAllocator;
+import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.gc.GarbageCollector;
 import ai.lzy.allocator.storage.AllocatorDataSource;
@@ -15,6 +17,9 @@ import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
+import ai.lzy.tunnel.TunnelAgentMain;
+import ai.lzy.tunnel.service.LzyTunnelAgentService;
+import ai.lzy.tunnel.service.TunnelManager;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.DiskServiceGrpc;
@@ -22,6 +27,7 @@ import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorPrivateApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.v1.tunnel.LzyTunnelAgentGrpc;
 import com.google.protobuf.Duration;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
@@ -35,8 +41,10 @@ import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import jakarta.annotation.Nullable;
 import okhttp3.mockwebserver.MockWebServer;
+import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Rule;
+import org.mockito.Mockito;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -44,6 +52,7 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -89,6 +98,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected OperationsExecutor operationsExecutor;
     protected AllocatorMetrics metrics;
     protected GarbageCollector gc;
+    protected TunnelManager mockTunnelManager;
+    private ManagedChannel tunnelAgentChannel;
 
     protected void updateStartupProperties(Map<String, Object> props) {}
 
@@ -151,6 +162,13 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         metrics = allocatorCtx.getBean(AllocatorMetrics.class);
         gc = allocatorCtx.getBean(GarbageCollector.class);
+
+        ServiceConfig.TunnelConfig tunnelConfig = allocatorCtx.getBean(ServiceConfig.TunnelConfig.class);
+        mockTunnelManager = Mockito.mock(TunnelManager.class);
+        TunnelAgentMain tunnelAgentMain = new TunnelAgentMain(new LzyTunnelAgentService(mockTunnelManager),
+            "localhost:" + tunnelConfig.getAgentPort());
+        tunnelAgentMain.start();
+        tunnelAgentChannel = newGrpcChannel("localhost", tunnelConfig.getAgentPort(), LzyTunnelAgentGrpc.SERVICE_NAME);
     }
 
     protected void tearDown() {
@@ -161,6 +179,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             // ignored
         }
 
+        tunnelAgentChannel.shutdown();
         channel.shutdown();
         try {
             channel.awaitTermination(60, TimeUnit.SECONDS);
@@ -236,6 +255,24 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected void mockGetPod(String podName) {
+        final Pod pod = constructPod(podName);
+        kubernetesServer.expect().get()
+            .withPath(POD_PATH + "?labelSelector=" +
+                URLEncoder.encode(KuberLabels.LZY_POD_NAME_LABEL + "=" + podName, StandardCharsets.UTF_8))
+            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().withItems(pod).build())
+            .always();
+    }
+
+    protected void mockGetPodByName(String podName) {
+        final Pod pod = constructPod(podName);
+        kubernetesServer.expect().get()
+            .withPath(POD_PATH + "/" + podName)
+            .andReturn(HttpURLConnection.HTTP_OK, pod)
+            .always();
+    }
+
+    @NotNull
+    private static Pod constructPod(String podName) {
         final Pod pod = new Pod();
         pod.setMetadata(
             new ObjectMetaBuilder()
@@ -247,11 +284,10 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         pod.setSpec(new PodSpecBuilder()
             .withNodeName("node")
             .build());
-        kubernetesServer.expect().get()
-            .withPath(POD_PATH + "?labelSelector=" +
-                URLEncoder.encode(KuberLabels.LZY_POD_NAME_LABEL + "=" + podName, StandardCharsets.UTF_8))
-            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().withItems(pod).build())
-            .always();
+        pod.setStatus(new PodStatusBuilder()
+            .withPodIP("localhost")
+            .build());
+        return pod;
     }
 
     protected void registerVm(String vmId, String clusterId) {
@@ -346,6 +382,17 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             }).once();
     }
 
+    protected void mockDeletePodByName(String podName, Runnable onDelete, int responseCode) {
+        mockDeleteResource(POD_PATH, podName, onDelete, responseCode);
+        kubernetesServer.expect().delete()
+            // "lzy.ai/vm-id"=<VM id>
+            .withPath(POD_PATH + "/" + podName)
+            .andReply(responseCode, (req) -> {
+                onDelete.run();
+                return new StatusDetails();
+            }).once();
+    }
+
     protected record AllocatedVm(
         String vmId,
         String podName,
@@ -415,5 +462,15 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         if (cached >= 0) {
             Assert.assertEquals(cached, (int) metrics.cachedVms.labels(pool).get());
         }
+    }
+
+    @NotNull
+    public static String getVmPodName(String vmId) {
+        return KuberVmAllocator.VM_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT);
+    }
+
+    @NotNull
+    public static String getTunnelPodName(String vmId) {
+        return KuberTunnelAllocator.TUNNEL_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT);
     }
 }

@@ -150,7 +150,7 @@ public class KuberVmAllocator implements VmAllocator {
 
             // add k8s pod affinity to allocate vm pod on the node with the tunnel pod,
             // which must be allocated by TunnelAllocator#allocateTunnel method
-            if (vmSpec.proxyV6Address() != null) {
+            if (vmSpec.tunnelSettings() != null) {
                 podSpecBuilder = podSpecBuilder.withPodAffinity(
                     KuberLabels.LZY_APP_LABEL, "In", KuberTunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE);
 

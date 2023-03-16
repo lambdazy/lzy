@@ -68,4 +68,9 @@ allocator:
     default-operation-timeout: '1m'
 
   kuber-tunnel-allocator:
-    enabled: false
+    enabled: true
+
+  tunnel:
+    pod-image: tunnel-agent
+    request-container-image: grpcurl
+    request-container-grp-curl-path: ./grpcurl
