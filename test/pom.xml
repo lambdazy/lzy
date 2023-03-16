@@ -51,6 +51,18 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>whiteboard</artifactId>
+            <version>1.7-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>worker</artifactId>
+            <version>1.7-SNAPSHOT</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>util-test</artifactId>
             <version>1.7-SNAPSHOT</version>
             <scope>test</scope>
@@ -93,12 +105,6 @@
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-slf4j-impl</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>whiteboard</artifactId>
-            <version>1.7-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
