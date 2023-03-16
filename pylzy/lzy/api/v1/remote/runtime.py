@@ -244,7 +244,7 @@ class RemoteRuntime(Runtime):
 
     @retry(action_name="listening to std slots", config=RetryConfig(
         initial_backoff_ms=1000,
-        max_retry=120,
+        max_retry=12000,
         backoff_multiplier=1,
         max_backoff_ms=10000
     ))

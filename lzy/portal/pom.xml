@@ -73,6 +73,7 @@
             <groupId>ai.lzy</groupId>
             <artifactId>worker</artifactId>
             <version>1.7-SNAPSHOT</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
@@ -96,6 +97,10 @@
         <dependency>
             <groupId>io.micronaut</groupId>
             <artifactId>micronaut-inject</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-collections4</artifactId>
         </dependency>
         <dependency>
             <groupId>io.micronaut</groupId>

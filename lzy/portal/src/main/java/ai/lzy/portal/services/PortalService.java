@@ -125,7 +125,8 @@ public class PortalService extends LzyPortalImplBase {
             return;
         }
 
-        var op = Operation.create(portalId, "Slots status", null, idempotencyKey, null);
+        var op = Operation.create(portalId, "Obtain portal slots status: " +
+            String.join(", ", request.getSlotNamesList()), null, idempotencyKey, null);
         var opSnapshot = operationService.registerOperation(op);
 
         if (op.id().equals(opSnapshot.id())) {
