@@ -16,6 +16,7 @@ import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphStatusRequest;
+import ai.lzy.worker.WorkerApiImpl;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
@@ -49,6 +50,8 @@ public class SchedulerTest {
 
     @Test(timeout = 120_000)
     public void testGE() throws Exception {
+        WorkerApiImpl.TEST_ENV = true;
+
         var cacheLimits = ctx.getCtx().getBean(AllocatorContext.WorkerAllocatorContext.class).context()
             .getBean(ServiceConfig.CacheLimits.class);
         cacheLimits.setUserLimit(Integer.MAX_VALUE);

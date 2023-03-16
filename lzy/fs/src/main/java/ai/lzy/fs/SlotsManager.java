@@ -85,6 +85,15 @@ public class SlotsManager implements AutoCloseable {
         closed = true;
     }
 
+    public synchronized void stop() throws InterruptedException {
+        if (closed) {
+            return;
+        }
+        LOG.info("Stop SlotsManager...");
+        slots().forEach(LzySlot::destroy);
+        closed = true;
+    }
+
     @Nullable
     public LzySlot slot(String task, String slot) {
         var taskSlots = task2slots.get(task);
