@@ -98,15 +98,18 @@ message AllocateRequest {
   repeated Workload workload = 5;
 
   repeated Volume volumes = 6;
+  reserved 7;
+  // Sets cluster type requirements for allocation
+  ClusterType cluster_type = 8;
+  TunnelSettings tunnel_settings = 9;
+}
 
+message TunnelSettings {
   // v6 address of the proxy machine on user network + on the same network where vm will be launched.
   // Setting this field will result in creating ip6 tunnel to this address on the vm side.
   // Only works for k8s allocated machines and expected to be the address of other side of the tunnel.
-  optional string proxy_v6_address = 7;
-
-  // Sets cluster type requirements for allocation
-  ClusterType cluster_type = 8;
-  optional int32 tunnel_index = 9;
+  string proxy_v6_address = 1;
+  int32 tunnel_index = 2;
 }
 
 message AllocateResponse {
