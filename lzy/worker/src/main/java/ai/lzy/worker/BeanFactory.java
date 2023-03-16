@@ -65,7 +65,7 @@ public class BeanFactory {
                          @Named("WorkerOperationService") LocalOperationService localOperationService,
                          WorkerApiImpl workerApi)
     {
-        // TODO: https://st.yandex-team.ru/CLOUD-130892
+        // TODO: LZY-25
         return newGrpcServer("0.0.0.0", config.getApiPort(), GrpcUtils.NO_AUTH)
             .addService(workerApi)
             .addService(localOperationService)
