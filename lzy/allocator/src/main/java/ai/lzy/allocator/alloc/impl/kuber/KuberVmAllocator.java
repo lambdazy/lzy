@@ -15,8 +15,10 @@ import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
+import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.StatusDetails;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -170,6 +172,8 @@ public class KuberVmAllocator implements VmAllocator {
                     .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
                     .map(v -> (HostPathVolumeDescription) v.volumeDescription())
                     .toList())
+                // --shm-size=1G
+                .withEmptyDirVolume("dshm", "/dev/shm", new EmptyDirVolumeSource("Memory", Quantity.parse("1Gi")))
                 // not to be allocated with another vm
                 .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
                 // not to be allocated with pods from other session
