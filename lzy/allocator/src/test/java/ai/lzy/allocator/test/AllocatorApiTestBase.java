@@ -98,8 +98,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected OperationsExecutor operationsExecutor;
     protected AllocatorMetrics metrics;
     protected GarbageCollector gc;
-    protected TunnelManager mockTunnelManager;
-    private ManagedChannel tunnelAgentChannel;
 
     protected void updateStartupProperties(Map<String, Object> props) {}
 
@@ -162,13 +160,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         metrics = allocatorCtx.getBean(AllocatorMetrics.class);
         gc = allocatorCtx.getBean(GarbageCollector.class);
-
-        ServiceConfig.TunnelConfig tunnelConfig = allocatorCtx.getBean(ServiceConfig.TunnelConfig.class);
-        mockTunnelManager = Mockito.mock(TunnelManager.class);
-        TunnelAgentMain tunnelAgentMain = new TunnelAgentMain(new LzyTunnelAgentService(mockTunnelManager),
-            "localhost:" + tunnelConfig.getAgentPort());
-        tunnelAgentMain.start();
-        tunnelAgentChannel = newGrpcChannel("localhost", tunnelConfig.getAgentPort(), LzyTunnelAgentGrpc.SERVICE_NAME);
     }
 
     protected void tearDown() {
@@ -179,7 +170,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             // ignored
         }
 
-        tunnelAgentChannel.shutdown();
         channel.shutdown();
         try {
             channel.awaitTermination(60, TimeUnit.SECONDS);

@@ -68,7 +68,7 @@ allocator:
     default-operation-timeout: '1m'
 
   kuber-tunnel-allocator:
-    enabled: true
+    enabled: false
 
   tunnel:
     pod-image: tunnel-agent

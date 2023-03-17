@@ -1,12 +1,18 @@
 package ai.lzy.allocator.test;
 
+import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.test.GrpcUtils;
+import ai.lzy.tunnel.TunnelAgentMain;
+import ai.lzy.tunnel.service.LzyTunnelAgentService;
+import ai.lzy.tunnel.service.TunnelManager;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
 import ai.lzy.v1.VmAllocatorApi.FreeRequest;
 import ai.lzy.v1.longrunning.LongRunning.Operation;
+import ai.lzy.v1.tunnel.LzyTunnelAgentGrpc;
 import com.google.protobuf.util.Durations;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.junit.After;
@@ -22,24 +28,40 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorServiceTunnelsTest extends AllocatorApiTestBase {
 
+    protected TunnelManager mockTunnelManager;
+    private ManagedChannel tunnelAgentChannel;
+
     @Before
     public void before() throws IOException {
         super.setUp();
+
+        ServiceConfig.TunnelConfig tunnelConfig = allocatorCtx.getBean(ServiceConfig.TunnelConfig.class);
+        mockTunnelManager = Mockito.mock(TunnelManager.class);
+        TunnelAgentMain tunnelAgentMain = new TunnelAgentMain(new LzyTunnelAgentService(mockTunnelManager),
+                "localhost:" + tunnelConfig.getAgentPort());
+        tunnelAgentMain.start();
+        tunnelAgentChannel = newGrpcChannel("localhost", tunnelConfig.getAgentPort(), LzyTunnelAgentGrpc.SERVICE_NAME);
     }
 
     @After
     public void after() {
         super.tearDown();
+        tunnelAgentChannel.shutdown();
+        try {
+            tunnelAgentChannel.awaitTermination(1, TimeUnit.SECONDS);
+        } catch (InterruptedException e) { }
     }
 
     @Override
     protected void updateStartupProperties(Map<String, Object> props) {
         super.updateStartupProperties(props);
         props.put("allocator.allocation-timeout", "30s");
+        props.put("allocator.kuber-tunnel-allocator.enabled", "true");
         props.put("allocator.tunnel.agent-port", GrpcUtils.rollPort());
     }
 
