@@ -66,6 +66,7 @@ resource "kubernetes_daemonset" "portal_cpu_fictive_containers" {
       }
       spec {
         container {
+          image_pull_policy = "Always"
           image   = var.portal_image
           name    = "fictive-portal"
           command = ["sleep", "10000000d"]

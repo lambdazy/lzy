@@ -38,7 +38,7 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
 @Singleton
-class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
+public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkerApiImpl.class);
     public static volatile boolean TEST_ENV = false;
 
