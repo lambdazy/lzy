@@ -15,6 +15,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -116,6 +118,18 @@ public class PythonContextBase {
         }
     }
 
+    private static boolean containsAsSubstring(List<String> strs, String substr) {
+        var iterator = strs.iterator();
+        while (iterator.hasNext()) {
+            var line = iterator.next();
+            if (line.contains(substr)) {
+                iterator.remove();
+                return true;
+            }
+        }
+        return false;
+    }
+
     private ExecResult evalScenario(Map<String, String> env, String scenario, List<String> extraPyLibs) {
         final Path scenarioPath = scenarios.resolve(scenario).toAbsolutePath().normalize();
         if (!scenarioPath.toFile().exists()) {
@@ -145,17 +159,19 @@ public class PythonContextBase {
         try {
             final Path scenario = scenarios.resolve(scenarioName);
             final File stdout_file = scenario.resolve("expected_stdout").toFile();
+            final List<String> stdout = new LinkedList<>(Arrays.asList(result.stdout.split("\n")));
             forEachLineInFile(stdout_file, line -> {
                 LOG.info("assert check if stdout contains: {}", line);
                 Assert.assertTrue("'" + result.stdout() + "' doesn't contain '" + line + "'",
-                    result.stdout().contains(line));
+                    containsAsSubstring(stdout, line));
             });
 
             final File stderr_file = scenario.resolve("expected_stderr").toFile();
+            final List<String> stderr = new LinkedList<>(Arrays.asList(result.stderr.split("\n")));
             forEachLineInFile(stderr_file, line -> {
                 LOG.info("assert check if stderr contains: {}", line);
                 Assert.assertTrue("'" + result.stderr() + "' doesn't contain '" + line + "'",
-                    result.stderr().contains(line));
+                    containsAsSubstring(stderr, line));
             });
         } catch (IOException ioexc) {
             LOG.error("Happened while was reading one of expected files: ", ioexc);

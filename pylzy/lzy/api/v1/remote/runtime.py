@@ -130,6 +130,10 @@ class RemoteRuntime(Runtime):
         _LOG.debug(f"Starting executing graph {graph}")
 
         graph_id = await client.execute_graph(cast(LzyWorkflow, self.__workflow).name, self.__execution_id, graph)
+        if not graph_id:
+            _LOG.debug("Results of all graph operations are cached. Execution graph is not started")
+            return
+
         _LOG.debug(f"Requesting remote execution, graph_id={graph_id}")
 
         progress(ProgressStep.WAITING)

@@ -51,6 +51,11 @@
             <version>1.8-SNAPSHOT</version>
         </dependency>
         <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>util-test</artifactId>
+            <version>1.8-SNAPSHOT</version>
+        </dependency>
+        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-core</artifactId>
             <scope>compile</scope>

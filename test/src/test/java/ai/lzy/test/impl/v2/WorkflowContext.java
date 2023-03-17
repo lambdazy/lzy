@@ -6,6 +6,7 @@ import ai.lzy.test.impl.Utils;
 import ai.lzy.test.impl.v2.AllocatorContext.PortalAllocatorContext;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -18,11 +19,14 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+
 @Singleton
 public class WorkflowContext {
     public static final HostAndPort address = HostAndPort.fromParts("localhost", 13579);
 
     private final LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub stub;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub opsStub;
     private final ApplicationContext ctx;
     private final App main;
     private final ManagedChannel chn;
@@ -65,6 +69,8 @@ public class WorkflowContext {
         var creds = ctx.getBean(ServiceConfig.class).getIam().createRenewableToken();
         stub = LzyWorkflowServiceGrpc.newBlockingStub(chn)
             .withInterceptors(ClientHeaderInterceptor.authorization(() -> creds.get().token()));
+        opsStub = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(chn), "TestClient",
+            () -> creds.get().token());
     }
 
     public HostAndPort address() {
@@ -73,6 +79,10 @@ public class WorkflowContext {
 
     public LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub stub() {
         return stub;
+    }
+
+    public LongRunningServiceGrpc.LongRunningServiceBlockingStub opsStub() {
+        return opsStub;
     }
 
     @PreDestroy

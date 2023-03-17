@@ -41,8 +41,8 @@ import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.storage.App.APP;
-import static ai.lzy.test.IdempotencyUtils.processConcurrently;
-import static ai.lzy.test.IdempotencyUtils.processSequentially;
+import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsConcurrently;
+import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsSequentially;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.v1.longrunning.LongRunningServiceGrpc.newBlockingStub;
@@ -242,12 +242,12 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void idempotentCreateBucket() {
-        processSequentially(createBucketScenario());
+        processIdempotentCallsSequentially(createBucketScenario());
     }
 
     @Test
     public void idempotentCreateBucketConcurrent() throws InterruptedException {
-        processConcurrently(createBucketScenario());
+        processIdempotentCallsConcurrently(createBucketScenario());
     }
 
     private TestScenario<LzyStorageServiceBlockingStub, Void, LongRunning.Operation> createBucketScenario() {

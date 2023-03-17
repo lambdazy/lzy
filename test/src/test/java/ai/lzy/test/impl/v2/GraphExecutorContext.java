@@ -1,7 +1,7 @@
 package ai.lzy.test.impl.v2;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.graph.GraphExecutorApi;
+import ai.lzy.graph.test.GraphExecutorDecorator;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 @Singleton
 public class GraphExecutorContext  {
@@ -25,7 +26,7 @@ public class GraphExecutorContext  {
 
     private final HostAndPort address;
     private final ApplicationContext context;
-    private final GraphExecutorApi graphExecutor;
+    private final GraphExecutorDecorator graphExecutor;
     private final ManagedChannel channel;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub stub;
     private final RenewableJwt internalUserCreds;
@@ -47,8 +48,8 @@ public class GraphExecutorContext  {
                 "graph-executor.iam.address", iam.address()
         )));
 
-        this.context = ApplicationContext.run(opts);
-        graphExecutor = context.getBean(GraphExecutorApi.class);
+        this.context = ApplicationContext.run(opts, "graph-executor-decorator");
+        graphExecutor = context.getBean(GraphExecutorDecorator.class);
         try {
             graphExecutor.start();
         } catch (InterruptedException | IOException e) {
@@ -88,5 +89,9 @@ public class GraphExecutorContext  {
 
     public RenewableJwt internalUserCreds() {
         return internalUserCreds;
+    }
+
+    public void onExecuteGraph(Consumer<ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest> action) {
+        graphExecutor.setOnExecute(action);
     }
 }
