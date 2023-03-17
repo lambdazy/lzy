@@ -14,6 +14,8 @@ resource "yandex_mdb_kafka_cluster" "main_kafka_cluster" {
   deletion_protection = false
 
   config {
+    unmanaged_topics = true
+
     assign_public_ip = false
     brokers_count    = 1
     version          = "3.2"
@@ -34,6 +36,10 @@ resource "yandex_mdb_kafka_cluster" "main_kafka_cluster" {
   user {
     name     = local.kafka_admin_username
     password = random_password.kafka_password.result
+    permission {
+      topic_name = "*"
+      role = "ACCESS_ROLE_ADMIN"
+    }
   }
 }
 

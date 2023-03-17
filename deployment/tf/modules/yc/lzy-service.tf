@@ -208,6 +208,11 @@ resource "kubernetes_deployment" "lzy-service" {
               }
             }
           }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_SSL_CA_URL"
+            value = "https://storage.yandexcloud.net/cloud-certs/CA.pem"
+          }
         }
         container {
           name = "unified-agent"
