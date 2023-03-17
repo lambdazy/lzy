@@ -152,9 +152,6 @@ public class BeanFactory {
         public KafkaAdminClient(@Named("LzyServiceKafkaHelper") KafkaConfig.KafkaHelper kafkaHelper) {
             if (kafkaHelper.enabled()) {
                 var props = kafkaHelper.props();
-                if (KafkaConfig.KafkaHelper.USE_AUTH.get()) {
-                    props.setProperty("sasl.mechanism", "PLAIN");
-                }
                 client = AdminClient.create(props);
             } else {
                 client = null;

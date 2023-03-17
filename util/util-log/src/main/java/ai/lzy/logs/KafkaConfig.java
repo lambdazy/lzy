@@ -79,6 +79,8 @@ public final class KafkaConfig {
             }
 
             if (config.getSslCaPath() != null) {
+                LOG.info("Building ssl keystore for kafka helper by pom file...");
+
                 keystorePath = "/tmp/lzy_kafka_keystore" + UUID.randomUUID() + ".jks";
                 keystorePassword = "123456";
 
@@ -92,6 +94,7 @@ public final class KafkaConfig {
             }
 
             if (config.getSslCaUrl() != null) {
+                LOG.info("Building ssl keystore for kafka helper by url...");
                 var sslCaPath = "/tmp/lzy_kafka_sa" + UUID.randomUUID() + ".pem";
 
                 try {
@@ -194,6 +197,8 @@ public final class KafkaConfig {
 
             props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
             props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+
+            LOG.debug("Using kafka client with props: {}", props.toString());
 
             return props;
         }
