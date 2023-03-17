@@ -11,6 +11,7 @@ import ai.lzy.portal.services.PortalService;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.portal.LzyPortal;
 import jakarta.annotation.Nullable;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,7 +33,8 @@ public class SnapshotSlots {
     private final StorageClientFactory storageClientFactory;
     private final PortalService portalService;
 
-    public SnapshotSlots(StorageClientFactory storageClientFactory, PortalService portalService) {
+    public SnapshotSlots(@Named("PortalStorageClientFactory") StorageClientFactory storageClientFactory,
+                         PortalService portalService) {
         this.storageClientFactory = storageClientFactory;
         this.portalService = portalService;
     }

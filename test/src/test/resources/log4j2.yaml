@@ -14,6 +14,9 @@ Configuration:
       AppenderRef:
         ref: Console
     Logger:
+      - name: "ai.lzy.storage"
+        level: info
+
       - name: "ai.lzy.scheduler"
         level: info
 

@@ -11,7 +11,7 @@ scheduler:
 
   channel-manager-address: localhost:1234
   scheduler-address: localhost:2392  # ???
-  allocator-address: localhost:1234
+  allocator-address: localhost:8799
   worker-image: worker
   user-default-image: user-default
 

@@ -40,6 +40,8 @@ import javax.annotation.Nullable;
 @Singleton
 class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkerApiImpl.class);
+    public static volatile boolean TEST_ENV = false;
+
     private final LzyFsServer lzyFs;
     private final LocalOperationService operationService;
     private final EnvironmentFactory envFactory;
@@ -187,7 +189,7 @@ class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
                 if (channel.getSenders().hasPortalSlot()) {
                     LOG.info("Channel {} has portal in senders", channel.getChannelId());
                     outputChannelsIds.remove(channel.getChannelId());
-                } else {
+                } else if (TEST_ENV) {
                     var slotName = channel.getSenders().getWorkerSlot().getSlot().getName();
                     var slot = (LzyOutputSlot) lzySlots.stream()
                         .filter(s -> s.name().equals(slotName))

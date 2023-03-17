@@ -24,7 +24,6 @@ import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
-import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -43,7 +42,6 @@ import java.net.URI;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 
@@ -85,7 +83,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                       CleanExecutionCompanion cleanExecutionCompanion, LzyServiceConfig config,
                       @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                       @Named("StorageServiceChannel") ManagedChannel storageChannel
-                      /*, GarbageCollector gc */, @Named("LzyServiceServerExecutor") ExecutorService workersPool,
+        /*, GarbageCollector gc */, @Named("LzyServiceServerExecutor") ExecutorService workersPool,
                       WorkflowMetrics metrics)
     {
         this.cleanExecutionCompanion = cleanExecutionCompanion;
@@ -275,13 +273,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var op = Operation.create(userId, "Execute graph in execution: executionId='%s'".formatted(executionId),
             null, idempotencyKey, null);
 
-        String parentGraphId = request.getGraph().getParentGraphId();
-        String zone = request.getGraph().getZone();
-        List<LWF.Operation> operations = request.getGraph().getOperationsList();
-        List<LWF.DataDescription> descriptions = request.getGraph().getDataDescriptionsList();
-
-        var state = new GraphExecutionState(workflowName, executionId, op.id(), parentGraphId, userId, zone,
-            descriptions, operations);
+        var state = new GraphExecutionState(userId, workflowName, executionId, op.id(), request.getGraph());
 
         try (var tx = TransactionHandle.create(storage)) {
             operationDao.create(op, tx);
@@ -478,7 +470,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             WorkflowDao.WorkflowInfo wfNameAndUserId = withRetries(LOG, () -> workflowDao.findWorkflowBy(executionId));
             if (wfNameAndUserId == null || !Objects.equals(userId, wfNameAndUserId.userId())) {
                 LOG.error("Cannot find active execution of user: { executionId: {}, userId: {} }", executionId, userId);
-                responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot find active execution " +
+                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find active execution " +
                     "'%s' of user '%s'".formatted(executionId, userId)).asRuntimeException());
                 return true;
             }

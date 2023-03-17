@@ -9,14 +9,14 @@ from serialzy.api import SerializerRegistry
 # noinspection PyProtectedMember
 from serialzy.types import get_type
 
-from lzy.api.v1.entry_index import EntryIndex
 from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
-from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize, is_lzy_proxy
+from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize, is_lzy_proxy, get_proxy_entry_id, materialized
 from lzy.api.v1.utils.types import infer_real_types, get_default_args, check_types_serialization_compatible, is_subtype
 from lzy.api.v1.workflow import LzyWorkflow
+from lzy.utils.event_loop import LzyEventLoop
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -41,36 +41,40 @@ class LzyCall:
         self.__env = env
         self.__description = description
         self.__version = version
-        self.__cache = False
+        self.__cache = cache
+
+        local_data_put_tasks = []
 
         self.__args_entry_ids: List[str] = []
         for i, arg in enumerate(sign.args):
-            if workflow.entry_index.has_entry_id(arg):
-                entry_id = workflow.entry_index.get_entry_id(arg)
+            if is_lzy_proxy(arg):
+                eid = get_proxy_entry_id(arg)
             else:
                 arg_name = sign.func.arg_names[i]
-                entry_id = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + arg_name,
-                                                          typ=sign.func.input_types[arg_name]).id
-                workflow.entry_index.add_entry_id(arg, entry_id)
-
-            self.__args_entry_ids.append(entry_id)
+                eid = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + arg_name,
+                                                     typ=sign.func.input_types[arg_name]).id
+                local_data_put_tasks.append(self.__wflow.snapshot.put_data(eid, arg))
+            self.__args_entry_ids.append(eid)
 
         self.__kwargs_entry_ids: Dict[str, str] = {}
         for kwarg_name, kwarg in sign.kwargs.items():
-            if workflow.entry_index.has_entry_id(kwarg):
-                entry_id = workflow.entry_index.get_entry_id(kwarg)
+            if is_lzy_proxy(kwarg):
+                eid = get_proxy_entry_id(kwarg)
             else:
-                entry_id = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + kwarg_name,
-                                                          typ=sign.func.input_types[kwarg_name]).id
-                workflow.entry_index.add_entry_id(kwarg, entry_id)
-
-            self.__kwargs_entry_ids[kwarg_name] = entry_id
+                eid = workflow.snapshot.create_entry(name=sign.func.callable.__name__ + "." + kwarg_name,
+                                                     typ=sign.func.input_types[kwarg_name]).id
+                local_data_put_tasks.append(self.__wflow.snapshot.put_data(eid, kwarg))
+            self.__kwargs_entry_ids[kwarg_name] = eid
 
         self.__entry_ids: List[str] = []
         for i, arg_typ in enumerate(sign.func.output_types):
             name = sign.func.callable.__name__ + ".return_" + str(i)
-            entry_id = workflow.snapshot.create_entry(name, arg_typ).id
-            self.__entry_ids.append(entry_id)
+            eid = workflow.snapshot.create_entry(name, arg_typ).id
+            self.__entry_ids.append(eid)
+
+        # yep, we should store local data to storage just in LzyCall.__init__
+        # because the data can be changed before dependent op will be actually executed
+        LzyEventLoop.gather(*local_data_put_tasks)
 
     @property
     def provisioning(self) -> Provisioning:
@@ -159,7 +163,6 @@ def wrap_call(
         env_updated.validate()
 
         signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot,
-                                                      active_workflow.entry_index,
                                                       active_workflow.owner.serializer_registry, *args, **kwargs)
         lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description, version, cache, lazy_arguments)
         active_workflow.register_call(lzy_call)
@@ -204,12 +207,10 @@ def wrap_call(
 def infer_and_validate_call_signature(
     f: Callable, output_type: Sequence[type],
     snapshot: Snapshot,
-    entry_index: EntryIndex,
     serializer_registry: SerializerRegistry,
     *args, **kwargs
 ) -> CallSignature:
     types_mapping = {}
-    args_mapping = {}
     argspec = getfullargspec(f)
 
     if argspec.varkw is None:
@@ -225,43 +226,43 @@ def infer_and_validate_call_signature(
         elif argspec.varargs is None and real_arg is not None and spec_name is None:
             raise KeyError(f"Unexpected argument at position {real_arg}")
 
-    for name, arg in chain(zip(argspec.args, args), kwargs.items()):
-        # noinspection PyProtectedMember
-        entry_type: Optional[Type] = None
-        if entry_index.has_entry_id(arg):
-            eid = entry_index.get_entry_id(arg)
-            entry_type = snapshot.get(eid).typ
-            types_mapping[name] = entry_type
-        elif name in argspec.annotations:
-            types_mapping[name] = argspec.annotations[name]
+    names_for_varargs = [str(uuid.uuid4())[:8] for _ in range(len(args) - len(argspec.args))]
+    actual_args = [None] * len(args)
+    actual_kwargs = {}
+
+    for i, (name, arg) in enumerate(chain(zip(chain(argspec.args, names_for_varargs), args), kwargs.items())):
+        from_varargs = len(argspec.args) < i < len(args)
+        if from_varargs:
+            inferred_type = __infer_type(snapshot, name, arg)
         else:
-            types_mapping[name] = get_type(arg)
+            inferred_type = __infer_type(snapshot, name, arg, argspec.annotations)
+            if name in argspec.annotations:
+                typ = inferred_type if is_lzy_proxy(arg) else get_type(arg)
+                compatible = check_types_serialization_compatible(argspec.annotations[name], typ, serializer_registry)
+                if not compatible or not is_subtype(typ, argspec.annotations[name]):
+                    raise TypeError(
+                        f"Invalid types: argument {name} has type {argspec.annotations[name]} "
+                        f"but passed type {typ}")
 
-        if name in argspec.annotations:
-            typ = entry_type if entry_type else get_type(arg)
-            compatible = check_types_serialization_compatible(argspec.annotations[name], typ, serializer_registry)
-            if not compatible or not is_subtype(typ, argspec.annotations[name]):
-                raise TypeError(
-                    f"Invalid types: argument {name} has type {argspec.annotations[name]} "
-                    f"but passed type {typ}")
-
-        args_mapping[name] = arg
-
-    generated_names = []
-    for arg in args[len(argspec.args):]:
-        name = str(uuid.uuid4())[:8]
-        generated_names.append(name)
-        if entry_index.has_entry_id(arg):
-            eid = entry_index.get_entry_id(arg)
-            entry = snapshot.get(eid)
-            types_mapping[name] = entry.typ
+        types_mapping[name] = inferred_type
+        # materialize proxy considered as local data
+        if i < len(args):
+            actual_args[i] = materialize(arg) if is_lzy_proxy(arg) and materialized(arg) else arg
         else:
-            types_mapping[name] = get_type(arg)
+            actual_kwargs[name] = materialize(arg) if is_lzy_proxy(arg) and materialized(arg) else arg
 
-    arg_names = tuple(argspec.args[: len(args)] + generated_names)
+    arg_names = tuple(argspec.args[: len(args)] + names_for_varargs)
     kwarg_names = tuple(kwargs.keys())
     return CallSignature(
         FuncSignature(f, types_mapping, output_type, arg_names, kwarg_names),
-        args,
-        kwargs,
+        tuple(actual_args),
+        actual_kwargs,
     )
+
+
+def __infer_type(snapshot: Snapshot, arg_name: str, arg: Any, type_annotations: Optional[Dict[str, Any]] = None):
+    if is_lzy_proxy(arg):
+        return snapshot.get(get_proxy_entry_id(arg)).typ
+    elif type_annotations and arg_name in type_annotations:
+        return type_annotations[arg_name]
+    return get_type(arg)

@@ -1,6 +1,5 @@
 package ai.lzy.graph.test;
 
-import ai.lzy.graph.GraphExecutorApi;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.test.GrpcUtils;
 import io.micronaut.context.ApplicationContext;
@@ -14,7 +13,7 @@ import java.util.Map;
 
 public class BaseTestWithGraphExecutor {
     private ApplicationContext context;
-    private GraphExecutorApi graphExecutor;
+    private GraphExecutorDecorator graphExecutor;
 
     private int port;
 
@@ -26,13 +25,14 @@ public class BaseTestWithGraphExecutor {
         var graphExecutorConfig = new YamlPropertySourceLoader()
             .read("graph-executor", new FileInputStream("../graph-executor/src/main/resources/application-test.yml"));
         graphExecutorConfig.putAll(overrides);
-        context = ApplicationContext.run(PropertySource.of(graphExecutorConfig), "test-mock");
+        context = ApplicationContext.run(PropertySource.of(graphExecutorConfig), "graph-executor-decorator",
+            "test-mock");
         var config = context.getBean(ServiceConfig.class);
         if (config.getPort() == 0) {
             config.setPort(GrpcUtils.rollPort());
         }
         port = config.getPort();
-        this.graphExecutor = context.getBean(GraphExecutorApi.class);
+        this.graphExecutor = context.getBean(GraphExecutorDecorator.class);
         this.graphExecutor.start();
     }
 

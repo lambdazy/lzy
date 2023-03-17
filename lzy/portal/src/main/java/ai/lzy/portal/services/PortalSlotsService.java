@@ -125,7 +125,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
         slotsManager.slots().forEach(LzySlot::destroy);
 
-        slotsManager.close();
+        slotsManager.stop();
     }
 
     @Override
