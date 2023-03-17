@@ -54,7 +54,9 @@ public class AllocatorServiceTunnelsTest extends AllocatorApiTestBase {
         tunnelAgentChannel.shutdown();
         try {
             tunnelAgentChannel.awaitTermination(1, TimeUnit.SECONDS);
-        } catch (InterruptedException e) { }
+        } catch (InterruptedException e) {
+            //ignored
+        }
     }
 
     @Override
