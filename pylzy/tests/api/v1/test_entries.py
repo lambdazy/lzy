@@ -295,7 +295,7 @@ class LzyEntriesTests(TestCase):
         self.assertEqual(uri_1, uri_2)
         self.assertNotEqual(ruri_1, ruri_2)
 
-    def test_diff_op_versions(self):
+    def test_op_versions_changes(self):
         # noinspection PyUnusedLocal
         @op(cache=True, version="1.0")
         def first_op(name: str) -> None:
