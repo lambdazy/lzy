@@ -55,8 +55,6 @@ public class GraphExecutionService {
 
     private final PortalClientProvider portalClients;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
-    private final ExecutionDao executionDao;
-    private final LzyServiceConfig.KafkaConfig kafkaConfig;
 
 
     public GraphExecutionService(GraphDao graphDao, ExecutionDao executionDao,
@@ -66,15 +64,13 @@ public class GraphExecutionService {
                                  @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                                  @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                  @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
-                                 LzyServiceConfig.KafkaConfig kafkaConfig)
+                                 LzyServiceConfig config)
     {
         this.cleanExecutionCompanion = cleanExecutionCompanion;
         this.portalClients = portalClients;
-        this.executionDao = executionDao;
 
         this.graphDao = graphDao;
         this.operationDao = operationDao;
-        this.kafkaConfig = kafkaConfig;
 
         this.graphExecutorClient = newBlockingClient(
             newBlockingStub(graphExecutorChannel), APP, () -> internalUserCredentials.get().token());
@@ -88,7 +84,7 @@ public class GraphExecutionService {
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
             () -> internalUserCredentials.get().token());
 
-        this.builder = new GraphBuilder(executionDao, channelManagerClient, kafkaConfig);
+        this.builder = new GraphBuilder(executionDao, channelManagerClient, config.getKafka());
     }
 
     @Nullable

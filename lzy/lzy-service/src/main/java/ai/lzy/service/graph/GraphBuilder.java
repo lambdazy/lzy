@@ -1,8 +1,8 @@
 package ai.lzy.service.graph;
 
+import ai.lzy.logs.KafkaConfig;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
@@ -40,14 +40,14 @@ class GraphBuilder {
 
     private final ExecutionDao executionDao;
     private final LzyChannelManagerPrivateBlockingStub channelManagerClient;
-    private final LzyServiceConfig.KafkaConfig config;
+    private final KafkaConfig kafkaConfig;
 
     public GraphBuilder(ExecutionDao executionDao, LzyChannelManagerPrivateBlockingStub channelManagerClient,
-                        LzyServiceConfig.KafkaConfig config)
+                        KafkaConfig kafkaConfig)
     {
         this.executionDao = executionDao;
         this.channelManagerClient = channelManagerClient;
-        this.config = config;
+        this.kafkaConfig = kafkaConfig;
     }
 
     public void build(GraphExecutionState state, LzyPortalGrpc.LzyPortalBlockingStub portalClient) {
@@ -90,7 +90,7 @@ class GraphBuilder {
                 .setTopic(desc.topicName())
                 .setUsername(desc.username())
                 .setPassword(desc.password())
-                .addAllBootstrapServers(config.getBootstrapServers())
+                .addAllBootstrapServers(kafkaConfig.getBootstrapServers())
                 .build();
         } else {
             kafkaTopicDescription = null;
@@ -257,7 +257,7 @@ class GraphBuilder {
 
             final String stdoutChannelId;
             final String stderrChannelId;
-            if (!this.config.isEnabled()) {
+            if (!this.kafkaConfig.isEnabled()) {
 
                 var channelNameForStdoutSlot = "channel_" + taskId + ":" + Slot.STDOUT_SUFFIX;
                 var channelNameForStderrSlot = "channel_" + taskId + ":" + Slot.STDERR_SUFFIX;

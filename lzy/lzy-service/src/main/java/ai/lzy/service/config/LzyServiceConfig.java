@@ -1,6 +1,7 @@
 package ai.lzy.service.config;
 
 import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.logs.KafkaConfig;
 import ai.lzy.model.db.DatabaseConfiguration;
 import ai.lzy.storage.config.StorageClientConfiguration;
 import io.micronaut.context.annotation.ConfigurationBuilder;
@@ -9,8 +10,6 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 
 @Getter
 @Setter
@@ -30,7 +29,9 @@ public class LzyServiceConfig {
     private Duration gcLeaderPeriod;
 
     private StartupPortalConfig portal;
-    private KafkaConfig kafka = new KafkaConfig();
+
+    @ConfigurationBuilder("kafka")
+    private final KafkaConfig kafka = new KafkaConfig();
 
     @Getter
     @Setter
@@ -72,13 +73,4 @@ public class LzyServiceConfig {
     }
 
 
-    @Getter
-    @Setter
-    @ConfigurationProperties("kafka")
-    public static final class KafkaConfig {
-        private boolean enabled = false;
-        private List<String> bootstrapServers = new ArrayList<>();
-        private String username;
-        private String password;
-    }
 }

@@ -1,6 +1,7 @@
 package ai.lzy.test.impl.v2;
 
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.logs.KafkaConfig;
 import ai.lzy.service.App;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.test.impl.v2.AllocatorContext.PortalAllocatorContext;
@@ -52,6 +53,9 @@ public class WorkflowContext {
         kafka = EmbeddedKafka.start(config);
         var opts = Utils.loadModuleTestProperties("lzy-service");
         opts.putAll(Utils.createModuleDatabase("lzy-service"));
+
+        KafkaConfig.KafkaHelper.setUseAuth(false);
+
         opts.putAll(Map.of(
             "lzy-service.kafka.bootstrap-servers", "localhost:8001",
             "lzy-service.kafka.username", "test",

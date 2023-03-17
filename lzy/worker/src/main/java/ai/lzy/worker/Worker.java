@@ -217,6 +217,8 @@ public class Worker {
         properties.put("worker.gpu-count", gpuCount);
         properties.put("worker.enable-http-debug", true);
 
+        properties.put("worker.kafka.enabled", true);
+
         properties.put("micronaut.server.port", httpPort);
 
         return Micronaut.build(new String[]{}).properties(properties).start();

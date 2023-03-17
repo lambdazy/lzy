@@ -1,6 +1,7 @@
 package ai.lzy.worker;
 
 import ai.lzy.iam.config.IamClientConfiguration;
+import ai.lzy.logs.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
@@ -26,4 +27,7 @@ public class ServiceConfig {
 
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();
+
+    @ConfigurationBuilder("kafka")
+    private final KafkaConfig kafka = new KafkaConfig();
 }

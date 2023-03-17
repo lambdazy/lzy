@@ -1,8 +1,10 @@
 package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
+import ai.lzy.worker.ServiceConfig;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
@@ -11,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+@Singleton
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
     private static final String RESOURCES_PATH = "/tmp/resources/";
@@ -23,8 +26,8 @@ public class EnvironmentFactory {
 
     private final boolean hasGpu;
 
-    public EnvironmentFactory(int gpuCount) {
-        this.hasGpu = gpuCount > 0;
+    public EnvironmentFactory(ServiceConfig config) {
+        this.hasGpu = config.getGpuCount() > 0;
     }
 
     public AuxEnvironment create(String fsRoot, LME.EnvSpec env) {

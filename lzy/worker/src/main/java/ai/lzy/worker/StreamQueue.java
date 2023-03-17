@@ -1,15 +1,15 @@
 package ai.lzy.worker;
 
+import ai.lzy.logs.KafkaConfig.KafkaHelper;
 import ai.lzy.v1.common.LMO;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.FormattedMessage;
-import org.apache.logging.log4j.util.Strings;
 
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Properties;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -27,19 +27,16 @@ public class StreamQueue extends Thread {
     @Nullable private final KafkaProducer<String, byte[]> kafkaClient;
     @Nullable private final String topic;
 
-    public StreamQueue(@Nullable LMO.KafkaTopicDescription topic, Logger log, String streamName) {
+    public StreamQueue(@Nullable LMO.KafkaTopicDescription topic, Logger log, String streamName,
+                       KafkaHelper helper)
+    {
         this.logger = log;
         this.streamName = streamName;
-        if (topic != null) {
-            var props = new Properties();
-            props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
-            props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
-            props.put("bootstrap.servers", Strings.join(topic.getBootstrapServersList(), ','));
-            props.put("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required " +
-                "  username=\"" + topic.getUsername() + "\"" +
-                "  password=\"" + topic.getPassword() + "\";");
+        if (topic != null && helper.enabled()) {
+            var kafkaHelper = helper.withCredentials(topic.getBootstrapServersList(), topic.getUsername(),
+                topic.getPassword());
 
-            this.kafkaClient = new KafkaProducer<>(props);
+            this.kafkaClient = new KafkaProducer<>(Objects.requireNonNull(kafkaHelper.props()));
             this.topic = topic.getTopic();
         } else {
             kafkaClient = null;
@@ -184,11 +181,13 @@ public class StreamQueue extends Thread {
             this.errQueue = errQueue;
         }
 
-        public static LogHandle fromTopicDesc(Logger logger, @Nullable LMO.KafkaTopicDescription topicDesc) {
-            var outQueue = new StreamQueue(topicDesc, logger, "out");
+        public static LogHandle fromTopicDesc(Logger logger, @Nullable LMO.KafkaTopicDescription topicDesc,
+                                              KafkaHelper helper)
+        {
+            var outQueue = new StreamQueue(topicDesc, logger, "out", helper);
             outQueue.start();
 
-            var errQueue = new StreamQueue(topicDesc, logger, "err");
+            var errQueue = new StreamQueue(topicDesc, logger, "err", helper);
             errQueue.start();
 
             return new LogHandle(outQueue, errQueue, logger);

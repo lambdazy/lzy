@@ -5,6 +5,7 @@ import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LineReaderSlot;
+import ai.lzy.logs.KafkaConfig.KafkaHelper;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
@@ -17,10 +18,13 @@ import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
+import ai.lzy.worker.StreamQueue.LogHandle;
 import ai.lzy.worker.env.AuxEnvironment;
 import ai.lzy.worker.env.EnvironmentFactory;
 import ai.lzy.worker.env.EnvironmentInstallationException;
 import io.grpc.stub.StreamObserver;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -33,19 +37,19 @@ import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
+@Singleton
 class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkerApiImpl.class);
     private final LzyFsServer lzyFs;
     private final LocalOperationService operationService;
     private final EnvironmentFactory envFactory;
-    private final ServiceConfig config;
+    private final KafkaHelper kafkaHelper;
 
-    public WorkerApiImpl(ServiceConfig config,
-                         LocalOperationService localOperationService,
-                         EnvironmentFactory environmentFactory,
-                         LzyFsServer lzyFsServer)
+    public WorkerApiImpl(@Named("WorkerOperationService") LocalOperationService localOperationService,
+                         EnvironmentFactory environmentFactory, LzyFsServer lzyFsServer,
+                         @Named("WorkerKafkaHelper") KafkaHelper helper)
     {
-        this.config = config;
+        this.kafkaHelper = helper;
         this.operationService = localOperationService;
         this.envFactory = environmentFactory;
         this.lzyFs = lzyFsServer;
@@ -83,7 +87,7 @@ class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             ? request.getTaskDesc().getOperation().getKafkaTopicDesc()
             : null;
 
-        try (final var logHandle = StreamQueue.LogHandle.fromTopicDesc(LOG, topicDesc)) {
+        try (final var logHandle = LogHandle.fromTopicDesc(LOG, topicDesc, kafkaHelper)) {
 
             final var stdoutSpec = op.hasStdout() ? op.getStdout() : null;
             final var stderrSpec = op.hasStderr() ? op.getStderr() : null;

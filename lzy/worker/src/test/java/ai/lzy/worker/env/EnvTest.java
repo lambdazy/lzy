@@ -1,6 +1,7 @@
 package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
+import ai.lzy.worker.ServiceConfig;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -14,7 +15,11 @@ public class EnvTest {
 
     @Before
     public void before() {
-        this.factory = new EnvironmentFactory(0);
+
+        var conf = new ServiceConfig();
+        conf.setGpuCount(0);
+
+        this.factory = new EnvironmentFactory(conf);
     }
 
     @Test
