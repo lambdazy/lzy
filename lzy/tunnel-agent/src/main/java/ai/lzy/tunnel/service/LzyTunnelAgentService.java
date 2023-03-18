@@ -28,7 +28,7 @@ public class LzyTunnelAgentService extends LzyTunnelAgentGrpc.LzyTunnelAgentImpl
 
     @Override
     public void createTunnel(TA.CreateTunnelRequest request, StreamObserver<TA.CreateTunnelResponse> responseObserver) {
-        LOG.info("Create Tunnel: {}", ProtoPrinter.printer().shortDebugString(request));
+        LOG.info("Create Tunnel: {}", ProtoPrinter.safePrinter().shortDebugString(request));
         Exception validationResult = validate(request);
         if (validationResult != null) {
             responseObserver.onError(Status.INVALID_ARGUMENT
@@ -39,6 +39,13 @@ public class LzyTunnelAgentService extends LzyTunnelAgentGrpc.LzyTunnelAgentImpl
         tunnelManager.createTunnel(request.getRemoteV6Address(), request.getWorkerPodV4Address(),
             request.getK8SV4PodCidr(), request.getTunnelIndex());
         responseObserver.onNext(TA.CreateTunnelResponse.getDefaultInstance());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void deleteTunnel(TA.DeleteTunnelRequest request, StreamObserver<TA.DeleteTunnelResponse> responseObserver) {
+        tunnelManager.destroyTunnel();
+        responseObserver.onNext(TA.DeleteTunnelResponse.getDefaultInstance());
         responseObserver.onCompleted();
     }
 
@@ -64,12 +71,5 @@ public class LzyTunnelAgentService extends LzyTunnelAgentGrpc.LzyTunnelAgentImpl
                 .collect(Collectors.joining(","));
             return new IllegalArgumentException("Validation errors: " + errorsString);
         }
-    }
-
-    @Override
-    public void deleteTunnel(TA.DeleteTunnelRequest request, StreamObserver<TA.DeleteTunnelResponse> responseObserver) {
-        tunnelManager.destroyTunnel();
-        responseObserver.onNext(TA.DeleteTunnelResponse.getDefaultInstance());
-        responseObserver.onCompleted();
     }
 }

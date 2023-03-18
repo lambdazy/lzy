@@ -153,11 +153,13 @@ public final class DeleteVmAction extends OperationRunnerBase {
             log().warn("{} Allocator meta for vm {} is null", logPrefix(), vm.vmId());
             return StepResult.ALREADY_DONE;
         }
+
         var clusterId = allocatorMeta.get(KuberVmAllocator.CLUSTER_ID_KEY);
         if (clusterId == null) {
             log().warn("{} Cluster id isn't found for vm {}", logPrefix(), vm.vmId());
             return StepResult.ALREADY_DONE;
         }
+
         try {
             VmAllocator.Result result = allocationContext.tunnelAllocator().deleteTunnel(clusterId, name);
             return switch (result.code()) {

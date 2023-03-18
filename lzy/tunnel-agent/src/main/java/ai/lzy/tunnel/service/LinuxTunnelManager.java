@@ -6,6 +6,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
 
@@ -27,28 +28,29 @@ public class LinuxTunnelManager implements TunnelManager {
         startProcessAndWait(DELETE_TUNNEL_PATH);
     }
 
-    private static int startProcessAndWait(String... cmd) {
+    private static void startProcessAndWait(String... cmd) {
+        if (cmd.length == 0) {
+            throw new IllegalStateException("Cannot create process without command");
+        }
         try {
-            if (cmd.length == 0) {
-                throw new IllegalStateException("Cannot create process without command");
-            }
-            Process process = Runtime.getRuntime().exec(cmd);
-            BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream())
-            );
+            var process = new ProcessBuilder(cmd)
+                    .redirectErrorStream(true)
+                    .start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             String s;
             while ((s = reader.readLine()) != null) {
                 LOG.info(s);
             }
+
             if (!process.waitFor(10, TimeUnit.SECONDS)) {
                 LOG.warn("Still waiting after 10 seconds to process {} to finish. Destroying...", process.pid());
                 process.destroy();
             }
-
-            return process.exitValue();
-        } catch (Exception e) {
-            LOG.error("Unexpected execution error", e);
-            throw new RuntimeException(e);
+            LOG.info("Process finished with code: {}", process.exitValue());
+        } catch (IOException e) {
+            LOG.error("Error while reading execution", e);
+        } catch (InterruptedException e) {
+            LOG.error("Process was interrupted", e);
         }
     }
 }

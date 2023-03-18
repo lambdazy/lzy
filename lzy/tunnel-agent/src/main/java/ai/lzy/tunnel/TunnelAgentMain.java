@@ -1,7 +1,9 @@
 package ai.lzy.tunnel;
 
+import ai.lzy.tunnel.config.ServiceConfig;
 import ai.lzy.tunnel.service.LzyTunnelAgentService;
 import ai.lzy.util.grpc.ChannelBuilder;
+import ai.lzy.util.grpc.GrpcExceptionHandlingInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
@@ -28,10 +30,10 @@ public class TunnelAgentMain {
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .intercept(GrpcLogsInterceptor.server())
+            .intercept(GrpcExceptionHandlingInterceptor.server())
             .addService(tunnelAgentService)
             .addService(ProtoReflectionService.newInstance())
             .build();
-        //todo think about auth
     }
 
     public void start() throws IOException {
@@ -52,9 +54,11 @@ public class TunnelAgentMain {
     public static void main(String[] args) throws InterruptedException, IOException {
         try (ApplicationContext context = ApplicationContext.run()) {
             try {
+                ServiceConfig config = context.getBean(ServiceConfig.class);
                 var tunnelAgent = new TunnelAgentMain(
                     context.getBean(LzyTunnelAgentService.class),
-                    context.getProperty("tunnel-agent.address", String.class).get());
+                    config.getAddress()
+                );
 
                 tunnelAgent.start();
                 Runtime.getRuntime().addShutdownHook(

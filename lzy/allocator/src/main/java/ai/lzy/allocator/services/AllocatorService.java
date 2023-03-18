@@ -8,7 +8,6 @@ import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
-import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.DiskVolumeDescription;
 import ai.lzy.allocator.model.HostPathVolumeDescription;
@@ -316,6 +315,16 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
+        final Vm.TunnelSettings tunnelSettings;
+        if (request.hasTunnelSettings()) {
+            tunnelSettings = validate(request.getTunnelSettings(), responseObserver);
+            if (tunnelSettings == null) {
+                return;
+            }
+        } else {
+            tunnelSettings = null;
+        }
+
         final Session session;
         try {
             session = withRetries(LOG, () -> sessionsDao.get(request.getSessionId(), null));
@@ -349,17 +358,12 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             .map(Workload::fromProto)
             .collect(Collectors.toList()); // not `.toList()` because we need a modifiable list here
 
-        final Vm.TunnelSettings tunnelSettings;
-        if (request.hasTunnelSettings()) {
-            tunnelSettings = validate(request.getTunnelSettings(), responseObserver);
-            if (tunnelSettings == null) {
-                return;
-            }
+        if (tunnelSettings != null) {
             try {
                 var tunnelWl = allocationContext.tunnelAllocator().createRequestTunnelWorkload(
                     tunnelSettings, request.getPoolLabel(), request.getZone());
                 initWorkloads.add(tunnelWl);
-            } catch (InvalidConfigurationException e) {
+            } catch (Exception e) {
                 allocationContext.metrics().allocationError.inc();
                 LOG.error("Error while allocating tunnel with settings {}: {}", tunnelSettings, e.getMessage(), e);
                 responseObserver.onError(Status.INVALID_ARGUMENT
@@ -368,8 +372,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     .asException());
                 return;
             }
-        } else {
-            tunnelSettings = null;
         }
 
         InjectedFailures.failAllocateVm10();
@@ -686,11 +688,12 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
     @Nullable
     private Vm.TunnelSettings validate(VmAllocatorApi.TunnelSettings tunnelSettings,
-                                              StreamObserver<LongRunning.Operation> response) {
+                                              StreamObserver<LongRunning.Operation> response)
+    {
         var errors = new ArrayList<>();
         int tunnelIndex = tunnelSettings.getTunnelIndex();
         if (tunnelIndex > 255 || tunnelIndex < 0) {
-            errors.add("Tunnel index has invalid value:" + tunnelIndex + ". Allowed range is [0, 255]");
+            errors.add("Tunnel index has invalid value: " + tunnelIndex + ". Allowed range is [0, 255]");
         }
         Inet6Address proxyV6Address = null;
         try {

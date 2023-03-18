@@ -3,6 +3,9 @@ package ai.lzy.util.grpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.ServerInterceptor;
+import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.AbstractBlockingStub;
 
@@ -89,5 +92,27 @@ public final class GrpcUtils {
             addKeepAlive(
                 NettyServerBuilder.forAddress(new InetSocketAddress(host, port))),
             authInterceptor);
+    }
+
+    public static StatusRuntimeException mapToGrpcException(Exception e) {
+        if (e instanceof StatusRuntimeException statusRuntimeException) {
+            return statusRuntimeException;
+        }
+        if (e instanceof StatusException statusException) {
+            return new StatusRuntimeException(statusException.getStatus(), statusException.getTrailers());
+        }
+        if (e instanceof IllegalArgumentException) {
+            return Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException();
+        }
+        if (e instanceof IllegalStateException) {
+            return Status.FAILED_PRECONDITION.withDescription(e.getMessage()).asRuntimeException();
+        }
+        if (e instanceof UnsupportedOperationException) {
+            return Status.UNIMPLEMENTED.withDescription(e.getMessage()).asRuntimeException();
+        }
+        if (e instanceof RuntimeException) {
+            return Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException();
+        }
+        return Status.UNKNOWN.withDescription(e.getMessage()).asRuntimeException();
     }
 }

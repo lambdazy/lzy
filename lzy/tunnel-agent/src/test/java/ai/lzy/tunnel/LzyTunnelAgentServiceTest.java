@@ -40,14 +40,13 @@ public class LzyTunnelAgentServiceTest {
 
     @Test
     public void tunnelAgentShouldValidateCreateTunnelArgs() {
-        StatusRuntimeException error = Assert.assertThrows(StatusRuntimeException.class, () -> {
+        StatusRuntimeException error = Assert.assertThrows(StatusRuntimeException.class, () ->
             lzyTunnelAgentStub.createTunnel(TA.CreateTunnelRequest.newBuilder()
                 .setTunnelIndex(256)
                 .setK8SV4PodCidr("256.128.64.32/33")
                 .setWorkerPodV4Address("1.2.2.3.4")
                 .setRemoteV6Address("foooooooooooo")
-                .build());
-        });
+                .build()));
         Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), error.getStatus().getCode());
         Assert.assertNotNull(error.getStatus().getDescription());
         Assert.assertTrue(error.getStatus().getDescription().contains("Incorrect IPv4 CIDR"));
@@ -72,7 +71,7 @@ public class LzyTunnelAgentServiceTest {
 
     @Test
     public void tunnelAgentShouldThrowExceptionOnCreateTunnelFail() {
-        Mockito.doThrow(new RuntimeException("test error")).when(mockTunnelManager)
+        Mockito.doThrow(new IllegalArgumentException("test error")).when(mockTunnelManager)
             .createTunnel(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyInt());
         StatusRuntimeException exception = Assert.assertThrows(StatusRuntimeException.class, () ->
             lzyTunnelAgentStub.createTunnel(TA.CreateTunnelRequest.newBuilder()
@@ -81,7 +80,7 @@ public class LzyTunnelAgentServiceTest {
                 .setWorkerPodV4Address("1.22.3.4")
                 .setRemoteV6Address("fe80::")
                 .build()));
-        Assert.assertEquals(Status.UNKNOWN.getCode(), exception.getStatus().getCode());
+        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
     }
 
     @Test
@@ -93,9 +92,10 @@ public class LzyTunnelAgentServiceTest {
 
     @Test
     public void tunnelAgentShouldThrowExceptionOnDeleteTunnelFail() {
-        Mockito.doThrow(new RuntimeException("test error")).when(mockTunnelManager).destroyTunnel();
+        Mockito.doThrow(new IllegalArgumentException("test error")).when(mockTunnelManager).destroyTunnel();
         StatusRuntimeException exception = Assert.assertThrows(StatusRuntimeException.class, () ->
             lzyTunnelAgentStub.deleteTunnel(TA.DeleteTunnelRequest.getDefaultInstance()));
-        Assert.assertEquals(Status.UNKNOWN.getCode(), exception.getStatus().getCode());
+        Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
+        Assert.assertEquals("test error", exception.getStatus().getDescription());
     }
 }

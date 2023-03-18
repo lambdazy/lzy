@@ -82,12 +82,15 @@ public class AllocatorServiceTunnelsTest extends AllocatorApiTestBase {
                         .build())
                     .setTunnelSettings(VmAllocatorApi.TunnelSettings.newBuilder()
                         .setProxyV6Address("1.1.1.1")
+                        .setTunnelIndex(40000)
                         .build())
                     .build());
         });
         Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
-        Assert.assertEquals("Tunnel settings errors: 'Address 1.1.1.1 isn't v6!'",
-            exception.getStatus().getDescription());
+        Assert.assertNotNull(exception.getStatus().getDescription());
+        Assert.assertTrue(exception.getStatus().getDescription().contains("Address 1.1.1.1 isn't v6!"));
+        Assert.assertTrue(exception.getStatus().getDescription().contains("Tunnel index has invalid value: 40000." +
+                " Allowed range is [0, 255]"));
     }
 
     @Test

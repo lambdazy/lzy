@@ -11,6 +11,8 @@ import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.tunnel.LzyTunnelAgentGrpc;
 import ai.lzy.v1.tunnel.TA;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.grpc.StatusRuntimeException;
@@ -41,7 +43,8 @@ public class KuberTunnelAllocator implements TunnelAllocator {
 
     public KuberTunnelAllocator(ClusterRegistry clusterRegistry, VmPoolRegistry poolRegistry,
                                 KuberClientFactory factory, ServiceConfig config,
-                                ServiceConfig.TunnelConfig tunnelConfig) {
+                                ServiceConfig.TunnelConfig tunnelConfig)
+    {
         this.clusterRegistry = clusterRegistry;
         this.poolRegistry = poolRegistry;
         this.factory = factory;
@@ -116,6 +119,7 @@ public class KuberTunnelAllocator implements TunnelAllocator {
                 var resp = tunnelAgent.deleteTunnel(TA.DeleteTunnelRequest.getDefaultInstance());
             } catch (StatusRuntimeException e) {
                 LOG.warn("Couldn't delete tunnel on tunnel agent", e);
+                return VmAllocator.Result.fromGrpcStatus(e.getStatus());
             } finally {
                 channel.shutdown();
             }
@@ -177,6 +181,7 @@ public class KuberTunnelAllocator implements TunnelAllocator {
 
         final var clusterPodsCidr = clusterRegistry.getClusterPodsCidr(cluster.clusterId());
 
+        String jsonRequest = prepareCreateTunnelJsonRequest(tunnelSettings, clusterPodsCidr);
         return new Workload(
             "request-tunnel",
             tunnelConfig.getRequestContainerImage(),
@@ -185,10 +190,7 @@ public class KuberTunnelAllocator implements TunnelAllocator {
                 tunnelConfig.getRequestContainerGrpCurlPath(),
                 "--plaintext",
                 "-d",
-                ("{\"remote_v6_address\": \"%s\", \"worker_pod_v4_address\": \"$(%s)\", \"k8s_v4_pod_cidr\": \"%s\"," +
-                    " \"tunnel_index\": %d}")
-                    .formatted(tunnelSettings.proxyV6Address().getHostAddress(), AllocatorAgent.VM_IP_ADDRESS,
-                        clusterPodsCidr, tunnelSettings.tunnelIndex()),
+                jsonRequest,
                 "$(%s):%d"
                     .formatted(AllocatorAgent.VM_NODE_IP_ADDRESS, tunnelConfig.getAgentPort()),
                 "ai.lzy.v1.tunnel.LzyTunnelAgent/CreateTunnel"
@@ -196,5 +198,22 @@ public class KuberTunnelAllocator implements TunnelAllocator {
             Map.of(),
             List.of()
         );
+    }
+
+    private static String prepareCreateTunnelJsonRequest(Vm.TunnelSettings tunnelSettings, String clusterPodsCidr) {
+        try {
+            var request = TA.CreateTunnelRequest.newBuilder()
+                    .setRemoteV6Address(tunnelSettings.proxyV6Address().getHostAddress())
+                    .setTunnelIndex(tunnelSettings.tunnelIndex())
+                    .setWorkerPodV4Address("$(" + AllocatorAgent.VM_IP_ADDRESS + ")") //for bash resolving
+                    .setK8SV4PodCidr(clusterPodsCidr)
+                    .build();
+            return JsonFormat.printer()
+                    .preservingProtoFieldNames()
+                    .print(request);
+        } catch (InvalidProtocolBufferException e) {
+            LOG.error("Couldn't parse createTunnel request from protobuf to json", e);
+            throw new RuntimeException(e);
+        }
     }
 }

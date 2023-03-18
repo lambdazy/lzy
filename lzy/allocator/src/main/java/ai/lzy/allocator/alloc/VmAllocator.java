@@ -4,6 +4,7 @@ import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
+import io.grpc.Status;
 
 import java.util.List;
 import javax.annotation.Nullable;
@@ -39,6 +40,16 @@ public interface VmAllocator {
 
         public Result withReason(String reason) {
             return new Result(code, reason);
+        }
+
+        public static Result fromGrpcStatus(Status status) {
+            return switch (status.getCode()) {
+                case UNAVAILABLE, INTERNAL, RESOURCE_EXHAUSTED, UNKNOWN, ABORTED, DEADLINE_EXCEEDED ->
+                        VmAllocator.Result.RETRY_LATER.withReason(status.getDescription());
+                case INVALID_ARGUMENT, FAILED_PRECONDITION, PERMISSION_DENIED, UNAUTHENTICATED, UNIMPLEMENTED ->
+                        VmAllocator.Result.FAILED.withReason(status.getDescription());
+                default -> VmAllocator.Result.SUCCESS;
+            };
         }
     }
 

@@ -1,2 +1,2 @@
 ALTER TABLE vm
-    ADD COLUMN tunnel_index INT DEFAULT null;
+    ADD COLUMN tunnel_index INT DEFAULT NULL;
