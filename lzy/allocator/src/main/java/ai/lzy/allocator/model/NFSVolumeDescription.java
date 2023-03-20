@@ -13,6 +13,7 @@ public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescriptio
     private final String name;
     private final String server;
     private final String share;
+    private final boolean readOnly;
 
     private final List<String> mountOptions;
 
@@ -21,12 +22,14 @@ public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescriptio
                                 @JsonProperty("name") String name,
                                 @JsonProperty("server") String server,
                                 @JsonProperty("share") String share,
+                                @JsonProperty("read_only") boolean readOnly,
                                 @JsonProperty("mount_options") List<String> mountOptions)
     {
         this.id = id;
         this.name = name;
         this.server = server;
         this.share = share;
+        this.readOnly = readOnly;
         this.mountOptions = mountOptions;
     }
 
@@ -46,6 +49,10 @@ public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescriptio
 
     public String server() {
         return server;
+    }
+
+    public boolean readOnly() {
+        return readOnly;
     }
 
     public List<String> mountOptions() {

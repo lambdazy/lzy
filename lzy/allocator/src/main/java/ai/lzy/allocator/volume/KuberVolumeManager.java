@@ -137,7 +137,8 @@ public class KuberVolumeManager implements VolumeManager {
                         .withVolumeHandle(diskId)
                         .withVolumeAttributes(Map.of(
                             "server", nfsVolumeDescription.server(),
-                            "share", nfsVolumeDescription.share()))
+                            "share", nfsVolumeDescription.share(),
+                            "readOnly", String.valueOf(nfsVolumeDescription.readOnly())))
                         .build())
                 .endSpec()
                 .build();

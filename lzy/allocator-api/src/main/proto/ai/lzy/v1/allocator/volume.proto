@@ -35,6 +35,7 @@ message HostPathVolumeType {
 message NFSVolumeType {
   string server = 1;
   string share = 2;
+  bool read_only = 3;
   repeated string mount_options = 5;
 }
 
