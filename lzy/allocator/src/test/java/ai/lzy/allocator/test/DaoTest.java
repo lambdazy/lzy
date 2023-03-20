@@ -179,7 +179,7 @@ public class DaoTest {
         final VolumeMount volume = new VolumeMount(
             "volume", "/mnt/volume", false, VolumeMount.MountPropagation.BIDIRECTIONAL);
         final var wl1 = new Workload(
-            "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222),
+            "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222), 0,
             List.of(volume));
         final var volumeRequest = new VolumeRequest(new DiskVolumeDescription("id-1", "diskVolume", "diskId", 3));
 

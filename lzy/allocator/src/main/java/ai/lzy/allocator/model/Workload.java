@@ -25,6 +25,8 @@ public record Workload(
     @JsonInclude
     Map<Integer, Integer> portBindings,
     @JsonInclude
+    Integer runAsUser,
+    @JsonInclude
     List<VolumeMount> mounts
 ) {
     public static Workload fromProto(AllocateRequest.Workload workload) {
@@ -34,6 +36,7 @@ public record Workload(
             workload.getEnvMap(),
             workload.getArgsList(),
             workload.getPortBindingsMap(),
+            workload.getRunAsUser(),
             workload.getVolumeMountsList().stream()
                 .map(m -> new VolumeMount(
                     m.getVolumeName(),
@@ -54,6 +57,7 @@ public record Workload(
             env,
             workload.getArgsList(),
             workload.getPortBindingsMap(),
+            workload.getRunAsUser(),
             workload.getVolumeMountsList().stream()
                 .map(m -> new VolumeMount(
                     m.getVolumeName(),
@@ -68,6 +72,6 @@ public record Workload(
         final var env = new HashMap<>(this.env);
         env.put(key, value);
 
-        return new Workload(name, image, env, args, portBindings, mounts);
+        return new Workload(name, image, env, args, portBindings, runAsUser, mounts);
     }
 }

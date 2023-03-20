@@ -77,6 +77,7 @@ message AllocateRequest {
     map<string, string> env = 16 [(validation.sensitive) = true];
     repeated string args = 17;
     map<uint32, uint32> port_bindings = 18;  // host port: container port
+    uint32 runAsUser = 19;
 
     repeated Mount volume_mounts = 20;
   }
