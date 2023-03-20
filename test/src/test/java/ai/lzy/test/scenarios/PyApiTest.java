@@ -69,13 +69,14 @@ public class PyApiTest {
     }
 
     @Test
-    public void testNoneResult() {
+    public void testComplexGraph() {
         /* This scenario checks for:
                 1. Calling @op with None as result
+                2. Iterative graph
          */
 
         //Arrange
-        pythonContext.context().evalAndAssertScenarioResult("none_result");
+        pythonContext.context().evalAndAssertScenarioResult("complex_graph");
     }
 
     @Test
