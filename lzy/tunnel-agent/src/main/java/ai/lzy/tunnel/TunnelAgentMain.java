@@ -2,12 +2,10 @@ package ai.lzy.tunnel;
 
 import ai.lzy.tunnel.config.ServiceConfig;
 import ai.lzy.tunnel.service.LzyTunnelAgentService;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcExceptionHandlingInterceptor;
-import ai.lzy.util.grpc.GrpcLogsInterceptor;
+import ai.lzy.util.grpc.GrpcUtils;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
-import io.grpc.netty.NettyServerBuilder;
 import io.grpc.protobuf.services.ProtoReflectionService;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
@@ -15,7 +13,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.util.concurrent.TimeUnit;
 
 public class TunnelAgentMain {
     private static final Logger LOG = LogManager.getLogger(TunnelAgentMain.class);
@@ -25,11 +22,7 @@ public class TunnelAgentMain {
 
     public TunnelAgentMain(LzyTunnelAgentService tunnelAgentService, String addr) {
         this.address = HostAndPort.fromString(addr);
-        this.server = NettyServerBuilder
-            .forPort(address.getPort())
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .intercept(GrpcLogsInterceptor.server())
+        this.server = GrpcUtils.newGrpcServer(address, null)
             .intercept(GrpcExceptionHandlingInterceptor.server())
             .addService(tunnelAgentService)
             .addService(ProtoReflectionService.newInstance())
