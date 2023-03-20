@@ -40,14 +40,19 @@ public record Vm(
         List<Workload> initWorkloads,
         List<Workload> workloads,
         List<VolumeRequest> volumeRequests,
-        @Nullable Inet6Address proxyV6Address,
+        @Nullable TunnelSettings tunnelSettings,
         ClusterRegistry.ClusterType clusterType
     ) {
         public Spec withVmId(String vmId) {
             return new Spec(vmId, sessionId, poolLabel, zone, initWorkloads,
-                workloads, volumeRequests, proxyV6Address, clusterType);
+                workloads, volumeRequests, tunnelSettings, clusterType);
         }
     }
+
+    public record TunnelSettings(
+        Inet6Address proxyV6Address,
+        int tunnelIndex
+    ) { }
 
     public record InstanceProperties(
         @Nullable String vmSubjectId,
@@ -145,8 +150,8 @@ public record Vm(
     }
 
     @Nullable
-    public Inet6Address proxyV6Address() {
-        return spec.proxyV6Address;
+    public TunnelSettings tunnelSettings() {
+        return spec.tunnelSettings;
     }
 
     public String allocOpId() {

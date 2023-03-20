@@ -138,19 +138,17 @@ public final class AllocateVmAction extends OperationRunnerBase {
     private StepResult allocateTunnel() {
         InjectedFailures.failAllocateVm3();
 
-        if (vm.proxyV6Address() == null) {
+        if (vm.tunnelSettings() == null) {
             return StepResult.ALREADY_DONE;
         }
 
         if (vm.instanceProperties().tunnelPodName() != null) {
-            log().info("{} Found existing tunnel pod {} with address {} for VM",
-                logPrefix(), vm.instanceProperties().tunnelPodName(), vm.proxyV6Address());
             return StepResult.ALREADY_DONE;
         }
 
         if (tunnelPodName == null) {
             try {
-                tunnelPodName = allocationContext.tunnelAllocator().allocateTunnel(vm.spec());
+                tunnelPodName = allocationContext.tunnelAllocator().allocateTunnelAgent(vm.spec());
             } catch (Exception e) {
                 allocationContext.metrics().allocationError.inc();
                 log().error("{} Cannot allocate tunnel: {}", logPrefix(), e.getMessage());

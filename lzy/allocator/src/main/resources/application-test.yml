@@ -69,3 +69,8 @@ allocator:
 
   kuber-tunnel-allocator:
     enabled: false
+
+  tunnel:
+    pod-image: tunnel-agent
+    request-container-image: grpcurl
+    request-container-grp-curl-path: ./grpcurl

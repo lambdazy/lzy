@@ -2,11 +2,11 @@
 
 set -e
 
-TUN_NO=0
 LOCAL_V6=$(ip -6 a show dev eth0 | grep inet6 | grep -v fe80 | awk '{printf $2}' | awk -F/ '{printf $1}')
 REMOTE_V6=$1
 POD_ADDRESS=$2
 PODS_CIDR=$3
+TUN_NO=$4
 
 echo "Configuration:"
 echo "TUN_NO = $TUN_NO"
