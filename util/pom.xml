@@ -4,8 +4,14 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>ai.lzy</groupId>
     <artifactId>util</artifactId>
-    <version>1.8-SNAPSHOT</version>
+    <version>${revision}${sha1}${changelist}</version>
     <packaging>pom</packaging>
+
+    <properties>
+        <revision>1.8</revision>
+        <changelist>-SNAPSHOT</changelist>
+        <sha1/>
+    </properties>
 
     <modules>
         <module>util-auth</module>
@@ -16,4 +22,35 @@
         <module>util-s3</module>
         <module>util-test</module>
     </modules>
+
+    <build>
+        <!-- the plugin resolves ${revision} and other version placeholders in installed/deployed poms -->
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.4.0</version>
+                <configuration>
+                    <updatePomFile>true</updatePomFile>
+                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>flatten</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>flatten</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>flatten.clean</id>
+                        <phase>clean</phase>
+                        <goals>
+                            <goal>clean</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

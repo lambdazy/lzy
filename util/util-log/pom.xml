@@ -5,17 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.8-SNAPSHOT</version>
+        <version>${revision}${sha1}${changelist}</version>
         <relativePath>../../parent</relativePath>
     </parent>
-    <artifactId>util-log</artifactId>
-    <version>1.8-SNAPSHOT</version>
 
-    <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <packaging>jar</packaging>
-    </properties>
+    <artifactId>util-log</artifactId>
 
     <dependencies>
         <dependency>
@@ -54,15 +48,15 @@
 
     <build>
         <plugins>
+            <!-- the plugin resolves ${revision} and other version placeholders in installed/deployed poms -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-            </plugin>
         </plugins>
     </build>
-
 </project>

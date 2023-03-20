@@ -5,8 +5,18 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.8-SNAPSHOT</version>
+        <version>${revision}${sha1}${changelist}</version>
         <relativePath>../parent</relativePath>
     </parent>
     <artifactId>pylzy</artifactId>
+
+    <build>
+        <plugins>
+            <!-- the plugin resolves ${revision} and other version placeholders in installed/deployed poms -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>
