@@ -175,7 +175,7 @@ public class PodSpecBuilder {
                     new VolumeMountBuilder()
                         .withName(volumeMount.name())
                         .withMountPath(volumeMount.path())
-                        .withReadOnly(volumeMount.readOnly())
+                        .withReadOnly(false)
                         .withMountPropagation(volumeMount.mountPropagation().asString())
                         .build()
             ).toList());

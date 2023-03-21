@@ -119,9 +119,7 @@ public class KuberVolumeManager implements VolumeManager {
 
             LOG.info("Creating persistent NFS volume for disk=" + volumeName);
 
-            accessMode = nfsVolumeDescription.readOnly()
-                ? Volume.AccessMode.READ_ONLY_MANY
-                : Volume.AccessMode.READ_WRITE_MANY;
+            accessMode = Volume.AccessMode.READ_WRITE_MANY;
             resourceName = nfsVolumeDescription.name();
             storageClass = NFS_STORAGE_CLASS_NAME;
             volume = new PersistentVolumeBuilder()
@@ -137,7 +135,6 @@ public class KuberVolumeManager implements VolumeManager {
                     .withCsi(new CSIPersistentVolumeSourceBuilder()
                         .withDriver(NFS_DRIVER)
                         .withVolumeHandle(diskId)
-                        .withReadOnly(nfsVolumeDescription.readOnly())
                         .withVolumeAttributes(Map.of(
                             "server", nfsVolumeDescription.server(),
                             "share", nfsVolumeDescription.share()))
