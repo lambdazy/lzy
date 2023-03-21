@@ -21,6 +21,10 @@ variable "folder_id" {
   type = string
 }
 
+variable "fluent_port" {
+  type = number
+}
+
 locals {
   fluentd-sa-key-json = jsonencode(var.node-sa-key)
 }
@@ -29,14 +33,14 @@ resource "kubernetes_namespace" "logging" {
   metadata {
     name = "logging"
     labels = {
-      k8s-app: "fluent-bit"
+      k8s-app : "fluent-bit"
     }
   }
 }
 
 resource "kubernetes_secret" "fluentd_sa_key" {
   metadata {
-    name = "fluentd-sa-key"
+    name      = "fluentd-sa-key"
     namespace = kubernetes_namespace.logging.metadata[0].name
   }
   data = {
@@ -47,10 +51,10 @@ resource "kubernetes_secret" "fluentd_sa_key" {
 resource "kubernetes_service_account" "fluentd_sa" {
 
   metadata {
-    name = "fluent-bit"
+    name      = "fluent-bit"
     namespace = kubernetes_namespace.logging.metadata[0].name
     labels = {
-      k8s-app: "fluent-bit"
+      k8s-app : "fluent-bit"
     }
   }
 }
@@ -60,13 +64,13 @@ resource "kubernetes_cluster_role" "fluentd_cluster_role" {
   metadata {
     name = "fluent-bit-read"
     labels = {
-      k8s-app: "fluent-bit"
+      k8s-app : "fluent-bit"
     }
   }
   rule {
     api_groups = [""]
-    verbs = ["get", "list", "watch"]
-    resources = ["namespaces", "pods"]
+    verbs      = ["get", "list", "watch"]
+    resources  = ["namespaces", "pods"]
   }
 }
 
@@ -75,7 +79,7 @@ resource "kubernetes_cluster_role_binding" "fluentd_cluster_role_binding" {
   metadata {
     name = "fluent-bit-read"
     labels = {
-      k8s-app: "fluent-bit"
+      k8s-app : "fluent-bit"
     }
   }
   role_ref {
@@ -84,8 +88,8 @@ resource "kubernetes_cluster_role_binding" "fluentd_cluster_role_binding" {
     name      = kubernetes_cluster_role.fluentd_cluster_role.metadata[0].name
   }
   subject {
-    kind = "ServiceAccount"
-    name = kubernetes_service_account.fluentd_sa.metadata[0].name
+    kind      = "ServiceAccount"
+    name      = kubernetes_service_account.fluentd_sa.metadata[0].name
     namespace = kubernetes_namespace.logging.metadata[0].name
   }
 }
@@ -93,20 +97,22 @@ resource "kubernetes_cluster_role_binding" "fluentd_cluster_role_binding" {
 resource "kubernetes_config_map" "fluent_bit_config_map" {
 
   metadata {
-    name = "fluent-bit-config"
+    name      = "fluent-bit-config"
     namespace = kubernetes_namespace.logging.metadata[0].name
     labels = {
-      k8s-app: "fluent-bit"
+      k8s-app : "fluent-bit"
     }
   }
 
   data = {
-    "fluent-bit.conf": file("${path.module}/configs/fluent-bit.conf")
-    "input-kubernetes.conf": file("${path.module}/configs/input-kubernetes.conf")
-    "parsers.conf": file("${path.module}/configs/parsers.conf")
-    "filter-kubernetes.conf": file("${path.module}/configs/filter-kubernetes.conf")
-    "output-elasticsearch.conf": templatefile("${path.module}/configs/output-elasticsearch.conf", {
-      "folder_id": var.folder_id
+    "fluent-bit.conf" : file("${path.module}/configs/fluent-bit.conf")
+    "input-kubernetes.conf" : templatefile("${path.module}/configs/input-kubernetes.conf", {
+      "port": var.fluent_port
+    })
+    "parsers.conf" : file("${path.module}/configs/parsers.conf")
+    "filter-kubernetes.conf" : file("${path.module}/configs/filter-kubernetes.conf")
+    "output-elasticsearch.conf" : templatefile("${path.module}/configs/output-elasticsearch.conf", {
+      "folder_id" : var.folder_id
     })
   }
 }
@@ -115,25 +121,25 @@ resource "kubernetes_config_map" "fluent_bit_config_map" {
 resource "kubernetes_daemonset" "fluent_bit" {
 
   metadata {
-    name = "fluent-bit"
+    name      = "fluent-bit"
     namespace = kubernetes_namespace.logging.metadata[0].name
     labels = {
-      "k8s-app": "fluent-bit-logging"
-      "kubernetes.io/cluster-service": "true"
+      "k8s-app" : "fluent-bit-logging"
+      "kubernetes.io/cluster-service" : "true"
     }
 
   }
   spec {
     selector {
       match_labels = {
-        "k8s-app": "fluent-bit-logging"
+        "k8s-app" : "fluent-bit-logging"
       }
     }
     template {
       metadata {
         labels = {
-          "k8s-app": "fluent-bit-logging"
-          "kubernetes.io/cluster-service": "true"
+          "k8s-app" : "fluent-bit-logging"
+          "kubernetes.io/cluster-service" : "true"
         }
       }
 
@@ -143,10 +149,16 @@ resource "kubernetes_daemonset" "fluent_bit" {
           "lzy.ai/logging_allowed" = "true"
         }
 
+        host_network = true
         container {
-          name = "fluent-bit"
-          image = "cr.yandex/yc/fluent-bit-plugin-yandex:v2.0.3-fluent-bit-1.9.3"
+          name              = "fluent-bit"
+          image             = "cr.yandex/yc/fluent-bit-plugin-yandex:v2.0.3-fluent-bit-1.9.3"
           image_pull_policy = "Always"
+
+          port {
+            container_port = var.fluent_port
+            host_port      = var.fluent_port
+          }
 
           volume_mount {
             mount_path = "/var/log"
@@ -156,7 +168,7 @@ resource "kubernetes_daemonset" "fluent_bit" {
           volume_mount {
             mount_path = "/var/lib/docker/containers"
             name       = "varlibdockercontainers"
-            read_only = true
+            read_only  = true
           }
 
           volume_mount {
@@ -207,19 +219,19 @@ resource "kubernetes_daemonset" "fluent_bit" {
         service_account_name = kubernetes_service_account.fluentd_sa.metadata[0].name
 
         toleration {
-          key = "node-role.kubernetes.io/master"
+          key      = "node-role.kubernetes.io/master"
           operator = "Exists"
-          effect = "NoSchedule"
+          effect   = "NoSchedule"
         }
 
         toleration {
           operator = "Exists"
-          effect = "NoExecute"
+          effect   = "NoExecute"
         }
 
         toleration {
           operator = "Exists"
-          effect = "NoSchedule"
+          effect   = "NoSchedule"
         }
 
       }

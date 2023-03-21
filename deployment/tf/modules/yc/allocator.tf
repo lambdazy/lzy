@@ -180,6 +180,20 @@ resource "kubernetes_stateful_set" "allocator" {
             }
           }
 
+          env {
+            name = "LZY_FLUENT_APPENDER_HOST"
+            value_from {
+              field_ref {
+                field_path = "status.hostIP"
+              }
+            }
+          }
+
+          env {
+            name  = "LZY_FLUENT_APPENDER_PORT"
+            value = 21212
+          }
+
           volume_mount {
             name       = "sa-key"
             mount_path = "/tmp/sa-key/"

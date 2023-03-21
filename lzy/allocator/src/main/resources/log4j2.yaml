@@ -19,12 +19,17 @@ Configuration:
       PatternLayout:
         Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} }- %msg%n"
 
+    FluentdAppender:
+      name: FluentdAppender
+      host: ${env:LZY_FLUENT_APPENDER_HOST}
+      port: ${env:LZY_FLUENT_APPENDER_PORT}
 
   Loggers:
     Root:
       level: error
       AppenderRef:
-        ref: Console
+        - ref: Console
+        - ref: FluentdAppender
 
     Logger:
       - name: ai.lzy.allocator.gc
