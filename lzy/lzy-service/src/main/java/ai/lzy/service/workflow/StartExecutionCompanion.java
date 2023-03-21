@@ -26,7 +26,6 @@ import jakarta.annotation.Nullable;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 import static ai.lzy.iam.grpc.context.AuthenticationContext.currentSubject;
@@ -126,7 +125,7 @@ final class StartExecutionCompanion {
 
             createAllocatorSession(allocateVmCacheTimeout);
 
-            state.setPortalId("portal_" + state.getExecutionId() + UUID.randomUUID());
+            state.setPortalId("portal_" + state.getExecutionId());
 
             withRetries(LOG, () -> owner.executionDao.updatePortalVmAllocateSession(state.getExecutionId(),
                 state.getSessionId(), state.getPortalId(), null));
