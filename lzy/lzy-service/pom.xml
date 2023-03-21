@@ -175,6 +175,10 @@
             <groupId>com.yandex.cloud</groupId>
             <artifactId>java-sdk-services</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+        </dependency>
 
         <!-- test external deps -->
         <dependency>

@@ -115,3 +115,24 @@ resource "yandex_iam_service_account_static_access_key" "admin-sa-static-key" {
   service_account_id = yandex_iam_service_account.admin-sa.id
   description        = "static key for storage"
 }
+
+resource "yandex_iam_service_account" "kafka-sa" {
+  name        = "${var.installation_name}-kafka-sa"
+  description = "service account to manage Lzy kafka"
+}
+
+resource "yandex_resourcemanager_folder_iam_binding" "kafka-admin" {
+  folder_id = var.folder_id
+
+  role = "managed-kafka.admin"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.kafka-sa.id}",
+  ]
+}
+
+resource "yandex_iam_service_account_key" "kafka-sa-key" {
+  service_account_id = yandex_iam_service_account.kafka-sa.id
+  description        = "key for kafka admin"
+  key_algorithm      = "RSA_4096"
+}

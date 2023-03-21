@@ -33,8 +33,9 @@ public class LzyServiceConfig {
     @ConfigurationBuilder("kafka")
     private final KafkaConfig kafka = new KafkaConfig();
 
+    @ConfigurationBuilder("yc-kafka")
     private final YcKafkaConfig ycKafka = new YcKafkaConfig();
-    private final ScramKafkaCredentials scramKafka = new ScramKafkaCredentials();
+    private ScramKafkaCredentials scramKafka;
 
     @Getter
     @Setter

@@ -39,7 +39,7 @@ public class YcKafkaClient implements KafkaClient {
 
     public YcKafkaClient(LzyServiceConfig config) {
         var provider = Auth.apiKeyBuilder()
-            .fromFile(Path.of(config.getYcKafka().getEndpoint()))
+            .fromFile(Path.of(config.getYcKafka().getServiceAccountFile()))
             .cloudIAMEndpoint(config.getYcKafka().getIamEndpoint())
             .build();
 

@@ -5,7 +5,25 @@ variable "portal_image" {
   type = string
 }
 
+resource "kubernetes_secret" "kafka_sa_key" {
+  metadata {
+    name = "kafka-sa-key"
+  }
+  data = {
+    key = local.kafka-sa-key-json
+  }
+}
+
 locals {
+  kafka-sa-key-json = jsonencode({
+    "id" : yandex_iam_service_account_key.kafka-sa-key.id
+    "service_account_id" : yandex_iam_service_account_key.kafka-sa-key.service_account_id
+    "created_at" : yandex_iam_service_account_key.kafka-sa-key.created_at
+    "key_algorithm" : yandex_iam_service_account_key.kafka-sa-key.key_algorithm
+    "public_key" : yandex_iam_service_account_key.kafka-sa-key.public_key
+    "private_key" : yandex_iam_service_account_key.kafka-sa-key.private_key
+  })
+
   lzy-service-labels = {
     app                         = "lzy-service"
     "app.kubernetes.io/name"    = "lzy-service"
@@ -15,6 +33,8 @@ locals {
   lzy-service-k8s-name = "lzy-service"
   lzy-service-image    = var.lzy-service-image
 }
+
+
 resource "kubernetes_deployment" "lzy-service" {
   metadata {
     name   = local.lzy-service-k8s-name
@@ -248,7 +268,7 @@ resource "kubernetes_deployment" "lzy-service" {
         volume {
           name = "sa-key"
           secret {
-            secret_name = kubernetes_secret.allocator_sa_key.metadata[0].name
+            secret_name = kubernetes_secret.kafka_sa_key.metadata[0].name
             items {
               key  = "key"
               path = "sa-key.json"
