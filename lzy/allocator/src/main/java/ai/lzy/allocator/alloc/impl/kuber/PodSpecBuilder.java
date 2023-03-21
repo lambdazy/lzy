@@ -182,7 +182,7 @@ public class PodSpecBuilder {
 
             final var context = new SecurityContext();
             context.setPrivileged(true);
-            context.setRunAsUser((long) workload.runAsUser());
+            context.setRunAsUser(0L);
             container.setSecurityContext(context);
 
             if (init) {
