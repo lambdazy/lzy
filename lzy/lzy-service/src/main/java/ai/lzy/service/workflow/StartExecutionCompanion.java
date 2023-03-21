@@ -14,6 +14,7 @@ import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.debug.InjectedFailures;
+import ai.lzy.service.kafka.KafkaClient;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMST;
@@ -24,14 +25,6 @@ import com.google.protobuf.util.Durations;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nullable;
-import org.apache.kafka.clients.admin.*;
-import org.apache.kafka.common.acl.AccessControlEntry;
-import org.apache.kafka.common.acl.AclBinding;
-import org.apache.kafka.common.acl.AclOperation;
-import org.apache.kafka.common.acl.AclPermissionType;
-import org.apache.kafka.common.resource.PatternType;
-import org.apache.kafka.common.resource.ResourcePattern;
-import org.apache.kafka.common.resource.ResourceType;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -309,36 +302,19 @@ final class StartExecutionCompanion {
                 .build());
     }
 
-    public void createKafkaTopic(AdminClient adminClient, String adminUsername) {
+    public void createKafkaTopic(KafkaClient kafkaClient) {
         var topicName = "topic_" + state.getExecutionId() + ".logs";
-        var username = "user_" + state.getExecutionId() + ".logs";
+        var username = "user_" + state.getExecutionId().replace("-", "_");
         var password = UUID.randomUUID().toString();
 
         LOG.debug("Creating kafka topic {} for execution_id {}", topicName, state.getExecutionId());
 
 
         try {
-            adminClient.createTopics(List.of(
-                new NewTopic(topicName, 1, (short) 0)  // Do not do replicas and partitioning for now
-            ));
-
-            adminClient.alterUserScramCredentials(List.of(
-                new UserScramCredentialUpsertion(
-                    username,
-                    new ScramCredentialInfo(ScramMechanism.SCRAM_SHA_512, 1),
-                    password)
-            ));
-
-            adminClient.createAcls(List.of(
-                new AclBinding(
-                    new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
-                    new AccessControlEntry(username, "*", AclOperation.WRITE, AclPermissionType.ALLOW)
-                ),
-                new AclBinding(
-                    new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
-                    new AccessControlEntry(adminUsername, "*", AclOperation.ALL, AclPermissionType.ALLOW)
-                )
-            ));
+            kafkaClient.createTopic(topicName);
+            kafkaClient.createUser(username, password);
+            kafkaClient.grantPermission(username, topicName, KafkaClient.TopicRole.PRODUCER);
+            kafkaClient.grantPermission(username, topicName, KafkaClient.TopicRole.CONSUMER);
 
             var topicDesc = new KafkaTopicDesc(username, password, topicName);
 
@@ -350,15 +326,13 @@ final class StartExecutionCompanion {
             state.fail(Status.INTERNAL, "Cannot create kafka topic");
 
             try {
-                adminClient.alterUserScramCredentials(List.of(
-                    new UserScramCredentialDeletion(username, ScramMechanism.SCRAM_SHA_512)
-                ));
+                kafkaClient.dropTopic(username);
             } catch (Exception ex) {
                 LOG.error("Cannot remove kafka user after error {}: ", e.getMessage(), ex);
             }
 
             try {
-                adminClient.deleteTopics(List.of(topicName));
+                kafkaClient.dropTopic(topicName);
             } catch (Exception ex) {
                 LOG.error("Cannot remove topic after error {}: ", e.getMessage(), ex);
             }

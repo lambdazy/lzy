@@ -32,15 +32,6 @@ resource "yandex_mdb_kafka_cluster" "main_kafka_cluster" {
       var.zone
     ]
   }
-
-  user {
-    name     = local.kafka_admin_username
-    password = random_password.kafka_password.result
-    permission {
-      topic_name = "*"
-      role = "ACCESS_ROLE_ADMIN"
-    }
-  }
 }
 
 resource "kubernetes_secret" "kafka_secret" {

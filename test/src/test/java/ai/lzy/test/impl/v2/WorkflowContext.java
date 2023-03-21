@@ -62,8 +62,6 @@ public class WorkflowContext {
 
         opts.putAll(Map.of(
             "lzy-service.kafka.bootstrap-servers", "localhost:8001",
-            "lzy-service.kafka.username", "test",
-            "lzy-service.kafka.password", "test",
             "lzy-service.kafka.enabled", "true"
         ));
         opts.putAll(Map.of(

@@ -171,6 +171,11 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>com.yandex.cloud</groupId>
+            <artifactId>java-sdk-services</artifactId>
+        </dependency>
+
         <!-- test external deps -->
         <dependency>
             <groupId>io.zonky.test</groupId>

@@ -1,6 +1,7 @@
-package ai.lzy.service;
+package ai.lzy.service.kafka;
 
 import ai.lzy.logs.KafkaConfig;
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.workflow.LWFS.ReadStdSlotsRequest;
@@ -8,7 +9,6 @@ import ai.lzy.v1.workflow.LWFS.ReadStdSlotsResponse;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
@@ -23,13 +23,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 @Singleton
 public class KafkaLogsListeners {
-    private final KafkaConfig.KafkaHelper helper;
     private final ConcurrentHashMap<String, ArrayList<Listener>> listeners = new ConcurrentHashMap<>();
     private static final Logger LOG = LogManager.getLogger(KafkaLogsListeners.class);
+    private final LzyServiceConfig config;
+    private final KafkaConfig.KafkaHelper helper;
 
     @Inject
-    public KafkaLogsListeners(@Named("LzyServiceKafkaHelper") KafkaConfig.KafkaHelper helper) {
-        this.helper = helper;
+    public KafkaLogsListeners(LzyServiceConfig config) {
+        this.config = config;
+        helper = config.getKafka().helper();
     }
 
     public void listen(ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> response,
@@ -75,7 +77,11 @@ public class KafkaLogsListeners {
         public void run() {
             try {
                 GrpcHeaders.withContext(grpcContext.fork(), () -> {  // Fork context to get cancel from client
-                    try (var consumer = new KafkaConsumer<String, byte[]>(Objects.requireNonNull(helper.props()))) {
+                    var props = helper
+                        .withCredentials(config.getKafka().getBootstrapServers(), topicDesc.username(),
+                            topicDesc.password())
+                        .props();
+                    try (var consumer = new KafkaConsumer<String, byte[]>(Objects.requireNonNull(props))) {
                         consumer.assign(List.of(new TopicPartition(topicDesc.topicName(), 0)));
 
                         consumer.seek(new TopicPartition(topicDesc.topicName(), 0), request.getOffset());

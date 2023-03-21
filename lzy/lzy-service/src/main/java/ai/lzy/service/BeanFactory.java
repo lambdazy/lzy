@@ -1,6 +1,5 @@
 package ai.lzy.service;
 
-import ai.lzy.logs.KafkaConfig;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.DummyMetricReporter;
@@ -26,11 +25,8 @@ import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.CollectorRegistry;
-import jakarta.annotation.Nullable;
-import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -142,40 +138,5 @@ public class BeanFactory {
     @Named("LzyServiceStorageClientFactory")
     public StorageClientFactory storageClientFactory() {
         return new StorageClientFactory(10, 10);
-    }
-
-    @Singleton
-    @Named("LzyServiceKafkaHelper")
-    public KafkaConfig.KafkaHelper kafkaHelper(LzyServiceConfig config) {
-        return config.getKafka().helper();
-    }
-
-    /**
-     * Wrapper around AdminClient to make it optional and build on startup
-     */
-    @Singleton
-    public static class KafkaAdminClient {
-        @Nullable private final AdminClient client;
-
-        public KafkaAdminClient(@Named("LzyServiceKafkaHelper") KafkaConfig.KafkaHelper kafkaHelper) {
-            if (kafkaHelper.enabled()) {
-                var props = kafkaHelper.props();
-                client = AdminClient.create(props);
-            } else {
-                client = null;
-            }
-        }
-
-        @Nullable
-        public AdminClient client() {
-            return client;
-        }
-
-        @PreDestroy
-        public void close() {
-            if (client != null) {
-                client.close();
-            }
-        }
     }
 }

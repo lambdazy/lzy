@@ -11,6 +11,8 @@ import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.service.kafka.KafkaClient;
+import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceApi;
@@ -27,10 +29,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
-import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -76,8 +76,7 @@ public class WorkflowService {
     private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
     private final LzyServiceConfig config;
 
-    @Nullable
-    private final AdminClient kafkaAdmin;
+    private final KafkaClient kafkaClient;
 
     private final KafkaLogsListeners kafkaLogsListeners;
 
@@ -87,7 +86,7 @@ public class WorkflowService {
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel, WorkflowMetrics metrics,
-                           BeanFactory.KafkaAdminClient kafkaAdmin,
+                           KafkaClient kafkaClient,
                            KafkaLogsListeners kafkaLogsListeners)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
@@ -104,7 +103,7 @@ public class WorkflowService {
         this.executionDao = executionDao;
 
         this.cleanExecutionCompanion = cleanExecutionCompanion;
-        this.kafkaAdmin = kafkaAdmin.client();
+        this.kafkaClient = kafkaClient;
         this.kafkaLogsListeners = kafkaLogsListeners;
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
@@ -157,7 +156,7 @@ public class WorkflowService {
         }
 
         if (config.getKafka().isEnabled()) {
-            newExecution.createKafkaTopic(kafkaAdmin, config.getKafka().getUsername());
+            newExecution.createKafkaTopic(kafkaClient);
 
             if (newExecution.isInvalid()) {
                 replyError.accept(newExecution.getErrorStatus());

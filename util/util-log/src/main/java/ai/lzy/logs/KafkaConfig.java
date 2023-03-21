@@ -29,8 +29,6 @@ public final class KafkaConfig {
 
     private boolean enabled = false;
     private List<String> bootstrapServers = new ArrayList<>();
-    private String username;
-    private String password;
     private String sslCaUrl = null;
     private String sslCaPath = null;
     private String sslKeystorePath = null;
@@ -68,9 +66,9 @@ public final class KafkaConfig {
             }
             enabled = true;
 
-            username = config.getUsername();
-            password = config.getPassword();
-            bootstrapServers = config.getBootstrapServers();
+            username = null;
+            password = null;
+            bootstrapServers = null;
 
             if (config.getSslKeystorePath() != null) {
                 keystorePath = config.getSslKeystorePath();

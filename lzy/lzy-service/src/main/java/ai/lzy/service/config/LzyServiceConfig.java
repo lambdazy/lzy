@@ -33,6 +33,9 @@ public class LzyServiceConfig {
     @ConfigurationBuilder("kafka")
     private final KafkaConfig kafka = new KafkaConfig();
 
+    private final YcKafkaConfig ycKafka = new YcKafkaConfig();
+    private final ScramKafkaCredentials scramKafka = new ScramKafkaCredentials();
+
     @Getter
     @Setter
     @ConfigurationProperties("portal")
@@ -70,6 +73,26 @@ public class LzyServiceConfig {
         private int port = 17080;
         private String loggerName = "LogMetricReporter";
         private String loggerLevel = "info";
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("yc-kafka")
+    public static final class YcKafkaConfig {
+        private boolean enabled = false;
+        private String iamEndpoint = "iam.api.cloud.yandex.net:443";
+        private String endpoint = "api.cloud.yandex.net:443";
+        private String serviceAccountFile;
+        private String clusterId;
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("scram-kafka")
+    public static final class ScramKafkaCredentials {
+        private boolean enabled = false;
+        private String username;
+        private String password;
     }
 
 

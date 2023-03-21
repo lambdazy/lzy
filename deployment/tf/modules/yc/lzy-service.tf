@@ -185,33 +185,41 @@ resource "kubernetes_deployment" "lzy-service" {
           }
 
           env {
+            name = "LZY_SERVICE_YC_KAFKA_ENABLED"
+            value = "true"
+          }
+
+          env {
             name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
             value = join(",", [for host in yandex_mdb_kafka_cluster.main_kafka_cluster.host : "${host.name}:9091"])
           }
 
           env {
-            name = "LZY_SERVICE_KAFKA_USERNAME"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret.kafka_secret.metadata[0].name
-                key = "username"
-              }
-            }
-          }
-
-          env {
-            name = "LZY_SERVICE_KAFKA_PASSWORD"
-            value_from {
-              secret_key_ref {
-                name = kubernetes_secret.kafka_secret.metadata[0].name
-                key = "password"
-              }
-            }
-          }
-
-          env {
             name = "LZY_SERVICE_KAFKA_SSL_CA_URL"
             value = "https://storage.yandexcloud.net/cloud-certs/CA.pem"
+          }
+
+          env {
+            name  = "LZY_SERVICE_YC_KAFKA_SERVICE_ACCOUNT_FILE"
+            value = "/tmp/sa-key/sa-key.json"
+          }
+          env {
+            name  = "LZY_SERVICE_YC_KAFKA_ENDPOINT"
+            value = var.yc-endpoint
+          }
+          env {
+            name  = "LZY_SERVICE_YC_KAFKA_IAM_ENDPOINT"
+            value = "iam.${var.yc-endpoint}"
+          }
+
+          env {
+            name  = "LZY_SERVICE_YC_KAFKA_CLUSTER_ID"
+            value = yandex_mdb_kafka_cluster.main_kafka_cluster.id
+          }
+
+          volume_mount {
+            name       = "sa-key"
+            mount_path = "/tmp/sa-key/"
           }
         }
         container {
@@ -234,6 +242,16 @@ resource "kubernetes_deployment" "lzy-service" {
             items {
               key = "config"
               path = "config.yml"
+            }
+          }
+        }
+        volume {
+          name = "sa-key"
+          secret {
+            secret_name = kubernetes_secret.allocator_sa_key.metadata[0].name
+            items {
+              key  = "key"
+              path = "sa-key.json"
             }
           }
         }
