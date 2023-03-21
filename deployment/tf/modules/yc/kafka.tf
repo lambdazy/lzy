@@ -98,8 +98,13 @@ resource "helm_release" "lzy_kafka" {
   }
 
   set {
-    name  = "superUsers"
-    value = "User:${local.kafka_admin_username},User:brokerUser"
+    name  = "superUsers[0]"
+    value = "User:${local.kafka_admin_username}"
+  }
+
+  set {
+    name  = "superUsers[1]"
+    value = "User:brokerUser"
   }
 
   set {
