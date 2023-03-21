@@ -131,6 +131,16 @@ resource "yandex_resourcemanager_folder_iam_binding" "kafka-admin" {
   ]
 }
 
+resource "yandex_resourcemanager_folder_iam_binding" "kafka-viewer" {
+  folder_id = var.folder_id
+
+  role = "viewer"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.kafka-sa.id}",
+  ]
+}
+
 resource "yandex_iam_service_account_key" "kafka-sa-key" {
   service_account_id = yandex_iam_service_account.kafka-sa.id
   description        = "key for kafka admin"

@@ -307,7 +307,7 @@ final class StartExecutionCompanion {
         var username = "user_" + state.getExecutionId().replace("-", "_");
         var password = UUID.randomUUID().toString();
 
-        LOG.debug("Creating kafka topic {} for execution_id {}", topicName, state.getExecutionId());
+        LOG.info("Creating kafka topic {} for execution_id {}", topicName, state.getExecutionId());
 
 
         try {
