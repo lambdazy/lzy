@@ -211,7 +211,7 @@ resource "kubernetes_deployment" "lzy-service" {
 
           env {
             name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
-            value = "kafka.cluster.local:9092"
+            value = "10.96.190.80:9092"
           }
 
           env {
