@@ -230,6 +230,9 @@ public class CleanExecutionCompanion {
             deleteSession(executionId, portalDesc.allocatorSessionId());
         }
 
+        kafkaLogsListeners.notifyFinished(executionId);
+        dropKafkaResources(executionId);
+
         try {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
@@ -461,6 +464,8 @@ public class CleanExecutionCompanion {
             } catch (Exception ex) {
                 LOG.error("Cannot remove topic for execution {}: ", executionId, ex);
             }
+        } else {
+            LOG.warn("Cannot find kafka description for execution {}", executionId);
         }
     }
 }

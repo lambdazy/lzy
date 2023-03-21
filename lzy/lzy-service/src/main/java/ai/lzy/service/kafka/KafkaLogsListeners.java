@@ -43,6 +43,7 @@ public class KafkaLogsListeners {
     }
 
     public void notifyFinished(String executionId) {
+        LOG.info("Finishing listeners for execution {}", executionId);
         for (var listener: listeners.computeIfAbsent(executionId, (k) -> new ArrayList<>())) {
             listener.close();
         }

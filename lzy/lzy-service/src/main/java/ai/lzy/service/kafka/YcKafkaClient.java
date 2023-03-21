@@ -18,6 +18,7 @@ import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass.RevokeUserPermissionR
 import yandex.cloud.api.operation.OperationOuterClass;
 import yandex.cloud.api.operation.OperationServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceGrpc.OperationServiceBlockingStub;
+import yandex.cloud.api.operation.OperationServiceOuterClass.CancelOperationRequest;
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.auth.Auth;
 import yandex.cloud.sdk.utils.OperationTimeoutException;
@@ -25,6 +26,7 @@ import yandex.cloud.sdk.utils.OperationUtils;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 
 @Singleton
 @Requires(property = "lzy-service.yc-kafka.enabled", value = "true")
@@ -146,17 +148,28 @@ public class YcKafkaClient implements KafkaClient {
 
     private void awaitOperation(OperationOuterClass.Operation op) {
         OperationOuterClass.Operation readyOp;
+
+        var start = Instant.now();
         while (true) {
             try {
-                readyOp = OperationUtils.wait(operationStub, op, Duration.ofSeconds(10));
+                readyOp = OperationUtils.wait(operationStub, op, Duration.ofSeconds(60));
                 break;
             } catch (InterruptedException e) {
                 // ignored
             } catch (OperationTimeoutException e) {
                 LOG.error("Timeout exceeded", e);
+                try {
+                    operationStub.cancel(CancelOperationRequest.newBuilder()
+                        .setOperationId(op.getId())
+                        .build());
+                } catch (Exception ex) {
+                    LOG.error("Error while cancelling operation by timeout", ex);
+                }
                 throw Status.DEADLINE_EXCEEDED.asRuntimeException();
             }
         }
+
+        LOG.info("Operation completed in {} ms", Duration.between(start, Instant.now()).toMillis());
 
         if (readyOp.hasError()) {
             throw Status.fromCodeValue(readyOp.getError().getCode())

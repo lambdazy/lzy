@@ -3,34 +3,113 @@ resource "random_password" "kafka_password" {
   special  = false
 }
 
+resource "random_password" "kafka_broker_password" {
+  length   = 16
+  special  = false
+}
+
+resource "random_password" "kafka_zookeeper_password" {
+  length   = 16
+  special  = false
+}
+
 locals {
   kafka_admin_username = "kafka_admin"
 }
 
-resource "yandex_mdb_kafka_cluster" "main_kafka_cluster" {
-  name                = "main_kafka"
-  network_id          = var.network_id
-  subnet_ids  = [yandex_vpc_subnet.custom-subnet.id]
-  deletion_protection = false
+resource "helm_release" "lzy_kafka" {
+  name       = "kafka"
+  chart      = "kafka"
+  repository = "https://charts.bitnami.com/bitnami"
 
-  config {
-    unmanaged_topics = true
+  set {
+    name = "replicaCount"
+    value = "1"
+  }
 
-    assign_public_ip = false
-    brokers_count    = 1
-    version          = "3.2"
-    schema_registry  = "false"
-    kafka {
-      resources {
-        disk_size          = 16
-        disk_type_id       = "network-ssd"
-        resource_preset_id = "s3-c2-m8"
-      }
-    }
+  set {
+    name  = "auth.clientProtocol"
+    value = "sasl"
+  }
 
-    zones = [
-      var.zone
-    ]
+  set {
+    name = "auth.interBrokerProtocol"
+    value = "sasl"
+  }
+
+  set {
+    name  = "auth.sasl.jaas.clientUsers[0]"
+    value = "brokerUser"
+  }
+
+  set {
+    name  = "auth.sasl.jaas.clientUsers[1]"
+    value = local.kafka_admin_username
+  }
+
+  set {
+    name  = "auth.sasl.jaas.clientPasswords[0]"
+    value = random_password.kafka_broker_password.result
+  }
+
+  set {
+    name  = "auth.sasl.jaas.clientPasswords[1]"
+    value = random_password.kafka_password.result
+  }
+
+  set {
+    name = "auth.sasl.jaas.interBrokerUser"
+    value = "brokerUser"
+  }
+
+  set {
+    name = "auth.sasl.jaas.interBrokerPassword"
+    value = random_password.kafka_broker_password.result
+  }
+
+  set {
+    name  = "zookeeper.auth.serverUsers"
+    value = "zookeeperUser"
+  }
+
+  set {
+    name  = "zookeeper.auth.serverPasswords"
+    value = random_password.kafka_zookeeper_password.result
+  }
+
+  set {
+    name  = "zookeeper.auth.clientUser"
+    value = "zookeeperUser"
+  }
+
+  set {
+    name  = "zookeeper.auth.clientPassword"
+    value = random_password.kafka_zookeeper_password.result
+  }
+
+  set {
+    name  = "authorizerClassName"
+    value = "kafka.security.authorizer.AclAuthorizer"
+  }
+
+  set {
+    name  = "allowEveryoneIfNoAclFound"
+    value = "false"
+  }
+
+  set {
+    name  = "superUsers"
+    value = "User:${local.kafka_admin_username},User:brokerUser"
+  }
+
+  set {
+    name  = "deleteTopicEnable"
+    value = "true"
+  }
+
+  set {
+    name  = "autoCreateTopicsEnable"
+    value = "false"
   }
 }
 
