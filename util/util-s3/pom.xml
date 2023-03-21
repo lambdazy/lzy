@@ -4,12 +4,12 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.8-SNAPSHOT</version>
+        <version>1.8.0</version>
         <relativePath>../../parent</relativePath>
     </parent>
 
     <artifactId>util-s3</artifactId>
-    <version>1.8-SNAPSHOT</version>
+    <version>1.8.0</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
