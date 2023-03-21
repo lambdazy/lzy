@@ -35,7 +35,9 @@ public class LzyServiceConfig {
 
     @ConfigurationBuilder("yc-kafka")
     private final YcKafkaConfig ycKafka = new YcKafkaConfig();
-    private ScramKafkaCredentials scramKafka;
+
+    @ConfigurationBuilder("scram-kafka")
+    private final ScramKafkaCredentials scramKafka = new ScramKafkaCredentials();
 
     @Getter
     @Setter
