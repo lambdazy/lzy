@@ -15,6 +15,7 @@ import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotSlots;
 import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.grpc.ContextAwareTask;
+import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
@@ -131,6 +132,8 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     public synchronized void connectSlot(LSA.ConnectSlotRequest request,
                                          StreamObserver<LongRunning.Operation> response)
     {
+        LOG.debug("PortalSlotsApi::connectSlot { portalId: {}, request: {} }", portalId,
+            ProtoPrinter.safePrinter().printToString(request));
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(idempotencyKey, response)) {
             return;
@@ -240,6 +243,8 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     public synchronized void disconnectSlot(LSA.DisconnectSlotRequest request,
                                             StreamObserver<LSA.DisconnectSlotResponse> response)
     {
+        LOG.debug("PortalSlotsApi::disconnectSlot { portalId: {}, request: {} }", portalId,
+            ProtoPrinter.safePrinter().printToString(request));
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
 
         if (idempotencyKey != null &&
@@ -321,6 +326,8 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     public synchronized void statusSlot(LSA.StatusSlotRequest request,
                                         StreamObserver<LSA.StatusSlotResponse> response)
     {
+        LOG.debug("PortalSlotsApi::statusSlot { portalId: {}, request: {} }", portalId,
+            ProtoPrinter.safePrinter().printToString(request));
         final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
         LOG.info("Status portal slot, taskId: {}, slotName: {}", slotInstance.taskId(), slotInstance.name());
 
@@ -373,6 +380,8 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     public synchronized void destroySlot(LSA.DestroySlotRequest request,
                                          StreamObserver<LSA.DestroySlotResponse> response)
     {
+        LOG.debug("PortalSlotsApi::destroySlot { portalId: {}, request: {} }", portalId,
+            ProtoPrinter.safePrinter().printToString(request));
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
 
         if (idempotencyKey != null &&
@@ -451,8 +460,9 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
     @Override
     public void openOutputSlot(LSA.SlotDataRequest request, StreamObserver<LSA.SlotDataChunk> response) {
+        LOG.debug("PortalSlotsApi::openOutputSlot { portalId: {}, request: {} }", portalId,
+            ProtoPrinter.safePrinter().printToString(request));
         final SlotInstance slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
-        LOG.info("Open portal output slot, uri: {}, offset: {}", slotInstance.uri(), request.getOffset());
         final var slotName = slotInstance.name();
 
         LzyOutputSlot outputSlot;
