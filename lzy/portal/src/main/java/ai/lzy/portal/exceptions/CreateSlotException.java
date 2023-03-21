@@ -8,4 +8,8 @@ public class CreateSlotException extends Exception {
     public CreateSlotException(Throwable cause) {
         super(cause);
     }
+
+    public CreateSlotException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }

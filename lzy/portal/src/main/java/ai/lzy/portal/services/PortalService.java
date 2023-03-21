@@ -14,6 +14,7 @@ import ai.lzy.portal.exceptions.CreateSlotException;
 import ai.lzy.portal.exceptions.SnapshotNotFound;
 import ai.lzy.portal.exceptions.SnapshotUniquenessException;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortal.PortalSlotDesc;
@@ -113,6 +114,8 @@ public class PortalService extends LzyPortalImplBase {
     public synchronized void status(PortalStatusRequest request,
                                     StreamObserver<PortalStatusResponse> response)
     {
+        LOG.debug("Request portal slots status: { portalId: {}, request: {} }", portalId,
+            ProtoPrinter.safePrinter().printToString(request));
         if (assertActive(response)) {
             return;
         }
@@ -170,6 +173,8 @@ public class PortalService extends LzyPortalImplBase {
 
     @Override
     public synchronized void openSlots(OpenSlotsRequest request, StreamObserver<OpenSlotsResponse> response) {
+        LOG.debug("Open portal slots: { portalId: {}, request: {} }", portalId,
+            ProtoPrinter.safePrinter().printToString(request));
         if (assertActive(response)) {
             return;
         }
@@ -208,6 +213,11 @@ public class PortalService extends LzyPortalImplBase {
                 operationService.updateError(op.id(), Status.INTERNAL.withDescription(e.getMessage()));
                 replyError.accept(e.getMessage(), Status.INTERNAL);
                 return;
+            } catch (Exception e) {
+                LOG.error("Unexpected error while opening portal slot: " + e.getMessage(), e);
+                operationService.updateError(op.id(), Status.INTERNAL.withDescription(e.getMessage()));
+                replyError.accept(e.getMessage(), Status.INTERNAL);
+                return;
             }
 
             var resp = OpenSlotsResponse.newBuilder().setSuccess(true).build();
@@ -224,7 +234,7 @@ public class PortalService extends LzyPortalImplBase {
 
     public void openSlots(OpenSlotsRequest request) throws CreateSlotException {
         for (LzyPortal.PortalSlotDesc slotDesc : request.getSlotsList()) {
-            LOG.info("Open slot {}", portalSlotToSafeString(slotDesc));
+            LOG.info("Open slot { portalId: {}, slotDesc: {} }", portalId, portalSlotToSafeString(slotDesc));
 
             final Slot slot = ProtoConverter.fromProto(slotDesc.getSlot());
             if (Slot.STDIN.equals(slot) || Slot.ARGS.equals(slot) ||
@@ -248,12 +258,18 @@ public class PortalService extends LzyPortalImplBase {
                 case STDERR -> slotsService.getStderrSlot().attach(slotInstance);
                 default -> throw new NotImplementedException(slotDesc.getKindCase().name());
             };
-            slotsService.getSlotsManager().registerSlot(newLzySlot);
+            try {
+                slotsService.getSlotsManager().registerSlot(newLzySlot);
+            } catch (RuntimeException e) {
+                throw new CreateSlotException("Cannot register slot in slots manager", e);
+            }
         }
     }
 
     @Override
     public void finish(FinishRequest request, StreamObserver<LongRunning.Operation> response) {
+        LOG.debug("Finish portal: { portalId: {}, request: {} }", portalId,
+            ProtoPrinter.safePrinter().printToString(request));
         if (assertActive(response)) {
             return;
         }

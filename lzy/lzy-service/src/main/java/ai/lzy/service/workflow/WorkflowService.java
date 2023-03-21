@@ -112,7 +112,7 @@ public class WorkflowService {
 
     public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> response) {
         var newExecution = StartExecutionCompanion.of(request, this, startupPortalConfig);
-        LOG.info("Start new execution: " + newExecution.getState());
+        LOG.info("Start workflow. Create new execution: " + newExecution.getState());
         Consumer<Status> replyError = (status) -> {
             LOG.error("Fail to start new execution: status={}, msg={}.", status,
                 status.getDescription() + ", creationState: " + newExecution.getState());
@@ -166,7 +166,7 @@ public class WorkflowService {
             return;
         }
 
-        LOG.info("New execution started: " + newExecution.getState());
+        LOG.info("Workflow started: " + newExecution.getState());
         response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId).build());
         response.onCompleted();
 
