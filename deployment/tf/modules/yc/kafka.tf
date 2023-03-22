@@ -89,7 +89,12 @@ resource "helm_release" "lzy_kafka" {
 
   set {
     name  = "externalAccess.service.type"
-    value = "NodePort"
+    value = "LoadBalancer"
+  }
+
+  set {
+    name  = "externalAccess.service.ports.external"
+    value = "9094"
   }
 
   set {
