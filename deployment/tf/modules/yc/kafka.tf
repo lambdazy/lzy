@@ -84,7 +84,7 @@ resource "helm_release" "lzy_kafka" {
 
   set {
     name  = "superUsers"
-    value = "{User:admin,User:${local.kafka_admin_username}}"
+    value = "{\"User:admin\",\"User:${local.kafka_admin_username}\"}"
   }
 
   set {
