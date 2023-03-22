@@ -38,7 +38,7 @@ public class ScramKafkaClient implements KafkaClient {
             adminClient.alterUserScramCredentials(List.of(
                 new UserScramCredentialUpsertion(
                     username,
-                    new ScramCredentialInfo(ScramMechanism.SCRAM_SHA_512, 1),
+                    new ScramCredentialInfo(ScramMechanism.SCRAM_SHA_512, 4096),
                     password)
             )).all().get();
         } catch (Exception e) {
@@ -89,7 +89,7 @@ public class ScramKafkaClient implements KafkaClient {
             adminClient.createAcls(List.of(
                 new AclBinding(
                     new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
-                    new AccessControlEntry(username, "*", op, AclPermissionType.ALLOW)
+                    new AccessControlEntry("USER:" + username, "*", op, AclPermissionType.ALLOW)
                 )
             )).all().get();
         } catch (Exception e) {

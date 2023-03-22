@@ -81,6 +81,31 @@ resource "helm_release" "lzy_kafka" {
     name  = "autoCreateTopicsEnable"
     value = "false"
   }
+
+  set {
+    name  = "externalAccess.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "externalAccess.service.type"
+    value = "NodePort"
+  }
+
+  set {
+    name  = "externalAccess.autoDiscovery.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "serviceAccount.create"
+    value = "true"
+  }
+
+  set {
+    name  = "rbac.create"
+    value = "true"
+  }
 }
 
 resource "kubernetes_secret" "kafka_secret" {

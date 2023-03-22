@@ -1,4 +1,3 @@
 worker:
   kafka:
     enabled: true
-    ssl-ca-url: "https://storage.yandexcloud.net/cloud-certs/CA.pem"
