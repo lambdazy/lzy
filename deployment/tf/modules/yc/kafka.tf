@@ -43,7 +43,7 @@ resource "helm_release" "lzy_kafka" {
   }
 
   set {
-    name  = "zookeeper.auth.enabled"
+    name  = "zookeeper.auth.client.enabled"
     value = "true"
   }
 
