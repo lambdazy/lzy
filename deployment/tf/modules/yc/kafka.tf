@@ -16,92 +16,92 @@ resource "random_password" "kafka_zookeeper_password" {
 locals {
   kafka_admin_username = "kafka_admin"
 }
-#
-#resource "helm_release" "lzy_kafka" {
-#  name       = "kafka"
-#  chart      = "kafka"
-#  repository = "https://charts.bitnami.com/bitnami"
-#
-#  set {
-#    name = "replicaCount"
-#    value = "1"
-#  }
-#
-#  set {
-#    name  = "auth.clientProtocol"
-#    value = "sasl"
-#  }
-#
-#  set {
-#    name = "auth.interBrokerProtocol"
-#    value = "sasl"
-#  }
-#
-#  set {
-#    name  = "auth.sasl.jaas.clientUsers"
-#    value = local.kafka_admin_username
-#  }
-#
-#  set {
-#    name  = "auth.sasl.jaas.clientPasswords"
-#    value = random_password.kafka_password.result
-#  }
-#
-#  set {
-#    name  = "zookeeper.auth.enabled"
-#    value = "true"
-#  }
-#
-#  set {
-#    name  = "zookeeper.auth.serverUsers"
-#    value = "zookeeperUser"
-#  }
-#
-#  set {
-#    name  = "zookeeper.auth.serverPasswords"
-#    value = random_password.kafka_zookeeper_password.result
-#  }
-#
-#  set {
-#    name  = "zookeeper.auth.clientUser"
-#    value = "zookeeperUser"
-#  }
-#
-#  set {
-#    name  = "zookeeper.auth.clientPassword"
-#    value = random_password.kafka_zookeeper_password.result
-#  }
-#
-#  set {
-#    name  = "authorizerClassName"
-#    value = "kafka.security.authorizer.AclAuthorizer"
-#  }
-#
-#  set {
-#    name  = "allowEveryoneIfNoAclFound"
-#    value = "false"
-#  }
-#
-#  set {
-#    name  = "superUsers[0]"
-#    value = "admin"
-#  }
-#
-#  set {
-#    name  = "superUsers[1]"
-#    value = local.kafka_admin_username
-#  }
-#
-#  set {
-#    name  = "deleteTopicEnable"
-#    value = "true"
-#  }
-#
-#  set {
-#    name  = "autoCreateTopicsEnable"
-#    value = "false"
-#  }
-#}
+
+resource "helm_release" "lzy_kafka" {
+  name       = "kafka"
+  chart      = "kafka"
+  repository = "https://charts.bitnami.com/bitnami"
+
+  set {
+    name = "replicaCount"
+    value = "1"
+  }
+
+  set {
+    name  = "auth.clientProtocol"
+    value = "sasl"
+  }
+
+  set {
+    name = "auth.interBrokerProtocol"
+    value = "sasl"
+  }
+
+  set {
+    name  = "auth.sasl.jaas.clientUsers"
+    value = local.kafka_admin_username
+  }
+
+  set {
+    name  = "auth.sasl.jaas.clientPasswords"
+    value = random_password.kafka_password.result
+  }
+
+  set {
+    name  = "zookeeper.auth.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "zookeeper.auth.serverUsers"
+    value = "zookeeperUser"
+  }
+
+  set {
+    name  = "zookeeper.auth.serverPasswords"
+    value = random_password.kafka_zookeeper_password.result
+  }
+
+  set {
+    name  = "zookeeper.auth.clientUser"
+    value = "zookeeperUser"
+  }
+
+  set {
+    name  = "zookeeper.auth.clientPassword"
+    value = random_password.kafka_zookeeper_password.result
+  }
+
+  set {
+    name  = "authorizerClassName"
+    value = "kafka.security.authorizer.AclAuthorizer"
+  }
+
+  set {
+    name  = "allowEveryoneIfNoAclFound"
+    value = "false"
+  }
+
+  set {
+    name  = "superUsers[0]"
+    value = "User:admin"
+  }
+
+  set {
+    name  = "superUsers[1]"
+    value = "User:${local.kafka_admin_username}"
+  }
+
+  set {
+    name  = "deleteTopicEnable"
+    value = "true"
+  }
+
+  set {
+    name  = "autoCreateTopicsEnable"
+    value = "false"
+  }
+}
 
 resource "kubernetes_secret" "kafka_secret" {
   metadata {
