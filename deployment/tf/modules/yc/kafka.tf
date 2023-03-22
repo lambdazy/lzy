@@ -39,32 +39,17 @@ resource "helm_release" "lzy_kafka" {
 
   set {
     name  = "auth.sasl.jaas.clientUsers[0]"
-    value = "brokerUser"
-  }
-
-  set {
-    name  = "auth.sasl.jaas.clientUsers[1]"
     value = local.kafka_admin_username
   }
 
   set {
     name  = "auth.sasl.jaas.clientPasswords[0]"
-    value = random_password.kafka_broker_password.result
-  }
-
-  set {
-    name  = "auth.sasl.jaas.clientPasswords[1]"
     value = random_password.kafka_password.result
   }
 
   set {
-    name = "auth.sasl.jaas.interBrokerUser"
-    value = "brokerUser"
-  }
-
-  set {
-    name = "auth.sasl.jaas.interBrokerPassword"
-    value = random_password.kafka_broker_password.result
+    name  = "zookeeper.auth.enabled"
+    value = "true"
   }
 
   set {
@@ -100,11 +85,6 @@ resource "helm_release" "lzy_kafka" {
   set {
     name  = "superUsers[0]"
     value = "User:${local.kafka_admin_username}"
-  }
-
-  set {
-    name  = "superUsers[1]"
-    value = "User:brokerUser"
   }
 
   set {
