@@ -83,16 +83,6 @@ resource "helm_release" "lzy_kafka" {
   }
 
   set {
-    name  = "superUsers[0]"
-    value = "User:admin"
-  }
-
-  set {
-    name  = "superUsers[1]"
-    value = "User:${local.kafka_admin_username}"
-  }
-
-  set {
     name  = "deleteTopicEnable"
     value = "true"
   }
