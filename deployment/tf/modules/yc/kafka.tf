@@ -14,7 +14,7 @@ resource "random_password" "kafka_zookeeper_password" {
 }
 
 locals {
-  kafka_admin_username = "kafka_admin"
+  kafka_admin_username = "admin"
 }
 
 resource "helm_release" "lzy_kafka" {
@@ -38,12 +38,7 @@ resource "helm_release" "lzy_kafka" {
   }
 
   set {
-    name  = "auth.sasl.jaas.clientUsers[0]"
-    value = local.kafka_admin_username
-  }
-
-  set {
-    name  = "auth.sasl.jaas.clientPasswords[0]"
+    name  = "auth.sasl.jaas.interBrokerPassword"
     value = random_password.kafka_password.result
   }
 
@@ -84,7 +79,7 @@ resource "helm_release" "lzy_kafka" {
 
   set {
     name  = "superUsers"
-    value = "User:admin"
+    value = "User:${local.kafka_admin_username}"
   }
 
   set {
