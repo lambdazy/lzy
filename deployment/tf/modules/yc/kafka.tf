@@ -34,7 +34,7 @@ resource "helm_release" "lzy_kafka" {
 
   set {
     name = "auth.interBrokerProtocol"
-    value = "plaintext"
+    value = "sasl"
   }
 
   set {
@@ -44,6 +44,16 @@ resource "helm_release" "lzy_kafka" {
 
   set {
     name  = "auth.sasl.jaas.clientPasswords[0]"
+    value = random_password.kafka_password.result
+  }
+
+  set {
+    name  = "auth.sasl.jaas.interBrokerUser"
+    value = "admin"
+  }
+
+  set {
+    name  = "auth.sasl.jaas.interBrokerPassword"
     value = random_password.kafka_password.result
   }
 
