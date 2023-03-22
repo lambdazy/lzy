@@ -61,14 +61,14 @@ public class EnvironmentFactory {
                     } catch (Exception e) {
                         LOG.error("Cannot kill docker container {}", cachedEnv.containerId, e);
                     }
-                    baseEnv = new DockerEnvironment(config, credentials);
+                    baseEnv = new DockerEnvironment(config, DockerEnvironment.generateClient(credentials));
                     createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
                 } else {
                     baseEnv = cachedEnv;
                 }
 
             } else {
-                baseEnv = new DockerEnvironment(config, credentials);
+                baseEnv = new DockerEnvironment(config, DockerEnvironment.generateClient(credentials));
                 createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
             }
         } else {
