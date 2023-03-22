@@ -121,6 +121,11 @@ resource "helm_release" "lzy_kafka" {
     name  = "auth.sasl.mechanisms"
     value = "scram-sha-512"
   }
+
+  set {
+    name  = "auth.sasl.interBrokerMechanism"
+    value = "scram-sha-512"
+  }
 }
 
 resource "kubernetes_secret" "kafka_secret" {
