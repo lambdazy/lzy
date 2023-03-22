@@ -58,6 +58,16 @@ resource "helm_release" "lzy_kafka" {
   }
 
   set {
+    name  = "auth.sasl.jaas.zookeeperUser"
+    value = "admin"
+  }
+
+  set {
+    name  = "auth.sasl.jaas.zookeeperPassword"
+    value = random_password.kafka_password.result
+  }
+
+  set {
     name  = "zookeeper.auth.clientUser"
     value = "admin"
   }
