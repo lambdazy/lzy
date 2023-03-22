@@ -38,12 +38,12 @@ resource "helm_release" "lzy_kafka" {
   }
 
   set {
-    name  = "auth.sasl.jaas.clientUsers"
+    name  = "auth.sasl.jaas.clientUsers[0]"
     value = local.kafka_admin_username
   }
 
   set {
-    name  = "auth.sasl.jaas.clientPasswords"
+    name  = "auth.sasl.jaas.clientPasswords[0]"
     value = random_password.kafka_password.result
   }
 
@@ -80,6 +80,11 @@ resource "helm_release" "lzy_kafka" {
   set {
     name  = "allowEveryoneIfNoAclFound"
     value = "false"
+  }
+
+  set {
+    name  = "superUsers"
+    value = "{User:admin,User:${local.kafka_admin_username}}"
   }
 
   set {
