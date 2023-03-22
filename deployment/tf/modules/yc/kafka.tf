@@ -34,7 +34,7 @@ resource "helm_release" "lzy_kafka" {
 
   set {
     name = "auth.interBrokerProtocol"
-    value = "sasl"
+    value = "plaintext"
   }
 
   set {
