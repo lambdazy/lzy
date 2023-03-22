@@ -38,42 +38,12 @@ resource "helm_release" "lzy_kafka" {
   }
 
   set {
-    name  = "auth.sasl.jaas.interBrokerPassword"
-    value = random_password.kafka_password.result
-  }
-
-  set {
-    name  = "zookeeper.auth.client.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "zookeeper.auth.client.serverUsers"
+    name  = "auth.sasl.jaas.clientUsers[0]"
     value = "admin"
   }
 
   set {
-    name  = "zookeeper.auth.client.serverPasswords"
-    value = random_password.kafka_password.result
-  }
-
-  set {
-    name  = "auth.sasl.jaas.zookeeperUser"
-    value = "admin"
-  }
-
-  set {
-    name  = "auth.sasl.jaas.zookeeperPassword"
-    value = random_password.kafka_password.result
-  }
-
-  set {
-    name  = "zookeeper.auth.client.clientUser"
-    value = "admin"
-  }
-
-  set {
-    name  = "zookeeper.auth.client.clientPassword"
+    name  = "auth.sasl.jaas.clientPasswords[0]"
     value = random_password.kafka_password.result
   }
 
