@@ -49,22 +49,22 @@ resource "helm_release" "lzy_kafka" {
 
   set {
     name  = "zookeeper.auth.serverUsers"
-    value = "zookeeperUser"
+    value = "admin"
   }
 
   set {
     name  = "zookeeper.auth.serverPasswords"
-    value = random_password.kafka_zookeeper_password.result
+    value = random_password.kafka_password.result
   }
 
   set {
     name  = "zookeeper.auth.clientUser"
-    value = "zookeeperUser"
+    value = "admin"
   }
 
   set {
     name  = "zookeeper.auth.clientPassword"
-    value = random_password.kafka_zookeeper_password.result
+    value = random_password.kafka_password.result
   }
 
   set {
