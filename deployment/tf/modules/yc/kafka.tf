@@ -83,7 +83,7 @@ resource "helm_release" "lzy_kafka" {
   }
 
   set {
-    name  = "superUsers[0]"
+    name  = "superUsers"
     value = "User:admin"
   }
 
