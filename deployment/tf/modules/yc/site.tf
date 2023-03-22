@@ -63,7 +63,8 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             for_each = var.ssl-enabled ? [1] : []
             content {
               name       = "nginx-config"
-              mount_path = "/etc/nginx"
+              mount_path = "/etc/nginx/nginx.conf"
+              sub_path   = "nginx.conf"
             }
           }
         }
