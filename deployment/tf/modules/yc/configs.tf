@@ -57,9 +57,9 @@ resource "kubernetes_config_map" "frontend-nginx-ssl-config" {
   metadata {
     name = "frontend-nginx-ssl-config"
   }
-  binary_data = {
-    "config" = base64encode(templatefile("${path.module}/configs/nginx-ssl.conf", {
+  data = {
+    "config" = templatefile("${path.module}/configs/nginx-ssl.conf", {
       domain-name = var.domain_name
-    }))
+    })
   }
 }
