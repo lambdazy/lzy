@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.8.1</version>
+        <version>1.8.2</version>
         <relativePath>../parent</relativePath>
     </parent>
     <artifactId>test</artifactId>
-    <version>1.8.1</version>
+    <version>1.8.2</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
@@ -20,56 +20,56 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
-            <version>1.8.1</version>
+            <version>1.8.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>allocator</artifactId>
-            <version>1.8.1</version>
+            <version>1.8.2</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>graph-executor</artifactId>
-            <version>1.8.1</version>
+            <version>1.8.2</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>lzy-service</artifactId>
-            <version>1.8.1</version>
+            <version>1.8.2</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>scheduler</artifactId>
-            <version>1.8.1</version>
+            <version>1.8.2</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>worker</artifactId>
-            <version>1.8.1</version>
+            <version>1.8.2</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>channel-manager</artifactId>
-            <version>1.8.1</version>
+            <version>1.8.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>whiteboard</artifactId>
-            <version>1.8.1</version>
+            <version>1.8.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>worker</artifactId>
-            <version>1.8.1</version>
+            <version>1.8.2</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-test</artifactId>
-            <version>1.8.1</version>
+            <version>1.8.2</version>
             <scope>test</scope>
             <exclusions>
                 <exclusion>
