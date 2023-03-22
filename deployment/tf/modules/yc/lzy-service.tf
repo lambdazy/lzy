@@ -211,7 +211,7 @@ resource "kubernetes_deployment" "lzy-service" {
 
           env {
             name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
-            value = "10.96.190.80:9092"
+            value = "kafka.default.svc.cluster.local:9092"
           }
 
           env {
@@ -243,6 +243,8 @@ resource "kubernetes_deployment" "lzy-service" {
             mount_path = "/etc/yandex/unified_agent/conf.d/"
           }
         }
+
+        dns_policy = "ClusterFirst"
         volume {
           name = "unified-agent-config"
           config_map {

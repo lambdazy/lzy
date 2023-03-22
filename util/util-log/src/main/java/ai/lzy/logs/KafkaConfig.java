@@ -187,7 +187,7 @@ public final class KafkaConfig {
                 props.put("ssl.truststore.location", keystorePath);
                 props.put("ssl.truststore.password", keystorePassword);
             } else {
-                props.put("security.protocol", "PLAINTEXT");
+                props.put("security.protocol", "SASL_PLAINTEXT");
             }
 
             props.put("key.serializer", "org.apache.kafka.common.serialization.StringSerializer");
