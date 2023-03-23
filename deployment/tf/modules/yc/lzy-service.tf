@@ -209,10 +209,10 @@ resource "kubernetes_deployment" "lzy-service" {
             value = "true"
           }
 
-#          env {
-#            name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
-#            value = "${data.kubernetes_service.kafka_0_external.status[0].load_balancer[0].ingress[0]["ip"]}:9094"
-#          }
+          env {
+            name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
+            value = "${data.kubernetes_service.kafka_0_external.status[0].load_balancer[0].ingress[0]["ip"]}:9094"
+          }
 
           env {
             name = "LZY_SERVICE_SCRAM_KAFKA_USERNAME"
