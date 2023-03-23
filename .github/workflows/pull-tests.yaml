@@ -104,7 +104,7 @@ jobs:
 
   integration-tests:
     runs-on: self-hosted
-    timeout-minutes: 25
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash -l {0}
