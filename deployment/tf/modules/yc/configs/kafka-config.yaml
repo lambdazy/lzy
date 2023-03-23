@@ -35,3 +35,14 @@ auth:
         - ${kafka_password}
       interBrokerUser: admin
       interBrokerPassword: ${kafka_password}
+      zookeeperUser: zookeeperUser
+      zookeeperPassword: zookeeperPassword
+
+zookeeper:
+  auth:
+    client:
+      enabled: true
+      serverUsers: "zookeeperUser"
+      serverPasswords: "zookeeperPassword"
+      clientUser: zookeeperUser
+      clientPassword: zookeeperPassword
