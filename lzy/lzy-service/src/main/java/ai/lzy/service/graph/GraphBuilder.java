@@ -146,7 +146,8 @@ class GraphBuilder {
             var slotUri = data.slotUri();
             var portalOutputSlotName = PORTAL_SLOT_PREFIX + "_" + UUID.randomUUID();
             var channelId = channelManagerClient.create(makeCreateChannelCommand(state.getUserId(),
-                state.getWorkflowName(), state.getExecutionId(), "portal_channel_" + slotUri)).getChannelId();
+                state.getWorkflowName(), state.getExecutionId(), "portal_channel_" + slotUri +
+                    "_" + UUID.randomUUID())).getChannelId();
 
             if (data.consumers() != null) {
                 for (var consumer : data.consumers()) {
