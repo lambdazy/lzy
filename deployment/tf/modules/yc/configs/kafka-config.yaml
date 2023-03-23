@@ -1,0 +1,40 @@
+replicaCount: 1
+authorizerClassName: kafka.security.authorizer.AclAuthorizer
+allowEveryoneIfNoAclFound: false
+superUsers:
+  - User:admin
+
+deleteTopicEnable: true
+autoCreateTopicsEnable: false
+
+externalAccess:
+  enabled: true
+  service:
+    type: LoadBalancer
+    ports:
+      external: 9094
+    annotations:
+      "yandex.cloud/load-balancer-type": internal
+      "yandex.cloud/subnet-id": ${subnet_id}
+  autoDiscovery:
+    enabled: true
+
+serviceAccount:
+  create: true
+
+rbac:
+  create: true
+
+auth:
+  clientProtocol: sasl
+  interBrokerProtocol: sasl
+  sasl:
+    jaas:
+      clientUsers:
+        - admin
+      clientPasswords:
+        - ${kafka_password}
+      interBrokerUser:
+        - admin
+      interBrokerPassword:
+        - ${kafka_password}

@@ -15,6 +15,10 @@ resource "random_password" "kafka_zookeeper_password" {
 
 locals {
   kafka_admin_username = "admin"
+  kafka_chart_config = templatefile("${path.module}/configs/kafka-config.yaml", {
+    kafka_password: random_password.kafka_password.result
+    subnet_id: yandex_vpc_subnet.custom-subnet.id
+  })
 }
 
 resource "helm_release" "lzy_kafka" {
@@ -22,94 +26,13 @@ resource "helm_release" "lzy_kafka" {
   chart      = "kafka"
   repository = "https://charts.bitnami.com/bitnami"
 
-  set {
-    name = "replicaCount"
-    value = "1"
-  }
+  values = [local.kafka_chart_config]
+}
 
-  set {
-    name  = "auth.clientProtocol"
-    value = "sasl"
-  }
-
-  set {
-    name = "auth.interBrokerProtocol"
-    value = "sasl"
-  }
-
-  set {
-    name  = "auth.sasl.jaas.clientUsers[0]"
-    value = "admin"
-  }
-
-  set {
-    name  = "auth.sasl.jaas.clientPasswords[0]"
-    value = random_password.kafka_password.result
-  }
-
-  set {
-    name  = "auth.sasl.jaas.interBrokerUser"
-    value = "admin"
-  }
-
-  set {
-    name  = "auth.sasl.jaas.interBrokerPassword"
-    value = random_password.kafka_password.result
-  }
-
-  set {
-    name  = "authorizerClassName"
-    value = "kafka.security.authorizer.AclAuthorizer"
-  }
-
-  set {
-    name  = "allowEveryoneIfNoAclFound"
-    value = "false"
-  }
-
-  set {
-    name  = "superUsers"
-    value = "User:${local.kafka_admin_username}"
-  }
-
-  set {
-    name  = "deleteTopicEnable"
-    value = "true"
-  }
-
-  set {
-    name  = "autoCreateTopicsEnable"
-    value = "false"
-  }
-
-  set {
-    name  = "externalAccess.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "externalAccess.service.type"
-    value = "LoadBalancer"
-  }
-
-  set {
-    name  = "externalAccess.service.ports.external"
-    value = "9094"
-  }
-
-  set {
-    name  = "externalAccess.autoDiscovery.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "serviceAccount.create"
-    value = "true"
-  }
-
-  set {
-    name  = "rbac.create"
-    value = "true"
+data "kubernetes_service" "kafka_0_external" {
+  metadata {
+    name = "kafka-0-external"
+    namespace = "default"
   }
 }
 

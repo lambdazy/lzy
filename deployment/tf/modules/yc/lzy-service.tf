@@ -211,7 +211,7 @@ resource "kubernetes_deployment" "lzy-service" {
 
           env {
             name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
-            value = "kafka.default.svc.cluster.local:9092"
+            value = "${data.kubernetes_service.kafka_0_external.status[0].load_balancer[0].ingress[0]["ip"]}:9094"
           }
 
           env {
