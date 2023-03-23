@@ -21,22 +21,22 @@ locals {
   })
 }
 
-resource "helm_release" "lzy_kafka" {
-  name       = "kafka"
-  chart      = "kafka"
-  repository = "https://charts.bitnami.com/bitnami"
-
-  values = [local.kafka_chart_config]
-}
-
-data "kubernetes_service" "kafka_0_external" {
-  metadata {
-    name = "kafka-0-external"
-    namespace = "default"
-  }
-
-  depends_on = [helm_release.lzy_kafka]
-}
+#resource "helm_release" "lzy_kafka" {
+#  name       = "kafka"
+#  chart      = "kafka"
+#  repository = "https://charts.bitnami.com/bitnami"
+#
+#  values = [local.kafka_chart_config]
+#}
+#
+#data "kubernetes_service" "kafka_0_external" {
+#  metadata {
+#    name = "kafka-0-external"
+#    namespace = "default"
+#  }
+#
+#  depends_on = [helm_release.lzy_kafka]
+#}
 
 resource "kubernetes_secret" "kafka_secret" {
   metadata {
