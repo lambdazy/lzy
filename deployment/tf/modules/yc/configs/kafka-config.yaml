@@ -34,7 +34,5 @@ auth:
         - admin
       clientPasswords:
         - ${kafka_password}
-      interBrokerUser:
-        - admin
-      interBrokerPassword:
-        - ${kafka_password}
+      interBrokerUser: admin
+      interBrokerPassword: ${kafka_password}

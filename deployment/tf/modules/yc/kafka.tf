@@ -34,6 +34,8 @@ data "kubernetes_service" "kafka_0_external" {
     name = "kafka-0-external"
     namespace = "default"
   }
+
+  depends_on = [helm_release.lzy_kafka]
 }
 
 resource "kubernetes_secret" "kafka_secret" {
