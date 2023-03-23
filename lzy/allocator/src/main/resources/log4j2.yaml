@@ -19,17 +19,27 @@ Configuration:
       PatternLayout:
         Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} }- %msg%n"
 
-    FluentdAppender:
-      name: FluentdAppender
-      host: ${env:LZY_FLUENT_APPENDER_HOST}
-      port: ${env:LZY_FLUENT_APPENDER_PORT}
+    RollingFile:
+      name: "fluent"
+      fileName: "/var/log/${env:K8S_POD_NAME}_${env:K8S_NAMESPACE}_${env:K8S_CONTAINER_NAME}.log"
+      filePattern: "${env:K8S_POD_NAME}_${env:K8S_NAMESPACE}_${env:K8S_CONTAINER_NAME}.log"
+      JSONLayout:
+        compact: true
+        eventEol: true
+        properties: true
+        stacktraceAsString: true
+        includeTimeMillis: true
+      SizeBasedTriggeringPolicy:
+        size: "100 MB"
+      DefaultRolloverStrategy:
+        max: "1"
 
   Loggers:
     Root:
       level: error
       AppenderRef:
         - ref: Console
-        - ref: FluentdAppender
+        - ref: fluent
 
     Logger:
       - name: ai.lzy.allocator.gc

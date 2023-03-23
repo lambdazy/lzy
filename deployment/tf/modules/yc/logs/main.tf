@@ -149,7 +149,6 @@ resource "kubernetes_daemonset" "fluent_bit" {
           "lzy.ai/logging_allowed" = "true"
         }
 
-        host_network = true
         container {
           name              = "fluent-bit"
           image             = "cr.yandex/yc/fluent-bit-plugin-yandex:v2.0.3-fluent-bit-1.9.3"

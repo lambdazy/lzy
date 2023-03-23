@@ -181,22 +181,34 @@ resource "kubernetes_stateful_set" "allocator" {
           }
 
           env {
-            name = "LZY_FLUENT_APPENDER_HOST"
+            name = "K8S_POD_NAME"
             value_from {
               field_ref {
-                field_path = "status.hostIP"
+                field_path = "metadata.name"
               }
             }
           }
-
           env {
-            name  = "LZY_FLUENT_APPENDER_PORT"
-            value = 21212
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
           }
+          env {
+            name = "K8S_CONTAINER_NAME"
+            value = "allocator"
+          }
+
 
           volume_mount {
             name       = "sa-key"
             mount_path = "/tmp/sa-key/"
+          }
+          volume_mount {
+            name       = "varlog"
+            mount_path = "/var/log"
           }
         }
 
@@ -233,6 +245,13 @@ resource "kubernetes_stateful_set" "allocator" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varlog"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {
