@@ -17,3 +17,7 @@ Configuration:
       level: info
       AppenderRef:
         ref: Console
+
+    Logger:
+      - name: "ai.lzy.service.graph"
+        level: debug

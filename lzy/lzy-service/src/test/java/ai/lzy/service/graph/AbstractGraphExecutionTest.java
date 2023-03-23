@@ -241,6 +241,64 @@ abstract class AbstractGraphExecutionTest extends BaseTest {
         return Graph.newBuilder().setName("has-same-ops").setZone("ru-central1-a").addAllOperations(operations).build();
     }
 
+    List<Graph> producerAndConsumersGraphs() {
+        return producerAndConsumersGraphs(storageConfig);
+    }
+
+    /*  Graphs:
+            nothing --> 1
+            1 --> 2
+            1 --> 3
+    */
+    List<Graph> producerAndConsumersGraphs(LMST.StorageConfig storageConfig) {
+        var firstOp = LWF.Operation.newBuilder()
+            .setName("operation-1")
+            .setCommand("echo 'i-am-a-hacker' > $LZY_MOUNT/a")
+            .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                .setPath("/a")
+                .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
+                .build())
+            .setPoolSpecName("s")
+            .build();
+        var firstGraph = Graph.newBuilder().setName("producer").addOperations(firstOp).build();
+
+        var secondOp = LWF.Operation.newBuilder()
+            .setName("operation-2")
+            .setCommand("$LZY_MOUNT/sbin/cat $LZY_MOUNT/a > $LZY_MOUNT/b")
+            .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
+                .setPath("/a")
+                .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
+                .build())
+            .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                .setPath("/b")
+                .setStorageUri(buildSlotUri("snapshot_b_1", storageConfig))
+                .build())
+            .setPoolSpecName("s")
+            .build();
+        var secondGraph = Graph.newBuilder().setName("consumer-1").addOperations(secondOp).build();
+
+        var thirdOp = LWF.Operation.newBuilder()
+            .setName("operation-3")
+            .setCommand("$LZY_MOUNT/sbin/cat $LZY_MOUNT/a > $LZY_MOUNT/c && $LZY_MOUNT/sbin/cat $LZY_MOUNT/b")
+            .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
+                .setPath("/a")
+                .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
+                .build())
+            .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
+                .setPath("/b")
+                .setStorageUri(buildSlotUri("snapshot_b_1", storageConfig))
+                .build())
+            .addOutputSlots(LWF.Operation.SlotDescription.newBuilder()
+                .setPath("/c")
+                .setStorageUri(buildSlotUri("snapshot_c_1", storageConfig))
+                .build())
+            .setPoolSpecName("s")
+            .build();
+        var thirdGraph = Graph.newBuilder().setName("consumer-2").addOperations(thirdOp).build();
+
+        return List.of(firstGraph, secondGraph, thirdGraph);
+    }
+
     /*  Graphs:
             single_out:   nothing --> 1
             in_out:       1 --> 2
