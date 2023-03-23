@@ -1,8 +1,7 @@
 replicaCount: 1
 authorizerClassName: kafka.security.authorizer.AclAuthorizer
 allowEveryoneIfNoAclFound: false
-superUsers:
-  - User:admin
+superUsers: "User:admin"
 
 deleteTopicEnable: true
 autoCreateTopicsEnable: false
