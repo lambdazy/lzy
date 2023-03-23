@@ -89,7 +89,11 @@ public class ScramKafkaClient implements KafkaClient {
             adminClient.createAcls(List.of(
                 new AclBinding(
                     new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
-                    new AccessControlEntry("USER:" + username, "*", op, AclPermissionType.ALLOW)
+                    new AccessControlEntry("USER:" + username, "*", AclOperation.ALL, AclPermissionType.ALLOW)
+                ),
+                new AclBinding(
+                    new ResourcePattern(ResourceType.CLUSTER, "kafka-cluster", PatternType.LITERAL),
+                    new AccessControlEntry("USER:" + username, "*", AclOperation.DESCRIBE, AclPermissionType.ALLOW)
                 )
             )).all().get();
         } catch (Exception e) {
