@@ -4,7 +4,7 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.8.2</version>
+        <version>1.8.3</version>
         <relativePath>../../parent</relativePath>
     </parent>
 
@@ -20,77 +20,77 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>portal-api</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam-api</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>allocator-api</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>scheduler-api</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>worker-api</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running-api</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>whiteboard-api</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>storage-api</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>fs</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>worker</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>channel-manager</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-test</artifactId>
-            <version>1.8.2</version>
+            <version>1.8.3</version>
             <scope>test</scope>
         </dependency>
 
