@@ -280,7 +280,6 @@
                                         <exclude>META-INF/*.SF</exclude>
                                         <exclude>META-INF/*.DSA</exclude>
                                         <exclude>META-INF/*.RSA</exclude>
-                                        <exclude>**/Log4j2Plugins.dat</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

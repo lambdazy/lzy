@@ -29,6 +29,9 @@ Configuration:
         properties: true
         stacktraceAsString: true
         includeTimeMillis: true
+        KeyValuePair:
+          - key: "time"
+            value: "${date:yyyy-MM-dd HH:mm:ss.SSS}"
       SizeBasedTriggeringPolicy:
         size: "100 MB"
       DefaultRolloverStrategy:
