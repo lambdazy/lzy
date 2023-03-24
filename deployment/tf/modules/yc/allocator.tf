@@ -207,8 +207,8 @@ resource "kubernetes_stateful_set" "allocator" {
             mount_path = "/tmp/sa-key/"
           }
           volume_mount {
-            name       = "varlog"
-            mount_path = "/var/log"
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
           }
         }
 
@@ -248,7 +248,7 @@ resource "kubernetes_stateful_set" "allocator" {
           }
         }
         volume {
-          name = "varlog"
+          name = "varloglzy"
           host_path {
             path = "/var/log/lzy"
             type = "DirectoryOrCreate"

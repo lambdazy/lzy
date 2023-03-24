@@ -21,8 +21,8 @@ Configuration:
 
     RollingFile:
       name: "fluent"
-      fileName: "/var/log/${env:K8S_POD_NAME}_${env:K8S_NAMESPACE}_${env:K8S_CONTAINER_NAME}.log"
-      filePattern: "${env:K8S_POD_NAME}_${env:K8S_NAMESPACE}_${env:K8S_CONTAINER_NAME}.log"
+      fileName: "/var/log/lzy/${env:K8S_POD_NAME}_${env:K8S_NAMESPACE}_${env:K8S_CONTAINER_NAME}.log"
+      filePattern: "${env:K8S_POD_NAME}_${env:K8S_NAMESPACE}_${env:K8S_CONTAINER_NAME}.log.%i"
       JSONLayout:
         compact: true
         eventEol: true

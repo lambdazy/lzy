@@ -18,7 +18,6 @@ module "logs_main" {
   providers = {
     kubernetes = kubernetes
   }
-  fluent_port = local.fluent-bit-port
 }
 
 module "logs_allocator" {
@@ -30,5 +29,4 @@ module "logs_allocator" {
   providers = {
     kubernetes = kubernetes.allocator
   }
-  fluent_port = local.fluent-bit-port
 }

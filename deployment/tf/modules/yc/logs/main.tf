@@ -21,10 +21,6 @@ variable "folder_id" {
   type = string
 }
 
-variable "fluent_port" {
-  type = number
-}
-
 locals {
   fluentd-sa-key-json = jsonencode(var.node-sa-key)
 }
@@ -106,9 +102,7 @@ resource "kubernetes_config_map" "fluent_bit_config_map" {
 
   data = {
     "fluent-bit.conf" : file("${path.module}/configs/fluent-bit.conf")
-    "input-kubernetes.conf" : templatefile("${path.module}/configs/input-kubernetes.conf", {
-      "port": var.fluent_port
-    })
+    "input-kubernetes.conf" : file("${path.module}/configs/input-kubernetes.conf")
     "parsers.conf" : file("${path.module}/configs/parsers.conf")
     "filter-kubernetes.conf" : file("${path.module}/configs/filter-kubernetes.conf")
     "output-elasticsearch.conf" : templatefile("${path.module}/configs/output-elasticsearch.conf", {
@@ -153,12 +147,6 @@ resource "kubernetes_daemonset" "fluent_bit" {
           name              = "fluent-bit"
           image             = "cr.yandex/yc/fluent-bit-plugin-yandex:v2.0.3-fluent-bit-1.9.3"
           image_pull_policy = "Always"
-
-          port {
-            container_port = var.fluent_port
-            host_port      = var.fluent_port
-          }
-
           volume_mount {
             mount_path = "/var/log"
             name       = "varlog"
