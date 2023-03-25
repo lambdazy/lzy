@@ -205,7 +205,7 @@ resource "kubernetes_deployment" "scheduler" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = "scheduler"
+            value = local.scheduler-k8s-name
           }
 
           volume_mount {

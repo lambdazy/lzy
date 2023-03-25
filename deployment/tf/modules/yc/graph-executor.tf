@@ -131,7 +131,7 @@ resource "kubernetes_deployment" "graph-executor" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = "graph-executor"
+            value = local.graph-k8s-name
           }
 
           volume_mount {

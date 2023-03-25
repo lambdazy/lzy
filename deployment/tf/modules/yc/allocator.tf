@@ -198,7 +198,7 @@ resource "kubernetes_stateful_set" "allocator" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = "allocator"
+            value = local.allocator-k8s-name
           }
 
           volume_mount {

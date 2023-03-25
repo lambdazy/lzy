@@ -123,7 +123,7 @@ resource "kubernetes_deployment" "channel-manager" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = "channel-manager"
+            value = local.channel-manager-k8s-name
           }
 
           volume_mount {

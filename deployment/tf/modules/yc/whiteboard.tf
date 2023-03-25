@@ -119,7 +119,7 @@ resource "kubernetes_deployment" "whiteboard" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = "whiteboard"
+            value = local.whiteboard-k8s-name
           }
 
           volume_mount {

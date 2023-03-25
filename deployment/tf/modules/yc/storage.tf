@@ -162,7 +162,7 @@ resource "kubernetes_deployment" "storage" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = "storage"
+            value = local.storage-k8s-name
           }
 
           volume_mount {

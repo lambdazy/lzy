@@ -5,8 +5,9 @@ locals {
     "lzy.ai/app"             = "backoffice"
   }
 
-  backoffice-k8s-name     = "lzy-backoffice"
-  github-redirect-address = var.domain_name != null ? var.domain_name : yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address
+  backoffice-k8s-name         = "lzy-backoffice"
+  backoffice-backend-k8s-name = "${local.backoffice-k8s-name}-backend"
+  github-redirect-address     = var.domain_name != null ? var.domain_name : yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address
 }
 
 resource "kubernetes_secret" "oauth_github" {
@@ -69,7 +70,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           }
         }
         container {
-          name              = "${local.backoffice-k8s-name}-backend"
+          name              = local.backoffice-backend-k8s-name
           image             = var.backoffice-backend-image
           image_pull_policy = "Always"
           env {
@@ -142,7 +143,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = "site-backend"
+            value = local.backoffice-backend-k8s-name
           }
           port {
             name           = "backend"

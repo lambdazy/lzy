@@ -197,7 +197,7 @@ resource "kubernetes_deployment" "lzy-service" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = "lzy-service"
+            value = local.lzy-service-k8s-name
           }
 
           volume_mount {

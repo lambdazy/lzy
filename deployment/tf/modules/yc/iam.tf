@@ -128,7 +128,7 @@ resource "kubernetes_deployment" "iam" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = "iam"
+            value = local.iam-k8s-name
           }
           port {
             container_port = local.iam-port
