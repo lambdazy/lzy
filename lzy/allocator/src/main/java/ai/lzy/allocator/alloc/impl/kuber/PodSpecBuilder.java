@@ -174,6 +174,25 @@ public class PodSpecBuilder {
         return this;
     }
 
+    public PodSpecBuilder withLoggingVolume() {
+        final var volumeName = "varloglzy";
+        if (volumes.containsKey(volumeName)) {
+            return this;
+        }
+        final var volumePath = "/var/log/lzy";
+        final var volume = new VolumeBuilder()
+            .withName(volumeName)
+            .withHostPath(new HostPathVolumeSource(volumePath, "DirectoryOrCreate"))
+            .build();
+        final var mount = new VolumeMountBuilder()
+            .withName(volumeName)
+            .withMountPath(volumePath)
+            .build();
+        volumes.put(volumeName, volume);
+        additionalVolumeMounts.put(volumeName, mount);
+        return this;
+    }
+
     public PodSpecBuilder withEmptyDirVolume(String name, String path, EmptyDirVolumeSource emptyDir) {
         final var volume = new VolumeBuilder()
             .withName(name)

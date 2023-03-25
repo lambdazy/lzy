@@ -174,6 +174,7 @@ public class KuberVmAllocator implements VmAllocator {
                     .toList())
                 // --shm-size=1G
                 .withEmptyDirVolume("dshm", "/dev/shm", new EmptyDirVolumeSource("Memory", Quantity.parse("1Gi")))
+                .withLoggingVolume()
                 // not to be allocated with another vm
                 .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
                 // not to be allocated with pods from other session
