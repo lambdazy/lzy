@@ -135,6 +135,9 @@ resource "kubernetes_daemonset" "fluent_bit" {
           "k8s-app" : "fluent-bit-logging"
           "kubernetes.io/cluster-service" : "true"
         }
+        annotations = {
+          "config.hash" : sha256(jsonencode(kubernetes_config_map.fluent_bit_config_map.data))
+        }
       }
 
       spec {
