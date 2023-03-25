@@ -20,7 +20,7 @@ Configuration:
         Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} }- %msg%n"
 
     RollingFile:
-      name: "fluent"
+      name: FluentBitFile
       fileName: "/var/log/lzy/${env:K8S_POD_NAME}_${env:K8S_NAMESPACE}_${env:K8S_CONTAINER_NAME}.log"
       filePattern: "${env:K8S_POD_NAME}_${env:K8S_NAMESPACE}_${env:K8S_CONTAINER_NAME}.log.%i"
       JSONLayout:
@@ -30,7 +30,7 @@ Configuration:
         stacktraceAsString: true
         includeTimeMillis: true
         KeyValuePair:
-          - key: "time"
+          - key: time
             value: "${date:yyyy-MM-dd HH:mm:ss.SSS}"
       SizeBasedTriggeringPolicy:
         size: "100 MB"
@@ -42,7 +42,7 @@ Configuration:
       level: error
       AppenderRef:
         - ref: Console
-        - ref: fluent
+        - ref: FluentBitFile
 
     Logger:
       - name: ai.lzy.allocator.gc
