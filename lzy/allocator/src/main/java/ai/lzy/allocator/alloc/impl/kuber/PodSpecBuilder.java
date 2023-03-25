@@ -131,6 +131,26 @@ public class PodSpecBuilder {
                             .withNewFieldRef("v1", "status.hostIP")
                             .build()
                     )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.K8S_POD_NAME)
+                    .withValueFrom(
+                        new EnvVarSourceBuilder()
+                            .withNewFieldRef("v1", "metadata.name")
+                            .build()
+                    )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.K8S_NAMESPACE)
+                    .withValueFrom(
+                        new EnvVarSourceBuilder()
+                            .withNewFieldRef("v1", "metadata.namespace")
+                            .build()
+                    )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.K8S_CONTAINER_NAME)
+                    .withValue(workload.name())
                     .build()
             ));
             container.setEnv(envList);
