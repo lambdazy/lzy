@@ -127,12 +127,10 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           port {
             name           = "backend"
             container_port = local.backoffice-backend-port
-#            host_port      = local.backoffice-backend-port
           }
           port {
             name           = "backendtls"
             container_port = local.backoffice-backend-tls-port
-#            host_port      = local.backoffice-backend-tls-port
           }
           port {
             container_port = local.site-metrics-port
@@ -159,6 +157,10 @@ resource "kubernetes_deployment" "lzy_backoffice" {
               name       = "keystore"
               mount_path = "/app/keystore"
             }
+          }
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
           }
         }
         container {
@@ -227,6 +229,13 @@ resource "kubernetes_deployment" "lzy_backoffice" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {

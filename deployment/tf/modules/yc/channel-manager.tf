@@ -105,6 +105,11 @@ resource "kubernetes_deployment" "channel-manager" {
             name  = "CHANNEL_MANAGER_WHITEBOARD_ADDRESS"
             value = "http://${kubernetes_service.whiteboard_service.spec[0].cluster_ip}:${local.whiteboard-port}"
           }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
         }
         container {
           name = "unified-agent"
@@ -127,6 +132,13 @@ resource "kubernetes_deployment" "channel-manager" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {

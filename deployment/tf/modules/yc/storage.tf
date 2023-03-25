@@ -143,6 +143,11 @@ resource "kubernetes_deployment" "storage" {
             name  = "STORAGE_S3_YC_SECRET_TOKEN"
             value = yandex_iam_service_account_static_access_key.admin-sa-static-key.secret_key
           }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
         }
         container {
           name = "unified-agent"
@@ -165,6 +170,13 @@ resource "kubernetes_deployment" "storage" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {

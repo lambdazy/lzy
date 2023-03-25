@@ -186,6 +186,11 @@ resource "kubernetes_deployment" "scheduler" {
             name  = "SCHEDULER_WORKER_PROCESSOR_IDLE_HEARTBEAT_PERIOD"
             value = "5m"
           }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
         }
         container {
           name = "unified-agent"
@@ -208,6 +213,13 @@ resource "kubernetes_deployment" "scheduler" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {

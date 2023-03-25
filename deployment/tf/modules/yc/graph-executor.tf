@@ -113,6 +113,11 @@ resource "kubernetes_deployment" "graph-executor" {
               }
             }
           }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
         }
         container {
           name = "unified-agent"
@@ -136,6 +141,13 @@ resource "kubernetes_deployment" "graph-executor" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {

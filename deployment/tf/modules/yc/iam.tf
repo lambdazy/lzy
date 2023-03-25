@@ -116,6 +116,11 @@ resource "kubernetes_deployment" "iam" {
           port {
             container_port = local.iam-metrics-port
           }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
         }
         container {
           name = "unified-agent"
@@ -138,6 +143,13 @@ resource "kubernetes_deployment" "iam" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {
