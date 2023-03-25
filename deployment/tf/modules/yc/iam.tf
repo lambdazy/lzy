@@ -110,6 +110,26 @@ resource "kubernetes_deployment" "iam" {
             name  = "IAM_METRICS_PORT"
             value = local.iam-metrics-port
           }
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = "iam"
+          }
           port {
             container_port = local.iam-port
           }

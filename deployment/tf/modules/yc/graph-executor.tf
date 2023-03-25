@@ -113,6 +113,26 @@ resource "kubernetes_deployment" "graph-executor" {
               }
             }
           }
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = "graph-executor"
+          }
 
           volume_mount {
             name       = "varloglzy"

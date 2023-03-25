@@ -197,10 +197,9 @@ resource "kubernetes_stateful_set" "allocator" {
             }
           }
           env {
-            name = "K8S_CONTAINER_NAME"
+            name  = "K8S_CONTAINER_NAME"
             value = "allocator"
           }
-
 
           volume_mount {
             name       = "sa-key"

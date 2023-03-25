@@ -179,6 +179,27 @@ resource "kubernetes_deployment" "lzy-service" {
             value = "20s"
           }
 
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = "lzy-service"
+          }
+
           volume_mount {
             name       = "varloglzy"
             mount_path = "/var/log/lzy"

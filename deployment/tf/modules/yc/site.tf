@@ -124,6 +124,26 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             name  = "SITE_METRICS_PORT"
             value = local.site-metrics-port
           }
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = "site-backend"
+          }
           port {
             name           = "backend"
             container_port = local.backoffice-backend-port

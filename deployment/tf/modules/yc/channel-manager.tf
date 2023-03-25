@@ -105,6 +105,26 @@ resource "kubernetes_deployment" "channel-manager" {
             name  = "CHANNEL_MANAGER_WHITEBOARD_ADDRESS"
             value = "http://${kubernetes_service.whiteboard_service.spec[0].cluster_ip}:${local.whiteboard-port}"
           }
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = "channel-manager"
+          }
 
           volume_mount {
             name       = "varloglzy"
