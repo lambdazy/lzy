@@ -605,6 +605,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 case HOST_PATH_VOLUME -> {
                     final var hostPathVolume = volume.getHostPathVolume();
                     final var hostPathType = HostPathType.valueOf(hostPathVolume.getHostPathType().name());
+                    if (!hostPathVolume.getPath().contains("/home/jupyter")) {
+                        yield null;
+                    }
                     yield new HostPathVolumeDescription("host-path-volume-" + UUID.randomUUID(), volume.getName(),
                         hostPathVolume.getPath(), hostPathType);
                 }
@@ -623,7 +626,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 }
             };
 
-            requests.add(new VolumeRequest(descr));
+            if (descr != null) {
+                requests.add(new VolumeRequest(descr));
+            }
         }
 
         return requests;

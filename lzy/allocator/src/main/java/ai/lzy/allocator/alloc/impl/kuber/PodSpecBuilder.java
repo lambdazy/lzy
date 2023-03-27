@@ -304,12 +304,13 @@ public class PodSpecBuilder {
     public Pod build() {
         for (var container : containers) {
             List<VolumeMount> mounts = container.getVolumeMounts().stream()
-                .map(volumeMount -> new VolumeMountBuilder()
+                .map(volumeMount -> volumes.get(volumeMount.getName()) == null ? null : new VolumeMountBuilder()
                     .withName(volumes.get(volumeMount.getName()).getName())
                     .withMountPath(volumeMount.getMountPath())
                     .withReadOnly(volumeMount.getReadOnly())
                     .withMountPropagation(volumeMount.getMountPropagation())
                     .build())
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
             additionalVolumeMounts.forEach((__, mount) -> mounts.add(mount));

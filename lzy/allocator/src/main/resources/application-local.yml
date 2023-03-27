@@ -6,7 +6,7 @@ allocator:
 
   address: 'localhost:1234'
   heartbeat-timeout: 1m
-  allocation-timeout: 15m
+  allocation-timeout: 30m
 
   enable-http-debug: true
 
