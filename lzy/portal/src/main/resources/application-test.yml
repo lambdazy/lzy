@@ -12,3 +12,7 @@ portal:
   vm-id: "portal-vm"
   allocator-address: "localhost:8799"
   allocator-heartbeat-period: 10m
+  concurrency:
+    workers-pool-size: 10
+    downloads-pool-size: 10
+    chunks-pool-size: 10
