@@ -29,7 +29,7 @@ jobs:
         run: cd pylzy && ./scripts/gen_proto.sh && cd ..
 
       - name: Test
-        run: cp readme.md pylzy && cd pylzy && tox && cd ..
+        run: cd pylzy && tox && cd ..
 
       - name: 'upload coverage badge'
         uses: exuanbo/actions-deploy-gist@v1
@@ -187,4 +187,4 @@ jobs:
         run: |
           cd pylzy/
           eval "$(conda shell.bash hook)" && ./scripts/clean.sh
-          cd ..      
+          cd ..
