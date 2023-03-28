@@ -26,8 +26,8 @@ resource "yandex_kubernetes_node_group" "portals" {
     }
 
     resources {
-      memory = 2
-      cores  = 2
+      memory = 4
+      cores  = 4
     }
 
     boot_disk {

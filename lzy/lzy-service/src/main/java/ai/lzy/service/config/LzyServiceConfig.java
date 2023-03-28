@@ -40,6 +40,9 @@ public class LzyServiceConfig {
         private String stderrChannelName;
         private String poolLabel;
         private String poolZone;
+        private int workersPoolSize;
+        private int downloadsPoolSize;
+        private int chunksPoolSize;
     }
 
     @ConfigurationBuilder("iam")

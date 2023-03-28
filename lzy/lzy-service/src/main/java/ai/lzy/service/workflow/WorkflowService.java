@@ -149,8 +149,10 @@ public class WorkflowService {
         var slotsApiPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getSlotsApiPort();
 
         newExecution.startPortal(startupPortalConfig.getDockerImage(), portalPort, slotsApiPort,
-            startupPortalConfig.getStdoutChannelName(), startupPortalConfig.getStderrChannelName(),
-            channelManagerAddress, iamAddress, whiteboardAddress, allocationTimeout, allocatorVmCacheTimeout);
+            startupPortalConfig.getWorkersPoolSize(), startupPortalConfig.getDownloadsPoolSize(),
+            startupPortalConfig.getChunksPoolSize(), startupPortalConfig.getStdoutChannelName(),
+            startupPortalConfig.getStderrChannelName(), channelManagerAddress, iamAddress, whiteboardAddress,
+            allocationTimeout, allocatorVmCacheTimeout);
 
         if (newExecution.isInvalid()) {
             LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
