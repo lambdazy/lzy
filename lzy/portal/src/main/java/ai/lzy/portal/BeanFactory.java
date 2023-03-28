@@ -108,8 +108,9 @@ public class BeanFactory {
     @Bean(preDestroy = "shutdown")
     @Singleton
     @Named("PortalServiceExecutor")
-    public ExecutorService workersPool() {
-        return new ThreadPoolExecutor(5, 20, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+    public ExecutorService workersPool(PortalConfig config) {
+        var poolSize = config.getConcurrency().getWorkersPoolSize();
+        return new ThreadPoolExecutor(poolSize / 2, poolSize, 60, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
             new ThreadFactory() {
                 private static final Logger LOG = LogManager.getLogger(PortalService.class);
 
@@ -128,7 +129,8 @@ public class BeanFactory {
     @Bean(preDestroy = "destroy")
     @Singleton
     @Named("PortalStorageClientFactory")
-    public StorageClientFactory storageClientFactory() {
-        return new StorageClientFactory(10, 10);
+    public StorageClientFactory storageClientFactory(PortalConfig config) {
+        return new StorageClientFactory(config.getConcurrency().getDownloadsPoolSize(),
+            config.getConcurrency().getChunksPoolSize());
     }
 }

@@ -119,6 +119,21 @@ resource "kubernetes_deployment" "lzy-service" {
           }
 
           env {
+            name  = "LZY_SERVICE_PORTAL_WORKERS_POOL_SIZE"
+            value = "10"
+          }
+
+          env {
+            name  = "LZY_SERVICE_PORTAL_DOWNLOADS_POOL_SIZE"
+            value = "5"
+          }
+
+          env {
+            name  = "LZY_SERVICE_PORTAL_CHUNKS_POOL_SIZE"
+            value = "5"
+          }
+
+          env {
             name = "LZY_SERVICE_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
