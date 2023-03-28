@@ -301,6 +301,8 @@ public class KuberVmAllocator implements VmAllocator {
             } catch (Exception e) {
                 return Result.RETRY_LATER;
             }
+        } else {
+            LOG.info("Don't remove system service node {}, instanceId: {}, vmId: {}", nodeName, nodeInstanceId, vmId);
         }
 
         return Result.SUCCESS;
