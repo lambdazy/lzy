@@ -295,12 +295,14 @@ public class KuberVmAllocator implements VmAllocator {
         }
 
         // TODO(artolord) make optional deletion of system nodes
-        if (credentials.type().equals(ClusterRegistry.ClusterType.User)) {
+        if (credentials.type().equals(ClusterRegistry.ClusterType.User) || vmId.contains("portal")) {
             try {
                 nodeRemover.removeNode(vmId, nodeName, nodeInstanceId);
             } catch (Exception e) {
                 return Result.RETRY_LATER;
             }
+        } else {
+            LOG.info("Don't remove system service node {}, instanceId: {}, vmId: {}", nodeName, nodeInstanceId, vmId);
         }
 
         return Result.SUCCESS;
