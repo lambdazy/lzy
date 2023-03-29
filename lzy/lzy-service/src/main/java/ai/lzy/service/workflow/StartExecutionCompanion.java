@@ -108,6 +108,7 @@ final class StartExecutionCompanion {
     }
 
     public void startPortal(String dockerImage, int portalPort, int slotsApiPort,
+                            int workersPoolSize, int downloadPoolSize, int chunksPoolSize,
                             String stdoutChannelName, String stderrChannelName,
                             String channelManagerAddress, String iamAddress, String whiteboardAddress,
                             Duration allocationTimeout, Duration allocateVmCacheTimeout)
@@ -133,7 +134,7 @@ final class StartExecutionCompanion {
             InjectedFailures.fail10();
 
             var allocateVmOp = startAllocation(dockerImage, channelManagerAddress, iamAddress,
-                whiteboardAddress, portalPort, slotsApiPort);
+                whiteboardAddress, portalPort, slotsApiPort, workersPoolSize, downloadPoolSize, chunksPoolSize);
             var opId = allocateVmOp.getId();
 
             VmAllocatorApi.AllocateMetadata allocateMetadata;
@@ -238,7 +239,8 @@ final class StartExecutionCompanion {
     }
 
     public LongRunning.Operation startAllocation(String dockerImage, String channelManagerAddress, String iamAddress,
-                                                 String whiteboardAddress, int portalPort, int slotsApiPort)
+                                                 String whiteboardAddress, int portalPort, int slotsApiPort,
+                                                 int workersPoolSize, int downloadPoolSize, int chunksPoolSize)
     {
         String privateKey;
         try {
@@ -267,7 +269,11 @@ final class StartExecutionCompanion {
             "-portal.stderr-channel-id=" + state.getStderrChannelId(),
             "-portal.channel-manager-address=" + channelManagerAddress,
             "-portal.iam-address=" + iamAddress,
-            "-portal.whiteboard-address=" + whiteboardAddress);
+            "-portal.whiteboard-address=" + whiteboardAddress,
+            "-portal.concurrency.workers-pool-size=" + workersPoolSize,
+            "-portal.concurrency.downloads-pool-size=" + downloadPoolSize,
+            "-portal.concurrency.chunks-pool-size=" + chunksPoolSize
+        );
 
         var portalEnvPKEY = "LZY_PORTAL_PKEY";
         var ports = Map.of(actualSlotsApiPort, actualSlotsApiPort, actualPortalPort, actualPortalPort);

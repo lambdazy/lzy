@@ -65,6 +65,9 @@ lzy-service:
     docker-image: ""
     pool-label: "portals"
     pool-zone: "ru-central1-a"
+    workers-pool-size: 10
+    downloads-pool-size: 10
+    chunks-pool-size: 10
 
   metrics:
     kind: 'Disabled'
