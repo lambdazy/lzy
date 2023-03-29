@@ -32,6 +32,9 @@ public class AllocatorAgent extends TimerTask {
     public static final String VM_IP_ADDRESS = "LZY_VM_IP_ADDRESS";
     public static final String VM_NODE_IP_ADDRESS = "LZY_VM_NODE_IP_ADDRESS";
     public static final String VM_GPU_COUNT = "LZY_VM_GPU_COUNT";
+    public static final String K8S_POD_NAME = "K8S_POD_NAME";
+    public static final String K8S_NAMESPACE = "K8S_NAMESPACE";
+    public static final String K8S_CONTAINER_NAME = "K8S_CONTAINER_NAME";
 
     private final String vmId;
     private final AllocatorPrivateGrpc.AllocatorPrivateBlockingStub stub;

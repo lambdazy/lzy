@@ -21,4 +21,6 @@ locals {
   iam-port                     = 8443
   graph-port                   = 8122
   channel-manager-port         = 8122
+
+  fluent-bit-port              = 24224
 }

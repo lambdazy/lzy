@@ -143,6 +143,32 @@ resource "kubernetes_deployment" "storage" {
             name  = "STORAGE_S3_YC_SECRET_TOKEN"
             value = yandex_iam_service_account_static_access_key.admin-sa-static-key.secret_key
           }
+
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = local.storage-k8s-name
+          }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
         }
         container {
           name = "unified-agent"
@@ -165,6 +191,13 @@ resource "kubernetes_deployment" "storage" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {

@@ -131,6 +131,26 @@ public class PodSpecBuilder {
                             .withNewFieldRef("v1", "status.hostIP")
                             .build()
                     )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.K8S_POD_NAME)
+                    .withValueFrom(
+                        new EnvVarSourceBuilder()
+                            .withNewFieldRef("v1", "metadata.name")
+                            .build()
+                    )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.K8S_NAMESPACE)
+                    .withValueFrom(
+                        new EnvVarSourceBuilder()
+                            .withNewFieldRef("v1", "metadata.namespace")
+                            .build()
+                    )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.K8S_CONTAINER_NAME)
+                    .withValue(workload.name())
                     .build()
             ));
             container.setEnv(envList);
@@ -171,6 +191,25 @@ public class PodSpecBuilder {
                 containers.add(container);
             }
         }
+        return this;
+    }
+
+    public PodSpecBuilder withLoggingVolume() {
+        final var volumeName = "varloglzy";
+        if (volumes.containsKey(volumeName)) {
+            return this;
+        }
+        final var volumePath = "/var/log/lzy";
+        final var volume = new VolumeBuilder()
+            .withName(volumeName)
+            .withHostPath(new HostPathVolumeSource(volumePath, "DirectoryOrCreate"))
+            .build();
+        final var mount = new VolumeMountBuilder()
+            .withName(volumeName)
+            .withMountPath(volumePath)
+            .build();
+        volumes.put(volumeName, volume);
+        additionalVolumeMounts.put(volumeName, mount);
         return this;
     }
 
