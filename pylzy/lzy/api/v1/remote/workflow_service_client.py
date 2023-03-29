@@ -80,12 +80,7 @@ class StderrMessage:
 
 
 Message = Union[StderrMessage, StdoutMessage]
-RETRY_CONFIG = RetryConfig(
-    initial_backoff_ms=1000,
-    max_retry=12000,
-    backoff_multiplier=1,
-    max_backoff_ms=10000
-)
+RETRY_CONFIG = RetryConfig(max_retry=12000, backoff_multiplier=1.2)
 CHANNEL: Optional[Channel] = None
 
 
@@ -118,9 +113,9 @@ class WorkflowServiceClient:
 
         global CHANNEL
         if not CHANNEL:
-            CHANNEL = build_channel(address, interceptors=interceptors,
+            CHANNEL = build_channel(address, enable_retry=True,
+                                    interceptors=interceptors,
                                     service_names=("LzyWorkflowService", "LongRunningService"),
-                                    enable_retry=True,
                                     keepalive_ms=1000)
 
         self.__stub = LzyWorkflowServiceStub(CHANNEL)
