@@ -189,11 +189,13 @@ public class QueueManager extends Thread {
                 return;
             }
             final GraphExecutionState newState;
+
             if (stoppingGraphs.containsKey(stateKey)) {
                 newState = processor.stop(state, stoppingGraphs.remove(stateKey));
             } else {
                 newState = processor.exec(state);
             }
+
             dao.updateAndFree(newState);
             if (!Set.of(Status.FAILED, Status.COMPLETED).contains(newState.status())) {
                 putIntoQueue(stateKey);
