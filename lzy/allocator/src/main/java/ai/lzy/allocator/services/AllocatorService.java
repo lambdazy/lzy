@@ -9,13 +9,7 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.model.CachePolicy;
-import ai.lzy.allocator.model.DiskVolumeDescription;
-import ai.lzy.allocator.model.HostPathVolumeDescription;
-import ai.lzy.allocator.model.NFSVolumeDescription;
-import ai.lzy.allocator.model.Session;
-import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.VolumeRequest;
-import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.IdempotencyUtils;
@@ -27,14 +21,7 @@ import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
-import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.FreeRequest;
-import ai.lzy.v1.VmAllocatorApi.FreeResponse;
+import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.VolumeApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.common.annotations.VisibleForTesting;
@@ -59,7 +46,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -68,8 +54,6 @@ import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.GrpcHeaders.createContext;
-import static ai.lzy.util.grpc.GrpcHeaders.withContext;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
@@ -137,14 +121,14 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                 vms.forEach(vm -> {
                     var action = switch (vm.status()) {
-                        case ALLOCATING -> {
-                            var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, vm.allocateState().reqid()));
-                            yield withContext(ctx, () -> new AllocateVmAction(vm, allocationContext, true));
-                        }
+                        case ALLOCATING -> GrpcHeaders.withContext()
+                            .withHeader(GrpcHeaders.X_REQUEST_ID, vm.allocateState().reqid())
+                            .run(() -> new AllocateVmAction(vm, allocationContext, true));
                         case DELETING -> {
-                            var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, vm.deleteState().reqid()));
                             var deleteOpId = vm.deleteState().operationId();
-                            yield withContext(ctx, () -> new DeleteVmAction(vm, deleteOpId, allocationContext));
+                            yield GrpcHeaders.withContext()
+                                .withHeader(GrpcHeaders.X_REQUEST_ID, vm.deleteState().reqid())
+                                .run(() -> new DeleteVmAction(vm, deleteOpId, allocationContext));
                         }
                         case IDLE, RUNNING -> throw new RuntimeException("Unexpected Vm state %s".formatted(vm));
                     };
@@ -163,9 +147,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 LOG.info("Found {} not completed sessions removal", sessions.size());
                 sessions.forEach(s -> {
                     var reqid = Optional.ofNullable(s.deleteReqid()).orElse("unknown");
-                    var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, reqid));
-                    withContext(ctx, () ->
-                        allocationContext.startNew(new DeleteSessionAction(s, s.deleteOpId(), allocationContext)));
+                    GrpcHeaders.withContext()
+                        .withHeader(GrpcHeaders.X_REQUEST_ID, reqid)
+                        .run(() ->
+                            allocationContext.startNew(new DeleteSessionAction(s, s.deleteOpId(), allocationContext)));
                 });
             }
         } catch (SQLException e) {
