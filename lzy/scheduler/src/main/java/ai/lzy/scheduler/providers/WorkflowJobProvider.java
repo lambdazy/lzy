@@ -140,7 +140,6 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
                 var provider = context.getBean(next);
                 provider.schedule(nextJobArg, null);
             }
-
         } catch (SerializationException e) {
             try {
                 failOp(arg, Status.newBuilder()
@@ -152,7 +151,6 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
                 logger.error("Cannot fail operation");
             }
         }
-
     }
 
     public record WorkflowJobArg(
