@@ -34,7 +34,8 @@ public class SnapshotSlots {
     private final PortalService portalService;
 
     public SnapshotSlots(@Named("PortalStorageClientFactory") StorageClientFactory storageClientFactory,
-                         PortalService portalService) {
+                         PortalService portalService)
+    {
         this.storageClientFactory = storageClientFactory;
         this.portalService = portalService;
     }

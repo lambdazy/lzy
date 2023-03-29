@@ -139,6 +139,21 @@ resource "kubernetes_deployment" "lzy-service" {
           }
 
           env {
+            name  = "LZY_SERVICE_PORTAL_WORKERS_POOL_SIZE"
+            value = "10"
+          }
+
+          env {
+            name  = "LZY_SERVICE_PORTAL_DOWNLOADS_POOL_SIZE"
+            value = "5"
+          }
+
+          env {
+            name  = "LZY_SERVICE_PORTAL_CHUNKS_POOL_SIZE"
+            value = "5"
+          }
+
+          env {
             name = "LZY_SERVICE_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
@@ -198,7 +213,6 @@ resource "kubernetes_deployment" "lzy-service" {
             name  = "LZY_SERVICE_STORAGE_BUCKET_CREATION_TIMEOUT"
             value = "20s"
           }
-
           env {
             name = "LZY_SERVICE_KAFKA_ENABLED"
             value = "true"
@@ -229,6 +243,31 @@ resource "kubernetes_deployment" "lzy-service" {
             }
           }
 
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = local.lzy-service-k8s-name
+          }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
         }
         container {
           name = "unified-agent"
@@ -253,6 +292,13 @@ resource "kubernetes_deployment" "lzy-service" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {

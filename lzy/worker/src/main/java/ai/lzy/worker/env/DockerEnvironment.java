@@ -7,9 +7,14 @@ import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
+import com.github.dockerjava.api.exception.DockerClientException;
+import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientBuilder;
+import io.github.resilience4j.core.IntervalFunction;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -34,11 +39,18 @@ public class DockerEnvironment extends BaseEnvironment {
 
     private final BaseEnvConfig config;
     private final DockerClient client;
+    private final Retry retry;
 
-    public DockerEnvironment(BaseEnvConfig config, @Nullable LME.DockerCredentials credentials) {
+    public DockerEnvironment(BaseEnvConfig config, DockerClient client) {
         super();
         this.config = config;
-        this.client = generateClient(credentials);
+        this.client = client;
+        var retryConfig = new RetryConfig.Builder<>()
+                .maxAttempts(3)
+                .intervalFunction(IntervalFunction.ofExponentialBackoff(1000))
+                .retryExceptions(DockerException.class, DockerClientException.class)
+                .build();
+        retry = Retry.of("docker-client-retry", retryConfig);
     }
 
     @Override
@@ -73,27 +85,28 @@ public class DockerEnvironment extends BaseEnvironment {
 
         // --gpus all --ipc=host --shm-size=1G
         if (config.needGpu()) {
-            hostConfig.withDeviceRequests(List.of(new DeviceRequest()
-                .withDriver("nvidia")
-                .withCapabilities(List.of(List.of("gpu")))
-            ))
-        .withIpcMode("host")
-                    .withShmSize(GB_AS_BYTES);
-            }
+            hostConfig.withDeviceRequests(
+                List.of(
+                    new DeviceRequest()
+                        .withDriver("nvidia")
+                        .withCapabilities(List.of(List.of("gpu")))))
+                .withIpcMode("host")
+                .withShmSize(GB_AS_BYTES);
+        }
 
-        final var container = client.createContainerCmd(sourceImage)
+        final var container = retry.executeSupplier(() -> client.createContainerCmd(sourceImage)
             .withHostConfig(hostConfig)
             .withAttachStdout(true)
             .withAttachStderr(true)
             .withTty(true)
             .withEnv(config.envVars())
-            .exec();
+            .exec());
 
         final String containerId = container.getId();
         handle.logOut("Creating container from image={} done, id={}", sourceImage, containerId);
 
         handle.logOut("Starting env container with id {} ...", containerId);
-        client.startContainerCmd(container.getId()).exec();
+        retry.executeSupplier(() -> client.startContainerCmd(container.getId()).exec());
         handle.logOut("Starting env container with id {} done", containerId);
 
         this.containerId = containerId;
@@ -129,12 +142,12 @@ public class DockerEnvironment extends BaseEnvironment {
         if (envp != null && envp.length > 0) {
             execCmd.withEnv(List.of(envp));
         }
-        final ExecCreateCmdResponse exec = execCmd.exec();
+        final ExecCreateCmdResponse exec = retry.executeSupplier(execCmd::exec);
         LOG.info("Executing cmd {}", String.join(" ", command));
 
         var feature = new CompletableFuture<>();
 
-        var startCmd = client.execStartCmd(exec.getId())
+        var startCmd = retry.executeSupplier(() -> client.execStartCmd(exec.getId())
             .exec(new ResultCallbackTemplate<>() {
                 @Override
                 public void onComplete() {
@@ -176,7 +189,7 @@ public class DockerEnvironment extends BaseEnvironment {
                             + item.getStreamType());
                     }
                 }
-            });
+            }));
 
         return new LzyProcess() {
             @Override
@@ -198,7 +211,8 @@ public class DockerEnvironment extends BaseEnvironment {
             public int waitFor() throws InterruptedException {
                 try {
                     feature.get();
-                    return Math.toIntExact(client.inspectExecCmd(exec.getId()).exec().getExitCodeLong());
+                    return Math.toIntExact(retry.executeSupplier(() -> client.inspectExecCmd(exec.getId()).exec())
+                            .getExitCodeLong());
                 } catch (InterruptedException e) {
                     try {
                         startCmd.close();
@@ -215,9 +229,9 @@ public class DockerEnvironment extends BaseEnvironment {
             @Override
             public void signal(int sigValue) {
                 if (containerId != null) {
-                    client.killContainerCmd(containerId)
+                    retry.executeSupplier(() -> client.killContainerCmd(containerId)
                         .withSignal(String.valueOf(sigValue))
-                        .exec();
+                        .exec());
                 }
             }
         };
@@ -226,7 +240,7 @@ public class DockerEnvironment extends BaseEnvironment {
     @Override
     public void close() throws Exception {
         if (containerId != null) {
-            client.killContainerCmd(containerId).exec();
+            retry.executeSupplier(() -> client.killContainerCmd(containerId).exec());
         }
     }
 
@@ -236,9 +250,9 @@ public class DockerEnvironment extends BaseEnvironment {
 
     private void prepareImage(BaseEnvConfig config, StreamQueue.LogHandle handle) {
         handle.logOut("Pulling image {} ...", config.image());
-        final var pullingImage = client
+        final var pullingImage = retry.executeSupplier(() -> client
             .pullImageCmd(config.image())
-            .exec(new PullImageResultCallback());
+            .exec(new PullImageResultCallback()));
         try {
             pullingImage.awaitCompletion();
         } catch (InterruptedException e) {

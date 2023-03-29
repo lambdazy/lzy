@@ -22,8 +22,7 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
 
     public static <T> ClientHeaderInterceptor<T> header(Metadata.Key<T> key, Supplier<T> value) {
         if (GrpcHeaders.AUTHORIZATION.equals(key)) {
-            return (ClientHeaderInterceptor<T>) new ClientHeaderInterceptor<>(
-                GrpcHeaders.AUTHORIZATION, () -> "Bearer " + value.get());
+            return cast(new ClientHeaderInterceptor<>(GrpcHeaders.AUTHORIZATION, () -> "Bearer " + value.get()));
         }
 
         return new ClientHeaderInterceptor<>(key, value);
@@ -54,5 +53,10 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
                 super.start(responseListener, headers);
             }
         };
+    }
+
+    private static <T> T cast(Object obj) {
+        //noinspection unchecked
+        return (T) obj;
     }
 }

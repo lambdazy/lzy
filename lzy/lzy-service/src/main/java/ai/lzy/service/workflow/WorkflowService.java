@@ -122,7 +122,7 @@ public class WorkflowService {
 
     public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> response) {
         var newExecution = StartExecutionCompanion.of(request, this, startupPortalConfig);
-        LOG.info("Start new execution: " + newExecution.getState());
+        LOG.info("Start workflow. Create new execution: " + newExecution.getState());
         Consumer<Status> replyError = (status) -> {
             LOG.error("Fail to start new execution: status={}, msg={}.", status,
                 status.getDescription() + ", creationState: " + newExecution.getState());
@@ -168,9 +168,10 @@ public class WorkflowService {
         var slotsApiPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getSlotsApiPort();
 
         newExecution.startPortal(startupPortalConfig.getDockerImage(), portalPort, slotsApiPort,
-            startupPortalConfig.getStdoutChannelName(), startupPortalConfig.getStderrChannelName(),
-            channelManagerAddress, iamAddress, whiteboardAddress, allocationTimeout, allocatorVmCacheTimeout,
-            !config.getKafka().isEnabled());
+            startupPortalConfig.getWorkersPoolSize(), startupPortalConfig.getDownloadsPoolSize(),
+            startupPortalConfig.getChunksPoolSize(), startupPortalConfig.getStdoutChannelName(),
+            startupPortalConfig.getStderrChannelName(), channelManagerAddress, iamAddress, whiteboardAddress,
+            allocationTimeout, allocatorVmCacheTimeout, !config.getKafka().isEnabled());
 
         if (newExecution.isInvalid()) {
             LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
@@ -186,7 +187,7 @@ public class WorkflowService {
             return;
         }
 
-        LOG.info("New execution started: " + newExecution.getState());
+        LOG.info("Workflow started: " + newExecution.getState());
         response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId).build());
         response.onCompleted();
 

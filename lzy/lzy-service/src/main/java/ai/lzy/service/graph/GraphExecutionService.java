@@ -120,6 +120,8 @@ public class GraphExecutionService {
             CacheUtils.removeCachedOps(state, storageClient, LOG);
 
             if (state.isInvalid()) {
+                LOG.debug("State is invalid after check cached graph ops, finishing wf: " + state);
+
                 if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                     state.getErrorStatus()))
                 {
@@ -156,6 +158,8 @@ public class GraphExecutionService {
             }
 
             if (state.isInvalid()) {
+                LOG.debug("State is invalid after validating graph, finishing wf: " + state);
+
                 if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                     state.getErrorStatus()))
                 {
@@ -189,6 +193,8 @@ public class GraphExecutionService {
             }
 
             if (state.isInvalid()) {
+                LOG.debug("State is invalid after building graph, finishing wf: " + state);
+
                 if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                     state.getErrorStatus()))
                 {

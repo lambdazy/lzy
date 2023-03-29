@@ -8,7 +8,6 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.model.Constants;
-import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.config.LzyServiceConfig;
@@ -113,6 +112,7 @@ final class StartExecutionCompanion {
     }
 
     public void startPortal(String dockerImage, int portalPort, int slotsApiPort,
+                            int workersPoolSize, int downloadPoolSize, int chunksPoolSize,
                             String stdoutChannelName, String stderrChannelName,
                             String channelManagerAddress, String iamAddress, String whiteboardAddress,
                             Duration allocationTimeout, Duration allocateVmCacheTimeout, boolean createStdChannels)
@@ -132,7 +132,7 @@ final class StartExecutionCompanion {
 
             createAllocatorSession(allocateVmCacheTimeout);
 
-            state.setPortalId("portal_" + state.getExecutionId() + UUID.randomUUID());
+            state.setPortalId("portal_" + state.getExecutionId());
 
             withRetries(LOG, () -> owner.executionDao.updatePortalVmAllocateSession(state.getExecutionId(),
                 state.getSessionId(), state.getPortalId(), null));
@@ -140,7 +140,7 @@ final class StartExecutionCompanion {
             InjectedFailures.fail10();
 
             var allocateVmOp = startAllocation(dockerImage, channelManagerAddress, iamAddress,
-                whiteboardAddress, portalPort, slotsApiPort);
+                whiteboardAddress, portalPort, slotsApiPort, workersPoolSize, downloadPoolSize, chunksPoolSize);
             var opId = allocateVmOp.getId();
 
             VmAllocatorApi.AllocateMetadata allocateMetadata;
@@ -245,7 +245,8 @@ final class StartExecutionCompanion {
     }
 
     public LongRunning.Operation startAllocation(String dockerImage, String channelManagerAddress, String iamAddress,
-                                                 String whiteboardAddress, int portalPort, int slotsApiPort)
+                                                 String whiteboardAddress, int portalPort, int slotsApiPort,
+                                                 int workersPoolSize, int downloadPoolSize, int chunksPoolSize)
     {
         String privateKey;
         try {
@@ -272,7 +273,10 @@ final class StartExecutionCompanion {
             "-portal.slots-api-port=" + actualSlotsApiPort,
             "-portal.channel-manager-address=" + channelManagerAddress,
             "-portal.iam-address=" + iamAddress,
-            "-portal.whiteboard-address=" + whiteboardAddress));
+            "-portal.whiteboard-address=" + whiteboardAddress,
+            "-portal.concurrency.workers-pool-size=" + workersPoolSize,
+            "-portal.concurrency.downloads-pool-size=" + downloadPoolSize,
+            "-portal.concurrency.chunks-pool-size=" + chunksPoolSize));
 
         if (state.getStdoutChannelId() != null) {
             args.add("-portal.stdout-channel-id=" + state.getStdoutChannelId());
@@ -318,10 +322,8 @@ final class StartExecutionCompanion {
 
             var topicDesc = new KafkaTopicDesc(username, password, topicName);
 
-            DbHelper.withRetries(LOG, () -> owner.executionDao.setKafkaTopicDesc(state.getExecutionId(),
-                topicDesc, null));
+            withRetries(LOG, () -> owner.executionDao.setKafkaTopicDesc(state.getExecutionId(), topicDesc, null));
         } catch (Exception e) {
-
             LOG.error("Cannot save kafka topic data in db for execution {}", state.getExecutionId(), e);
             state.fail(Status.INTERNAL, "Cannot create kafka topic");
 
@@ -336,7 +338,6 @@ final class StartExecutionCompanion {
             } catch (Exception ex) {
                 LOG.error("Cannot remove topic after error {}: ", e.getMessage(), ex);
             }
-
         }
     }
 }

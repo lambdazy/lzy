@@ -5,8 +5,9 @@ locals {
     "lzy.ai/app"             = "backoffice"
   }
 
-  backoffice-k8s-name     = "lzy-backoffice"
-  github-redirect-address = var.domain_name != null ? var.domain_name : yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address
+  backoffice-k8s-name         = "lzy-backoffice"
+  backoffice-backend-k8s-name = "${local.backoffice-k8s-name}-backend"
+  github-redirect-address     = var.domain_name != null ? var.domain_name : yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address
 }
 
 resource "kubernetes_secret" "oauth_github" {
@@ -63,12 +64,13 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             for_each = var.ssl-enabled ? [1] : []
             content {
               name       = "nginx-config"
-              mount_path = "/etc/nginx"
+              mount_path = "/etc/nginx/nginx.conf"
+              sub_path   = "nginx.conf"
             }
           }
         }
         container {
-          name              = "${local.backoffice-k8s-name}-backend"
+          name              = local.backoffice-backend-k8s-name
           image             = var.backoffice-backend-image
           image_pull_policy = "Always"
           env {
@@ -123,15 +125,33 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             name  = "SITE_METRICS_PORT"
             value = local.site-metrics-port
           }
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = local.backoffice-backend-k8s-name
+          }
           port {
             name           = "backend"
             container_port = local.backoffice-backend-port
-#            host_port      = local.backoffice-backend-port
           }
           port {
             name           = "backendtls"
             container_port = local.backoffice-backend-tls-port
-#            host_port      = local.backoffice-backend-tls-port
           }
           port {
             container_port = local.site-metrics-port
@@ -158,6 +178,10 @@ resource "kubernetes_deployment" "lzy_backoffice" {
               name       = "keystore"
               mount_path = "/app/keystore"
             }
+          }
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
           }
         }
         container {
@@ -226,6 +250,13 @@ resource "kubernetes_deployment" "lzy_backoffice" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {

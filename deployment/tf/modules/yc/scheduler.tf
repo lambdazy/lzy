@@ -186,6 +186,32 @@ resource "kubernetes_deployment" "scheduler" {
             name  = "SCHEDULER_WORKER_PROCESSOR_IDLE_HEARTBEAT_PERIOD"
             value = "5m"
           }
+
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = local.scheduler-k8s-name
+          }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
         }
         container {
           name = "unified-agent"
@@ -208,6 +234,13 @@ resource "kubernetes_deployment" "scheduler" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {
