@@ -242,12 +242,7 @@ class RemoteRuntime(Runtime):
                 return spec
         return None
 
-    @retry(action_name="listening to std slots", config=RetryConfig(
-        initial_backoff_ms=1000,
-        max_retry=12000,
-        backoff_multiplier=1,
-        max_backoff_ms=10000
-    ))
+    @retry(action_name="listening to std slots", config=RetryConfig(max_retry=12000, backoff_multiplier=1.2))
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
         async for data in client.read_std_slots(execution_id):
