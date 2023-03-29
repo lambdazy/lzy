@@ -2,6 +2,7 @@ package ai.lzy.util.grpc;
 
 import io.grpc.Context;
 import io.grpc.Metadata;
+import jakarta.annotation.Nullable;
 import lombok.Lombok;
 
 import java.util.Map;
@@ -21,32 +22,37 @@ public class GrpcHeaders {
         return HEADERS.get();
     }
 
+    @Nullable
     public static String getHeader(String headerName) {
         return getHeader(createMetadataKey(headerName));
     }
 
-    public static String getHeader(Metadata.Key<String> key) {
+    @Nullable
+    public static <T> T getHeader(Metadata.Key<T> key) {
         return getHeader(getHeaders(), key);
     }
 
-    public static String getHeader(Metadata headers, Metadata.Key<String> key) {
+    @Nullable
+    public static <T> T getHeader(@Nullable Metadata headers, Metadata.Key<T> key) {
         return headers == null ? null : headers.get(key);
     }
 
-    public static String getHeaderOrDefault(Metadata.Key<String> key, String defaultValue) {
+    public static <T> T getHeaderOrDefault(Metadata.Key<T> key, T defaultValue) {
         Objects.requireNonNull(defaultValue);
         return getHeaderOrDefault(getHeaders(), key, defaultValue);
     }
 
-    public static String getHeaderOrDefault(Metadata headers, Metadata.Key<String> key, String defaultValue) {
+    public static <T> T getHeaderOrDefault(@Nullable Metadata headers, Metadata.Key<T> key, T defaultValue) {
         Objects.requireNonNull(defaultValue);
         return Optional.ofNullable(headers).map(m -> m.get(key)).orElse(defaultValue);
     }
 
+    @Nullable
     public static String getIdempotencyKey() {
         return getHeader(IDEMPOTENCY_KEY);
     }
 
+    @Nullable
     public static String getRequestId() {
         return getHeader(X_REQUEST_ID);
     }
@@ -75,6 +81,14 @@ public class GrpcHeaders {
         ctx.wrap(fn).run();
     }
 
+    public static ContextBuilder withContext() {
+        return new ContextBuilder(true);
+    }
+
+    public static ContextBuilder withNewContext() {
+        return new ContextBuilder(false);
+    }
+
     private static Metadata.Key<String> createMetadataKey(String headerName) {
         return Metadata.Key.of(headerName, Metadata.ASCII_STRING_MARSHALLER);
     }
@@ -83,6 +97,43 @@ public class GrpcHeaders {
         Metadata headers = getHeaders();
         if (headers != null) {
             headers.removeAll(key);
+        }
+    }
+
+    public static class ContextBuilder {
+        private final Metadata metadata;
+
+        public ContextBuilder(boolean useExisting) {
+            if (useExisting) {
+                metadata = Objects.requireNonNullElseGet(getHeaders(), Metadata::new);
+            } else {
+                metadata = new Metadata();
+            }
+        }
+
+        public ContextBuilder withMeta(Metadata meta) {
+            this.metadata.merge(meta);
+            return this;
+        }
+
+        public <T> ContextBuilder withHeader(Metadata.Key<T> key, T value) {
+            if (value != null) {
+                metadata.put(key, value);
+            }
+            return this;
+        }
+
+        public Context build() {
+            Objects.requireNonNull(metadata);
+            return Context.current().withValue(HEADERS, metadata);
+        }
+
+        public void run(Runnable r) {
+            withContext(build(), r);
+        }
+
+        public <T> T run(Supplier<T> fn) {
+            return withContext(build(), fn);
         }
     }
 }
