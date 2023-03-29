@@ -217,7 +217,8 @@ public class BfsGraphProcessor implements GraphProcessor {
                         }
                         final var status = api.status(graphExecution.workflowId(), exec.id());
                         return status != null && status.hasSuccess();
-                    })) {
+                    }))
+            {
                 nextGroup.add(comp);
             }
         }

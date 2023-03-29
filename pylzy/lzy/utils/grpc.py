@@ -42,8 +42,8 @@ _LOG = get_logger(__name__)
 class RetryConfig:
     max_retry: int = 5
     initial_backoff_ms: int = 1000
-    max_backoff_ms: int = 64000
-    backoff_multiplier: int = 2
+    max_backoff_ms: int = 5000
+    backoff_multiplier: float = 1.0
     retryable_status_codes: Sequence[StatusCode] = dataclasses.field(
         default_factory=lambda: [StatusCode.UNAVAILABLE, StatusCode.CANCELLED]
     )
@@ -64,6 +64,9 @@ def build_channel(
         ("grpc.keepalive_permit_without_calls", 1),
         ("grpc.keepalive_time_ms", keepalive_ms),
         ("grpc.keepalive_timeout_ms", KEEP_ALIVE_TIMEOUT_MS),
+        ("grpc.initial_reconnect_backoff_ms", retry_config.initial_backoff_ms),
+        ("grpc.min_reconnect_backoff_ms", retry_config.initial_backoff_ms),
+        ("grpc.max_reconnect_backoff_ms", retry_config.max_backoff_ms)
     ]
 
     if enable_retry:
@@ -228,7 +231,7 @@ def retry(config: RetryConfig, action_name: str):
             retry_count = 0
             current_backoff = config.initial_backoff_ms
 
-            while retry_count <= config.max_retry and current_backoff <= config.max_backoff_ms:
+            while retry_count <= config.max_retry:
                 try:
                     return await f(*args, **kwargs)
                 except AioRpcError as e:
@@ -238,7 +241,7 @@ def retry(config: RetryConfig, action_name: str):
 
                         await asyncio.sleep(current_backoff / 1000)
                         retry_count += 1
-                        current_backoff *= config.backoff_multiplier
+                        current_backoff = min(config.max_backoff_ms, int(current_backoff * config.backoff_multiplier))
                         continue
                     raise e
             raise RuntimeError("Lost connection to lzy servers. Please check your network connection and ty again.")
