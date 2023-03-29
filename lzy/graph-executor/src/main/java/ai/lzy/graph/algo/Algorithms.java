@@ -55,7 +55,8 @@ public class Algorithms {
 
     public static <T extends DirectedGraph.Vertex, E extends DirectedGraph.Edge<T>> CondensedGraph<T, E> condenseGraph(
         DirectedGraph<T, E> graph
-    ) {
+    )
+    {
         final Set<T> used = new HashSet<>();
         final List<T> order = new ArrayList<>();
 
