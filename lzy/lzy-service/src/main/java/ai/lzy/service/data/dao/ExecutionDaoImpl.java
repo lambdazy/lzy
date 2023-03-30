@@ -57,6 +57,11 @@ public class ExecutionDaoImpl implements ExecutionDao {
         SET portal = cast(? as portal_status), portal_vm_address = ?, portal_fs_address = ?
         WHERE execution_id = ?""";
 
+    private static final String QUERY_UPDATE_SUBJECT_ID = """
+        UPDATE workflow_executions
+        SET portal_subject_id = ?
+        WHERE execution_id = ?""";
+
     private static final String QUERY_GET_EXEC_FINISH_DATA = """
         SELECT execution_id, finished_at, finished_with_error, finished_error_code
         FROM workflow_executions
@@ -90,7 +95,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
           portal_fs_address,
           portal_stdout_channel_id,
           portal_stderr_channel_id,
-          portal_id
+          portal_id,
+          portal_subject_id
         FROM workflow_executions
         WHERE execution_id = ?""";
 
@@ -200,6 +206,19 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 statement.setString(2, vmAddress);
                 statement.setString(3, fsAddress);
                 statement.setString(4, executionId);
+                statement.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void updatePortalSubjectId(String executionId, String subjectId, TransactionHandle transaction)
+        throws SQLException
+    {
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement(QUERY_UPDATE_SUBJECT_ID)) {
+                statement.setString(1, subjectId);
+                statement.setString(2, executionId);
                 statement.executeUpdate();
             }
         });
@@ -386,9 +405,10 @@ public class ExecutionDaoImpl implements ExecutionDao {
                     var stdoutChannelId = rs.getString(6);
                     var stderrChannelId = rs.getString(7);
                     var portalId = rs.getString(8);
+                    var portalSubjectId = rs.getString(9);
 
-                    descriptions[0] = new PortalDescription(portalId, allocateSessionId, vmId, vmAddress, fsAddress,
-                        stdoutChannelId, stderrChannelId, status);
+                    descriptions[0] = new PortalDescription(portalId, portalSubjectId, allocateSessionId, vmId,
+                        vmAddress, fsAddress, stdoutChannelId, stderrChannelId, status);
                 } else {
                     LOG.warn("Cannot find portal description: { executionId: {} }", executionId);
                 }
