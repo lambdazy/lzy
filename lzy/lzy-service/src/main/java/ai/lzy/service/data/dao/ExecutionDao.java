@@ -27,6 +27,9 @@ public interface ExecutionDao {
                                @Nullable TransactionHandle transaction)
         throws SQLException;
 
+    void updatePortalSubjectId(String executionId, String subjectId, @Nullable TransactionHandle transaction)
+        throws SQLException;
+
     void updateFinishData(String userId, String executionId, Status status, @Nullable TransactionHandle transaction)
         throws SQLException;
 
