@@ -7,10 +7,10 @@ import jakarta.inject.Singleton;
 
 
 @Singleton
-public class WorkflowMetrics {
+public class LzyServiceMetrics {
     private static final String LZY_SERVICE = "lzy_service";
 
-    public WorkflowMetrics(@Named("LzyServiceMetricReporter") MetricReporter ignored) {
+    public LzyServiceMetrics(@Named("LzyServiceMetricReporter") MetricReporter ignored) {
     }
 
     public final Gauge activeExecutions = Gauge
@@ -18,5 +18,4 @@ public class WorkflowMetrics {
         .subsystem(LZY_SERVICE)
         .labelNames("user")
         .register();
-
 }

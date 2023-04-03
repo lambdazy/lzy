@@ -6,7 +6,7 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.PortalSlotsListener;
-import ai.lzy.service.WorkflowMetrics;
+import ai.lzy.service.LzyServiceMetrics;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.PortalDescription;
@@ -60,7 +60,7 @@ public class WorkflowService {
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
-    private final WorkflowMetrics metrics;
+    private final LzyServiceMetrics metrics;
 
     final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     final LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOpService;
@@ -82,7 +82,7 @@ public class WorkflowService {
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel,
                            @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
-                           WorkflowMetrics metrics)
+                           LzyServiceMetrics metrics)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
@@ -147,6 +147,8 @@ public class WorkflowService {
             return;
         }
 
+        metrics.activeExecutions.labels(newExecution.getOwner()).inc();
+
         var portalPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getPortalApiPort();
         var slotsApiPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getSlotsApiPort();
 
@@ -173,8 +175,6 @@ public class WorkflowService {
         LOG.info("Workflow started: " + newExecution.getState());
         response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId).build());
         response.onCompleted();
-
-        metrics.activeExecutions.labels(newExecution.getOwner()).inc();
     }
 
     public void completeExecution(String userId, String executionId, Operation operation) {

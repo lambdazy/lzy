@@ -59,7 +59,7 @@ public class CleanExecutionCompanion {
     private final PortalClientProvider portalClients;
     private final ManagedChannel channelManagerChannel;
     private final SubjectServiceGrpcClient subjectClient;
-    private final WorkflowMetrics metrics;
+    private final LzyServiceMetrics metrics;
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
@@ -72,7 +72,7 @@ public class CleanExecutionCompanion {
                                    @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
                                    @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                                    @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
-                                   WorkflowMetrics metrics)
+                                   LzyServiceMetrics metrics)
     {
         this.storage = storage;
         this.workflowDao = workflowDao;
