@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-
     <modelVersion>4.0.0</modelVersion>
-    <groupId>ai.lzy</groupId>
+    <parent>
+        <groupId>ai.lzy</groupId>
+        <artifactId>parent</artifactId>
+        <version>${revision}${changelist}</version>
+        <relativePath>../parent</relativePath>
+    </parent>
+
     <artifactId>coverage</artifactId>
-    <version>${revision}${changelist}</version>
 
     <properties>
-        <revision>1.8</revision>
-        <changelist>-SNAPSHOT</changelist>
-        <jacoco-maven-plugin.version>0.8.8</jacoco-maven-plugin.version>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
 
@@ -94,29 +95,6 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>flatten-maven-plugin</artifactId>
-                <version>1.4.0</version>
-                <configuration>
-                    <updatePomFile>true</updatePomFile>
-                    <flattenMode>resolveCiFriendliesOnly</flattenMode>
-                </configuration>
-                <executions>
-                    <!-- enable flattening -->
-                    <execution>
-                        <id>flatten</id>
-                        <phase>process-resources</phase>
-                        <goals>
-                            <goal>flatten</goal>
-                        </goals>
-                    </execution>
-                    <!-- ensure proper cleanup -->
-                    <execution>
-                        <id>flatten.clean</id>
-                        <phase>clean</phase>
-                        <goals>
-                            <goal>clean</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.jacoco</groupId>
