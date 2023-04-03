@@ -65,6 +65,6 @@ class S3Client(AsyncStorageClient):
             url = await client.generate_presigned_url(
                 "get_object",
                 Params={"Bucket": container, "Key": blob},
-                ExpiresIn=3600,  # 1 h
+                ExpiresIn=259200,  # 3 days
             )
             return cast(str, url)

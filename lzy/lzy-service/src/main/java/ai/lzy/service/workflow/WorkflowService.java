@@ -5,8 +5,8 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.CleanExecutionCompanion;
+import ai.lzy.service.LzyServiceMetrics;
 import ai.lzy.service.PortalSlotsListener;
-import ai.lzy.service.WorkflowMetrics;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.PortalDescription;
@@ -60,7 +60,7 @@ public class WorkflowService {
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
-    private final WorkflowMetrics metrics;
+    private final LzyServiceMetrics metrics;
 
     final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     final LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOpService;
@@ -80,7 +80,9 @@ public class WorkflowService {
                            @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
-                           @Named("IamServiceChannel") ManagedChannel iamChannel, WorkflowMetrics metrics)
+                           @Named("IamServiceChannel") ManagedChannel iamChannel,
+                           @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
+                           LzyServiceMetrics metrics)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
@@ -106,13 +108,13 @@ public class WorkflowService {
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
             () -> internalUserCredentials.get().token());
 
-        this.subjectClient = new SubjectServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
+        this.subjectClient = subjectClient;
         this.abClient = new AccessBindingServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
     }
 
     public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> response) {
         var newExecution = StartExecutionCompanion.of(request, this, startupPortalConfig);
-        LOG.info("Start new execution: " + newExecution.getState());
+        LOG.info("Start workflow. Create new execution: " + newExecution.getState());
         Consumer<Status> replyError = (status) -> {
             LOG.error("Fail to start new execution: status={}, msg={}.", status,
                 status.getDescription() + ", creationState: " + newExecution.getState());
@@ -145,12 +147,16 @@ public class WorkflowService {
             return;
         }
 
+        metrics.activeExecutions.labels(newExecution.getOwner()).inc();
+
         var portalPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getPortalApiPort();
         var slotsApiPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getSlotsApiPort();
 
         newExecution.startPortal(startupPortalConfig.getDockerImage(), portalPort, slotsApiPort,
-            startupPortalConfig.getStdoutChannelName(), startupPortalConfig.getStderrChannelName(),
-            channelManagerAddress, iamAddress, whiteboardAddress, allocationTimeout, allocatorVmCacheTimeout);
+            startupPortalConfig.getWorkersPoolSize(), startupPortalConfig.getDownloadsPoolSize(),
+            startupPortalConfig.getChunksPoolSize(), startupPortalConfig.getStdoutChannelName(),
+            startupPortalConfig.getStderrChannelName(), channelManagerAddress, iamAddress, whiteboardAddress,
+            allocationTimeout, allocatorVmCacheTimeout);
 
         if (newExecution.isInvalid()) {
             LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
@@ -166,11 +172,9 @@ public class WorkflowService {
             return;
         }
 
-        LOG.info("New execution started: " + newExecution.getState());
+        LOG.info("Workflow started: " + newExecution.getState());
         response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId).build());
         response.onCompleted();
-
-        metrics.activeExecutions.labels(newExecution.getOwner()).inc();
     }
 
     public void completeExecution(String userId, String executionId, Operation operation) {

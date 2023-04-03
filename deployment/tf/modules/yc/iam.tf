@@ -110,11 +110,36 @@ resource "kubernetes_deployment" "iam" {
             name  = "IAM_METRICS_PORT"
             value = local.iam-metrics-port
           }
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = local.iam-k8s-name
+          }
           port {
             container_port = local.iam-port
           }
           port {
             container_port = local.iam-metrics-port
+          }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
           }
         }
         container {
@@ -138,6 +163,13 @@ resource "kubernetes_deployment" "iam" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {

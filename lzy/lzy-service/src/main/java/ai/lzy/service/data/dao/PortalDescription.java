@@ -4,6 +4,7 @@ import com.google.common.net.HostAndPort;
 
 public record PortalDescription(
     String portalId,
+    String subjectId,
     String allocatorSessionId,
     String vmId,
     HostAndPort vmAddress,

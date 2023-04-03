@@ -129,7 +129,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         try {
             allocateJob.schedule(op.id(), taskState, null, null);
         } catch (JobSerializer.SerializationException e) {
-            LOG.error("Error while scheduling task {}", taskState.id());
+            LOG.error("Error while scheduling task {}", taskState.id(), e);
 
             try {
                 opDao.failOperation(op.id(), com.google.rpc.Status.newBuilder()

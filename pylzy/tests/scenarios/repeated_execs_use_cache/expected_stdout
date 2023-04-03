@@ -1,0 +1,5 @@
+message producer was called
+bar was called
+message from 'Graceful' bar: My name is Graceful
+bar was called
+message from 'Graceful' bar: My name is Graceful

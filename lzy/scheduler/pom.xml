@@ -48,6 +48,11 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>util-test</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-core</artifactId>
             <scope>compile</scope>
@@ -75,6 +80,10 @@
         <dependency>
             <groupId>com.github.docker-java</groupId>
             <artifactId>docker-java</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-protobuf</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>

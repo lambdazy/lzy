@@ -26,7 +26,6 @@ import yandex.cloud.api.operation.OperationServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceGrpc.OperationServiceBlockingStub;
 import yandex.cloud.sdk.ServiceFactory;
 
-import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import javax.annotation.Nullable;
@@ -175,24 +174,25 @@ public class YcDiskManager implements DiskManager {
     public DiskOperation restoreDiskOperation(DiskOperation template) {
         var outerOp = new DiskManager.OuterOperation(
             template.opId(), template.descr(), template.startedAt(), template.deadline());
-        var ctx = GrpcHeaders.createContext(Map.of(GrpcHeaders.X_REQUEST_ID, template.reqid()));
-        return GrpcHeaders.withContext(ctx, () -> switch (template.diskOpType()) {
-            case CREATE -> {
-                var state = fromJson(template.state(), YcCreateDiskState.class);
-                var action = new YcCreateDiskAction(outerOp, state, this);
-                yield template.withDeferredAction(action);
-            }
-            case CLONE -> {
-                var state = fromJson(template.state(), YcCloneDiskState.class);
-                var action = new YcCloneDiskAction(outerOp, state, this);
-                yield template.withDeferredAction(action);
-            }
-            case DELETE -> {
-                var state = fromJson(template.state(), YcDeleteDiskState.class);
-                var action = new YcDeleteDiskAction(outerOp, state, this);
-                yield template.withDeferredAction(action);
-            }
-        });
+        return GrpcHeaders.withContext()
+            .withHeader(GrpcHeaders.X_REQUEST_ID, template.reqid())
+            .run(() -> switch (template.diskOpType()) {
+                case CREATE -> {
+                    var state = fromJson(template.state(), YcCreateDiskState.class);
+                    var action = new YcCreateDiskAction(outerOp, state, this);
+                    yield template.withDeferredAction(action);
+                }
+                case CLONE -> {
+                    var state = fromJson(template.state(), YcCloneDiskState.class);
+                    var action = new YcCloneDiskAction(outerOp, state, this);
+                    yield template.withDeferredAction(action);
+                }
+                case DELETE -> {
+                    var state = fromJson(template.state(), YcDeleteDiskState.class);
+                    var action = new YcDeleteDiskAction(outerOp, state, this);
+                    yield template.withDeferredAction(action);
+                }
+            });
     }
 
     AllocatorDataSource storage() {

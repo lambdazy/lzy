@@ -29,6 +29,17 @@ public class PortalConfig {
     private String allocatorAddress;
     private Duration allocatorHeartbeatPeriod;
 
+    private ConcurrencyConfig concurrency;
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("concurrency")
+    public static final class ConcurrencyConfig {
+        private int workersPoolSize = 10;
+        private int downloadsPoolSize = 5;
+        private int chunksPoolSize = 5;
+    }
+
     public String toSafeString() {
         return "{ " + "portalId: " + portalId +
             ", host: " + host +

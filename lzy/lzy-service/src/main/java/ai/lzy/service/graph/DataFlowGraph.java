@@ -1,5 +1,6 @@
 package ai.lzy.service.graph;
 
+import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -17,18 +18,12 @@ import javax.annotation.Nullable;
 @JsonDeserialize
 @NoArgsConstructor
 class DataFlowGraph {
-    record Node(
-        String operationName,
-        List<SlotDescription> inputs,
-        List<SlotDescription> outputs
-    ) {}
-
     private static final String edge = " -> ";
 
     @JsonIgnore
     private List<List<Integer>> graph;
     @JsonIgnore
-    private ArrayList<Node> operations;
+    private ArrayList<LWF.Operation> operations;
 
     // slot uri ---> (slot name, operation id)
     @JsonIgnore
@@ -53,33 +48,42 @@ class DataFlowGraph {
     @Setter
     private String dotNotation;
 
-    public DataFlowGraph(Collection<Node> operations) {
-        this.operations = new ArrayList<>(operations);
+    public DataFlowGraph(Collection<LWF.Operation> operations) {
+        this.operations = new ArrayList<>();
 
         dataSuppliers = new HashMap<>();
         dataConsumers = new HashMap<>();
 
         var i = 0;
-        for (var operation : this.operations) {
-            for (SlotDescription slot : operation.inputs) {
-                var consumers = dataConsumers.computeIfAbsent(slot.getStorageUri(), k -> new ArrayList<>());
-                consumers.add(new AbstractMap.SimpleImmutableEntry<>(slot.getPath(), i));
+        for (var op : operations) {
+            var outputAlreadyInGraph = !op.getOutputSlotsList().isEmpty() && op.getOutputSlotsList().stream()
+                .map(SlotDescription::getStorageUri).allMatch(dataSuppliers::containsKey);
+
+            if (outputAlreadyInGraph) {
+                continue;
             }
-            for (SlotDescription slot : operation.outputs) {
+
+            for (SlotDescription slot : op.getOutputSlotsList()) {
                 var supplier = dataSuppliers.get(slot.getStorageUri());
                 if (supplier != null) {
                     throw new RuntimeException("Output slot with uri '" + slot.getStorageUri() + "' already exists");
                 }
                 dataSuppliers.put(slot.getStorageUri(), new AbstractMap.SimpleEntry<>(slot.getPath(), i));
             }
+            for (SlotDescription slot : op.getInputSlotsList()) {
+                var consumers = dataConsumers.computeIfAbsent(slot.getStorageUri(), k -> new ArrayList<>());
+                consumers.add(new AbstractMap.SimpleImmutableEntry<>(slot.getPath(), i));
+            }
             i++;
+
+            this.operations.add(op);
         }
 
         danglingInputSlots = new HashMap<>();
-        graph = new ArrayList<>(operations.size());
+        graph = new ArrayList<>(this.operations.size());
 
         for (var operation : this.operations) {
-            for (SlotDescription slot : operation.inputs) {
+            for (SlotDescription slot : operation.getInputSlotsList()) {
                 if (!dataSuppliers.containsKey(slot.getStorageUri())) {
                     danglingInputSlots.compute(slot.getStorageUri(), (slotUri, consumers) -> {
                         consumers = (consumers != null) ? consumers : new ArrayList<>();
@@ -90,7 +94,7 @@ class DataFlowGraph {
             }
 
             var to = new ArrayList<Integer>();
-            for (SlotDescription slot : operation.outputs) {
+            for (SlotDescription slot : operation.getOutputSlotsList()) {
                 var consumers = dataConsumers.get(slot.getStorageUri());
                 if (consumers != null) {
                     for (var consumer : consumers) {
@@ -104,6 +108,10 @@ class DataFlowGraph {
 
         dataflow = calculateDataFlow();
         dotNotation = printDotNotation();
+    }
+
+    public ArrayList<LWF.Operation> getOperations() {
+        return operations;
     }
 
     private int[] dfs(int v, int[] colors, int[] prev) {
@@ -162,7 +170,7 @@ class DataFlowGraph {
         if (cycle == null) {
             throw new IllegalStateException("Cycle not found");
         }
-        return cycle.stream().map(i -> operations.get(i).operationName).collect(Collectors.joining(edge));
+        return cycle.stream().map(i -> operations.get(i).getName()).collect(Collectors.joining(edge));
     }
 
     private String printDotNotation() {
@@ -207,7 +215,7 @@ class DataFlowGraph {
         }
 
         int operationId = dataSuppliers.get(slotUri).getValue();
-        return operations.get(operationId).operationName;
+        return operations.get(operationId).getName();
     }
 
     private String findConsumerOperationIdBy(String slotUri, String slotName) {
@@ -216,7 +224,7 @@ class DataFlowGraph {
             .filter(slot -> slot.getKey().contentEquals(slotName))
             .findFirst()
             .orElseThrow();
-        return operations.get(slotNameAndOpId.getValue()).operationName;
+        return operations.get(slotNameAndOpId.getValue()).getName();
     }
 
     /**
@@ -245,8 +253,7 @@ class DataFlowGraph {
                 }
 
                 return new Data(supplierSlotUri, supplierSlotName, consumerSlotNames);
-            })
-            .toList();
+            }).toList();
 
         var notFoundInOutput = danglingInputSlots.entrySet().stream()
             .map(pair -> new Data(pair.getKey(), null, pair.getValue()))

@@ -1,5 +1,7 @@
 package ai.lzy.service;
 
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -56,7 +58,8 @@ public class CleanExecutionCompanion {
 
     private final PortalClientProvider portalClients;
     private final ManagedChannel channelManagerChannel;
-    private final WorkflowMetrics metrics;
+    private final SubjectServiceGrpcClient subjectClient;
+    private final LzyServiceMetrics metrics;
     private final LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerClient;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
@@ -68,7 +71,8 @@ public class CleanExecutionCompanion {
                                    @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                    @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
                                    @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
-                                   WorkflowMetrics metrics)
+                                   @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
+                                   LzyServiceMetrics metrics)
     {
         this.storage = storage;
         this.workflowDao = workflowDao;
@@ -80,6 +84,7 @@ public class CleanExecutionCompanion {
 
         this.portalClients = portalClients;
         this.channelManagerChannel = channelManagerChannel;
+        this.subjectClient = subjectClient;
         this.metrics = metrics;
         this.channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
@@ -219,6 +224,10 @@ public class CleanExecutionCompanion {
             deleteSession(executionId, portalDesc.allocatorSessionId());
         }
 
+        if (portalDesc != null && portalDesc.subjectId() != null) {
+            removePortalSubject(executionId, portalDesc.subjectId());
+        }
+
         try {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
@@ -288,6 +297,19 @@ public class CleanExecutionCompanion {
 
         if (portalDesc != null && portalDesc.allocatorSessionId() != null) {
             deleteSession(executionId, portalDesc.allocatorSessionId());
+        }
+
+        if (portalDesc != null && portalDesc.subjectId() != null) {
+            removePortalSubject(executionId, portalDesc.subjectId());
+        }
+
+        if (portalDesc != null && portalDesc.subjectId() != null) {
+            try {
+                subjectClient.removeSubject(new Worker(portalDesc.subjectId()));
+            } catch (Exception e) {
+                LOG.warn("Cannot remove portal subject from iam: { executionId: {}, subjectId: {} }", executionId,
+                    portalDesc.subjectId());
+            }
         }
 
         try {
@@ -419,6 +441,17 @@ public class CleanExecutionCompanion {
         } catch (Exception e) {
             LOG.warn("Cannot delete allocator session for execution: { sessionId: {}, executionId: {} }",
                 sessionId, executionId, e);
+        }
+    }
+
+    public void removePortalSubject(String executionId, String subjectId) {
+        LOG.debug("Remove portal iam subject: { executionId: {}, subjectId: {} }", executionId, subjectId);
+
+        try {
+            subjectClient.removeSubject(new Worker(subjectId));
+            withRetries(LOG, () -> executionDao.updatePortalSubjectId(executionId, null, null));
+        } catch (Exception e) {
+            LOG.warn("Cannot remove portal iam subject: { executionId: {}, subjectId: {} }", executionId, subjectId);
         }
     }
 }

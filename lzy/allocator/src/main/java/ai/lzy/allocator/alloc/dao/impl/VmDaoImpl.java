@@ -25,6 +25,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.*;
 
@@ -35,7 +36,7 @@ import static java.util.stream.Collectors.joining;
 public class VmDaoImpl implements VmDao {
     private static final String SPEC_FIELDS =
         "id, session_id, pool_label, zone, init_workloads_json, workloads_json, volume_requests_json, " +
-        "v6_proxy_address, cluster_type";
+        "v6_proxy_address, tunnel_index, cluster_type";
 
     private static final String STATUS_FIELDS =
         "status";
@@ -76,7 +77,7 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_CREATE_VM = """
         INSERT INTO vm (%s, %s, %s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_START_FIELDS);
 
     private static final String QUERY_START_DELETE_VM = """
@@ -251,7 +252,13 @@ public class VmDaoImpl implements VmDao {
                 s.setString(++idx, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
                 s.setString(++idx, objectMapper.writeValueAsString(vmSpec.workloads()));
                 s.setString(++idx, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
-                s.setString(++idx, vmSpec.proxyV6Address() == null ? null : vmSpec.proxyV6Address().getHostAddress());
+                s.setString(++idx, vmSpec.tunnelSettings() == null ? null
+                    : vmSpec.tunnelSettings().proxyV6Address().getHostAddress());
+                if (vmSpec.tunnelSettings() == null) {
+                    s.setNull(++idx, Types.INTEGER);
+                } else {
+                    s.setInt(++idx, vmSpec.tunnelSettings().tunnelIndex());
+                }
                 s.setString(++idx, vmSpec.clusterType().name());
 
                 // status
@@ -315,7 +322,8 @@ public class VmDaoImpl implements VmDao {
                 s.setString(++idx, objectMapper.writeValueAsString(vmSpec.workloads()));
                 s.setString(++idx, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
                 s.setString(++idx, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
-                s.setString(++idx, vmSpec.proxyV6Address() != null ? vmSpec.proxyV6Address().getHostAddress() : "");
+                s.setString(++idx, vmSpec.tunnelSettings() != null
+                    ? vmSpec.tunnelSettings().proxyV6Address().getHostAddress() : "");
 
                 final var res = s.executeQuery();
                 if (!res.next()) {
@@ -616,6 +624,10 @@ public class VmDaoImpl implements VmDao {
                 }
             })
             .orElse(null);
+        Integer tunnelIndex = rs.getInt(++idx);
+        if (rs.wasNull()) {
+            tunnelIndex = null;
+        }
 
         final var clusterType = ClusterRegistry.ClusterType.valueOf(rs.getString(++idx));
 
@@ -691,9 +703,16 @@ public class VmDaoImpl implements VmDao {
             deleteState = null;
         }
 
+        final Vm.TunnelSettings tunnelSettings;
+        if (v6ProxyAddress != null && tunnelIndex != null) {
+            tunnelSettings = new Vm.TunnelSettings(v6ProxyAddress, tunnelIndex);
+        } else {
+            tunnelSettings = null;
+        }
+
         return new Vm(
-            new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads,
-                volumeRequests, v6ProxyAddress, clusterType),
+            new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, tunnelSettings,
+                clusterType),
             vmStatus,
             new Vm.InstanceProperties(vmSubjectId, tunnelPodName),
             new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationWorker,

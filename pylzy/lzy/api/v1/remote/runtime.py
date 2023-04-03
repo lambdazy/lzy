@@ -130,6 +130,10 @@ class RemoteRuntime(Runtime):
         _LOG.debug(f"Starting executing graph {graph}")
 
         graph_id = await client.execute_graph(cast(LzyWorkflow, self.__workflow).name, self.__execution_id, graph)
+        if not graph_id:
+            _LOG.debug("Results of all graph operations are cached. Execution graph is not started")
+            return
+
         _LOG.debug(f"Requesting remote execution, graph_id={graph_id}")
 
         progress(ProgressStep.WAITING)
@@ -238,12 +242,7 @@ class RemoteRuntime(Runtime):
                 return spec
         return None
 
-    @retry(action_name="listening to std slots", config=RetryConfig(
-        initial_backoff_ms=1000,
-        max_retry=12000,
-        backoff_multiplier=1,
-        max_backoff_ms=10000
-    ))
+    @retry(action_name="listening to std slots", config=RetryConfig(max_retry=12000, backoff_multiplier=1.2))
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
         async for data in client.read_std_slots(execution_id):

@@ -35,6 +35,9 @@
 .project
 .settings
 
+# vim
+*.sw?
+
 # Gradle and Maven with auto-import
 # When using Gradle or Maven with auto-import, you should exclude module files,
 # since they will be recreated, and may cause churn.  Uncomment if using
@@ -199,8 +202,5 @@ test/slot.json
 
 /pylzy/.tox/
 worker/docker/tmp-for-context
-
-/pylzy/readme.md
-/pylzy/LICENSE
 
 lzy-test-cert.pem

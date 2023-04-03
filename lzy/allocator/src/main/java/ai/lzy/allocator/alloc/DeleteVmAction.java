@@ -1,5 +1,6 @@
 package ai.lzy.allocator.alloc;
 
+import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.iam.resources.subjects.AuthProvider;
@@ -25,6 +26,7 @@ public final class DeleteVmAction extends OperationRunnerBase {
     private String vmSubjectId = null;
     private boolean iamSubjectDeleted = false;
     private boolean tunnelDeleted = false;
+    private boolean tunnelAgentDeleted = false;
     private boolean deallocated = false;
 
     public DeleteVmAction(Vm vm, String deleteOpId, AllocationContext allocationContext) {
@@ -58,7 +60,8 @@ public final class DeleteVmAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(this::start, this::deleteIamSubject, this::deleteTunnel, this::deallocateVm, this::cleanDb);
+        return List.of(this::start, this::deleteIamSubject, this::deleteTunnel, this::deallocateTunnel,
+                this::deallocateVm, this::cleanDb);
     }
 
     private StepResult start() {
@@ -145,10 +148,69 @@ public final class DeleteVmAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
+        var allocatorMeta = vm.allocateState().allocatorMeta();
+        if (allocatorMeta == null) {
+            log().warn("{} Allocator meta for vm {} is null", logPrefix(), vm.vmId());
+            return StepResult.ALREADY_DONE;
+        }
+
+        var clusterId = allocatorMeta.get(KuberVmAllocator.CLUSTER_ID_KEY);
+        if (clusterId == null) {
+            log().warn("{} Cluster id isn't found for vm {}", logPrefix(), vm.vmId());
+            return StepResult.ALREADY_DONE;
+        }
+
         try {
-            allocationContext.tunnelAllocator().deallocateTunnel(name);
-            tunnelDeleted = true;
-            return StepResult.CONTINUE;
+            VmAllocator.Result result = allocationContext.tunnelAllocator().deleteTunnel(clusterId, name);
+            return switch (result.code()) {
+                case SUCCESS -> {
+                    tunnelDeleted = true;
+                    yield StepResult.CONTINUE;
+                }
+                case RETRY_LATER, FAILED -> {
+                    log().error("{} Cannot delete tunnel on tunnel pod {}: {}", logPrefix(), name, result.message());
+                    yield StepResult.RESTART;
+                }
+            };
+        } catch (Exception e) {
+            log().error("{} Cannot delete tunnel on tunnel pod {}: {}", logPrefix(), name, e.getMessage(), e);
+            return StepResult.RESTART;
+        }
+    }
+
+    private StepResult deallocateTunnel() {
+        var name = vm.instanceProperties().tunnelPodName();
+        if (name == null) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        if (tunnelAgentDeleted) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        var allocatorMeta = vm.allocateState().allocatorMeta();
+        if (allocatorMeta == null) {
+            log().warn("{} Allocator meta for vm {} is null", logPrefix(), vm.vmId());
+            return StepResult.ALREADY_DONE;
+        }
+        var clusterId = allocatorMeta.get(KuberVmAllocator.CLUSTER_ID_KEY);
+        if (clusterId == null) {
+            log().warn("{} Cluster id isn't found for vm {}", logPrefix(), vm.vmId());
+            return StepResult.ALREADY_DONE;
+        }
+
+        try {
+            var result = allocationContext.tunnelAllocator().deallocateTunnelAgent(clusterId, name);
+            return switch (result.code()) {
+                case SUCCESS -> {
+                    tunnelAgentDeleted = true;
+                    yield StepResult.CONTINUE;
+                }
+                case RETRY_LATER, FAILED -> {
+                    log().error("{} Cannot delete tunnel pod {}. Reason: {}", logPrefix(), name, result.message());
+                    yield StepResult.RESTART;
+                }
+            };
         } catch (Exception e) {
             log().error("{} Cannot delete tunnel pod {}: {}", logPrefix(), name, e.getMessage(), e);
             return StepResult.RESTART;

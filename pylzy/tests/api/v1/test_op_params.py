@@ -316,3 +316,33 @@ class LzyOpParamsTests(TestCase):
         # noinspection PyUnresolvedReferences
         call: LzyCall = wf.owner.runtime.calls[0]
         self.assertTrue("lol_kek" in call.env.local_modules_path)
+
+    def test_op_with_default_cache_params(self):
+        default_version = "0.0"
+
+        @op
+        def cached_op(a: int) -> str:
+            return f"Value: {a}"
+
+        with self.lzy.workflow("test") as wf:
+            cached_op(42)
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertFalse(call.cache)
+        self.assertEqual(default_version, call.version)
+
+    def test_cached_op(self):
+        version = "1.0"
+
+        @op(cache=True, version=version)
+        def cached_op(a: int) -> str:
+            return f"Value: {a}"
+
+        with self.lzy.workflow("test") as wf:
+            cached_op(42)
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertTrue(call.cache)
+        self.assertEqual(version, call.version)

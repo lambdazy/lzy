@@ -7,6 +7,7 @@ import ai.lzy.service.PortalClientProvider;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.debug.InjectedFailures;
+import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -45,6 +46,7 @@ public class GraphExecutionService {
     private static final Logger LOG = LogManager.getLogger(GraphExecutionService.class);
 
     private final GraphDao graphDao;
+    private final ExecutionDao executionDao;
     private final OperationDao operationDao;
 
     private final GraphValidator validator;
@@ -52,30 +54,34 @@ public class GraphExecutionService {
 
     private final CleanExecutionCompanion cleanExecutionCompanion;
 
+    private final StorageClientFactory storageClients;
     private final PortalClientProvider portalClients;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
 
     public GraphExecutionService(GraphDao graphDao, ExecutionDao executionDao,
                                  CleanExecutionCompanion cleanExecutionCompanion, PortalClientProvider portalClients,
+                                 @Named("LzyServiceStorageClientFactory") StorageClientFactory storageClientFactory,
                                  @Named("LzyServiceOperationDao") OperationDao operationDao,
                                  @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                  @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                                  @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                  @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel)
     {
-        this.cleanExecutionCompanion = cleanExecutionCompanion;
+        this.storageClients = storageClientFactory;
         this.portalClients = portalClients;
+        this.cleanExecutionCompanion = cleanExecutionCompanion;
 
         this.graphDao = graphDao;
+        this.executionDao = executionDao;
         this.operationDao = operationDao;
 
-        this.graphExecutorClient = newBlockingClient(
-            newBlockingStub(graphExecutorChannel), APP, () -> internalUserCredentials.get().token());
+        this.graphExecutorClient = newBlockingClient(newBlockingStub(graphExecutorChannel), APP,
+            () -> internalUserCredentials.get().token());
 
         var vmPoolClient = newBlockingClient(
             VmPoolServiceGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
 
-        this.validator = new GraphValidator(executionDao, vmPoolClient);
+        this.validator = new GraphValidator(vmPoolClient);
 
         var channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
@@ -104,9 +110,43 @@ public class GraphExecutionService {
                 return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), null, LOG);
             }
 
+            LOG.debug("Remove cached operations from graph: " + state);
+
+            var storageConfig = withRetries(LOG, () -> executionDao.getStorageConfig(executionId));
+            var storageClient = storageClients.provider(storageConfig).get();
+            CacheUtils.removeCachedOps(state, storageClient, LOG);
+
+            if (state.isInvalid()) {
+                LOG.debug("State is invalid after check cached graph ops, finishing wf: " + state);
+
+                if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
+                    state.getErrorStatus()))
+                {
+                    cleanExecutionCompanion.cleanExecution(executionId);
+                }
+                return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), null, LOG);
+            }
+
+            if (state.getOperations().isEmpty()) {
+                LOG.info("All graph operations results already presented in cache, nothing to execute: " + state);
+                var packed = Any.pack(ExecuteGraphResponse.getDefaultInstance());
+
+                try {
+                    return withRetries(LOG, () -> operationDao.complete(state.getOpId(), packed, null));
+                } catch (Exception e) {
+                    LOG.error("Error while executing transaction: {}", e.getMessage(), e);
+
+                    var reason = Status.INTERNAL.withDescription("Error while execute graph: " + e.getMessage());
+                    if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId, reason)) {
+                        cleanExecutionCompanion.cleanExecution(executionId);
+                    }
+                    return operationDao.failOperation(state.getOpId(), toProto(reason), null, LOG);
+                }
+            }
 
             if (state.getDataFlowGraph() == null || state.getZone() == null) {
                 LOG.debug("Validate dataflow graph, current state: " + state);
+
                 validator.validate(state);
 
                 InjectedFailures.fail2();
@@ -115,6 +155,8 @@ public class GraphExecutionService {
             }
 
             if (state.isInvalid()) {
+                LOG.debug("State is invalid after validating graph, finishing wf: " + state);
+
                 if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                     state.getErrorStatus()))
                 {
@@ -148,6 +190,8 @@ public class GraphExecutionService {
             }
 
             if (state.isInvalid()) {
+                LOG.debug("State is invalid after building graph, finishing wf: " + state);
+
                 if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                     state.getErrorStatus()))
                 {

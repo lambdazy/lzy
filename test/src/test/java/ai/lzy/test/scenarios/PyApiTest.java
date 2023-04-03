@@ -28,6 +28,21 @@ public class PyApiTest {
     }
 
     @Test
+    public void testRepeatedExecsUseCache() {
+        pythonContext.context().evalAndAssertScenarioResult("repeated_execs_use_cache");
+    }
+
+    @Test
+    public void testRepeatedOpsUseCache() {
+        pythonContext.context().evalAndAssertScenarioResult("repeated_ops_use_cache");
+    }
+
+    @Test
+    public void testFullyCachedGraph() {
+        pythonContext.context().evalAndAssertScenarioResult("fully_cached_graph");
+    }
+
+    @Test
     public void testSimpleCatboostGraph() {
         /* This scenario checks for:
                 1. Importing external modules (catboost)
@@ -69,13 +84,14 @@ public class PyApiTest {
     }
 
     @Test
-    public void testNoneResult() {
+    public void testComplexGraph() {
         /* This scenario checks for:
                 1. Calling @op with None as result
+                2. Iterative graph
          */
 
         //Arrange
-        pythonContext.context().evalAndAssertScenarioResult("none_result");
+        pythonContext.context().evalAndAssertScenarioResult("complex_graph");
     }
 
     @Test

@@ -41,7 +41,8 @@ public interface GraphBuilder {
         private final ChannelDescription channelDesc;
 
         public ChannelEdge(TaskVertex input, TaskVertex output,
-                           ChannelDescription channelDesc) {
+                           ChannelDescription channelDesc)
+        {
             this.input = input;
             this.output = output;
             this.channelDesc = channelDesc;

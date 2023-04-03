@@ -141,6 +141,12 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>scheduler</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

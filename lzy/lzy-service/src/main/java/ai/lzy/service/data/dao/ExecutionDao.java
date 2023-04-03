@@ -6,8 +6,6 @@ import io.grpc.Status;
 import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
-import java.util.Map;
-import java.util.Set;
 
 public interface ExecutionDao {
     void create(String userId, String executionId, String storageName, LMST.StorageConfig storageConfig,
@@ -29,6 +27,9 @@ public interface ExecutionDao {
                                @Nullable TransactionHandle transaction)
         throws SQLException;
 
+    void updatePortalSubjectId(String executionId, String subjectId, @Nullable TransactionHandle transaction)
+        throws SQLException;
+
     void updateFinishData(String userId, String executionId, Status status, @Nullable TransactionHandle transaction)
         throws SQLException;
 
@@ -37,17 +38,6 @@ public interface ExecutionDao {
     void setCompletingExecutionStatus(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
 
     void setCompletedExecutionStatus(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
-
-    void saveSlots(String executionId, Set<String> slotsUri, @Nullable TransactionHandle transaction)
-        throws SQLException;
-
-    void saveChannels(Map<String, String> slot2channel, @Nullable TransactionHandle transaction) throws SQLException;
-
-    Set<String> retainExistingSlots(Set<String> slotsUri) throws SQLException;
-
-    Set<String> retainNonExistingSlots(String executionId, Set<String> slotsUri) throws SQLException;
-
-    Map<String, String> findChannels(Set<String> slotsUri) throws SQLException;
 
     @Nullable
     default String getPortalVmAddress(String executionId) throws SQLException {

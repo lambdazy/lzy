@@ -26,7 +26,6 @@ import jakarta.annotation.Nullable;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 import static ai.lzy.iam.grpc.context.AuthenticationContext.currentSubject;
@@ -109,6 +108,7 @@ final class StartExecutionCompanion {
     }
 
     public void startPortal(String dockerImage, int portalPort, int slotsApiPort,
+                            int workersPoolSize, int downloadPoolSize, int chunksPoolSize,
                             String stdoutChannelName, String stderrChannelName,
                             String channelManagerAddress, String iamAddress, String whiteboardAddress,
                             Duration allocationTimeout, Duration allocateVmCacheTimeout)
@@ -126,7 +126,7 @@ final class StartExecutionCompanion {
 
             createAllocatorSession(allocateVmCacheTimeout);
 
-            state.setPortalId("portal_" + state.getExecutionId() + UUID.randomUUID());
+            state.setPortalId("portal_" + state.getExecutionId());
 
             withRetries(LOG, () -> owner.executionDao.updatePortalVmAllocateSession(state.getExecutionId(),
                 state.getSessionId(), state.getPortalId(), null));
@@ -134,8 +134,11 @@ final class StartExecutionCompanion {
             InjectedFailures.fail10();
 
             var allocateVmOp = startAllocation(dockerImage, channelManagerAddress, iamAddress,
-                whiteboardAddress, portalPort, slotsApiPort);
+                whiteboardAddress, portalPort, slotsApiPort, workersPoolSize, downloadPoolSize, chunksPoolSize);
             var opId = allocateVmOp.getId();
+
+            withRetries(LOG, () -> owner.executionDao.updatePortalSubjectId(state.getExecutionId(),
+                state.getSubjectId(), null));
 
             VmAllocatorApi.AllocateMetadata allocateMetadata;
             try {
@@ -239,7 +242,8 @@ final class StartExecutionCompanion {
     }
 
     public LongRunning.Operation startAllocation(String dockerImage, String channelManagerAddress, String iamAddress,
-                                                 String whiteboardAddress, int portalPort, int slotsApiPort)
+                                                 String whiteboardAddress, int portalPort, int slotsApiPort,
+                                                 int workersPoolSize, int downloadPoolSize, int chunksPoolSize)
     {
         String privateKey;
         try {
@@ -248,6 +252,8 @@ final class StartExecutionCompanion {
 
             var subj = owner.subjectClient.createSubject(AuthProvider.INTERNAL, state.getPortalId(), SubjectType.WORKER,
                 new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
+
+            state.setSubjectId(subj.id());
 
             owner.abClient.setAccessBindings(new Workflow(state.getUserId() + "/" + state.getWorkflowName()),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
@@ -268,7 +274,11 @@ final class StartExecutionCompanion {
             "-portal.stderr-channel-id=" + state.getStderrChannelId(),
             "-portal.channel-manager-address=" + channelManagerAddress,
             "-portal.iam-address=" + iamAddress,
-            "-portal.whiteboard-address=" + whiteboardAddress);
+            "-portal.whiteboard-address=" + whiteboardAddress,
+            "-portal.concurrency.workers-pool-size=" + workersPoolSize,
+            "-portal.concurrency.downloads-pool-size=" + downloadPoolSize,
+            "-portal.concurrency.chunks-pool-size=" + chunksPoolSize
+        );
 
         var portalEnvPKEY = "LZY_PORTAL_PKEY";
         var ports = Map.of(actualSlotsApiPort, actualSlotsApiPort, actualPortalPort, actualPortalPort);

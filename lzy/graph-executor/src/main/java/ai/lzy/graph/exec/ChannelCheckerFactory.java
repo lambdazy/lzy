@@ -23,7 +23,8 @@ public class ChannelCheckerFactory {
         Map<String, TaskExecution> taskDescIdToTaskExec,
         String workflowId,
         ChannelDescription channel
-    ) {
+    )
+    {
         return switch (channel.type()) {
             case DIRECT -> new DirectChannelChecker(api, taskDescIdToTaskExec, workflowId);
         };

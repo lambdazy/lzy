@@ -150,7 +150,7 @@ public class KuberVmAllocator implements VmAllocator {
 
             // add k8s pod affinity to allocate vm pod on the node with the tunnel pod,
             // which must be allocated by TunnelAllocator#allocateTunnel method
-            if (vmSpec.proxyV6Address() != null) {
+            if (vmSpec.tunnelSettings() != null) {
                 podSpecBuilder = podSpecBuilder.withPodAffinity(
                     KuberLabels.LZY_APP_LABEL, "In", KuberTunnelAllocator.TUNNEL_POD_APP_LABEL_VALUE);
 
@@ -174,6 +174,7 @@ public class KuberVmAllocator implements VmAllocator {
                     .toList())
                 // --shm-size=1G
                 .withEmptyDirVolume("dshm", "/dev/shm", new EmptyDirVolumeSource("Memory", Quantity.parse("1Gi")))
+                .withLoggingVolume()
                 // not to be allocated with another vm
                 .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
                 // not to be allocated with pods from other session
@@ -295,12 +296,14 @@ public class KuberVmAllocator implements VmAllocator {
         }
 
         // TODO(artolord) make optional deletion of system nodes
-        if (credentials.type().equals(ClusterRegistry.ClusterType.User)) {
+        if (credentials.type().equals(ClusterRegistry.ClusterType.User) || vmId.contains("portal")) {
             try {
                 nodeRemover.removeNode(vmId, nodeName, nodeInstanceId);
             } catch (Exception e) {
                 return Result.RETRY_LATER;
             }
+        } else {
+            LOG.info("Don't remove system service node {}, instanceId: {}, vmId: {}", nodeName, nodeInstanceId, vmId);
         }
 
         return Result.SUCCESS;

@@ -105,6 +105,31 @@ resource "kubernetes_deployment" "channel-manager" {
             name  = "CHANNEL_MANAGER_WHITEBOARD_ADDRESS"
             value = "http://${kubernetes_service.whiteboard_service.spec[0].cluster_ip}:${local.whiteboard-port}"
           }
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = local.channel-manager-k8s-name
+          }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
         }
         container {
           name = "unified-agent"
@@ -127,6 +152,13 @@ resource "kubernetes_deployment" "channel-manager" {
               key = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {
