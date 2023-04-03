@@ -96,7 +96,7 @@ class AzureClientAsync(AsyncStorageClient):
             container_name=container,
             blob_name=blob,
             permission=BlobSasPermissions(read=True),
-            expiry=datetime.datetime.utcnow() + datetime.timedelta(hours=1),
+            expiry=datetime.datetime.utcnow() + datetime.timedelta(days=3),
             account_key=self.client.credential.account_key,
             start=datetime.datetime.utcnow(),
         )
