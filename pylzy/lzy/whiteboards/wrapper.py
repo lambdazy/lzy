@@ -72,7 +72,7 @@ class WhiteboardWrapper:
 
     @property
     def tags(self) -> Iterable[str]:
-        return self.__wb.tags
+        return self.__wb.tags  # type: ignore
 
     @property
     def storage_uri(self) -> str:

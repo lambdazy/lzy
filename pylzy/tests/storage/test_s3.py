@@ -6,7 +6,7 @@ import requests
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
-from api.v1.utils import create_bucket
+from tests.api.v1.utils import create_bucket
 from lzy.storage.api import S3Credentials
 from lzy.storage.async_.s3 import S3Client
 

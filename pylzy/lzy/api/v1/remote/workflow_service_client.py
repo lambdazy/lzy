@@ -244,7 +244,7 @@ class WorkflowServiceClient:
             GetAvailablePoolsRequest(executionId=execution_id)
         )
 
-        return pools.poolSpecs
+        return pools.poolSpecs  # type: ignore
 
     @retry(config=RETRY_CONFIG, action_name="getting default storage")
     async def get_or_create_storage(self) -> Optional[Storage]:

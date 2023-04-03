@@ -4,35 +4,31 @@ from dataclasses import dataclass
 from typing import BinaryIO, Optional, Union, Iterable, Callable, Any
 
 
+class StorageCredentials(ABC):
+    pass
+
+
 @dataclasses.dataclass
-class AzureCredentials:
+class AzureCredentials(StorageCredentials):
     connection_string: str
 
 
 @dataclasses.dataclass
-class AzureSasCredentials:
+class AzureSasCredentials(StorageCredentials):
     endpoint: str
     signature: str
 
 
 @dataclasses.dataclass
-class S3Credentials:
+class S3Credentials(StorageCredentials):
     endpoint: str
     access_key_id: str
     secret_access_key: str
 
 
 @dataclasses.dataclass
-class FSCredentials:
+class FSCredentials(StorageCredentials):
     pass
-
-
-StorageCredentials = Union[
-    AzureCredentials,
-    S3Credentials,
-    AzureSasCredentials,
-    FSCredentials
-]
 
 
 @dataclass

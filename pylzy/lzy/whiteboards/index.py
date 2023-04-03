@@ -251,7 +251,7 @@ class WhiteboardIndexedManager(WhiteboardManager):
             await storage_client.read(wb_meta_uri, cast(BinaryIO, f))
             f.seek(0)
             try:
-                wb = ParseDict(json.load(f), Whiteboard())
+                wb: Whiteboard = ParseDict(json.load(f), Whiteboard())
             except JSONDecodeError as e:
                 raise RuntimeError("Whiteboard corrupted, failed to load", e)
 

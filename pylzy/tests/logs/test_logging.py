@@ -1,7 +1,7 @@
 import os
 from unittest import TestCase
 
-from api.v1.mocks import RuntimeMock, StorageRegistryMock
+from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock
 from lzy.api.v1 import Lzy
 from lzy.logs.config import LZY_LOG_LEVEL, get_logger, configure_logging
 
