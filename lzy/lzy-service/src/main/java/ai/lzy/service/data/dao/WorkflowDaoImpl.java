@@ -129,8 +129,6 @@ public class WorkflowDaoImpl implements WorkflowDao {
                         rs.updateString("active_execution_id", null);
                         rs.updateTimestamp("modified_at", Timestamp.from(Instant.now()));
                         rs.updateRow();
-                    } else {
-                        throw new IllegalStateException("Execution from arguments is not an active workflow execution");
                     }
                 } else {
                     throw new NotFoundException("User workflow not found");
