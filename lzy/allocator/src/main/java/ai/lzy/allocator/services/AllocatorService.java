@@ -96,7 +96,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 for (var vm : vms) {
                     switch (vm.status()) {
                         case RUNNING -> {
-                            allocationContext.metrics().runningAllocations.labels(vm.poolLabel()).inc();
+                            allocationContext.metrics().runningVms.labels(vm.poolLabel()).inc();
                             run++;
                         }
                         case IDLE -> {
