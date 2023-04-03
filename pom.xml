@@ -4,7 +4,7 @@
 
     <groupId>ai.lzy</groupId>
     <artifactId>lzy-root</artifactId>
-    <version>1.8.5</version>
+    <version>1.8.6</version>
 
     <packaging>pom</packaging>
 
