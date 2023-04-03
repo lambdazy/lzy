@@ -49,7 +49,7 @@
         <jackson-annotations.version>2.13.5</jackson-annotations.version>
         <jackson-core.version>2.13.5</jackson-core.version>
         <jackson-databind.version>2.13.5</jackson-databind.version>
-        <jackson-dataformat-yaml.version>2.13.5</jackson-dataformat-yaml.version>
+        <jackson-dataformat-xxx.version>2.13.5</jackson-dataformat-xxx.version>
         <jackson-datatype-jdk8.version>2.13.5</jackson-datatype-jdk8.version>
         <jackson-datatype-jsr310.version>2.13.5</jackson-datatype-jsr310.version>
         <jackson-datatype-protobuf.version>0.9.13</jackson-datatype-protobuf.version>
@@ -211,7 +211,22 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
                 <artifactId>jackson-dataformat-yaml</artifactId>
-                <version>${jackson-dataformat-yaml.version}</version>
+                <version>${jackson-dataformat-xxx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-protobuf</artifactId>
+                <version>${jackson-dataformat-xxx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-xml</artifactId>
+                <version>${jackson-dataformat-xxx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-cbor</artifactId>
+                <version>${jackson-dataformat-xxx.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -574,11 +589,6 @@
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-core</artifactId>
                 <version>${log4j.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.fasterxml.jackson.dataformat</groupId>
-                <artifactId>jackson-dataformat-protobuf</artifactId>
-                <version>${jackson-dataformat-yaml.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.logging.log4j</groupId>

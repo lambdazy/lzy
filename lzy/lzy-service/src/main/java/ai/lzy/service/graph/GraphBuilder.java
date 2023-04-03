@@ -1,10 +1,10 @@
 package ai.lzy.service.graph;
 
-import ai.lzy.logs.KafkaConfig;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.data.dao.ExecutionDao;
+import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
@@ -347,7 +347,7 @@ class GraphBuilder {
             .setName(operation.getName());
 
         if (kafkaTopic != null) {
-            taskOperation.setKafkaTopicDesc(kafkaTopic);
+            taskOperation.setKafkaTopic(kafkaTopic);
         }
 
         if (stdoutChannelId != null) {

@@ -11,9 +11,9 @@ import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
-import ai.lzy.service.kafka.KafkaClient;
 import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
@@ -76,8 +76,7 @@ public class WorkflowService {
     private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
     private final LzyServiceConfig config;
 
-    private final KafkaClient kafkaClient;
-
+    private final KafkaAdminClient kafkaAdminClient;
     private final KafkaLogsListeners kafkaLogsListeners;
 
     public WorkflowService(LzyServiceConfig config, CleanExecutionCompanion cleanExecutionCompanion,
@@ -86,8 +85,7 @@ public class WorkflowService {
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel, WorkflowMetrics metrics,
-                           KafkaClient kafkaClient,
-                           KafkaLogsListeners kafkaLogsListeners)
+                           KafkaAdminClient kafkaAdminClient, KafkaLogsListeners kafkaLogsListeners)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
@@ -103,7 +101,7 @@ public class WorkflowService {
         this.executionDao = executionDao;
 
         this.cleanExecutionCompanion = cleanExecutionCompanion;
-        this.kafkaClient = kafkaClient;
+        this.kafkaAdminClient = kafkaAdminClient;
         this.kafkaLogsListeners = kafkaLogsListeners;
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
@@ -156,7 +154,7 @@ public class WorkflowService {
         }
 
         if (config.getKafka().isEnabled()) {
-            newExecution.createKafkaTopic(kafkaClient);
+            newExecution.createKafkaTopic(kafkaAdminClient);
 
             if (newExecution.isInvalid()) {
                 replyError.accept(newExecution.getErrorStatus());

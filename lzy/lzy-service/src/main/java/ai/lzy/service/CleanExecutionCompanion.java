@@ -10,9 +10,9 @@ import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
-import ai.lzy.service.kafka.KafkaClient;
 import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.channel.LCMPS;
@@ -66,7 +66,7 @@ public class CleanExecutionCompanion {
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
 
     @Nullable
-    private final KafkaClient kafkaClient;
+    private final KafkaAdminClient kafkaAdminClient;
     private final KafkaLogsListeners kafkaLogsListeners;
 
     public CleanExecutionCompanion(PortalClientProvider portalClients, LzyServiceStorage storage,
@@ -76,8 +76,9 @@ public class CleanExecutionCompanion {
                                    @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                                    @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
                                    @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
-                                   WorkflowMetrics metrics, KafkaClient kafkaClient,
-                                   KafkaLogsListeners kafkaLogsListeners)
+                                   WorkflowMetrics metrics,
+                                   @Named("LzyServiceKafkaAdminClient") KafkaAdminClient kafkaAdminClient,
+                                   @Nullable @Named("LzyServiceKafkaListeners") KafkaLogsListeners kafkaLogsListeners)
     {
         this.storage = storage;
         this.workflowDao = workflowDao;
@@ -90,7 +91,7 @@ public class CleanExecutionCompanion {
         this.portalClients = portalClients;
         this.channelManagerChannel = channelManagerChannel;
         this.metrics = metrics;
-        this.kafkaClient = kafkaClient;
+        this.kafkaAdminClient = kafkaAdminClient;
         this.kafkaLogsListeners = kafkaLogsListeners;
         this.channelManagerClient = newBlockingClient(
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
@@ -454,13 +455,13 @@ public class CleanExecutionCompanion {
                 kafkaDesc.topicName(), kafkaDesc.username(), executionId);
 
             try {
-                kafkaClient.dropUser(kafkaDesc.username());
+                kafkaAdminClient.dropUser(kafkaDesc.username());
             } catch (Exception ex) {
                 LOG.error("Cannot remove kafka user for execution {}: ", executionId, ex);
             }
 
             try {
-                kafkaClient.dropTopic(kafkaDesc.topicName());
+                kafkaAdminClient.dropTopic(kafkaDesc.topicName());
             } catch (Exception ex) {
                 LOG.error("Cannot remove topic for execution {}: ", executionId, ex);
             }

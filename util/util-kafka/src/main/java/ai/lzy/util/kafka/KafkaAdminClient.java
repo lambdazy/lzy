@@ -1,8 +1,8 @@
-package ai.lzy.service.kafka;
+package ai.lzy.util.kafka;
 
 import io.grpc.StatusRuntimeException;
 
-public interface KafkaClient {
+public interface KafkaAdminClient {
     enum TopicRole {
         PRODUCER,
         CONSUMER
@@ -16,5 +16,4 @@ public interface KafkaClient {
 
     void grantPermission(String username, String topicName, TopicRole role) throws StatusRuntimeException;
     void dropPermission(String username, String topicName, TopicRole role) throws StatusRuntimeException;
-
 }

@@ -1,15 +1,13 @@
 package ai.lzy.service.kafka;
 
-import ai.lzy.logs.KafkaConfig;
-import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.util.grpc.GrpcHeaders;
+import ai.lzy.util.kafka.KafkaConfig;
+import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.workflow.LWFS.ReadStdSlotsRequest;
 import ai.lzy.v1.workflow.LWFS.ReadStdSlotsResponse;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
-import jakarta.inject.Inject;
-import jakarta.inject.Singleton;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
@@ -17,21 +15,20 @@ import org.apache.logging.log4j.Logger;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-@Singleton
 public class KafkaLogsListeners {
-    private final ConcurrentHashMap<String, ArrayList<Listener>> listeners = new ConcurrentHashMap<>();
     private static final Logger LOG = LogManager.getLogger(KafkaLogsListeners.class);
-    private final LzyServiceConfig config;
-    private final KafkaConfig.KafkaHelper helper;
 
-    @Inject
-    public KafkaLogsListeners(LzyServiceConfig config) {
-        this.config = config;
-        helper = config.getKafka().helper();
+    private final ConcurrentHashMap<String, ArrayList<Listener>> listeners = new ConcurrentHashMap<>();
+    private final Properties kafkaSetup;
+
+    public KafkaLogsListeners(KafkaConfig config) {
+        kafkaSetup = new KafkaHelper(config).toProperties();
     }
 
     public void listen(ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> response,
@@ -39,6 +36,7 @@ public class KafkaLogsListeners {
     {
         var listener = new Listener(topicDesc, request, response, Context.current());
         listener.start();
+        // TODO: thread safe?
         listeners.computeIfAbsent(request.getExecutionId(), (k) -> new ArrayList<>()).add(listener);
     }
 
@@ -78,30 +76,29 @@ public class KafkaLogsListeners {
         public void run() {
             try {
                 GrpcHeaders.withContext(grpcContext.fork(), () -> {  // Fork context to get cancel from client
-                    var props = helper
-                        .withCredentials(config.getKafka().getBootstrapServers(), topicDesc.username(),
-                            topicDesc.password())
-                        .props();
-                    try (var consumer = new KafkaConsumer<String, byte[]>(Objects.requireNonNull(props))) {
-                        consumer.assign(List.of(new TopicPartition(topicDesc.topicName(), 0)));
+                    try (var consumer = new KafkaConsumer<String, byte[]>(kafkaSetup)) {
+                        var partition = new TopicPartition(topicDesc.topicName(), 0);
 
-                        consumer.seek(new TopicPartition(topicDesc.topicName(), 0), request.getOffset());
-                        var lastResultNotNull = true;
+                        consumer.assign(List.of(partition));
+                        consumer.seek(partition, request.getOffset());
+
+                        var eos = false;
 
                         while (!Context.current().isCancelled()) {
-                            if (finished.get() && !lastResultNotNull) {
+                            if (finished.get() && eos) {
                                 break;
                             }
 
-                            var res = consumer.poll(Duration.ofMillis(100));
-                            if (res.count() > 0) {
-
+                            var records = consumer.poll(Duration.ofMillis(100));
+                            if (records.count() > 0) {
                                 var outData = ReadStdSlotsResponse.Data.newBuilder();
                                 var errData = ReadStdSlotsResponse.Data.newBuilder();
                                 long offset = 0;
 
-                                for (var record : res) {
+                                for (var record : records) {
                                     offset = Long.max(record.offset(), offset);
+
+                                    // TODO: replace `key` with `task_id`, place `stdout/stderr` to the header
                                     if (record.key().equals("out")) {
                                         outData.addData(new String(record.value(), StandardCharsets.UTF_8));
                                     } else {
@@ -112,14 +109,16 @@ public class KafkaLogsListeners {
                                 var resp = ReadStdSlotsResponse.newBuilder()
                                     .setStderr(errData.build())
                                     .setStdout(outData.build())
-                                    .setCurrentOffset(offset)
+                                    .setOffset(offset)
                                     .build();
 
                                 response.onNext(resp);
 
-                                lastResultNotNull = true;
+                                consumer.commitSync();
+
+                                eos = false;
                             } else {
-                                lastResultNotNull = false;
+                                eos = true;
                             }
                         }
                     }

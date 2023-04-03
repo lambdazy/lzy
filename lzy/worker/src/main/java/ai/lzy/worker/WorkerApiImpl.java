@@ -5,7 +5,6 @@ import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.fs.slots.LineReaderSlot;
-import ai.lzy.logs.KafkaConfig.KafkaHelper;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
@@ -14,6 +13,7 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.worker.LWS;
@@ -23,6 +23,7 @@ import ai.lzy.worker.env.AuxEnvironment;
 import ai.lzy.worker.env.EnvironmentFactory;
 import ai.lzy.worker.env.EnvironmentInstallationException;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
@@ -35,7 +36,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 @Singleton
 public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
@@ -45,11 +45,12 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private final LzyFsServer lzyFs;
     private final LocalOperationService operationService;
     private final EnvironmentFactory envFactory;
+    @Nullable
     private final KafkaHelper kafkaHelper;
 
     public WorkerApiImpl(@Named("WorkerOperationService") LocalOperationService localOperationService,
                          EnvironmentFactory environmentFactory, LzyFsServer lzyFsServer,
-                         @Named("WorkerKafkaHelper") KafkaHelper helper)
+                         @Nullable @Named("WorkerKafkaHelper") KafkaHelper helper)
     {
         this.kafkaHelper = helper;
         this.operationService = localOperationService;
@@ -85,8 +86,8 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             }
         });
 
-        var topicDesc = request.getTaskDesc().getOperation().hasKafkaTopicDesc()
-            ? request.getTaskDesc().getOperation().getKafkaTopicDesc()
+        var topicDesc = request.getTaskDesc().getOperation().hasKafkaTopic()
+            ? request.getTaskDesc().getOperation().getKafkaTopic()
             : null;
 
         try (final var logHandle = LogHandle.fromTopicDesc(LOG, topicDesc, kafkaHelper)) {

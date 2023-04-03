@@ -13,8 +13,8 @@ import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.debug.InjectedFailures;
-import ai.lzy.service.kafka.KafkaClient;
 import ai.lzy.util.auth.credentials.RsaUtils;
+import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -306,19 +306,18 @@ final class StartExecutionCompanion {
                 .build());
     }
 
-    public void createKafkaTopic(KafkaClient kafkaClient) {
+    public void createKafkaTopic(KafkaAdminClient kafkaAdminClient) {
         var topicName = "topic_" + state.getExecutionId() + ".logs";
         var username = "user_" + state.getExecutionId().replace("-", "_");
         var password = UUID.randomUUID().toString();
 
         LOG.info("Creating kafka topic {} for execution_id {}", topicName, state.getExecutionId());
 
-
         try {
-            kafkaClient.createTopic(topicName);
-            kafkaClient.createUser(username, password);
-            kafkaClient.grantPermission(username, topicName, KafkaClient.TopicRole.PRODUCER);
-            kafkaClient.grantPermission(username, topicName, KafkaClient.TopicRole.CONSUMER);
+            kafkaAdminClient.createTopic(topicName);
+            kafkaAdminClient.createUser(username, password);
+            kafkaAdminClient.grantPermission(username, topicName, KafkaAdminClient.TopicRole.PRODUCER);
+            kafkaAdminClient.grantPermission(username, topicName, KafkaAdminClient.TopicRole.CONSUMER);
 
             var topicDesc = new KafkaTopicDesc(username, password, topicName);
 
@@ -328,13 +327,13 @@ final class StartExecutionCompanion {
             state.fail(Status.INTERNAL, "Cannot create kafka topic");
 
             try {
-                kafkaClient.dropTopic(username);
+                kafkaAdminClient.dropUser(username);
             } catch (Exception ex) {
                 LOG.error("Cannot remove kafka user after error {}: ", e.getMessage(), ex);
             }
 
             try {
-                kafkaClient.dropTopic(topicName);
+                kafkaAdminClient.dropTopic(topicName);
             } catch (Exception ex) {
                 LOG.error("Cannot remove topic after error {}: ", e.getMessage(), ex);
             }

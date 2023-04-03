@@ -1,12 +1,6 @@
-package ai.lzy.service.kafka;
+package ai.lzy.util.kafka;
 
-import io.micronaut.context.annotation.Requires;
-import jakarta.inject.Singleton;
-
-@Singleton
-@Requires(property = "lzy-service.yc-kafka.enabled", notEquals = "true")
-@Requires(property = "lzy-service.scram-kafka.enabled", notEquals = "true")
-public class NoopKafkaClient implements KafkaClient {
+public class NoopKafkaAdminClient implements KafkaAdminClient {
     @Override
     public void createUser(String username, String password) {}
 
@@ -24,5 +18,4 @@ public class NoopKafkaClient implements KafkaClient {
 
     @Override
     public void dropPermission(String username, String topicName, TopicRole role) {}
-
 }

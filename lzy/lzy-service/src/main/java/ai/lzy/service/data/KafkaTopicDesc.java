@@ -9,6 +9,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 @JsonDeserialize
 public record KafkaTopicDesc(
     String username,
-    String password,
+    String password,  // TODO: encrypt
     String topicName
 ) { }

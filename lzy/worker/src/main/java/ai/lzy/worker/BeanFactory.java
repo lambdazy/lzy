@@ -5,9 +5,9 @@ import ai.lzy.fs.LzyFsServer;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.logs.KafkaConfig;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.util.grpc.GrpcUtils;
+import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
@@ -16,6 +16,7 @@ import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
@@ -92,7 +93,8 @@ public class BeanFactory {
 
     @Singleton
     @Named("WorkerKafkaHelper")
-    public KafkaConfig.KafkaHelper kafkaHelper(ServiceConfig config) {
-        return config.getKafka().helper();
+    @Requires(property = "worker.kafka.enabled", value = "true")
+    public KafkaHelper kafkaHelper(ServiceConfig config) {
+        return new KafkaHelper(config.getKafka());
     }
 }

@@ -1,17 +1,18 @@
-package ai.lzy.service.kafka;
+package ai.lzy.util.kafka;
 
-import ai.lzy.service.config.LzyServiceConfig;
 import com.google.protobuf.Int64Value;
 import io.grpc.Status;
-import io.micronaut.context.annotation.Requires;
-import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import yandex.cloud.api.mdb.kafka.v1.*;
+import yandex.cloud.api.mdb.kafka.v1.TopicOuterClass;
+import yandex.cloud.api.mdb.kafka.v1.TopicServiceGrpc;
 import yandex.cloud.api.mdb.kafka.v1.TopicServiceGrpc.TopicServiceBlockingStub;
 import yandex.cloud.api.mdb.kafka.v1.TopicServiceOuterClass.CreateTopicRequest;
 import yandex.cloud.api.mdb.kafka.v1.TopicServiceOuterClass.DeleteTopicRequest;
+import yandex.cloud.api.mdb.kafka.v1.UserOuterClass;
+import yandex.cloud.api.mdb.kafka.v1.UserServiceGrpc;
 import yandex.cloud.api.mdb.kafka.v1.UserServiceGrpc.UserServiceBlockingStub;
+import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass;
 import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass.CreateUserRequest;
 import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass.GrantUserPermissionRequest;
 import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass.RevokeUserPermissionRequest;
@@ -28,26 +29,24 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.time.Instant;
 
-@Singleton
-@Requires(property = "lzy-service.yc-kafka.enabled", value = "true")
-public class YcKafkaClient implements KafkaClient {
-    private static final Logger LOG = LogManager.getLogger(YcKafkaClient.class);
+public class YcKafkaAdminClient implements KafkaAdminClient {
+    private static final Logger LOG = LogManager.getLogger(YcKafkaAdminClient.class);
     private static final Duration YC_CALL_TIMEOUT = Duration.ofSeconds(30);
 
-    private final  String clusterId;
-    private final  UserServiceBlockingStub stub;
-    private final  TopicServiceBlockingStub topicStub;
-    private final  OperationServiceBlockingStub operationStub;
+    private final String clusterId;
+    private final UserServiceBlockingStub stub;
+    private final TopicServiceBlockingStub topicStub;
+    private final OperationServiceBlockingStub operationStub;
 
-    public YcKafkaClient(LzyServiceConfig config) {
+    public YcKafkaAdminClient(KafkaConfig config) {
         var provider = Auth.apiKeyBuilder()
-            .fromFile(Path.of(config.getYcKafka().getServiceAccountFile()))
-            .cloudIAMEndpoint(config.getYcKafka().getIamEndpoint())
+            .fromFile(Path.of(/*config.getYcKafka().getServiceAccountFile()*/ "service_account_file"))
+            .cloudIAMEndpoint(/*config.getYcKafka().getIamEndpoint()*/ "iam_endpoint")
             .build();
 
         var factory = ServiceFactory.builder()
             .credentialProvider(provider)
-            .endpoint(config.getYcKafka().getEndpoint())
+            .endpoint(/*config.getYcKafka().getEndpoint()*/ "endpoint")
             .requestTimeout(YC_CALL_TIMEOUT)
             .build();
 
@@ -55,7 +54,7 @@ public class YcKafkaClient implements KafkaClient {
         operationStub = factory.create(OperationServiceBlockingStub.class, OperationServiceGrpc::newBlockingStub);
         topicStub = factory.create(TopicServiceBlockingStub.class, TopicServiceGrpc::newBlockingStub);
 
-        clusterId = config.getYcKafka().getClusterId();
+        clusterId = /*config.getYcKafka().getClusterId()*/ "42";
     }
 
     @Override

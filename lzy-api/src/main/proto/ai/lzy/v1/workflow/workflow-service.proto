@@ -116,7 +116,7 @@ message ReadStdSlotsRequest {
   string executionId = 1;
 
   // Offset of data to read from.
-  // If 0 or not set, read from beginning
+  // If 0 or not set, read from the beginning.
   /* optional */ uint64 offset = 2;
 }
 
@@ -124,7 +124,7 @@ message ReadStdSlotsResponse {
   Data stdout = 1;
   Data stderr = 2;
 
-  uint64 currentOffset = 3;  // Current offset of slot to restore after reconnect
+  uint64 offset = 3;
 
   message Data {
     repeated string data = 1;

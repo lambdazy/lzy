@@ -1,9 +1,9 @@
 package ai.lzy.service.config;
 
 import ai.lzy.iam.config.IamClientConfiguration;
-import ai.lzy.logs.KafkaConfig;
 import ai.lzy.model.db.DatabaseConfiguration;
 import ai.lzy.storage.config.StorageClientConfiguration;
+import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
@@ -32,12 +32,6 @@ public class LzyServiceConfig {
 
     @ConfigurationBuilder("kafka")
     private final KafkaConfig kafka = new KafkaConfig();
-
-    @ConfigurationBuilder("yc-kafka")
-    private final YcKafkaConfig ycKafka = new YcKafkaConfig();
-
-    @ConfigurationBuilder("scram-kafka")
-    private final ScramKafkaCredentials scramKafka = new ScramKafkaCredentials();
 
     @Getter
     @Setter
@@ -80,26 +74,4 @@ public class LzyServiceConfig {
         private String loggerName = "LogMetricReporter";
         private String loggerLevel = "info";
     }
-
-    @Getter
-    @Setter
-    @ConfigurationProperties("yc-kafka")
-    public static final class YcKafkaConfig {
-        private boolean enabled = false;
-        private String iamEndpoint = "iam.api.cloud.yandex.net:443";
-        private String endpoint = "api.cloud.yandex.net:443";
-        private String serviceAccountFile;
-        private String clusterId;
-    }
-
-    @Getter
-    @Setter
-    @ConfigurationProperties("scram-kafka")
-    public static final class ScramKafkaCredentials {
-        private boolean enabled = false;
-        private String username;
-        private String password;
-    }
-
-
 }

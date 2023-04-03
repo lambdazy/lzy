@@ -218,7 +218,7 @@ public class Worker {
 
         properties.put("worker.enable-http-debug", true);
 
-        properties.put("worker.kafka.enabled", true);
+        properties.put("worker.kafka.enabled", true); // ???? endpoint? keystore?
 
         properties.put("micronaut.server.host", "127.0.0.1"); // ! management api on localhost only !
         properties.put("micronaut.server.port", httpPort);

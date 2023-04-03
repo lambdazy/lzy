@@ -10,6 +10,10 @@ import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.kafka.KafkaAdminClient;
+import ai.lzy.service.kafka.KafkaLogsListeners;
+import ai.lzy.util.kafka.NoopKafkaAdminClient;
+import ai.lzy.util.kafka.ScramKafkaAdminClient;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -138,5 +142,21 @@ public class BeanFactory {
     @Named("LzyServiceStorageClientFactory")
     public StorageClientFactory storageClientFactory() {
         return new StorageClientFactory(10, 10);
+    }
+
+    @Singleton
+    @Named("LzyServiceKafkaAdminClient")
+    public KafkaAdminClient kafkaAdminClient(LzyServiceConfig config) {
+        if (config.getKafka().isEnabled()) {
+            return new ScramKafkaAdminClient(config.getKafka());
+        }
+        return new NoopKafkaAdminClient();
+    }
+
+    @Singleton
+    @Requires(bean = ScramKafkaAdminClient.class)
+    @Named("LzyServiceKafkaListeners")
+    public KafkaLogsListeners kafkaLogsListeners(LzyServiceConfig config) {
+        return new KafkaLogsListeners(config.getKafka());
     }
 }

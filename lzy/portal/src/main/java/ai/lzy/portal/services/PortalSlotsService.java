@@ -31,6 +31,7 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import jakarta.annotation.Nullable;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -45,7 +46,6 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.StreamSupport;
-import javax.annotation.PreDestroy;
 
 import static ai.lzy.portal.services.PortalService.PORTAL_SLOT_PREFIX;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -61,8 +61,11 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     private final PortalConfig config;
     private final Supplier<String> token;
 
-    @Nullable private StdoutSlot stdoutSlot = null;
-    @Nullable private StdoutSlot stderrSlot = null;
+    @Nullable
+    private StdoutSlot stdoutSlot = null;
+    @Nullable
+    private StdoutSlot stderrSlot = null;
+
     private SnapshotSlots snapshots;
     private final SlotsManager slotsManager;
 
@@ -80,12 +83,10 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         this.config = config;
 
         final var channelManagerClient = newBlockingClient(
-            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel),
-            "LzyPortal.ChannelManagerClient", tokenFactory);
+            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel), "LzyPortal", tokenFactory);
 
         final var channelManagerOperationClient = newBlockingClient(
-            LongRunningServiceGrpc.newBlockingStub(channelManagerChannel),
-            "LzyPortal.ChannelManagerOperationClient", tokenFactory);
+            LongRunningServiceGrpc.newBlockingStub(channelManagerChannel), "LzyPortal", tokenFactory);
 
         this.slotsManager = new SlotsManager(channelManagerClient, channelManagerOperationClient,
             HostAndPort.fromParts(config.getHost(), config.getSlotsApiPort()), true);
@@ -140,6 +141,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     {
         LOG.debug("PortalSlotsApi::connectSlot { portalId: {}, request: {} }", portalId,
             ProtoPrinter.safePrinter().printToString(request));
+
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(idempotencyKey, response)) {
             return;

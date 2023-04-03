@@ -15,5 +15,6 @@
         <module>util-log</module>
         <module>util-s3</module>
         <module>util-test</module>
+        <module>util-kafka</module>
     </modules>
 </project>

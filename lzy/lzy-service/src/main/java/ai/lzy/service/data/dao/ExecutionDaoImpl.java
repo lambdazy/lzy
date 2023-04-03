@@ -454,8 +454,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     {
         DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement stmt = con.prepareStatement(QUERY_UPDATE_KAFKA_TOPIC)) {
-                var mapper = new ObjectMapper().findAndRegisterModules();
-                stmt.setString(1, mapper.writeValueAsString(topicDesc));
+                stmt.setString(1, objectMapper.writeValueAsString(topicDesc));
                 stmt.setString(2, executionId);
                 var res = stmt.executeUpdate();
 
@@ -464,7 +463,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
                         + res + " , execution_id: " + executionId);
                 }
             } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot dump kafka topic desc", e);
+                throw new RuntimeException("Cannot dump kafka topic desc: " + topicDesc, e);
             }
         });
     }
@@ -473,7 +472,6 @@ public class ExecutionDaoImpl implements ExecutionDao {
     public KafkaTopicDesc getKafkaTopicDesc(String executionId, TransactionHandle transaction) throws SQLException {
         return DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement stmt = con.prepareStatement(QUERY_GET_KAFKA_TOPIC)) {
-                var mapper = new ObjectMapper().findAndRegisterModules();
                 stmt.setString(1, executionId);
                 var qs = stmt.executeQuery();
 
@@ -484,7 +482,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
                         return null;
                     }
 
-                    return mapper.readValue(kafkaJson, KafkaTopicDesc.class);
+                    return objectMapper.readValue(kafkaJson, KafkaTopicDesc.class);
                 } else {
                     return null;
                 }

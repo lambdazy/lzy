@@ -1,20 +1,21 @@
 package ai.lzy.worker;
 
-import ai.lzy.logs.KafkaConfig.KafkaHelper;
+import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMO;
+import jakarta.annotation.Nullable;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.FormattedMessage;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
-import javax.annotation.Nullable;
 
 import static java.util.Arrays.copyOfRange;
 
@@ -24,22 +25,23 @@ public class StreamQueue extends Thread {
     private final Logger logger;
     private final String streamName;
     private final AtomicBoolean stopping = new AtomicBoolean(false);
-    @Nullable private final KafkaProducer<String, byte[]> kafkaClient;
-    @Nullable private final String topic;
+    @Nullable
+    private final KafkaProducer<String, byte[]> kafkaClient;
+    @Nullable
+    private final String topic;
 
     public StreamQueue(@Nullable LMO.KafkaTopicDescription topic, Logger log, String streamName,
-                       KafkaHelper helper)
+                       @Nullable KafkaHelper helper)
     {
         this.logger = log;
         this.streamName = streamName;
-        if (topic != null && helper.enabled()) {
-            var kafkaHelper = helper.withCredentials(topic.getBootstrapServersList(), topic.getUsername(),
-                topic.getPassword());
+        if (topic != null && helper != null) {
+            var props = helper.toProperties(topic.getUsername(), topic.getPassword());
 
-            this.kafkaClient = new KafkaProducer<>(Objects.requireNonNull(kafkaHelper.props()));
+            this.kafkaClient = new KafkaProducer<>(props);
             this.topic = topic.getTopic();
         } else {
-            kafkaClient = null;
+            this.kafkaClient = null;
             this.topic = null;
         }
     }

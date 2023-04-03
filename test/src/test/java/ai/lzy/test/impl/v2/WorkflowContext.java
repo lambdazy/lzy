@@ -1,12 +1,12 @@
 package ai.lzy.test.impl.v2;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.logs.KafkaConfig;
 import ai.lzy.service.App;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.test.impl.v2.AllocatorContext.PortalAllocatorContext;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
@@ -58,7 +58,7 @@ public class WorkflowContext {
         var opts = Utils.loadModuleTestProperties("lzy-service");
         opts.putAll(Utils.createModuleDatabase("lzy-service"));
 
-        KafkaConfig.KafkaHelper.setUseAuth(false);
+        KafkaHelper.USE_AUTH.set(false);
 
         opts.putAll(Map.of(
             "lzy-service.kafka.bootstrap-servers", "localhost:8001",

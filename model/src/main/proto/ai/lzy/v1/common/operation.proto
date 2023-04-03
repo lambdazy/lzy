@@ -27,7 +27,7 @@ message Operation {
   /* optional */ StdSlotDesc stderr = 8;
 
   // Kafka topic to write logs to
-  /* optional */ KafkaTopicDescription kafka_topic_desc = 9;
+  /* optional */ KafkaTopicDescription kafka_topic = 9;
 }
 
 message Requirements {

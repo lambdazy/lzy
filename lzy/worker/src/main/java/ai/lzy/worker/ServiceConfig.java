@@ -1,7 +1,7 @@
 package ai.lzy.worker;
 
 import ai.lzy.iam.config.IamClientConfiguration;
-import ai.lzy.logs.KafkaConfig;
+import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
