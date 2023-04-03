@@ -84,7 +84,9 @@ public class WorkflowService {
                            @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                            @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
-                           @Named("IamServiceChannel") ManagedChannel iamChannel, WorkflowMetrics metrics,
+                           @Named("IamServiceChannel") ManagedChannel iamChannel,
+                           @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
+                           WorkflowMetrics metrics,
                            KafkaAdminClient kafkaAdminClient, KafkaLogsListeners kafkaLogsListeners)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
@@ -114,7 +116,7 @@ public class WorkflowService {
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
             () -> internalUserCredentials.get().token());
 
-        this.subjectClient = new SubjectServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
+        this.subjectClient = subjectClient;
         this.abClient = new AccessBindingServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
     }
 

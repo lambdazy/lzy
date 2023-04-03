@@ -143,6 +143,9 @@ final class StartExecutionCompanion {
                 whiteboardAddress, portalPort, slotsApiPort, workersPoolSize, downloadPoolSize, chunksPoolSize);
             var opId = allocateVmOp.getId();
 
+            withRetries(LOG, () -> owner.executionDao.updatePortalSubjectId(state.getExecutionId(),
+                state.getSubjectId(), null));
+
             VmAllocatorApi.AllocateMetadata allocateMetadata;
             try {
                 allocateMetadata = allocateVmOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
@@ -255,6 +258,8 @@ final class StartExecutionCompanion {
 
             var subj = owner.subjectClient.createSubject(AuthProvider.INTERNAL, state.getPortalId(), SubjectType.WORKER,
                 new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
+
+            state.setSubjectId(subj.id());
 
             owner.abClient.setAccessBindings(new Workflow(state.getUserId() + "/" + state.getWorkflowName()),
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));

@@ -1,5 +1,6 @@
 package ai.lzy.service;
 
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.DummyMetricReporter;
@@ -41,6 +42,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 
+import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Factory
@@ -158,5 +160,13 @@ public class BeanFactory {
     @Named("LzyServiceKafkaListeners")
     public KafkaLogsListeners kafkaLogsListeners(LzyServiceConfig config) {
         return new KafkaLogsListeners(config.getKafka());
+    }
+
+    @Singleton
+    @Named("LzySubjectServiceClient")
+    public SubjectServiceGrpcClient subjectServiceGrpcClient(@Named("IamServiceChannel") ManagedChannel iamChannel,
+                                                             @Named("LzyServiceIamToken") RenewableJwt userCreds)
+    {
+        return new SubjectServiceGrpcClient(APP, iamChannel, userCreds::get);
     }
 }
