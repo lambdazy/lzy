@@ -27,6 +27,10 @@ rbac:
 auth:
   clientProtocol: sasl
   interBrokerProtocol: sasl
+  tls:
+    password: ${jks_password}
+    existingSecrets:
+      - ${jks_secret_name}
   sasl:
     jaas:
       clientUsers:
@@ -35,8 +39,10 @@ auth:
         - ${kafka_password}
       interBrokerUser: admin
       interBrokerPassword: ${kafka_password}
-      zookeeperUser: zookeeperUser
-      zookeeperPassword: zookeeperPassword
+
+  jaas:
+    zookeeperUser: zookeeperUser
+    zookeeperPassword: zookeeperPassword
 
 zookeeper:
   auth:

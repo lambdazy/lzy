@@ -20,6 +20,9 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.util.Base64;
 import java.util.List;
 import javax.annotation.PreDestroy;
 
@@ -92,10 +95,31 @@ public class AllocatorImpl implements WorkersAllocator {
     public LongRunning.Operation allocate(String userId, String workflowName,
                                           String sessionId, LMO.Requirements requirements)
     {
-        final var args = List.of(
+        final var args = new java.util.ArrayList<>(List.of(
             "--channel-manager", config.getChannelManagerAddress(),
             "-i", config.getIam().getAddress()
-        );
+        ));
+
+        if (config.getKafka().isEnabled()) {
+            args.add("--kafka-bootstrap");
+            args.add(String.join(",", config.getKafka().getBootstrapServers()));
+
+            if (config.getKafka().getEncrypt().isEnabled()) {
+                try (var file = new FileInputStream(config.getKafka().getEncrypt().getTruststorePath())) {
+                    var bytes = file.readAllBytes();
+
+                    args.add("--truststore-base64");
+                    args.add(Base64.getEncoder().encodeToString(bytes));
+
+                    args.add("--truststore-password");
+                    args.add(config.getKafka().getEncrypt().getTruststorePassword());
+                } catch (IOException e) {
+                    LOG.error("Cannot serialize kafka CA", e);
+                    throw new RuntimeException("Cannot serialize kafka CA", e);
+                }
+
+            }
+        }
 
         final var workload = Workload.newBuilder()
             .setName("worker")

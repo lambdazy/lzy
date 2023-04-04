@@ -26,6 +26,7 @@ import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
@@ -333,9 +334,13 @@ public class PortalTestBase {
         var workerId = UUID.randomUUID().toString();
         var allocatorDuration = Duration.ofSeconds(5);
 
+        var kafkaConfig = new KafkaConfig();
+        kafkaConfig.setEnabled(false);
+
         var ctx = Worker.startApplication(workerId,
             config.getAllocatorAddress(), config.getIamAddress(), allocatorDuration,
-            config.getChannelManagerAddress(), "localhost", "token_" + workerId, 0);
+            config.getChannelManagerAddress(), "localhost", "token_" + workerId, 0, kafkaConfig);
+
         var worker = ctx.getBean(Worker.class);
         var config = ctx.getBean(ServiceConfig.class);
 

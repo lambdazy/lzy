@@ -24,7 +24,9 @@ public class SchedulerContext {
     private final SchedulerApi scheduler;
 
     @Inject
-    public SchedulerContext(WorkerAllocatorContext allocator, IamContext iam, ChannelManagerContext channelManager) {
+    public SchedulerContext(WorkerAllocatorContext allocator, IamContext iam, ChannelManagerContext channelManager,
+                            KafkaContext kafka)
+    {
         this.allocator = allocator;
         this.iam = iam;
 
@@ -39,6 +41,8 @@ public class SchedulerContext {
                 "scheduler.port", SCHEDULER_PORT,
                 "scheduler.allocator-address", allocator.address(),
                 "scheduler.channel-manager-address", channelManager.address(),
+                "scheduler.kafka.enabled", true,
+                "scheduler.kafka.bootstrap-servers", kafka.getBootstrapServers(),
                 "scheduler.iam.address", iam.address(),
                 "max-workers-per-workflow", 2,
                 "default-provisioning-limit", 2,

@@ -214,30 +214,45 @@ resource "kubernetes_deployment" "lzy-service" {
             value = "20s"
           }
           env {
-            name = "LZY_SERVICE_KAFKA_ENABLED"
-            value = "true"
-          }
-
-          env {
-            name = "LZY_SERVICE_SCRAM_KAFKA_ENABLED"
+            name  = "LZY_SERVICE_KAFKA_ENABLED"
             value = "true"
           }
 
           env {
             name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
-            value = "${data.kubernetes_service.kafka_0_external.status[0].load_balancer[0].ingress[0]["ip"]}:9094"
+            value = module.kafka.bootstrap-servers
           }
 
           env {
-            name = "LZY_SERVICE_SCRAM_KAFKA_USERNAME"
-            value = local.kafka_admin_username
+            name = "LZY_SERVICE_KAFKA_ENCRYPT_ENABLED"
+            value = "true"
           }
 
           env {
-            name = "LZY_SERVICE_SCRAM_KAFKA_PASSWORD"
+            name = "LZY_SERVICE_KAFKA_ENCRYPT_TRUSTSTORE_PATH"
+            value = "/jks/truststore.jks"
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_ENCRYPT_TRUSTSTORE_PASSWORD"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.kafka_secret.metadata[0].name
+                name = module.kafka.jks-secret-name
+                key = "jks.password"
+              }
+            }
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_SCRAM_AUTH_USERNAME"
+            value = module.kafka.admin-username
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_SCRAM_AUTH_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = module.kafka.admin-password
                 key = "password"
               }
             }
@@ -268,6 +283,11 @@ resource "kubernetes_deployment" "lzy-service" {
             name       = "varloglzy"
             mount_path = "/var/log/lzy"
           }
+
+          volume_mount {
+            mount_path = "/jks"
+            name       = "jks"
+          }
         }
         container {
           name = "unified-agent"
@@ -291,6 +311,17 @@ resource "kubernetes_deployment" "lzy-service" {
             items {
               key = "config"
               path = "config.yml"
+            }
+          }
+        }
+
+        volume {
+          name = "jks"
+          secret {
+            secret_name = module.kafka.jks-secret-name
+            items {
+              key = "kafka.truststore.jks"
+              path = "truststore.jks"
             }
           }
         }

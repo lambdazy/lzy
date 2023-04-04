@@ -6,17 +6,14 @@ import ai.lzy.test.impl.Utils;
 import ai.lzy.test.impl.v2.AllocatorContext.PortalAllocatorContext;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
-import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
-import io.github.embeddedkafka.*;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import scala.collection.immutable.Map$;
 
 import java.io.IOException;
 import java.util.Map;
@@ -34,8 +31,6 @@ public class WorkflowContext {
     private final App main;
     private final ManagedChannel chn;
 
-    private final EmbeddedK kafka;
-
     @Inject
     public WorkflowContext(
         GraphExecutorContext graph,
@@ -43,25 +38,15 @@ public class WorkflowContext {
         ChannelManagerContext channel,
         IamContext iam,
         StorageContext storage,
-        WhiteboardContext whiteboard
+        WhiteboardContext whiteboard,
+        KafkaContext kafka
     )
     {
-        scala.collection.immutable.Map<String, String> conf = Map$.MODULE$.empty();
-        var config = EmbeddedKafkaConfig$.MODULE$.apply(
-            8001,
-            8002,
-            conf,
-            conf,
-            conf
-        );
-        kafka = EmbeddedKafka.start(config);
         var opts = Utils.loadModuleTestProperties("lzy-service");
         opts.putAll(Utils.createModuleDatabase("lzy-service"));
 
-        KafkaHelper.USE_AUTH.set(false);
-
         opts.putAll(Map.of(
-            "lzy-service.kafka.bootstrap-servers", "localhost:8001",
+            "lzy-service.kafka.bootstrap-servers", kafka.getBootstrapServers(),
             "lzy-service.kafka.enabled", "true"
         ));
         opts.putAll(Map.of(
@@ -108,7 +93,6 @@ public class WorkflowContext {
 
     @PreDestroy
     private void close() throws InterruptedException {
-        kafka.stop(true);
         chn.shutdownNow();
         chn.awaitTermination(10, TimeUnit.SECONDS);
         main.shutdown(true);

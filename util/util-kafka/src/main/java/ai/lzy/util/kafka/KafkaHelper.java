@@ -3,6 +3,7 @@ package ai.lzy.util.kafka;
 import org.apache.logging.log4j.util.Strings;
 
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class KafkaHelper {
@@ -19,10 +20,14 @@ public class KafkaHelper {
         var props = new Properties();
         props.put("bootstrap.servers", Strings.join(config.getBootstrapServers(), ','));
 
-        // encrypt
-        props.put("security.protocol", "SASL_SSL");
-        props.put("ssl.truststore.location", config.getEncrypt().getKeystorePath());
-        props.put("ssl.truststore.password", config.getEncrypt().getKeystorePassword());
+        if (config.getEncrypt().isEnabled()) {
+            // encrypt
+            props.put("security.protocol", "SASL_SSL");
+            props.put("ssl.truststore.location", config.getEncrypt().getTruststorePath());
+            props.put("ssl.truststore.password", config.getEncrypt().getTruststorePassword());
+        } else {
+            props.put("security.protocol", "PLAINTEXT");
+        }
 
         // auth
         if (config.getScramAuth() != null) {

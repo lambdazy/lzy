@@ -90,6 +90,7 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
                         new AccessControlEntry("USER:" + username, "*", DESCRIBE, ALLOW))))
                 .all().get();
         } catch (Exception e) {
+            LOG.error("Cannot grant permission: ", e);
             throw Status.fromThrowable(e).asRuntimeException();
         }
     }

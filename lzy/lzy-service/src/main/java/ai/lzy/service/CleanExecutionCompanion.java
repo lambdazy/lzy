@@ -82,7 +82,7 @@ public class CleanExecutionCompanion {
                                    @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
                                    WorkflowMetrics metrics,
                                    @Named("LzyServiceKafkaAdminClient") KafkaAdminClient kafkaAdminClient,
-                                   @Nullable @Named("LzyServiceKafkaListeners") KafkaLogsListeners kafkaLogsListeners)
+                                   KafkaLogsListeners kafkaLogsListeners)
     {
         this.storage = storage;
         this.workflowDao = workflowDao;

@@ -1,13 +1,14 @@
 package ai.lzy.service.kafka;
 
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.workflow.LWFS.ReadStdSlotsRequest;
 import ai.lzy.v1.workflow.LWFS.ReadStdSlotsResponse;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
+import jakarta.inject.Singleton;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
@@ -18,17 +19,19 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+@Singleton
 public class KafkaLogsListeners {
     private static final Logger LOG = LogManager.getLogger(KafkaLogsListeners.class);
 
     private final ConcurrentHashMap<String, ArrayList<Listener>> listeners = new ConcurrentHashMap<>();
     private final Properties kafkaSetup;
 
-    public KafkaLogsListeners(KafkaConfig config) {
-        kafkaSetup = new KafkaHelper(config).toProperties();
+    public KafkaLogsListeners(LzyServiceConfig config) {
+        kafkaSetup = new KafkaHelper(config.getKafka()).toProperties();
     }
 
     public void listen(ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> response,
@@ -76,7 +79,10 @@ public class KafkaLogsListeners {
         public void run() {
             try {
                 GrpcHeaders.withContext(grpcContext.fork(), () -> {  // Fork context to get cancel from client
-                    try (var consumer = new KafkaConsumer<String, byte[]>(kafkaSetup)) {
+
+                    var props = (Properties) kafkaSetup.clone();
+                    props.put("group.id", UUID.randomUUID().toString());
+                    try (var consumer = new KafkaConsumer<String, byte[]>(props)) {
                         var partition = new TopicPartition(topicDesc.topicName(), 0);
 
                         consumer.assign(List.of(partition));
