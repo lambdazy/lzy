@@ -26,7 +26,6 @@ public class ServiceConfig {
     private Duration heartbeatTimeout;
     private List<String> serviceClusters = new ArrayList<>();
     private List<String> userClusters = new ArrayList<>();
-    private String mountHolderImage;
 
     public String getAddress() {
         String ipv6Host = hosts.stream().filter(host -> host.contains(":")).findFirst().orElse(null);
@@ -162,5 +161,15 @@ public class ServiceConfig {
         private String requestContainerImage;
         private String requestContainerGrpCurlPath;
         private int agentPort;
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("mount")
+    public static final class MountConfig {
+        private boolean enabled;
+        private String podImage;
+        private String workerMountPoint;
+        private String hostMountPoint;
     }
 }
