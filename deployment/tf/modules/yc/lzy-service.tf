@@ -250,12 +250,7 @@ resource "kubernetes_deployment" "lzy-service" {
 
           env {
             name = "LZY_SERVICE_KAFKA_SCRAM_AUTH_PASSWORD"
-            value_from {
-              secret_key_ref {
-                name = module.kafka.admin-password
-                key = "password"
-              }
-            }
+            value = module.kafka.admin-password
           }
 
           env {
