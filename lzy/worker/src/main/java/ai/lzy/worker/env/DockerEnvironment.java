@@ -9,13 +9,7 @@ import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.exception.DockerClientException;
 import com.github.dockerjava.api.exception.DockerException;
-import com.github.dockerjava.api.model.BindOptions;
-import com.github.dockerjava.api.model.BindPropagation;
-import com.github.dockerjava.api.model.DeviceRequest;
-import com.github.dockerjava.api.model.Frame;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Mount;
-import com.github.dockerjava.api.model.MountType;
+import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientBuilder;
 import io.github.resilience4j.core.IntervalFunction;
@@ -24,24 +18,21 @@ import io.github.resilience4j.retry.RetryConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import javax.annotation.Nullable;
 
 public class DockerEnvironment extends BaseEnvironment {
 
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final long GB_AS_BYTES = 1073741824;
 
-    @Nullable public String containerId = null;
+    @Nullable
+    public String containerId = null;
 
     private final BaseEnvConfig config;
     private final DockerClient client;
@@ -52,10 +43,10 @@ public class DockerEnvironment extends BaseEnvironment {
         this.config = config;
         this.client = client;
         var retryConfig = new RetryConfig.Builder<>()
-                .maxAttempts(3)
-                .intervalFunction(IntervalFunction.ofExponentialBackoff(1000))
-                .retryExceptions(DockerException.class, DockerClientException.class)
-                .build();
+            .maxAttempts(3)
+            .intervalFunction(IntervalFunction.ofExponentialBackoff(1000))
+            .retryExceptions(DockerException.class, DockerClientException.class)
+            .build();
         retry = Retry.of("docker-client-retry", retryConfig);
     }
 
@@ -220,7 +211,7 @@ public class DockerEnvironment extends BaseEnvironment {
                 try {
                     feature.get();
                     return Math.toIntExact(retry.executeSupplier(() -> client.inspectExecCmd(exec.getId()).exec())
-                            .getExitCodeLong());
+                        .getExitCodeLong());
                 } catch (InterruptedException e) {
                     try {
                         startCmd.close();

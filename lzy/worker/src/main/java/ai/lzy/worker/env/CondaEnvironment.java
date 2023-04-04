@@ -157,6 +157,7 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
+    @SuppressWarnings("checkstyle:Indentation")
     private LzyProcess execInEnv(String command, String[] envp) {
         LOG.info("Executing command " + command);
         String[] bashCmd =

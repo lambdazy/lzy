@@ -202,7 +202,7 @@ public class Operation {
         return error;
     }
 
-    @SuppressWarnings("CheckStyle")
+    @SuppressWarnings("checkstyle:OverloadMethodsDeclarationOrder")
     private static Timestamp toProto(Instant instant) {
         return Timestamp.newBuilder()
             .setSeconds(instant.getEpochSecond())
