@@ -43,7 +43,7 @@ public class VmDaoImpl implements VmDao {
         "status";
 
     private static final String INSTANCE_FIELDS =
-        "tunnel_pod_name";
+        "tunnel_pod_name, mount_pod_name";
 
     private static final String ALLOCATION_START_FIELDS =
         "allocation_op_id, allocation_started_at, allocation_deadline, allocation_worker, allocation_reqid, vm_ott";
@@ -141,6 +141,11 @@ public class VmDaoImpl implements VmDao {
     private static final String QUERY_SET_TUNNEL_PON_NAME = """
         UPDATE vm
         SET tunnel_pod_name = ?
+        WHERE id = ?""";
+
+    private static final String QUERY_SET_MOUNT_PON_NAME = """
+        UPDATE vm
+        SET mount_pod_name = ?
         WHERE id = ?""";
 
     private static final String QUERY_UPDATE_VOLUME_CLAIMS = """
@@ -479,6 +484,17 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
+    public void setMountPod(String vmId, String mountPodName, TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_SET_MOUNT_PON_NAME)) {
+                s.setString(1, mountPodName);
+                s.setString(2, vmId);
+                s.executeUpdate();
+            }
+        });
+    }
+
+    @Override
     public void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle tx)
         throws SQLException
     {
@@ -693,6 +709,7 @@ public class VmDaoImpl implements VmDao {
 
         // instance properties
         final var tunnelPodName = rs.getString(++idx);
+        final var mountPodName = rs.getString(++idx);
 
         // allocate state
         final var allocationOpId = rs.getString(++idx);
@@ -770,7 +787,7 @@ public class VmDaoImpl implements VmDao {
             new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, tunnelSettings,
                 clusterType),
             vmStatus,
-            new Vm.InstanceProperties(tunnelPodName),
+            new Vm.InstanceProperties(tunnelPodName, mountPodName),
             new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationWorker,
                 allocationReqid, vmOtt, allocatorMeta, volumeClaims),
             runState,

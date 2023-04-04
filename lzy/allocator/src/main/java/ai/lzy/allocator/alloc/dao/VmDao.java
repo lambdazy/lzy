@@ -48,6 +48,8 @@ public interface VmDao {
 
     void setTunnelPod(String vmId, String tunnelPodName, @Nullable TransactionHandle tx) throws SQLException;
 
+    void setMountPod(String vmId, String mountPodName, @Nullable TransactionHandle tx) throws SQLException;
+
     void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle tx)
         throws SQLException;
 
