@@ -1,9 +1,16 @@
 package ai.lzy.allocator.alloc;
 
+import ai.lzy.allocator.alloc.dao.DynamicMountDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
+import ai.lzy.allocator.alloc.impl.kuber.MountHolderManager;
 import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
+import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.allocator.volume.VolumeManager;
+import ai.lzy.allocator.volume.dao.VolumeClaimDao;
+import ai.lzy.allocator.volume.dao.VolumeDao;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationsExecutor;
@@ -30,7 +37,13 @@ public record AllocationContext(
     VmAllocator allocator,
     TunnelAllocator tunnelAllocator,
     AllocatorMetrics metrics,
-    @Named("AllocatorSelfWorkerId") String selfWorkerId
+    @Named("AllocatorSelfWorkerId") String selfWorkerId,
+    MountHolderManager mountHolderManager,
+    VolumeManager volumeManager,
+    DynamicMountDao dynamicMountDao,
+    VolumeDao volumeDao,
+    VolumeClaimDao volumeClaimDao,
+    ServiceConfig.MountConfig mountConfig
 )
 {
     public void startNew(Runnable action) {
@@ -82,5 +95,24 @@ public record AllocationContext(
         vmDao.delete(vm.vmId(), deleteState, tx);
 
         return new DeleteVmAction(vm, deleteOp.id(), this);
+    }
+
+    public UnmountDynamicDiskAction createUnmountAction(Vm vm, DynamicMount dynamicMount,
+                                                        @Nullable TransactionHandle tx) throws SQLException
+    {
+        var op = Operation.create(
+            "system",
+            "Unmount mount %s from vm %s".formatted(dynamicMount.id(), vm.vmId()),
+            Duration.ofDays(10),
+            new Operation.IdempotencyKey("unmount-disk-%s-%s".formatted(vm.vmId(), dynamicMount.id()),
+                vm.vmId() + dynamicMount.id()),
+            null
+        );
+        operationsDao().create(op, tx);
+        dynamicMountDao().setUnmountOperationId(dynamicMount.id(), op.id(), tx);
+        dynamicMountDao().setState(dynamicMount.id(), DynamicMount.State.DELETING, tx);
+        var updatedMount = dynamicMount.withUnmountOperationId(op.id()).withState(DynamicMount.State.DELETING);//todo do in one action
+
+        return new UnmountDynamicDiskAction(op.id(), vm, updatedMount, this);
     }
 }
