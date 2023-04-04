@@ -11,5 +11,5 @@ output "admin-password" {
 }
 
 output "jks-secret-name" {
-  value = kubernetes_secret.kafka_jks_secret.metadata[0].name
+  value = "kafka-jks-secret"
 }
