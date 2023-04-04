@@ -36,14 +36,24 @@ resource "null_resource" "generate_jks" {
   }
 }
 
+resource "local_file" "truststore" {
+  filename = "/tmp/${random_password.jks_prefix.result}truststore.jks"
+  depends_on = [null_resource.generate_jks]
+}
+
+resource "local_file" "keystore" {
+  filename = "/tmp/${random_password.jks_prefix.result}keystore.jks"
+  depends_on = [null_resource.generate_jks]
+}
+
 resource "kubernetes_secret" "kafka_jks_secret" {
   metadata {
     name = "kafka-jks-secret"
   }
 
   data = {
-    "kafka.truststore.jks" = filebase64("/tmp/${random_password.jks_prefix.result}truststore.jks")
-    "kafka.keystore.jks" = filebase64("/tmp/${random_password.jks_prefix.result}keystore.jks")
+    "kafka.truststore.jks" = local_file.truststore.content_base64
+    "kafka.keystore.jks" = local_file.keystore.content_base64
     "jks.password" = random_password.jks_password.result
   }
 }
