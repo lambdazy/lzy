@@ -3,7 +3,6 @@ package ai.lzy.util.kafka;
 import org.apache.logging.log4j.util.Strings;
 
 import java.util.Properties;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class KafkaHelper {
