@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, cast, Type, Sequence
 
 from lzy.proxy.automagic import proxy
+from lzy.proxy.either import Either, Left, Right
 from lzy.proxy.result import Just, Result, Nothing
 from lzy.utils.event_loop import LzyEventLoop
 
@@ -50,24 +51,24 @@ def materialize_if_sequence_of_lzy_proxies(obj: Any) -> Any:
     return result
 
 
-def lzy_proxy(entry_id: str, types: Sequence[Type], wflow: "LzyWorkflow", value: Result = Nothing()) -> Any:
+def lzy_proxy(entry_id: str, types: Sequence[Type], wflow: "LzyWorkflow", value: Either = Right(None)) -> Any:
     async def __materialize() -> Any:
 
-        if isinstance(value, Just):
+        if isinstance(value, Left):
             return value.value
 
         data = await wflow.snapshot.get_data(entry_id)
-        if isinstance(data, Just):
+        if isinstance(data, Left):
             return data.value
 
         # noinspection PyProtectedMember
         await wflow._barrier()
 
         new_data = await wflow.snapshot.get_data(entry_id)
-        if isinstance(new_data, Just):
+        if isinstance(new_data, Left):
             return new_data.value
         raise RuntimeError(
-            f"Cannot materialize data of entry with id={entry_id}, workflow={wflow.name}, cause={new_data.cause}"
+            f"Cannot materialize data of entry with id={entry_id}, workflow={wflow.name}, cause={str(new_data.value)}"
         )
 
     return proxy(
