@@ -32,7 +32,7 @@ resource "random_password" "jks_prefix" {
 
 resource "null_resource" "generate_jks" {
   provisioner "local-exec" {
-    command = "${path.module}/resources/generate-ssl.sh /tmp/${random_password.jks_prefix}truststore.jks /tmp/${random_password.jks_prefix}keystore.jks ${random_password.jks_password}"
+    command = "${path.module}/resources/generate-ssl.sh /tmp/${random_password.jks_prefix.result}truststore.jks /tmp/${random_password.jks_prefix.result}keystore.jks ${random_password.jks_password.result}"
   }
 }
 
@@ -42,8 +42,8 @@ resource "kubernetes_secret" "kafka_jks_secret" {
   }
 
   data = {
-    "kafka.truststore.jks" = filebase64("/tmp/${random_password.jks_prefix}truststore.jks")
-    "kafka.keystore.jks" = filebase64("/tmp/${random_password.jks_prefix}keystore.jks")
+    "kafka.truststore.jks" = filebase64("/tmp/${random_password.jks_prefix.result}truststore.jks")
+    "kafka.keystore.jks" = filebase64("/tmp/${random_password.jks_prefix.result}keystore.jks")
     "jks.password" = random_password.jks_password.result
   }
 }
@@ -53,7 +53,7 @@ locals {
   kafka_chart_config = templatefile("${path.module}/resources/kafka-config.yaml", {
     kafka_password: random_password.kafka_password.result
     subnet_id: var.subnet_id
-    jks_password: random_password.jks_password
+    jks_password: random_password.jks_password.result
     jks_secret_name: kubernetes_secret.kafka_jks_secret.metadata[0].name
   })
 }
