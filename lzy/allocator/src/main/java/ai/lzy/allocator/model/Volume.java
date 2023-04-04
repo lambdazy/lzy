@@ -8,6 +8,8 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 @JsonSerialize
 @JsonDeserialize
 public record Volume(
+    String id,
+    String clusterId,
     String name,
     String volumeRequestName,
     String diskId,
