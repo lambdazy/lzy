@@ -7,13 +7,14 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.HostPathVolumeDescription;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.Volume;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeMount;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
-import ai.lzy.allocator.volume.KuberVolumeManager;
+import ai.lzy.allocator.volume.VolumeManager;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource;
@@ -28,14 +29,15 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
+import javax.inject.Named;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
-import javax.inject.Named;
 
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.VM_POD_TEMPLATE_PATH;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -60,20 +62,23 @@ public class KuberVmAllocator implements VmAllocator {
     private final OperationDao operationsDao;
     private final ClusterRegistry clusterRegistry;
     private final VmPoolRegistry poolRegistry;
-    private final KuberClientFactory factory;
+    private final KuberClientFactory k8sClientFactory;
+    private final VolumeManager volumeManager;
     private final NodeRemover nodeRemover;
     private final ServiceConfig config;
 
     @Inject
     public KuberVmAllocator(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             ClusterRegistry clusterRegistry, VmPoolRegistry poolRegistry,
-                            KuberClientFactory factory, NodeRemover nodeRemover, ServiceConfig config)
+                            KuberClientFactory k8sClientFactory, VolumeManager volumeManager, NodeRemover nodeRemover,
+                            ServiceConfig config)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
         this.clusterRegistry = clusterRegistry;
         this.poolRegistry = poolRegistry;
-        this.factory = factory;
+        this.k8sClientFactory = k8sClientFactory;
+        this.volumeManager = volumeManager;
         this.nodeRemover = nodeRemover;
         this.config = config;
     }
@@ -93,7 +98,7 @@ public class KuberVmAllocator implements VmAllocator {
         final var allocOpId = vm.allocOpId();
         var allocState = vm.allocateState();
 
-        try (final var client = factory.build(cluster)) {
+        try (final var client = k8sClientFactory.build(cluster)) {
             var podSpecBuilder = new VmPodSpecBuilder(vmSpec, pool, client, config,
                 VM_POD_TEMPLATE_PATH, VM_POD_NAME_PREFIX);
 
@@ -127,7 +132,7 @@ public class KuberVmAllocator implements VmAllocator {
                     .filter(request -> request.volumeDescription() instanceof VolumeRequest.ResourceVolumeDescription)
                     .toList();
 
-                final var volumeClaims = KuberVolumeManager.allocateVolumes(client, resourceVolumes);
+                final var volumeClaims = allocateVolumes(cluster.clusterId(), resourceVolumes);
 
                 InjectedFailures.failAllocateVm7();
 
@@ -213,7 +218,7 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Nullable
-    private Pod getVmPod(String namespace, String name, KubernetesClient client) {
+    public static Pod getVmPod(String namespace, String name, KubernetesClient client) {
         final var podsList = client.pods()
             .inNamespace(namespace)
             .list(new ListOptionsBuilder()
@@ -275,7 +280,7 @@ public class KuberVmAllocator implements VmAllocator {
         var nodeName = meta.get(NODE_NAME_KEY);
         var nodeInstanceId = meta.get(NODE_INSTANCE_ID_KEY);
 
-        try (final var client = factory.build(credentials)) {
+        try (final var client = k8sClientFactory.build(credentials)) {
 
             if (nodeInstanceId == null) {
                 LOG.warn("Node for VM {} not specified, try to find it via K8s...", vmId);
@@ -315,7 +320,7 @@ public class KuberVmAllocator implements VmAllocator {
 
             var claims = vm.allocateState().volumeClaims();
             if (claims != null && !claims.isEmpty()) {
-                KuberVolumeManager.freeVolumes(client, claims);
+                freeVolumes(credentials.clusterId(), claims);
             }
         } catch (KubernetesClientException e) {
             LOG.error("Cannot remove pod for vm {}: [{}] {}", vmId, e.getCode(), e.getMessage());
@@ -362,7 +367,7 @@ public class KuberVmAllocator implements VmAllocator {
         final var ns = meta.get(NAMESPACE_KEY);
         final var podName = meta.get(POD_NAME_KEY);
 
-        try (final var client = factory.build(credentials)) {
+        try (final var client = k8sClientFactory.build(credentials)) {
             final var pod = getVmPod(ns, podName, client);
             if (pod != null) {
                 final var nodeName = pod.getSpec().getNodeName();
@@ -402,4 +407,38 @@ public class KuberVmAllocator implements VmAllocator {
 
         return hosts;
     }
+
+    private List<VolumeClaim> allocateVolumes(String clusterId, List<VolumeRequest.ResourceVolumeDescription> volumesRequest) {
+        if (volumesRequest.isEmpty()) {
+            return List.of();
+        }
+
+        LOG.info("Allocate volume " + volumesRequest.stream().map(Objects::toString).collect(Collectors.joining(", ")));
+
+        return volumesRequest.stream()
+            .map(volumeRequest -> {
+                final Volume volume;
+                try {
+                    volume = volumeManager.create(clusterId, volumeRequest);
+                } catch (Exception e) {
+                    LOG.error("Error while creating volume {}: {}", volumeRequest.id(), e.getMessage());
+                    throw new RuntimeException(e);
+                }
+                return volumeManager.createClaim(volume);
+            }).toList();
+    }
+
+    private void freeVolumes(String clusterId, List<VolumeClaim> volumeClaims) {
+        LOG.info("Free volumes " + volumeClaims.stream().map(Objects::toString).collect(Collectors.joining(", ")));
+
+        volumeClaims.forEach(volumeClaim -> {
+            try {
+                volumeManager.deleteClaim(clusterId, volumeClaim.name());
+                volumeManager.delete(clusterId, volumeClaim.volumeName());
+            } catch (Exception e) {
+                LOG.error("Error while removing volume claim {}: {}", volumeClaim, e.getMessage(), e);
+            }
+        });
+    }
+
 }
