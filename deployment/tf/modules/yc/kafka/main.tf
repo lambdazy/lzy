@@ -58,6 +58,8 @@ resource "kubernetes_secret" "kafka_jks_secret" {
     "kafka.keystore.jks" = local_file.keystore.content_base64
     "jks.password" = random_password.jks_password.result
   }
+
+  type = "Opaque"
 }
 
 locals {
