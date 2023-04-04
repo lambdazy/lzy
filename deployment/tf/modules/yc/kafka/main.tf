@@ -37,12 +37,14 @@ resource "null_resource" "generate_jks" {
 }
 
 resource "local_file" "truststore" {
-  filename = "/tmp/${random_password.jks_prefix.result}truststore.jks"
+  filename = "truststore.jks"
+  source = "/tmp/${random_password.jks_prefix.result}truststore.jks"
   depends_on = [null_resource.generate_jks]
 }
 
 resource "local_file" "keystore" {
-  filename = "/tmp/${random_password.jks_prefix.result}keystore.jks"
+  filename = "keystore.jks"
+  source = "/tmp/${random_password.jks_prefix.result}keystore.jks"
   depends_on = [null_resource.generate_jks]
 }
 
