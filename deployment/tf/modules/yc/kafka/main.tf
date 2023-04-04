@@ -42,32 +42,9 @@ resource "kubernetes_secret" "kafka_jks_secret" {
   }
 
   data = {
-    kafka.truststore.jks = filebase64("/tmp/${random_password.jks_prefix}truststore.jks")
-    kafka.keystore.jks = filebase64("/tmp/${random_password.jks_prefix}keystore.jks")
-    jks.password = random_password.jks_password.result
-  }
-}
-
-resource "tls_private_key" "kafka_private_key" {
-  algorithm = "ECDSA"
-}
-
-resource "tls_self_signed_cert" "kafka_tls_cert" {
-
-  allowed_uses          = [
-    "key_encipherment",
-    "digital_signature",
-    "server_auth",
-  ]
-
-  key_algorithm         = tls_private_key.kafka_private_key.algorithm
-  private_key_pem       = tls_private_key.kafka_private_key.private_key_pem
-  validity_period_hours = 2400
-  early_renewal_hours = 1200
-
-  subject {
-    common_name = "kafka.lzy.ai"
-    organization = "Lzy"
+    "kafka.truststore.jks" = filebase64("/tmp/${random_password.jks_prefix}truststore.jks")
+    "kafka.keystore.jks" = filebase64("/tmp/${random_password.jks_prefix}keystore.jks")
+    "jks.password" = random_password.jks_password.result
   }
 }
 
