@@ -133,6 +133,7 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
+**/.flattened-pom.xml
 
 # End of https://www.gitignore.io/api/java,maven,intellij+all
 
@@ -170,7 +171,6 @@ pylzy/google
 pylzy/_build
 
 **/*.env
-pylzy/*.egg-info
 **/.vscode
 
 *.coverage
