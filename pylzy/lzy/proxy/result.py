@@ -4,8 +4,9 @@ from typing import Generic, TypeVar, Union
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
+@dataclass
 class Nothing:
-    pass
+    cause: str = ""
 
 
 @dataclass
@@ -18,5 +19,5 @@ Result = Union[Just[T], Nothing]
 
 def unwrap(res: Union[Just[T], Nothing]) -> T:
     if isinstance(res, Nothing):
-        raise AttributeError("Cannot unwrap result, it is None")
+        raise AttributeError(f"Cannot unwrap result, it is None because of {res.cause}")
     return res.value

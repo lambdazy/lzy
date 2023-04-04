@@ -67,7 +67,7 @@ def lzy_proxy(entry_id: str, types: Sequence[Type], wflow: "LzyWorkflow", value:
         if isinstance(new_data, Just):
             return new_data.value
         raise RuntimeError(
-            f"Cannot materialize data with entry id {entry_id} from workflow {wflow.name}"
+            f"Cannot materialize data of entry with id={entry_id}, workflow={wflow.name}, cause={new_data.cause}"
         )
 
     return proxy(

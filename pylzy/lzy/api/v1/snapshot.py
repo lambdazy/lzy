@@ -114,13 +114,13 @@ class DefaultSnapshot(Snapshot):
 
         try:
             storage_uri = entry.storage_uri
-        except ValueError:
-            _LOG.debug(f"Error while getting data for entry {entry_id}")
-            return Nothing()
+        except ValueError as e:
+            _LOG.debug(f"Error while getting data for entry {entry_id}: {str(e)}")
+            return Nothing(f"Storage uri is not set for the entry with id={entry_id}")
 
         exists = await self.__storage_client.blob_exists(storage_uri)
         if not exists:
-            return Nothing()
+            return Nothing(f"Cannot find blob in storage by uri={storage_uri}")
 
         with tempfile.NamedTemporaryFile() as f:
             size = await self.__storage_client.size_in_bytes(storage_uri)
