@@ -78,14 +78,14 @@ public class KuberMountHolderManager implements MountHolderManager {
             final Pod pod;
             try {
                 pod = client.pods().inNamespace(NAMESPACE_VALUE).resource(podSpec).create();
-            } catch (Exception e) {
+            } catch (KubernetesClientException e) {
                 if (KuberUtils.isResourceAlreadyExist(e)) {
                     LOG.warn("Mount holder allocation request for vm {} already exist", vmId);
                     return new ClusterPod(cluster.clusterId(), podName);
                 }
 
                 LOG.error("Failed to allocate pod {}: {}", podName, e.getMessage(), e);
-                throw new RuntimeException("Failed to allocate mount pod " + podName, e);
+                throw e;
             }
             LOG.debug("Created mount holder pod in Kuber: {}", pod);
 
@@ -103,9 +103,6 @@ public class KuberMountHolderManager implements MountHolderManager {
             return mountName;
         } catch (KubernetesClientException e) {
             LOG.error("Failed to attach volume to pod {}: {}", clusterPod.podName(), e.getMessage(), e);
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-                throw new IllegalStateException("Pod " + clusterPod.podName() + " is not found", e);
-            }
             throw e;
         }
     }
@@ -118,9 +115,6 @@ public class KuberMountHolderManager implements MountHolderManager {
                 .edit(pod -> detachDiskFromPodInPlace(pod, mountName));
         } catch (KubernetesClientException e) {
             LOG.error("Failed to detach volume from pod {}: {}", clusterPod.podName(), e.getMessage(), e);
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-                throw new IllegalStateException("Pod " + clusterPod.podName() + " is not found", e);
-            }
             throw e;
         }
     }

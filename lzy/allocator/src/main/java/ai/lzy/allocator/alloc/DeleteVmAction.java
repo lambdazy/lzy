@@ -1,8 +1,10 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
+import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
+import ai.lzy.allocator.util.AllocatorUtils;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.model.db.TransactionHandle;
 import com.google.protobuf.Any;
@@ -10,6 +12,7 @@ import com.google.protobuf.Empty;
 
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -21,6 +24,7 @@ public final class DeleteVmAction extends OperationRunnerBase {
     private Vm vm;
     private boolean tunnelDeleted = false;
     private boolean tunnelAgentDeleted = false;
+    private boolean mountPodDeleted = false;
     private boolean deallocated = false;
 
     public DeleteVmAction(Vm vm, String deleteOpId, AllocationContext allocationContext) {
@@ -40,21 +44,14 @@ public final class DeleteVmAction extends OperationRunnerBase {
     }
 
     @Override
-    protected void notifyExpired() {
-    }
-
-    @Override
-    protected void notifyFinished() {
-    }
-
-    @Override
     protected void onExpired(TransactionHandle tx) {
         throw new RuntimeException("Unexpected, vm: '%s', op: '%s'".formatted(vmId, id()));
     }
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(this::start, this::deleteTunnel, this::deallocateTunnel, this::deallocateVm, this::cleanDb);
+        return List.of(this::start, this::deleteTunnel, this::deallocateTunnel,
+            this::deallocateVm, this::deallocateMountPod, this::deleteAllMounts, this::cleanDb);
     }
 
     private StepResult start() {
@@ -196,6 +193,62 @@ public final class DeleteVmAction extends OperationRunnerBase {
             log().error("{} Error while deallocating VM: {}", logPrefix(), e.getMessage(), e);
             return StepResult.RESTART;
         }
+    }
+
+    private StepResult deallocateMountPod() {
+        if (!allocationContext.mountConfig().isEnabled()) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        var mountPodName = vm.instanceProperties().mountPodName();
+        if (mountPodName == null) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        if (mountPodDeleted) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        var clusterId = AllocatorUtils.getClusterId(vm);
+        if (clusterId == null) {
+            log().warn("{} Cluster id isn't found for vm {}", logPrefix(), vm.vmId());
+            return StepResult.ALREADY_DONE;
+        }
+
+        log().info("{} Trying to deallocate mount pod...", logPrefix());
+
+        var mountPod = ClusterPod.of(clusterId, mountPodName);
+        try {
+            allocationContext.mountHolderManager().deallocateMountHolder(mountPod);
+            mountPodDeleted = true;
+        } catch (Exception e) {
+            log().error("{} Error while deallocating mount pod: {}", logPrefix(), e.getMessage(), e);
+            return StepResult.RESTART;
+        }
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult deleteAllMounts() {
+        try {
+            var unmountActions = withRetries(log(), () -> {
+                var actions = new ArrayList<Runnable>();
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    var mounts = allocationContext.dynamicMountDao().getNonDeletingByVmId(vm.vmId(), tx);
+                    for (var mount : mounts) {
+                        allocationContext.createUnmountAction(vm, mount, tx);
+                    }
+                    tx.commit();
+                    return actions;
+                }
+            });
+            for (var action : unmountActions) {
+                allocationContext.startNew(action);
+            }
+        } catch (Exception e) {
+            log().error("{} Cannot delete all vm {} mounts: {}", logPrefix(), vmId, e.getMessage(), e);
+            //don't retry this step because we can remove all garbage mounts later
+        }
+        return StepResult.CONTINUE;
     }
 
     private StepResult cleanDb() {
