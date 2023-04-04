@@ -103,11 +103,11 @@ class DefaultSnapshot(Snapshot):
         data_scheme = serializer_by_type.schema(typ)
         e = SnapshotEntry(eid, name, typ, data_scheme, self.__storage_name)
         self.__entry_id_to_entry[e.id] = e
-        _LOG.debug(f"Created entry {e}")
+        _LOG.debug("Created entry %s", repr(e))
         return e
 
     async def get_data(self, entry_id: str) -> Either[Any]:
-        _LOG.debug(f"Getting data for entry {entry_id}")
+        _LOG.debug("Getting data for entry %s", entry_id)
         entry = self.__entry_id_to_entry.get(entry_id, None)
         if entry is None:
             raise ValueError(f"Entry with id={entry_id} does not exist")
@@ -115,12 +115,12 @@ class DefaultSnapshot(Snapshot):
         try:
             storage_uri = entry.storage_uri
         except ValueError as e:
-            _LOG.debug(f"Error while getting data for entry {entry_id}: {str(e)}")
+            _LOG.debug("Error while getting data for entry %s: %s", entry_id, str(e))
             return Absence(e)
 
         exists = await self.__storage_client.blob_exists(storage_uri)
         if not exists:
-            _LOG.debug(f"Cannot find data for entry with id={entry_id} by uri={storage_uri}")
+            _LOG.debug("Cannot find data for entry with id=%s by uri=%s", entry_id, storage_uri)
             return Absence(ValueError(f"Cannot find blob in storage by uri={storage_uri}"))
 
         with tempfile.NamedTemporaryFile() as f:
@@ -133,13 +133,13 @@ class DefaultSnapshot(Snapshot):
                 return Result(res)
 
     async def put_data(self, entry_id: str, data: Any) -> None:
-        _LOG.debug(f"Attempt putting data for entry {entry_id}")
+        _LOG.debug("Attempt putting data for entry %s", entry_id)
         entry = self.__entry_id_to_entry.get(entry_id, None)
         if entry is None:
             raise ValueError(f"Entry with id={entry_id} does not exist")
 
         with HashingIO(tempfile.NamedTemporaryFile()) as f:
-            _LOG.debug(f"Serializing and calculating data hash of {entry.name}...")
+            _LOG.debug("Serializing and calculating data hash of %s...", entry.name)
             serializer = self.__serializer_registry.find_serializer_by_type(entry.typ)
             serializer.serialize(data, f)
             length = f.tell()
@@ -150,18 +150,18 @@ class DefaultSnapshot(Snapshot):
 
             exists = await self.__storage_client.blob_exists(entry.storage_uri)
             if not exists:
-                _LOG.debug(f"Upload data for entry {entry_id}")
+                _LOG.debug("Upload data for entry %s", entry_id)
                 with tqdm(total=length, desc=f"Uploading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                           unit_divisor=1024, colour=get_color()) as bar:
                     await self.__storage_client.write(entry.storage_uri, cast(BinaryIO, f),
                                                       progress=lambda x: bar.update(x))
             else:
-                _LOG.debug(f"Data already uploaded for entry {entry_id}")
+                _LOG.debug("Data already uploaded for entry %s", entry_id)
 
         self.__filled_entries.add(entry_id)
 
     async def copy_data(self, from_entry_id: str, to_uri: str) -> None:
-        _LOG.debug(f"Attempt copying entry {from_entry_id} data to {to_uri}")
+        _LOG.debug("Attempt copying entry %s data to %s", from_entry_id, to_uri)
         entry = self.__entry_id_to_entry.get(from_entry_id, None)
 
         if entry is None:
