@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from lzy.api.v1.utils.hashing import HashingIO
 from lzy.logs.config import get_logger, get_color
-from lzy.proxy.either import Either, Right, Left
+from lzy.proxy.result import Either, Absence, Result
 from lzy.storage.api import AsyncStorageClient
 
 _LOG = get_logger(__name__)
@@ -59,7 +59,7 @@ class Snapshot(ABC):  # pragma: no cover
         pass
 
     @abstractmethod
-    async def get_data(self, entry_id: str) -> Either[Any, Exception]:
+    async def get_data(self, entry_id: str) -> Either[Any]:
         pass
 
     @abstractmethod
@@ -106,7 +106,7 @@ class DefaultSnapshot(Snapshot):
         _LOG.debug(f"Created entry {e}")
         return e
 
-    async def get_data(self, entry_id: str) -> Either[Any, Exception]:
+    async def get_data(self, entry_id: str) -> Either[Any]:
         _LOG.debug(f"Getting data for entry {entry_id}")
         entry = self.__entry_id_to_entry.get(entry_id, None)
         if entry is None:
@@ -116,11 +116,12 @@ class DefaultSnapshot(Snapshot):
             storage_uri = entry.storage_uri
         except ValueError as e:
             _LOG.debug(f"Error while getting data for entry {entry_id}: {str(e)}")
-            return Right(e)
+            return Absence(e)
 
         exists = await self.__storage_client.blob_exists(storage_uri)
         if not exists:
-            return Right(ValueError(f"Cannot find blob in storage by uri={storage_uri}"))
+            _LOG.debug(f"Cannot find data for entry with id={entry_id} by uri={storage_uri}")
+            return Absence(ValueError(f"Cannot find blob in storage by uri={storage_uri}"))
 
         with tempfile.NamedTemporaryFile() as f:
             size = await self.__storage_client.size_in_bytes(storage_uri)
@@ -129,7 +130,7 @@ class DefaultSnapshot(Snapshot):
                 await self.__storage_client.read(storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
                 f.seek(0)
                 res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(cast(BinaryIO, f))
-                return Left(res)
+                return Result(res)
 
     async def put_data(self, entry_id: str, data: Any) -> None:
         _LOG.debug(f"Attempt putting data for entry {entry_id}")

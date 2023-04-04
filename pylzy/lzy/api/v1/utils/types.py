@@ -14,11 +14,11 @@ from serialzy.api import SerializerRegistry
 from serialzy.types import EmptyContent
 from typing_extensions import get_origin, get_args
 
-from lzy.proxy.result import Just, Nothing, Result
+from lzy.proxy.result import Result, Absence, Either
 
 T = TypeVar("T")
 
-TypeInferResult = Result[Sequence[type]]
+TypeInferResult = Either[Sequence[type]]
 
 
 def infer_real_types(typ: Type) -> Sequence[Type]:
@@ -37,13 +37,13 @@ def infer_real_types(typ: Type) -> Sequence[Type]:
 def infer_return_type(func: Callable) -> TypeInferResult:
     hints = get_type_hints(func)
     if "return" not in hints:
-        return Nothing()
+        return Absence()
 
     typ = hints["return"]
     if isinstance(typ, tuple):
-        return Just(typ)
+        return Result(typ)
 
-    return Just(tuple((typ,)))
+    return Result(tuple((typ,)))
 
 
 def get_default_args(func: Callable) -> Dict[str, Any]:

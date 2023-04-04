@@ -4,19 +4,20 @@ from typing import Generic, TypeVar, Union
 T = TypeVar("T")  # pylint: disable=invalid-name
 
 
-class Nothing:
-    pass
+@dataclass
+class Absence:
+    cause: Exception
 
 
 @dataclass
-class Just(Generic[T]):
+class Result(Generic[T]):
     value: T
 
 
-Result = Union[Just[T], Nothing]
+Either = Union[Result[T], Absence]
 
 
-def unwrap(res: Union[Just[T], Nothing]) -> T:
-    if isinstance(res, Nothing):
-        raise AttributeError(f"Cannot unwrap result, it is None")
+def unwrap(res: Union[Result[T], Absence]) -> T:
+    if isinstance(res, Absence):
+        raise AttributeError(f"Cannot unwrap result, it is absent because of cause={str(res.cause)}")
     return res.value
