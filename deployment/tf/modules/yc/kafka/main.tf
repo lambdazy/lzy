@@ -25,27 +25,27 @@ resource "random_password" "jks_password" {
   special  = false
 }
 
-resource "random_password" "jks_prefix" {
+resource "random_password" "keystore_prefix" {
   length   = 16
   special  = false
 }
 
-resource "null_resource" "generate_jks" {
+resource "null_resource" "generate_keystore" {
   provisioner "local-exec" {
-    command = "${path.module}/resources/generate-ssl.sh /tmp/${random_password.jks_prefix.result}truststore.jks /tmp/${random_password.jks_prefix.result}keystore.jks ${random_password.jks_password.result}"
+    command = "${path.module}/resources/generate-ssl.sh /tmp/${random_password.keystore_prefix.result}truststore.jks /tmp/${random_password.keystore_prefix.result}keystore.jks ${random_password.jks_password.result}"
   }
 }
 
 resource "local_file" "truststore" {
   filename = "truststore.jks"
-  source = "/tmp/${random_password.jks_prefix.result}truststore.jks"
-  depends_on = [null_resource.generate_jks]
+  source = "/tmp/${random_password.keystore_prefix.result}truststore.jks"
+  depends_on = [null_resource.generate_keystore]
 }
 
 resource "local_file" "keystore" {
   filename = "keystore.jks"
-  source = "/tmp/${random_password.jks_prefix.result}keystore.jks"
-  depends_on = [null_resource.generate_jks]
+  source = "/tmp/${random_password.keystore_prefix.result}keystore.jks"
+  depends_on = [null_resource.generate_keystore]
 }
 
 resource "kubernetes_secret" "kafka_jks_secret" {
