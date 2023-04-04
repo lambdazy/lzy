@@ -5,10 +5,10 @@ from unittest import TestCase
 # noinspection PyPackageRequirements
 from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 
+from lzy.proxy.either import Left, Right
 from tests.api.v1.mocks import SerializerRegistryMock, NotAvailablePrimitiveSerializer
 from tests.api.v1.utils import create_bucket
 from lzy.api.v1.snapshot import DefaultSnapshot
-from lzy.proxy.result import Just, Nothing
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage import api as storage
 from lzy.storage.registry import DefaultStorageRegistry
@@ -41,7 +41,7 @@ class SnapshotTests(TestCase):
         asyncio.run(self.snapshot.put_data(entry.id, "some_str"))
         ret = asyncio.run(self.snapshot.get_data(entry.id))
 
-        self.assertEqual(Just("some_str"), ret)
+        self.assertEqual(Left("some_str"), ret)
 
     def test_get_nonexistent_entry(self):
         with self.assertRaisesRegex(ValueError, "does not exist"):
@@ -55,7 +55,7 @@ class SnapshotTests(TestCase):
         entry = self.snapshot.create_entry("name", str)
         entry.storage_uri = f"{self.storages.config('storage').uri}/name"
         ret = asyncio.run(self.snapshot.get_data(entry.id))
-        self.assertIsInstance(ret, Nothing)
+        self.assertIsInstance(ret, Right)
 
     def test_update(self):
         entry = self.snapshot.create_entry("name", str)
@@ -66,7 +66,7 @@ class SnapshotTests(TestCase):
         ret = asyncio.run(self.snapshot.get_data(entry.id))
 
         # self.assertEqual(f"{self.storages.config('storage').uri}/name2", self.snapshot.get(entry.id).storage_uri)
-        self.assertEqual(Just("some_str"), ret)
+        self.assertEqual(Left("some_str"), ret)
 
     def test_serializer_not_found(self):
         serializers = SerializerRegistryMock()
