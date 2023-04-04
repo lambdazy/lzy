@@ -227,9 +227,9 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
         }
 
 
-        if (!Set.of(Vm.Status.RUNNING, Vm.Status.IDLE).contains(vm.status())) {
+        if (!Set.of(Vm.Status.RUNNING, Vm.Status.IDLE, Vm.Status.DELETING).contains(vm.status())) {
             allocationContext.metrics().hbInvalidVm.inc();
-            LOG.error("Wrong status of vm {} while receiving heartbeat: {}, expected RUNNING or IDLING",
+            LOG.error("Wrong status of vm {} while receiving heartbeat: {}, expected RUNNING, IDLE or DELETING",
                 vm.vmId(), vm.status());
             responseObserver.onError(
                 Status.FAILED_PRECONDITION.withDescription("Wrong state for heartbeat").asException());
@@ -237,12 +237,10 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
         }
 
         try {
-            withRetries(
-                defaultRetryPolicy(),
-                LOG,
-                () -> allocationContext.vmDao().updateActivityDeadline(
-                    vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout()))
-            );
+            if (vm.status() != Vm.Status.DELETING) {
+                withRetries(LOG, () -> allocationContext.vmDao().updateActivityDeadline(
+                        vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout())));
+            }
         } catch (Exception ex) {
             allocationContext.metrics().hbFail.inc();
             LOG.error("Cannot update VM {} last activity time: {}", vm, ex.getMessage(), ex);
