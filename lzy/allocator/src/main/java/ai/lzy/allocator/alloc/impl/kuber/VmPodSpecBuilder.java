@@ -4,19 +4,18 @@ import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.HostPathVolumeDescription;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.Volume.AccessMode;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.vmpool.VmPoolSpec;
-import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Toleration;
+import io.fabric8.kubernetes.api.model.TolerationBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class VmPodSpecBuilder {
 
@@ -80,6 +79,11 @@ public class VmPodSpecBuilder {
 
     public VmPodSpecBuilder withHostVolumes(List<HostPathVolumeDescription> volumeRequests) {
         podSpecBuilder.withHostVolumes(volumeRequests);
+        return this;
+    }
+    
+    public VmPodSpecBuilder withEmptyDirVolume(String name, String path, EmptyDirVolumeSource emptyDir) {
+        podSpecBuilder.withEmptyDirVolume(name, path, emptyDir);
         return this;
     }
 
