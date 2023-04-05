@@ -247,13 +247,15 @@ public class Worker {
 
         properties.put("worker.enable-http-debug", true);
 
-        properties.put("worker.kafka.enabled", kafka.isEnabled()); // ???? endpoint? keystore?
-        properties.put("worker.kafka.bootstrap-servers", String.join(",", kafka.getBootstrapServers()));
+        if (kafka.isEnabled()) {
+            properties.put("worker.kafka.enabled", true); // ???? endpoint? keystore?
+            properties.put("worker.kafka.bootstrap-servers", String.join(",", kafka.getBootstrapServers()));
 
-        if (kafka.isTlsEnabled()) {
-            properties.put("worker.kafka.tls-enabled", true);
-            properties.put("worker.kafka.tls-truststore-path", kafka.getTlsTruststorePath());
-            properties.put("worker.kafka.tls-truststore-password", kafka.getTlsTruststorePassword());
+            if (kafka.isTlsEnabled()) {
+                properties.put("worker.kafka.tls-enabled", true);
+                properties.put("worker.kafka.tls-truststore-path", kafka.getTlsTruststorePath());
+                properties.put("worker.kafka.tls-truststore-password", kafka.getTlsTruststorePassword());
+            }
         }
 
         properties.put("micronaut.server.host", "127.0.0.1"); // ! management api on localhost only !

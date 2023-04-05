@@ -16,7 +16,6 @@ import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
-import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
@@ -93,7 +92,6 @@ public class BeanFactory {
 
     @Singleton
     @Named("WorkerKafkaHelper")
-    @Requires(property = "worker.kafka.enabled", value = "true")
     public KafkaHelper kafkaHelper(ServiceConfig config) {
         return new KafkaHelper(config.getKafka());
     }

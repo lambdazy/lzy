@@ -11,7 +11,6 @@ public class KafkaHelper {
     private final KafkaConfig config;
 
     public KafkaHelper(KafkaConfig config) {
-        assert config.isEnabled();
         this.config = config;
     }
 
