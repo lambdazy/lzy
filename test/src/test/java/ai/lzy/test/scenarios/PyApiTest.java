@@ -84,6 +84,16 @@ public class PyApiTest {
     }
 
     @Test
+    public void testNestedWorkflows() {
+        /* This scenario checks for:
+                1. Workflow that is run from another workflow
+         */
+        CondaEnvironment.reconfigureConda(true);
+        pythonContext.context().evalAndAssertScenarioResult("nested_workflows");
+        CondaEnvironment.reconfigureConda(false);
+    }
+
+    @Test
     public void testComplexGraph() {
         /* This scenario checks for:
                 1. Calling @op with None as result
