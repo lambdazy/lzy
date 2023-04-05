@@ -122,7 +122,7 @@ public class PythonContextBase {
         var iterator = strs.iterator();
         while (iterator.hasNext()) {
             var line = iterator.next();
-            if (line.contains(substr)) {
+            if (line.endsWith(substr)) {
                 iterator.remove();
                 return true;
             }
