@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 from lzy.api.v1.utils.hashing import HashingIO
 from lzy.logs.config import get_logger, get_color
-from lzy.proxy.result import Just, Nothing, Result
+from lzy.proxy.result import Either, Absence, Result
 from lzy.storage.api import AsyncStorageClient
 
 _LOG = get_logger(__name__)
@@ -35,7 +35,7 @@ class SnapshotEntry:
     @property
     def storage_uri(self) -> str:
         if self._storage_uri is None:
-            raise ValueError(f"Storage uri for snapshot entry {id} is not set")
+            raise ValueError(f"Storage uri for snapshot entry with id={self.id} is not set")
         return cast(str, self._storage_uri)
 
     @storage_uri.setter
@@ -45,7 +45,7 @@ class SnapshotEntry:
     @property
     def data_hash(self) -> str:
         if self._data_hash is None:
-            raise ValueError(f"Data hash for snapshot entry {id} is not set")
+            raise ValueError(f"Data hash for snapshot entry {self.id} is not set")
         return cast(str, self._data_hash)
 
     @data_hash.setter
@@ -59,7 +59,7 @@ class Snapshot(ABC):  # pragma: no cover
         pass
 
     @abstractmethod
-    async def get_data(self, entry_id: str) -> Result[Any]:
+    async def get_data(self, entry_id: str) -> Either[Any]:
         pass
 
     @abstractmethod
@@ -103,24 +103,25 @@ class DefaultSnapshot(Snapshot):
         data_scheme = serializer_by_type.schema(typ)
         e = SnapshotEntry(eid, name, typ, data_scheme, self.__storage_name)
         self.__entry_id_to_entry[e.id] = e
-        _LOG.debug(f"Created entry {e}")
+        _LOG.debug("Created entry %r", e)
         return e
 
-    async def get_data(self, entry_id: str) -> Result[Any]:
-        _LOG.debug(f"Getting data for entry {entry_id}")
+    async def get_data(self, entry_id: str) -> Either[Any]:
+        _LOG.debug("Getting data for entry %s", entry_id)
         entry = self.__entry_id_to_entry.get(entry_id, None)
         if entry is None:
             raise ValueError(f"Entry with id={entry_id} does not exist")
 
         try:
             storage_uri = entry.storage_uri
-        except ValueError:
-            _LOG.debug(f"Error while getting data for entry {entry_id}")
-            return Nothing()
+        except ValueError as e:
+            _LOG.debug("Error while getting data for entry %s: %r", entry_id, e)
+            return Absence(e)
 
         exists = await self.__storage_client.blob_exists(storage_uri)
         if not exists:
-            return Nothing()
+            _LOG.debug("Cannot find data for entry with id=%s by uri=%s", entry_id, storage_uri)
+            return Absence(ValueError(f"Cannot find blob in storage by uri={storage_uri}"))
 
         with tempfile.NamedTemporaryFile() as f:
             size = await self.__storage_client.size_in_bytes(storage_uri)
@@ -129,16 +130,16 @@ class DefaultSnapshot(Snapshot):
                 await self.__storage_client.read(storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
                 f.seek(0)
                 res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(cast(BinaryIO, f))
-                return Just(res)
+                return Result(res)
 
     async def put_data(self, entry_id: str, data: Any) -> None:
-        _LOG.debug(f"Attempt putting data for entry {entry_id}")
+        _LOG.debug("Attempt putting data for entry %s", entry_id)
         entry = self.__entry_id_to_entry.get(entry_id, None)
         if entry is None:
             raise ValueError(f"Entry with id={entry_id} does not exist")
 
         with HashingIO(tempfile.NamedTemporaryFile()) as f:
-            _LOG.debug(f"Serializing and calculating data hash of {entry.name}...")
+            _LOG.debug("Serializing and calculating data hash of %s...", entry.name)
             serializer = self.__serializer_registry.find_serializer_by_type(entry.typ)
             serializer.serialize(data, f)
             length = f.tell()
@@ -149,18 +150,18 @@ class DefaultSnapshot(Snapshot):
 
             exists = await self.__storage_client.blob_exists(entry.storage_uri)
             if not exists:
-                _LOG.debug(f"Upload data for entry {entry_id}")
+                _LOG.debug("Upload data for entry %s", entry_id)
                 with tqdm(total=length, desc=f"Uploading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                           unit_divisor=1024, colour=get_color()) as bar:
                     await self.__storage_client.write(entry.storage_uri, cast(BinaryIO, f),
                                                       progress=lambda x: bar.update(x))
             else:
-                _LOG.debug(f"Data already uploaded for entry {entry_id}")
+                _LOG.debug("Data already uploaded for entry %s", entry_id)
 
         self.__filled_entries.add(entry_id)
 
     async def copy_data(self, from_entry_id: str, to_uri: str) -> None:
-        _LOG.debug(f"Attempt copying entry {from_entry_id} data to {to_uri}")
+        _LOG.debug("Attempt copying entry %s data to %s", from_entry_id, to_uri)
         entry = self.__entry_id_to_entry.get(from_entry_id, None)
 
         if entry is None:
