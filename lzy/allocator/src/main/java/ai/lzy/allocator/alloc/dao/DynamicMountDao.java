@@ -13,14 +13,9 @@ public interface DynamicMountDao {
     @Nullable
     DynamicMount get(String id, @Nullable TransactionHandle tx) throws SQLException;
 
-    void setMountName(String id, String mountName, @Nullable TransactionHandle tx) throws SQLException;
-
     void delete(String id, @Nullable TransactionHandle tx) throws SQLException;
 
-    void setDeleting(String id, String unmountOpId, @Nullable TransactionHandle tx) throws SQLException;
-
-    void setUnmountOperationId(String id, String unmountOperationId, @Nullable TransactionHandle tx)
-        throws SQLException;
+    void update(String id, DynamicMount.Update update, @Nullable TransactionHandle tx) throws SQLException;
 
     long countForVolumeClaimId(String volumeClaimId, @Nullable TransactionHandle tx) throws SQLException;
 

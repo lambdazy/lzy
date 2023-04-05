@@ -12,9 +12,11 @@ import ai.lzy.allocator.volume.VolumeManager;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.model.db.TransactionHandle;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.grpc.Status;
 import org.jetbrains.annotations.NotNull;
 
+import java.net.HttpURLConnection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Supplier;
@@ -34,6 +36,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     private String clusterId;
     private boolean podStarted;
     private UnmountDynamicDiskAction unmountAction;
+    private String mountName;
 
     public MountDynamicDiskAction(String opId, Vm vm, DynamicMount dynamicMount, AllocationContext allocationContext) {
         super(opId, String.format("mount disk %s to VM %s", dynamicMount.volumeDescription().diskId(), vm.vmId()),
@@ -49,8 +52,8 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(this::createVolume, this::createVolumeClaim, this::attachVolumeToPod, this::waitForPod,
-            this::checkIfVmStillExists);
+        return List.of(this::createVolume, this::createVolumeClaim, this::setVolumeClaim, this::attachVolumeToPod,
+            this::setMountName, this::waitForPod, this::checkIfVmStillExists);
     }
 
     @Override
@@ -145,8 +148,26 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         return StepResult.CONTINUE;
     }
 
+    private StepResult setVolumeClaim() {
+        if (dynamicMount.volumeClaimId() != null) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        try {
+            var update = DynamicMount.Update.builder()
+                .volumeClaimId(volumeClaim.id())
+                .build();
+            withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(), update, null));
+            this.dynamicMount = dynamicMount.apply(update);
+        } catch (Exception e) {
+            log().error("{} Couldn't set volume claim id {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            return StepResult.RESTART;
+        }
+        return StepResult.CONTINUE;
+    }
+
     private StepResult attachVolumeToPod() {
-        if (dynamicMount.mountName() != null) {
+        if (mountName != null) {
             return StepResult.ALREADY_DONE;
         }
 
@@ -160,16 +181,40 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         var mountPod = ClusterPod.of(clusterId, mountPodName);
 
         try {
-            String mountName = mountHolderManager.attachVolume(mountPod, dynamicMount, volumeClaim);
-            withRetries(log(), () -> allocationContext.dynamicMountDao()
-                .setMountName(dynamicMount.id(), mountName, null));
-            this.dynamicMount = dynamicMount.withMountName(mountName);
+            mountName = mountHolderManager.attachVolume(mountPod, dynamicMount, volumeClaim);
             this.mountPod = mountPod;
+        } catch (KubernetesClientException e) {
+            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                log().error("{} Mount pod {} is not found", logPrefix(), mountPodName);
+                fail(Status.FAILED_PRECONDITION.withDescription("Mount pod " + mountPodName + " is not found"));
+                return StepResult.FINISH;
+            }
+            log().error("{} Couldn't attach volume to pod {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            return StepResult.RESTART;
         } catch (Exception e) {
             log().error("{} Couldn't attach volume to pod {}", logPrefix(), dynamicMount.volumeDescription(), e);
             return StepResult.RESTART;
         }
 
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult setMountName() {
+        if (dynamicMount.mountName() != null) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        try {
+            var update = DynamicMount.Update.builder()
+                .state(DynamicMount.State.READY)
+                .mountName(mountName)
+                .build();
+            withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(), update, null));
+            this.dynamicMount = dynamicMount.apply(update);
+        } catch (Exception e) {
+            log().error("{} Couldn't set mount name {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            return StepResult.RESTART;
+        }
         return StepResult.CONTINUE;
     }
 

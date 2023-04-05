@@ -109,8 +109,13 @@ public record AllocationContext(
             null
         );
         operationsDao().create(op, tx);
-        dynamicMountDao().setDeleting(dynamicMount.id(), op.id(), tx);
-        var updatedMount = dynamicMount.withDeletingState(op.id());
+        var update = DynamicMount.Update.builder()
+            .state(DynamicMount.State.DELETING)
+            .unmountOperationId(op.id())
+            .build();
+
+        dynamicMountDao().update(dynamicMount.id(), update, tx);
+        var updatedMount = dynamicMount.apply(update);
 
         return new UnmountDynamicDiskAction(op.id(), vm, updatedMount, this);
     }
