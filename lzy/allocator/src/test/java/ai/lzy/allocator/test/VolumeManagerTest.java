@@ -22,7 +22,6 @@ import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.DiskServiceApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
@@ -77,7 +76,7 @@ public class VolumeManagerTest {
     public void createVolumeTest() throws NotFoundException {
         final Disk disk = createDisk(createTestDiskSpec(3), new DiskMeta("user_id"));
 
-        final Volume volume = volumeManager.create(clusterId, new VolumeRequest("id-1",
+        final Volume volume = volumeManager.createOrGet(clusterId, new VolumeRequest("id-1",
             new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
         ));
         final VolumeClaim volumeClaim = volumeManager.createClaim(volume);
@@ -183,7 +182,7 @@ public class VolumeManagerTest {
             final Disk disk = createDisk(testDiskSpec, new DiskMeta("user-id"));
 
             final Instant volumeCreation = Instant.now();
-            final Volume volume = volumeManager.create(clusterId, new VolumeRequest("id-1",
+            final Volume volume = volumeManager.createOrGet(clusterId, new VolumeRequest("id-1",
                 new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
             ));
 

@@ -124,7 +124,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         }
 
         try {
-            this.volume = volumeManager.create(clusterId, dynamicMount.volumeDescription());
+            this.volume = volumeManager.createOrGet(clusterId, dynamicMount.volumeDescription());
         } catch (Exception e) {
             log().error("{} Couldn't create volume {}", dynamicMount.volumeDescription(), e);
             return StepResult.RESTART;

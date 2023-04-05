@@ -9,9 +9,15 @@ import java.sql.SQLException;
 public interface VolumeDao {
     void create(Volume volume, @Nullable TransactionHandle tx) throws SQLException;
 
-    void delete(String id, @Nullable TransactionHandle tx) throws SQLException;
+    @Nullable
+    Volume getByDisk(String clusterId, String diskId, @Nullable TransactionHandle tx) throws SQLException;
+
+    void deleteByName(String clusterId, String name, @Nullable TransactionHandle tx) throws SQLException;
 
     @Nullable
     Volume get(String id, @Nullable TransactionHandle tx) throws SQLException;
+
+    @Nullable
+    Volume getByName(String clusterId, String name, @Nullable TransactionHandle tx) throws SQLException;
 
 }

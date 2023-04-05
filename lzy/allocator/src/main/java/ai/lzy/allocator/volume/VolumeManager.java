@@ -7,7 +7,8 @@ import ai.lzy.allocator.model.VolumeRequest;
 import javax.annotation.Nullable;
 
 public interface VolumeManager {
-    Volume create(String clusterId, VolumeRequest resourceVolumeType);
+    Volume createOrGet(String clusterId, VolumeRequest volumeRequest);
+
     VolumeClaim createClaim(Volume volume);
 
     @Nullable
