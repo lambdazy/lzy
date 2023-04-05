@@ -37,9 +37,9 @@ public record DynamicMount(
             mountOperationId, unmountOperationId, state);
     }
 
-    public DynamicMount withUnmountOperationId(String unmountOperationId) {
+    public DynamicMount withDeletingState(String unmountOperationId) {
         return new DynamicMount(id, vmId, clusterId, mountPath, mountName, volumeClaimId, volumeDescription,
-            mountOperationId, unmountOperationId, state);
+            mountOperationId, unmountOperationId, State.DELETING);
     }
 
     public static DynamicMount createNew(String vmId, String clusterId, String mountPath,

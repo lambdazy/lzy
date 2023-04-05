@@ -17,7 +17,7 @@ public interface DynamicMountDao {
 
     void delete(String id, @Nullable TransactionHandle tx) throws SQLException;
 
-    void setState(String id, DynamicMount.State state, @Nullable TransactionHandle tx) throws SQLException;
+    void setDeleting(String id, String unmountOpId, @Nullable TransactionHandle tx) throws SQLException;
 
     void setUnmountOperationId(String id, String unmountOperationId, @Nullable TransactionHandle tx)
         throws SQLException;
