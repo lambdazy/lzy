@@ -17,8 +17,3 @@ rm -rvf target/
 # coverage report
 rm -vf ./.coverage ./coverage.svg
 rm -rvf htmlcov
-
-# readme & license
-rm -vf readme.md LICENSE
-
-
