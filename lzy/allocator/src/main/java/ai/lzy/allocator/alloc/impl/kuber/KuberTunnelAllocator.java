@@ -23,6 +23,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.TUNNEL_POD_TEMPLATE_PATH;
@@ -70,8 +71,8 @@ public class KuberTunnelAllocator implements TunnelAllocator {
         }
 
         try (final var client = factory.build(cluster)) {
-            var tunnelPodBuilder = new PodSpecBuilder(vmSpec, pool, client, config,
-                TUNNEL_POD_TEMPLATE_PATH, TUNNEL_POD_NAME_PREFIX);
+            var tunnelPodName = TUNNEL_POD_NAME_PREFIX + vmSpec.vmId().toLowerCase(Locale.ROOT);
+            var tunnelPodBuilder = new PodSpecBuilder(tunnelPodName, TUNNEL_POD_TEMPLATE_PATH, client, config);
             Pod tunnelPod = tunnelPodBuilder.withWorkloads(
                     List.of(new Workload("tunnel", tunnelConfig.getPodImage(), Map.of(), List.of(), Map.of(),
                         List.of())),

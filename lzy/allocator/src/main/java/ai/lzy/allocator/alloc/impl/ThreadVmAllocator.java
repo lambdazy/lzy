@@ -2,6 +2,7 @@ package ai.lzy.allocator.alloc.impl;
 
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.TransactionHandle;
@@ -153,4 +154,7 @@ public class ThreadVmAllocator implements VmAllocator {
             new VmEndpoint(VmEndpointType.HOST_NAME, "localhost"),
             new VmEndpoint(VmEndpointType.INTERNAL_IP, "127.0.0.1"));
     }
+
+    @Override
+    public void unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException { }
 }
