@@ -19,7 +19,7 @@ handlers:
     level: 0
     class: logging.StreamHandler
     formatter: remote
-    stream  : ext://sys.stdout
+    stream  : ext://sys.stderr
 
 loggers:
   lzy:

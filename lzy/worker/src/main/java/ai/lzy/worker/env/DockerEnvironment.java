@@ -18,11 +18,7 @@ import io.github.resilience4j.retry.RetryConfig;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PipedInputStream;
-import java.io.PipedOutputStream;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +31,8 @@ public class DockerEnvironment extends BaseEnvironment {
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final long GB_AS_BYTES = 1073741824;
 
-    @Nullable public String containerId = null;
+    @Nullable
+    public String containerId = null;
 
     private final BaseEnvConfig config;
     private final DockerClient client;
@@ -46,10 +43,10 @@ public class DockerEnvironment extends BaseEnvironment {
         this.config = config;
         this.client = client;
         var retryConfig = new RetryConfig.Builder<>()
-                .maxAttempts(3)
-                .intervalFunction(IntervalFunction.ofExponentialBackoff(1000))
-                .retryExceptions(DockerException.class, DockerClientException.class)
-                .build();
+            .maxAttempts(3)
+            .intervalFunction(IntervalFunction.ofExponentialBackoff(1000))
+            .retryExceptions(DockerException.class, DockerClientException.class)
+            .build();
         retry = Retry.of("docker-client-retry", retryConfig);
     }
 
@@ -212,7 +209,7 @@ public class DockerEnvironment extends BaseEnvironment {
                 try {
                     feature.get();
                     return Math.toIntExact(retry.executeSupplier(() -> client.inspectExecCmd(exec.getId()).exec())
-                            .getExitCodeLong());
+                        .getExitCodeLong());
                 } catch (InterruptedException e) {
                     try {
                         startCmd.close();

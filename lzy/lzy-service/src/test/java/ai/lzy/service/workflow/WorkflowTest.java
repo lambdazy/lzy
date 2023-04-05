@@ -73,6 +73,7 @@ public class WorkflowTest extends BaseTest {
         var expectedErrorCode = Status.INVALID_ARGUMENT.getCode();
 
         assertEquals(expectedErrorCode, thrown.getStatus().getCode());
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
 
     @Test
@@ -98,6 +99,7 @@ public class WorkflowTest extends BaseTest {
         assertEquals(expectedErrorCode, thrown.getStatus().getCode());
         assertFalse(freeVmFlag.get());
         assertFalse(deleteSessionFlag.get());
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
 
     @Test
@@ -123,6 +125,7 @@ public class WorkflowTest extends BaseTest {
         assertEquals(expectedErrorCode, thrown.getStatus().getCode());
         assertFalse(freeVmFlag.get());
         assertTrue(deleteSessionFlag.get());
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
 
     @Ignore("Lzy-service shutdown before portal-vm address was stored in db")
@@ -171,6 +174,7 @@ public class WorkflowTest extends BaseTest {
         assertEquals(expectedErrorCode, thrown.getStatus().getCode());
         assertTrue(freeVmFlag.get());
         assertTrue(deleteSessionFlag.get());
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
 
     @Test
@@ -226,7 +230,7 @@ public class WorkflowTest extends BaseTest {
                     .build()));
 
         assertEquals(Status.FAILED_PRECONDITION.getCode(), thrownAlreadyFinished.getStatus().getCode());
-        assertEquals(Status.FAILED_PRECONDITION.getCode(), thrownUnknownWorkflowExecution.getStatus().getCode());
+        assertEquals(Status.NOT_FOUND.getCode(), thrownUnknownWorkflowExecution.getStatus().getCode());
 
         assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
@@ -306,6 +310,7 @@ public class WorkflowTest extends BaseTest {
         assertTrue(deleteSessionFlag.get());
         assertTrue(freeVmFlag.get());
         assertEquals(expectedGraphId, stopGraphId[0]);
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
 
     @Test
@@ -549,13 +554,14 @@ public class WorkflowTest extends BaseTest {
                 .setExecutionId(executionId)
                 .build());
 
-        assertSame(Status.FAILED_PRECONDITION.getCode(), thrown1.getStatus().getCode());
+        assertSame(Status.NOT_FOUND.getCode(), thrown1.getStatus().getCode());
         assertSame(Status.NOT_FOUND.getCode(), thrown2.getStatus().getCode());
 
         assertEquals(expectedGraphId, stopGraphId[0]);
         assertEquals(destroyedExecutionChannels[0], executionId);
         assertEquals(deleteSessionFlag.get(), 1);
         assertEquals(freeVmFlag.get(), 1);
+        assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
 
     @Test

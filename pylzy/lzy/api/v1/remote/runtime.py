@@ -37,7 +37,7 @@ from lzy.api.v1.remote.workflow_service_client import (
     Completed,
     Executing,
     Failed,
-    StdoutMessage,
+    StderrMessage,
     WorkflowServiceClient,
 )
 from lzy.api.v1.runtime import (
@@ -256,13 +256,13 @@ class RemoteRuntime(Runtime):
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
         async for data in client.read_std_slots(execution_id):
-            if isinstance(data, StdoutMessage):
+            if isinstance(data, StderrMessage):
                 system_log = "[SYS]" in data.data
                 prefix = COLOURS[get_color()] if system_log else ""
                 suffix = RESET_COLOR if system_log else ""
-                sys.stdout.write(prefix + data.data + suffix)
+                sys.stderr.write(prefix + data.data + suffix)
             else:
-                sys.stderr.write(data.data)
+                sys.stdout.write(data.data)
 
         sys.stdout.flush()
         sys.stderr.flush()

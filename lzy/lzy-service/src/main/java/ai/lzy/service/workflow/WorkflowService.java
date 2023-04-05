@@ -60,7 +60,7 @@ public class WorkflowService {
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
-    private final WorkflowMetrics metrics;
+    private final LzyServiceMetrics metrics;
 
     final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
     final LongRunningServiceGrpc.LongRunningServiceBlockingStub allocOpService;
@@ -86,7 +86,7 @@ public class WorkflowService {
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel,
                            @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
-                           WorkflowMetrics metrics,
+                           LzyServiceMetrics metrics,
                            KafkaAdminClient kafkaAdminClient, KafkaLogsListeners kafkaLogsListeners)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
@@ -164,6 +164,8 @@ public class WorkflowService {
             }
         }
 
+        metrics.activeExecutions.labels(newExecution.getOwner()).inc();
+
         var portalPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getPortalApiPort();
         var slotsApiPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getSlotsApiPort();
 
@@ -190,8 +192,6 @@ public class WorkflowService {
         LOG.info("Workflow started: " + newExecution.getState());
         response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId).build());
         response.onCompleted();
-
-        metrics.activeExecutions.labels(newExecution.getOwner()).inc();
     }
 
     public void completeExecution(String userId, String executionId, Operation operation) {

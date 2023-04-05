@@ -104,16 +104,17 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         kubernetesServer.expect().post().withPath("/api/v1/pods")
             .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
 
-        final Node node = new Node();
-
-        node.setStatus(
-            new NodeStatusBuilder()
+        final Node node = new NodeBuilder()
+            .withSpec(new NodeSpecBuilder()
+                .withProviderID("yandex://node")
+                .build())
+            .withStatus(new NodeStatusBuilder()
                 .withAddresses(new NodeAddressBuilder()
                     .withAddress("localhost")
                     .withType("HostName")
                     .build())
-                .build()
-        );
+                .build())
+            .build();
 
         kubernetesServer.expect().get().withPath("/api/v1/nodes/node")
             .andReturn(HttpURLConnection.HTTP_OK, node)

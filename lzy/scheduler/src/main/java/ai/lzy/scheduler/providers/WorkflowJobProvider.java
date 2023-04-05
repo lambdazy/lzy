@@ -83,7 +83,7 @@ public abstract class WorkflowJobProvider<T> extends JobProviderBase<WorkflowJob
             }
 
         } catch (JobProviderException e) {
-            logger.error("Rescheduling job for op {}", arg.operationId);
+            logger.info("Rescheduling job for op {}, status: {}", arg.operationId, e.status);
             if (e.status() != null) {
                 try {
                     failOp(arg, e.status);
