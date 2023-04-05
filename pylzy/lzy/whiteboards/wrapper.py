@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField
 from lzy.logs.config import get_color
-from lzy.proxy.result import Nothing
+from lzy.proxy.result import Absence
 from lzy.storage.api import StorageRegistry
 from lzy.utils.event_loop import LzyEventLoop
 
@@ -50,9 +50,9 @@ class WhiteboardWrapper:
         }
 
     def __getattr__(self, item: str) -> Any:
-        var = self.__fields.get(item, Nothing())
+        var = self.__fields.get(item, Absence())
 
-        if isinstance(var, Nothing):
+        if isinstance(var, Absence):
             raise AttributeError(f"Whiteboard field {item} not found")
 
         if isinstance(var, WhiteboardField):
