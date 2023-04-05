@@ -164,7 +164,9 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         final String podName = future.get();
         mockGetPod(podName);
-        
+
+        var vmId = operation.getMetadata().unpack(AllocateMetadata.class).getVmId();
+
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
@@ -172,6 +174,11 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
 
         assertVmMetrics("S", 0, 0, 0);
+
+        var nr = allocatorCtx.getBean(TestNodeRemover.class);
+        Assert.assertTrue(nr.await(Duration.ofSeconds(5)));
+        Assert.assertEquals(1, nr.size());
+        Assert.assertTrue(nr.contains(vmId, "node", "node"));
     }
 
     @Test

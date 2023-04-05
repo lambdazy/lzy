@@ -19,7 +19,6 @@ import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.StatusDetails;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micronaut.context.annotation.Requires;
@@ -266,9 +265,33 @@ public class KuberVmAllocator implements VmAllocator {
         final var clusterId = meta.get(CLUSTER_ID_KEY);
         final var credentials = clusterRegistry.getCluster(clusterId);
         final var ns = meta.get(NAMESPACE_KEY);
+        final var podName = meta.get(POD_NAME_KEY);
+
+        var nodeName = meta.get(NODE_NAME_KEY);
+        var nodeInstanceId = meta.get(NODE_INSTANCE_ID_KEY);
 
         try (final var client = factory.build(credentials)) {
-            List<StatusDetails> statusDetails = client.pods()
+
+            if (nodeInstanceId == null) {
+                LOG.warn("Node for VM {} not specified, try to find it via K8s...", vmId);
+
+                var pod = getVmPod(ns, podName, client);
+                if (pod != null) {
+                    nodeName = pod.getSpec().getNodeName();
+                    final var node = client.nodes().withName(nodeName).get();
+                    final var providerId = node.getSpec() != null ? node.getSpec().getProviderID() : null;
+
+                    LOG.warn("Found node {} ({}) for VM {}", nodeName, providerId, vmId);
+
+                    nodeInstanceId = providerId != null && providerId.startsWith("yandex://")
+                        ? providerId.substring("yandex://".length())
+                        : null;
+                } else {
+                    LOG.error("No pods found for VM {}", vmId);
+                }
+            }
+
+            var statusDetails = client.pods()
                 .inNamespace(ns)
                 .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId.toLowerCase(Locale.ROOT))
                 .delete();
@@ -286,9 +309,6 @@ public class KuberVmAllocator implements VmAllocator {
                 return Result.RETRY_LATER.withReason(e.getMessage());
             }
         }
-
-        var nodeName = meta.get(NODE_NAME_KEY);
-        var nodeInstanceId = meta.get(NODE_INSTANCE_ID_KEY);
 
         if (nodeInstanceId == null) {
             LOG.error("Cannot delete node for VM {} (node {}): unknown", vmId, nodeName);
