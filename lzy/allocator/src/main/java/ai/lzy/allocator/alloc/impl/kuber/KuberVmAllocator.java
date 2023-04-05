@@ -12,6 +12,7 @@ import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeMount;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.debug.InjectedFailures;
+import ai.lzy.allocator.util.AllocatorUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.allocator.volume.VolumeManager;
@@ -29,15 +30,16 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
-import javax.inject.Named;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
+import javax.inject.Named;
 
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.VM_POD_TEMPLATE_PATH;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -214,6 +216,47 @@ public class KuberVmAllocator implements VmAllocator {
         } catch (Exception e) {
             LOG.error("Failed to allocate vm (vmId: {}) pod: {}", vmSpec.vmId(), e.getMessage(), e);
             return Result.FAILED.withReason("Allocation error: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException {
+        var meta = vm.allocateState().allocatorMeta();
+        if (meta == null) {
+            throw new InvalidConfigurationException("VM " + vm.vmId() + " does not have allocator meta");
+        }
+
+        final var podName = meta.get(POD_NAME_KEY);
+        final var clusterId = meta.get(CLUSTER_ID_KEY);
+        if (podName == null || clusterId == null) {
+            throw new InvalidConfigurationException("VM " + vm.vmId() + " does not have pod name or cluster id");
+        }
+
+        var cluster = clusterRegistry.getCluster(clusterId);
+        if (cluster == null) {
+            throw new InvalidConfigurationException("Cluster " + clusterId + " does not exist");
+        }
+
+        var workload = vm.workloads().stream().findFirst().orElse(null);
+        if (workload == null) {
+            throw new InvalidConfigurationException("VM " + vm.vmId() + " does not have workloads");
+        }
+
+        LOG.info("Unmounting {} from {} and container {}", mountPath, podName, workload.name());
+        try (var client = k8sClientFactory.build(cluster)) {
+            final var exec = client.pods().inNamespace(NAMESPACE_VALUE).withName(podName)
+                .inContainer(workload.name())
+                .redirectingError()
+                .exec("umount", mountPath);
+            try (exec) {
+                AllocatorUtils.readToLog(LOG, "unmount " + mountPath, exec.getOutput());
+                var returnCode = exec.exitCode().get();
+                LOG.info("Unmount return code: {}", returnCode);
+            }
+        } catch (ExecutionException e) {
+            LOG.warn("Unmount execution error", e);
+        } catch (InterruptedException e) {
+            LOG.warn("Unmount interrupted");
         }
     }
 
@@ -408,7 +451,9 @@ public class KuberVmAllocator implements VmAllocator {
         return hosts;
     }
 
-    private List<VolumeClaim> allocateVolumes(String clusterId, List<VolumeRequest.ResourceVolumeDescription> volumesRequest) {
+    private List<VolumeClaim> allocateVolumes(String clusterId,
+                                              List<VolumeRequest.ResourceVolumeDescription> volumesRequest)
+    {
         if (volumesRequest.isEmpty()) {
             return List.of();
         }
