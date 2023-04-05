@@ -19,18 +19,20 @@ public class KafkaHelper {
         var props = new Properties();
         props.put("bootstrap.servers", Strings.join(config.getBootstrapServers(), ','));
 
-        if (config.getEncrypt().isEnabled()) {
+        if (config.isTlsEnabled()) {
             // encrypt
             props.put("security.protocol", "SASL_SSL");
-            props.put("ssl.truststore.location", config.getEncrypt().getTruststorePath());
-            props.put("ssl.truststore.password", config.getEncrypt().getTruststorePassword());
+            props.put("ssl.truststore.location", config.getTlsTruststorePath());
+            props.put("ssl.truststore.password", config.getTlsTruststorePassword());
+
+            props.put("ssl.endpoint.identification.algorithm", "");  // Disable endpoint identification
         } else {
             props.put("security.protocol", "PLAINTEXT");
         }
 
         // auth
-        if (config.getScramAuth() != null) {
-            fillAuth(props, config.getScramAuth().getUsername(), config.getScramAuth().getPassword());
+        if (config.getScramUsername() != null) {
+            fillAuth(props, config.getScramUsername(), config.getScramPassword());
         }
 
         // serializers

@@ -24,8 +24,11 @@ serviceAccount:
 rbac:
   create: true
 
+nodeSelector:
+  "type": lzy
+
 auth:
-  clientProtocol: sasl
+  clientProtocol: sasl_tls
   interBrokerProtocol: sasl
   tls:
     password: ${jks_password}

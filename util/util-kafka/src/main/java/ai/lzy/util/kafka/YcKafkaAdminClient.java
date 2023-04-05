@@ -15,7 +15,6 @@ import yandex.cloud.api.mdb.kafka.v1.UserServiceGrpc.UserServiceBlockingStub;
 import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass;
 import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass.CreateUserRequest;
 import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass.GrantUserPermissionRequest;
-import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass.RevokeUserPermissionRequest;
 import yandex.cloud.api.operation.OperationOuterClass;
 import yandex.cloud.api.operation.OperationServiceGrpc;
 import yandex.cloud.api.operation.OperationServiceGrpc.OperationServiceBlockingStub;
@@ -107,38 +106,14 @@ public class YcKafkaAdminClient implements KafkaAdminClient {
     }
 
     @Override
-    public void grantPermission(String username, String topicName, TopicRole role) {
-
-        var ycRole = switch (role) {
-            case CONSUMER -> UserOuterClass.Permission.AccessRole.ACCESS_ROLE_CONSUMER;
-            case PRODUCER -> UserOuterClass.Permission.AccessRole.ACCESS_ROLE_PRODUCER;
-        };
+    public void grantPermission(String username, String topicName) {
 
         final OperationOuterClass.Operation op = stub.grantPermission(GrantUserPermissionRequest.newBuilder()
             .setClusterId(clusterId)
             .setUserName(username)
             .setPermission(UserOuterClass.Permission.newBuilder()
                 .setTopicName(topicName)
-                .setRole(ycRole)
-                .build())
-            .build());
-
-        awaitOperation(op);
-    }
-
-    @Override
-    public void dropPermission(String username, String topicName, TopicRole role) {
-        var ycRole = switch (role) {
-            case CONSUMER -> UserOuterClass.Permission.AccessRole.ACCESS_ROLE_CONSUMER;
-            case PRODUCER -> UserOuterClass.Permission.AccessRole.ACCESS_ROLE_PRODUCER;
-        };
-
-        final OperationOuterClass.Operation op = stub.revokePermission(RevokeUserPermissionRequest.newBuilder()
-            .setClusterId(clusterId)
-            .setUserName(username)
-            .setPermission(UserOuterClass.Permission.newBuilder()
-                .setTopicName(topicName)
-                .setRole(ycRole)
+                .setRole(UserOuterClass.Permission.AccessRole.ACCESS_ROLE_ADMIN)
                 .build())
             .build());
 

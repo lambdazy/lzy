@@ -11,22 +11,10 @@ public final class KafkaConfig {
     private boolean enabled = false;
     private List<String> bootstrapServers;
 
-    private Encrypt encrypt = new Encrypt();
+    private boolean tlsEnabled = false;
+    private String tlsTruststorePath;
+    private String tlsTruststorePassword;
 
-    private ScramAuth scramAuth = new ScramAuth();
-
-    @Getter
-    @Setter
-    public static final class Encrypt {
-        private boolean enabled = false;
-        private String truststorePath;
-        private String truststorePassword;
-    }
-
-    @Getter
-    @Setter
-    public static final class ScramAuth {
-        private String username;
-        private String password;
-    }
+    private String scramUsername;
+    private String scramPassword;
 }

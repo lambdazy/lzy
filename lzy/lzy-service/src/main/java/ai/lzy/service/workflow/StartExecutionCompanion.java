@@ -321,8 +321,7 @@ final class StartExecutionCompanion {
         try {
             kafkaAdminClient.createTopic(topicName);
             kafkaAdminClient.createUser(username, password);
-            kafkaAdminClient.grantPermission(username, topicName, KafkaAdminClient.TopicRole.PRODUCER);
-            kafkaAdminClient.grantPermission(username, topicName, KafkaAdminClient.TopicRole.CONSUMER);
+            kafkaAdminClient.grantPermission(username, topicName);
 
             var topicDesc = new KafkaTopicDesc(username, password, topicName);
 

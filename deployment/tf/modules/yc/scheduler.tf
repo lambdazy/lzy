@@ -219,17 +219,17 @@ resource "kubernetes_deployment" "scheduler" {
           }
 
           env {
-            name = "SCHEDULER_KAFKA_ENCRYPT_ENABLED"
+            name = "SCHEDULER_KAFKA_TLS_ENABLED"
             value = "true"
           }
 
           env {
-            name = "SCHEDULER_KAFKA_ENCRYPT_TRUSTSTORE_PATH"
+            name = "SCHEDULER_KAFKA_TLS_TRUSTSTORE_PATH"
             value = "/jks/truststore.jks"
           }
 
           env {
-            name = "SCHEDULER_KAFKA_ENCRYPT_TRUSTSTORE_PASSWORD"
+            name = "SCHEDULER_KAFKA_TLS_TRUSTSTORE_PASSWORD"
             value_from {
               secret_key_ref {
                 name = module.kafka.jks-secret-name
@@ -239,12 +239,12 @@ resource "kubernetes_deployment" "scheduler" {
           }
 
           env {
-            name = "SCHEDULER_KAFKA_SCRAM_AUTH_USERNAME"
+            name = "SCHEDULER_KAFKA_SCRAM_USERNAME"
             value = module.kafka.admin-username
           }
 
           env {
-            name = "SCHEDULER_KAFKA_SCRAM_AUTH_PASSWORD"
+            name = "SCHEDULER_KAFKA_SCRAM_PASSWORD"
             value = module.kafka.admin-password
           }
 

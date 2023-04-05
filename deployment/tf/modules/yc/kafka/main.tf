@@ -12,8 +12,14 @@ terraform {
     tls = {
       version = ">=3.4.0"
     }
+
+    shell = {
+      source = "scottwinkler/shell"
+      version = "1.7.10"
+    }
   }
 }
+
 
 resource "random_password" "kafka_password" {
   length   = 16
@@ -30,23 +36,22 @@ resource "random_password" "keystore_prefix" {
   special  = false
 }
 
-resource "null_resource" "generate_keystore" {
-  provisioner "local-exec" {
-    command = "${path.module}/resources/generate-ssl.sh /tmp/${random_password.keystore_prefix.result}truststore.jks /tmp/${random_password.keystore_prefix.result}keystore.jks ${random_password.jks_password.result}"
+resource "shell_script" "generate_keystore" {
+  lifecycle_commands {
+    create = file("${path.module}/resources/generate-ssl.sh")
+    delete = "echo {}"
+  }
+
+  environment = {
+    JKS_PASSWORD = random_password.jks_password.result
   }
 }
 
-resource "local_file" "truststore" {
-  filename = "truststore.jks"
-  source = "/tmp/${random_password.keystore_prefix.result}truststore.jks"
-  depends_on = [null_resource.generate_keystore]
+locals {
+  truststore_base64 = shell_script.generate_keystore.output["truststore"]
+  keystore_base64 = shell_script.generate_keystore.output["keystore"]
 }
 
-resource "local_file" "keystore" {
-  filename = "keystore.jks"
-  source = "/tmp/${random_password.keystore_prefix.result}keystore.jks"
-  depends_on = [null_resource.generate_keystore]
-}
 
 resource "kubernetes_secret" "kafka_jks_secret" {
   metadata {
@@ -54,9 +59,12 @@ resource "kubernetes_secret" "kafka_jks_secret" {
   }
 
   data = {
-    "kafka.truststore.jks" = local_file.truststore.content_base64
-    "kafka.keystore.jks" = local_file.keystore.content_base64
     "jks.password" = random_password.jks_password.result
+  }
+
+  binary_data = {
+    "kafka.truststore.jks" = local.truststore_base64
+    "kafka.keystore.jks" = local.keystore_base64
   }
 
   type = "Opaque"

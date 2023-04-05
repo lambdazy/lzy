@@ -148,7 +148,7 @@ public class BeanFactory {
     @Singleton
     @Named("LzyServiceKafkaAdminClient")
     public KafkaAdminClient kafkaAdminClient(LzyServiceConfig config) {
-        if (config.getKafka().isEnabled() && config.getKafka().getScramAuth().getUsername() != null) {
+        if (config.getKafka().isEnabled() && config.getKafka().getScramUsername() != null) {
             return new ScramKafkaAdminClient(config.getKafka());
         }
         return new NoopKafkaAdminClient();

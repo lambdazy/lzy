@@ -5,7 +5,6 @@ import io.grpc.StatusRuntimeException;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.common.acl.*;
 import org.apache.kafka.common.resource.ResourcePattern;
-import org.apache.kafka.common.resource.ResourcePatternFilter;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,7 +13,6 @@ import java.util.List;
 import static org.apache.kafka.common.acl.AclOperation.*;
 import static org.apache.kafka.common.acl.AclPermissionType.ALLOW;
 import static org.apache.kafka.common.resource.PatternType.LITERAL;
-import static org.apache.kafka.common.resource.ResourceType.CLUSTER;
 import static org.apache.kafka.common.resource.ResourceType.TOPIC;
 
 public class ScramKafkaAdminClient implements KafkaAdminClient {
@@ -73,21 +71,16 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
     }
 
     @Override
-    public void grantPermission(String username, String topicName, TopicRole role) throws StatusRuntimeException {
-        var op = switch (role) {
-            case PRODUCER -> WRITE;
-            case CONSUMER -> READ;
-        };
-
+    public void grantPermission(String username, String topicName) throws StatusRuntimeException {
         try {
             adminClient.createAcls(
                 List.of(
                     new AclBinding(
                         new ResourcePattern(TOPIC, topicName, LITERAL),
-                        new AccessControlEntry("USER:" + username, "*", ALL, ALLOW)),
+                        new AccessControlEntry("User:" + username, "*", ALL, ALLOW)),
                     new AclBinding(
-                        new ResourcePattern(CLUSTER, "kafka-cluster", LITERAL),
-                        new AccessControlEntry("USER:" + username, "*", DESCRIBE, ALLOW))))
+                        new ResourcePattern(TOPIC, topicName, LITERAL),
+                        new AccessControlEntry("User:" + username, "*", DESCRIBE, ALLOW))))
                 .all().get();
         } catch (Exception e) {
             LOG.error("Cannot grant permission: ", e);
@@ -95,22 +88,4 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
         }
     }
 
-    @Override
-    public void dropPermission(String username, String topicName, TopicRole role) throws StatusRuntimeException {
-        var op = switch (role) {
-            case PRODUCER -> WRITE;
-            case CONSUMER -> READ;
-        };
-
-        try {
-            adminClient.deleteAcls(
-                List.of(
-                    new AclBindingFilter(
-                        new ResourcePatternFilter(TOPIC, topicName, LITERAL),
-                        new AccessControlEntryFilter(username, "*", op, ALLOW))))
-                .all().get();
-        } catch (Exception e) {
-            throw Status.fromThrowable(e).asRuntimeException();
-        }
-    }
 }

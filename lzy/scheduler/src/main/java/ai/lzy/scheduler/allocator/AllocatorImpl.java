@@ -104,15 +104,15 @@ public class AllocatorImpl implements WorkersAllocator {
             args.add("--kafka-bootstrap");
             args.add(String.join(",", config.getKafka().getBootstrapServers()));
 
-            if (config.getKafka().getEncrypt().isEnabled()) {
-                try (var file = new FileInputStream(config.getKafka().getEncrypt().getTruststorePath())) {
+            if (config.getKafka().isTlsEnabled()) {
+                try (var file = new FileInputStream(config.getKafka().getTlsTruststorePath())) {
                     var bytes = file.readAllBytes();
 
                     args.add("--truststore-base64");
                     args.add(Base64.getEncoder().encodeToString(bytes));
 
                     args.add("--truststore-password");
-                    args.add(config.getKafka().getEncrypt().getTruststorePassword());
+                    args.add(config.getKafka().getTlsTruststorePassword());
                 } catch (IOException e) {
                     LOG.error("Cannot serialize kafka CA", e);
                     throw new RuntimeException("Cannot serialize kafka CA", e);

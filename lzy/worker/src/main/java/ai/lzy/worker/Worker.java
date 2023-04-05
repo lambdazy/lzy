@@ -158,15 +158,15 @@ public class Worker {
                 var truststore = parse.getOptionValue("truststore-base64");
 
                 if (truststore != null) {
-                    kafkaConf.getEncrypt().setEnabled(true);
+                    kafkaConf.setTlsEnabled(true);
                     var path = "/tmp/lzy_" + UUID.randomUUID() + ".jks";
 
                     try (var file = new FileOutputStream(path)) {
                         file.write(Base64.getDecoder().decode(truststore));
                     }
 
-                    kafkaConf.getEncrypt().setTruststorePath(path);
-                    kafkaConf.getEncrypt().setTruststorePassword(parse.getOptionValue("truststore-password"));
+                    kafkaConf.setTlsTruststorePath(path);
+                    kafkaConf.setTlsTruststorePassword(parse.getOptionValue("truststore-password"));
                 }
             } else {
                 kafkaConf.setEnabled(false);
@@ -250,9 +250,10 @@ public class Worker {
         properties.put("worker.kafka.enabled", kafka.isEnabled()); // ???? endpoint? keystore?
         properties.put("worker.kafka.bootstrap-servers", String.join(",", kafka.getBootstrapServers()));
 
-        if (kafka.getEncrypt() != null) {
-            properties.put("worker.kafka.encrypt.truststore-path", kafka.getEncrypt().getTruststorePath());
-            properties.put("worker.kafka.encrypt.truststore-password", kafka.getEncrypt().getTruststorePassword());
+        if (kafka.isTlsEnabled()) {
+            properties.put("worker.kafka.tls-enabled", true);
+            properties.put("worker.kafka.tls-truststore-path", kafka.getTlsTruststorePath());
+            properties.put("worker.kafka.tls-truststore-password", kafka.getTlsTruststorePassword());
         }
 
         properties.put("micronaut.server.host", "127.0.0.1"); // ! management api on localhost only !

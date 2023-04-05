@@ -14,8 +14,6 @@ public class NoopKafkaAdminClient implements KafkaAdminClient {
     public void dropTopic(String name) {}
 
     @Override
-    public void grantPermission(String username, String topicName, TopicRole role) {}
+    public void grantPermission(String username, String topicName) {}
 
-    @Override
-    public void dropPermission(String username, String topicName, TopicRole role) {}
 }
