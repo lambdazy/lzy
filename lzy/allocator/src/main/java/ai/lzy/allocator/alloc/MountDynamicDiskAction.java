@@ -50,7 +50,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     @Override
     protected List<Supplier<StepResult>> steps() {
         return List.of(this::createVolume, this::createVolumeClaim, this::setVolumeClaim, this::attachVolumeToPod,
-            this::setMountName, this::waitForPod, this::checkIfVmStillExists);
+            this::setDynamicMountReady, this::waitForPod, this::checkIfVmStillExists);
     }
 
     @Override
@@ -109,7 +109,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult createVolume() {
-        if (this.volume != null) {
+        if (this.volume != null || dynamicMount.volumeClaimId() != null) {
             return StepResult.ALREADY_DONE;
         }
 
@@ -124,7 +124,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult createVolumeClaim() {
-        if (volumeClaim != null) {
+        if (volumeClaim != null || dynamicMount.volumeClaimId() != null) {
             return StepResult.ALREADY_DONE;
         }
 
@@ -189,8 +189,8 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         return StepResult.CONTINUE;
     }
 
-    private StepResult setMountName() {
-        if (dynamicMount.mountName() != null) {
+    private StepResult setDynamicMountReady() {
+        if (dynamicMount.state() == DynamicMount.State.READY) {
             return StepResult.ALREADY_DONE;
         }
 
@@ -201,7 +201,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(), update, null));
             this.dynamicMount = dynamicMount.apply(update);
         } catch (Exception e) {
-            log().error("{} Couldn't set mount name {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            log().error("{} Couldn't update mount state {}", logPrefix(), dynamicMount.volumeDescription(), e);
             return StepResult.RESTART;
         }
         return StepResult.CONTINUE;
