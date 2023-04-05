@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.8.6</version>
+        <version>1.8.7</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>site</artifactId>
-    <version>1.8.6</version>
+    <version>1.8.7</version>
     <packaging>${packaging}</packaging>
 
     <properties>
@@ -24,18 +24,18 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam-api</artifactId>
-            <version>1.8.6</version>
+            <version>1.8.7</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>scheduler-api</artifactId>
-            <version>1.8.6</version>
+            <version>1.8.7</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-auth</artifactId>
-            <version>1.8.6</version>
+            <version>1.8.7</version>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
@@ -115,7 +115,7 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
-            <version>1.8.6</version>
+            <version>1.8.7</version>
             <scope>test</scope>
         </dependency>
         <dependency>
