@@ -6,7 +6,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 
 @dataclass
 class Absence:
-    cause: Exception
+    cause: Union[Exception, None] = None
 
 
 @dataclass

@@ -50,10 +50,7 @@ def materialize_if_sequence_of_lzy_proxies(obj: Any) -> Any:
     return result
 
 
-def lzy_proxy(
-        entry_id: str, types: Sequence[Type], wflow: "LzyWorkflow",
-        value: Either = Absence(ValueError("Missing default value"))
-) -> Any:
+def lzy_proxy(entry_id: str, types: Sequence[Type], wflow: "LzyWorkflow", value: Either = Absence()) -> Any:
     async def __materialize() -> Any:
         if isinstance(value, Result):
             return value.value
