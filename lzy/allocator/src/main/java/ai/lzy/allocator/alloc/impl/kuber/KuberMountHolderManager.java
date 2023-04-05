@@ -94,13 +94,11 @@ public class KuberMountHolderManager implements MountHolderManager {
     }
 
     @Override
-    public String attachVolume(ClusterPod clusterPod, DynamicMount mount, VolumeClaim claim) {
+    public void attachVolume(ClusterPod clusterPod, DynamicMount mount, VolumeClaim claim) {
         var cluster = getCluster(clusterPod.clusterId());
         try (final var client = factory.build(cluster)) {
-            String mountName = mountName(mount.volumeDescription().diskId());
             client.pods().inNamespace(NAMESPACE_VALUE).withName(clusterPod.podName())
-                .edit(pod -> attachDiskToPodInPlace(pod, mount, claim, mountName));
-            return mountName;
+                .edit(pod -> attachDiskToPodInPlace(pod, mount, claim));
         } catch (KubernetesClientException e) {
             LOG.error("Failed to attach volume to pod {}: {}", clusterPod.podName(), e.getMessage(), e);
             throw e;
@@ -146,7 +144,7 @@ public class KuberMountHolderManager implements MountHolderManager {
     }
 
     @NotNull
-    private Pod attachDiskToPodInPlace(Pod pod, DynamicMount mount, VolumeClaim claim, String mountName) {
+    private Pod attachDiskToPodInPlace(Pod pod, DynamicMount mount, VolumeClaim claim) {
         PodSpec spec = pod.getSpec();
         spec.getContainers()
             .forEach(container -> {
@@ -154,7 +152,7 @@ public class KuberMountHolderManager implements MountHolderManager {
                     container.getVolumeMounts().size() + 1);
                 mounts.addAll(container.getVolumeMounts());
                 mounts.add(new VolumeMountBuilder()
-                    .withName(mountName)
+                    .withName(mount.mountName())
                     .withMountPath(mountConfig.getWorkerMountPoint() + "/" + mount.mountPath())
                     .withReadOnly(false)
                     .withMountPropagation(VolumeMount.MountPropagation.BIDIRECTIONAL.asString())
@@ -164,7 +162,7 @@ public class KuberMountHolderManager implements MountHolderManager {
         var volumes = ImmutableList.<Volume>builder()
             .addAll(spec.getVolumes())
             .add(new VolumeBuilder()
-                .withName(mountName)
+                .withName(mount.mountName())
                 .withPersistentVolumeClaim(new PersistentVolumeClaimVolumeSource(claim.name(), false))
                 .build()
             )
@@ -221,10 +219,6 @@ public class KuberMountHolderManager implements MountHolderManager {
         return cluster;
     }
 
-    @NotNull
-    private static String mountName(String diskId) {
-        return "disk-" + diskId;
-    }
     @NotNull
     private static String mountHolderName(String vmId) {
         return MOUNT_HOLDER_POD_NAME_PREFIX + vmId;

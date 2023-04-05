@@ -9,7 +9,7 @@ public record DynamicMount(
     String vmId,
     String clusterId,
     String mountPath,
-    @Nullable String mountName,
+    String mountName,
     @Nullable String volumeClaimId,
     DiskVolumeDescription volumeDescription,
     String mountOperationId,
@@ -22,15 +22,14 @@ public record DynamicMount(
         DELETING
     }
 
-    public static DynamicMount createNew(String vmId, String clusterId, String mountPath,
+    public static DynamicMount createNew(String vmId, String clusterId, String mountName, String mountPath,
                                          DiskVolumeDescription volumeDescription, String mountOperationId)
     {
-        return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, null, null,
+        return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, mountName, null,
             volumeDescription, mountOperationId, null, State.PENDING);
     }
 
     public DynamicMount apply(Update update) {
-        var mountName = update.mountName() != null ? update.mountName() : mountName();
         var volumeClaimId = update.volumeClaimId() != null ? update.volumeClaimId() : volumeClaimId();
         var state = update.state() != null ? update.state() : state();
         var unmountOperationId = update.unmountOperationId() != null ? update.unmountOperationId()
@@ -42,7 +41,6 @@ public record DynamicMount(
     public record Update(
         @Nullable String volumeClaimId,
         @Nullable State state,
-        @Nullable String mountName,
         @Nullable String unmountOperationId
     ) {
         public static Builder builder() {
@@ -52,7 +50,6 @@ public record DynamicMount(
         public static class Builder {
             private String volumeClaimId;
             private State state;
-            private String mountName;
             private String unmountOperationId;
 
             public Builder volumeClaimId(String volumeClaimId) {
@@ -65,18 +62,13 @@ public record DynamicMount(
                 return this;
             }
 
-            public Builder mountName(String mountName) {
-                this.mountName = mountName;
-                return this;
-            }
-
             public Builder unmountOperationId(String unmountOperationId) {
                 this.unmountOperationId = unmountOperationId;
                 return this;
             }
 
             public Update build() {
-                return new Update(volumeClaimId, state, mountName, unmountOperationId);
+                return new Update(volumeClaimId, state, unmountOperationId);
             }
         }
     }

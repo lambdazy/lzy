@@ -5,7 +5,6 @@ import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.VolumeClaim;
-import ai.lzy.allocator.util.AllocatorUtils;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -54,13 +53,8 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        var clusterId = AllocatorUtils.getClusterId(vm);
-        if (clusterId == null) {
-            return StepResult.ALREADY_DONE;
-        }
-
         try {
-            allocationContext.mountHolderManager().detachVolume(ClusterPod.of(clusterId, mountPodName),
+            allocationContext.mountHolderManager().detachVolume(ClusterPod.of(dynamicMount.clusterId(), mountPodName),
                 dynamicMount.mountName());
             withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
@@ -92,15 +86,9 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        var clusterId = AllocatorUtils.getClusterId(vm);
-        if (clusterId == null) {
-            log().warn("{} Cluster id is null for vm {}", logPrefix(), vm.vmId());
-            return StepResult.ALREADY_DONE;
-        }
-
         try {
             var podPhase = allocationContext.mountHolderManager()
-                .checkPodPhase(ClusterPod.of(clusterId, mountPodName));
+                .checkPodPhase(ClusterPod.of(dynamicMount.clusterId(), mountPodName));
             switch (podPhase) {
                 case RUNNING:
                     mountPodStarted = true;

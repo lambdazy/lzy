@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Supplier;
 
-import static ai.lzy.allocator.util.AllocatorUtils.getClusterId;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 public final class MountDynamicDiskAction extends OperationRunnerBase {
@@ -33,10 +32,8 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     private Volume volume;
     private VolumeClaim volumeClaim;
     private ClusterPod mountPod;
-    private String clusterId;
     private boolean podStarted;
     private UnmountDynamicDiskAction unmountAction;
-    private String mountName;
 
     public MountDynamicDiskAction(String opId, Vm vm, DynamicMount dynamicMount, AllocationContext allocationContext) {
         super(opId, String.format("mount disk %s to VM %s", dynamicMount.volumeDescription().diskId(), vm.vmId()),
@@ -116,15 +113,8 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        clusterId = getClusterId(vm);
-        if (clusterId == null) {
-            log().error("{} Cluster id is not found for vm {}", logPrefix(), vm.vmId());
-            fail(Status.FAILED_PRECONDITION.withDescription("Cluster id is not found for vm " + vm.vmId()));
-            return StepResult.FINISH;
-        }
-
         try {
-            this.volume = volumeManager.createOrGet(clusterId, dynamicMount.volumeDescription());
+            this.volume = volumeManager.createOrGet(dynamicMount.clusterId(), dynamicMount.volumeDescription());
         } catch (Exception e) {
             log().error("{} Couldn't create volume {}", dynamicMount.volumeDescription(), e);
             return StepResult.RESTART;
@@ -167,7 +157,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult attachVolumeToPod() {
-        if (mountName != null) {
+        if (mountPod != null) {
             return StepResult.ALREADY_DONE;
         }
 
@@ -178,10 +168,10 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.FINISH;
         }
 
-        var mountPod = ClusterPod.of(clusterId, mountPodName);
+        var mountPod = ClusterPod.of(dynamicMount.clusterId(), mountPodName);
 
         try {
-            mountName = mountHolderManager.attachVolume(mountPod, dynamicMount, volumeClaim);
+            mountHolderManager.attachVolume(mountPod, dynamicMount, volumeClaim);
             this.mountPod = mountPod;
         } catch (KubernetesClientException e) {
             if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
@@ -207,7 +197,6 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         try {
             var update = DynamicMount.Update.builder()
                 .state(DynamicMount.State.READY)
-                .mountName(mountName)
                 .build();
             withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(), update, null));
             this.dynamicMount = dynamicMount.apply(update);

@@ -24,11 +24,14 @@ CREATE TABLE IF NOT EXISTS dynamic_mount(
     vm_id           TEXT    NOT NULL    REFERENCES vm(id),
     cluster_id      TEXT    NOT NULL,
     volume_spec     TEXT    NOT NULL,
+    mount_path      TEXT    NOT NULL,
     mount_name      TEXT    NOT NULL,
     volume_claim_id TEXT    NULL        REFERENCES persistent_volume_claim(id),
     mount_op_id     TEXT    NOT NULL    REFERENCES operation(id),
     unmount_op_id   TEXT    NULL        REFERENCES operation(id),
-    PRIMARY KEY (id)
+    PRIMARY KEY (id),
+    UNIQUE (vm_id, mount_path),
+    UNIQUE (vm_id, mount_name)
 );
 
 ALTER TABLE vm

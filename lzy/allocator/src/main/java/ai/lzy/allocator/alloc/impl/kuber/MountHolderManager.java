@@ -10,7 +10,7 @@ public interface MountHolderManager {
 
     ClusterPod allocateMountHolder(Vm.Spec mountToVm);
 
-    String attachVolume(ClusterPod clusterPod, DynamicMount mount, VolumeClaim claim);
+    void attachVolume(ClusterPod clusterPod, DynamicMount mount, VolumeClaim claim);
 
     void detachVolume(ClusterPod clusterPod, String mountName);
 
