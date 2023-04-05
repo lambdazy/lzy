@@ -6,6 +6,7 @@ from typing import Optional, Type, Dict, Any, Iterable, Set, TYPE_CHECKING, Sequ
 
 # noinspection PyPackageRequirements
 from google.protobuf.timestamp_pb2 import Timestamp
+from lzy.proxy.result import Result
 from serialzy.api import Schema
 from serialzy.types import get_type
 
@@ -15,7 +16,6 @@ from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize_if_sequence_of
     get_proxy_entry_id
 from lzy.api.v1.utils.types import check_types_serialization_compatible, is_subtype
 from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
-from lzy.proxy.result import Just
 from lzy.utils.event_loop import LzyEventLoop
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -117,7 +117,7 @@ class WritableWhiteboard:
                                                              f"{whiteboard_uri}/{field.name}.default")
 
                 data_to_load.append(put_and_copy())
-                defaults[field.name] = lzy_proxy(entry.id, (field.type,), workflow, Just(field.default))
+                defaults[field.name] = lzy_proxy(entry.id, (field.type,), workflow, Result(field.default))
 
             fields.append(WhiteboardField(name=field.name, scheme=build_scheme(serializer.schema(field.type))))
 
