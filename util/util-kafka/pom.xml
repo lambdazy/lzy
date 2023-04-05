@@ -6,12 +6,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.9-SNAPSHOT</version>
+        <version>${revision}${changelist}</version>
         <relativePath>../../parent</relativePath>
     </parent>
 
     <artifactId>util-kafka</artifactId>
-    <version>1.9-SNAPSHOT</version>
     <properties>
         <packaging>jar</packaging>
     </properties>
