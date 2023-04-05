@@ -8,8 +8,14 @@ from lzy.types import File
 
 @op
 def run(user: str, key: File, obj: CustomClass) -> None:
+    print("Run user: " + user)
+    print("Run key path: " + str(key))
     run_graph(user, str(key), obj)
 
 
 with Lzy().workflow(name="wf", interactive=False):
-    run(os.getenv(USER_ENV), File(os.getenv(KEY_PATH_ENV)), CustomClass())
+    user_env = os.getenv(USER_ENV)
+    key_path = os.getenv(KEY_PATH_ENV)
+    print("User: " + user_env)
+    print("Key path: " + key_path)
+    run(user_env, File(key_path), CustomClass())
