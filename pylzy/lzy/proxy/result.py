@@ -19,5 +19,5 @@ Either = Union[Result[T], Absence]
 
 def unwrap(res: Union[Result[T], Absence]) -> T:
     if isinstance(res, Absence):
-        raise AttributeError(f"Cannot unwrap result, it is absent because of cause={str(res.cause)}")
+        raise AttributeError(f"Cannot unwrap result, it is absent because of cause={res.cause!r}")
     return res.value

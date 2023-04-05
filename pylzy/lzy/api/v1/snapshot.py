@@ -35,7 +35,7 @@ class SnapshotEntry:
     @property
     def storage_uri(self) -> str:
         if self._storage_uri is None:
-            raise ValueError(f"Storage uri for snapshot entry with id={id} is not set")
+            raise ValueError(f"Storage uri for snapshot entry with id={self.id} is not set")
         return cast(str, self._storage_uri)
 
     @storage_uri.setter
@@ -45,7 +45,7 @@ class SnapshotEntry:
     @property
     def data_hash(self) -> str:
         if self._data_hash is None:
-            raise ValueError(f"Data hash for snapshot entry {id} is not set")
+            raise ValueError(f"Data hash for snapshot entry {self.id} is not set")
         return cast(str, self._data_hash)
 
     @data_hash.setter
@@ -103,7 +103,7 @@ class DefaultSnapshot(Snapshot):
         data_scheme = serializer_by_type.schema(typ)
         e = SnapshotEntry(eid, name, typ, data_scheme, self.__storage_name)
         self.__entry_id_to_entry[e.id] = e
-        _LOG.debug("Created entry %s", repr(e))
+        _LOG.debug("Created entry %r", e)
         return e
 
     async def get_data(self, entry_id: str) -> Either[Any]:
@@ -115,7 +115,7 @@ class DefaultSnapshot(Snapshot):
         try:
             storage_uri = entry.storage_uri
         except ValueError as e:
-            _LOG.debug("Error while getting data for entry %s: %s", entry_id, str(e))
+            _LOG.debug("Error while getting data for entry %s: %r", entry_id, e)
             return Absence(e)
 
         exists = await self.__storage_client.blob_exists(storage_uri)
