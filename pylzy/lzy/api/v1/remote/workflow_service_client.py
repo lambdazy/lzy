@@ -1,7 +1,7 @@
 import asyncio
 import atexit
-import dataclasses
 import os
+from abc import ABC
 from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
 
@@ -71,19 +71,17 @@ GraphStatus = Union[Waiting, Executing, Completed, Failed]
 
 
 @dataclass
-class StdoutMessage:
+class Message(ABC):
     data: str
-
-
-@dataclass
-class StderrMessage:
-    data: str
-
-
-@dataclass
-class Message:
-    msg: Union[StderrMessage, StdoutMessage]
     offset: int
+
+
+class StderrMessage(Message):
+    pass
+
+
+class StdoutMessage(Message):
+    pass
 
 
 RETRY_CONFIG = RetryConfig(max_retry=12000, backoff_multiplier=1.2)
@@ -192,10 +190,10 @@ class WorkflowServiceClient:
         async for msg in stream:
             if msg.HasField("stderr"):
                 for line in msg.stderr.data:
-                    yield Message(StderrMessage(line), msg.offset)
+                    yield StderrMessage(line, msg.offset)
             if msg.HasField("stdout"):
                 for line in msg.stdout.data:
-                    yield Message(StdoutMessage(line), msg.offset)
+                    yield StdoutMessage(line, msg.offset)
 
     @retry(config=RETRY_CONFIG, action_name="starting to execute graph")
     async def execute_graph(self, workflow_name: str, execution_id: str, graph: Graph) -> str:

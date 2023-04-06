@@ -258,16 +258,16 @@ class RemoteRuntime(Runtime):
     @retry(action_name="listening to std slots", config=RetryConfig(max_retry=12000, backoff_multiplier=1.2))
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
-        async for data in client.read_std_slots(execution_id, self.__logs_offset):
-            if isinstance(data.msg, StderrMessage):
-                system_log = "[SYS]" in data.msg.data
+        async for msg in client.read_std_slots(execution_id, self.__logs_offset):
+            if isinstance(msg, StderrMessage):
+                system_log = "[SYS]" in msg.data
                 prefix = COLOURS[get_color()] if system_log else ""
                 suffix = RESET_COLOR if system_log else ""
-                sys.stderr.write(prefix + data.msg.data + suffix)
+                sys.stderr.write(prefix + msg.data + suffix)
             else:
-                sys.stdout.write(data.msg.data)
+                sys.stdout.write(msg.data)
 
-            self.__logs_offset = max(self.__logs_offset, data.offset)
+            self.__logs_offset = max(self.__logs_offset, msg.offset)
 
         sys.stdout.flush()
         sys.stderr.flush()
