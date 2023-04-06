@@ -1,5 +1,6 @@
 import asyncio
 import atexit
+import dataclasses
 import os
 from dataclasses import dataclass
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
@@ -79,7 +80,12 @@ class StderrMessage:
     data: str
 
 
-Message = Union[StderrMessage, StdoutMessage]
+@dataclass
+class Message:
+    msg: Union[StderrMessage, StdoutMessage]
+    offset: int
+
+
 RETRY_CONFIG = RetryConfig(max_retry=12000, backoff_multiplier=1.2)
 CHANNEL: Optional[Channel] = None
 
@@ -178,9 +184,9 @@ class WorkflowServiceClient:
             AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
         )
 
-    async def read_std_slots(self, execution_id: str) -> AsyncIterator[Message]:
+    async def read_std_slots(self, execution_id: str, logs_offset: int) -> AsyncIterator[Message]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
-            ReadStdSlotsRequest(executionId=execution_id)
+            ReadStdSlotsRequest(executionId=execution_id, offset=logs_offset)
         )
 
         async for msg in stream:

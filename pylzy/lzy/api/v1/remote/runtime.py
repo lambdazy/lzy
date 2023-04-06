@@ -84,6 +84,8 @@ class RemoteRuntime(Runtime):
         self.__std_slots_listener: Optional[Task] = None
         self.__running = False
 
+        self.__logs_offset = 0  # Logs offset for retries of reading log data
+
     async def storage(self) -> Optional[Storage]:
         if not self.__storage:
             self.__storage = await self.__workflow_client.get_or_create_storage()
@@ -102,6 +104,7 @@ class RemoteRuntime(Runtime):
         self.__workflow = workflow
         self.__execution_id = exec_id
         self.__std_slots_listener = asyncio.create_task(self.__listen_to_std_slots(exec_id))
+        self.__logs_offset = 0
         return cast(str, exec_id)
 
     async def exec(
@@ -255,14 +258,16 @@ class RemoteRuntime(Runtime):
     @retry(action_name="listening to std slots", config=RetryConfig(max_retry=12000, backoff_multiplier=1.2))
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
-        async for data in client.read_std_slots(execution_id):
-            if isinstance(data, StderrMessage):
-                system_log = "[SYS]" in data.data
+        async for data in client.read_std_slots(execution_id, self.__logs_offset):
+            if isinstance(data.msg, StderrMessage):
+                system_log = "[SYS]" in data.msg.data
                 prefix = COLOURS[get_color()] if system_log else ""
                 suffix = RESET_COLOR if system_log else ""
-                sys.stderr.write(prefix + data.data + suffix)
+                sys.stderr.write(prefix + data.msg.data + suffix)
             else:
-                sys.stdout.write(data.data)
+                sys.stdout.write(data.msg.data)
+
+            self.__logs_offset = max(self.__logs_offset, data.offset)
 
         sys.stdout.flush()
         sys.stderr.flush()
