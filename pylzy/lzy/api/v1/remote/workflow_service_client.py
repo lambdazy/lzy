@@ -192,10 +192,10 @@ class WorkflowServiceClient:
         async for msg in stream:
             if msg.HasField("stderr"):
                 for line in msg.stderr.data:
-                    yield StderrMessage(line)
+                    yield Message(StderrMessage(line), msg.offset)
             if msg.HasField("stdout"):
                 for line in msg.stdout.data:
-                    yield StdoutMessage(line)
+                    yield Message(StdoutMessage(line), msg.offset)
 
     @retry(config=RETRY_CONFIG, action_name="starting to execute graph")
     async def execute_graph(self, workflow_name: str, execution_id: str, graph: Graph) -> str:
