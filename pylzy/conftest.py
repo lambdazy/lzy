@@ -21,20 +21,20 @@ def pytest_collection_modifyitems(config, items):
     pylzy = pathlib.Path(__file__).parent
 
     for item in items[:]:
-        if not isinstance(item, mypy.MypyItem):
-            continue
-
         path = pathlib.Path(item.fspath).relative_to(pylzy)
         path = str(path)
 
-        if not all(
-            re.match(pattern, path) for pattern in MYPY_WHITELIST
+        if any(
+            re.match(pattern, path) for pattern in DOCTEST_BLACKLIST
         ):
             items.remove(item)
             continue
 
-        if any(
-            re.match(pattern, path) for pattern in DOCTEST_BLACKLIST
+        if not mypy or not isinstance(item, mypy.MypyItem):
+            continue
+
+        if not all(
+            re.match(pattern, path) for pattern in MYPY_WHITELIST
         ):
             items.remove(item)
             continue
