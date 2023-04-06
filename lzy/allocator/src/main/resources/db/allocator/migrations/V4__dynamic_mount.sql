@@ -21,11 +21,12 @@ CREATE TABLE IF NOT EXISTS persistent_volume_claim(
 
 CREATE TABLE IF NOT EXISTS dynamic_mount(
     id              TEXT    NOT NULL,
-    vm_id           TEXT    NOT NULL    REFERENCES vm(id),
+    vm_id           TEXT    NULL        REFERENCES vm(id) ON DELETE SET NULL,
     cluster_id      TEXT    NOT NULL,
     volume_spec     TEXT    NOT NULL,
     mount_path      TEXT    NOT NULL,
     mount_name      TEXT    NOT NULL,
+    worker_id       TEXT    NOT NULL,
     volume_claim_id TEXT    NULL        REFERENCES persistent_volume_claim(id),
     mount_op_id     TEXT    NOT NULL    REFERENCES operation(id),
     unmount_op_id   TEXT    NULL        REFERENCES operation(id),

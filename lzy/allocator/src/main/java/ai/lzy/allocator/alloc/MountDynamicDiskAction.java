@@ -35,8 +35,9 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     private boolean podStarted;
     private UnmountDynamicDiskAction unmountAction;
 
-    public MountDynamicDiskAction(String opId, Vm vm, DynamicMount dynamicMount, AllocationContext allocationContext) {
-        super(opId, String.format("mount disk %s to VM %s", dynamicMount.volumeDescription().diskId(), vm.vmId()),
+    public MountDynamicDiskAction(Vm vm, DynamicMount dynamicMount, AllocationContext allocationContext) {
+        super(dynamicMount.mountOperationId(), String.format("mount disk %s to VM %s",
+                dynamicMount.volumeDescription().diskId(), vm.vmId()),
             allocationContext.storage(), allocationContext.operationsDao(), allocationContext.executor());
         this.dynamicMount = dynamicMount;
         this.vm = vm;
@@ -50,7 +51,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     @Override
     protected List<Supplier<StepResult>> steps() {
         return List.of(this::createVolume, this::createVolumeClaim, this::setVolumeClaim, this::attachVolumeToPod,
-            this::setDynamicMountReady, this::waitForPod, this::checkIfVmStillExists);
+            this::waitForPod, this::checkIfVmStillExists, this::setDynamicMountReady);
     }
 
     @Override
@@ -189,24 +190,6 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         return StepResult.CONTINUE;
     }
 
-    private StepResult setDynamicMountReady() {
-        if (dynamicMount.state() == DynamicMount.State.READY) {
-            return StepResult.ALREADY_DONE;
-        }
-
-        try {
-            var update = DynamicMount.Update.builder()
-                .state(DynamicMount.State.READY)
-                .build();
-            withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(), update, null));
-            this.dynamicMount = dynamicMount.apply(update);
-        } catch (Exception e) {
-            log().error("{} Couldn't update mount state {}", logPrefix(), dynamicMount.volumeDescription(), e);
-            return StepResult.RESTART;
-        }
-        return StepResult.CONTINUE;
-    }
-
     private StepResult waitForPod() {
         if (podStarted) {
             return StepResult.ALREADY_DONE;
@@ -245,7 +228,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             switch (freshVm.status()) {
                 case IDLE, ALLOCATING, RUNNING -> {
                     log().info("{} Vm {} is in status {}", logPrefix(), vm.vmId(), freshVm.status());
-                    return StepResult.FINISH;
+                    return StepResult.CONTINUE;
                 }
                 case DELETING -> {
                     log().error("{} Vm {} is deleting", logPrefix(), vm.vmId());
@@ -255,6 +238,24 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             }
         } catch (Exception e) {
             log().error("{} Couldn't get vm {}", logPrefix(), vm.vmId(), e);
+            return StepResult.RESTART;
+        }
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult setDynamicMountReady() {
+        if (dynamicMount.state() == DynamicMount.State.READY) {
+            return StepResult.FINISH;
+        }
+
+        try {
+            var update = DynamicMount.Update.builder()
+                .state(DynamicMount.State.READY)
+                .build();
+            withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(), update, null));
+            this.dynamicMount = dynamicMount.apply(update);
+        } catch (Exception e) {
+            log().error("{} Couldn't update mount state {}", logPrefix(), dynamicMount.volumeDescription(), e);
             return StepResult.RESTART;
         }
         return StepResult.FINISH;

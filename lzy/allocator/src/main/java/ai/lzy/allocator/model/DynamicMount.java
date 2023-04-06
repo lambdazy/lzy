@@ -1,12 +1,12 @@
 package ai.lzy.allocator.model;
 
-import jakarta.annotation.Nullable;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
 
 public record DynamicMount(
     String id,
-    String vmId,
+    @Nullable String vmId,
     String clusterId,
     String mountPath,
     String mountName,
@@ -14,7 +14,8 @@ public record DynamicMount(
     DiskVolumeDescription volumeDescription,
     String mountOperationId,
     @Nullable String unmountOperationId,
-    State state
+    State state,
+    String workerId
 ) {
     public enum State {
         PENDING,
@@ -23,10 +24,11 @@ public record DynamicMount(
     }
 
     public static DynamicMount createNew(String vmId, String clusterId, String mountName, String mountPath,
-                                         DiskVolumeDescription volumeDescription, String mountOperationId)
+                                         DiskVolumeDescription volumeDescription, String mountOperationId,
+                                         String workerId)
     {
         return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, mountName, null,
-            volumeDescription, mountOperationId, null, State.PENDING);
+            volumeDescription, mountOperationId, null, State.PENDING, workerId);
     }
 
     public DynamicMount apply(Update update) {
@@ -35,7 +37,7 @@ public record DynamicMount(
         var unmountOperationId = update.unmountOperationId() != null ? update.unmountOperationId()
             : unmountOperationId();
         return new DynamicMount(id, vmId, clusterId, mountPath, mountName, volumeClaimId, volumeDescription,
-            mountOperationId, unmountOperationId, state);
+            mountOperationId, unmountOperationId, state, workerId);
     }
 
     public record Update(

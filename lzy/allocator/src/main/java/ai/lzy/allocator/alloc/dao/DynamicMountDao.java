@@ -20,4 +20,8 @@ public interface DynamicMountDao {
     long countForVolumeClaimId(String volumeClaimId, @Nullable TransactionHandle tx) throws SQLException;
 
     List<DynamicMount> getNonDeletingByVmId(String vmId, @Nullable TransactionHandle tx) throws SQLException;
+
+    List<DynamicMount> getPendingByVmId(String workerId, @Nullable TransactionHandle tx) throws SQLException;
+
+    List<DynamicMount> getDeletingByVmId(String workerId, @Nullable TransactionHandle tx) throws SQLException;
 }

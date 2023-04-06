@@ -8,6 +8,7 @@ import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -17,6 +18,7 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 public final class UnmountDynamicDiskAction extends OperationRunnerBase {
 
     private final AllocationContext allocationContext;
+    @Nullable
     private final Vm vm;
     private final DynamicMount dynamicMount;
     private boolean mountPodRecreated;
@@ -25,25 +27,36 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     private boolean volumeClaimDeleted = false;
     private boolean volumeDeleted = false;
     private boolean volumeUnmounted = false;
+    private boolean mountDeleted;
 
-    public UnmountDynamicDiskAction(String opId, Vm vm, DynamicMount dynamicMount,
+    public UnmountDynamicDiskAction(@Nullable Vm vm, DynamicMount dynamicMount,
                                     AllocationContext allocationContext)
     {
-        super(opId, "Unmount volume %s from vm %s".formatted(dynamicMount.volumeDescription().id(),
-                vm.vmId()), allocationContext.storage(), allocationContext.operationsDao(),
-            allocationContext.executor());
+        super(dynamicMount.unmountOperationId(), description(vm, dynamicMount), allocationContext.storage(),
+            allocationContext.operationsDao(), allocationContext.executor());
         this.vm = vm;
         this.dynamicMount = dynamicMount;
         this.allocationContext = allocationContext;
     }
 
+    public static String description(@Nullable Vm vm, DynamicMount mount) {
+        if (vm == null) {
+            return "Remove mount %s".formatted(mount.id());
+        }
+        return "Unmount volume %s from vm %s".formatted(mount.id(), vm.vmId());
+    }
+
     @Override
     protected List<Supplier<StepResult>> steps() {
         return List.of(this::recreateMountPod, this::waitForMountPod, this::unmountFromVM, this::removeVolumeClaim,
-            this::removeVolume);
+            this::removeVolume, this::deleteMount);
     }
 
     private StepResult recreateMountPod() {
+        if (vm == null) {
+            return StepResult.ALREADY_DONE;
+        }
+
         if (mountPodRecreated) {
             return StepResult.ALREADY_DONE;
         }
@@ -72,6 +85,10 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult waitForMountPod() {
+        if (vm == null) {
+            return StepResult.ALREADY_DONE;
+        }
+
         if (!mountPodRecreated) {
             return StepResult.ALREADY_DONE;
         }
@@ -108,7 +125,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult unmountFromVM() {
-        if (vm.status() == Vm.Status.DELETING) {
+        if (vm == null || vm.status() == Vm.Status.DELETING) {
             return StepResult.ALREADY_DONE;
         }
 
@@ -175,6 +192,21 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             volumeDeleted = true;
         } catch (Exception e) {
             log().error("{} Failed to delete volume {}", logPrefix(), dynamicMount.volumeDescription().id(), e);
+            return StepResult.RESTART;
+        }
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult deleteMount() {
+        if (mountDeleted) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        try {
+            withRetries(log(), () -> allocationContext.dynamicMountDao().delete(dynamicMount.id(), null));
+            mountDeleted = true;
+        } catch (Exception e) {
+            log().error("{} Failed to delete mount {}", logPrefix(), dynamicMount.id(), e);
             return StepResult.RESTART;
         }
         return StepResult.FINISH;

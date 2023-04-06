@@ -16,10 +16,10 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
-import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
 import java.time.Duration;
@@ -97,15 +97,15 @@ public record AllocationContext(
         return new DeleteVmAction(vm, deleteOp.id(), this);
     }
 
-    public UnmountDynamicDiskAction createUnmountAction(Vm vm, DynamicMount dynamicMount,
+    public UnmountDynamicDiskAction createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,
                                                         @Nullable TransactionHandle tx) throws SQLException
     {
         var op = Operation.create(
             "system",
-            "Unmount mount %s from vm %s".formatted(dynamicMount.id(), vm.vmId()),
+            "Unmount mount %s from vm %s".formatted(dynamicMount.id(), dynamicMount.vmId()),
             Duration.ofDays(10),
-            new Operation.IdempotencyKey("unmount-disk-%s-%s".formatted(vm.vmId(), dynamicMount.id()),
-                vm.vmId() + dynamicMount.id()),
+            new Operation.IdempotencyKey("unmount-disk-%s-%s".formatted(dynamicMount.vmId(), dynamicMount.id()),
+                dynamicMount.vmId() + dynamicMount.id()),
             null
         );
         operationsDao().create(op, tx);
@@ -117,6 +117,6 @@ public record AllocationContext(
         dynamicMountDao().update(dynamicMount.id(), update, tx);
         var updatedMount = dynamicMount.apply(update);
 
-        return new UnmountDynamicDiskAction(op.id(), vm, updatedMount, this);
+        return new UnmountDynamicDiskAction(vm, updatedMount, this);
     }
 }

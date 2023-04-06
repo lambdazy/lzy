@@ -4,17 +4,28 @@ import ai.lzy.allocator.alloc.AllocateVmAction;
 import ai.lzy.allocator.alloc.AllocationContext;
 import ai.lzy.allocator.alloc.DeleteSessionAction;
 import ai.lzy.allocator.alloc.DeleteVmAction;
+import ai.lzy.allocator.alloc.MountDynamicDiskAction;
+import ai.lzy.allocator.alloc.UnmountDynamicDiskAction;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.model.CachePolicy;
-import ai.lzy.allocator.model.*;
+import ai.lzy.allocator.model.DiskVolumeDescription;
+import ai.lzy.allocator.model.DynamicMount;
+import ai.lzy.allocator.model.HostPathVolumeDescription;
+import ai.lzy.allocator.model.NFSVolumeDescription;
+import ai.lzy.allocator.model.Session;
+import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.VolumeRequest;
+import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.model.debug.InjectedFailures;
+import ai.lzy.allocator.util.AllocatorUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -29,6 +40,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
@@ -39,6 +51,7 @@ import jakarta.inject.Singleton;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -159,6 +172,88 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 });
             }
         } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+
+        restoreMountDynamicDiskActions();
+        restoreUnmountDynamicDiskActions();
+    }
+
+    private void restoreMountDynamicDiskActions() {
+        try {
+            List<OperationRunnerBase> actions = withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    var pendingMounts = allocationContext.dynamicMountDao()
+                        .getPendingByVmId(allocationContext.selfWorkerId(), tx);
+                    if (pendingMounts.isEmpty()) {
+                        return List.of();
+                    }
+                    var mountsByVmId = pendingMounts.stream()
+                        .collect(Collectors.groupingBy(DynamicMount::vmId));
+
+                    var vms = allocationContext.vmDao().loadByIds(mountsByVmId.keySet(), tx);
+                    Map<String, Vm> vmById = vms.stream().collect(Collectors.toMap(Vm::vmId, v -> v));
+                    var actionsToRun = new ArrayList<OperationRunnerBase>(pendingMounts.size());
+                    var mountsToRemove = new ArrayList<DynamicMount>();
+                    mountsByVmId.forEach((vmId, mounts) -> {
+                        var vm = vmById.get(vmId);
+                        if (vm == null) {
+                            LOG.warn("Vm {} not found for mounts {}", vmId, mounts);
+                            mountsToRemove.addAll(mounts);
+                            return;
+                        }
+                        for (var mount : mounts) {
+                            var action = new MountDynamicDiskAction(vm, mount, allocationContext);
+                            actionsToRun.add(action);
+                        }
+                    });
+
+                    for (var dynamicMount : mountsToRemove) {
+                        var unmountAction = allocationContext.createUnmountAction(null, dynamicMount, tx);
+                        actionsToRun.add(unmountAction);
+                    }
+                    tx.commit();
+                    return actionsToRun;
+                }
+            });
+            actions.forEach(allocationContext::startNew);
+        } catch (Exception e) {
+            LOG.error("Failed to restore mount dynamic disk actions", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void restoreUnmountDynamicDiskActions() {
+        try {
+            List<UnmountDynamicDiskAction> actions = withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    var deletingMounts = allocationContext.dynamicMountDao()
+                        .getDeletingByVmId(allocationContext.selfWorkerId(), tx);
+                    if (deletingMounts.isEmpty()) {
+                        return List.of();
+                    }
+                    var mountsByVmId = deletingMounts.stream()
+                        .collect(Collectors.groupingBy(DynamicMount::vmId));
+
+                    var vms = allocationContext.vmDao().loadByIds(mountsByVmId.keySet(), tx);
+                    Map<String, Vm> vmById = vms.stream().collect(Collectors.toMap(Vm::vmId, v -> v));
+                    var actionsToRun = new ArrayList<UnmountDynamicDiskAction>(deletingMounts.size());
+                    mountsByVmId.forEach((vmId, mounts) -> {
+                        var vm = vmById.get(vmId);
+                        for (var mount : mounts) {
+                            var action = new UnmountDynamicDiskAction(vm, mount, allocationContext);
+                            actionsToRun.add(action);
+                        }
+                    });
+
+                    tx.commit();
+
+                    return actionsToRun;
+                }
+            });
+            actions.forEach(allocationContext::startNew);
+        } catch (Exception e) {
+            LOG.error("Failed to restore unmount dynamic disk actions", e);
             throw new RuntimeException(e);
         }
     }
@@ -589,7 +684,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     }
 
     @Override
-    public void mount(MountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+    public void mount(VmAllocatorApi.MountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
         if (!validateRequest(request, responseObserver)) {
             return;
         }
@@ -616,6 +711,24 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
+        if (vm.status() == Vm.Status.DELETING) {
+            LOG.error("Cannot mount volume to deleting vm {}", request.getVmId());
+            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription("Cannot mount volume to deleting vm")
+                .asException());
+            return;
+        }
+
+        var clusterId = AllocatorUtils.getClusterId(vm);
+        if (clusterId == null) {
+            LOG.error("Cannot mount volume to vm {} without cluster", request.getVmId());
+            responseObserver.onError(Status.FAILED_PRECONDITION
+                .withDescription("Cannot mount volume to vm without cluster")
+                .asException());
+            return;
+        }
+
+        //todo check if mount exists
+
         final Session session;
         try {
             session = withRetries(LOG, () -> sessionsDao.get(vm.sessionId(), null));
@@ -632,38 +745,65 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        final var op = Operation.create(
-            session.owner(),
-            "Mount: disk=%s, vm=%s".formatted(request.getVolume().getDiskVolume().getDiskId(), request.getZone()),
-            config.getAllocationTimeout(),
-            idempotencyKey,
-            AllocateMetadata.getDefaultInstance());
-
         try {
-        withRetries(LOG, () -> {
+            var op = createMountOperation(request, idempotencyKey, session);
+            var mountWithAction = createMountAction(request, vm, op, clusterId);
+            withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                    var volumes = prepareVolumeRequests(List.of(request.getVolume()), tx);
-
-
                     operationsDao.create(op, tx);
+                    allocationContext.dynamicMountDao().create(mountWithAction.dynamicMount(), tx);
                     sessionsDao.touch(session.sessionId(), tx);
-
-                } catch (StatusException e) {
-                    //
+                    tx.commit();
                 }
             });
+            allocationContext.startNew(mountWithAction.action());
         } catch (Exception ex) {
             LOG.error("Error while mount // vm {}: {}", request.getVmId(), ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription("Error while free").asException());
             return;
         }
+    }
 
+    private MountWithAction createMountAction(VmAllocatorApi.MountRequest request, Vm vm, Operation op,
+                                                     String clusterId)
+    {
+        var type = request.getVolumeToMount().getVolumeTypeCase();
+        if (type == VolumeApi.Volume.VolumeTypeCase.DISK_VOLUME) {
+            var diskVolume = request.getVolumeToMount().getDiskVolume();
+            var id = "vm-volume-" + diskVolume.getDiskId();
+            final var diskVolumeDescription = new DiskVolumeDescription(id, id, diskVolume.getDiskId(),
+                diskVolume.getSizeGb());
+            var mountName = "disk-" + diskVolume.getDiskId();
+            var dynamicMount = DynamicMount.createNew(vm.vmId(), clusterId, mountName,
+                request.getMountPath(), diskVolumeDescription, op.id(), allocationContext.selfWorkerId());
+            return new MountWithAction(dynamicMount, new MountDynamicDiskAction(vm, dynamicMount, allocationContext));
+        }
+        throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription("unsupported volume type: " + type));
+    }
 
-        super.mount(request, responseObserver);
+    private record MountWithAction(DynamicMount dynamicMount, MountDynamicDiskAction action) { }
+
+    @NotNull
+    private Operation createMountOperation(VmAllocatorApi.MountRequest request,
+                                           Operation.IdempotencyKey idempotencyKey,
+                                           Session session)
+    {
+        var type = request.getVolumeToMount().getVolumeTypeCase();
+        if (type == VolumeApi.Volume.VolumeTypeCase.DISK_VOLUME) {
+            var diskId = request.getVolumeToMount().getDiskVolume().getDiskId();
+            return Operation.create(
+                session.owner(),
+                "Mount: disk=%s, vm=%s".formatted(diskId, request.getVmId()),
+                config.getAllocationTimeout(),
+                idempotencyKey,
+                AllocateMetadata.getDefaultInstance());
+        }
+        throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription("unsupported volume type: " + type));
     }
 
     @Override
-    public void unmount(UnmountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+    public void unmount(VmAllocatorApi.UnmountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+        //todo
         super.unmount(request, responseObserver);
     }
 
@@ -755,9 +895,55 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         return true;
     }
 
+    private static boolean validateRequest(VmAllocatorApi.MountRequest request,
+                                           StreamObserver<LongRunning.Operation> response)
+    {
+        if (request.getVmId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("vm_id isn't set").asException());
+            return false;
+        }
+        if (!request.hasVolumeToMount()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("volume_to_mount isn't set").asException());
+            return false;
+        }
+        VolumeApi.Volume volumeToMount = request.getVolumeToMount();
+        switch (volumeToMount.getVolumeTypeCase()) {
+            case DISK_VOLUME -> {
+                VolumeApi.DiskVolumeType diskVolume = volumeToMount.getDiskVolume();
+                String diskId = diskVolume.getDiskId();
+                if (diskId.isBlank()) {
+                    response.onError(Status.INVALID_ARGUMENT.withDescription("disk_id isn't set").asException());
+                    return false;
+                }
+            }
+            case NFS_VOLUME, HOST_PATH_VOLUME -> {
+                response.onError(Status.UNIMPLEMENTED.withDescription("unsupported volume type").asException());
+                return false;
+            }
+            case VOLUMETYPE_NOT_SET -> {
+                response.onError(Status.UNIMPLEMENTED.withDescription("volume type isn't set").asException());
+                return false;
+            }
+        }
+        if (volumeToMount.hasDiskVolume()) {
+            VolumeApi.DiskVolumeType diskVolume = volumeToMount.getDiskVolume();
+            String diskId = diskVolume.getDiskId();
+            if (diskId.isBlank()) {
+                response.onError(Status.INVALID_ARGUMENT.withDescription("disk_id isn't set").asException());
+                return false;
+            }
+        } else {
+            response.onError(Status.UNIMPLEMENTED.withDescription("unsupported volume type").asException());
+            return false;
+        }
+
+        //todo validate all errors at the same time, plus split into methods
+        return true;
+    }
+
     @Nullable
     private Vm.TunnelSettings validate(VmAllocatorApi.TunnelSettings tunnelSettings,
-                                              StreamObserver<LongRunning.Operation> response)
+                                       StreamObserver<LongRunning.Operation> response)
     {
         var errors = new ArrayList<>();
         int tunnelIndex = tunnelSettings.getTunnelIndex();
@@ -786,25 +972,5 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return null;
         }
         return new Vm.TunnelSettings(proxyV6Address, tunnelIndex);
-    }
-
-    private static boolean validateRequest(MountRequest request, StreamObserver<LongRunning.Operation> response) {
-        if (request.getVmId().isBlank()) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("vm_id not set").asException());
-            return false;
-        }
-        if (request.hasVolumeMount()) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("pool_label not set").asException());
-            return false;
-        }
-        if (request.getZone().isBlank()) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("zone not set").asException());
-            return false;
-        }
-        if (request.getWorkloadCount() == 0) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("workload not set").asException());
-            return false;
-        }
-        return true;
     }
 }
