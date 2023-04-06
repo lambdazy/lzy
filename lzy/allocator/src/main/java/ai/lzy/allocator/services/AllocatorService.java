@@ -106,6 +106,14 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     }
 
     private void restoreRunningActions() {
+        restoreMetrics();
+        restoreVmActions();
+        restoreDeletingSessions();
+        restoreMountDynamicDiskActions();
+        restoreUnmountDynamicDiskActions();
+    }
+
+    private void restoreMetrics() {
         try {
             var vms = allocationContext.vmDao().loadRunningVms(allocationContext.selfWorkerId(), null);
             if (!vms.isEmpty()) {
@@ -130,7 +138,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
 
+    private void restoreVmActions() {
         try {
             var vms = allocationContext.vmDao().loadActiveVmsActions(allocationContext.selfWorkerId(), null);
             if (!vms.isEmpty()) {
@@ -158,7 +168,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+    }
 
+    private void restoreDeletingSessions() {
         try {
             var sessions = sessionsDao.listDeleting(null);
             if (!sessions.isEmpty()) {
@@ -174,9 +186,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-
-        restoreMountDynamicDiskActions();
-        restoreUnmountDynamicDiskActions();
     }
 
     private void restoreMountDynamicDiskActions() {
