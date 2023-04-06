@@ -15,5 +15,14 @@ Configuration:
         ref: Console
 
     Logger:
-      - name: ai.lzy.service
-        level: info
+      - name: GrpcServer
+        level: warn
+
+      - name: GrpcClient
+        level: warn
+
+      - name: io.zonky.test
+        level: warn
+
+      - name: org.flywaydb
+        level: warn

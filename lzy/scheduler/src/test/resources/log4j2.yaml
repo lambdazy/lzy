@@ -10,10 +10,16 @@ Configuration:
 
   Loggers:
     Root:
-      level: error
+      level: warn
       AppenderRef:
         ref: Console
 
     Logger:
-      - name: "ai.lzy.scheduler"
-        level: info
+      - name: UserEventLogs
+        level: error
+
+      - name: "ai.lzy.model.utils.FreePortFinder"
+        level: error
+
+      - name: io.zonky.test
+        level: warn

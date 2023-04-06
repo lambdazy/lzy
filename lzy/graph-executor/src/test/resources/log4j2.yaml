@@ -10,9 +10,12 @@ Configuration:
 
   Loggers:
     Root:
-      level: error
+      level: warn
       AppenderRef:
         ref: Console
     Logger:
-      - name: "ai.lzy.graph"
-        level: info
+      - name: UserEventLogs
+        level: error
+
+      - name: io.zonky.test
+        level: warn

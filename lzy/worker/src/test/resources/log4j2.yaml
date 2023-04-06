@@ -10,12 +10,12 @@ Configuration:
 
   Loggers:
     Root:
-      level: error
+      level: warn
       AppenderRef:
         ref: Console
 
     Logger:
-      - name: "ai.lzy.worker"
-        level: info
+      - name: UserEventLogs
+        level: error
         AppenderRef:
           ref: Console

@@ -15,5 +15,17 @@ Configuration:
         ref: Console
 
     Logger:
+      - name: UserEventLogs
+        level: error
+
+      - name: "ai.lzy.model.utils.FreePortFinder"
+        level: error
+
+      - name: io.zonky.test
+        level: warn
+
       - name: ai.lzy.portal
-        level: info
+        level: debug
+
+      - name: GrpcServer
+        level: error
