@@ -266,7 +266,8 @@ class Lzy:
         provisioning.validate()
 
         # it is important to detect py env before registering lazy calls to avoid materialization of them
-        namespace = inspect.stack()[1].frame.f_globals
+        frame = inspect.stack()[1].frame
+        namespace = {**frame.f_globals, **frame.f_locals}
         auto_py_env: PyEnv = self.__env_provider.provide(namespace)
 
         libraries = {} if not libraries else libraries
