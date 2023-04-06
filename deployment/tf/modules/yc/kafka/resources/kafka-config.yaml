@@ -45,13 +45,13 @@ auth:
 
   jaas:
     zookeeperUser: zookeeperUser
-    zookeeperPassword: zookeeperPassword
+    zookeeperPassword: ${zookeeper_password}
 
 zookeeper:
   auth:
     client:
       enabled: true
       serverUsers: "zookeeperUser"
-      serverPasswords: "zookeeperPassword"
+      serverPasswords: ${zookeeper_password}
       clientUser: zookeeperUser
-      clientPassword: zookeeperPassword
+      clientPassword: ${zookeeper_password}

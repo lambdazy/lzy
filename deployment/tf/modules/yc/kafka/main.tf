@@ -26,12 +26,12 @@ resource "random_password" "kafka_password" {
   special  = false
 }
 
-resource "random_password" "jks_password" {
-  length   = 16
-  special  = false
+resource "random_password" "zookeeper_password" {
+  length  = 16
+  special = false
 }
 
-resource "random_password" "keystore_prefix" {
+resource "random_password" "jks_password" {
   length   = 16
   special  = false
 }
@@ -77,6 +77,7 @@ locals {
     subnet_id: var.subnet_id
     jks_password: random_password.jks_password.result
     jks_secret_name: kubernetes_secret.kafka_jks_secret.metadata[0].name
+    zookeeper_password: random_password.zookeeper_password.result
   })
 }
 
