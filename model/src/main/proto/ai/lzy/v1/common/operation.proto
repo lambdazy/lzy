@@ -4,6 +4,7 @@ package ai.lzy.v1.common;
 
 import "ai/lzy/v1/common/env.proto";
 import "ai/lzy/v1/common/slot.proto";
+import "ai/lzy/v1/validation/validation.proto";
 
 option java_outer_classname = "LMO";
 option java_package = "ai.lzy.v1.common";
@@ -22,22 +23,32 @@ message Operation {
   string name = 6;
 
   // Std slots for stderr and stdout. Optional
-  StdSlotDesc stdout = 7;
-  StdSlotDesc stderr = 8;
+  /* optional */ StdSlotDesc stdout = 7;
+  /* optional */ StdSlotDesc stderr = 8;
+
+  // Kafka topic to write logs to
+  /* optional */ KafkaTopicDescription kafka_topic = 9;
 }
 
 message Requirements {
-  string poolLabel = 1;
+  string pool_label = 1;
   string zone = 2;
 }
 
 message SlotToChannelAssignment {
-  string slotName = 1;
-  string channelId = 2;
+  string slot_name = 1;
+  string channel_id = 2;
 }
 
 message TaskDesc {
   Operation operation = 2;
-  repeated SlotToChannelAssignment slotAssignments = 3;
+  repeated SlotToChannelAssignment slot_assignments = 3;
+}
+
+message KafkaTopicDescription {
+  repeated string bootstrap_servers = 1;
+  string username = 2;  // username of producer
+  string password = 3 [(validation.sensitive) = true];  // plaintext SASL password of producer
+  string topic = 4;  // topic name for logs
 }
 

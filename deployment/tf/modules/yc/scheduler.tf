@@ -208,9 +208,54 @@ resource "kubernetes_deployment" "scheduler" {
             value = local.scheduler-k8s-name
           }
 
+          env {
+            name  = "SCHEDULER_KAFKA_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name = "SCHEDULER_KAFKA_BOOTSTRAP_SERVERS"
+            value = module.kafka.bootstrap-servers
+          }
+
+          env {
+            name = "SCHEDULER_KAFKA_TLS_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name = "SCHEDULER_KAFKA_TLS_TRUSTSTORE_PATH"
+            value = "/jks/truststore.jks"
+          }
+
+          env {
+            name = "SCHEDULER_KAFKA_TLS_TRUSTSTORE_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = module.kafka.jks-secret-name
+                key = "jks.password"
+              }
+            }
+          }
+
+          env {
+            name = "SCHEDULER_KAFKA_SCRAM_USERNAME"
+            value = module.kafka.admin-username
+          }
+
+          env {
+            name = "SCHEDULER_KAFKA_SCRAM_PASSWORD"
+            value = module.kafka.admin-password
+          }
+
           volume_mount {
             name       = "varloglzy"
             mount_path = "/var/log/lzy"
+          }
+
+          volume_mount {
+            mount_path = "/jks"
+            name       = "jks"
           }
         }
         container {
@@ -233,6 +278,16 @@ resource "kubernetes_deployment" "scheduler" {
             items {
               key = "config"
               path = "config.yml"
+            }
+          }
+        }
+        volume {
+          name = "jks"
+          secret {
+            secret_name = module.kafka.jks-secret-name
+            items {
+              key = "kafka.truststore.jks"
+              path = "truststore.jks"
             }
           }
         }

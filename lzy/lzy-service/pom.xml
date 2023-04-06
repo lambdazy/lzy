@@ -81,6 +81,11 @@
             <artifactId>whiteboard-api</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>util-kafka</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- other external deps -->
         <dependency>
@@ -124,6 +129,10 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-unix-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
         </dependency>
 
         <!-- test lzy deps -->

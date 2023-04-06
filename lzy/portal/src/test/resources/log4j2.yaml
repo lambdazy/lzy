@@ -10,7 +10,7 @@ Configuration:
 
   Loggers:
     Root:
-      level: info
+      level: warn
       AppenderRef:
         ref: Console
 
@@ -23,9 +23,6 @@ Configuration:
 
       - name: io.zonky.test
         level: warn
-
-      - name: ai.lzy
-        level: info
 
       - name: ai.lzy.portal
         level: debug

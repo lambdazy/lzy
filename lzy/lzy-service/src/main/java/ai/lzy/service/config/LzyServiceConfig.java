@@ -3,6 +3,7 @@ package ai.lzy.service.config;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
 import ai.lzy.storage.config.StorageClientConfiguration;
+import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
@@ -28,6 +29,9 @@ public class LzyServiceConfig {
     private Duration gcLeaderPeriod;
 
     private StartupPortalConfig portal;
+
+    @ConfigurationBuilder("kafka")
+    private final KafkaConfig kafka = new KafkaConfig();
 
     @Getter
     @Setter

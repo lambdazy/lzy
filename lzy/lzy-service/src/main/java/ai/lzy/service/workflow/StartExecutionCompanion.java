@@ -11,8 +11,10 @@ import ai.lzy.model.Constants;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.util.auth.credentials.RsaUtils;
+import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -24,8 +26,10 @@ import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 import static ai.lzy.iam.grpc.context.AuthenticationContext.currentSubject;
@@ -111,7 +115,7 @@ final class StartExecutionCompanion {
                             int workersPoolSize, int downloadPoolSize, int chunksPoolSize,
                             String stdoutChannelName, String stderrChannelName,
                             String channelManagerAddress, String iamAddress, String whiteboardAddress,
-                            Duration allocationTimeout, Duration allocateVmCacheTimeout)
+                            Duration allocationTimeout, Duration allocateVmCacheTimeout, boolean createStdChannels)
     {
         LOG.info("Attempt to start portal for workflow execution: { wfName: {}, execId: {} }",
             state.getWorkflowName(), state.getExecutionId());
@@ -119,10 +123,12 @@ final class StartExecutionCompanion {
         try {
             InjectedFailures.fail9();
 
-            createPortalStdChannels(stdoutChannelName, stderrChannelName);
+            if (createStdChannels) {
+                createPortalStdChannels(stdoutChannelName, stderrChannelName);
 
-            withRetries(LOG, () -> owner.executionDao.updateStdChannelIds(state.getExecutionId(),
-                state.getStdoutChannelId(), state.getStderrChannelId(), null));
+                withRetries(LOG, () -> owner.executionDao.updateStdChannelIds(state.getExecutionId(),
+                    state.getStdoutChannelId(), state.getStderrChannelId(), null));
+            }
 
             createAllocatorSession(allocateVmCacheTimeout);
 
@@ -266,19 +272,24 @@ final class StartExecutionCompanion {
         var actualPortalPort = (portalPort == -1) ? FreePortFinder.find(10000, 11000) : portalPort;
         var actualSlotsApiPort = (slotsApiPort == -1) ? FreePortFinder.find(11000, 12000) : slotsApiPort;
 
-        var args = List.of(
+        var args = new ArrayList<>(List.of(
             "-portal.portal-id=" + state.getPortalId(),
             "-portal.portal-api-port=" + actualPortalPort,
             "-portal.slots-api-port=" + actualSlotsApiPort,
-            "-portal.stdout-channel-id=" + state.getStdoutChannelId(),
-            "-portal.stderr-channel-id=" + state.getStderrChannelId(),
             "-portal.channel-manager-address=" + channelManagerAddress,
             "-portal.iam-address=" + iamAddress,
             "-portal.whiteboard-address=" + whiteboardAddress,
             "-portal.concurrency.workers-pool-size=" + workersPoolSize,
             "-portal.concurrency.downloads-pool-size=" + downloadPoolSize,
-            "-portal.concurrency.chunks-pool-size=" + chunksPoolSize
-        );
+            "-portal.concurrency.chunks-pool-size=" + chunksPoolSize));
+
+        if (state.getStdoutChannelId() != null) {
+            args.add("-portal.stdout-channel-id=" + state.getStdoutChannelId());
+        }
+
+        if (state.getStderrChannelId() != null) {
+            args.add("-portal.stderr-channel-id=" + state.getStderrChannelId());
+        }
 
         var portalEnvPKEY = "LZY_PORTAL_PKEY";
         var ports = Map.of(actualSlotsApiPort, actualSlotsApiPort, actualPortalPort, actualPortalPort);
@@ -298,5 +309,38 @@ final class StartExecutionCompanion {
                         .putAllPortBindings(ports)
                         .build())
                 .build());
+    }
+
+    public void createKafkaTopic(KafkaAdminClient kafkaAdminClient) {
+        var topicName = "topic_" + state.getExecutionId() + ".logs";
+        var username = "user_" + state.getExecutionId().replace("-", "_");
+        var password = UUID.randomUUID().toString();
+
+        LOG.info("Creating kafka topic {} for execution_id {}", topicName, state.getExecutionId());
+
+        try {
+            kafkaAdminClient.createTopic(topicName);
+            kafkaAdminClient.createUser(username, password);
+            kafkaAdminClient.grantPermission(username, topicName);
+
+            var topicDesc = new KafkaTopicDesc(username, password, topicName);
+
+            withRetries(LOG, () -> owner.executionDao.setKafkaTopicDesc(state.getExecutionId(), topicDesc, null));
+        } catch (Exception e) {
+            LOG.error("Cannot save kafka topic data in db for execution {}", state.getExecutionId(), e);
+            state.fail(Status.INTERNAL, "Cannot create kafka topic");
+
+            try {
+                kafkaAdminClient.dropUser(username);
+            } catch (Exception ex) {
+                LOG.error("Cannot remove kafka user after error {}: ", e.getMessage(), ex);
+            }
+
+            try {
+                kafkaAdminClient.dropTopic(topicName);
+            } catch (Exception ex) {
+                LOG.error("Cannot remove topic after error {}: ", e.getMessage(), ex);
+            }
+        }
     }
 }

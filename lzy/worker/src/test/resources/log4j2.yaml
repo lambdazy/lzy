@@ -10,17 +10,12 @@ Configuration:
 
   Loggers:
     Root:
-      level: info
+      level: warn
       AppenderRef:
         ref: Console
 
     Logger:
       - name: UserEventLogs
-        level: error
-        AppenderRef:
-          ref: Console
-
-      - name: "ai.lzy.model.utils.FreePortFinder"
         level: error
         AppenderRef:
           ref: Console

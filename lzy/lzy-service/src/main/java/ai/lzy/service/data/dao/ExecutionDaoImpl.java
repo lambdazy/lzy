@@ -4,6 +4,7 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.ExecutionStatus;
+import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.v1.common.LMST;
@@ -16,6 +17,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -111,6 +113,16 @@ public class ExecutionDaoImpl implements ExecutionDao {
         FROM workflow_executions
         WHERE execution_status = 'ERROR'
         LIMIT 1""";
+
+    private static final String QUERY_UPDATE_KAFKA_TOPIC = """
+        UPDATE workflow_executions
+        SET kafka_topic_json = ?
+        WHERE execution_id = ? AND kafka_topic_json is null""";
+
+    private static final String QUERY_GET_KAFKA_TOPIC = """
+        SELECT kafka_topic_json
+        FROM workflow_executions
+        WHERE execution_id = ?""";
 
     private final LzyServiceStorage storage;
     private final ObjectMapper objectMapper;
@@ -454,5 +466,50 @@ public class ExecutionDaoImpl implements ExecutionDao {
             }
         });
         return res[0];
+    }
+
+    @Override
+    public void setKafkaTopicDesc(String executionId, KafkaTopicDesc topicDesc,
+                                  @Nullable TransactionHandle transaction) throws SQLException
+    {
+        DbOperation.execute(transaction, storage, con -> {
+            try (PreparedStatement stmt = con.prepareStatement(QUERY_UPDATE_KAFKA_TOPIC)) {
+                stmt.setString(1, objectMapper.writeValueAsString(topicDesc));
+                stmt.setString(2, executionId);
+                var res = stmt.executeUpdate();
+
+                if (res != 1) {
+                    throw new RuntimeException("Expected 1 updated topic desc, but updates "
+                        + res + " , execution_id: " + executionId);
+                }
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump kafka topic desc: " + topicDesc, e);
+            }
+        });
+    }
+
+    @Override
+    public KafkaTopicDesc getKafkaTopicDesc(String executionId, TransactionHandle transaction) throws SQLException {
+        return DbOperation.execute(transaction, storage, con -> {
+            try (PreparedStatement stmt = con.prepareStatement(QUERY_GET_KAFKA_TOPIC)) {
+                stmt.setString(1, executionId);
+                var qs = stmt.executeQuery();
+
+                if (qs.next()) {
+                    var kafkaJson = qs.getString(1);
+
+                    if (kafkaJson == null) {
+                        return null;
+                    }
+
+                    return objectMapper.readValue(kafkaJson, KafkaTopicDesc.class);
+                } else {
+                    return null;
+                }
+
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot deserialize kafka topic desc", e);
+            }
+        });
     }
 }

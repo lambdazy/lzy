@@ -187,7 +187,7 @@ class WorkflowServiceClient:
             if msg.HasField("stderr"):
                 for line in msg.stderr.data:
                     yield StderrMessage(line)
-            elif msg.HasField("stdout"):
+            if msg.HasField("stdout"):
                 for line in msg.stdout.data:
                     yield StdoutMessage(line)
 

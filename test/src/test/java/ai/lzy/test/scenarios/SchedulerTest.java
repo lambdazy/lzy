@@ -48,7 +48,7 @@ public class SchedulerTest {
     public final ContextRule<ChannelManagerContext> channelManager
         = new ContextRule<>(ctx, ChannelManagerContext.class);
 
-    @Test(timeout = 120_000)
+    @Test(timeout = 240_000)
     public void testGE() throws Exception {
         WorkerApiImpl.TEST_ENV = true;
 

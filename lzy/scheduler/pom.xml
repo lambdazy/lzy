@@ -44,6 +44,11 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>util-kafka</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>worker-api</artifactId>
             <version>${project.version}</version>
         </dependency>

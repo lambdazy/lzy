@@ -7,9 +7,9 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.util.grpc.GrpcUtils;
+import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import ai.lzy.worker.env.EnvironmentFactory;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -30,11 +30,6 @@ public class BeanFactory {
     @Named("WorkerOperationService")
     public LocalOperationService localOperationService(ServiceConfig config) {
         return new LocalOperationService(config.getVmId());
-    }
-
-    @Singleton
-    public EnvironmentFactory environmentFactory(ServiceConfig config) {
-        return new EnvironmentFactory(config.getGpuCount());
     }
 
     @Singleton
@@ -69,15 +64,6 @@ public class BeanFactory {
         );
     }
 
-    @Singleton
-    public WorkerApiImpl workerApiImpl(ServiceConfig config,
-                                       @Named("WorkerOperationService") LocalOperationService localOperationService,
-                                       EnvironmentFactory environmentFactory,
-                                       LzyFsServer lzyFsServer)
-    {
-        return new WorkerApiImpl(config, localOperationService, environmentFactory, lzyFsServer);
-    }
-
     @Bean(preDestroy = "shutdown")
     @Singleton
     @Named("WorkerServer")
@@ -102,5 +88,11 @@ public class BeanFactory {
     public AllocatorAgent allocatorAgent(ServiceConfig config) {
         return new AllocatorAgent(config.getAllocatorToken(), config.getVmId(), config.getAllocatorAddress(),
             config.getAllocatorHeartbeatPeriod());
+    }
+
+    @Singleton
+    @Named("WorkerKafkaHelper")
+    public KafkaHelper kafkaHelper(ServiceConfig config) {
+        return new KafkaHelper(config.getKafka());
     }
 }

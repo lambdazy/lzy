@@ -18,6 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -71,7 +72,7 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
-    public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
+    public void install(StreamQueue.LogHandle logHandle) throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
         try {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
@@ -99,8 +100,8 @@ public class CondaEnvironment implements AuxEnvironment {
                             condaFile.getAbsolutePath())
                     );
 
-                    out.add(lzyProcess.out());
-                    err.add(lzyProcess.err());
+                    var futOut = logHandle.logOut(lzyProcess.out());
+                    var futErr = logHandle.logErr(lzyProcess.err());
 
                     final int rc;
                     try {
@@ -108,6 +109,9 @@ public class CondaEnvironment implements AuxEnvironment {
                     } catch (InterruptedException e) {
                         throw new EnvironmentInstallationException("Environment installation cancelled");
                     }
+
+                    futOut.get();
+                    futErr.get();
                     if (rc != 0) {
                         String errorMessage = "Failed to create/update conda env\n"
                             + "  ReturnCode: " + rc + "\n"
@@ -150,7 +154,7 @@ public class CondaEnvironment implements AuxEnvironment {
                 extractFiles(tempFile, localModulesAbsolutePath.toString());
                 tempFile.deleteOnExit();
             }
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         } finally {
             lockForMultithreadingTests.unlock();

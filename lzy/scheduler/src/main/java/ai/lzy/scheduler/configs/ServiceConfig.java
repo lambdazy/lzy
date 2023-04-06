@@ -2,6 +2,7 @@ package ai.lzy.scheduler.configs;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
+import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
@@ -30,4 +31,7 @@ public class ServiceConfig {
 
     @ConfigurationBuilder("database")
     private DatabaseConfiguration database = new DatabaseConfiguration();
+
+    @ConfigurationBuilder("kafka")
+    private KafkaConfig kafka = new KafkaConfig();
 }

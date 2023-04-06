@@ -3,16 +3,17 @@ package ai.lzy.service.workflow;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.Storage;
-import ai.lzy.service.CleanExecutionCompanion;
-import ai.lzy.service.LzyServiceMetrics;
-import ai.lzy.service.PortalSlotsListener;
+import ai.lzy.service.*;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
@@ -34,8 +35,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
-import java.util.Map;
-import java.util.Queue;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
@@ -74,6 +74,10 @@ public class WorkflowService {
     private final CleanExecutionCompanion cleanExecutionCompanion;
     final ExecutionDao executionDao;
     private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
+    private final LzyServiceConfig config;
+
+    private final KafkaAdminClient kafkaAdminClient;
+    private final KafkaLogsListeners kafkaLogsListeners;
 
     public WorkflowService(LzyServiceConfig config, CleanExecutionCompanion cleanExecutionCompanion,
                            LzyServiceStorage storage, WorkflowDao workflowDao, ExecutionDao executionDao,
@@ -82,7 +86,8 @@ public class WorkflowService {
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel,
                            @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
-                           LzyServiceMetrics metrics)
+                           LzyServiceMetrics metrics,
+                           KafkaAdminClient kafkaAdminClient, KafkaLogsListeners kafkaLogsListeners)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
         allocatorVmCacheTimeout = config.getAllocatorVmCacheTimeout();
@@ -90,6 +95,7 @@ public class WorkflowService {
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
+        this.config = config;
         this.metrics = metrics;
 
         this.storage = storage;
@@ -97,6 +103,8 @@ public class WorkflowService {
         this.executionDao = executionDao;
 
         this.cleanExecutionCompanion = cleanExecutionCompanion;
+        this.kafkaAdminClient = kafkaAdminClient;
+        this.kafkaLogsListeners = kafkaLogsListeners;
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
         this.vmPoolClient = newBlockingClient(
@@ -147,6 +155,15 @@ public class WorkflowService {
             return;
         }
 
+        if (config.getKafka().isEnabled()) {
+            newExecution.createKafkaTopic(kafkaAdminClient);
+
+            if (newExecution.isInvalid()) {
+                replyError.accept(newExecution.getErrorStatus());
+                return;
+            }
+        }
+
         metrics.activeExecutions.labels(newExecution.getOwner()).inc();
 
         var portalPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : startupPortalConfig.getPortalApiPort();
@@ -156,7 +173,7 @@ public class WorkflowService {
             startupPortalConfig.getWorkersPoolSize(), startupPortalConfig.getDownloadsPoolSize(),
             startupPortalConfig.getChunksPoolSize(), startupPortalConfig.getStdoutChannelName(),
             startupPortalConfig.getStderrChannelName(), channelManagerAddress, iamAddress, whiteboardAddress,
-            allocationTimeout, allocatorVmCacheTimeout);
+            allocationTimeout, allocatorVmCacheTimeout, !config.getKafka().isEnabled());
 
         if (newExecution.isInvalid()) {
             LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
@@ -194,6 +211,15 @@ public class WorkflowService {
                 response.onError(Status.FAILED_PRECONDITION
                     .withDescription("Portal is creating, retry later.").asException());
                 return;
+            }
+
+            if (config.getKafka().isEnabled()) {
+                var topicDesc = DbHelper.withRetries(LOG, () -> executionDao.getKafkaTopicDesc(executionId, null));
+
+                if (topicDesc != null) {
+                    kafkaLogsListeners.listen(request, response, topicDesc);
+                    return;
+                }
             }
 
             var resp = (ServerCallStreamObserver<LWFS.ReadStdSlotsResponse>) response;

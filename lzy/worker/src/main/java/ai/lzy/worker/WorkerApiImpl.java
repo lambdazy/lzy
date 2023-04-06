@@ -13,14 +13,19 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.TextLinesOutSlot;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
+import ai.lzy.worker.StreamQueue.LogHandle;
 import ai.lzy.worker.env.AuxEnvironment;
 import ai.lzy.worker.env.EnvironmentFactory;
 import ai.lzy.worker.env.EnvironmentInstallationException;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,8 +36,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
+@Singleton
 public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkerApiImpl.class);
     public static volatile boolean TEST_ENV = false;
@@ -40,14 +45,14 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private final LzyFsServer lzyFs;
     private final LocalOperationService operationService;
     private final EnvironmentFactory envFactory;
-    private final ServiceConfig config;
+    @Nullable
+    private final KafkaHelper kafkaHelper;
 
-    public WorkerApiImpl(ServiceConfig config,
-                         LocalOperationService localOperationService,
-                         EnvironmentFactory environmentFactory,
-                         LzyFsServer lzyFsServer)
+    public WorkerApiImpl(@Named("WorkerOperationService") LocalOperationService localOperationService,
+                         EnvironmentFactory environmentFactory, LzyFsServer lzyFsServer,
+                         @Nullable @Named("WorkerKafkaHelper") KafkaHelper helper)
     {
-        this.config = config;
+        this.kafkaHelper = helper;
         this.operationService = localOperationService;
         this.envFactory = environmentFactory;
         this.lzyFs = lzyFsServer;
@@ -66,8 +71,6 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
         for (var slot : op.getSlotsList()) {
             final var binding = slotAssignments.get(slot.getName());
             if (binding == null) {
-                LOG.error("Internal error: no channel binding found for slot {}", slot.getName());
-
                 return LWS.ExecuteResponse.newBuilder()
                     .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Internal error")
@@ -83,25 +86,25 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             }
         });
 
-        final var stdoutSpec = op.hasStdout() ? op.getStdout() : null;
-        final var stderrSpec = op.hasStderr() ? op.getStderr() : null;
+        var topicDesc = request.getTaskDesc().getOperation().hasKafkaTopic()
+            ? request.getTaskDesc().getOperation().getKafkaTopic()
+            : null;
 
-        final var outQueue = generateStreamQueue(tid, stdoutSpec, "stdout");
-        final var errQueue = generateStreamQueue(tid, stderrSpec, "stderr");
+        try (final var logHandle = LogHandle.fromTopicDesc(LOG, topicDesc, kafkaHelper)) {
 
-        outQueue.start();
-        errQueue.start();
-
-        try {
+            final var stdoutSpec = op.hasStdout() ? op.getStdout() : null;
+            final var stderrSpec = op.hasStderr() ? op.getStderr() : null;
+            logHandle.addErrOutput(generateStdOutputStream(tid, stderrSpec));
+            logHandle.addOutOutput(generateStdOutputStream(tid, stdoutSpec));
 
             LOG.info("Configuring worker");
 
-            final AuxEnvironment
-                env = envFactory.create(config.getMountPoint(), request.getTaskDesc().getOperation().getEnv());
+            final AuxEnvironment env = envFactory.create(lzyFs.getMountPoint().toString(),
+                request.getTaskDesc().getOperation().getEnv());
 
             try {
-                env.base().install(outQueue, errQueue);
-                env.install(outQueue, errQueue);
+                env.base().install(logHandle);
+                env.install(logHandle);
             } catch (EnvironmentInstallationException e) {
                 LOG.error("Unable to install environment", e);
 
@@ -124,8 +127,8 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
                 exec.start(env);
 
-                outQueue.add(exec.process().out());
-                errQueue.add(exec.process().err());
+                logHandle.logOut(exec.process().out());
+                logHandle.logErr(exec.process().err());
 
                 final int rc = exec.waitFor();
                 final String message;
@@ -149,13 +152,6 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
                     .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Internal error")
                     .build();
-            }
-        } finally {
-            try {
-                outQueue.close();
-                errQueue.close();
-            } catch (InterruptedException e) {
-                LOG.error("Interrupted while closing out stream");
             }
         }
     }
@@ -222,7 +218,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
         }
     }
 
-    private StreamQueue generateStreamQueue(String tid, @Nullable LMO.Operation.StdSlotDesc stdoutSpec, String name) {
+    private OutputStream generateStdOutputStream(String tid, @Nullable LMO.Operation.StdSlotDesc stdoutSpec) {
         final OutputStream stdout;
         if (stdoutSpec != null) {
             stdout = new PipedOutputStream();
@@ -244,7 +240,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             stdout = OutputStream.nullOutputStream();
         }
 
-        return new StreamQueue(stdout, LOG, name);
+        return stdout;
     }
 
     @Override

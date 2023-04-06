@@ -10,7 +10,7 @@ Configuration:
 
   Loggers:
     Root:
-      level: info
+      level: warn
       AppenderRef:
         ref: Console
 
@@ -22,9 +22,6 @@ Configuration:
         level: warn
 
       - name: io.zonky.test
-        level: warn
-
-      - name: ai.lzy.iam
         level: warn
 
       - name: org.flywaydb

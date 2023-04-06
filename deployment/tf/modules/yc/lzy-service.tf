@@ -5,7 +5,25 @@ variable "portal_image" {
   type = string
 }
 
+resource "kubernetes_secret" "kafka_sa_key" {
+  metadata {
+    name = "kafka-sa-key"
+  }
+  data = {
+    key = local.kafka-sa-key-json
+  }
+}
+
 locals {
+  kafka-sa-key-json = jsonencode({
+    "id" : yandex_iam_service_account_key.kafka-sa-key.id
+    "service_account_id" : yandex_iam_service_account_key.kafka-sa-key.service_account_id
+    "created_at" : yandex_iam_service_account_key.kafka-sa-key.created_at
+    "key_algorithm" : yandex_iam_service_account_key.kafka-sa-key.key_algorithm
+    "public_key" : yandex_iam_service_account_key.kafka-sa-key.public_key
+    "private_key" : yandex_iam_service_account_key.kafka-sa-key.private_key
+  })
+
   lzy-service-labels = {
     app                         = "lzy-service"
     "app.kubernetes.io/name"    = "lzy-service"
@@ -15,6 +33,8 @@ locals {
   lzy-service-k8s-name = "lzy-service"
   lzy-service-image    = var.lzy-service-image
 }
+
+
 resource "kubernetes_deployment" "lzy-service" {
   metadata {
     name   = local.lzy-service-k8s-name
@@ -193,6 +213,45 @@ resource "kubernetes_deployment" "lzy-service" {
             name  = "LZY_SERVICE_STORAGE_BUCKET_CREATION_TIMEOUT"
             value = "20s"
           }
+          env {
+            name  = "LZY_SERVICE_KAFKA_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
+            value = module.kafka.bootstrap-servers
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_TLS_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_TLS_TRUSTSTORE_PATH"
+            value = "/jks/truststore.jks"
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_TLS_TRUSTSTORE_PASSWORD"
+            value_from {
+              secret_key_ref {
+                name = module.kafka.jks-secret-name
+                key = "jks.password"
+              }
+            }
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_SCRAM_USERNAME"
+            value = module.kafka.admin-username
+          }
+
+          env {
+            name = "LZY_SERVICE_KAFKA_SCRAM_PASSWORD"
+            value = module.kafka.admin-password
+          }
 
           env {
             name = "K8S_POD_NAME"
@@ -219,6 +278,11 @@ resource "kubernetes_deployment" "lzy-service" {
             name       = "varloglzy"
             mount_path = "/var/log/lzy"
           }
+
+          volume_mount {
+            mount_path = "/jks"
+            name       = "jks"
+          }
         }
         container {
           name = "unified-agent"
@@ -233,6 +297,8 @@ resource "kubernetes_deployment" "lzy-service" {
             mount_path = "/etc/yandex/unified_agent/conf.d/"
           }
         }
+
+        dns_policy = "ClusterFirst"
         volume {
           name = "unified-agent-config"
           config_map {
@@ -240,6 +306,17 @@ resource "kubernetes_deployment" "lzy-service" {
             items {
               key = "config"
               path = "config.yml"
+            }
+          }
+        }
+
+        volume {
+          name = "jks"
+          secret {
+            secret_name = module.kafka.jks-secret-name
+            items {
+              key = "kafka.truststore.jks"
+              path = "truststore.jks"
             }
           }
         }

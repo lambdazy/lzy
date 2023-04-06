@@ -39,7 +39,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public void install(StreamQueue out, StreamQueue err) {}
+    public void install(StreamQueue.LogHandle logHandle) {}
 
     @Override
     public LzyProcess runProcess(String... command) {
