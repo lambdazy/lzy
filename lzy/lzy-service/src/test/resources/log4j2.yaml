@@ -10,22 +10,10 @@ Configuration:
 
   Loggers:
     Root:
-      level: info
+      level: warn
       AppenderRef:
         ref: Console
 
     Logger:
-      - name: GrpcServer
-        level: warn
-
-      - name: GrpcClient
-        level: warn
-
-      - name: io.zonky.test
-        level: warn
-
-      - name: ai.lzy.iam
-        level: warn
-
-      - name: org.flywaydb
-        level: warn
+      - name: ai.lzy.service
+        level: info
