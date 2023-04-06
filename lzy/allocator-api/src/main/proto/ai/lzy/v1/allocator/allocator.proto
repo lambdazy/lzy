@@ -163,18 +163,19 @@ message FreeResponse {}
 
 message MountRequest {
   string vm_id = 1;
-
-  Volume volume = 2;
-  Mount volume_mount = 3;
+  Volume volume_to_mount = 2;
+  string mount_path = 3;
 }
 
 message MountResponse {
+  string mount_id = 1;
 }
 
 // ========= Unmount disk ==========
 
 message UnmountRequest {
-  string volume_name = 1;
+  string vm_id = 1;
+  string mount_id = 2;
 }
 
 message UnmountResponse {

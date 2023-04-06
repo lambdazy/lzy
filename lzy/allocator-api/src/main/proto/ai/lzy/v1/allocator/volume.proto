@@ -16,6 +16,7 @@ message Volume {
 
 message DiskVolumeType {
   string disk_id = 1;
+  int32 size_gb = 2;
 }
 
 message HostPathVolumeType {
