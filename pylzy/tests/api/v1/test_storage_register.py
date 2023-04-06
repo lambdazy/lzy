@@ -1,7 +1,7 @@
 import uuid
 from unittest import TestCase
 
-from api.v1.mocks import EnvProviderMock
+from tests.api.v1.mocks import EnvProviderMock
 from lzy.api.v1 import LocalRuntime, Lzy
 from lzy.storage.api import Storage
 

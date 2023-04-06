@@ -18,19 +18,20 @@ def buzz() -> int:
     return 42
 
 
-workflow_name = "wf"
+if __name__ == '__main__':
+    workflow_name = "wf"
 
-with Lzy().workflow(name=workflow_name, interactive=False):
-    n = "number"
-    v = 42
-    for i in range(6):
-        mes = bar_with_print(foo_with_print(n, v))
-        print(mes)
+    with Lzy().workflow(name=workflow_name, interactive=False):
+        n = "number"
+        v = 42
+        for i in range(6):
+            mes = bar_with_print(foo_with_print(n, v))
+            print(mes)
 
-with Lzy().workflow(name=workflow_name, interactive=False):
-    n = "number"
-    v = 42
-    mes_1 = bar_with_print(foo_with_print(n, v))
-    mes_2 = f"buzz result: {buzz()}"
-    print(mes_1)
-    print(mes_2)
+    with Lzy().workflow(name=workflow_name, interactive=False):
+        n = "number"
+        v = 42
+        mes_1 = bar_with_print(foo_with_print(n, v))
+        mes_2 = f"buzz result: {buzz()}"
+        print(mes_1)
+        print(mes_2)

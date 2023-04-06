@@ -142,7 +142,7 @@ class WritableWhiteboard:
         )
         LzyEventLoop.run_async(workflow.owner.whiteboard_manager.write_meta(whiteboard, whiteboard_uri))
 
-        self.__model = whiteboard
+        self.__model: Whiteboard = whiteboard
         self.__fields_assigned: Set[str] = set()
         self.__workflow = workflow
         self.__proxy_fields: Dict[str, str] = dict()
@@ -200,7 +200,7 @@ class WritableWhiteboard:
 
     @property
     def tags(self) -> Iterable[str]:
-        return self.__model.tags
+        return self.__model.tags  # type: ignore
 
     @property
     def storage_uri(self) -> str:

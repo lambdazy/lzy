@@ -117,10 +117,10 @@ def proxy(
     but lazy and created by calling given callback at the last moment
     >>> a = proxy(lambda: 3, (int,))
     >>> for i in range(a):
-    >>>     print(i)
-    >>> 0
-    >>> 1
-    >>> 2
+    ...     print(i)
+    0
+    1
+    2
     """
     _cls_attrs: Dict[str, Any] = cls_attrs or {}
     _obj_attrs: Dict[str, Any] = obj_attrs or {}

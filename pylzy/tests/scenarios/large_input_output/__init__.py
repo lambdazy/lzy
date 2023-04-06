@@ -12,10 +12,10 @@ def accept_return_df(frame: pd.DataFrame) -> pd.DataFrame:
     print(f"size_input: {len(frame)}")
     return frame
 
-
-with Lzy().workflow(name="wf", interactive=False):
-    np.random.seed(42)
-    df = pd.DataFrame(np.random.choice(['lzy', 'yzl', 'zly'], size=(5000000, 3)))
-    # noinspection PyNoneFunctionAssignment
-    out = accept_return_df(df)
-    print(f"size_output: {len(out)}")
+if __name__ == '__main__':
+    with Lzy().workflow(name="wf", interactive=False):
+        np.random.seed(42)
+        df = pd.DataFrame(np.random.choice(['lzy', 'yzl', 'zly'], size=(5000000, 3)))
+        # noinspection PyNoneFunctionAssignment
+        out = accept_return_df(df)
+        print(f"size_output: {len(out)}")
