@@ -5,11 +5,11 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.8.7</version>
+        <version>1.8.8</version>
         <relativePath>../../parent</relativePath>
     </parent>
     <artifactId>util-log</artifactId>
-    <version>1.8.7</version>
+    <version>1.8.8</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
