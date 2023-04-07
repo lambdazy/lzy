@@ -63,11 +63,11 @@ public class DockerEnvironment extends BaseEnvironment {
         try {
             prepareImage(sourceImage, handle);
         } catch (InterruptedException e) {
-            handle.logErr("Pulling image {} was interrupted", sourceImage);
+            handle.logErr("Image pulling was interrupted");
             throw new RuntimeException(e);
         } catch (Exception e) {
             handle.logErr("Error while pulling image: {}", e);
-            LOG.info("Error while pulling image {}", sourceImage, e);
+            LOG.error("Error while pulling image {}", sourceImage, e);
             throw new RuntimeException(e);
         }
 
