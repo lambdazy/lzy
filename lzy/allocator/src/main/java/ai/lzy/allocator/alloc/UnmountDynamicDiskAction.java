@@ -137,10 +137,10 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             allocationContext.allocator().unmountFromVm(vm, dynamicMount.mountPath());
             volumeUnmounted = true;
         } catch (InvalidConfigurationException e) {
-            log().error("{} Failed to unmount volume {} from vm {}", logPrefix(), dynamicMount.volumeDescription().id(),
+            log().error("{} Failed to unmount volume {} from vm {}", logPrefix(), dynamicMount.id(),
                 vm.vmId(), e);
         } catch (KubernetesClientException e) {
-            log().error("{} Failed to unmount volume {} from vm {}", logPrefix(), dynamicMount.volumeDescription().id(),
+            log().error("{} Failed to unmount volume {} from vm {}", logPrefix(), dynamicMount.id(),
                 vm.vmId(), e);
             return StepResult.RESTART;
         }

@@ -114,8 +114,10 @@ public record AllocationContext(
             .unmountOperationId(op.id())
             .build();
 
-        dynamicMountDao().update(dynamicMount.id(), update, tx);
-        var updatedMount = dynamicMount.apply(update);
+        var updatedMount = dynamicMountDao().update(dynamicMount.id(), update, tx);
+        if (updatedMount == null) {
+            throw new IllegalStateException("Dynamic mount with id " + dynamicMount.id() + " is not found for update");
+        }
 
         return new UnmountDynamicDiskAction(vm, updatedMount, this);
     }

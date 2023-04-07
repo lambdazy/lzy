@@ -36,8 +36,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     private UnmountDynamicDiskAction unmountAction;
 
     public MountDynamicDiskAction(Vm vm, DynamicMount dynamicMount, AllocationContext allocationContext) {
-        super(dynamicMount.mountOperationId(), String.format("mount disk %s to VM %s",
-                dynamicMount.volumeDescription().diskId(), vm.vmId()),
+        super(dynamicMount.mountOperationId(), String.format("Mount %s to VM %s", dynamicMount.mountName(), vm.vmId()),
             allocationContext.storage(), allocationContext.operationsDao(), allocationContext.executor());
         this.dynamicMount = dynamicMount;
         this.vm = vm;
@@ -117,7 +116,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         try {
             this.volume = volumeManager.createOrGet(dynamicMount.clusterId(), dynamicMount.volumeDescription());
         } catch (Exception e) {
-            log().error("{} Couldn't create volume {}", dynamicMount.volumeDescription(), e);
+            log().error("{} Couldn't create volume for {}", dynamicMount.volumeDescription(), e);
             return StepResult.RESTART;
         }
 
@@ -132,7 +131,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         try {
             this.volumeClaim = volumeManager.createClaim(volume);
         } catch (Exception e) {
-            log().error("{} Couldn't create volume claim {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            log().error("{} Couldn't create volume claim for {}", logPrefix(), dynamicMount.volumeDescription(), e);
             return StepResult.RESTART;
         }
 
@@ -148,10 +147,11 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             var update = DynamicMount.Update.builder()
                 .volumeClaimId(volumeClaim.id())
                 .build();
-            withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(), update, null));
-            this.dynamicMount = dynamicMount.apply(update);
+            //todo what if dynamic mount is deleted?
+            this.dynamicMount = withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(),
+                update, null));
         } catch (Exception e) {
-            log().error("{} Couldn't set volume claim id {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            log().error("{} Couldn't set volume claim id {}", logPrefix(), volumeClaim.id(), e);
             return StepResult.RESTART;
         }
         return StepResult.CONTINUE;
@@ -180,10 +180,10 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
                 fail(Status.FAILED_PRECONDITION.withDescription("Mount pod " + mountPodName + " is not found"));
                 return StepResult.FINISH;
             }
-            log().error("{} Couldn't attach volume to pod {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            log().error("{} Couldn't attach mount {} to pod {}", logPrefix(), dynamicMount.id(), mountPodName, e);
             return StepResult.RESTART;
         } catch (Exception e) {
-            log().error("{} Couldn't attach volume to pod {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            log().error("{} Couldn't attach mount {} to pod {}", logPrefix(), dynamicMount.id(), mountPodName, e);
             return StepResult.RESTART;
         }
 
@@ -198,7 +198,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         try {
             podPhase = mountHolderManager.checkPodPhase(mountPod);
         } catch (Exception e) {
-            log().error("{} Couldn't check pod phase {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            log().error("{} Couldn't check pod {} phase", logPrefix(), mountPod, e);
             return StepResult.RESTART;
         }
         log().debug("{} Pod {} is in phase {}", logPrefix(), mountPod.podName(), podPhase);
@@ -252,10 +252,11 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             var update = DynamicMount.Update.builder()
                 .state(DynamicMount.State.READY)
                 .build();
-            withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(), update, null));
-            this.dynamicMount = dynamicMount.apply(update);
+            //todo what if dynamic mount is null?
+            this.dynamicMount = withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(),
+                update, null));
         } catch (Exception e) {
-            log().error("{} Couldn't update mount state {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            log().error("{} Couldn't update mount {} state", logPrefix(), dynamicMount.id(), e);
             return StepResult.RESTART;
         }
         return StepResult.FINISH;

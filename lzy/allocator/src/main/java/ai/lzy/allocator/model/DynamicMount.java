@@ -11,7 +11,7 @@ public record DynamicMount(
     String mountPath,
     String mountName,
     @Nullable String volumeClaimId,
-    DiskVolumeDescription volumeDescription,
+    VolumeRequest.ResourceVolumeDescription volumeDescription,
     String mountOperationId,
     @Nullable String unmountOperationId,
     State state,
@@ -24,14 +24,14 @@ public record DynamicMount(
     }
 
     public static DynamicMount createNew(String vmId, String clusterId, String mountName, String mountPath,
-                                         DiskVolumeDescription volumeDescription, String mountOperationId,
-                                         String workerId)
+                                         VolumeRequest.ResourceVolumeDescription volumeDescription,
+                                         String mountOperationId, String workerId)
     {
         return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, mountName, null,
             volumeDescription, mountOperationId, null, State.PENDING, workerId);
     }
 
-    public DynamicMount apply(Update update) {
+    public DynamicMount with(Update update) {
         var volumeClaimId = update.volumeClaimId() != null ? update.volumeClaimId() : volumeClaimId();
         var state = update.state() != null ? update.state() : state();
         var unmountOperationId = update.unmountOperationId() != null ? update.unmountOperationId()
@@ -45,6 +45,10 @@ public record DynamicMount(
         @Nullable State state,
         @Nullable String unmountOperationId
     ) {
+        public boolean isEmpty() {
+            return volumeClaimId == null && state == null && unmountOperationId == null;
+        }
+
         public static Builder builder() {
             return new Builder();
         }

@@ -193,7 +193,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             List<OperationRunnerBase> actions = withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     var pendingMounts = allocationContext.dynamicMountDao()
-                        .getPendingByVmId(allocationContext.selfWorkerId(), tx);
+                        .getPending(allocationContext.selfWorkerId(), tx);
                     if (pendingMounts.isEmpty()) {
                         return List.of();
                     }
@@ -237,7 +237,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             List<UnmountDynamicDiskAction> actions = withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     var deletingMounts = allocationContext.dynamicMountDao()
-                        .getDeletingByVmId(allocationContext.selfWorkerId(), tx);
+                        .getDeleting(allocationContext.selfWorkerId(), tx);
                     if (deletingMounts.isEmpty()) {
                         return List.of();
                     }
@@ -766,6 +766,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 }
             });
             allocationContext.startNew(mountWithAction.action());
+        } catch (StatusRuntimeException e) {
+            LOG.error("Error while mount // vm {}: {}", request.getVmId(), e.getMessage(), e);
+            responseObserver.onError(e);
         } catch (Exception ex) {
             LOG.error("Error while mount // vm {}: {}", request.getVmId(), ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription("Error while free").asException());
@@ -924,6 +927,12 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     response.onError(Status.INVALID_ARGUMENT.withDescription("disk_id isn't set").asException());
                     return false;
                 }
+                var sizeGb = diskVolume.getSizeGb();
+                if (sizeGb <= 0) {
+                    response.onError(Status.INVALID_ARGUMENT.withDescription("disk size isn't correct: " + sizeGb)
+                        .asException());
+                    return false;
+                }
             }
             case NFS_VOLUME, HOST_PATH_VOLUME -> {
                 response.onError(Status.UNIMPLEMENTED.withDescription("unsupported volume type").asException());
@@ -934,19 +943,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 return false;
             }
         }
-        if (volumeToMount.hasDiskVolume()) {
-            VolumeApi.DiskVolumeType diskVolume = volumeToMount.getDiskVolume();
-            String diskId = diskVolume.getDiskId();
-            if (diskId.isBlank()) {
-                response.onError(Status.INVALID_ARGUMENT.withDescription("disk_id isn't set").asException());
-                return false;
-            }
-        } else {
-            response.onError(Status.UNIMPLEMENTED.withDescription("unsupported volume type").asException());
-            return false;
-        }
-
-        //todo validate all errors at the same time, plus split into methods
         return true;
     }
 
