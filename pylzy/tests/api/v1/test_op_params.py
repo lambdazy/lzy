@@ -140,6 +140,25 @@ class LzyOpParamsTests(TestCase):
         self.assertIsNone(call.env.docker_image)
         self.assertTrue(len(call.env.local_modules_path) >= 1)
 
+    def test_workflow_env(self):
+        @op
+        def func_without_env() -> None:
+            pass
+
+        with self.lzy.workflow("test",
+                               python_version="3.8.6",
+                               libraries={"pylzy": "1.1.1"},
+                               local_modules_path=['/a/b/c']) as wf:
+            func_without_env()
+
+        # noinspection PyUnresolvedReferences
+        call: LzyCall = wf.owner.runtime.calls[0]
+        self.assertEqual("3.8.6", call.env.python_version)
+        self.assertTrue("pylzy" in call.env.libraries)
+        self.assertTrue("/a/b/c" in call.env.local_modules_path)
+        self.assertIsNone(call.env.conda_yaml_path)
+        self.assertIsNone(call.env.docker_image)
+
     def test_op_env(self):
         @op(python_version="3.9.15", libraries={"cloudpickle": "1.1.1"})
         def func_with_env() -> None:

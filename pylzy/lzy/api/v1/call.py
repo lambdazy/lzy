@@ -3,7 +3,7 @@ import inspect
 import uuid
 from inspect import getfullargspec
 from itertools import chain, zip_longest
-from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeVar, Optional, List, Type
+from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeVar, Optional, List
 
 from serialzy.api import SerializerRegistry
 # noinspection PyProtectedMember
@@ -158,7 +158,8 @@ def wrap_call(
             # it is guaranteed that PyEnv is not None if conda_yaml_path is None
             py_env = active_workflow.auto_py_env
             env_updated = active_workflow.env.override(Env(
-                py_env.python_version, py_env.libraries, None, None, None, py_env.local_modules_path
+                py_env.python_version if not active_workflow.env.python_version else None,
+                py_env.libraries, None, None, None, py_env.local_modules_path
             )).override(env)
         env_updated.validate()
 
