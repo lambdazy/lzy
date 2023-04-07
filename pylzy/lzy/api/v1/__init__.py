@@ -24,6 +24,7 @@ from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
 from lzy.storage.registry import DefaultStorageRegistry
+from lzy.utils.format import pretty_function
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.whiteboards.api import WhiteboardManager, WhiteboardIndexClient
 from lzy.whiteboards.index import WhiteboardIndexedManager, RemoteWhiteboardIndexClient, WB_USER_ENV, WB_KEY_PATH_ENV, \
@@ -88,7 +89,7 @@ def op(
             infer_result = infer_return_type(f)
             if isinstance(infer_result, Absence):
                 raise TypeError(
-                    f"{f} return type is not annotated. "
+                    f"Return type is not annotated for {pretty_function(f)}. "
                     f"Please for proper use of {op.__name__} "
                     f"annotate return type of your function."
                 )

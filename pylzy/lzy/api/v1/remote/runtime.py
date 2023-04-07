@@ -425,7 +425,7 @@ class RemoteRuntime(Runtime):
 
             print(s)
             s = input("(Yes/[No]): ")
-            if s != "Yes":
+            if s.lower() not in ("yes", "y"):
                 raise RuntimeError("Graph execution cancelled")
 
         return Graph(
