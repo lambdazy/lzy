@@ -15,7 +15,7 @@ def pretty_function(func):
         if hasattr(func, '__code__'):
             line_no = func.__code__.co_firstlineno
 
-    result = f'{typename} {name}'
+    result = f'{typename} `{name}`'
     if filename:
         result = f'{result} at {filename}'
 
