@@ -16,7 +16,7 @@
     </distributionManagement>
 
     <properties>
-        <revision>1.8</revision>
+        <revision>1.9</revision>
         <changelist>-SNAPSHOT</changelist>
 
         <java.version>17</java.version>
