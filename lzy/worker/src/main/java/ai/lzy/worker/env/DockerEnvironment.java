@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 
 public class DockerEnvironment extends BaseEnvironment {
@@ -54,19 +55,23 @@ public class DockerEnvironment extends BaseEnvironment {
     public void install(StreamQueue.LogHandle handle) throws EnvironmentInstallationException {
         if (containerId != null) {
             handle.logOut("Using already running container from cache");
+            LOG.info("Using already running container from cache; containerId: {}", containerId);
             return;
         }
 
+        String sourceImage = config.image();
         try {
-            prepareImage(config, handle);
+            prepareImage(sourceImage, handle);
+        } catch (InterruptedException e) {
+            handle.logErr("Image pulling was interrupted");
+            throw new RuntimeException(e);
         } catch (Exception e) {
             handle.logErr("Error while pulling image: {}", e);
+            LOG.error("Error while pulling image {}", sourceImage, e);
             throw new RuntimeException(e);
         }
 
-        var sourceImage = config.image();
-
-        handle.logOut("Creating container from image={} ... , config = {}", sourceImage, config);
+        handle.logOut("Creating container from image {} ...", sourceImage);
 
         final List<Mount> dockerMounts = new ArrayList<>();
         config.mounts().forEach(m -> {
@@ -91,20 +96,32 @@ public class DockerEnvironment extends BaseEnvironment {
                 .withShmSize(GB_AS_BYTES);
         }
 
-        final var container = retry.executeSupplier(() -> client.createContainerCmd(sourceImage)
-            .withHostConfig(hostConfig)
-            .withAttachStdout(true)
-            .withAttachStderr(true)
-            .withTty(true)
-            .withEnv(config.envVars())
-            .exec());
+        AtomicInteger containerCreatingAttempt = new AtomicInteger(0);
+        final var container = retry.executeSupplier(() -> {
+            LOG.info("Creating container... (attempt {}); image: {}, config: {}",
+                containerCreatingAttempt.incrementAndGet(), sourceImage, config);
+            return client.createContainerCmd(sourceImage)
+                .withHostConfig(hostConfig)
+                .withAttachStdout(true)
+                .withAttachStderr(true)
+                .withTty(true)
+                .withEnv(config.envVars())
+                .exec();
+        });
 
         final String containerId = container.getId();
-        handle.logOut("Creating container from image={} done, id={}", sourceImage, containerId);
+        handle.logOut("Creating container from image {} done", sourceImage);
+        LOG.info("Creating container done; containerId: {}, image: {}", containerId, sourceImage);
 
-        handle.logOut("Starting env container with id {} ...", containerId);
-        retry.executeSupplier(() -> client.startContainerCmd(container.getId()).exec());
-        handle.logOut("Starting env container with id {} done", containerId);
+        handle.logOut("Environment container starting ...");
+        AtomicInteger containerStartingAttempt = new AtomicInteger(0);
+        retry.executeSupplier(() -> {
+            LOG.info("Starting env container... (attempt {}); containerId: {}, image: {}",
+                containerStartingAttempt.incrementAndGet(), containerId, sourceImage);
+            return client.startContainerCmd(containerId).exec();
+        });
+        handle.logOut("Environment container started");
+        LOG.info("Starting env container done; containerId: {}, image: {}", containerId, sourceImage);
 
         this.containerId = containerId;
     }
@@ -245,18 +262,17 @@ public class DockerEnvironment extends BaseEnvironment {
         return config;
     }
 
-    private void prepareImage(BaseEnvConfig config, StreamQueue.LogHandle handle) {
-        handle.logOut("Pulling image {} ...", config.image());
-        final var pullingImage = retry.executeSupplier(() -> client
-            .pullImageCmd(config.image())
-            .exec(new PullImageResultCallback()));
-        try {
-            pullingImage.awaitCompletion();
-        } catch (InterruptedException e) {
-            handle.logErr("Pulling image {} was interrupted", config.image());
-            throw new RuntimeException(e);
-        }
-        handle.logOut("Pulling image {} done", config.image());
+    private void prepareImage(String image, StreamQueue.LogHandle handle) throws Exception {
+        handle.logOut("Pulling image {} ...", image);
+        AtomicInteger pullingAttempt = new AtomicInteger(0);
+        retry.executeCallable(() -> {
+            LOG.info("Pulling image {}, attempt {}", image, pullingAttempt.incrementAndGet());
+            final var pullingImage = client
+                .pullImageCmd(config.image())
+                .exec(new PullImageResultCallback());
+            return pullingImage.awaitCompletion();
+        });
+        handle.logOut("Pulling image {} done", image);
     }
 
     public static DockerClient generateClient(@Nullable LME.DockerCredentials credentials) {
