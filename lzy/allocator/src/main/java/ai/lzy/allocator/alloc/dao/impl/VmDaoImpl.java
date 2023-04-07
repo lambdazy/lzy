@@ -6,6 +6,7 @@ import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.allocator.util.DaoUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.model.db.DbOperation;
@@ -15,6 +16,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -202,6 +204,13 @@ public class VmDaoImpl implements VmDao {
         SET vm_ott = ''
         WHERE vm_ott = ?
         RETURNING id""";
+
+    private static final String QUERY_VM_BY_IDS_TEMPLATE = """
+        SELECT %s
+        FROM vm
+        WHERE id in %s
+        """;
+
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
@@ -672,6 +681,35 @@ public class VmDaoImpl implements VmDao {
                 var rs = st.executeQuery();
                 return rs.next() ? rs.getString("id") : null;
             }
+        });
+    }
+
+    @Override
+    public List<Vm> loadByIds(Set<String> vmIds, TransactionHandle tx) throws SQLException {
+        if (vmIds.isEmpty()) {
+            return List.of();
+        }
+        return DbOperation.execute(tx, storage, conn -> {
+            final var vms = new ArrayList<Vm>(vmIds.size());
+            for (List<String> idsPart : Lists.partition(List.copyOf(vmIds), 100)) {
+                var params = DaoUtils.generateNParamArray(idsPart.size());
+                var query = QUERY_VM_BY_IDS_TEMPLATE.formatted(ALL_FIELDS, params);
+                try (PreparedStatement s = conn.prepareStatement(query)) {
+                    int i = 1;
+
+                    for (String vmId : idsPart) {
+                        s.setString(i++, vmId);
+                    }
+
+                    final var res = s.executeQuery();
+                    while (res.next()) {
+                        vms.add(readVm(res));
+                    }
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException("Cannot read vm", e);
+                }
+            }
+            return vms;
         });
     }
 

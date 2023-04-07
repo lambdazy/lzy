@@ -31,8 +31,12 @@ import org.junit.Test;
 
 import java.sql.SQLException;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static java.time.Instant.now;
 
@@ -259,5 +263,63 @@ public class DaoTest {
         diskDao.remove(disk.id(), null);
 
         Assert.assertNull(diskDao.get(disk.id(), null));
+    }
+
+    @Test
+    public void testVmLoadByIds() throws Exception {
+        var zeroParams = generateUuids(0);
+        var vms = vmDao.loadByIds(zeroParams, null);
+        Assert.assertEquals(0, vms.size());
+
+        var oneParam = generateUuids(1);
+        vms = vmDao.loadByIds(oneParam, null);
+        Assert.assertEquals(0, vms.size());
+
+        var manyParams = generateUuids(1001);
+        vms = vmDao.loadByIds(manyParams, null);
+        Assert.assertEquals(0, vms.size());
+
+        var session = createSession();
+        final var vm = createVm(session);
+        final var vm2 = createVm(session);
+
+        manyParams.add(vm.vmId());
+        manyParams.add(vm2.vmId());
+
+        vms = vmDao.loadByIds(manyParams, null);
+        Assert.assertEquals(2, vms.size());
+        var vmIds = vms.stream().map(Vm::vmId).collect(Collectors.toSet());
+        Assert.assertEquals(Set.of(vm.vmId(), vm2.vmId()), vmIds);
+    }
+
+    private Vm createVm(Session session) throws SQLException {
+        final var vmSpec = new Vm.Spec(
+            "placeholder",
+            session.sessionId(),
+            "pool",
+            "zone",
+            List.of(),
+            List.of(),
+            List.of(),
+            null,
+            ClusterRegistry.ClusterType.User);
+        final var vmAllocState = new Vm.AllocateState(
+            session.createOpId(),
+            now(),
+            now().plus(Duration.ofDays(1)),
+            "worker",
+            "reqid",
+            "ott",
+            null,
+            null);
+        return vmDao.create(vmSpec, vmAllocState, null);
+    }
+
+    private static Set<String> generateUuids(int n) {
+        var res = new HashSet<String>(n);
+        for (int i = 0; i < n; i++) {
+            res.add(UUID.randomUUID().toString());
+        }
+        return res;
     }
 }
