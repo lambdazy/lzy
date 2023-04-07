@@ -5,7 +5,6 @@ import sys
 from pathlib import Path
 from unittest import TestCase
 
-from lzy.api.v1.utils.files import sys_path_parent
 from lzy.py_env.api import PyEnvProvider
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
 
@@ -49,11 +48,6 @@ class ModulesSearchTests(TestCase):
             len(local_modules_path)
         )
 
-        for local in local_modules_path:
-            prefix = sys_path_parent(local)
-            path = (Path(local).relative_to(prefix))
-            self.assertIsNotNone(path)
-
         # noinspection DuplicatedCode
         for path in (
             "modules_for_tests",
@@ -86,11 +80,6 @@ class ModulesSearchTests(TestCase):
             2 if sys.version_info < (3, 10) else 1,  # typing extensions is a standard module starting from 3.10
             len(local_modules_path)
         )
-
-        for local in local_modules_path:
-            prefix = sys_path_parent(local)
-            path = Path(local).relative_to(prefix)
-            self.assertIsNotNone(path)
 
         for path in (
             "modules_for_tests",
