@@ -22,7 +22,7 @@ import java.util.List;
 @Singleton
 public class DynamicMountDaoImpl implements DynamicMountDao {
     private static final String ALL_FIELDS = "id, vm_id, cluster_id, volume_desc, mount_path, mount_name, worker_id," +
-        " mount_op_id, volume_claim_id, mount_op_id, unmount_op_id, state";
+        " mount_op_id, volume_name, volume_claim_name, mount_op_id, unmount_op_id, state";
 
     private static final String CREATE_DYNAMIC_MOUNT_QUERY = """
         INSERT INTO dynamic_mount (id, vm_id, cluster_id, volume_desc, mount_path, mount_name,
@@ -34,8 +34,8 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
         DELETE FROM dynamic_mount WHERE id = ?
         """;
 
-    private static final String COUNT_BY_VOLUME_CLAIM_ID_QUERY = """
-        SELECT COUNT(*) FROM dynamic_mount WHERE volume_claim_id = ?
+    private static final String COUNT_BY_VOLUME_CLAIM_NAME_QUERY = """
+        SELECT COUNT(*) FROM dynamic_mount WHERE cluster_id = ? AND volume_claim_name = ?
         """;
 
     private static final String GET_DYNAMIC_MOUNT_QUERY = """
@@ -127,10 +127,13 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
     }
 
     @Override
-    public long countForVolumeClaimId(String volumeClaimId, @Nullable TransactionHandle tx) throws SQLException {
+    public long countForVolumeClaimName(String clusterId, String volumeClaimName, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         return DbOperation.execute(tx, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(COUNT_BY_VOLUME_CLAIM_ID_QUERY)) {
-                s.setString(1, volumeClaimId);
+            try (PreparedStatement s = con.prepareStatement(COUNT_BY_VOLUME_CLAIM_NAME_QUERY)) {
+                s.setString(1, clusterId);
+                s.setString(2, volumeClaimName);
                 final var rs = s.executeQuery();
                 if (rs.next()) {
                     return rs.getLong(1);
@@ -172,8 +175,11 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
 
     private static String prepareUpdateStatement(DynamicMount.Update update) {
         var sb = new StringBuilder("UPDATE dynamic_mount SET ");
-        if (update.volumeClaimId() != null) {
-            sb.append("volume_claim_id = ?, ");
+        if (update.volumeName() != null) {
+            sb.append("volume_name = ?, ");
+        }
+        if (update.volumeClaimName() != null) {
+            sb.append("volume_claim_name = ?, ");
         }
         if (update.unmountOperationId() != null) {
             sb.append("unmount_op_id = ?, ");
@@ -190,8 +196,11 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
         throws SQLException
     {
         int idx = 0;
-        if (update.volumeClaimId() != null) {
-            s.setString(++idx, update.volumeClaimId());
+        if (update.volumeName() != null) {
+            s.setString(++idx, update.volumeName());
+        }
+        if (update.volumeClaimName() != null) {
+            s.setString(++idx, update.volumeClaimName());
         }
         if (update.unmountOperationId() != null) {
             s.setString(++idx, update.unmountOperationId());
@@ -214,10 +223,11 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
             var workerId = rs.getString("worker_id");
             var mountOpId = rs.getString("mount_op_id");
             var unmountOpId = rs.getString("unmount_op_id");
-            var volumeClaimId = rs.getString("volume_claim_id");
+            var volumeName = rs.getString("volume_name");
+            var volumeClaimName = rs.getString("volume_claim_name");
             var state = DynamicMount.State.valueOf(rs.getString("state"));
-            return new DynamicMount(id, vmId, clusterId, mountPath, mountName, volumeClaimId, volumeDesc, mountOpId,
-                unmountOpId, state, workerId);
+            return new DynamicMount(id, vmId, clusterId, mountPath, mountName, volumeName, volumeClaimName, volumeDesc,
+                mountOpId, unmountOpId, state, workerId);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Cannot read volume description", e);
         } catch (SQLException e) {

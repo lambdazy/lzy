@@ -9,8 +9,6 @@ import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.volume.VolumeManager;
-import ai.lzy.allocator.volume.dao.VolumeClaimDao;
-import ai.lzy.allocator.volume.dao.VolumeDao;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationsExecutor;
@@ -41,8 +39,6 @@ public record AllocationContext(
     MountHolderManager mountHolderManager,
     VolumeManager volumeManager,
     DynamicMountDao dynamicMountDao,
-    VolumeDao volumeDao,
-    VolumeClaimDao volumeClaimDao,
     ServiceConfig.MountConfig mountConfig
 )
 {

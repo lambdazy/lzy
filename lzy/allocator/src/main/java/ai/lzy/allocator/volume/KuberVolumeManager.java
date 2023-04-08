@@ -8,8 +8,6 @@ import ai.lzy.allocator.model.Volume;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.allocator.volume.dao.VolumeClaimDao;
-import ai.lzy.allocator.volume.dao.VolumeDao;
 import io.fabric8.kubernetes.api.model.CSIPersistentVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.PersistentVolume;
 import io.fabric8.kubernetes.api.model.PersistentVolumeBuilder;
@@ -24,11 +22,9 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.net.HttpURLConnection;
+import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import javax.annotation.Nullable;
-
-import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 public class KuberVolumeManager implements VolumeManager {
@@ -46,20 +42,14 @@ public class KuberVolumeManager implements VolumeManager {
 
     private final KuberClientFactory kuberClientFactory;
     private final ClusterRegistry clusterRegistry;
-    private final VolumeDao volumeDao;
-    private final VolumeClaimDao volumeClaimDao;
 
-    public KuberVolumeManager(KuberClientFactory kuberClientFactory, ClusterRegistry clusterRegistry,
-                              VolumeDao volumeDao, VolumeClaimDao volumeClaimDao)
-    {
+    public KuberVolumeManager(KuberClientFactory kuberClientFactory, ClusterRegistry clusterRegistry) {
         this.kuberClientFactory = kuberClientFactory;
         this.clusterRegistry = clusterRegistry;
-        this.volumeDao = volumeDao;
-        this.volumeClaimDao = volumeClaimDao;
     }
 
     @Override
-    public Volume createOrGet(String clusterId, VolumeRequest volumeRequest) {
+    public Volume create(String clusterId, VolumeRequest volumeRequest) {
         final String diskId;
         final int diskSize;
         final String resourceName;
@@ -132,58 +122,26 @@ public class KuberVolumeManager implements VolumeManager {
             throw new RuntimeException("Unknown Resource Volume " + volumeRequest.volumeDescription().name());
         }
 
-        Volume existingVolume = tryGetExistingVolume(clusterId, diskId);
-        if (existingVolume != null) {
-            return existingVolume;
-        }
-
-        var id = UUID.randomUUID().toString();
-        final var result = new Volume(id, clusterId, volumeName, resourceName, diskId, diskSize, accessMode,
-            storageClass);
+        final var result = new Volume(volumeName, resourceName, diskId, diskSize, accessMode, storageClass);
 
         try (var client = kuberClientFactory.build(cluster)) {
             client.persistentVolumes().resource(volume).create();
             LOG.info("Successfully created persistent volume {} for disk={} ", volumeName, diskId);
+            return result;
         } catch (KubernetesClientException e) {
             if (KuberUtils.isResourceAlreadyExist(e)) {
                 LOG.warn("Volume {} already exists", result);
-            } else {
-                LOG.error("Could not create volume {}: {}", result, e.getMessage(), e);
-                throw new RuntimeException(e);
+                return result;
             }
-        }
 
-        return trySaveVolume(result);
-    }
-
-    private Volume trySaveVolume(Volume result) {
-        try {
-            withRetries(LOG, () -> volumeDao.create(result, null));
-        } catch (Exception e) {
-            LOG.error("Could not create volume {} in DB: {}", result, e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-        return result;
-    }
-
-    @Nullable
-    private Volume tryGetExistingVolume(String clusterId, String diskId) {
-        try {
-            var existingVolume = withRetries(LOG, () -> volumeDao.getByDisk(clusterId, diskId, null));
-            if (existingVolume != null) {
-                LOG.info("Volume {} already exists in DB", existingVolume.name());
-            }
-            return existingVolume;
-        } catch (Exception e) {
-            LOG.error("Could not get volume by clusterId={} and diskId={} from DB: {}", clusterId, diskId,
-                e.getMessage(), e);
+            LOG.error("Could not create volume {}: {}", result, e.getMessage(), e);
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public VolumeClaim createClaim(Volume volume) {
-        var cluster = getClusterOrThrow(volume.clusterId());
+    public VolumeClaim createClaim(String clusterId, Volume volume) {
+        var cluster = getClusterOrThrow(clusterId);
         final var claimName = "claim-" + volume.name();
 
         LOG.info("Creating persistent volume claim {} for volume={}", claimName, volume);
@@ -205,89 +163,83 @@ public class KuberVolumeManager implements VolumeManager {
             .endSpec()
             .build();
 
-        VolumeClaim existingClaim = tryGetVolumeClaimByVolume(volume);
-        if (existingClaim != null) {
-            return existingClaim;
-        }
-
-        var volumeClaimModel = new VolumeClaim(UUID.randomUUID().toString(), volume.clusterId(), claimName, volume);
+        var result = new VolumeClaim(claimName, volume);
         try (var client = kuberClientFactory.build(cluster)) {
             final var claim = client.persistentVolumeClaims().resource(volumeClaim).create();
             final var claimId = claim.getMetadata().getUid();
             LOG.info("Successfully created persistent volume claim name={} claimId={}, accessModes=[{}]",
                 claimName, claimId, String.join(", ", claim.getSpec().getAccessModes()));
-            return new VolumeClaim(UUID.randomUUID().toString(), volume.clusterId(), claimName, volume);
+            return result;
         } catch (KubernetesClientException e) {
             if (KuberUtils.isResourceAlreadyExist(e)) {
                 LOG.warn("Claim {} already exist", volumeClaim);
-            } else {
-                LOG.error("Could not create resource: {}", e.getMessage(), e);
-                throw new RuntimeException(e);
+                return result;
             }
-        }
 
-        return tryCreateVolumeClaim(volumeClaimModel);
-    }
-
-    @Nullable
-    private VolumeClaim tryGetVolumeClaimByVolume(Volume volume) {
-        try {
-            var existingClaim = withRetries(LOG, () -> volumeClaimDao.getByVolumeId(volume.clusterId(),
-                volume.id(), null));
-            if (existingClaim != null) {
-                LOG.info("Claim {} already exists in DB", existingClaim.name());
-            }
-            return existingClaim;
-        } catch (Exception e) {
-            LOG.error("Could not get claim by volumeId={} from DB: {}", volume.id(), e.getMessage(), e);
+            LOG.error("Could not create resource: {}", e.getMessage(), e);
             throw new RuntimeException(e);
         }
-    }
-
-    private VolumeClaim tryCreateVolumeClaim(VolumeClaim volumeClaimModel) {
-        try {
-            withRetries(LOG, () -> volumeClaimDao.create(volumeClaimModel, null));
-        } catch (Exception e) {
-            LOG.error("Could not create claim {} in DB: {}", volumeClaimModel, e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-        return volumeClaimModel;
     }
 
     @Override
     @Nullable
     public Volume get(String clusterId, String volumeName) {
-        try {
-            return withRetries(LOG, () -> volumeDao.getByName(clusterId, volumeName, null));
-        } catch (Exception e) {
-            LOG.error("Could not get volume by clusterId={} and volumeName={} from DB: {}", clusterId, volumeName,
-                e.getMessage(), e);
-            throw new RuntimeException(e);
+        var cluster = getClusterOrThrow(clusterId);
+        try (var client = kuberClientFactory.build(cluster)) {
+            LOG.info("Trying to find volume with name={}", volumeName);
+            final PersistentVolume persistentVolume = client.persistentVolumes().withName(volumeName).get();
+            if (persistentVolume == null) {
+                return null;
+            }
+
+            final List<String> accessModes = persistentVolume.getSpec().getAccessModes();
+            assert persistentVolume.getSpec().getCapacity()
+                    .get(VOLUME_CAPACITY_STORAGE_KEY).getFormat().equals(KUBER_GB_NAME);
+            assert accessModes.size() == 1;
+
+            final Volume volume = new Volume(
+                volumeName,
+                persistentVolume.getMetadata().getLabels().get(REQUESTED_VOLUME_NAME_LABEL),
+                persistentVolume.getSpec().getCsi().getVolumeHandle(),
+                Integer.parseInt(
+                    persistentVolume.getSpec().getCapacity().get(VOLUME_CAPACITY_STORAGE_KEY).getAmount()),
+                Volume.AccessMode.fromString(accessModes.get(0)),
+                persistentVolume.getSpec().getStorageClassName());
+
+            LOG.info("Found volume={}", volume);
+            return volume;
+        } catch (KubernetesClientException e) {
+            LOG.error("Not found volume with name={}", volumeName);
+            return null;
         }
     }
 
     @Override
     @Nullable
     public VolumeClaim getClaim(String clusterId, String volumeClaimName) {
-        try {
-            return volumeClaimDao.getByName(clusterId, volumeClaimName, null);
-        } catch (Exception e) {
-            LOG.error("Could not get claim by clusterId={} and volumeClaimName={} from DB: {}", clusterId,
-                volumeClaimName, e.getMessage(), e);
-            throw new RuntimeException(e);
+        var cluster = getClusterOrThrow(clusterId);
+        try (var client = kuberClientFactory.build(cluster)) {
+            LOG.info("Trying to find volumeClaim with name={}", volumeClaimName);
+            final var pvc = client.persistentVolumeClaims()
+                    .inNamespace(DEFAULT_NAMESPACE).withName(volumeClaimName).get();
+            if (pvc == null) {
+                return null;
+            }
+
+            final List<String> accessModes = pvc.getSpec().getAccessModes();
+            assert accessModes.size() == 1;
+            final VolumeClaim volumeClaim = new VolumeClaim(volumeClaimName, get(clusterId,
+                pvc.getSpec().getVolumeName()));
+            LOG.info("Found {}", volumeClaim);
+            return volumeClaim;
+        } catch (KubernetesClientException e) {
+            LOG.error("Not found volumeClaim with name={}", volumeClaimName);
+            return null;
         }
     }
 
     @Override
     public void delete(String clusterId, String volumeName) {
-        try {
-            withRetries(LOG, () -> volumeDao.deleteByName(clusterId, volumeName, null));
-        } catch (Exception e) {
-            LOG.error("Could not delete volume by clusterId={} and volumeName={} from DB: {}", clusterId, volumeName,
-                e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-
         var cluster = getClusterOrThrow(clusterId);
         try (var client = kuberClientFactory.build(cluster)) {
             LOG.info("Deleting persistent volume {}", volumeName);
@@ -304,14 +256,6 @@ public class KuberVolumeManager implements VolumeManager {
 
     @Override
     public void deleteClaim(String clusterId, String volumeClaimName) {
-        try {
-            withRetries(LOG, () -> volumeClaimDao.deleteByName(clusterId, volumeClaimName, null));
-        } catch (Exception e) {
-            LOG.error("Could not delete claim by clusterId={} and volumeClaimName={} from DB: {}", clusterId,
-                volumeClaimName, e.getMessage(), e);
-            throw new RuntimeException(e);
-        }
-
         var cluster = getClusterOrThrow(clusterId);
         try (var client = kuberClientFactory.build(cluster)) {
             LOG.info("Deleting volume claim {}", volumeClaimName);

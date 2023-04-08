@@ -8,8 +8,6 @@ import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 @JsonSerialize
 @JsonDeserialize
 public record VolumeClaim(
-    String id,
-    String clusterId,
     String name,
     Volume volume
 ) {

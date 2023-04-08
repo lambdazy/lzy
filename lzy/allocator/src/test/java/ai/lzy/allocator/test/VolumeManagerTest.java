@@ -15,8 +15,6 @@ import ai.lzy.allocator.services.DiskService;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.allocator.volume.VolumeManager;
-import ai.lzy.allocator.volume.dao.VolumeClaimDao;
-import ai.lzy.allocator.volume.dao.VolumeDao;
 import ai.lzy.longrunning.OperationsService;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.DiskServiceApi;
@@ -67,16 +65,14 @@ public class VolumeManagerTest {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
         var kuberClientFactory = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX));
-        var volumeDao = context.getBean(VolumeDao.class);
-        var volumeClaimDao = context.getBean(VolumeClaimDao.class);
-        volumeManager = new KuberVolumeManager(kuberClientFactory, clusterRegistry, volumeDao, volumeClaimDao);
+        volumeManager = new KuberVolumeManager(kuberClientFactory, clusterRegistry);
     }
 
     @Test
     public void createVolumeTest() throws NotFoundException {
         final Disk disk = createDisk(createTestDiskSpec(3), new DiskMeta("user_id"));
 
-        final Volume volume = volumeManager.createOrGet(clusterId, new VolumeRequest("id-1",
+        final Volume volume = volumeManager.create(clusterId, new VolumeRequest("id-1",
             new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
         ));
         final VolumeClaim volumeClaim = volumeManager.createClaim(volume);
@@ -182,12 +178,12 @@ public class VolumeManagerTest {
             final Disk disk = createDisk(testDiskSpec, new DiskMeta("user-id"));
 
             final Instant volumeCreation = Instant.now();
-            final Volume volume = volumeManager.createOrGet(clusterId, new VolumeRequest("id-1",
+            final Volume volume = volumeManager.create(clusterId, new VolumeRequest("id-1",
                 new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
             ));
 
             final Instant volumeClaimCreation = Instant.now();
-            final VolumeClaim volumeClaim = volumeManager.createClaim(volume);
+            final VolumeClaim volumeClaim = volumeManager.createClaim(clusterId, volume);
 
             final Instant volumeClaimDeletion = Instant.now();
             volumeManager.deleteClaim(clusterId, volumeClaim.name());

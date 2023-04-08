@@ -18,7 +18,8 @@ public interface DynamicMountDao {
     @Nullable
     DynamicMount update(String id, DynamicMount.Update update, @Nullable TransactionHandle tx) throws SQLException;
 
-    long countForVolumeClaimId(String volumeClaimId, @Nullable TransactionHandle tx) throws SQLException;
+    long countForVolumeClaimName(String clusterId, String volumeClaimName, @Nullable TransactionHandle tx)
+        throws SQLException;
 
     List<DynamicMount> getPending(String workerId, @Nullable TransactionHandle tx) throws SQLException;
 

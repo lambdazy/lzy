@@ -13,7 +13,6 @@ import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
@@ -32,6 +31,8 @@ import java.util.List;
 import java.util.UUID;
 
 public class DynamicDaoImplTest {
+
+    private static final String CLUSTER_ID = "1";
 
     @Rule
     public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -123,7 +124,11 @@ public class DynamicDaoImplTest {
         dynamicMountDao.update(diskMount.id(), DynamicMount.Update.builder()
             .state(DynamicMount.State.READY)
             .build(), null);
-        //todo add volume claim id
+        dynamicMountDao.update(diskMount.id(), DynamicMount.Update.builder()
+            .volumeName("foo")
+            .volumeClaimName("bar")
+            .build(), null);
+
         var fetchedMount = dynamicMountDao.update(diskMount.id(), DynamicMount.Update.builder()
             .unmountOperationId(operation.id())
             .build(), null);
@@ -132,6 +137,8 @@ public class DynamicDaoImplTest {
 
         Assert.assertEquals(DynamicMount.State.READY, fetchedMount.state());
         Assert.assertEquals(operation.id(), fetchedMount.unmountOperationId());
+        Assert.assertEquals("foo", fetchedMount.volumeName());
+        Assert.assertEquals("bar", fetchedMount.volumeClaimName());
     }
 
     @Test
@@ -191,14 +198,40 @@ public class DynamicDaoImplTest {
 
     @Test
     public void countByVolumeClaimIdWithoutMounts() throws Exception {
-        var count = dynamicMountDao.countForVolumeClaimId("42", null);
+        var claimName = "foo";
+        var count = dynamicMountDao.countForVolumeClaimName(CLUSTER_ID, claimName, null);
         Assert.assertEquals(0, count);
+
+        var mountOne = dynamicMountModel(vm.vmId(), "allocator", operation.id());
+        var anotherClusterId = "another-cluster";
+        var mountTwo = dynamicMountModel(vm.vmId(), "allocator", operation.id(), anotherClusterId);
+
+        dynamicMountDao.create(mountOne, null);
+        dynamicMountDao.create(mountTwo, null);
+
+        dynamicMountDao.update(mountOne.id(), DynamicMount.Update.builder()
+            .volumeClaimName(claimName)
+            .build(), null);
+        dynamicMountDao.update(mountTwo.id(), DynamicMount.Update.builder()
+            .volumeClaimName(claimName)
+            .build(), null);
+
+        count = dynamicMountDao.countForVolumeClaimName(CLUSTER_ID, claimName, null);
+        Assert.assertEquals(1, count);
+
+        count = dynamicMountDao.countForVolumeClaimName(anotherClusterId, claimName, null);
+        Assert.assertEquals(1, count);
     }
 
     @NotNull
     private static DynamicMount dynamicMountModel(String vmId, String workerId, String operationId) {
+        return dynamicMountModel(vmId, workerId, operationId, CLUSTER_ID);
+    }
+
+    @NotNull
+    private static DynamicMount dynamicMountModel(String vmId, String workerId, String operationId, String clusterId) {
         var random = UUID.randomUUID().toString();
-        return DynamicMount.createNew(vmId, "1", "disk" + random,
+        return DynamicMount.createNew(vmId, clusterId, "disk" + random,
             "disk" + random, new DiskVolumeDescription("42", "disk", "disk-42", 42),
             operationId, workerId);
     }

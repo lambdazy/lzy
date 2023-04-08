@@ -10,7 +10,8 @@ public record DynamicMount(
     String clusterId,
     String mountPath,
     String mountName,
-    @Nullable String volumeClaimId,
+    @Nullable String volumeName,
+    @Nullable String volumeClaimName,
     VolumeRequest.ResourceVolumeDescription volumeDescription,
     String mountOperationId,
     @Nullable String unmountOperationId,
@@ -27,26 +28,18 @@ public record DynamicMount(
                                          VolumeRequest.ResourceVolumeDescription volumeDescription,
                                          String mountOperationId, String workerId)
     {
-        return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, mountName, null,
+        return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, mountName, null, null,
             volumeDescription, mountOperationId, null, State.PENDING, workerId);
     }
 
-    public DynamicMount with(Update update) {
-        var volumeClaimId = update.volumeClaimId() != null ? update.volumeClaimId() : volumeClaimId();
-        var state = update.state() != null ? update.state() : state();
-        var unmountOperationId = update.unmountOperationId() != null ? update.unmountOperationId()
-            : unmountOperationId();
-        return new DynamicMount(id, vmId, clusterId, mountPath, mountName, volumeClaimId, volumeDescription,
-            mountOperationId, unmountOperationId, state, workerId);
-    }
-
     public record Update(
-        @Nullable String volumeClaimId,
+        @Nullable String volumeName,
+        @Nullable String volumeClaimName,
         @Nullable State state,
         @Nullable String unmountOperationId
     ) {
         public boolean isEmpty() {
-            return volumeClaimId == null && state == null && unmountOperationId == null;
+            return volumeName == null && volumeClaimName == null && state == null && unmountOperationId == null;
         }
 
         public static Builder builder() {
@@ -54,12 +47,18 @@ public record DynamicMount(
         }
 
         public static class Builder {
-            private String volumeClaimId;
+            private String volumeName;
+            private String volumeClaimName;
             private State state;
             private String unmountOperationId;
 
-            public Builder volumeClaimId(String volumeClaimId) {
-                this.volumeClaimId = volumeClaimId;
+            public Builder volumeName(String volumeName) {
+                this.volumeName = volumeName;
+                return this;
+            }
+
+            public Builder volumeClaimName(String volumeClaimName) {
+                this.volumeClaimName = volumeClaimName;
                 return this;
             }
 
@@ -74,7 +73,7 @@ public record DynamicMount(
             }
 
             public Update build() {
-                return new Update(volumeClaimId, state, unmountOperationId);
+                return new Update(volumeName, volumeClaimName, state, unmountOperationId);
             }
         }
     }

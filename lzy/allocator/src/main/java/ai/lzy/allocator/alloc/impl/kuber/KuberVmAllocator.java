@@ -464,12 +464,12 @@ public class KuberVmAllocator implements VmAllocator {
             .map(volumeRequest -> {
                 final Volume volume;
                 try {
-                    volume = volumeManager.createOrGet(clusterId, volumeRequest);
+                    volume = volumeManager.create(clusterId, volumeRequest);
                 } catch (Exception e) {
                     LOG.error("Error while creating volume {}: {}", volumeRequest.id(), e.getMessage());
                     throw new RuntimeException(e);
                 }
-                return volumeManager.createClaim(volume);
+                return volumeManager.createClaim(clusterId, volume);
             }).toList();
     }
 

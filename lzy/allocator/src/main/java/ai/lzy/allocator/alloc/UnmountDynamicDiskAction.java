@@ -4,7 +4,6 @@ import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.client.KubernetesClientException;
@@ -21,13 +20,13 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     @Nullable
     private final Vm vm;
     private final DynamicMount dynamicMount;
-    private boolean mountPodRecreated;
-    private VolumeClaim volumeClaim;
+    private boolean mountPodRecreated = false;
     private boolean mountPodStarted = false;
     private boolean volumeClaimDeleted = false;
     private boolean volumeDeleted = false;
     private boolean volumeUnmounted = false;
-    private boolean mountDeleted;
+    private boolean mountDeleted = false;
+    private boolean skipClaimDeletion = false;
 
     public UnmountDynamicDiskAction(@Nullable Vm vm, DynamicMount dynamicMount,
                                     AllocationContext allocationContext)
@@ -148,27 +147,18 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult removeVolumeClaim() {
-        if (volumeClaimDeleted) {
+        if (volumeClaimDeleted || skipClaimDeletion) {
             return StepResult.ALREADY_DONE;
         }
         try {
-            volumeClaim = withRetries(log(), () -> {
-                try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                    var mountPerVolumeClaim = allocationContext.dynamicMountDao()
-                        .countForVolumeClaimId(dynamicMount.volumeClaimId(), tx);
-                    if (mountPerVolumeClaim > 1) {
-                        return null;
-                    }
-                    var claim = allocationContext.volumeClaimDao().get(dynamicMount.volumeClaimId(), tx);
-                    tx.commit();
-                    return claim;
-                }
-            });
-            if (volumeClaim == null) {
-                return StepResult.ALREADY_DONE;
-            }
+            var count = withRetries(log(), () -> allocationContext.dynamicMountDao()
+                .countForVolumeClaimName(dynamicMount.clusterId(), dynamicMount.volumeClaimName(), null));
 
-            allocationContext.volumeManager().deleteClaim(volumeClaim.clusterId(), volumeClaim.name());
+            if (count > 1) {
+                skipClaimDeletion = true;
+                return StepResult.CONTINUE;
+            }
+            allocationContext.volumeManager().deleteClaim(dynamicMount.clusterId(), dynamicMount.volumeClaimName());
             volumeClaimDeleted = true;
         } catch (Exception e) {
             log().error("{} Failed to delete volume claim {}", logPrefix(), dynamicMount.volumeDescription().id(), e);
@@ -183,12 +173,12 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        if (volumeClaim == null) {
+        if (skipClaimDeletion) {
             return StepResult.ALREADY_DONE;
         }
 
         try {
-            allocationContext.volumeManager().delete(volumeClaim.clusterId(), volumeClaim.volumeName());
+            allocationContext.volumeManager().delete(dynamicMount.clusterId(), dynamicMount.volumeName());
             volumeDeleted = true;
         } catch (Exception e) {
             log().error("{} Failed to delete volume {}", logPrefix(), dynamicMount.volumeDescription().id(), e);

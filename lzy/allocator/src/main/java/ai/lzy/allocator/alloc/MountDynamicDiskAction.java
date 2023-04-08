@@ -49,7 +49,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(this::createVolume, this::createVolumeClaim, this::setVolumeClaim, this::attachVolumeToPod,
+        return List.of(this::createVolume, this::createVolumeClaim, this::setVolumeInfo, this::attachVolumeToPod,
             this::waitForPod, this::checkIfVmStillExists, this::setDynamicMountReady);
     }
 
@@ -109,12 +109,12 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult createVolume() {
-        if (this.volume != null || dynamicMount.volumeClaimId() != null) {
+        if (this.volume != null || dynamicMount.volumeName() != null) {
             return StepResult.ALREADY_DONE;
         }
 
         try {
-            this.volume = volumeManager.createOrGet(dynamicMount.clusterId(), dynamicMount.volumeDescription());
+            this.volume = volumeManager.create(dynamicMount.clusterId(), dynamicMount.volumeDescription());
         } catch (Exception e) {
             log().error("{} Couldn't create volume for {}", dynamicMount.volumeDescription(), e);
             return StepResult.RESTART;
@@ -124,12 +124,12 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult createVolumeClaim() {
-        if (volumeClaim != null || dynamicMount.volumeClaimId() != null) {
+        if (volumeClaim != null || dynamicMount.volumeClaimName() != null) {
             return StepResult.ALREADY_DONE;
         }
 
         try {
-            this.volumeClaim = volumeManager.createClaim(volume);
+            this.volumeClaim = volumeManager.createClaim(dynamicMount.clusterId(), volume);
         } catch (Exception e) {
             log().error("{} Couldn't create volume claim for {}", logPrefix(), dynamicMount.volumeDescription(), e);
             return StepResult.RESTART;
@@ -138,20 +138,21 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         return StepResult.CONTINUE;
     }
 
-    private StepResult setVolumeClaim() {
-        if (dynamicMount.volumeClaimId() != null) {
+    private StepResult setVolumeInfo() {
+        if (dynamicMount.volumeName() != null && dynamicMount.volumeClaimName() != null) {
             return StepResult.ALREADY_DONE;
         }
 
         try {
             var update = DynamicMount.Update.builder()
-                .volumeClaimId(volumeClaim.id())
+                .volumeName(volume.name())
+                .volumeClaimName(volumeClaim.name())
                 .build();
             //todo what if dynamic mount is deleted?
             this.dynamicMount = withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(),
                 update, null));
         } catch (Exception e) {
-            log().error("{} Couldn't set volume claim id {}", logPrefix(), volumeClaim.id(), e);
+            log().error("{} Couldn't set volume info", logPrefix(), e);
             return StepResult.RESTART;
         }
         return StepResult.CONTINUE;
