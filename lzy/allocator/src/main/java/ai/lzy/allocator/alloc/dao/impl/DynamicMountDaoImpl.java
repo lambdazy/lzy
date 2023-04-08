@@ -87,14 +87,14 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
     @Nullable
     public DynamicMount get(String id, @Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, con -> {
-           try (PreparedStatement s = con.prepareStatement(GET_DYNAMIC_MOUNT_QUERY)) {
-               s.setString(1, id);
-               final var rs = s.executeQuery();
-               if (rs.next()) {
-                   return readDynamicMount(rs);
-               }
-               return null;
-           }
+            try (PreparedStatement s = con.prepareStatement(GET_DYNAMIC_MOUNT_QUERY)) {
+                s.setString(1, id);
+                final var rs = s.executeQuery();
+                if (rs.next()) {
+                    return readDynamicMount(rs);
+                }
+                return null;
+            }
         });
     }
 
@@ -110,7 +110,9 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
 
     @Override
     @Nullable
-    public DynamicMount update(String id, DynamicMount.Update update, @Nullable TransactionHandle tx) throws SQLException {
+    public DynamicMount update(String id, DynamicMount.Update update, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         if (update.isEmpty()) {
             throw new IllegalArgumentException("Update is empty");
         }

@@ -35,8 +35,7 @@ public class PodSpecBuilder {
     private final List<PodAffinityTerm> podAntiAffinityTerms = new ArrayList<>();
     private final List<EnvVar> workloadsEnvList = new ArrayList<>();
 
-    public PodSpecBuilder(String podName, String templatePath, KubernetesClient client, ServiceConfig config)
-    {
+    public PodSpecBuilder(String podName, String templatePath, KubernetesClient client, ServiceConfig config) {
         pod = loadPodTemplate(client, templatePath);
 
         // k8s pod name can only contain symbols [-a-z0-9]
