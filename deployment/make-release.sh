@@ -56,7 +56,7 @@ mvn versions:set-property -Dproperty=changelist \
       -DnewVersion="" \
       -DgenerateBackupPoms=false -DprocessAllModules
 mvn versions:set-property -Dproperty=revision \
-      -DnewVersion="${NEXT_REVISION}.0" \
+      -DnewVersion="${CURRENT_REVISION}.0" \
       -DgenerateBackupPoms=false -DprocessAllModules
 
 RELEASE_VERSION=$(revision)
