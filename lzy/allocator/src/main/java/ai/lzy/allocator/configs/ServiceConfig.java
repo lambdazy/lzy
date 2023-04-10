@@ -2,6 +2,7 @@ package ai.lzy.allocator.configs;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
+import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import jakarta.annotation.Nullable;
@@ -18,11 +19,16 @@ import java.util.Map;
 @ConfigurationProperties("allocator")
 public class ServiceConfig {
     private String instanceId;
-    private String address;
+    private List<String> hosts = new ArrayList<>(); // either [<ipv4>] or [<ipv4>,<ipv6>]
+    private Integer port;
     private Duration allocationTimeout;
     private Duration heartbeatTimeout;
     private List<String> serviceClusters = new ArrayList<>();
     private List<String> userClusters = new ArrayList<>();
+
+    public String getAddress() {
+        return HostAndPort.fromParts(hosts.get(hosts.size() - 1), port).toString();
+    }
 
     @ConfigurationBuilder("database")
     private final DatabaseConfiguration database = new DatabaseConfiguration();
