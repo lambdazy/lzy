@@ -94,8 +94,8 @@ public class DynamicDaoImplTest {
         dynamicMountDao.create(diskMount, null);
         dynamicMountDao.create(nfsMount, null);
 
-        var fetchedDiskMount = dynamicMountDao.get(diskMount.id(), null);
-        var fetchedNfsMount = dynamicMountDao.get(nfsMount.id(), null);
+        var fetchedDiskMount = dynamicMountDao.get(diskMount.id(), false, null);
+        var fetchedNfsMount = dynamicMountDao.get(nfsMount.id(), false, null);
 
         Assert.assertEquals(diskMount, fetchedDiskMount);
         Assert.assertEquals(nfsMount, fetchedNfsMount);
@@ -107,7 +107,7 @@ public class DynamicDaoImplTest {
 
         dynamicMountDao.create(diskMount, null);
         dynamicMountDao.delete(diskMount.id(), null);
-        var dynamicMount = dynamicMountDao.get(diskMount.id(), null);
+        var dynamicMount = dynamicMountDao.get(diskMount.id(), false, null);
 
         Assert.assertNull(dynamicMount);
     }

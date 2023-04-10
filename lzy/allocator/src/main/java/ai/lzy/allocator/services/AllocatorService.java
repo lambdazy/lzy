@@ -736,8 +736,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        //todo check if mount exists
-
         final Session session;
         try {
             session = withRetries(LOG, () -> sessionsDao.get(vm.sessionId(), null));
@@ -757,10 +755,12 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         try {
             var op = createMountOperation(request, idempotencyKey, session);
             var mountWithAction = createMountAction(request, vm, op, clusterId);
+            var dynamicMount = mountWithAction.dynamicMount();
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    checkExistingMounts(vm, dynamicMount, tx);
                     operationsDao.create(op, tx);
-                    allocationContext.dynamicMountDao().create(mountWithAction.dynamicMount(), tx);
+                    allocationContext.dynamicMountDao().create(dynamicMount, tx);
                     sessionsDao.touch(session.sessionId(), tx);
                     tx.commit();
                 }
@@ -769,10 +769,125 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         } catch (StatusRuntimeException e) {
             LOG.error("Error while mount // vm {}: {}", request.getVmId(), e.getMessage(), e);
             responseObserver.onError(e);
+            return;
         } catch (Exception ex) {
             LOG.error("Error while mount // vm {}: {}", request.getVmId(), ex.getMessage(), ex);
-            responseObserver.onError(Status.INTERNAL.withDescription("Error while free").asException());
+            responseObserver.onError(Status.INTERNAL.withDescription("Unexpected error: " + ex.getMessage())
+                .asException());
             return;
+        }
+    }
+
+    @Override
+    public void unmount(VmAllocatorApi.UnmountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+        if (!validateRequest(request, responseObserver)) {
+            return;
+        }
+
+        LOG.info("Unmount request {}", ProtoPrinter.safePrinter().shortDebugString(request));
+
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationsDao, idempotencyKey, responseObserver, LOG)) {
+            return;
+        }
+
+        final Vm vm;
+        try {
+            vm = withRetries(LOG, () -> vmDao.get(request.getVmId(), null));
+        } catch (Exception ex) {
+            LOG.error("Cannot get vm {}: {}", request.getVmId(), ex.getMessage(), ex);
+            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            return;
+        }
+
+        if (vm == null) {
+            LOG.error("Cannot find vm {}", request.getVmId());
+            responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot find vm").asException());
+            return;
+        }
+
+        final Session session;
+        try {
+            session = withRetries(LOG, () -> sessionsDao.get(vm.sessionId(), null));
+        } catch (Exception ex) {
+            LOG.error("Cannot get session {}: {}", vm.sessionId(), ex.getMessage(), ex);
+            responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            return;
+        }
+
+        if (session == null) {
+            LOG.error("Corrupted vm {} with incorrect session id: {}", vm.vmId(), vm.sessionId());
+            responseObserver.onError(Status.INTERNAL
+                .withDescription("Session %s not found".formatted(vm.sessionId())).asException());
+            return;
+        }
+
+        try {
+            var action = withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    var dynamicMount = allocationContext.dynamicMountDao().get(request.getMountId(),
+                        true, tx);
+                    validateMountForDeletion(request, vm, dynamicMount);
+                    var unmountAction = allocationContext.createUnmountAction(vm, dynamicMount,
+                        idempotencyKey, session.owner(), tx);
+                    sessionsDao.touch(session.sessionId(), tx);
+                    tx.commit();
+                    return unmountAction;
+                }
+            });
+            allocationContext.startNew(action);
+        } catch (StatusRuntimeException e) {
+            LOG.error("Error while unmount // vm {}: {}", request.getVmId(), e.getMessage(), e);
+            responseObserver.onError(e);
+            return;
+        } catch (Exception e) {
+            LOG.error("Error while unmount // vm {}: {}", request.getVmId(), e.getMessage(), e);
+            responseObserver.onError(Status.INTERNAL.withDescription("Unexpected error: " + e.getMessage())
+                .asException());
+            return;
+        }
+    }
+
+    private static void validateMountForDeletion(VmAllocatorApi.UnmountRequest request, Vm vm,
+                                                 DynamicMount dynamicMount)
+    {
+        if (dynamicMount == null) {
+            throw Status.NOT_FOUND
+                .withDescription("Mount with id %s not found".formatted(request.getMountId()))
+                .asRuntimeException();
+        }
+        if (!vm.vmId().equals(dynamicMount.vmId())) {
+            throw Status.FAILED_PRECONDITION
+                .withDescription("Mount with id %s does not belong to vm %s".formatted(dynamicMount.id(),
+                    vm.vmId()))
+                .asRuntimeException();
+        }
+        if (dynamicMount.state() != DynamicMount.State.READY) {
+            throw Status.FAILED_PRECONDITION
+                .withDescription("Mount with id %s is in wrong state: %s".formatted(dynamicMount.id(),
+                    dynamicMount.state()))
+                .asRuntimeException();
+        }
+        if (dynamicMount.unmountOperationId() != null) {
+            throw Status.FAILED_PRECONDITION
+                .withDescription("Mount with id %s is already unmounting".formatted(dynamicMount.id()))
+                .asRuntimeException();
+        }
+    }
+
+    private void checkExistingMounts(Vm vm, DynamicMount dynamicMount, TransactionHandle tx) throws SQLException {
+        var vmMounts = allocationContext.dynamicMountDao().getByVm(vm.vmId(), tx);
+        for (DynamicMount vmMount : vmMounts) {
+            if (vmMount.mountPath().equals(dynamicMount.mountPath())) {
+                throw Status.ALREADY_EXISTS
+                    .withDescription("Mount with path %s already exists".formatted(vmMount.mountPath()))
+                    .asRuntimeException();
+            }
+            if (vmMount.mountName().equals(dynamicMount.mountName())) {
+                throw Status.ALREADY_EXISTS
+                    .withDescription("Mount with name %s already exists".formatted(vmMount.mountName()))
+                    .asRuntimeException();
+            }
         }
     }
 
@@ -811,12 +926,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 AllocateMetadata.getDefaultInstance());
         }
         throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription("unsupported volume type: " + type));
-    }
-
-    @Override
-    public void unmount(VmAllocatorApi.UnmountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
-        //todo
-        super.unmount(request, responseObserver);
     }
 
     private List<VolumeRequest> prepareVolumeRequests(List<VolumeApi.Volume> volumes, TransactionHandle transaction)
@@ -942,6 +1051,20 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 response.onError(Status.UNIMPLEMENTED.withDescription("volume type isn't set").asException());
                 return false;
             }
+        }
+        return true;
+    }
+
+    private static boolean validateRequest(VmAllocatorApi.UnmountRequest request,
+                                           StreamObserver<LongRunning.Operation> response)
+    {
+        if (request.getVmId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("vm_id isn't set").asException());
+            return false;
+        }
+        if (request.getMountId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("mount_id isn't set").asException());
+            return false;
         }
         return true;
     }

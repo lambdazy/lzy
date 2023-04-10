@@ -5,7 +5,6 @@ import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.longrunning.OperationRunnerBase;
-import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.jetbrains.annotations.Nullable;
 
@@ -68,12 +67,6 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         try {
             allocationContext.mountHolderManager().detachVolume(ClusterPod.of(dynamicMount.clusterId(), mountPodName),
                 dynamicMount.mountName());
-            withRetries(log(), () -> {
-                try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                    allocationContext.dynamicMountDao().delete(dynamicMount.id(), tx);
-                    tx.commit();
-                }
-            });
             mountPodRecreated = true;
         } catch (Exception e) {
             log().error("{} Failed to detach volume {} from pod {}", logPrefix(), dynamicMount.mountName(),

@@ -11,7 +11,7 @@ public interface DynamicMountDao {
     void create(DynamicMount dynamicMount, @Nullable TransactionHandle tx) throws SQLException;
 
     @Nullable
-    DynamicMount get(String id, @Nullable TransactionHandle tx) throws SQLException;
+    DynamicMount get(String id, boolean forUpdate, @Nullable TransactionHandle tx) throws SQLException;
 
     void delete(String id, @Nullable TransactionHandle tx) throws SQLException;
 
@@ -24,4 +24,6 @@ public interface DynamicMountDao {
     List<DynamicMount> getPending(String workerId, @Nullable TransactionHandle tx) throws SQLException;
 
     List<DynamicMount> getDeleting(String workerId, @Nullable TransactionHandle tx) throws SQLException;
+
+    List<DynamicMount> getByVm(String vmId, @Nullable TransactionHandle tx) throws SQLException;
 }

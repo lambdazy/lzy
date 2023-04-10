@@ -50,6 +50,10 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
         SELECT %s FROM dynamic_mount WHERE state = 'DELETING' and worker_id = ?
         """.formatted(ALL_FIELDS);
 
+    private static final String GET_BY_VM_QUERY = """
+        SELECT %s FROM dynamic_mount WHERE vm_id = ?
+        """.formatted(ALL_FIELDS);
+
     private final AllocatorDataSource storage;
     private final ObjectMapper objectMapper;
 
@@ -85,7 +89,7 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
 
     @Override
     @Nullable
-    public DynamicMount get(String id, @Nullable TransactionHandle tx) throws SQLException {
+    public DynamicMount get(String id, boolean forUpdate, @Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(GET_DYNAMIC_MOUNT_QUERY)) {
                 s.setString(1, id);
@@ -165,6 +169,21 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
         return DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(GET_DELETING_DYNAMIC_MOUNTS_QUERY)) {
                 s.setString(1, workerId);
+                final var rs = s.executeQuery();
+                var result = new ArrayList<DynamicMount>();
+                while (rs.next()) {
+                    result.add(readDynamicMount(rs));
+                }
+                return result;
+            }
+        });
+    }
+
+    @Override
+    public List<DynamicMount> getByVm(String vmId, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(GET_BY_VM_QUERY)) {
+                s.setString(1, vmId);
                 final var rs = s.executeQuery();
                 var result = new ArrayList<DynamicMount>();
                 while (rs.next()) {

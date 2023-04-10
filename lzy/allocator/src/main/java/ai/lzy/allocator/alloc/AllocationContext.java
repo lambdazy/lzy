@@ -96,12 +96,22 @@ public record AllocationContext(
     public UnmountDynamicDiskAction createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,
                                                         @Nullable TransactionHandle tx) throws SQLException
     {
+        return createUnmountAction(vm, dynamicMount,
+            new Operation.IdempotencyKey("unmount-disk-%s-%s".formatted(dynamicMount.vmId(), dynamicMount.id()),
+                dynamicMount.vmId() + dynamicMount.id()), "system", tx
+        );
+    }
+
+    public UnmountDynamicDiskAction createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,
+                                                        Operation.IdempotencyKey idempotencyKey,
+                                                        String createdBy, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         var op = Operation.create(
-            "system",
+            createdBy,
             "Unmount mount %s from vm %s".formatted(dynamicMount.id(), dynamicMount.vmId()),
             Duration.ofDays(10),
-            new Operation.IdempotencyKey("unmount-disk-%s-%s".formatted(dynamicMount.vmId(), dynamicMount.id()),
-                dynamicMount.vmId() + dynamicMount.id()),
+            idempotencyKey,
             null
         );
         operationsDao().create(op, tx);
