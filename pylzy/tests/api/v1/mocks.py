@@ -1,7 +1,6 @@
-import datetime
 import sys
 import uuid
-from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Sequence, AsyncIterable, Dict
+from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Sequence, Dict
 
 # noinspection PyPackageRequirements
 import grpc
@@ -29,7 +28,6 @@ from lzy.api.v1.runtime import ProgressStep
 from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
-from lzy.whiteboards.api import WhiteboardIndexClient
 
 from ai.lzy.v1.long_running.operation_pb2 import Operation, GetOperationRequest
 from ai.lzy.v1.long_running.operation_pb2_grpc import LongRunningServiceServicer
@@ -231,24 +229,6 @@ class StorageRegistryMock(StorageRegistry):
         return StorageClientMock()
 
     def available_storages(self) -> Iterable[str]:
-        pass
-
-
-class WhiteboardIndexClientMock(WhiteboardIndexClient):
-    async def get(self, id_: str) -> Optional[Whiteboard]:
-        pass
-
-    async def query(self,
-                    name: Optional[str] = None,
-                    tags: Sequence[str] = (),
-                    not_before: Optional[datetime.datetime] = None,
-                    not_after: Optional[datetime.datetime] = None) -> AsyncIterable[Whiteboard]:
-        pass
-
-    async def register(self, wb: Whiteboard) -> None:
-        pass
-
-    async def update(self, wb: Whiteboard):
         pass
 
 
