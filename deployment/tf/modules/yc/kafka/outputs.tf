@@ -1,5 +1,5 @@
 output "bootstrap-servers" {
-  value = "${data.kubernetes_service.kafka_0_external.status[0].load_balancer[0].ingress[0]["ip"]}:9094"
+  value = "${data.kubernetes_service.kafka_bootstrap.status[0].load_balancer[0].ingress[0]["ip"]}:9092"
 }
 
 output "admin-username" {
@@ -11,9 +11,9 @@ output "admin-password" {
 }
 
 output "jks-secret-name" {
-  value = kubernetes_secret.kafka_jks_secret.metadata[0].name
+  value = "lzy-cluster-ca-cert"
 }
 
 output "jks-password" {
-  value = random_password.jks_password.result
+  value = data.kubernetes_secret.ca_cert.data["ca.password"]
 }

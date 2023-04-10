@@ -262,7 +262,7 @@ resource "kubernetes_deployment" "scheduler" {
             secret {
               secret_name = module.kafka[0].jks-secret-name
               items {
-                key = "kafka.truststore.jks"
+                key = "ca.p12"
                 path = "truststore.jks"
               }
             }

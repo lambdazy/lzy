@@ -36,7 +36,10 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
                         new ScramCredentialInfo(ScramMechanism.SCRAM_SHA_512, 4096),
                         password)))
                 .all().get();
+
+            LOG.info("Created users: {}", adminClient.describeUserScramCredentials().users().get());
         } catch (Exception e) {
+            LOG.error("Error while creating user {}", username, e);
             throw Status.fromThrowable(e).asRuntimeException();
         }
     }
@@ -44,6 +47,8 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
     @Override
     public void dropUser(String username) throws StatusRuntimeException {
         try {
+            LOG.info("Created users: {}", adminClient.describeUserScramCredentials().users().get());
+
             adminClient.alterUserScramCredentials(
                 List.of(new UserScramCredentialDeletion(username, ScramMechanism.SCRAM_SHA_512))).all().get();
         } catch (Exception e) {
@@ -54,6 +59,8 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
     @Override
     public void createTopic(String name) throws StatusRuntimeException {
         try {
+            LOG.info("Created users: {}", adminClient.describeUserScramCredentials().users().get());
+
             // Do not do replicas and partitioning for now
             adminClient.createTopics(List.of(new NewTopic(name, 1, (short) 1))).all().get();
         } catch (Exception e) {
@@ -64,6 +71,8 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
     @Override
     public void dropTopic(String name) throws StatusRuntimeException {
         try {
+            LOG.info("Created users: {}", adminClient.describeUserScramCredentials().users().get());
+
             adminClient.deleteTopics(List.of(name)).all().get();
         } catch (Exception e) {
             throw Status.fromThrowable(e).asRuntimeException();
@@ -73,6 +82,8 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
     @Override
     public void grantPermission(String username, String topicName) throws StatusRuntimeException {
         try {
+            LOG.info("Created users: {}", adminClient.describeUserScramCredentials().users().get());
+
             adminClient.createAcls(
                 List.of(
                     new AclBinding(

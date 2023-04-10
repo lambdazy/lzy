@@ -23,6 +23,7 @@ public class KafkaHelper {
             props.put("security.protocol", "SASL_SSL");
             props.put("ssl.truststore.location", config.getTlsTruststorePath());
             props.put("ssl.truststore.password", config.getTlsTruststorePassword());
+            props.put("ssl.truststore.type", "PKCS12");
 
             props.put("ssl.endpoint.identification.algorithm", "");  // Disable endpoint identification
         } else {
