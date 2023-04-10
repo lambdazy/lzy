@@ -2,6 +2,9 @@
 
 set -e
 
+trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
+trap 'echo "$LINENO: \"${last_command}\" command failed with exit code $?."' ERR
+
 VALIDITY_IN_DAYS=100
 CA_CERT_FILE="/tmp/ca-cert"
 KEYSTORE_SIGN_REQUEST="/tmp/cert-file"
