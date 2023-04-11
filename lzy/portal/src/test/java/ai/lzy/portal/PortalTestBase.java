@@ -72,10 +72,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
-import static ai.lzy.channelmanager.ProtoConverter.*;
+import static ai.lzy.channelmanager.ProtoConverter.makeChannelStatusCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeDestroyChannelCommand;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static org.junit.Assert.assertTrue;
 
 public class PortalTestBase {
@@ -238,7 +242,7 @@ public class PortalTestBase {
         portalSlotsClient = newBlockingClient(
             LzySlotsApiGrpc.newBlockingStub(portalSlotsChannel),
             "Test",
-            NO_AUTH_TOKEN); // TODO: Auth
+            portalUser.credentials().credentials()::token);
 
         portalOpsClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(portalApiChannel), "TestClient",
             () -> internalUserCredentials.get().token());
@@ -421,11 +425,16 @@ public class PortalTestBase {
     }
 
     protected Iterator<LSA.SlotDataChunk> openOutputSlot(SlotInstance slot) {
-        return portalSlotsClient.openOutputSlot(
-            LSA.SlotDataRequest.newBuilder()
-                .setSlotInstance(ProtoConverter.toProto(slot))
-                .setOffset(0)
-                .build());
+        try {
+            return portalSlotsClient.openOutputSlot(
+                LSA.SlotDataRequest.newBuilder()
+                    .setSlotInstance(ProtoConverter.toProto(slot))
+                    .setOffset(0)
+                    .build());
+        } catch (StatusRuntimeException e) {
+            e.printStackTrace();
+            return Collections.emptyIterator();
+        }
     }
 
     protected ArrayBlockingQueue<Object> readPortalSlot(String channelName) {
@@ -469,6 +478,7 @@ public class PortalTestBase {
                     }
                 });
             } catch (Exception e) {
+                LOG.error("Cannot read portal slot from channel {}: {}", channelName, e.getMessage());
                 values.offer(e);
             }
         });

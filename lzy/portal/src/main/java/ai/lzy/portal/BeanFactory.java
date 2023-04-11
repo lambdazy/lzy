@@ -11,7 +11,6 @@ import ai.lzy.portal.services.PortalSlotsService;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
-import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import io.grpc.ManagedChannel;
@@ -28,7 +27,11 @@ import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -83,9 +86,11 @@ public class BeanFactory {
     @Singleton
     @Named("PortalSlotsGrpcServer")
     public Server portalSlotsServer(PortalConfig config, PortalSlotsService slotsApi,
-                                    @Named("PortalOperationsService") LocalOperationService operationService)
+                                    @Named("PortalOperationsService") LocalOperationService operationService,
+                                    @Named("PortalIamChannel") ManagedChannel iamChannel)
     {
-        return newGrpcServer(config.getHost(), config.getSlotsApiPort(), GrpcUtils.NO_AUTH)
+        var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
+        return newGrpcServer(config.getHost(), config.getSlotsApiPort(), auth)
             .addService(slotsApi)
             .addService(operationService)
             .build();
