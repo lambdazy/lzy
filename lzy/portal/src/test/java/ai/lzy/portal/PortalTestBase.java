@@ -425,16 +425,11 @@ public class PortalTestBase {
     }
 
     protected Iterator<LSA.SlotDataChunk> openOutputSlot(SlotInstance slot) {
-        try {
-            return portalSlotsClient.openOutputSlot(
-                LSA.SlotDataRequest.newBuilder()
-                    .setSlotInstance(ProtoConverter.toProto(slot))
-                    .setOffset(0)
-                    .build());
-        } catch (StatusRuntimeException e) {
-            e.printStackTrace();
-            return Collections.emptyIterator();
-        }
+        return portalSlotsClient.openOutputSlot(
+            LSA.SlotDataRequest.newBuilder()
+                .setSlotInstance(ProtoConverter.toProto(slot))
+                .setOffset(0)
+                .build());
     }
 
     protected ArrayBlockingQueue<Object> readPortalSlot(String channelName) {
