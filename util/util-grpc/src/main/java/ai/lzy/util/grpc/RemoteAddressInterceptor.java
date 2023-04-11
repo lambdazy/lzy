@@ -5,6 +5,11 @@ import io.grpc.*;
 import java.net.InetSocketAddress;
 
 public class RemoteAddressInterceptor implements ServerInterceptor {
+
+    public static ServerInterceptor create() {
+        return new RemoteAddressInterceptor();
+    }
+
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> serverCall, Metadata metadata,
                                                                  ServerCallHandler<ReqT, RespT> serverCallHandler)

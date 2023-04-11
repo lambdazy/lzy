@@ -27,12 +27,20 @@ import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
 import com.google.common.net.HostAndPort;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.grpc.*;
+import io.grpc.ManagedChannel;
+import io.grpc.Server;
+import io.grpc.ServerInterceptors;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -46,7 +54,9 @@ import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsSequentially;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.v1.longrunning.LongRunningServiceGrpc.newBlockingStub;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 @SuppressWarnings("ResultOfMethodCallIgnored")
 public class StorageTest extends BaseTestWithIam {
@@ -69,6 +79,7 @@ public class StorageTest extends BaseTestWithIam {
     private LzyStorageServiceBlockingStub authorizedStorageClient;
 
     private LongRunningServiceGrpc.LongRunningServiceBlockingStub opClient;
+    private ManagedChannel channel;
 
     @Before
     public void before() throws IOException {
@@ -92,7 +103,7 @@ public class StorageTest extends BaseTestWithIam {
 
         storageServer.start();
 
-        var channel = ChannelBuilder
+        channel = ChannelBuilder
             .forAddress(HostAndPort.fromString(storageConfig.getAddress()))
             .usePlaintext()
             .build();
@@ -108,6 +119,7 @@ public class StorageTest extends BaseTestWithIam {
 
     @After
     public void after() {
+        channel.shutdown();
         storageServer.shutdown();
         try {
             storageServer.awaitTermination();
