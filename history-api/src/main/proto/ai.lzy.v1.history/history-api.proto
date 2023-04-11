@@ -1,0 +1,273 @@
+syntax = "proto3";
+
+package ai.lzy.v1.history;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+service HistoryService {
+  rpc GetWorkflows (GetWorkflowsRequest) returns (GetWorkflowsResponse);
+  rpc GetWorkflowDetails (GetWorkflowDetailsRequest) returns (GetWorkflowDetailsResponse);
+
+  rpc GetExecutions (GetExecutionsRequest) returns (GetExecutionsResponse);
+  rpc GetExecutionStatus (GetExecutionRequest) returns (stream GetExecutionStatusResponse);
+  rpc GetExecutionDetails (GetExecutionRequest) returns (GetExecutionDetailsResponse);
+
+  rpc GetGraphs (GetGraphsRequest) returns (GetGraphsResponse);
+  rpc GetTaskDetails (GetTaskDetailsRequest) returns (GetTaskDetailsResponse);
+}
+
+message GetWorkflowsRequest {
+  Filter filter = 1;
+  Ordering orderBy = 2;
+
+  // pagination
+  int32 pageSize = 3;
+  string pageToken = 4;
+
+  message Ordering {
+    string name = 1;
+    string userId = 2;
+
+    google.protobuf.Timestamp createdAt = 3;
+    google.protobuf.Timestamp updatedAt = 4;
+
+    bool ascending = 5;
+  }
+
+  message Filter {
+    string name = 1;
+    string userId = 2;
+
+    google.protobuf.Timestamp createdAfter = 3;
+    google.protobuf.Timestamp createdBefore = 4;
+    google.protobuf.Timestamp updatedAfter = 5;
+    google.protobuf.Timestamp updatedBefore = 6;
+  }
+}
+
+message GetWorkflowsResponse {
+  repeated Workflow workflows = 1;
+
+  // pagination
+  string nextPageToken = 2;
+
+  message Workflow {
+    string name = 1;
+    string userId = 2;
+    string storageUrl = 3;
+
+    string lastExecutionId = 4;
+    ExecutionStatus lastExecutionStatus = 5;
+
+    google.protobuf.Duration runTime = 6;
+    google.protobuf.Timestamp createdAt = 7;
+    google.protobuf.Timestamp updatedAt = 8;
+  }
+}
+
+message GetWorkflowDetailsRequest {
+  string userId = 1;
+  string workflowName = 2;
+}
+
+message GetWorkflowDetailsResponse {
+  WorkflowDetails workflowDetails = 1;
+
+  message WorkflowDetails {}
+}
+
+message GetExecutionsRequest {
+  Filter filter = 1;
+  Ordering orderBy = 2;
+
+  // pagination
+  int32 pageSize = 3;
+  string pageToken = 4;
+
+  message Ordering {
+    string userId = 1;
+
+    google.protobuf.Timestamp startedAt = 2;
+    google.protobuf.Timestamp finishedAt = 3;
+    google.protobuf.Duration runTime = 4;
+
+    bool ascending = 5;
+  }
+
+  message Filter {
+    string workflowName = 1;
+    string userId = 2;
+
+    string executionStatus = 3;
+    string description = 4;
+
+    google.protobuf.Timestamp startedAfter = 5;
+    google.protobuf.Timestamp startedBefore = 6;
+    google.protobuf.Timestamp finishedAfter = 7;
+    google.protobuf.Timestamp finishedBefore = 8;
+  }
+}
+
+message GetExecutionsResponse {
+  repeated Execution executions = 1;
+
+  // pagination
+  string nextPageToken = 2;
+
+  message Execution {
+    string executionId = 1;
+    string workflowName = 2;
+    string userId = 3;
+
+    ExecutionStatus executionStatus = 4;
+    string description = 5;
+
+    google.protobuf.Duration runTime = 6;
+    google.protobuf.Timestamp startedAt = 7;
+    google.protobuf.Timestamp finishedAt = 8;
+  }
+}
+
+message GetExecutionRequest {
+  string executionId = 1;
+}
+
+message GetExecutionDetailsResponse {
+  ExecutionDetails executionDetails = 1;
+
+  message ExecutionDetails {
+    Provisioning provisioning = 1;
+    Env env = 2;
+  }
+}
+
+message GetExecutionStatusResponse {
+  ExecutionStatus status = 1;
+}
+
+message ExecutionStatus {
+  oneof status {
+    Queued queued = 1;
+    Running running = 2;
+    Failed failed = 3;
+    Success success = 4;
+  }
+
+  message Queued {}
+
+  message Running {
+    repeated string skipped = 1;
+    repeated string completed = 2;
+  }
+
+  message Failed {
+    string description = 1;
+  }
+
+  message Success {
+    repeated string skipped = 1;
+    repeated string completed = 2;
+  }
+}
+
+message GetGraphsRequest {
+  string executionId = 1;
+}
+
+message GetGraphsResponse {
+  repeated Graph graphs = 1;
+
+  message Graph {
+    string graphId = 1;
+    repeated Task tasks = 2;
+
+    message Task {
+      string id = 1;
+      string description = 2;
+      string version = 3;
+      bool cached = 4;
+
+      Status status = 5;
+
+      repeated Input inputs = 6;
+      repeated Output outputs = 7;
+
+      message Status {
+        oneof status {
+          Waiting waiting = 1;
+          Skipped skipped = 2;
+          Running running = 3;
+          Succeed succeed = 4;
+          Failed failed = 5;
+        }
+
+        message Waiting {}
+        message Skipped {}
+        message Running {}
+        message Succeed {}
+        message Failed {
+          string description = 1;
+        }
+      }
+
+      message Input {
+        string sourceTaskId = 1;
+        string name = 2;
+        string type = 3;
+      }
+
+      message Output {
+        string name = 1;
+        string type = 2;
+      }
+    }
+  }
+}
+
+message GetTaskDetailsRequest {
+  string taskId = 1;
+}
+
+message GetTaskDetailsResponse {
+  string id = 1;
+  string description = 2;
+  string version = 3;
+  bool cached = 4;
+
+  GetGraphsResponse.Graph.Task.Status status = 5;
+
+  repeated Input inputs = 6;
+  repeated Output outputs = 7;
+
+  Provisioning provisioning = 8;
+  Env env = 9;
+
+  string logsStorageUrl = 10;
+
+  message Input {
+    string name = 1;
+    string type = 2;
+    string storageUrl = 3;
+  }
+
+  message Output {
+    string name = 1;
+    string type = 2;
+    string storageUrl = 3;
+  }
+}
+
+message Provisioning {
+  string cpuType = 1;
+  int32 cpuCount = 2;
+  string gpuType = 3;
+  int32 gpuCount = 4;
+  int32 ramSizeGb = 5;
+}
+
+message Env {
+  string pythonVersion = 1;
+  string dockerImage = 2;
+  map<string, string> envVars = 3;
+}
