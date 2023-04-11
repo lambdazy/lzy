@@ -4,6 +4,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.common.acl.*;
+import org.apache.kafka.common.errors.ResourceNotFoundException;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -99,4 +100,40 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
         }
     }
 
+    @Override
+    public void confirmAdminUser(String username, String requiredPassword) throws StatusRuntimeException {
+        try {
+            var desc = adminClient.describeUserScramCredentials(List.of(username))
+                .description(username)
+                .get();
+
+            if (desc.credentialInfos().size() > 0) {
+                return;
+            }
+
+            adminClient.alterUserScramCredentials(List.of(new UserScramCredentialUpsertion(
+                username,
+                new ScramCredentialInfo(ScramMechanism.SCRAM_SHA_512, 4096),
+                requiredPassword
+            ))).all().get();
+
+        } catch (ResourceNotFoundException e) {
+            LOG.info("Admin user {} not found, creating it", username);
+
+            try {
+                adminClient.alterUserScramCredentials(List.of(new UserScramCredentialUpsertion(
+                    username,
+                    new ScramCredentialInfo(ScramMechanism.SCRAM_SHA_512, 4096),
+                    requiredPassword
+                ))).all().get();
+            } catch (Exception ex) {
+                LOG.error("Cannot create admin credentials: ", e);
+                throw Status.fromThrowable(e).asRuntimeException();
+            }
+
+        } catch (Exception e) {
+            LOG.error("Cannot get admin credentials: ", e);
+            throw Status.fromThrowable(e).asRuntimeException();
+        }
+    }
 }

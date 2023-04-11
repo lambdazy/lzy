@@ -1,5 +1,7 @@
 package ai.lzy.util.kafka;
 
+import io.grpc.StatusRuntimeException;
+
 public class NoopKafkaAdminClient implements KafkaAdminClient {
     @Override
     public void createUser(String username, String password) {}
@@ -16,4 +18,6 @@ public class NoopKafkaAdminClient implements KafkaAdminClient {
     @Override
     public void grantPermission(String username, String topicName) {}
 
+    @Override
+    public void confirmAdminUser(String username, String requiredPassword) throws StatusRuntimeException {}
 }

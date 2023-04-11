@@ -36,6 +36,8 @@ spec:
                 "yandex.cloud/subnet-id": ${subnet_id}
     authorization:
       type: simple
+      superUsers:
+        - ${username}
     config:
       auto.create.topics.enable: false
       inter.broker.protocol.version: "3.4"
@@ -68,30 +70,3 @@ spec:
       type: persistent-claim
       size: 10Gi
       deleteClaim: false
-  entityOperator:
-    template:
-      pod:
-        affinity:
-          nodeAffinity:
-            requiredDuringSchedulingIgnoredDuringExecution:
-              nodeSelectorTerms:
-                - matchExpressions:
-                    - key: type
-                      operator: In
-                      values:
-                        - lzy
-    tlsSidecar: {}
-    topicOperator:
-      watchedNamespace: default
-      reconciliationIntervalSeconds: 60
-      logging:
-        type: inline
-        loggers:
-          rootLogger.level: "INFO"
-    userOperator:
-      watchedNamespace: default
-      reconciliationIntervalSeconds: 60
-      logging:
-        type: inline
-        loggers:
-          rootLogger.level: INFO
