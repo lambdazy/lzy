@@ -13,11 +13,9 @@ import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import lombok.Setter;
 
 @Singleton
 @Requires(env = "test-mock")
-@Setter
 public class AllocatorProxy extends AllocatorService {
 
     private volatile Runnable onCreateSession = () -> {};
@@ -62,5 +60,21 @@ public class AllocatorProxy extends AllocatorService {
     {
         onFree.run();
         super.free(request, responseObserver);
+    }
+
+    public void setOnCreateSession(Runnable onCreateSession) {
+        this.onCreateSession = onCreateSession;
+    }
+
+    public void setOnDeleteSession(Runnable onDeleteSession) {
+        this.onDeleteSession = onDeleteSession;
+    }
+
+    public void setOnAllocate(Runnable onAllocate) {
+        this.onAllocate = onAllocate;
+    }
+
+    public void setOnFree(Runnable onFree) {
+        this.onFree = onFree;
     }
 }
