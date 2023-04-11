@@ -115,3 +115,8 @@ variable "domain_name" {
   default  = "lzy.ai"
   nullable = true
 }
+
+variable "enable_kafka" {
+  type = bool
+  default = false
+}

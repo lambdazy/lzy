@@ -208,44 +208,13 @@ resource "kubernetes_deployment" "scheduler" {
             value = local.scheduler-k8s-name
           }
 
-          env {
-            name  = "SCHEDULER_KAFKA_ENABLED"
-            value = "true"
-          }
+          dynamic "env" {
+            for_each = local.kafka_env_map
 
-          env {
-            name = "SCHEDULER_KAFKA_BOOTSTRAP_SERVERS"
-            value = module.kafka.bootstrap-servers
-          }
-
-          env {
-            name = "SCHEDULER_KAFKA_TLS_ENABLED"
-            value = "true"
-          }
-
-          env {
-            name = "SCHEDULER_KAFKA_TLS_TRUSTSTORE_PATH"
-            value = "/jks/truststore.jks"
-          }
-
-          env {
-            name = "SCHEDULER_KAFKA_TLS_TRUSTSTORE_PASSWORD"
-            value_from {
-              secret_key_ref {
-                name = module.kafka.jks-secret-name
-                key = "jks.password"
-              }
+            content {
+              name = "LZY_SERVICE_${env.key}"
+              value = env.value
             }
-          }
-
-          env {
-            name = "SCHEDULER_KAFKA_SCRAM_USERNAME"
-            value = module.kafka.admin-username
-          }
-
-          env {
-            name = "SCHEDULER_KAFKA_SCRAM_PASSWORD"
-            value = module.kafka.admin-password
           }
 
           volume_mount {
@@ -253,9 +222,13 @@ resource "kubernetes_deployment" "scheduler" {
             mount_path = "/var/log/lzy"
           }
 
-          volume_mount {
-            mount_path = "/jks"
-            name       = "jks"
+          dynamic "volume_mount" {
+            for_each = var.enable_kafka ? [1] : []
+
+            content {
+              mount_path = "/jks"
+              name       = "jks"
+            }
           }
         }
         container {
@@ -281,13 +254,17 @@ resource "kubernetes_deployment" "scheduler" {
             }
           }
         }
-        volume {
-          name = "jks"
-          secret {
-            secret_name = module.kafka.jks-secret-name
-            items {
-              key = "kafka.truststore.jks"
-              path = "truststore.jks"
+        dynamic "volume" {
+          for_each = var.enable_kafka ? [1] : []
+
+          content {
+            name = "jks"
+            secret {
+              secret_name = module.kafka[0].jks-secret-name
+              items {
+                key = "kafka.truststore.jks"
+                path = "truststore.jks"
+              }
             }
           }
         }
