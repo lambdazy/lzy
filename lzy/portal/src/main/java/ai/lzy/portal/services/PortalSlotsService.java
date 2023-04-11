@@ -122,8 +122,12 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
     @PreDestroy
     public void stop() throws InterruptedException {
-        stdoutSlot.destroy();
-        stderrSlot.destroy();
+        if (stdoutSlot != null) {
+            stdoutSlot.destroy();
+        }
+        if (stderrSlot != null) {
+            stderrSlot.destroy();
+        }
 
         slotsManager.slots().forEach(LzySlot::destroy);
 
