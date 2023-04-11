@@ -43,7 +43,7 @@ public class Errors {
         return Status.fromCode(statusCode)
             .withDescription(errors.stream()
                 .map(Error::getMessage)
-                .map(m -> '"' + m + '"' )
+                .map(m -> '"' + m + '"')
                 .collect(Collectors.joining(", ", "Errors: ", "")))
             .asRuntimeException();
     }

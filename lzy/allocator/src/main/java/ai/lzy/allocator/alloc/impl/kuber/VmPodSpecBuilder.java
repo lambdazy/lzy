@@ -87,6 +87,11 @@ public class VmPodSpecBuilder {
         return this;
     }
 
+    public VmPodSpecBuilder withLoggingVolume() {
+        podSpecBuilder.withLoggingVolume();
+        return this;
+    }
+
     public VmPodSpecBuilder withPodAffinity(String key, String operator, String... values) {
         podSpecBuilder.withPodAffinity(key, operator, values);
         return this;
