@@ -20,7 +20,6 @@
         <module>graph-executor</module>
         <module>graph-executor-api</module>
         <module>iam</module>
-        <module>jupyter-kernel</module>
         <module>long-running</module>
         <module>lzy-service</module>
         <module>portal</module>

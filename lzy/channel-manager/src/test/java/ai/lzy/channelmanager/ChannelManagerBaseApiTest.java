@@ -71,9 +71,7 @@ import java.util.function.Supplier;
 
 import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -132,7 +130,7 @@ public class ChannelManagerBaseApiTest {
 
         mockedSlotApiAddress = HostAndPort.fromString(config.getStubSlotApiAddress());
         var slotService = new SlotServiceMock();
-        mockedSlotApiServer = newGrpcServer(mockedSlotApiAddress, null)
+        mockedSlotApiServer = newGrpcServer(mockedSlotApiAddress, NO_AUTH)
             .addService(slotService.slotApiService())
             .addService(slotService.operationService())
             .build();

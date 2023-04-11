@@ -399,14 +399,17 @@ public class ExecutionDaoImpl implements ExecutionDao {
     @Override
     @Nullable
     public PortalDescription getPortalDescription(String executionId) throws SQLException {
-        PortalDescription[] descriptions = {null};
-
-        DbOperation.execute(null, storage, con -> {
+        return DbOperation.execute(null, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_GET_PORTAL_DESCRIPTION)) {
                 statement.setString(1, executionId);
                 ResultSet rs = statement.executeQuery();
 
                 if (rs.next()) {
+                    if (rs.getString(1) == null) {
+                        LOG.warn("Portal for executionId {} not started yet", executionId);
+                        return null;
+                    }
+
                     var status = PortalDescription.PortalStatus.valueOf(rs.getString(1));
                     var allocateSessionId = rs.getString(2);
                     var vmId = rs.getString(3);
@@ -419,15 +422,14 @@ public class ExecutionDaoImpl implements ExecutionDao {
                     var portalId = rs.getString(8);
                     var portalSubjectId = rs.getString(9);
 
-                    descriptions[0] = new PortalDescription(portalId, portalSubjectId, allocateSessionId, vmId,
+                    return new PortalDescription(portalId, portalSubjectId, allocateSessionId, vmId,
                         vmAddress, fsAddress, stdoutChannelId, stderrChannelId, status);
                 } else {
                     LOG.warn("Cannot find portal description: { executionId: {} }", executionId);
+                    return null;
                 }
             }
         });
-
-        return descriptions[0];
     }
 
     @Override

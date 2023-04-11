@@ -4,10 +4,6 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
-import ai.lzy.util.grpc.GrpcLogsInterceptor;
-import ai.lzy.util.grpc.RemoteAddressInterceptor;
-import ai.lzy.util.grpc.RequestIdInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -38,12 +34,8 @@ public class SchedulerApi {
         this.jobService = jobService;
         LOG.info("Building server at 0.0.0.0:{}", config.getPort());
 
-        var builder = newGrpcServer("0.0.0.0", config.getPort(), null)
-            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
-            .intercept(new RemoteAddressInterceptor())
-            .intercept(GrpcLogsInterceptor.server())
-            .intercept(RequestIdInterceptor.server())
-            .intercept(GrpcHeadersServerInterceptor.create());
+        var builder = newGrpcServer("0.0.0.0", config.getPort(),
+            new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)));
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
