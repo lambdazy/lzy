@@ -43,8 +43,10 @@ public class DbAwareMetrics {
 
     @PreDestroy
     public synchronized void shutdown() {
-        executor.shutdownNow();
-        executor = null;
+        if (executor != null) {
+            executor.shutdownNow();
+            executor = null;
+        }
     }
 
     private class Worker implements Runnable {

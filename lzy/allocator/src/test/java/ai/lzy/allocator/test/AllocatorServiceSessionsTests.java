@@ -1,5 +1,6 @@
 package ai.lzy.allocator.test;
 
+import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.impl.SessionDaoImpl;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -78,11 +79,14 @@ public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
     }
 
     @Test
-    public void testCreateAndDeleteSession() {
+    public void testCreateAndDeleteSession() throws SQLException {
         var sessionId = createSession(Durations.fromSeconds(100));
 
         var op = deleteSession(sessionId, true);
         Assert.assertTrue(op.toString(), op.hasResponse());
+
+        var session = allocatorCtx.getBean(SessionDao.class).get(sessionId, null);
+        Assert.assertNull(session);
     }
 
     @Test
