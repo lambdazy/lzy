@@ -235,7 +235,8 @@ public final class DeleteVmAction extends OperationRunnerBase {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     var mounts = allocationContext.dynamicMountDao().getPending(vm.vmId(), tx);
                     for (var mount : mounts) {
-                        allocationContext.createUnmountAction(vm, mount, tx);
+                        var unmountActionWithOp = allocationContext.createUnmountAction(vm, mount, tx);
+                        actions.add(unmountActionWithOp.getLeft());
                     }
                     tx.commit();
                     return actions;

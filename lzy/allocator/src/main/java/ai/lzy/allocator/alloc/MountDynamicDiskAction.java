@@ -8,6 +8,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Volume;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.debug.InjectedFailures;
+import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.volume.VolumeManager;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationRunnerBase;
@@ -93,7 +94,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         throws SQLException
     {
         failOperation(status, tx);
-        return allocationContext.createUnmountAction(vm, dynamicMount, tx);
+        return allocationContext.createUnmountAction(vm, dynamicMount, tx).getLeft();
     }
 
     @Override
@@ -115,8 +116,12 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
 
         try {
             this.volume = volumeManager.create(dynamicMount.clusterId(), dynamicMount.volumeDescription());
-        } catch (Exception e) {
-            log().error("{} Couldn't create volume for {}", dynamicMount.volumeDescription(), e);
+        } catch (KubernetesClientException e) {
+            log().error("{} Couldn't create volume for {}", logPrefix(), dynamicMount.volumeDescription(), e);
+            if (KuberUtils.isNotRetryable(e)) {
+                fail(Status.ABORTED.withDescription("Couldn't create volume"));
+                return StepResult.FINISH;
+            }
             return StepResult.RESTART;
         }
 
@@ -130,8 +135,12 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
 
         try {
             this.volumeClaim = volumeManager.createClaim(dynamicMount.clusterId(), volume);
-        } catch (Exception e) {
-            log().error("{} Couldn't create volume claim for {}", logPrefix(), dynamicMount.volumeDescription(), e);
+        } catch (KubernetesClientException e) {
+            log().error("{} Couldn't create volume claim for {}", logPrefix(), volume.name(), e);
+            if (KuberUtils.isNotRetryable(e)) {
+                fail(Status.ABORTED.withDescription("Couldn't create volume claim"));
+                return StepResult.FINISH;
+            }
             return StepResult.RESTART;
         }
 
@@ -198,8 +207,12 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         PodPhase podPhase;
         try {
             podPhase = mountHolderManager.checkPodPhase(mountPod);
-        } catch (Exception e) {
+        } catch (KubernetesClientException e) {
             log().error("{} Couldn't check pod {} phase", logPrefix(), mountPod, e);
+            if (KuberUtils.isNotRetryable(e)) {
+                fail(Status.ABORTED.withDescription("Couldn't check pod " + mountPod.podName() + " phase"));
+                return StepResult.FINISH;
+            }
             return StepResult.RESTART;
         }
         log().debug("{} Pod {} is in phase {}", logPrefix(), mountPod.podName(), podPhase);

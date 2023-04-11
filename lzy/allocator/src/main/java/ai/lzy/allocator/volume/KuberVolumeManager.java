@@ -1,7 +1,7 @@
 package ai.lzy.allocator.volume;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
-import ai.lzy.allocator.alloc.impl.kuber.KuberUtils;
+import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.model.DiskVolumeDescription;
 import ai.lzy.allocator.model.NFSVolumeDescription;
 import ai.lzy.allocator.model.Volume;
@@ -135,7 +135,7 @@ public class KuberVolumeManager implements VolumeManager {
             }
 
             LOG.error("Could not create volume {}: {}", result, e.getMessage(), e);
-            throw new RuntimeException(e);
+            throw e;
         }
     }
 
@@ -177,7 +177,7 @@ public class KuberVolumeManager implements VolumeManager {
             }
 
             LOG.error("Could not create resource: {}", e.getMessage(), e);
-            throw new RuntimeException(e);
+            throw e;
         }
     }
 
@@ -209,8 +209,11 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.info("Found volume={}", volume);
             return volume;
         } catch (KubernetesClientException e) {
-            LOG.error("Not found volume with name={}", volumeName);
-            return null;
+            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                LOG.error("Not found volume with name={}", volumeName);
+                return null;
+            }
+            throw e;
         }
     }
 
@@ -233,8 +236,11 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.info("Found {}", volumeClaim);
             return volumeClaim;
         } catch (KubernetesClientException e) {
-            LOG.error("Not found volumeClaim with name={}", volumeClaimName);
-            return null;
+            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                LOG.error("Not found volumeClaim with name={}", volumeClaimName);
+                return null;
+            }
+            throw e;
         }
     }
 
@@ -248,9 +254,10 @@ public class KuberVolumeManager implements VolumeManager {
         } catch (KubernetesClientException e) {
             if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
                 LOG.warn("Persistent volume {} not found", volumeName);
-            } else {
-                LOG.error("Cannot delete persistent volume {}: {}", volumeName, e.getMessage(), e);
+                return;
             }
+            LOG.error("Cannot delete persistent volume {}: {}", volumeName, e.getMessage(), e);
+            throw e;
         }
     }
 
@@ -264,9 +271,10 @@ public class KuberVolumeManager implements VolumeManager {
         } catch (KubernetesClientException e) {
             if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
                 LOG.warn("Persistent volume claim {} not found", volumeClaimName);
-            } else {
-                LOG.error("Cannot delete persistent volume claim {}: {}", volumeClaimName, e.getMessage(), e);
+                return;
             }
+            LOG.error("Cannot delete persistent volume claim {}: {}", volumeClaimName, e.getMessage(), e);
+            throw e;
         }
     }
 

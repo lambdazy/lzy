@@ -4,6 +4,7 @@ import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.longrunning.OperationRunnerBase;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import org.jetbrains.annotations.Nullable;
@@ -46,8 +47,8 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(this::recreateMountPod, this::waitForMountPod, this::unmountFromVM, this::removeVolumeClaim,
-            this::removeVolume, this::deleteMount);
+        return List.of(this::recreateMountPod, this::waitForMountPod, this::unmountFromVM, this::countDynamicMounts,
+            this::removeVolumeClaim, this::removeVolume, this::deleteMount);
     }
 
     private StepResult recreateMountPod() {
@@ -134,23 +135,36 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         } catch (KubernetesClientException e) {
             log().error("{} Failed to unmount volume {} from vm {}", logPrefix(), dynamicMount.id(),
                 vm.vmId(), e);
+            if (KuberUtils.isNotRetryable(e)) {
+                return StepResult.CONTINUE;
+            }
             return StepResult.RESTART;
         }
         return StepResult.CONTINUE;
     }
 
-    private StepResult removeVolumeClaim() {
-        if (volumeClaimDeleted || skipClaimDeletion) {
-            return StepResult.ALREADY_DONE;
-        }
+    private StepResult countDynamicMounts() {
         try {
             var count = withRetries(log(), () -> allocationContext.dynamicMountDao()
                 .countForVolumeClaimName(dynamicMount.clusterId(), dynamicMount.volumeClaimName(), null));
 
             if (count > 1) {
                 skipClaimDeletion = true;
-                return StepResult.CONTINUE;
             }
+        } catch (Exception e) {
+            log().error("{} Failed to count mounts by volume claim", logPrefix(), e);
+            return StepResult.RESTART;
+        }
+
+        return StepResult.CONTINUE;
+    }
+
+
+    private StepResult removeVolumeClaim() {
+        if (volumeClaimDeleted || skipClaimDeletion) {
+            return StepResult.ALREADY_DONE;
+        }
+        try {
             allocationContext.volumeManager().deleteClaim(dynamicMount.clusterId(), dynamicMount.volumeClaimName());
             volumeClaimDeleted = true;
         } catch (Exception e) {

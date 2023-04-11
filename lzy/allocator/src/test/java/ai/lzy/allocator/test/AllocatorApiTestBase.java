@@ -396,7 +396,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
     protected record AllocatedVm(
         String vmId,
-        String podName
+        String podName,
+        String allocationOpId
     ) {}
 
     protected AllocatedVm allocateVm(String sessionId, @Nullable String idempotencyKey) throws Exception {
@@ -424,7 +425,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         if (allocOp.getDone()) {
             var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
-            return new AllocatedVm(vmId, "unknown");
+            return new AllocatedVm(vmId, "unknown", allocOp.getId());
         }
 
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
@@ -439,7 +440,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         allocOp = waitOpSuccess(allocOp);
         Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
 
-        return new AllocatedVm(vmId, podName);
+        return new AllocatedVm(vmId, podName, allocOp.getId());
     }
 
     protected void freeVm(String vmId) {

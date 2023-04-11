@@ -16,6 +16,7 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Nullable;
 
@@ -93,8 +94,8 @@ public record AllocationContext(
         return new DeleteVmAction(vm, deleteOp.id(), this);
     }
 
-    public UnmountDynamicDiskAction createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,
-                                                        @Nullable TransactionHandle tx) throws SQLException
+    public Pair<UnmountDynamicDiskAction, Operation> createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,
+                                                             @Nullable TransactionHandle tx) throws SQLException
     {
         return createUnmountAction(vm, dynamicMount,
             new Operation.IdempotencyKey("unmount-disk-%s-%s".formatted(dynamicMount.vmId(), dynamicMount.id()),
@@ -102,9 +103,10 @@ public record AllocationContext(
         );
     }
 
-    public UnmountDynamicDiskAction createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,
-                                                        Operation.IdempotencyKey idempotencyKey,
-                                                        String createdBy, @Nullable TransactionHandle tx)
+    public Pair<UnmountDynamicDiskAction, Operation> createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,
+                                                                         Operation.IdempotencyKey idempotencyKey,
+                                                                         String createdBy,
+                                                                         @Nullable TransactionHandle tx)
         throws SQLException
     {
         var op = Operation.create(
@@ -125,6 +127,6 @@ public record AllocationContext(
             throw new IllegalStateException("Dynamic mount with id " + dynamicMount.id() + " is not found for update");
         }
 
-        return new UnmountDynamicDiskAction(vm, updatedMount, this);
+        return Pair.of(new UnmountDynamicDiskAction(vm, updatedMount, this), op);
     }
 }

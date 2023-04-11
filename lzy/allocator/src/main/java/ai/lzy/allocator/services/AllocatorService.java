@@ -225,7 +225,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                     for (var dynamicMount : mountsToRemove) {
                         var unmountAction = allocationContext.createUnmountAction(null, dynamicMount, tx);
-                        actionsToRun.add(unmountAction);
+                        actionsToRun.add(unmountAction.getLeft());
                     }
                     tx.commit();
                     return actionsToRun;
@@ -770,6 +770,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     checkExistingMounts(vm, dynamicMount, tx);
+                    var response = VmAllocatorApi.MountResponse.newBuilder()
+                        .setMount(dynamicMount.toProto())
+                        .build();
+                    op.setResponse(response);
                     operationsDao.create(op, tx);
                     allocationContext.dynamicMountDao().create(dynamicMount, tx);
                     sessionsDao.touch(session.sessionId(), tx);
@@ -777,15 +781,38 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 }
             });
             allocationContext.startNew(mountWithAction.action());
+            responseObserver.onNext(op.toProto());
+            responseObserver.onCompleted();
         } catch (StatusRuntimeException e) {
             LOG.error("Error while mount // vm {}: {}", request.getVmId(), e.getMessage(), e);
             responseObserver.onError(e);
-            return;
         } catch (Exception ex) {
             LOG.error("Error while mount // vm {}: {}", request.getVmId(), ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription("Unexpected error: " + ex.getMessage())
                 .asException());
+        }
+    }
+
+    @Override
+    public void listMounts(VmAllocatorApi.ListMountsRequest request,
+                           StreamObserver<VmAllocatorApi.ListMountsResponse> responseObserver)
+    {
+        if (!validateRequest(request, responseObserver)) {
             return;
+        }
+
+        try {
+            var dynamicMounts = withRetries(LOG, () -> allocationContext.dynamicMountDao()
+                .getByVm(request.getVmId(), null));
+            responseObserver.onNext(VmAllocatorApi.ListMountsResponse.newBuilder()
+                .addAllMounts(dynamicMounts.stream()
+                    .map(DynamicMount::toProto)
+                    .collect(Collectors.toList()))
+                .build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            LOG.error("Error while list mounts // vm {}", request.getVmId(), e);
+            responseObserver.onError(Status.INTERNAL.withDescription("Error while list mounts").asException());
         }
     }
 
@@ -851,16 +878,16 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     return unmountAction;
                 }
             });
-            allocationContext.startNew(action);
+            allocationContext.startNew(action.getLeft());
+            responseObserver.onNext(action.getRight().toProto());
+            responseObserver.onCompleted();
         } catch (StatusRuntimeException e) {
             LOG.error("Error while unmount // vm {}: {}", request.getVmId(), e.getMessage(), e);
             responseObserver.onError(e);
-            return;
         } catch (Exception e) {
             LOG.error("Error while unmount // vm {}: {}", request.getVmId(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withDescription("Unexpected error: " + e.getMessage())
                 .asException());
-            return;
         }
     }
 
@@ -1081,6 +1108,16 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         }
         if (errors.hasErrors()) {
             response.onError(errors.toStatusRuntimeException(Status.Code.INVALID_ARGUMENT));
+            return false;
+        }
+        return true;
+    }
+
+    private static boolean validateRequest(VmAllocatorApi.ListMountsRequest request,
+                                           StreamObserver<VmAllocatorApi.ListMountsResponse> response)
+    {
+        if (request.getVmId().isBlank()) {
+            response.onError(Status.INVALID_ARGUMENT.withDescription("vm_id isn't set").asException());
             return false;
         }
         return true;

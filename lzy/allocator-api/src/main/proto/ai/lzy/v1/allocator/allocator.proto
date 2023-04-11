@@ -50,6 +50,8 @@ service Allocator {
     };
   }
 
+  rpc ListMounts (ListMountsRequest) returns (ListMountsResponse);
+
   rpc Unmount (UnmountRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       // metadata: null
@@ -171,7 +173,33 @@ message MountRequest {
 }
 
 message MountResponse {
-  string mount_id = 1;
+  DynamicMount mount = 1;
+}
+
+// ========= List mounts ==========
+
+message ListMountsRequest {
+  string vm_id = 1;
+}
+
+message ListMountsResponse {
+  repeated DynamicMount mounts = 1;
+}
+
+message DynamicMount {
+  string id = 1;
+  optional string vm_id = 2;
+  string mount_name = 3;
+  string mount_path = 4;
+  optional string volume_name = 5;
+  optional string volume_claim_name = 6;
+  oneof VolumeType {
+    DiskVolumeType disk_volume = 7;
+    //it's supposed that we'll have other mount types like NFS
+  }
+  string state = 8;
+  string mount_operation_id = 9;
+  optional string unmount_operation_id = 10;
 }
 
 // ========= Unmount disk ==========

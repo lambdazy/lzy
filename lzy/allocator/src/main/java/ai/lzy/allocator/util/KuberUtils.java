@@ -14,10 +14,9 @@ public final class KuberUtils {
 
     public static boolean isNotRetryable(KubernetesClientException e) {
         var code = e.getCode();
-        return code == HttpURLConnection.HTTP_BAD_REQUEST ||
-            code == HttpURLConnection.HTTP_UNAUTHORIZED ||
-            code == HttpURLConnection.HTTP_FORBIDDEN ||
-            code == HttpURLConnection.HTTP_NOT_FOUND ||
-            code == HttpURLConnection.HTTP_BAD_METHOD;
+        if (code == 429) { // Too many requests
+            return false;
+        }
+        return code >= 400 && code < 500;
     }
 }

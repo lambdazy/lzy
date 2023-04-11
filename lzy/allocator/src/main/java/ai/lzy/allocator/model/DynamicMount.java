@@ -1,5 +1,7 @@
 package ai.lzy.allocator.model;
 
+import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.v1.VolumeApi;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.UUID;
@@ -30,6 +32,35 @@ public record DynamicMount(
     {
         return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, mountName, null, null,
             volumeDescription, mountOperationId, null, State.PENDING, workerId);
+    }
+
+    public VmAllocatorApi.DynamicMount toProto() {
+        var builder = VmAllocatorApi.DynamicMount.newBuilder()
+            .setId(id)
+            .setMountName(mountName)
+            .setMountPath(mountPath)
+            .setMountOperationId(mountOperationId)
+            .setState(state.name());
+        if (volumeDescription instanceof DiskVolumeDescription diskVolumeDescription) {
+            builder.setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
+                .setDiskId(diskVolumeDescription.diskId())
+                .setSizeGb(diskVolumeDescription.sizeGb())
+                .build());
+        }
+        if (vmId != null) {
+            builder.setVmId(vmId);
+        }
+        if (volumeName != null) {
+            builder.setVolumeName(volumeName);
+        }
+        if (volumeClaimName != null) {
+            builder.setVolumeClaimName(volumeClaimName);
+        }
+        if (unmountOperationId != null) {
+            builder.setUnmountOperationId(unmountOperationId);
+        }
+
+        return builder.build();
     }
 
     public record Update(
