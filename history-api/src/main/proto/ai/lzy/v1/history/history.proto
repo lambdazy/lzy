@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package ai.lzy.v1.history;
+
+message Provisioning {
+  string cpuType = 1;
+  int32 cpuCount = 2;
+  string gpuType = 3;
+  int32 gpuCount = 4;
+  int32 ramSizeGb = 5;
+}
+
+message Env {
+  string pythonVersion = 1;
+  string dockerImage = 2;
+  map<string, string> envVars = 3;
+}

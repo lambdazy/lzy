@@ -4,6 +4,7 @@ package ai.lzy.v1.history;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+import "ai/lzy/v1/history/history.proto";
 
 service HistoryService {
   rpc GetWorkflows (GetWorkflowsRequest) returns (GetWorkflowsResponse);
@@ -146,31 +147,6 @@ message GetExecutionStatusResponse {
   ExecutionStatus status = 1;
 }
 
-message ExecutionStatus {
-  oneof status {
-    Queued queued = 1;
-    Running running = 2;
-    Failed failed = 3;
-    Success success = 4;
-  }
-
-  message Queued {}
-
-  message Running {
-    repeated string skipped = 1;
-    repeated string completed = 2;
-  }
-
-  message Failed {
-    string description = 1;
-  }
-
-  message Success {
-    repeated string skipped = 1;
-    repeated string completed = 2;
-  }
-}
-
 message GetGraphsRequest {
   string executionId = 1;
 }
@@ -203,9 +179,11 @@ message GetGraphsResponse {
         }
 
         message Waiting {}
-        message Skipped {}
         message Running {}
         message Succeed {}
+        message Skipped {
+          string reason = 1;
+        }
         message Failed {
           string description = 1;
         }
@@ -258,16 +236,27 @@ message GetTaskDetailsResponse {
   }
 }
 
-message Provisioning {
-  string cpuType = 1;
-  int32 cpuCount = 2;
-  string gpuType = 3;
-  int32 gpuCount = 4;
-  int32 ramSizeGb = 5;
-}
+message ExecutionStatus {
+  oneof status {
+    Starting starting = 1;
+    Running running = 2;
+    Failed failed = 3;
+    Success success = 4;
+  }
 
-message Env {
-  string pythonVersion = 1;
-  string dockerImage = 2;
-  map<string, string> envVars = 3;
+  message Starting {}
+
+  message Running {
+    repeated string skipped = 1;
+    repeated string completed = 2;
+  }
+
+  message Failed {
+    string description = 1;
+  }
+
+  message Success {
+    repeated string skipped = 1;
+    repeated string completed = 2;
+  }
 }

@@ -1,0 +1,107 @@
+syntax = "proto3";
+
+package ai.lzy.v1.history;
+
+import "google/protobuf/empty.proto";
+import "ai/lzy/v1/history/history.proto";
+
+service HistoryPrivateService {
+  rpc StartWorkflow (StartWorkflowRequest) returns (google.protobuf.Empty);
+  rpc ExecuteGraph (ExecuteGraphRequest) returns (google.protobuf.Empty);
+  rpc UpdateTaskStatus (UpdateTaskStatusRequest) returns (google.protobuf.Empty);
+  rpc FinishWorkflow (FinishWorkflowRequest) returns (google.protobuf.Empty);
+}
+
+message StartWorkflowRequest {
+  string userId = 1;
+  string workflowName = 2;
+  string executionId = 3;
+
+  string description = 4;
+  string storageUrl = 5;
+
+  Provisioning provisioning = 6;
+  Env env = 7;
+}
+
+message ExecuteGraphRequest {
+  string executionId = 1;
+  Graph graph = 2;
+
+  message Graph {
+    string graphId = 1;
+    repeated Task tasks = 2;
+
+    message Task {
+      string id = 1;
+      string description = 2;
+      string version = 3;
+      bool cached = 4;
+
+      Provisioning provisioning = 5;
+      Env env = 6;
+
+      string logsStorageUrl = 7;
+
+      repeated Input inputs = 8;
+      repeated Output outputs = 9;
+
+      message Input {
+        string sourceTaskId = 1;
+        string name = 2;
+        string type = 3;
+        string storageUrl = 4;
+      }
+
+      message Output {
+        string name = 1;
+        string type = 2;
+        string storageUrl = 3;
+      }
+    }
+  }
+}
+
+message UpdateTaskStatusRequest {
+  string taskId = 1;
+  Status status = 2;
+
+  message Status {
+    oneof status {
+      Skipped skipped = 1;
+      Running running = 2;
+      Succeed succeed = 3;
+      Failed failed = 4;
+    }
+
+    message Running {}
+    message Succeed {}
+    message Skipped {
+      string reason = 1;
+    }
+    message Failed {
+      string description = 1;
+    }
+  }
+}
+
+message FinishWorkflowRequest {
+  string executionId = 1;
+  Status status = 2;
+
+  message Status {
+    oneof status {
+      Failed failed = 1;
+      Success success = 2;
+    }
+
+    message Failed {
+      string description = 1;
+    }
+
+    message Success {
+      repeated string skipped = 1;
+      repeated string completed = 2;
+    }
+  }
+}
