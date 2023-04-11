@@ -20,6 +20,11 @@ terraform {
   }
 }
 
+provider "shell" {
+  interpreter = ["/bin/bash", "-c"]
+  enable_parallelism = false
+}
+
 
 resource "random_password" "kafka_password" {
   length   = 16
@@ -46,8 +51,7 @@ resource "shell_script" "generate_keystore" {
     JKS_PASSWORD = random_password.jks_password.result
   }
 
-  interpreter = ["/bin/bash"]
-
+  working_directory = "${path.module}/resources"
 }
 
 locals {
