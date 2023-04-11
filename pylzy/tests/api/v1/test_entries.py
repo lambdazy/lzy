@@ -115,6 +115,14 @@ class LzyEntriesTests(TestCase):
         storage_client = cast(StorageClientMock, self.lzy.storage_client)
         self.assertEqual(1, storage_client.store_counts[uri_1])
 
+    def test_with_empty_args(self):
+        with self.lzy.workflow("test") as wf:
+            foo_varargs()
+
+        # noinspection PyUnresolvedReferences
+        uri_1 = wf.snapshot.get(wf.owner.runtime.calls[0].entry_ids[0]).storage_uri
+        self.assertTrue(all(uri_1.split("/")))
+
     def test_uris_gen_for_repeating_arg(self):
         n: str = 'length'
 
