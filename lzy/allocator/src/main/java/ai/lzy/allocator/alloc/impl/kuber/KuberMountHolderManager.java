@@ -9,6 +9,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeMount;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import com.google.common.collect.ImmutableList;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource;
@@ -33,7 +34,7 @@ import java.util.UUID;
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.MOUNT_HOLDER_POD_TEMPLATE_PATH;
 
 @Singleton
-@Requires(property = "allocator.kuber-mount-holder-allocator.enabled", value = "true")
+@Requires(property = "allocator.mount.enabled", value = "true")
 public class KuberMountHolderManager implements MountHolderManager {
     private static final Logger LOG = LogManager.getLogger(KuberMountHolderManager.class);
 

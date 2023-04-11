@@ -823,4 +823,22 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
             Assert.assertEquals(Status.NOT_FOUND.getCode(), e.getStatus().getCode());
         }
     }
+
+    @Test
+    public void mountHandleWontWorkIfMountsAreDisabled() {
+        var exception = Assert.assertThrows(StatusRuntimeException.class, () -> {
+            //noinspection ResultOfMethodCallIgnored
+            authorizedAllocatorBlockingStub.mount(VmAllocatorApi.MountRequest.getDefaultInstance());
+        });
+        Assert.assertEquals(Status.UNIMPLEMENTED.getCode(), exception.getStatus().getCode());
+    }
+
+    @Test
+    public void unmountHandleWontWorkIfMountsAreDisabled() {
+        var exception = Assert.assertThrows(StatusRuntimeException.class, () -> {
+            //noinspection ResultOfMethodCallIgnored
+            authorizedAllocatorBlockingStub.unmount(VmAllocatorApi.UnmountRequest.getDefaultInstance());
+        });
+        Assert.assertEquals(Status.UNIMPLEMENTED.getCode(), exception.getStatus().getCode());
+    }
 }

@@ -21,6 +21,7 @@ import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.util.AllocatorUtils;
+import ai.lzy.allocator.util.Errors;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.IdempotencyUtils;
@@ -55,6 +56,8 @@ import org.jetbrains.annotations.NotNull;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
@@ -85,12 +88,14 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final AllocationContext allocationContext;
     private final ServiceConfig config;
     private final ServiceConfig.CacheLimits cacheConfig;
+    private final ServiceConfig.MountConfig mountConfig;
     private final IdGenerator idGenerator;
 
     @Inject
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
                             ServiceConfig config, ServiceConfig.CacheLimits cacheConfig,
+                            ServiceConfig.MountConfig mountConfig,
                             @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
         this.vmDao = vmDao;
@@ -100,6 +105,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         this.allocationContext = allocationContext;
         this.config = config;
         this.cacheConfig = cacheConfig;
+        this.mountConfig = mountConfig;
         this.idGenerator = idGenerator;
 
         restoreRunningActions();
@@ -694,6 +700,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void mount(VmAllocatorApi.MountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+        if (!mountConfig.isEnabled()) {
+            responseObserver.onError(Status.UNIMPLEMENTED.withDescription("Mount management is not enabled")
+                .asException());
+            return;
+        }
         if (!validateRequest(request, responseObserver)) {
             return;
         }
@@ -780,6 +791,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
     @Override
     public void unmount(VmAllocatorApi.UnmountRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+        if (!mountConfig.isEnabled()) {
+            responseObserver.onError(Status.UNIMPLEMENTED.withDescription("Mount management is not enabled")
+                .asException());
+            return;
+        }
         if (!validateRequest(request, responseObserver)) {
             return;
         }
@@ -892,11 +908,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     }
 
     private MountWithAction createMountAction(VmAllocatorApi.MountRequest request, Vm vm, Operation op,
-                                                     String clusterId)
+                                              String clusterId)
     {
-        var type = request.getVolumeToMount().getVolumeTypeCase();
-        if (type == VolumeApi.Volume.VolumeTypeCase.DISK_VOLUME) {
-            var diskVolume = request.getVolumeToMount().getDiskVolume();
+        var type = request.getVolumeTypeCase();
+        if (type == VmAllocatorApi.MountRequest.VolumeTypeCase.DISK_VOLUME) {
+            var diskVolume = request.getDiskVolume();
             var id = "vm-volume-" + diskVolume.getDiskId();
             final var diskVolumeDescription = new DiskVolumeDescription(id, id, diskVolume.getDiskId(),
                 diskVolume.getSizeGb());
@@ -915,9 +931,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                                            Operation.IdempotencyKey idempotencyKey,
                                            Session session)
     {
-        var type = request.getVolumeToMount().getVolumeTypeCase();
-        if (type == VolumeApi.Volume.VolumeTypeCase.DISK_VOLUME) {
-            var diskId = request.getVolumeToMount().getDiskVolume().getDiskId();
+        var type = request.getVolumeTypeCase();
+        if (type == VmAllocatorApi.MountRequest.VolumeTypeCase.DISK_VOLUME) {
+            var diskId = request.getDiskVolume().getDiskId();
             return Operation.create(
                 session.owner(),
                 "Mount: disk=%s, vm=%s".formatted(diskId, request.getVmId()),
@@ -1019,38 +1035,36 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private static boolean validateRequest(VmAllocatorApi.MountRequest request,
                                            StreamObserver<LongRunning.Operation> response)
     {
+        var errors = Errors.create();
         if (request.getVmId().isBlank()) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("vm_id isn't set").asException());
-            return false;
+            errors.add("vm_id isn't set");
         }
-        if (!request.hasVolumeToMount()) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("volume_to_mount isn't set").asException());
-            return false;
+        if (request.getMountPath().isBlank()) {
+            errors.add("mount_path isn't set");
+        } else {
+            try {
+                Path.of(request.getMountPath());
+            } catch (InvalidPathException e) {
+                errors.add("mount_path isn't correct", e);
+            }
         }
-        VolumeApi.Volume volumeToMount = request.getVolumeToMount();
-        switch (volumeToMount.getVolumeTypeCase()) {
+        switch (request.getVolumeTypeCase()) {
             case DISK_VOLUME -> {
-                VolumeApi.DiskVolumeType diskVolume = volumeToMount.getDiskVolume();
+                VolumeApi.DiskVolumeType diskVolume = request.getDiskVolume();
                 String diskId = diskVolume.getDiskId();
                 if (diskId.isBlank()) {
-                    response.onError(Status.INVALID_ARGUMENT.withDescription("disk_id isn't set").asException());
-                    return false;
+                    errors.add("disk_volume: disk_id isn't set");
                 }
                 var sizeGb = diskVolume.getSizeGb();
                 if (sizeGb <= 0) {
-                    response.onError(Status.INVALID_ARGUMENT.withDescription("disk size isn't correct: " + sizeGb)
-                        .asException());
-                    return false;
+                    errors.add("disk_volume: size_gb isn't set");
                 }
             }
-            case NFS_VOLUME, HOST_PATH_VOLUME -> {
-                response.onError(Status.UNIMPLEMENTED.withDescription("unsupported volume type").asException());
-                return false;
-            }
-            case VOLUMETYPE_NOT_SET -> {
-                response.onError(Status.UNIMPLEMENTED.withDescription("volume type isn't set").asException());
-                return false;
-            }
+            case VOLUMETYPE_NOT_SET -> errors.add("volume_type isn't set");
+        }
+        if (errors.hasErrors()) {
+            response.onError(errors.toStatusRuntimeException(Status.Code.INVALID_ARGUMENT));
+            return false;
         }
         return true;
     }
@@ -1058,12 +1072,15 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private static boolean validateRequest(VmAllocatorApi.UnmountRequest request,
                                            StreamObserver<LongRunning.Operation> response)
     {
+        var errors = Errors.create();
         if (request.getVmId().isBlank()) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("vm_id isn't set").asException());
-            return false;
+            errors.add("vm_id isn't set");
         }
         if (request.getMountId().isBlank()) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("mount_id isn't set").asException());
+            errors.add("mount_id isn't set");
+        }
+        if (errors.hasErrors()) {
+            response.onError(errors.toStatusRuntimeException(Status.Code.INVALID_ARGUMENT));
             return false;
         }
         return true;
@@ -1073,7 +1090,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private Vm.TunnelSettings validate(VmAllocatorApi.TunnelSettings tunnelSettings,
                                        StreamObserver<LongRunning.Operation> response)
     {
-        var errors = new ArrayList<>();
+        var errors = Errors.create();
         int tunnelIndex = tunnelSettings.getTunnelIndex();
         if (tunnelIndex > 255 || tunnelIndex < 0) {
             errors.add("Tunnel index has invalid value: " + tunnelIndex + ". Allowed range is [0, 255]");
@@ -1091,12 +1108,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             LOG.error("Invalid proxy v6 address {} in allocate request", tunnelSettings.getProxyV6Address());
             errors.add("Invalid proxy v6 address " + tunnelSettings.getProxyV6Address());
         }
-        if (!errors.isEmpty()) {
+        if (errors.hasErrors()) {
             allocationContext.metrics().allocationError.inc();
-            String errorString = errors.stream()
-                .map(x -> "'" + x + "'")
-                .collect(Collectors.joining(", ", "Tunnel settings errors: ", ""));
-            response.onError(Status.INVALID_ARGUMENT.withDescription(errorString).asException());
+            response.onError(errors.toStatusRuntimeException(Status.Code.INVALID_ARGUMENT));
             return null;
         }
         return new Vm.TunnelSettings(proxyV6Address, tunnelIndex);

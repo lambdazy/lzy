@@ -6,6 +6,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.util.grpc.GrpcUtils;

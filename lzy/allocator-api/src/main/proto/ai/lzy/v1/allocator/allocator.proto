@@ -163,8 +163,11 @@ message FreeResponse {}
 
 message MountRequest {
   string vm_id = 1;
-  Volume volume_to_mount = 2;
-  string mount_path = 3;
+  string mount_path = 2;
+  oneof VolumeType {
+    DiskVolumeType disk_volume = 3;
+    //it's supposed that we'll have other mount types like NFS
+  }
 }
 
 message MountResponse {

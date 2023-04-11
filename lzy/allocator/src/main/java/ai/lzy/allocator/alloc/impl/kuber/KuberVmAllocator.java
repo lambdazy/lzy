@@ -13,6 +13,7 @@ import ai.lzy.allocator.model.VolumeMount;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.util.AllocatorUtils;
+import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.allocator.volume.VolumeManager;
@@ -68,12 +69,13 @@ public class KuberVmAllocator implements VmAllocator {
     private final VolumeManager volumeManager;
     private final NodeRemover nodeRemover;
     private final ServiceConfig config;
+    private final ServiceConfig.MountConfig mountConfig;
 
     @Inject
     public KuberVmAllocator(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             ClusterRegistry clusterRegistry, VmPoolRegistry poolRegistry,
                             KuberClientFactory k8sClientFactory, VolumeManager volumeManager, NodeRemover nodeRemover,
-                            ServiceConfig config)
+                            ServiceConfig config, ServiceConfig.MountConfig mountConfig)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
@@ -83,6 +85,7 @@ public class KuberVmAllocator implements VmAllocator {
         this.volumeManager = volumeManager;
         this.nodeRemover = nodeRemover;
         this.config = config;
+        this.mountConfig = mountConfig;
     }
 
     @Override
@@ -163,9 +166,12 @@ public class KuberVmAllocator implements VmAllocator {
                 InjectedFailures.failAllocateVm8();
             }
 
+            //todo add if mount enabled
             // for mount pvc without restarting worker pod
             final VolumeMount baseVolume =  new VolumeMount(/* name */ "base-volume",
                 /* path */ "/mnt", /* readOnly */ false, VolumeMount.MountPropagation.BIDIRECTIONAL);
+            podSpecBuilder.withHostVolumes(List.of(new HostPathVolumeDescription("someId", "base-volume",
+                mountConfig.getHostMountPoint(), HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE)));
 
             final String vmOtt = allocState.vmOtt();
 

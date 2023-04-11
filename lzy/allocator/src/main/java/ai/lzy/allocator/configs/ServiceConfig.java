@@ -167,7 +167,7 @@ public class ServiceConfig {
     @Setter
     @ConfigurationProperties("mount")
     public static final class MountConfig {
-        private boolean enabled;
+        private boolean enabled = false;
         private String podImage;
         private String workerMountPoint;
         private String hostMountPoint;
