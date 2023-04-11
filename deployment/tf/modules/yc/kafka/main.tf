@@ -20,12 +20,6 @@ terraform {
   }
 }
 
-provider "shell" {
-  interpreter = ["/bin/bash", "-c"]
-  enable_parallelism = false
-}
-
-
 resource "random_password" "kafka_password" {
   length   = 16
   special  = false
