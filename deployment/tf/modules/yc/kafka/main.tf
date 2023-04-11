@@ -45,6 +45,9 @@ resource "shell_script" "generate_keystore" {
   environment = {
     JKS_PASSWORD = random_password.jks_password.result
   }
+
+  interpreter = ["/bin/bash"]
+
 }
 
 locals {
