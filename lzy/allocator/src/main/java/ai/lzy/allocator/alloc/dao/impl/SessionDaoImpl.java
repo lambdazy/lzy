@@ -166,6 +166,19 @@ public class SessionDaoImpl implements SessionDao {
         }
     }
 
+    @Override
+    public void removeSession(String sessionId, @Nullable TransactionHandle transaction) throws SQLException {
+        DbOperation.execute(transaction, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement("""
+                DELETE FROM session
+                WHERE id = ?"""))
+            {
+                st.setString(1, sessionId);
+                st.executeUpdate();
+            }
+        });
+    }
+
     private Session readSession(ResultSet rs) throws SQLException {
         int idx = 0;
         final var id = rs.getString(++idx);

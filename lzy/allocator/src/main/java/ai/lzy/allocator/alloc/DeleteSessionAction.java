@@ -1,8 +1,10 @@
 package ai.lzy.allocator.alloc;
 
+import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
+import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.model.db.TransactionHandle;
@@ -11,6 +13,7 @@ import com.google.protobuf.Any;
 import com.google.protobuf.Empty;
 import io.grpc.Status;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Supplier;
 
@@ -21,14 +24,18 @@ public class DeleteSessionAction extends OperationRunnerBase {
     private final String sessionId;
     private final String reqid;
     private final AllocationContext allocationContext;
+    private final SessionDao sessionDao;
 
-    public DeleteSessionAction(Session session, String opId, AllocationContext allocationContext) {
+    public DeleteSessionAction(Session session, String opId, AllocationContext allocationContext,
+                               SessionDao sessionDao)
+    {
         super(opId, "Sid " + session.sessionId(), allocationContext.storage(),
             allocationContext.operationsDao(), allocationContext.executor());
 
         this.sessionId = session.sessionId();
         this.reqid = session.deleteReqid();
         this.allocationContext = allocationContext;
+        this.sessionDao = sessionDao;
 
         log().info("Delete session " + session.sessionId());
     }
@@ -52,6 +59,11 @@ public class DeleteSessionAction extends OperationRunnerBase {
     }
 
     @Override
+    protected void onCompletedOutside(Operation op, TransactionHandle tx) throws SQLException {
+        sessionDao.removeSession(sessionId, tx);
+    }
+
+    @Override
     protected List<Supplier<StepResult>> steps() {
         return List.of(this::exec);
     }
@@ -70,6 +82,7 @@ public class DeleteSessionAction extends OperationRunnerBase {
                 withRetries(log(), () -> {
                     try (var tx = TransactionHandle.create(allocationContext.storage())) {
                         completeOperation(null, Any.pack(Empty.getDefaultInstance()), null);
+                        sessionDao.removeSession(sessionId, tx);
                         tx.commit();
                     }
                 });

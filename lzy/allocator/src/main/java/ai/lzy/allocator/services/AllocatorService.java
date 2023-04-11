@@ -149,8 +149,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     var reqid = Optional.ofNullable(s.deleteReqid()).orElse("unknown");
                     GrpcHeaders.withContext()
                         .withHeader(GrpcHeaders.X_REQUEST_ID, reqid)
-                        .run(() ->
-                            allocationContext.startNew(new DeleteSessionAction(s, s.deleteOpId(), allocationContext)));
+                        .run(() -> allocationContext.startNew(
+                            new DeleteSessionAction(s, s.deleteOpId(), allocationContext, sessionsDao)));
                 });
             }
         } catch (SQLException e) {
@@ -266,7 +266,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     assert op.id().equals(session.deleteOpId());
                     assert reqid.equals(session.deleteReqid());
 
-                    return Pair.of(op, new DeleteSessionAction(session, op.id(), allocationContext));
+                    return Pair.of(op, new DeleteSessionAction(session, op.id(), allocationContext, sessionsDao));
                 }
             });
         } catch (Exception ex) {
