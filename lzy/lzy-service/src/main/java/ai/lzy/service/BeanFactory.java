@@ -147,10 +147,18 @@ public class BeanFactory {
 
     @Singleton
     @Named("LzyServiceKafkaAdminClient")
+    @Requires(notEnv = "test")
     public KafkaAdminClient kafkaAdminClient(LzyServiceConfig config) {
-        if (config.getKafka().isEnabled() && config.getKafka().getScramUsername() != null) {
+        if (config.getKafka().isEnabled()) {
             return new ScramKafkaAdminClient(config.getKafka());
         }
+        return new NoopKafkaAdminClient();
+    }
+
+    @Singleton
+    @Named("LzyServiceKafkaAdminClient")
+    @Requires(env = "test")
+    public KafkaAdminClient testKafkaAdminClient(LzyServiceConfig config) {
         return new NoopKafkaAdminClient();
     }
 

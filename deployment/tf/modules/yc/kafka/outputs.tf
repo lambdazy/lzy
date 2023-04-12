@@ -10,10 +10,34 @@ output "admin-password" {
   value = random_password.kafka_password.result
 }
 
-output "jks-secret-name" {
+output "truststore-secret-name" {
   value = "lzy-cluster-ca-cert"
 }
 
-output "jks-password" {
+output "truststore_certificate_pem" {
+  value = data.kubernetes_secret.ca_cert.data["ca.crt"]
+}
+
+output "keystore_certificate_pem" {
+  value = data.kubernetes_secret.keystore_secret.data["cluster-operator.crt"]
+}
+
+output "keystore_key_pem" {
+  value = data.kubernetes_secret.keystore_secret.data["cluster-operator.key"]
+}
+
+output "keystore-secret-name" {
+  value = "lzy-cluster-operator-certs"
+}
+
+output "truststore-password" {
   value = data.kubernetes_secret.ca_cert.data["ca.password"]
+}
+
+output "keystore-password" {
+  value = data.kubernetes_secret.keystore_secret.data["cluster-operator.password"]
+}
+
+output "internal-bootstrap" {
+  value = "lzy-kafka-brokers.default.svc:9091"
 }

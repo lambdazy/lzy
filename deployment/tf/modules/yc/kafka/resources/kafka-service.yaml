@@ -17,6 +17,10 @@ spec:
                         - lzy
     version: 3.4.0
     replicas: 1
+    logging:
+      type: inline
+      loggers:
+        kafka.root.logger.level: "INFO"
     listeners:
       - name: scram
         port: 9092
@@ -70,3 +74,6 @@ spec:
       type: persistent-claim
       size: 10Gi
       deleteClaim: false
+
+  entityOperator:
+    tlsSidecar: {}

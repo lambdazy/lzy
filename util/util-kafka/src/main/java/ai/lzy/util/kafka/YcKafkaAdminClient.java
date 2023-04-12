@@ -2,7 +2,6 @@ package ai.lzy.util.kafka;
 
 import com.google.protobuf.Int64Value;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import yandex.cloud.api.mdb.kafka.v1.TopicOuterClass;
@@ -151,10 +150,5 @@ public class YcKafkaAdminClient implements KafkaAdminClient {
                 .withDescription(readyOp.getError().getMessage())
                 .asRuntimeException();
         }
-    }
-
-    @Override
-    public void confirmAdminUser(String username, String requiredPassword) throws StatusRuntimeException {
-        throw Status.UNIMPLEMENTED.asRuntimeException();
     }
 }

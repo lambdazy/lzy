@@ -212,8 +212,16 @@ resource "kubernetes_deployment" "scheduler" {
             for_each = local.kafka_env_map
 
             content {
-              name = "LZY_SERVICE_${env.key}"
+              name = "SCHEDULER_${env.key}"
               value = env.value
+            }
+          }
+
+          dynamic "env" {
+            for_each = var.enable_kafka ? [1] : []
+            content {
+              name = "SCHEDULER_KAFKA_BOOTSTRAP_SERVERS"
+              value = module.kafka[0].bootstrap-servers
             }
           }
 
@@ -226,8 +234,8 @@ resource "kubernetes_deployment" "scheduler" {
             for_each = var.enable_kafka ? [1] : []
 
             content {
-              mount_path = "/jks"
-              name       = "jks"
+              mount_path = "/truststore"
+              name       = "truststore"
             }
           }
         }
@@ -258,12 +266,12 @@ resource "kubernetes_deployment" "scheduler" {
           for_each = var.enable_kafka ? [1] : []
 
           content {
-            name = "jks"
+            name = "truststore"
             secret {
-              secret_name = module.kafka[0].jks-secret-name
+              secret_name = module.kafka[0].truststore-secret-name
               items {
                 key = "ca.p12"
-                path = "truststore.jks"
+                path = "truststore.p12"
               }
             }
           }
