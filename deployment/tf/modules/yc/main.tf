@@ -16,6 +16,10 @@ terraform {
       source  = "yandex-cloud/yandex"
       version = "0.82.0"
     }
+    kubectl = {
+      source = "gavinbunney/kubectl"
+      version = ">= 1.7.0"
+    }
   }
 }
 

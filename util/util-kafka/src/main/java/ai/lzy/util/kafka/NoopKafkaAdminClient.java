@@ -15,5 +15,4 @@ public class NoopKafkaAdminClient implements KafkaAdminClient {
 
     @Override
     public void grantPermission(String username, String topicName) {}
-
 }

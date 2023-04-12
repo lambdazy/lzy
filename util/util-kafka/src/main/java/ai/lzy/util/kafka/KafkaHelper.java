@@ -1,11 +1,15 @@
 package ai.lzy.util.kafka;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class KafkaHelper {
+    private static final Logger LOG = LogManager.getLogger(KafkaHelper.class);
+
     public static final AtomicBoolean USE_AUTH = new AtomicBoolean(true);
 
     private final KafkaConfig config;
@@ -20,13 +24,33 @@ public class KafkaHelper {
 
         if (config.isTlsEnabled()) {
             // encrypt
-            props.put("security.protocol", "SASL_SSL");
             props.put("ssl.truststore.location", config.getTlsTruststorePath());
             props.put("ssl.truststore.password", config.getTlsTruststorePassword());
+            props.put("ssl.truststore.type", config.getTlsTruststoreType());
+
+            if (config.getTlsKeystorePath() != null) {  // tls certs for mTLS auth
+                LOG.info("Using ssl keystore auth");
+
+                props.put("ssl.keystore.location", config.getTlsKeystorePath());
+                props.put("ssl.keystore.password", config.getTlsKeystorePassword());
+                props.put("ssl.keystore.type", config.getTlsKeystoreType());
+                props.put("ssl.key.password", config.getTlsKeystorePassword());
+            }
 
             props.put("ssl.endpoint.identification.algorithm", "");  // Disable endpoint identification
+
+            if (config.getScramUsername() != null) {
+                props.put("security.protocol", "SASL_SSL");
+            } else {
+                props.put("security.protocol", "SSL");
+            }
         } else {
-            props.put("security.protocol", "PLAINTEXT");
+
+            if (config.getScramUsername() != null) {
+                props.put("security.protocol", "SASL_PLAINTEXT");
+            } else {
+                props.put("security.protocol", "PLAINTEXT");
+            }
         }
 
         // auth
@@ -51,13 +75,19 @@ public class KafkaHelper {
         return props;
     }
 
-    private static void fillAuth(Properties props, String username, String password) {
+    private void fillAuth(Properties props, String username, String password) {
         if (USE_AUTH.get()) {
             var jaasCfg = "org.apache.kafka.common.security.scram.ScramLoginModule" +
                 " required username=\"%s\" password=\"%s\";".formatted(username, password);
 
             props.put("sasl.jaas.config", jaasCfg);
             props.put("sasl.mechanism", "SCRAM-SHA-512");
+
+            if (config.isTlsEnabled()) {
+                props.put("security.protocol", "SASL_SSL");
+            } else {
+                props.put("security.protocol", "SASL_PLAINTEXT");
+            }
 
         } else {
             var jaasCfg = "org.apache.kafka.common.security.plain.PlainLoginModule" +

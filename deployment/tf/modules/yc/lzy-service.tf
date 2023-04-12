@@ -5,25 +5,7 @@ variable "portal_image" {
   type = string
 }
 
-resource "kubernetes_secret" "kafka_sa_key" {
-  metadata {
-    name = "kafka-sa-key"
-  }
-  data = {
-    key = local.kafka-sa-key-json
-  }
-}
-
 locals {
-  kafka-sa-key-json = jsonencode({
-    "id" : yandex_iam_service_account_key.kafka-sa-key.id
-    "service_account_id" : yandex_iam_service_account_key.kafka-sa-key.service_account_id
-    "created_at" : yandex_iam_service_account_key.kafka-sa-key.created_at
-    "key_algorithm" : yandex_iam_service_account_key.kafka-sa-key.key_algorithm
-    "public_key" : yandex_iam_service_account_key.kafka-sa-key.public_key
-    "private_key" : yandex_iam_service_account_key.kafka-sa-key.private_key
-  })
-
   lzy-service-labels = {
     app                         = "lzy-service"
     "app.kubernetes.io/name"    = "lzy-service"
@@ -223,6 +205,14 @@ resource "kubernetes_deployment" "lzy-service" {
             }
           }
 
+          dynamic "env" {
+            for_each = var.enable_kafka ? [1] : []
+            content {
+              name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
+              value = module.kafka[0].internal-bootstrap
+            }
+          }
+
           env {
             name = "K8S_POD_NAME"
             value_from {
@@ -253,8 +243,16 @@ resource "kubernetes_deployment" "lzy-service" {
             for_each = var.enable_kafka ? [1] : []
 
             content {
-              mount_path = "/jks"
-              name       = "jks"
+              mount_path = "/truststore"
+              name       = "truststore"
+            }
+          }
+          dynamic "volume_mount" {
+            for_each = var.enable_kafka ? [1] : []
+
+            content {
+              mount_path = "/keystore"
+              name       = "keystore"
             }
           }
         }
@@ -288,12 +286,27 @@ resource "kubernetes_deployment" "lzy-service" {
           for_each = var.enable_kafka ? [1] : []
 
           content {
-            name = "jks"
+            name = "truststore"
             secret {
-              secret_name = module.kafka[0].jks-secret-name
+              secret_name = module.kafka[0].truststore-secret-name
               items {
-                key = "kafka.truststore.jks"
-                path = "truststore.jks"
+                key = "ca.p12"
+                path = "truststore.p12"
+              }
+            }
+          }
+        }
+
+        dynamic "volume" {
+          for_each = var.enable_kafka ? [1] : []
+
+          content {
+            name = "keystore"
+            secret {
+              secret_name = module.kafka[0].keystore-secret-name
+              items {
+                key = "cluster-operator.p12"
+                path = "keystore.p12"
               }
             }
           }

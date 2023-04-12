@@ -37,6 +37,7 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
                         password)))
                 .all().get();
         } catch (Exception e) {
+            LOG.error("Error while creating user {}", username, e);
             throw Status.fromThrowable(e).asRuntimeException();
         }
     }
@@ -87,5 +88,4 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
             throw Status.fromThrowable(e).asRuntimeException();
         }
     }
-
 }

@@ -13,100 +13,88 @@ terraform {
       version = ">=3.4.0"
     }
 
-    shell = {
-      source = "scottwinkler/shell"
-      version = "1.7.10"
+    kubectl = {
+      source = "gavinbunney/kubectl"
+      version = ">= 1.7.0"
     }
   }
 }
-
 
 resource "random_password" "kafka_password" {
   length   = 16
   special  = false
 }
 
-resource "random_password" "zookeeper_password" {
-  length  = 16
-  special = false
-}
-
-resource "random_password" "jks_password" {
-  length   = 16
-  special  = false
-}
-
-resource "shell_script" "generate_keystore" {
-  lifecycle_commands {
-    create = file("${path.module}/resources/generate-ssl.sh")
-    delete = "echo {}"
-  }
-
-  environment = {
-    JKS_PASSWORD = random_password.jks_password.result
-  }
-}
-
 locals {
-  truststore_base64 = shell_script.generate_keystore.output["truststore"]
-  keystore_base64 = shell_script.generate_keystore.output["keystore"]
+  kafka_admin_username = "admin"
 }
 
+resource "helm_release" "strimzi_operator" {
+  name  = "strimzi"
+  chart = "strimzi-kafka-operator"
+  repository = "https://strimzi.io/charts/"
+  reuse_values = true
+  namespace = "default"
+  cleanup_on_fail = true
+  force_update = true
 
-resource "kubernetes_secret" "kafka_jks_secret" {
+  values = [file("${path.module}/resources/strimzi-config.yaml")]
+}
+
+resource "kubectl_manifest" "kafka" {
+
+
+  yaml_body = templatefile("${path.module}/resources/kafka-service.yaml", {
+    subnet_id: var.subnet_id
+    username: local.kafka_admin_username
+  })
+
+  depends_on = [helm_release.strimzi_operator]
+}
+
+resource "kubernetes_secret" "admin_password" {
   metadata {
-    name = "kafka-jks-secret"
+    name = "admin-password"
   }
 
   data = {
-    "jks.password" = random_password.jks_password.result
+    password: random_password.kafka_password.result
   }
-
-  binary_data = {
-    "kafka.truststore.jks" = local.truststore_base64
-    "kafka.keystore.jks" = local.keystore_base64
-  }
-
-  type = "Opaque"
 }
 
-locals {
-  kafka_admin_username = "admin"
-  kafka_chart_config = templatefile("${path.module}/resources/kafka-config.yaml", {
-    kafka_password: random_password.kafka_password.result
-    subnet_id: var.subnet_id
-    jks_password: random_password.jks_password.result
-    jks_secret_name: kubernetes_secret.kafka_jks_secret.metadata[0].name
-    zookeeper_password: random_password.zookeeper_password.result
-  })
-}
 
-resource "helm_release" "lzy_kafka" {
-  name       = "kafka"
-  chart      = "kafka"
-  repository = "https://charts.bitnami.com/bitnami"
-
-  values = [local.kafka_chart_config]
-}
-
-data "kubernetes_service" "kafka_0_external" {
+data "kubernetes_service" "kafka_bootstrap" {
   metadata {
-    name = "kafka-0-external"
+    name = "lzy-kafka-scram-bootstrap"
+  }
+
+  depends_on = [kubectl_manifest.kafka]
+}
+
+
+data "kubernetes_service" "kafka_internal_bootstrap" {
+  metadata {
+    name = "lzy-kafka-internal-bootstrap"
+  }
+
+  depends_on = [kubectl_manifest.kafka]
+}
+
+
+data "kubernetes_secret" "ca_cert" {
+  metadata {
+    name = "lzy-cluster-ca-cert"
     namespace = "default"
   }
 
-  depends_on = [helm_release.lzy_kafka]
+  depends_on = [kubectl_manifest.kafka]
 }
 
-resource "kubernetes_secret" "kafka_secret" {
+data "kubernetes_secret" "keystore_secret" {
   metadata {
-    name      = "kafka-secret"
+    name = "lzy-cluster-operator-certs"
+    namespace = "default"
   }
 
-  data = {
-    username = local.kafka_admin_username,
-    password = random_password.kafka_password.result
-  }
-
-  type = "Opaque"
+  depends_on = [kubectl_manifest.kafka]
 }

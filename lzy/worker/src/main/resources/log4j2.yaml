@@ -43,3 +43,6 @@ Configuration:
     Logger:
       - name: "ai.lzy"
         level: info
+
+      - name: "org.apache.kafka"
+        level: error
