@@ -125,8 +125,10 @@ public class StreamQueue extends Thread {
     }
 
     private void writeStream(InputStream stream) {
+        final int initialSize = 4096;
+        final int gap = 128;
         try (final var input = stream) {
-            var buf = new byte[4096];
+            var buf = new byte[initialSize];
             int srcPos = 0;
             int linesPos = 0;
             int readLen = 0;
@@ -135,10 +137,16 @@ public class StreamQueue extends Thread {
                 int n = findLastIndexOf(buf, (byte) '\n', srcPos, srcPos + readLen - 1);
                 if (n == -1) {
                     srcPos += readLen;
-                    if (srcPos + 128 > buf.length) {
-                        var tmp = buf;
-                        buf = new byte[(int) (tmp.length * 1.5)];
-                        System.arraycopy(tmp, 0, buf, 0, tmp.length);
+                    if (srcPos + gap > buf.length) {
+                        if (srcPos - linesPos + gap > buf.length) {
+                            var tmp = buf;
+                            buf = new byte[(int) (tmp.length * 1.5)];
+                            System.arraycopy(tmp, 0, buf, 0, tmp.length);
+                        } else {
+                            System.arraycopy(buf, linesPos, buf, 0, srcPos - linesPos);
+                            srcPos = srcPos - linesPos;
+                            linesPos = 0;
+                        }
                     }
                 } else {
                     writeLines(copyOfRange(buf, linesPos, n + 1));
