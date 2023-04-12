@@ -64,7 +64,7 @@ public class KuberVolumeManager implements VolumeManager {
             diskId = diskVolumeDescription.diskId();
             diskSize = diskVolumeDescription.sizeGb();
 
-            LOG.info("Creating persistent volume '{}' for disk {} of size {}Gi", volumeName, diskId, diskSize >> 30);
+            LOG.info("Creating persistent volume '{}' for disk {} of size {}Gi", volumeName, diskId, diskSize);
 
             accessMode = Volume.AccessMode.READ_WRITE_ONCE;
             resourceName = diskVolumeDescription.name();

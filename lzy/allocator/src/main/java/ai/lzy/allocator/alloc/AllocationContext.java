@@ -95,7 +95,8 @@ public record AllocationContext(
     }
 
     public Pair<UnmountDynamicDiskAction, Operation> createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,
-                                                             @Nullable TransactionHandle tx) throws SQLException
+                                                                         @Nullable TransactionHandle tx)
+        throws SQLException
     {
         return createUnmountAction(vm, dynamicMount,
             new Operation.IdempotencyKey("unmount-disk-%s-%s".formatted(dynamicMount.vmId(), dynamicMount.id()),

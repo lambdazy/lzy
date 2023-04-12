@@ -166,12 +166,13 @@ public class KuberVmAllocator implements VmAllocator {
                 InjectedFailures.failAllocateVm8();
             }
 
-            //todo add if mount enabled
             // for mount pvc without restarting worker pod
-            final VolumeMount baseVolume =  new VolumeMount(/* name */ "base-volume",
-                /* path */ "/mnt", /* readOnly */ false, VolumeMount.MountPropagation.BIDIRECTIONAL);
-            podSpecBuilder.withHostVolumes(List.of(new HostPathVolumeDescription("someId", "base-volume",
-                mountConfig.getHostMountPoint(), HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE)));
+            final VolumeMount baseVolume = new VolumeMount(KuberMountHolderManager.HOST_VOLUME_NAME,
+                mountConfig.getWorkerMountPoint(), false,
+                VolumeMount.MountPropagation.BIDIRECTIONAL);
+            if (mountConfig.isEnabled()) {
+                podSpecBuilder.withHostVolumes(List.of(KuberMountHolderManager.createHostPathVolume(mountConfig)));
+            }
 
             final String vmOtt = allocState.vmOtt();
 
@@ -179,10 +180,13 @@ public class KuberVmAllocator implements VmAllocator {
                 .withWorkloads(vmSpec.initWorkloads(), true)
                 .withWorkloads(
                     vmSpec.workloads().stream()
-                        .map(wl -> wl
-                            .withVolumeMount(baseVolume)
+                        .map(wl -> {
+                            if (mountConfig.isEnabled()) {
+                                wl = wl.withVolumeMount(baseVolume);
+                            }
                             // we pass vmOtt to _all_ workloads, but only _one_ of them will use it
-                            .withEnv(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt))
+                            return wl.withEnv(AllocatorAgent.VM_ALLOCATOR_OTT, vmOtt);
+                        })
                         .toList(),
                     false)
                 .withVolumes(requireNonNull(allocState.volumeClaims()))

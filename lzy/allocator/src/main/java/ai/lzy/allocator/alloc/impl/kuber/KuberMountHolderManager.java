@@ -66,8 +66,7 @@ public class KuberMountHolderManager implements MountHolderManager {
         try (final var client = factory.build(cluster)) {
             var mountHolderPodBuilder = new PodSpecBuilder(podName, MOUNT_HOLDER_POD_TEMPLATE_PATH, client, config);
             var mountHolderWorkload = createWorkload();
-            var hostVolume = new HostPathVolumeDescription("host-path-volume-" + UUID.randomUUID(), HOST_VOLUME_NAME,
-                mountConfig.getHostMountPoint(), HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE);
+            var hostVolume = createHostPathVolume(mountConfig);
 
             var podSpec = mountHolderPodBuilder
                 .withWorkloads(List.of(mountHolderWorkload), false)
@@ -92,6 +91,12 @@ public class KuberMountHolderManager implements MountHolderManager {
 
             return new ClusterPod(cluster.clusterId(), podName);
         }
+    }
+
+    @NotNull
+    public static HostPathVolumeDescription createHostPathVolume(ServiceConfig.MountConfig mountConfig) {
+        return new HostPathVolumeDescription("host-path-volume-" + UUID.randomUUID(), HOST_VOLUME_NAME,
+            mountConfig.getHostMountPoint(), HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE);
     }
 
     @Override
