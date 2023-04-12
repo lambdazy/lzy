@@ -101,7 +101,7 @@ public class StreamQueue extends Thread {
 
             if (inputHandle.string() != null) {
                 try {
-                    writeBuf(inputHandle.string().getBytes(), inputHandle.string().getBytes().length);
+                    writeLines(inputHandle.string().getBytes());
                 } catch (IOException e) {
                     logger.warn("Cannot write buffer to stream {}: ", streamName, e);
                 }
@@ -127,30 +127,57 @@ public class StreamQueue extends Thread {
     private void writeStream(InputStream stream) {
         try (final var input = stream) {
             var buf = new byte[4096];
-            var len = 0;
-            while ((len = input.read(buf)) != -1) {
-                writeBuf(buf, len);
+            int srcPos = 0;
+            int linesPos = 0;
+            int readLen = 0;
+
+            while ((readLen = input.read(buf, srcPos, buf.length - srcPos)) != -1) {
+                int n = findLastIndexOf(buf, (byte) '\n', srcPos, srcPos + readLen - 1);
+                if (n == -1) {
+                    srcPos += readLen;
+                    if (srcPos + 128 > buf.length) {
+                        var tmp = buf;
+                        buf = new byte[(int) (tmp.length * 1.5)];
+                        System.arraycopy(tmp, 0, buf, 0, tmp.length);
+                    }
+                } else {
+                    writeLines(copyOfRange(buf, linesPos, n + 1));
+                    srcPos += readLen;
+                    linesPos = n + 1;
+                }
+            }
+
+            if (srcPos > linesPos) {
+                writeLines(copyOfRange(buf, linesPos, srcPos - linesPos));
             }
         } catch (IOException e) {
             logger.error("Error while writing to stream {}: ", streamName, e);
         }
     }
 
-    private void writeBuf(byte[] buf, int len) throws IOException {
+    private static int findLastIndexOf(byte[] buf, byte ch, int from, int to) {
+        for (int i = to; i >= from; --i) {
+            if (buf[i] == ch) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private void writeLines(byte[] lines) throws IOException {
         if (logger.isDebugEnabled()) {
-            var msg = copyOfRange(buf, 0, len);
-            logger.debug("[{}]: {}", streamName, new String(msg));
+            logger.debug("[{}]: {}", streamName, new String(lines));
         }
         synchronized (outs) {
             for (var out : outs) {
-                out.write(buf, 0, len);
+                out.write(lines, 0, lines.length);
             }
         }
         if (kafkaClient != null && topic != null) {
-            // Using single partition to manage global order of logs
+            // Using single partition to manage global order of logs !!!
             try {
-                kafkaClient.send(new ProducerRecord<>(topic, 0, streamName, copyOfRange(buf, 0, len)))
-                    .get();
+                // todo: add `taskId` header
+                kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, streamName, lines)).get();
             } catch (Exception e) {
                 logger.warn("Cannot send data to kafka: ", e);
             }
@@ -167,7 +194,11 @@ public class StreamQueue extends Thread {
         this.join();
     }
 
-    private record Input(CompletableFuture<Void> future, @Nullable InputStream stream, @Nullable String string) {}
+    private record Input(
+        CompletableFuture<Void> future,
+        @Nullable InputStream stream,
+        @Nullable String string
+    ) {}
 
     public static class LogHandle implements AutoCloseable {
         private static final String PREFIX = "[SYS] ";
