@@ -199,7 +199,7 @@ public class DynamicDaoImplTest {
     @Test
     public void countByVolumeClaimIdWithoutMounts() throws Exception {
         var claimName = "foo";
-        var count = dynamicMountDao.countForVolumeClaimName(CLUSTER_ID, claimName, null);
+        var count = dynamicMountDao.countVolumeClaimUsages(CLUSTER_ID, claimName, null);
         Assert.assertEquals(0, count);
 
         var mountOne = dynamicMountModel(vm.vmId(), "allocator", operation.id());
@@ -216,10 +216,10 @@ public class DynamicDaoImplTest {
             .volumeClaimName(claimName)
             .build(), null);
 
-        count = dynamicMountDao.countForVolumeClaimName(CLUSTER_ID, claimName, null);
+        count = dynamicMountDao.countVolumeClaimUsages(CLUSTER_ID, claimName, null);
         Assert.assertEquals(1, count);
 
-        count = dynamicMountDao.countForVolumeClaimName(anotherClusterId, claimName, null);
+        count = dynamicMountDao.countVolumeClaimUsages(anotherClusterId, claimName, null);
         Assert.assertEquals(1, count);
     }
 

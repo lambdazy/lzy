@@ -4,6 +4,7 @@ import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
+import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.longrunning.dao.OperationCompletedException;
@@ -28,7 +29,6 @@ public final class AllocateVmAction extends OperationRunnerBase {
     @Nullable
     private DeleteVmAction deleteVmAction = null;
     private boolean mountPodAllocated = false;
-    private boolean mountPodSet = false;
     private ClusterPod mountHolder;
 
     public AllocateVmAction(Vm vm, AllocationContext allocationContext, boolean restore) {
@@ -196,6 +196,14 @@ public final class AllocateVmAction extends OperationRunnerBase {
             mountPodAllocated = true;
         } catch (KubernetesClientException e) {
             log().error("{} Cannot allocate mount holder for vm {}: {}", logPrefix(), vm.vmId(), e.getMessage());
+            if (KuberUtils.isNotRetryable(e)) {
+                try {
+                    fail(Status.INTERNAL.withDescription(e.getMessage()));
+                } catch (Exception ex) {
+                    log().error("{} Cannot fail operation: {}", logPrefix(), ex.getMessage(), ex);
+                }
+                return StepResult.FINISH;
+            }
             return StepResult.RESTART;
         }
         return StepResult.CONTINUE;
@@ -206,7 +214,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        if (mountPodSet) {
+        if (vm.instanceProperties().mountPodName() != null) {
             return StepResult.ALREADY_DONE;
         }
 
@@ -214,7 +222,6 @@ public final class AllocateVmAction extends OperationRunnerBase {
         log().info("{} Setting mount pod name {} for VM", logPrefix(), pod);
         try {
             withRetries(log(), () -> allocationContext.vmDao().setMountPod(vm.vmId(), pod, null));
-            mountPodSet = true;
         } catch (Exception e) {
             log().error("{} Cannot save mount pod name {} for VM: {}. Retry later...",
                 logPrefix(), pod, e.getMessage());

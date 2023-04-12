@@ -2,7 +2,7 @@ package ai.lzy.allocator.util;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;

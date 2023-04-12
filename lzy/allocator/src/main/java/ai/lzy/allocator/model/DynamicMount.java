@@ -2,7 +2,7 @@ package ai.lzy.allocator.model;
 
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VolumeApi;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 import java.util.UUID;
 

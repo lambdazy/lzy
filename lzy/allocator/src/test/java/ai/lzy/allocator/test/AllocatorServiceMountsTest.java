@@ -51,7 +51,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     }
 
     @Test
-    public void allocatorServiceShouldValidateEmptyMountRequest() {
+    public void mountEmptyRequest() {
         var exception = Assert.assertThrows(StatusRuntimeException.class,
             () -> authorizedAllocatorBlockingStub.mount(VmAllocatorApi.MountRequest.getDefaultInstance()));
         Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
@@ -61,7 +61,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     }
 
     @Test
-    public void allocatorServiceShouldValidateVm() {
+    public void mountValidateVmId() {
         var exception = Assert.assertThrows(StatusRuntimeException.class,
             () -> authorizedAllocatorBlockingStub.mount(VmAllocatorApi.MountRequest.newBuilder()
                 .setVmId(UUID.randomUUID().toString())
@@ -76,7 +76,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     }
 
     @Test
-    public void allocatorServiceShouldValidateVmIsNotDeleting() throws Exception {
+    public void mountValidateDeletingVm() throws Exception {
         var sessionId = createSession(Durations.ZERO);
         var vm = allocateVm(sessionId, null);
         vmDao.delete(vm.vmId(), new Vm.DeletingState(vm.allocationOpId(), "foo", "bar"), null);
@@ -94,7 +94,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     }
 
     @Test
-    public void listMountsShouldReturnValidateVmId() {
+    public void listMountsValidateVm() {
         var exception = Assert.assertThrows(StatusRuntimeException.class,
             () -> authorizedAllocatorBlockingStub.listMounts(VmAllocatorApi.ListMountsRequest.getDefaultInstance()));
         Assert.assertEquals(Status.INVALID_ARGUMENT.getCode(), exception.getStatus().getCode());
@@ -102,7 +102,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     }
 
     @Test
-    public void listMountsShouldReturnVmDynamicMounts() throws Exception {
+    public void listMounts() throws Exception {
         var sessionId = createSession(Durations.ZERO);
         var vm = allocateVm(sessionId, null);
         var mount1 = DynamicMount.createNew(vm.vmId(), "foo", "bar", "baz",

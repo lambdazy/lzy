@@ -26,7 +26,17 @@ import ai.lzy.v1.VmAllocatorPrivateApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
-import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.NodeAddressBuilder;
+import io.fabric8.kubernetes.api.model.NodeBuilder;
+import io.fabric8.kubernetes.api.model.NodeSpecBuilder;
+import io.fabric8.kubernetes.api.model.NodeStatusBuilder;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodListBuilder;
+import io.fabric8.kubernetes.api.model.PodSpecBuilder;
+import io.fabric8.kubernetes.api.model.PodStatusBuilder;
+import io.fabric8.kubernetes.api.model.StatusDetails;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.grpc.ManagedChannel;
@@ -38,6 +48,8 @@ import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import jakarta.annotation.Nullable;
 import okhttp3.mockwebserver.MockWebServer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -57,7 +69,10 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.CLUSTER_ID_KEY;
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NAMESPACE_KEY;
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NAMESPACE_VALUE;
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.VM_POD_NAME_PREFIX;
 import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -66,6 +81,8 @@ import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorApiTestBase extends BaseTestWithIam {
+
+    private static final Logger LOG = LogManager.getLogger(AllocatorApiTestBase.class);
 
     protected static final long TIMEOUT_SEC = 10;
     protected static final String ZONE = "test-zone";
@@ -306,7 +323,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
                 });
             } catch (StatusRuntimeException e) {
                 if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
-                    System.err.printf("Fail to register VM %s: %s%n", vmId, e.getStatus());
+                    LOG.error("Fail to register VM {}: {}", vmId, e.getStatus());
                     return false;
                 }
                 throw new RuntimeException(e);

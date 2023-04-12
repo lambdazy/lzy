@@ -8,9 +8,9 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import org.jetbrains.annotations.Nullable;
 import org.postgresql.util.PGobject;
 
 import java.sql.PreparedStatement;
@@ -133,7 +133,7 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
     }
 
     @Override
-    public long countForVolumeClaimName(String clusterId, String volumeClaimName, @Nullable TransactionHandle tx)
+    public long countVolumeClaimUsages(String clusterId, String volumeClaimName, @Nullable TransactionHandle tx)
         throws SQLException
     {
         return DbOperation.execute(tx, storage, con -> {

@@ -2,7 +2,7 @@ package ai.lzy.allocator.alloc.dao;
 
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.model.db.TransactionHandle;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -18,7 +18,7 @@ public interface DynamicMountDao {
     @Nullable
     DynamicMount update(String id, DynamicMount.Update update, @Nullable TransactionHandle tx) throws SQLException;
 
-    long countForVolumeClaimName(String clusterId, String volumeClaimName, @Nullable TransactionHandle tx)
+    long countVolumeClaimUsages(String clusterId, String volumeClaimName, @Nullable TransactionHandle tx)
         throws SQLException;
 
     List<DynamicMount> getPending(String workerId, @Nullable TransactionHandle tx) throws SQLException;

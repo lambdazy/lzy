@@ -7,7 +7,7 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.longrunning.OperationRunnerBase;
 import io.fabric8.kubernetes.client.KubernetesClientException;
-import org.jetbrains.annotations.Nullable;
+import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -146,7 +146,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     private StepResult countDynamicMounts() {
         try {
             var count = withRetries(log(), () -> allocationContext.dynamicMountDao()
-                .countForVolumeClaimName(dynamicMount.clusterId(), dynamicMount.volumeClaimName(), null));
+                .countVolumeClaimUsages(dynamicMount.clusterId(), dynamicMount.volumeClaimName(), null));
 
             if (count > 1) {
                 skipClaimDeletion = true;
