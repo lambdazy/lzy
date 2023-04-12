@@ -74,7 +74,7 @@ public class KuberTunnelAllocator implements TunnelAllocator {
                 TUNNEL_POD_TEMPLATE_PATH, TUNNEL_POD_NAME_PREFIX);
             Pod tunnelPod = tunnelPodBuilder.withWorkloads(
                     List.of(new Workload("tunnel", tunnelConfig.getPodImage(), Map.of(), List.of(), Map.of(),
-                        /* runAsUser */ 0, List.of())),
+                        List.of())),
                     /* init */ false)
                 // not to be allocated with another tunnel
                 .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", vmSpec.sessionId(), TUNNEL_POD_APP_LABEL_VALUE)
@@ -197,7 +197,6 @@ public class KuberTunnelAllocator implements TunnelAllocator {
                 "ai.lzy.v1.tunnel.LzyTunnelAgent/CreateTunnel"
             ),
             Map.of(),
-            0,
             List.of()
         );
     }
