@@ -28,6 +28,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -131,6 +132,12 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                                 .addAllEndpoints(hosts)
                                 .putAllMetadata(request.getMetadataMap())
                                 .build());
+
+                        // TODO: undo
+                        LOG.info("endpoints: [{}]", hosts.stream()
+                            .map(it -> String.format("%s:\"%s\"", it.getType(), it.getValue()))
+                            .collect(Collectors.joining(",")));
+
                         op.setResponse(response);
 
                         try {

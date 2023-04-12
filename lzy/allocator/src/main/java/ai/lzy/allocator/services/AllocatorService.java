@@ -406,6 +406,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                             builder.addEndpoints(endpoint.toProto());
                         }
 
+                        // TODO: undo
+                        LOG.info("endpoints: [{}]", builder.getEndpointsList().stream()
+                            .map(it -> String.format("%s:\"%s\"", it.getType(), it.getValue()))
+                            .collect(Collectors.joining(",")));
+
                         op.setResponse(builder.build());
 
                         operationsDao.create(op, tx);
