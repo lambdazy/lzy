@@ -278,18 +278,22 @@ public class KuberVmAllocator implements VmAllocator {
                 var pod = getVmPod(ns, podName, client);
                 if (pod != null) {
                     nodeName = pod.getSpec().getNodeName();
-                    final var node = client.nodes().withName(nodeName).get();
+                    if (nodeName != null) {
+                        final var node = client.nodes().withName(nodeName).get();
 
-                    if (node != null) {
-                        final var providerId = node.getSpec() != null ? node.getSpec().getProviderID() : null;
+                        if (node != null) {
+                            final var providerId = node.getSpec() != null ? node.getSpec().getProviderID() : null;
 
-                        LOG.warn("Found node {} ({}) for VM {}", nodeName, providerId, vmId);
+                            LOG.warn("Found node {} ({}) for VM {}", nodeName, providerId, vmId);
 
-                        nodeInstanceId = providerId != null && providerId.startsWith("yandex://")
-                            ? providerId.substring("yandex://".length())
-                            : null;
+                            nodeInstanceId = providerId != null && providerId.startsWith("yandex://")
+                                ? providerId.substring("yandex://".length())
+                                : null;
+                        } else {
+                            LOG.warn("Cannot find node {} for VM {}", nodeName, vmId);
+                        }
                     } else {
-                        LOG.warn("Cannot find node {} for VM {}", nodeName, vmId);
+                        LOG.warn("Cannot find node for VM {}, podSpec: {}", vmId, pod.getSpec());
                     }
                 } else {
                     LOG.error("No pods found for VM {}", vmId);
