@@ -11,7 +11,7 @@ service HistoryService {
   rpc GetWorkflowDetails (GetWorkflowDetailsRequest) returns (GetWorkflowDetailsResponse);
 
   rpc GetExecutions (GetExecutionsRequest) returns (GetExecutionsResponse);
-  rpc GetExecutionStatus (GetExecutionRequest) returns (stream GetExecutionStatusResponse);
+  rpc GetExecutionStatus (GetExecutionRequest) returns (GetExecutionStatusResponse);
   rpc GetExecutionDetails (GetExecutionRequest) returns (GetExecutionDetailsResponse);
 
   rpc GetGraphs (GetGraphsRequest) returns (GetGraphsResponse);
@@ -28,7 +28,6 @@ message GetWorkflowsRequest {
 
   message Ordering {
     string name = 1;
-    string userId = 2;
 
     google.protobuf.Timestamp createdAt = 3;
     google.protobuf.Timestamp updatedAt = 4;
@@ -38,7 +37,7 @@ message GetWorkflowsRequest {
 
   message Filter {
     string name = 1;
-    string userId = 2;
+    string owner = 2;
 
     google.protobuf.Timestamp createdAfter = 3;
     google.protobuf.Timestamp createdBefore = 4;
@@ -55,7 +54,7 @@ message GetWorkflowsResponse {
 
   message Workflow {
     string name = 1;
-    string userId = 2;
+    string owner = 2;
     string storageUrl = 3;
 
     string lastExecutionId = 4;
@@ -68,7 +67,7 @@ message GetWorkflowsResponse {
 }
 
 message GetWorkflowDetailsRequest {
-  string userId = 1;
+  string owner = 1;
   string workflowName = 2;
 }
 
@@ -87,7 +86,7 @@ message GetExecutionsRequest {
   string pageToken = 4;
 
   message Ordering {
-    string userId = 1;
+    string owner = 1;
 
     google.protobuf.Timestamp startedAt = 2;
     google.protobuf.Timestamp finishedAt = 3;
@@ -98,7 +97,7 @@ message GetExecutionsRequest {
 
   message Filter {
     string workflowName = 1;
-    string userId = 2;
+    string owner = 2;
 
     string executionStatus = 3;
     string description = 4;
