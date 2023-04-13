@@ -603,7 +603,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         LOG.error(message);
                         throw Status.NOT_FOUND.withDescription(message).asException();
                     }
-                    yield new DiskVolumeDescription("disk-volume-" + UUID.randomUUID(), volume.getName(),
+                    yield new DiskVolumeDescription("disk-volume-" + volume.getName(),
                         diskVolume.getDiskId(), disk.spec().sizeGb());
                 }
 
@@ -613,13 +613,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     if (!hostPathVolume.getPath().contains("/home/jupyter")) {
                         yield null;
                     }
-                    yield new HostPathVolumeDescription("host-path-volume-" + UUID.randomUUID(), volume.getName(),
+                    yield new HostPathVolumeDescription("host-path-volume-" + volume.getName(),
                         hostPathVolume.getPath(), hostPathType);
                 }
 
                 case NFS_VOLUME -> {
                     final var nfsVolume = volume.getNfsVolume();
-                    yield new NFSVolumeDescription("nfs-volume-" + UUID.randomUUID(), volume.getName(),
+                    yield new NFSVolumeDescription("nfs-volume-" + volume.getName(),
                         nfsVolume.getServer(), nfsVolume.getShare(), nfsVolume.getReadOnly(),
                         nfsVolume.getMountOptionsList());
                 }

@@ -10,7 +10,6 @@ import java.util.Objects;
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescription {
     private final String id;
-    private final String name;
     private final String server;
     private final String share;
     private final boolean readOnly;
@@ -19,14 +18,12 @@ public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescriptio
 
     @JsonCreator
     public NFSVolumeDescription(@JsonProperty("id") String id,
-                                @JsonProperty("name") String name,
                                 @JsonProperty("server") String server,
                                 @JsonProperty("share") String share,
                                 @JsonProperty("read_only") boolean readOnly,
                                 @JsonProperty("mount_options") List<String> mountOptions)
     {
         this.id = id;
-        this.name = name;
         this.server = server;
         this.share = share;
         this.readOnly = readOnly;
@@ -36,11 +33,6 @@ public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescriptio
     @Override
     public String id() {
         return id;
-    }
-
-    @Override
-    public String name() {
-        return name;
     }
 
     public String share() {
@@ -63,7 +55,6 @@ public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescriptio
     public String toString() {
         return "HostPathVolumeDescription{" +
                 "id='" + id + '\'' +
-                ", name='" + name + '\'' +
                 ", path='" + share + '\'' +
                 ", server='" + server + '\'' +
                 ", options=" + mountOptions +

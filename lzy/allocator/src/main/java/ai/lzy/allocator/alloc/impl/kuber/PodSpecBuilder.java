@@ -260,7 +260,7 @@ public class PodSpecBuilder {
                     .withType(request.hostPathType().asString())
                     .build())
                 .build();
-            volumes.put(request.name(), volume);
+            volumes.put(request.id(), volume);
         }
         return this;
     }

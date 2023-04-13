@@ -53,7 +53,6 @@ public class VolumeRequest {
     })
     public abstract static class VolumeDescription {
         public abstract String id();
-        public abstract String name();
     }
 
     public abstract static class ResourceVolumeDescription extends VolumeDescription {

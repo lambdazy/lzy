@@ -9,18 +9,15 @@ import java.util.Objects;
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class DiskVolumeDescription extends VolumeRequest.ResourceVolumeDescription {
     private final String id;
-    private final String name;
     private final String diskId;
     private final int sizeGb;
 
     @JsonCreator
     public DiskVolumeDescription(@JsonProperty("id") String id,
-                                 @JsonProperty("name") String name,
                                  @JsonProperty("diskId") String diskId,
                                  @JsonProperty("sizeGb") int sizeGb)
     {
         this.id = id;
-        this.name = name;
         this.diskId = diskId;
         this.sizeGb = sizeGb;
     }
@@ -28,11 +25,6 @@ public class DiskVolumeDescription extends VolumeRequest.ResourceVolumeDescripti
     @Override
     public String id() {
         return id;
-    }
-
-    @Override
-    public String name() {
-        return name;
     }
 
     public String diskId() {
@@ -47,7 +39,6 @@ public class DiskVolumeDescription extends VolumeRequest.ResourceVolumeDescripti
     public String toString() {
         return "DiskVolumeDescription{" +
             "id='" + id + '\'' +
-            ", name='" + name + '\'' +
             ", diskId='" + diskId + '\'' +
             ", sizeGb=" + sizeGb +
             '}';
@@ -62,11 +53,11 @@ public class DiskVolumeDescription extends VolumeRequest.ResourceVolumeDescripti
             return false;
         }
         DiskVolumeDescription that = (DiskVolumeDescription) o;
-        return id.equals(that.id) && name.equals(that.name) && diskId.equals(that.diskId);
+        return id.equals(that.id) && diskId.equals(that.diskId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, name, diskId);
+        return Objects.hash(id, diskId);
     }
 }

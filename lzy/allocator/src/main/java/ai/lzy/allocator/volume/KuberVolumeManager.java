@@ -94,12 +94,12 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.info("Creating persistent volume '{}' for disk {} of size {}Gi", volumeName, diskId, diskSize >> 30);
 
             accessMode = Volume.AccessMode.READ_WRITE_ONCE;
-            resourceName = diskVolumeDescription.name();
+            resourceName = diskVolumeDescription.id();
             storageClass = EMPTY_STORAGE_CLASS_NAME;
             volume = new PersistentVolumeBuilder()
                 .withNewMetadata()
                     .withName(volumeName)
-                    .withLabels(Map.of(REQUESTED_VOLUME_NAME_LABEL, diskVolumeDescription.name()))
+                    .withLabels(Map.of(REQUESTED_VOLUME_NAME_LABEL, diskVolumeDescription.id()))
                 .endMetadata()
                 .withNewSpec()
                     .addToCapacity(Map.of("storage", new Quantity(diskSize + KUBER_GB_NAME)))
@@ -122,12 +122,12 @@ public class KuberVolumeManager implements VolumeManager {
             accessMode = nfsVolumeDescription.readOnly()
                 ? Volume.AccessMode.READ_ONLY_MANY
                 : Volume.AccessMode.READ_WRITE_MANY;
-            resourceName = nfsVolumeDescription.name();
+            resourceName = nfsVolumeDescription.id();
             storageClass = NFS_STORAGE_CLASS_NAME;
             volume = new PersistentVolumeBuilder()
                 .withNewMetadata()
                     .withName(volumeName)
-                    .withLabels(Map.of(REQUESTED_VOLUME_NAME_LABEL, nfsVolumeDescription.name()))
+                    .withLabels(Map.of(REQUESTED_VOLUME_NAME_LABEL, nfsVolumeDescription.id()))
                 .endMetadata()
                 .withNewSpec()
                     .addToCapacity(Map.of("storage", new Quantity(diskSize + KUBER_GB_NAME)))
@@ -146,7 +146,7 @@ public class KuberVolumeManager implements VolumeManager {
                 .build();
         } else {
             LOG.error("Unknown Resource Volume:: {}", resourceVolumeDescription);
-            throw new RuntimeException("Unknown Resource Volume " + resourceVolumeDescription.name());
+            throw new RuntimeException("Unknown Resource Volume " + resourceVolumeDescription.id());
         }
 
         final var result = new Volume(volumeName, resourceName, diskId, diskSize, accessMode, storageClass);

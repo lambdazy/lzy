@@ -18,6 +18,7 @@ import ai.lzy.metrics.PrometheusMetricReporter;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.grpc.ManagedChannel;
@@ -65,7 +66,9 @@ public class BeanFactory {
     @Singleton
     @Named("AllocatorObjectMapper")
     public ObjectMapper mapper() {
-        return new ObjectMapper().registerModule(new JavaTimeModule());
+        return new ObjectMapper()
+            .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+            .registerModule(new JavaTimeModule());
     }
 
     @Bean(preDestroy = "shutdown")
