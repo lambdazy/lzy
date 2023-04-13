@@ -29,6 +29,11 @@ locals {
 }
 
 resource "kubernetes_stateful_set" "allocator" {
+  depends_on = [
+    yandex_kubernetes_node_group.portals,
+    yandex_kubernetes_node_group.workers,
+    yandex_kubernetes_node_group.services
+  ]
   metadata {
     name   = local.allocator-k8s-name
     labels = local.allocator-labels
@@ -56,7 +61,7 @@ resource "kubernetes_stateful_set" "allocator" {
           }
 
           env {
-            name = "ALLOCATOR_METRICS_PORT"
+            name  = "ALLOCATOR_METRICS_PORT"
             value = local.allocator-metrics-port
           }
           env {
@@ -241,7 +246,7 @@ resource "kubernetes_stateful_set" "allocator" {
           config_map {
             name = kubernetes_config_map.unified-agent-config["allocator"].metadata[0].name
             items {
-              key = "config"
+              key  = "config"
               path = "config.yml"
             }
           }
