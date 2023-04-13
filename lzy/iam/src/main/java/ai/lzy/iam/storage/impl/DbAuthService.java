@@ -3,7 +3,10 @@ package ai.lzy.iam.storage.impl;
 import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.iam.storage.db.IamDataSource;
-import ai.lzy.util.auth.credentials.*;
+import ai.lzy.util.auth.credentials.Credentials;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.OttCredentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
@@ -81,8 +84,8 @@ public class DbAuthService implements AuthenticateService {
                 Subject result = null;
                 if (expiredAt.isAfter(Instant.now())) {
                     result = switch (subjectType) {
-                        case USER -> new User(subjectId);
-                        case WORKER -> new Worker(subjectId);
+                        case USER -> throw new AuthInternalException("USER subject is incompatible with OTT auth");
+                        case WORKER -> throw new AuthInternalException("WORKER subject is incompatible with JWT auth");
                         case VM -> new Vm(subjectId);
                     };
                 } else {
@@ -165,7 +168,7 @@ public class DbAuthService implements AuthenticateService {
                         var subject = switch (subjectType) {
                             case USER -> new User(subjectId);
                             case WORKER -> new Worker(subjectId);
-                            case VM -> new Vm(subjectId); // TODO: fail?
+                            case VM -> throw new AuthInternalException("VM subject is incompatible with JWT auth");
                         };
 
                         LOG.info("Successfully checked {}::{} token with key name {}",

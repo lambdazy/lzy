@@ -2,7 +2,11 @@ package ai.lzy.iam.storage.impl;
 
 import ai.lzy.iam.BaseSubjectServiceApiTest;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.*;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -15,7 +19,11 @@ import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.FixMethodOrder;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
 import java.time.Duration;
@@ -60,7 +68,6 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     public void createMultipleSameSubjectsIsOkay() {
         var credentials = List.of(
             new SubjectCredentials("key", "val", CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(120))),
-            new SubjectCredentials("cookie", "val", CredentialsType.COOKIE, Instant.now().plus(Duration.ofHours(24))),
             new SubjectCredentials("ott", "val", CredentialsType.OTT, Instant.now().plus(Duration.ofDays(30)))
         );
 
@@ -96,8 +103,6 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
                     var credentials = List.of(
                         new SubjectCredentials("key", "val", CredentialsType.PUBLIC_KEY,
                             Instant.now().plus(Duration.ofDays(120))),
-                        new SubjectCredentials("cookie", "val", CredentialsType.COOKIE,
-                            Instant.now().plus(Duration.ofHours(24))),
                         new SubjectCredentials("ott", "val", CredentialsType.OTT,
                             Instant.now().plus(Duration.ofDays(30)))
                     );
@@ -126,7 +131,6 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     public void createSameSubjectsWithDifferentInitCredentialsIsError() {
         var credentials = List.of(
             new SubjectCredentials("key", "val", CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(120))),
-            new SubjectCredentials("cookie", "val", CredentialsType.COOKIE, Instant.now().plus(Duration.ofHours(24))),
             new SubjectCredentials("ott", "val", CredentialsType.OTT, Instant.now().plus(Duration.ofDays(30)))
         );
 
@@ -278,13 +282,9 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         assertEquals("Value", credentials2.value());
         assertEquals(CredentialsType.PUBLIC_KEY, credentials2.type());
 
-        var credentials1ReplicaWithOtherValueAndType = new SubjectCredentials(credentialsName1, "--vALuE--",
-            CredentialsType.COOKIE);
         var credentials2ReplicaWithOtherTypeAndTtl = new SubjectCredentials(credentialsName2, "Value",
             CredentialsType.OTT, Instant.now().plus(Duration.ofDays(30)));
 
-        assertThrows(AuthUniqueViolationException.class, () ->
-            subjectService.addCredentials(dima, credentials1ReplicaWithOtherValueAndType));
         assertThrows(AuthUniqueViolationException.class, () ->
             subjectService.addCredentials(dima, credentials2ReplicaWithOtherTypeAndTtl));
     }
