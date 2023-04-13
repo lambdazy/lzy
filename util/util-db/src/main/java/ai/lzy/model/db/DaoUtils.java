@@ -1,4 +1,4 @@
-package ai.lzy.allocator.util;
+package ai.lzy.model.db;
 
 public final class DaoUtils {
     private DaoUtils() {

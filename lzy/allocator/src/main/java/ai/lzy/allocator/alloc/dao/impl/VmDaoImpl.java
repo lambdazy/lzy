@@ -6,7 +6,7 @@ import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.storage.AllocatorDataSource;
-import ai.lzy.allocator.util.DaoUtils;
+import ai.lzy.model.db.DaoUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.model.db.DbOperation;
