@@ -1,6 +1,7 @@
 package ai.lzy.worker.env;
 
 import ai.lzy.worker.StreamQueue;
+import jakarta.annotation.Nullable;
 
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -15,9 +16,9 @@ public interface Environment extends AutoCloseable {
 
     LzyProcess runProcess(String... command);
 
-    LzyProcess runProcess(String[] command, String[] envp);
+    LzyProcess runProcess(String[] command, @Nullable String[] envp);
 
-    default LzyProcess runProcess(String command, String[] envp) {
+    default LzyProcess runProcess(String command, @Nullable String[] envp) {
         return runProcess(new String[]{command}, envp);
     }
 

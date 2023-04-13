@@ -15,32 +15,36 @@ import com.github.dockerjava.core.DockerClientBuilder;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 
 public class DockerEnvironment extends BaseEnvironment {
 
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final long GB_AS_BYTES = 1073741824;
 
+    private final String taskId;
     @Nullable
     public String containerId = null;
-
     private final BaseEnvConfig config;
     private final DockerClient client;
     private final Retry retry;
 
-    public DockerEnvironment(BaseEnvConfig config, DockerClient client) {
-        super();
+    public DockerEnvironment(String taskId, BaseEnvConfig config, DockerClient client) {
+        this.taskId = taskId;
         this.config = config;
         this.client = client;
         var retryConfig = new RetryConfig.Builder<>()
@@ -54,7 +58,7 @@ public class DockerEnvironment extends BaseEnvironment {
     @Override
     public void install(StreamQueue.LogHandle handle) throws EnvironmentInstallationException {
         if (containerId != null) {
-            handle.logOut("Using already running container from cache");
+            handle.logOut(taskId, "Using already running container from cache");
             LOG.info("Using already running container from cache; containerId: {}", containerId);
             return;
         }
@@ -63,10 +67,10 @@ public class DockerEnvironment extends BaseEnvironment {
         try {
             prepareImage(sourceImage, handle);
         } catch (InterruptedException e) {
-            handle.logErr("Image pulling was interrupted");
+            handle.logErr(taskId, "Image pulling was interrupted");
             throw new RuntimeException(e);
         } catch (Exception e) {
-            handle.logErr("Error while pulling image: {}", e);
+            handle.logErr(taskId, "Error while pulling image: {}", e);
             LOG.error("Error while pulling image {}", sourceImage, e);
             throw new RuntimeException(e);
         }
@@ -113,14 +117,14 @@ public class DockerEnvironment extends BaseEnvironment {
         handle.logOut("Creating container from image {} done", sourceImage);
         LOG.info("Creating container done; containerId: {}, image: {}", containerId, sourceImage);
 
-        handle.logOut("Environment container starting ...");
+        handle.logOut(taskId, "Environment container starting ...");
         AtomicInteger containerStartingAttempt = new AtomicInteger(0);
         retry.executeSupplier(() -> {
             LOG.info("Starting env container... (attempt {}); containerId: {}, image: {}",
                 containerStartingAttempt.incrementAndGet(), containerId, sourceImage);
             return client.startContainerCmd(containerId).exec();
         });
-        handle.logOut("Environment container started");
+        handle.logOut(taskId, "Environment container started");
         LOG.info("Starting env container done; containerId: {}, image: {}", containerId, sourceImage);
 
         this.containerId = containerId;
@@ -132,7 +136,7 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         assert containerId != null;
 
         final int bufferSize = 4096;

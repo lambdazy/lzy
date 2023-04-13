@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type, c
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.pickle import pickle
-from lzy.logs.config import get_logging_config, COLOURS, get_color, RESET_COLOR
+from lzy.logs.config import get_logging_config, COLOURS, get_syslog_color, RESET_COLOR
 from lzy.storage.api import AsyncStorageClient, Storage
 
 if TYPE_CHECKING:
@@ -143,7 +143,7 @@ class LocalRuntime(Runtime):
             for line in iter(out.readline, b''):
                 str_line = line.decode("utf-8")
                 system_log = "[SYS]" in str_line
-                prefix = COLOURS[get_color()] if system_log else ""
+                prefix = COLOURS[get_syslog_color()] if system_log else ""
                 suffix = RESET_COLOR if system_log else ""
                 sys.stdout.write(prefix + str_line + suffix)
             out.close()

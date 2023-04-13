@@ -5,12 +5,14 @@ import ai.lzy.v1.common.LMO;
 import jakarta.annotation.Nullable;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.FormattedMessage;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -50,10 +52,10 @@ public class StreamQueue extends Thread {
      * Add input stream to queue
      * @return Future will be completed after writing all data from this stream
      */
-    public CompletableFuture<Void> add(InputStream stream) {
+    public CompletableFuture<Void> add(String taskId, InputStream stream) {
         try {
             var future  = new CompletableFuture<Void>();
-            inputs.put(new Input(future, stream, null));
+            inputs.put(new Input(taskId, future, stream, null));
             return future;
         } catch (InterruptedException e) {
             logger.error("Error while adding stream to queue", e);
@@ -64,10 +66,10 @@ public class StreamQueue extends Thread {
     /**
      * Add string for writing
      */
-    public CompletableFuture<Void> add(String s) {
+    public CompletableFuture<Void> add(String taskId, String s) {
         try {
             var future  = new CompletableFuture<Void>();
-            inputs.put(new Input(future, null, s));
+            inputs.put(new Input(taskId, future, null, s));
             return future;
         } catch (InterruptedException e) {
             logger.error("Error while adding stream to queue", e);
@@ -95,13 +97,14 @@ public class StreamQueue extends Thread {
                 continue;
             }
 
+            //noinspection resource
             if (inputHandle.stream() != null) {
-                writeStream(inputHandle.stream());
+                writeStream(inputHandle.taskId(), inputHandle.stream());
             }
 
             if (inputHandle.string() != null) {
                 try {
-                    writeLines(inputHandle.string().getBytes());
+                    writeLines(inputHandle.taskId(), inputHandle.string().getBytes());
                 } catch (IOException e) {
                     logger.warn("Cannot write buffer to stream {}: ", streamName, e);
                 }
@@ -124,7 +127,7 @@ public class StreamQueue extends Thread {
         }
     }
 
-    private void writeStream(InputStream stream) {
+    private void writeStream(String taskId, InputStream stream) {
         final int initialSize = 4096;
         final int gap = 128;
         try (final var input = stream) {
@@ -149,14 +152,14 @@ public class StreamQueue extends Thread {
                         }
                     }
                 } else {
-                    writeLines(copyOfRange(buf, linesPos, n + 1));
+                    writeLines(taskId, copyOfRange(buf, linesPos, n + 1));
                     srcPos += readLen;
                     linesPos = n + 1;
                 }
             }
 
             if (srcPos > linesPos) {
-                writeLines(copyOfRange(buf, linesPos, srcPos - linesPos));
+                writeLines(taskId, copyOfRange(buf, linesPos, srcPos - linesPos));
             }
         } catch (IOException e) {
             logger.error("Error while writing to stream {}: ", streamName, e);
@@ -172,7 +175,7 @@ public class StreamQueue extends Thread {
         return -1;
     }
 
-    private void writeLines(byte[] lines) throws IOException {
+    private void writeLines(String taskId, byte[] lines) throws IOException {
         if (logger.isDebugEnabled()) {
             logger.debug("[{}]: {}", streamName, new String(lines));
         }
@@ -184,8 +187,10 @@ public class StreamQueue extends Thread {
         if (kafkaClient != null && topic != null) {
             // Using single partition to manage global order of logs !!!
             try {
-                // todo: add `taskId` header
-                kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, streamName, lines)).get();
+                var headers = new RecordHeaders();
+                headers.add("stream", streamName.getBytes(StandardCharsets.UTF_8));
+
+                kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, taskId, lines, headers)).get();
             } catch (Exception e) {
                 logger.warn("Cannot send data to kafka: ", e);
             }
@@ -203,6 +208,7 @@ public class StreamQueue extends Thread {
     }
 
     private record Input(
+        String taskId,
         CompletableFuture<Void> future,
         @Nullable InputStream stream,
         @Nullable String string
@@ -223,7 +229,7 @@ public class StreamQueue extends Thread {
         }
 
         public static LogHandle fromTopicDesc(Logger logger, @Nullable LMO.KafkaTopicDescription topicDesc,
-                                              KafkaHelper helper)
+                                              @Nullable KafkaHelper helper)
         {
             var outQueue = new StreamQueue(topicDesc, logger, "out", helper);
             outQueue.start();
@@ -234,28 +240,28 @@ public class StreamQueue extends Thread {
             return new LogHandle(outQueue, errQueue, logger);
         }
 
-        public void logOut(String pattern, Object... values) {
+        public void logOut(String taskId, String pattern, Object... values) {
             var formatted  = PREFIX + new FormattedMessage(pattern, values) + "\n";
 
             logger.info(formatted);
-            futures.add(outQueue.add(formatted));
+            futures.add(outQueue.add(taskId, formatted));
         }
 
-        public CompletableFuture<Void> logOut(InputStream stream) {
-            var fut = outQueue.add(stream);
+        public CompletableFuture<Void> logOut(String taskId, InputStream stream) {
+            var fut = outQueue.add(taskId, stream);
             futures.add(fut);
             return fut;
         }
 
-        public void logErr(String pattern, Object... values) {
+        public void logErr(String taskId, String pattern, Object... values) {
             var formatted  = PREFIX + new FormattedMessage(pattern, values) + "\n";
 
             logger.info(formatted);
-            futures.add(errQueue.add(formatted));
+            futures.add(errQueue.add(taskId, formatted));
         }
 
-        public CompletableFuture<Void> logErr(InputStream stream) {
-            var fut = errQueue.add(stream);
+        public CompletableFuture<Void> logErr(String taskId, InputStream stream) {
+            var fut = errQueue.add(taskId, stream);
             futures.add(fut);
             return fut;
         }

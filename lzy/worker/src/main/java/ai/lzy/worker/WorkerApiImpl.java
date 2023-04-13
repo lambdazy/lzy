@@ -91,7 +91,6 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             : null;
 
         try (final var logHandle = LogHandle.fromTopicDesc(LOG, topicDesc, kafkaHelper)) {
-
             final var stdoutSpec = op.hasStdout() ? op.getStdout() : null;
             final var stderrSpec = op.hasStderr() ? op.getStderr() : null;
             logHandle.addErrOutput(generateStdOutputStream(tid, stderrSpec));
@@ -99,7 +98,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
             LOG.info("Configuring worker");
 
-            final AuxEnvironment env = envFactory.create(lzyFs.getMountPoint().toString(),
+            final AuxEnvironment env = envFactory.create(tid, lzyFs.getMountPoint().toString(),
                 request.getTaskDesc().getOperation().getEnv());
 
             try {
@@ -127,8 +126,8 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
                 exec.start(env);
 
-                logHandle.logOut(exec.process().out());
-                logHandle.logErr(exec.process().err());
+                logHandle.logOut(tid, exec.process().out());
+                logHandle.logErr(tid, exec.process().err());
 
                 final int rc = exec.waitFor();
                 final String message;

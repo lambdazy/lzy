@@ -6,7 +6,6 @@ import tempfile
 import zipfile
 from asyncio import Task
 from io import BytesIO
-from pathlib import Path
 from typing import (
     Callable,
     Dict,
@@ -20,9 +19,6 @@ from typing import (
     cast,
 )
 
-from lzy.api.v1 import DockerPullPolicy
-from lzy.storage.api import Storage, FSCredentials
-
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
     DataDescription,
@@ -30,6 +26,7 @@ from ai.lzy.v1.workflow.workflow_pb2 import (
     Operation,
     VmPoolSpec,
 )
+from lzy.api.v1 import DockerPullPolicy
 from lzy.api.v1.call import LzyCall
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
@@ -49,7 +46,8 @@ from lzy.api.v1.utils.conda import generate_conda_yaml
 from lzy.api.v1.utils.files import fileobj_hash, zip_module
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
-from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_color
+from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_syslog_color
+from lzy.storage.api import Storage, FSCredentials
 from lzy.utils.grpc import retry, RetryConfig
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
@@ -253,13 +251,14 @@ class RemoteRuntime(Runtime):
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
         async for msg in client.read_std_slots(execution_id, self.__logs_offset):
+            task_id_prefix = COLOURS["WHITE"] + "[" + msg.task_id + "] " + RESET_COLOR
             if isinstance(msg, StderrMessage):
-                system_log = "[SYS]" in msg.data
-                prefix = COLOURS[get_color()] if system_log else ""
+                system_log = "[SYS]" in msg.message
+                prefix = COLOURS[get_syslog_color()] if system_log else ""
                 suffix = RESET_COLOR if system_log else ""
-                sys.stderr.write(prefix + msg.data + suffix)
+                sys.stderr.write(task_id_prefix + prefix + msg.message + suffix)
             else:
-                sys.stdout.write(msg.data)
+                sys.stdout.write(task_id_prefix + msg.message)
 
             self.__logs_offset = max(self.__logs_offset, msg.offset)
 

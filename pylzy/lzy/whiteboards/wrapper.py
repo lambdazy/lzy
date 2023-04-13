@@ -2,13 +2,12 @@ import asyncio
 import sys
 import tempfile
 from enum import Enum
-from typing import Dict, Union, Any, Iterable, Type
-
 from serialzy.api import SerializerRegistry, Schema, Serializer
 from tqdm import tqdm
+from typing import Dict, Union, Any, Iterable, Type
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField
-from lzy.logs.config import get_color
+from lzy.logs.config import get_syslog_color
 from lzy.proxy.result import Absence
 from lzy.storage.api import StorageRegistry
 from lzy.utils.event_loop import LzyEventLoop
@@ -120,7 +119,7 @@ class WhiteboardWrapper:
     async def __load_and_deserialize(self, name: str, storage_uri: str, serializer: Serializer, typ: Type) -> Any:
         size = await self.__storage.size_in_bytes(storage_uri)
         with tqdm(total=size, desc=f"Downloading {name}", file=sys.stdout, unit='B', unit_scale=True,
-                  unit_divisor=1024, colour=get_color()) as bar:
+                  unit_divisor=1024, colour=get_syslog_color()) as bar:
             with tempfile.TemporaryFile() as f:
                 await self.__storage.read(storage_uri, f, progress=lambda x: bar.update(x))  # type: ignore
                 f.seek(0)

@@ -18,6 +18,7 @@ import org.apache.logging.log4j.Logger;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
@@ -27,9 +28,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Singleton
 public class KafkaLogsListeners {
     private static final Logger LOG = LogManager.getLogger(KafkaLogsListeners.class);
+    private static final byte[] STDOUT_STREAM_HEADER = "out".getBytes(StandardCharsets.UTF_8);
 
     private final ConcurrentHashMap<String, ArrayList<Listener>> listeners = new ConcurrentHashMap<>();
-
     @Nullable
     private final Properties kafkaSetup;
 
@@ -97,8 +98,9 @@ public class KafkaLogsListeners {
 
                     var props = (Properties) kafkaSetup.clone();
                     props.put("group.id", UUID.randomUUID().toString());
+
                     try (var consumer = new KafkaConsumer<String, byte[]>(props)) {
-                        var partition = new TopicPartition(topicDesc.topicName(), 0);
+                        var partition = new TopicPartition(topicDesc.topicName(), /* partition */ 0);
 
                         consumer.assign(List.of(partition));
                         consumer.seek(partition, request.getOffset());
@@ -119,11 +121,17 @@ public class KafkaLogsListeners {
                                 for (var record : records) {
                                     offset = Long.max(record.offset(), offset);
 
-                                    // TODO: replace `key` with `task_id`, place `stdout/stderr` to the header
-                                    if (record.key().equals("out")) {
-                                        outData.addData(new String(record.value(), StandardCharsets.UTF_8));
+                                    var taskId = record.key();
+                                    var stream = record.headers().lastHeader("stream");
+                                    var data = ReadStdSlotsResponse.TaskLines.newBuilder()
+                                        .setTaskId(taskId)
+                                        .setLines(new String(record.value(), StandardCharsets.UTF_8))
+                                        .build();
+
+                                    if (stream == null || Arrays.equals(stream.value(), STDOUT_STREAM_HEADER)) {
+                                        outData.addData(data);
                                     } else {
-                                        errData.addData(new String(record.value(), StandardCharsets.UTF_8));
+                                        errData.addData(data);
                                     }
                                 }
 
