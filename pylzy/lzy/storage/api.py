@@ -63,6 +63,12 @@ class AsyncStorageClient(ABC):
 
     @abstractmethod
     async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], Any]] = None) -> None:
+        """
+        Read data from remote storage into BinaryIO
+        @param uri: URI of data in storage
+        @param dest: Stream to write data to. This IO must be seekable to enable retries
+        @param progress: Function to report progress
+        """
         pass
 
     @abstractmethod
