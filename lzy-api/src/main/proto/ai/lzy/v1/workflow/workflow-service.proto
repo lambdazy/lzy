@@ -126,8 +126,13 @@ message ReadStdSlotsResponse {
 
   uint64 offset = 3;
 
+  message TaskLines {
+    string taskId = 1;
+    string lines = 2;
+  }
+
   message Data {
-    repeated string data = 1;
+    repeated TaskLines data = 1;
   }
 }
 

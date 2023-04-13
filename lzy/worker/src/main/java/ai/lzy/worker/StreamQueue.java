@@ -1,16 +1,18 @@
 package ai.lzy.worker;
 
 import ai.lzy.util.kafka.KafkaHelper;
-import ai.lzy.v1.common.LMO;
+import ai.lzy.v1.common.LMO.KafkaTopicDescription;
 import jakarta.annotation.Nullable;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.FormattedMessage;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -23,6 +25,7 @@ public class StreamQueue extends Thread {
     private final ArrayList<OutputStream> outs = new ArrayList<>();
     private final LinkedBlockingQueue<Input> inputs = new LinkedBlockingQueue<>();
     private final Logger logger;
+    private final String taskId;
     private final String streamName;
     private final AtomicBoolean stopping = new AtomicBoolean(false);
     @Nullable
@@ -30,10 +33,11 @@ public class StreamQueue extends Thread {
     @Nullable
     private final String topic;
 
-    public StreamQueue(@Nullable LMO.KafkaTopicDescription topic, Logger log, String streamName,
+    public StreamQueue(@Nullable KafkaTopicDescription topic, Logger log, String taskId, String streamName,
                        @Nullable KafkaHelper helper)
     {
         this.logger = log;
+        this.taskId = taskId;
         this.streamName = streamName;
         if (topic != null && helper != null) {
             var props = helper.toProperties(topic.getUsername(), topic.getPassword());
@@ -95,6 +99,7 @@ public class StreamQueue extends Thread {
                 continue;
             }
 
+            //noinspection resource
             if (inputHandle.stream() != null) {
                 writeStream(inputHandle.stream());
             }
@@ -156,7 +161,7 @@ public class StreamQueue extends Thread {
             }
 
             if (srcPos > linesPos) {
-                writeLines(copyOfRange(buf, linesPos, srcPos - linesPos));
+                writeLines(copyOfRange(buf, linesPos, srcPos));
             }
         } catch (IOException e) {
             logger.error("Error while writing to stream {}: ", streamName, e);
@@ -184,8 +189,10 @@ public class StreamQueue extends Thread {
         if (kafkaClient != null && topic != null) {
             // Using single partition to manage global order of logs !!!
             try {
-                // todo: add `taskId` header
-                kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, streamName, lines)).get();
+                var headers = new RecordHeaders();
+                headers.add("stream", streamName.getBytes(StandardCharsets.UTF_8));
+
+                kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, taskId, lines, headers)).get();
             } catch (Exception e) {
                 logger.warn("Cannot send data to kafka: ", e);
             }
@@ -222,13 +229,13 @@ public class StreamQueue extends Thread {
             this.errQueue = errQueue;
         }
 
-        public static LogHandle fromTopicDesc(Logger logger, @Nullable LMO.KafkaTopicDescription topicDesc,
-                                              KafkaHelper helper)
+        public static LogHandle fromTopicDesc(Logger logger, String taskId, @Nullable KafkaTopicDescription topicDesc,
+                                              @Nullable KafkaHelper helper)
         {
-            var outQueue = new StreamQueue(topicDesc, logger, "out", helper);
+            var outQueue = new StreamQueue(topicDesc, logger, taskId, "out", helper);
             outQueue.start();
 
-            var errQueue = new StreamQueue(topicDesc, logger, "err", helper);
+            var errQueue = new StreamQueue(topicDesc, logger, taskId, "err", helper);
             errQueue.start();
 
             return new LogHandle(outQueue, errQueue, logger);

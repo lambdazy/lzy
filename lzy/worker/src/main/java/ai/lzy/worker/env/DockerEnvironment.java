@@ -15,17 +15,21 @@ import com.github.dockerjava.core.DockerClientBuilder;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.Nullable;
 
 public class DockerEnvironment extends BaseEnvironment {
 
@@ -34,13 +38,11 @@ public class DockerEnvironment extends BaseEnvironment {
 
     @Nullable
     public String containerId = null;
-
     private final BaseEnvConfig config;
     private final DockerClient client;
     private final Retry retry;
 
     public DockerEnvironment(BaseEnvConfig config, DockerClient client) {
-        super();
         this.config = config;
         this.client = client;
         var retryConfig = new RetryConfig.Builder<>()
@@ -132,7 +134,7 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         assert containerId != null;
 
         final int bufferSize = 4096;

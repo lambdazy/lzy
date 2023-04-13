@@ -11,6 +11,7 @@ import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import com.google.common.collect.ImmutableSet;
 import io.grpc.*;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
@@ -95,6 +96,7 @@ public class AuthServerInterceptor implements ServerInterceptor {
         }
     }
 
+    @Nullable
     protected AuthenticationContext authenticate(Metadata headers) {
         String authorizationHeader = headers.get(AUTHORIZATION);
         if (authorizationHeader == null) {

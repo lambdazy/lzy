@@ -24,7 +24,7 @@ public class EnvTest {
 
     @Test
     public void testBashEnv() {
-        var env = factory.create("", LME.EnvSpec.newBuilder()
+        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .build());
 
@@ -34,7 +34,7 @@ public class EnvTest {
 
     @Test
     public void testEnvVariables() throws Exception {
-        var env = factory.create("", LME.EnvSpec.newBuilder()
+        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .putEnv("LOL", "kek")
             .build());
@@ -50,7 +50,7 @@ public class EnvTest {
 
     @Test
     public void testDocker() {
-        var env = factory.create("", LME.EnvSpec.newBuilder()
+        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setDockerImage("ubuntu:latest")
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .build());
@@ -61,7 +61,7 @@ public class EnvTest {
 
     @Test
     public void testConda() {
-        var env = factory.create("", LME.EnvSpec.newBuilder()
+        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setPyenv(LME.PythonEnv.newBuilder()
                 .setName("py39")
                 .setYaml("""

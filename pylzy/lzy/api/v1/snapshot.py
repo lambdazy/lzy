@@ -3,13 +3,12 @@ import sys
 import tempfile
 import uuid
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Type, cast, BinaryIO, Set, Union, List, Optional
-
 from serialzy.api import Schema, SerializerRegistry
 from tqdm import tqdm
+from typing import Any, Dict, Type, cast, BinaryIO, Set, List, Optional
 
 from lzy.api.v1.utils.hashing import HashingIO
-from lzy.logs.config import get_logger, get_color
+from lzy.logs.config import get_logger, get_syslog_color
 from lzy.proxy.result import Either, Absence, Result
 from lzy.storage.api import AsyncStorageClient
 
@@ -126,7 +125,7 @@ class DefaultSnapshot(Snapshot):
         with tempfile.NamedTemporaryFile() as f:
             size = await self.__storage_client.size_in_bytes(storage_uri)
             with tqdm(total=size, desc=f"Downloading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
-                      unit_divisor=1024, colour=get_color()) as bar:
+                      unit_divisor=1024, colour=get_syslog_color()) as bar:
                 await self.__storage_client.read(storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
                 f.seek(0)
                 res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(cast(BinaryIO, f))
@@ -152,7 +151,7 @@ class DefaultSnapshot(Snapshot):
             if not exists:
                 _LOG.debug("Upload data for entry %s", entry_id)
                 with tqdm(total=length, desc=f"Uploading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
-                          unit_divisor=1024, colour=get_color()) as bar:
+                          unit_divisor=1024, colour=get_syslog_color()) as bar:
                     await self.__storage_client.write(entry.storage_uri, cast(BinaryIO, f),
                                                       progress=lambda x: bar.update(x))
             else:

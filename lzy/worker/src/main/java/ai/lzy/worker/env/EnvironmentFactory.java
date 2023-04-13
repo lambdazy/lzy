@@ -30,7 +30,7 @@ public class EnvironmentFactory {
         this.hasGpu = config.getGpuCount() > 0;
     }
 
-    public AuxEnvironment create(String fsRoot, LME.EnvSpec env) {
+    public AuxEnvironment create(String taskId, String fsRoot, LME.EnvSpec env) {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
@@ -81,7 +81,7 @@ public class EnvironmentFactory {
         if (env.hasPyenv()) {
             return new CondaEnvironment(env.getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
         } else if (env.hasProcessEnv()) {
-            return new SimpleBashEnvironment(baseEnv, Map.of());
+            return new SimpleBashEnvironment(taskId, baseEnv, Map.of());
         } else {
             LOG.error("Error while creating env: undefined env");
             throw Status.UNIMPLEMENTED.withDescription("Provided unsupported env")

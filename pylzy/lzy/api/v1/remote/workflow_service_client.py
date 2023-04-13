@@ -3,12 +3,9 @@ import atexit
 import os
 from abc import ABC
 from dataclasses import dataclass
-from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
-
 # noinspection PyPackageRequirements
 from grpc.aio import Channel
-
-from lzy.utils.event_loop import LzyEventLoop
+from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
 from ai.lzy.v1.long_running.operation_pb2 import GetOperationRequest
@@ -37,6 +34,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials, AzureCredentials
+from lzy.utils.event_loop import LzyEventLoop
 from lzy.utils.grpc import add_headers_interceptor, build_channel, build_token, retry, RetryConfig
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
@@ -71,16 +69,17 @@ GraphStatus = Union[Waiting, Executing, Completed, Failed]
 
 
 @dataclass
-class Message(ABC):
-    data: str
+class StdlogMessage(ABC):
+    task_id: str
+    message: str
     offset: int
 
 
-class StderrMessage(Message):
+class StderrMessage(StdlogMessage):
     pass
 
 
-class StdoutMessage(Message):
+class StdoutMessage(StdlogMessage):
     pass
 
 
@@ -182,18 +181,20 @@ class WorkflowServiceClient:
             AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
         )
 
-    async def read_std_slots(self, execution_id: str, logs_offset: int) -> AsyncIterator[Message]:
+    async def read_std_slots(self, execution_id: str, logs_offset: int) -> AsyncIterator[StdlogMessage]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
             ReadStdSlotsRequest(executionId=execution_id, offset=logs_offset)
         )
 
         async for msg in stream:
             if msg.HasField("stderr"):
-                for line in msg.stderr.data:
-                    yield StderrMessage(line, msg.offset)
+                for task_lines in msg.stderr.data:
+                    for line in task_lines.lines.split('\n'):
+                        yield StderrMessage(task_lines.taskId, line + '\n', msg.offset)
             if msg.HasField("stdout"):
-                for line in msg.stdout.data:
-                    yield StdoutMessage(line, msg.offset)
+                for task_lines in msg.stdout.data:
+                    for line in task_lines.lines.split('\n'):
+                        yield StdoutMessage(task_lines.taskId, line + '\n', msg.offset)
 
     @retry(config=RETRY_CONFIG, action_name="starting to execute graph")
     async def execute_graph(self, workflow_name: str, execution_id: str, graph: Graph) -> str:

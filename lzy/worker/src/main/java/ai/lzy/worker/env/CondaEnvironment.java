@@ -3,12 +3,16 @@ package ai.lzy.worker.env;
 import ai.lzy.v1.common.LME;
 import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.annotation.Nullable;
 import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -41,12 +45,8 @@ public class CondaEnvironment implements AuxEnvironment {
         RECONFIGURE_CONDA = reconfigure;
     }
 
-    public CondaEnvironment(
-        LME.PythonEnv pythonEnv,
-        BaseEnvironment baseEnv,
-        String resourcesPath,
-        String localModulesPath
-    )
+    public CondaEnvironment(LME.PythonEnv pythonEnv, BaseEnvironment baseEnv, String resourcesPath,
+                            String localModulesPath)
     {
         this.resourcesPath = resourcesPath;
         this.localModulesPathPrefix = localModulesPath;
@@ -161,12 +161,14 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
-    @SuppressWarnings("checkstyle:Indentation")
-    private LzyProcess execInEnv(String command, String[] envp) {
+    private LzyProcess execInEnv(String command, @Nullable String[] envp) {
         LOG.info("Executing command " + command);
-        String[] bashCmd =
-            new String[] {"bash", "-c", "cd " + localModulesAbsolutePath + " && eval \"$(conda shell.bash hook)\" " +
-                "&& conda activate " + envName + " && " + command};
+        var bashCmd = new String[] {
+            "bash",
+            "-c",
+            "cd %s && eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
+                .formatted(localModulesAbsolutePath, envName, command)
+        };
         return baseEnv.runProcess(bashCmd, envp);
     }
 
@@ -180,7 +182,7 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         List<String> envList = new ArrayList<>();
         envList.add("LOCAL_MODULES=" + localModulesAbsolutePath);
         if (envp != null) {

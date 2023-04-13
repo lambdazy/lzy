@@ -22,7 +22,9 @@ import java.util.function.Consumer;
 
 import static ai.lzy.portal.services.PortalService.PORTAL_ERR_SLOT_NAME;
 import static ai.lzy.portal.services.PortalService.PORTAL_OUT_SLOT_NAME;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class PortalSlotsListener {
     private static final Logger LOG = LogManager.getLogger(PortalSlotsListener.class);
@@ -57,7 +59,11 @@ public class PortalSlotsListener {
                     LWFS.ReadStdSlotsResponse.newBuilder()
                         .setStdout(
                             LWFS.ReadStdSlotsResponse.Data.newBuilder()
-                                .addData(msg.toStringUtf8())
+                                .addData(
+                                    LWFS.ReadStdSlotsResponse.TaskLines.newBuilder()
+                                        .setTaskId("")
+                                        .setLines(msg.toStringUtf8())
+                                        .build())
                                 .build())
                         .build());
             }
@@ -69,7 +75,11 @@ public class PortalSlotsListener {
                     LWFS.ReadStdSlotsResponse.newBuilder()
                         .setStderr(
                             LWFS.ReadStdSlotsResponse.Data.newBuilder()
-                                .addData(msg.toStringUtf8())
+                                .addData(
+                                    LWFS.ReadStdSlotsResponse.TaskLines.newBuilder()
+                                        .setTaskId("")
+                                        .setLines(msg.toStringUtf8())
+                                        .build())
                                 .build())
                         .build());
             }
