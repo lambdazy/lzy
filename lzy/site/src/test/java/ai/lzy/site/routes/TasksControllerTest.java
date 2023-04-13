@@ -9,15 +9,21 @@ import ai.lzy.v1.scheduler.Scheduler;
 import ai.lzy.v1.scheduler.SchedulerApi;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
 import com.google.common.net.HostAndPort;
+import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.http.HttpStatus;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -45,10 +51,10 @@ public class TasksControllerTest extends BaseTestWithIam {
         auth = context.getBean(Auth.class);
         server = context.getBean(EmbeddedServer.class);
         final HostAndPort schedulerAddress = HostAndPort.fromString(serviceConfig.getSchedulerAddress());
-        schedulerServer = NettyServerBuilder.forAddress(
-                new InetSocketAddress(schedulerAddress.getHost(), schedulerAddress.getPort()))
-            .intercept(new AuthServerInterceptor(
-                new AuthenticateServiceGrpcClient("LzySite", serviceConfig.getIam().getAddress())))
+        var iamChannel = context.getBean(ManagedChannel.class, Qualifiers.byName("SiteIamChannel"));
+        schedulerServer = NettyServerBuilder
+            .forAddress(new InetSocketAddress(schedulerAddress.getHost(), schedulerAddress.getPort()))
+            .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient("LzySite", iamChannel)))
             .addService(new SchedulerTasksMock())
             .build();
         schedulerServer.start();

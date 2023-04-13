@@ -92,7 +92,7 @@ public class DbAuthService implements AuthenticateService {
                     LOG.debug("Credentials '{}' ({}) for {} is expired", credName, subjectType, subjectId);
                 }
 
-                deleteOttCredentials(conn, subjectId, credName);
+                deleteSubject(conn, subjectId);
 
                 if (result != null) {
                     LOG.info("Successfully checked {}::{} token with key name {}", subjectType, subjectId, credName);
@@ -185,17 +185,14 @@ public class DbAuthService implements AuthenticateService {
         }
     }
 
-    private void deleteOttCredentials(Connection conn, String subjectId, String credentialsName) {
-        LOG.debug("Delete used OTT {} for {}", credentialsName, subjectId);
+    private void deleteSubject(Connection conn, String subjectId) {
+        LOG.debug("Delete subject {} after using OTT token", subjectId);
 
-        try (var st = conn.prepareStatement("""
-            DELETE FROM credentials WHERE name = ? AND user_id = ?"""))
-        {
-            st.setString(1, credentialsName);
-            st.setString(2, subjectId);
+        try (var st = conn.prepareStatement("DELETE FROM users where user_id = ?")) {
+            st.setString(1, subjectId);
             st.execute();
         } catch (SQLException e) {
-            LOG.error("Cannot delete used OTT {} for {}: {}", credentialsName, subjectId, e.getMessage(), e);
+            LOG.error("Cannot delete subject {} after using OTT token: {}", subjectId, e.getMessage());
         }
     }
 }

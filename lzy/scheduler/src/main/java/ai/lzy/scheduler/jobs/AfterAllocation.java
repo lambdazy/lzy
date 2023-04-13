@@ -67,7 +67,7 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
                 subj = subjectClient.createSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER,
                     new SubjectCredentials("main", task.workerPublicKey(), CredentialsType.PUBLIC_KEY));
             } catch (AuthUniqueViolationException e) {
-                subj = subjectClient.findSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.VM);
+                subj = subjectClient.findSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER);
 
                 try {
                     subjectClient.addCredentials(subj,

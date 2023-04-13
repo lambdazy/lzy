@@ -17,3 +17,9 @@ Configuration:
     Logger:
       - name: io.zonky.test
         level: warn
+
+      - name: org.flywaydb
+        level: warn
+
+      - name: com.mchange.v2
+        level: warn
