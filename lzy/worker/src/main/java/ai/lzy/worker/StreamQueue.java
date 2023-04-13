@@ -161,7 +161,7 @@ public class StreamQueue extends Thread {
             }
 
             if (srcPos > linesPos) {
-                writeLines(copyOfRange(buf, linesPos, srcPos - linesPos));
+                writeLines(copyOfRange(buf, linesPos, srcPos));
             }
         } catch (IOException e) {
             logger.error("Error while writing to stream {}: ", streamName, e);
