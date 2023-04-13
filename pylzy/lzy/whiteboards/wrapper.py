@@ -121,7 +121,15 @@ class WhiteboardWrapper:
         with tqdm(total=size, desc=f"Downloading {name}", file=sys.stdout, unit='B', unit_scale=True,
                   unit_divisor=1024, colour=get_syslog_color()) as bar:
             with tempfile.TemporaryFile() as f:
-                await self.__storage.read(storage_uri, f, progress=lambda x: bar.update(x))  # type: ignore
+                bar.clear()
+
+                def progress(update: int, restart: bool):
+                    if restart:
+                        bar.reset()
+                    else:
+                        bar.update(update)
+
+                await self.__storage.read(storage_uri, f, progress=progress)  # type: ignore
                 f.seek(0)
                 # Running in separate thread to not block loop
                 return await asyncio.get_running_loop().run_in_executor(None, serializer.deserialize, f, typ)

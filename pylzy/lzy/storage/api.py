@@ -62,7 +62,7 @@ class AsyncStorageClient(ABC):
         pass
 
     @abstractmethod
-    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], Any]] = None) -> None:
+    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None) -> None:
         """
         Read data from remote storage into BinaryIO
         @param uri: URI of data in storage
@@ -72,7 +72,7 @@ class AsyncStorageClient(ABC):
         pass
 
     @abstractmethod
-    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
+    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None):
         pass
 
     @abstractmethod

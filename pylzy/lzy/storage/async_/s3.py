@@ -1,7 +1,12 @@
+import asyncio
+import warnings
 from typing import BinaryIO, cast, Callable, Optional, Any
 
 from aioboto3 import Session
-from botocore.exceptions import ClientError
+from aiobotocore.response import AioReadTimeoutError
+from aiohttp import ServerTimeoutError
+from botocore.config import Config
+from botocore.exceptions import ClientError, EndpointConnectionError
 
 from lzy.storage.api import S3Credentials, AsyncStorageClient
 from lzy.storage.url import Scheme, bucket_from_uri, uri_from_bucket
@@ -9,6 +14,8 @@ from lzy.storage.url import Scheme, bucket_from_uri, uri_from_bucket
 
 class S3Client(AsyncStorageClient):
     scheme = Scheme.s3
+    __retry_count = 12000
+    __retry_period_s = 1
 
     def __init__(self, credentials: S3Credentials):
         self.__credentials = credentials
@@ -19,6 +26,12 @@ class S3Client(AsyncStorageClient):
             aws_access_key_id=self.__credentials.access_key_id,
             aws_secret_access_key=self.__credentials.secret_access_key,
             endpoint_url=self.__credentials.endpoint,
+            config=Config(
+                retries={
+                    "max_attempts": self.__retry_count,
+                    "mode": "adaptive"
+                }
+            )
         )
 
     async def size_in_bytes(self, uri: str) -> int:
@@ -27,16 +40,39 @@ class S3Client(AsyncStorageClient):
             head = await client.head_object(Bucket=bucket, Key=key)
             return cast(int, head['ContentLength'])
 
-    async def read(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
-        async with self._get_client_context() as client:
-            bucket, key = bucket_from_uri(self.scheme, uri)
-            await client.download_fileobj(bucket, key, data, Callback=progress)
+    async def read(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None):
+        current_count = 0
+        while current_count < self.__retry_count:
+            try:
+                async with self._get_client_context() as client:
+                    bucket, key = bucket_from_uri(self.scheme, uri)
+                    data.seek(0)
+                    progress(0, True)
+                    await client.download_fileobj(bucket, key, data, Callback=lambda x: progress(x, False))
+                    break
+            except (ServerTimeoutError, AioReadTimeoutError, EndpointConnectionError):
+                warnings.warn(
+                    f"Lost connection while reading data from {uri}."
+                    f" Retrying, attempt {current_count}/{self.__retry_count}")
+                await asyncio.sleep(self.__retry_period_s)
+                current_count += 1
 
-    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None) -> str:
-        async with self._get_client_context() as client:
-            bucket, key = bucket_from_uri(self.scheme, uri)
-            await client.upload_fileobj(data, bucket, key, Callback=progress)
-            return uri_from_bucket(self.scheme, bucket, key)
+    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None) -> str:
+        current_count = 0
+        while current_count < self.__retry_count:
+            try:
+                async with self._get_client_context() as client:
+                    bucket, key = bucket_from_uri(self.scheme, uri)
+                    data.seek(0)
+                    progress(0, True)
+                    await client.upload_fileobj(data, bucket, key, Callback=lambda x: progress(x, False))
+                    return uri_from_bucket(self.scheme, bucket, key)
+            except (ServerTimeoutError, EndpointConnectionError):
+                warnings.warn(
+                    f"Lost connection while reading data from {uri}."
+                    f" Retrying, attempt {current_count}/{self.__retry_count}")
+                await asyncio.sleep(self.__retry_period_s)
+                current_count += 1
 
     async def copy(self, from_uri: str, to_uri: str) -> None:
         bucket_from, key_from = bucket_from_uri(self.scheme, from_uri)
