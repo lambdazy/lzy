@@ -175,7 +175,7 @@ public class VmDaoImpl implements VmDao {
         SELECT %s
         FROM vm
         WHERE (status = 'IDLE' AND idle_deadline < NOW())
-           OR (status = 'RUNNING' AND activity_deadline < NOW())
+           OR ((status = 'RUNNING' OR status = 'IDLE') AND activity_deadline < NOW())
         LIMIT ?""".formatted(ALL_FIELDS);
 
     private static final String QUERY_LOAD_NOT_COMPLETED_VMS = """
