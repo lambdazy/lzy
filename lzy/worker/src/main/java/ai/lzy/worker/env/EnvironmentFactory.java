@@ -64,14 +64,14 @@ public class EnvironmentFactory {
                     } catch (Exception e) {
                         LOG.error("Cannot kill docker container {}", cachedEnv.containerId, e);
                     }
-                    baseEnv = new DockerEnvironment(taskId, config, DockerEnvironment.generateClient(credentials));
+                    baseEnv = new DockerEnvironment(config, DockerEnvironment.generateClient(credentials));
                     createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
                 } else {
                     baseEnv = cachedEnv;
                 }
 
             } else {
-                baseEnv = new DockerEnvironment(taskId, config, DockerEnvironment.generateClient(credentials));
+                baseEnv = new DockerEnvironment(config, DockerEnvironment.generateClient(credentials));
                 createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
             }
         } else {
@@ -79,7 +79,7 @@ public class EnvironmentFactory {
         }
 
         if (env.hasPyenv()) {
-            return new CondaEnvironment(taskId, env.getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
+            return new CondaEnvironment(env.getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
         } else if (env.hasProcessEnv()) {
             return new SimpleBashEnvironment(taskId, baseEnv, Map.of());
         } else {

@@ -36,15 +36,13 @@ public class DockerEnvironment extends BaseEnvironment {
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final long GB_AS_BYTES = 1073741824;
 
-    private final String taskId;
     @Nullable
     public String containerId = null;
     private final BaseEnvConfig config;
     private final DockerClient client;
     private final Retry retry;
 
-    public DockerEnvironment(String taskId, BaseEnvConfig config, DockerClient client) {
-        this.taskId = taskId;
+    public DockerEnvironment(BaseEnvConfig config, DockerClient client) {
         this.config = config;
         this.client = client;
         var retryConfig = new RetryConfig.Builder<>()
@@ -58,7 +56,7 @@ public class DockerEnvironment extends BaseEnvironment {
     @Override
     public void install(StreamQueue.LogHandle handle) throws EnvironmentInstallationException {
         if (containerId != null) {
-            handle.logOut(taskId, "Using already running container from cache");
+            handle.logOut("Using already running container from cache");
             LOG.info("Using already running container from cache; containerId: {}", containerId);
             return;
         }
@@ -67,10 +65,10 @@ public class DockerEnvironment extends BaseEnvironment {
         try {
             prepareImage(sourceImage, handle);
         } catch (InterruptedException e) {
-            handle.logErr(taskId, "Image pulling was interrupted");
+            handle.logErr("Image pulling was interrupted");
             throw new RuntimeException(e);
         } catch (Exception e) {
-            handle.logErr(taskId, "Error while pulling image: {}", e);
+            handle.logErr("Error while pulling image: {}", e);
             LOG.error("Error while pulling image {}", sourceImage, e);
             throw new RuntimeException(e);
         }
@@ -117,14 +115,14 @@ public class DockerEnvironment extends BaseEnvironment {
         handle.logOut("Creating container from image {} done", sourceImage);
         LOG.info("Creating container done; containerId: {}, image: {}", containerId, sourceImage);
 
-        handle.logOut(taskId, "Environment container starting ...");
+        handle.logOut("Environment container starting ...");
         AtomicInteger containerStartingAttempt = new AtomicInteger(0);
         retry.executeSupplier(() -> {
             LOG.info("Starting env container... (attempt {}); containerId: {}, image: {}",
                 containerStartingAttempt.incrementAndGet(), containerId, sourceImage);
             return client.startContainerCmd(containerId).exec();
         });
-        handle.logOut(taskId, "Environment container started");
+        handle.logOut("Environment container started");
         LOG.info("Starting env container done; containerId: {}, image: {}", containerId, sourceImage);
 
         this.containerId = containerId;

@@ -32,7 +32,6 @@ public class CondaEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private static final Lock lockForMultithreadingTests = new ReentrantLock();
 
-    private final String taskId;
     private final LME.PythonEnv pythonEnv;
     private final BaseEnvironment baseEnv;
     private final String envName;
@@ -46,10 +45,9 @@ public class CondaEnvironment implements AuxEnvironment {
         RECONFIGURE_CONDA = reconfigure;
     }
 
-    public CondaEnvironment(String taskId, LME.PythonEnv pythonEnv, BaseEnvironment baseEnv, String resourcesPath,
+    public CondaEnvironment(LME.PythonEnv pythonEnv, BaseEnvironment baseEnv, String resourcesPath,
                             String localModulesPath)
     {
-        this.taskId = taskId;
         this.resourcesPath = resourcesPath;
         this.localModulesPathPrefix = localModulesPath;
         this.pythonEnv = pythonEnv;
@@ -102,8 +100,8 @@ public class CondaEnvironment implements AuxEnvironment {
                             condaFile.getAbsolutePath())
                     );
 
-                    var futOut = logHandle.logOut(taskId, lzyProcess.out());
-                    var futErr = logHandle.logErr(taskId, lzyProcess.err());
+                    var futOut = logHandle.logOut(lzyProcess.out());
+                    var futErr = logHandle.logErr(lzyProcess.err());
 
                     final int rc;
                     try {
