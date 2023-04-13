@@ -1,6 +1,7 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.alloc.dao.DynamicMountDao;
+import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.impl.kuber.MountHolderManager;
 import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
@@ -31,6 +32,7 @@ public record AllocationContext(
     AllocatorDataSource storage,
     @Named("AllocatorOperationDao") OperationDao operationsDao,
     VmDao vmDao,
+    SessionDao sessionDao,
     @Named("AllocatorOperationsExecutor") OperationsExecutor executor,
     @Named("AllocatorSubjectServiceClient") SubjectServiceGrpcClient subjectClient,
     VmAllocator allocator,
