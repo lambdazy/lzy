@@ -3,13 +3,17 @@ import warnings
 from typing import BinaryIO, cast, Callable, Optional, Any
 
 from aioboto3 import Session
-from aiobotocore.response import AioReadTimeoutError
+from aiobotocore.response import AioReadTimeoutError  # type: ignore
 from aiohttp import ServerTimeoutError
 from botocore.config import Config
 from botocore.exceptions import ClientError, EndpointConnectionError
 
 from lzy.storage.api import S3Credentials, AsyncStorageClient
 from lzy.storage.url import Scheme, bucket_from_uri, uri_from_bucket
+
+
+def _empty_progress(i: int, b: bool):
+    pass
 
 
 class S3Client(AsyncStorageClient):
@@ -41,15 +45,17 @@ class S3Client(AsyncStorageClient):
             return cast(int, head['ContentLength'])
 
     async def read(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None):
+        real_progress = progress if progress is not None else _empty_progress
+
         current_count = 0
         while current_count < self.__retry_count:
             try:
                 async with self._get_client_context() as client:
                     bucket, key = bucket_from_uri(self.scheme, uri)
                     data.seek(0)
-                    progress(0, True)
-                    await client.download_fileobj(bucket, key, data, Callback=lambda x: progress(x, False))
-                    break
+                    real_progress(0, True)
+                    await client.download_fileobj(bucket, key, data, Callback=lambda x: real_progress(x, False))
+                    return
             except (ServerTimeoutError, AioReadTimeoutError, EndpointConnectionError):
                 warnings.warn(
                     f"Lost connection while reading data from {uri}."
@@ -57,15 +63,19 @@ class S3Client(AsyncStorageClient):
                 await asyncio.sleep(self.__retry_period_s)
                 current_count += 1
 
+        raise RuntimeError("Cannot read data from s3")
+
     async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None) -> str:
+        real_progress = progress if progress is not None else _empty_progress
+
         current_count = 0
         while current_count < self.__retry_count:
             try:
                 async with self._get_client_context() as client:
                     bucket, key = bucket_from_uri(self.scheme, uri)
                     data.seek(0)
-                    progress(0, True)
-                    await client.upload_fileobj(data, bucket, key, Callback=lambda x: progress(x, False))
+                    real_progress(0, True)
+                    await client.upload_fileobj(data, bucket, key, Callback=lambda x: real_progress(x, False))
                     return uri_from_bucket(self.scheme, bucket, key)
             except (ServerTimeoutError, EndpointConnectionError):
                 warnings.warn(
@@ -73,6 +83,8 @@ class S3Client(AsyncStorageClient):
                     f" Retrying, attempt {current_count}/{self.__retry_count}")
                 await asyncio.sleep(self.__retry_period_s)
                 current_count += 1
+
+        raise RuntimeError("Cannot write data to s3")
 
     async def copy(self, from_uri: str, to_uri: str) -> None:
         bucket_from, key_from = bucket_from_uri(self.scheme, from_uri)
