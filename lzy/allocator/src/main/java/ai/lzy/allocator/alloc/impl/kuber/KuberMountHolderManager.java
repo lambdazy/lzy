@@ -20,6 +20,7 @@ import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -91,12 +92,6 @@ public class KuberMountHolderManager implements MountHolderManager {
 
             return new ClusterPod(cluster.clusterId(), podName);
         }
-    }
-
-    @NotNull
-    public static HostPathVolumeDescription createHostPathVolume(ServiceConfig.MountConfig mountConfig) {
-        return new HostPathVolumeDescription("host-path-volume-" + UUID.randomUUID(), HOST_VOLUME_NAME,
-            mountConfig.getHostMountPoint(), HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE);
     }
 
     @Override
@@ -194,8 +189,7 @@ public class KuberMountHolderManager implements MountHolderManager {
 
     private Workload createWorkload() {
         final List<VolumeMount> mounts = new ArrayList<>(2);
-        mounts.add(new VolumeMount(HOST_VOLUME_NAME, mountConfig.getWorkerMountPoint(), false,
-            VolumeMount.MountPropagation.BIDIRECTIONAL));
+        mounts.add(prepareVolumeMount(mountConfig));
 
         return new Workload(
             "mount-holder",
@@ -205,6 +199,18 @@ public class KuberMountHolderManager implements MountHolderManager {
             Map.of(),
             mounts
         );
+    }
+
+    @Nonnull
+    public static VolumeMount prepareVolumeMount(ServiceConfig.MountConfig mountConfig) {
+        return new VolumeMount(HOST_VOLUME_NAME, mountConfig.getWorkerMountPoint(), false,
+            VolumeMount.MountPropagation.BIDIRECTIONAL);
+    }
+
+    @NotNull
+    public static HostPathVolumeDescription createHostPathVolume(ServiceConfig.MountConfig mountConfig) {
+        return new HostPathVolumeDescription("host-path-volume-" + UUID.randomUUID(), HOST_VOLUME_NAME,
+            mountConfig.getHostMountPoint(), HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE);
     }
 
     @NotNull

@@ -17,7 +17,6 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.grpc.Status;
 import org.jetbrains.annotations.NotNull;
 
-import java.net.HttpURLConnection;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Supplier;
@@ -162,7 +161,8 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
                 update, null));
         } catch (Exception e) {
             log().error("{} Couldn't set volume info", logPrefix(), e);
-            return StepResult.RESTART;
+            fail(Status.ABORTED.withDescription("Couldn't set volume info"));
+            return StepResult.FINISH;
         }
         return StepResult.CONTINUE;
     }
@@ -185,15 +185,12 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             mountHolderManager.attachVolume(mountPod, dynamicMount, volumeClaim);
             this.mountPod = mountPod;
         } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-                log().error("{} Mount pod {} is not found", logPrefix(), mountPodName);
-                fail(Status.FAILED_PRECONDITION.withDescription("Mount pod " + mountPodName + " is not found"));
+            log().error("{} Couldn't attach mount {} to pod {}", logPrefix(), dynamicMount.id(), mountPodName, e);
+            if (KuberUtils.isNotRetryable(e)) {
+                fail(Status.ABORTED.withDescription("Couldn't attach mount " + dynamicMount.id() + " to pod " +
+                    mountPodName + ": " + e.getMessage()));
                 return StepResult.FINISH;
             }
-            log().error("{} Couldn't attach mount {} to pod {}", logPrefix(), dynamicMount.id(), mountPodName, e);
-            return StepResult.RESTART;
-        } catch (Exception e) {
-            log().error("{} Couldn't attach mount {} to pod {}", logPrefix(), dynamicMount.id(), mountPodName, e);
             return StepResult.RESTART;
         }
 
@@ -210,7 +207,8 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         } catch (KubernetesClientException e) {
             log().error("{} Couldn't check pod {} phase", logPrefix(), mountPod, e);
             if (KuberUtils.isNotRetryable(e)) {
-                fail(Status.ABORTED.withDescription("Couldn't check pod " + mountPod.podName() + " phase"));
+                fail(Status.ABORTED.withDescription("Couldn't check pod " + mountPod.podName() + " phase: " +
+                    e.getMessage()));
                 return StepResult.FINISH;
             }
             return StepResult.RESTART;
@@ -252,7 +250,8 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             }
         } catch (Exception e) {
             log().error("{} Couldn't get vm {}", logPrefix(), vm.vmId(), e);
-            return StepResult.RESTART;
+            fail(Status.ABORTED.withDescription("Couldn't get vm " + vm.vmId() + ": " + e.getMessage()));
+            return StepResult.FINISH;
         }
         return StepResult.CONTINUE;
     }
@@ -271,7 +270,9 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
                 update, null));
         } catch (Exception e) {
             log().error("{} Couldn't update mount {} state", logPrefix(), dynamicMount.id(), e);
-            return StepResult.RESTART;
+            fail(Status.ABORTED.withDescription("Couldn't update mount " + dynamicMount.id() + " state: " +
+                e.getMessage()));
+            return StepResult.FINISH;
         }
         return StepResult.FINISH;
     }

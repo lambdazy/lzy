@@ -62,6 +62,7 @@ public class RestoreOperations {
                     idle, run, allocationContext.selfWorkerId());
             }
         } catch (SQLException e) {
+            LOG.error("Failed to restore metrics", e);
             throw new RuntimeException(e);
         }
     }
@@ -92,6 +93,7 @@ public class RestoreOperations {
                 LOG.info("Not completed allocations weren't found.");
             }
         } catch (SQLException e) {
+            LOG.error("Failed to restore VM actions", e);
             throw new RuntimeException(e);
         }
     }
@@ -111,16 +113,19 @@ public class RestoreOperations {
                 });
             }
         } catch (SQLException e) {
+            LOG.error("Failed to restore sessions removal", e);
             throw new RuntimeException(e);
         }
     }
 
     private void restoreMountDynamicDiskActions() {
+        LOG.info("Restoring mount dynamic disk actions");
         try {
             List<OperationRunnerBase> actions = withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     var pendingMounts = allocationContext.dynamicMountDao()
                         .getPending(allocationContext.selfWorkerId(), tx);
+                    LOG.info("Found {} pending mounts", pendingMounts.size());
                     if (pendingMounts.isEmpty()) {
                         return List.of();
                     }
@@ -149,9 +154,12 @@ public class RestoreOperations {
                         actionsToRun.add(unmountAction.getLeft());
                     }
                     tx.commit();
+                    LOG.info("Found {} mount dynamic disk actions to restore, {} of them are for unmount",
+                        actionsToRun.size(), mountsToRemove.size());
                     return actionsToRun;
                 }
             });
+
             actions.forEach(allocationContext::startNew);
         } catch (Exception e) {
             LOG.error("Failed to restore mount dynamic disk actions", e);
@@ -160,11 +168,13 @@ public class RestoreOperations {
     }
 
     private void restoreUnmountDynamicDiskActions() {
+        LOG.info("Restoring unmount dynamic disk actions");
         try {
             List<UnmountDynamicDiskAction> actions = withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     var deletingMounts = allocationContext.dynamicMountDao()
                         .getDeleting(allocationContext.selfWorkerId(), tx);
+                    LOG.info("Found {} deleting dynamic disks", deletingMounts.size());
                     if (deletingMounts.isEmpty()) {
                         return List.of();
                     }
@@ -187,6 +197,7 @@ public class RestoreOperations {
                     return actionsToRun;
                 }
             });
+            LOG.info("Restore {} unmount dynamic disk actions", actions.size());
             actions.forEach(allocationContext::startNew);
         } catch (Exception e) {
             LOG.error("Failed to restore unmount dynamic disk actions", e);

@@ -167,9 +167,7 @@ public class KuberVmAllocator implements VmAllocator {
             }
 
             // for mount pvc without restarting worker pod
-            final VolumeMount baseVolume = new VolumeMount(KuberMountHolderManager.HOST_VOLUME_NAME,
-                mountConfig.getWorkerMountPoint(), false,
-                VolumeMount.MountPropagation.BIDIRECTIONAL);
+            final VolumeMount baseVolume = KuberMountHolderManager.prepareVolumeMount(mountConfig);
             if (mountConfig.isEnabled()) {
                 podSpecBuilder.withHostVolumes(List.of(KuberMountHolderManager.createHostPathVolume(mountConfig)));
             }

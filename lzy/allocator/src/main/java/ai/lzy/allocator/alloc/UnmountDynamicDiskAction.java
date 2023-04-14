@@ -69,9 +69,12 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             allocationContext.mountHolderManager().detachVolume(ClusterPod.of(dynamicMount.clusterId(), mountPodName),
                 dynamicMount.mountName());
             mountPodRecreated = true;
-        } catch (Exception e) {
+        } catch (KubernetesClientException e) {
             log().error("{} Failed to detach volume {} from pod {}", logPrefix(), dynamicMount.mountName(),
                 mountPodName, e);
+            if (KuberUtils.isNotRetryable(e)) {
+                return StepResult.CONTINUE;
+            }
             return StepResult.RESTART;
         }
         return StepResult.CONTINUE;
@@ -97,8 +100,8 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         }
 
         try {
-            var podPhase = allocationContext.mountHolderManager()
-                .checkPodPhase(ClusterPod.of(dynamicMount.clusterId(), mountPodName));
+            var podPhase = allocationContext.mountHolderManager().checkPodPhase(ClusterPod.of(dynamicMount.clusterId(),
+                mountPodName));
             switch (podPhase) {
                 case RUNNING:
                     mountPodStarted = true;
@@ -111,8 +114,12 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
                     log().error("{} Mount pod {} is in unexpected state {}", logPrefix(), mountPodName, podPhase);
                     return StepResult.CONTINUE;
             }
-        } catch (Exception e) {
+        } catch (KubernetesClientException e) {
             log().error("{} Failed to check mount pod {} state", logPrefix(), mountPodName, e);
+            if (KuberUtils.isNotRetryable(e)) {
+                return StepResult.CONTINUE;
+            }
+            return StepResult.RESTART;
         }
         return StepResult.CONTINUE;
     }
@@ -153,9 +160,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             }
         } catch (Exception e) {
             log().error("{} Failed to count mounts by volume claim", logPrefix(), e);
-            return StepResult.RESTART;
         }
-
         return StepResult.CONTINUE;
     }
 
@@ -167,8 +172,11 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         try {
             allocationContext.volumeManager().deleteClaim(dynamicMount.clusterId(), dynamicMount.volumeClaimName());
             volumeClaimDeleted = true;
-        } catch (Exception e) {
+        } catch (KubernetesClientException e) {
             log().error("{} Failed to delete volume claim {}", logPrefix(), dynamicMount.volumeDescription().id(), e);
+            if (KuberUtils.isNotRetryable(e)) {
+                return StepResult.CONTINUE;
+            }
             return StepResult.RESTART;
         }
 
@@ -187,8 +195,11 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         try {
             allocationContext.volumeManager().delete(dynamicMount.clusterId(), dynamicMount.volumeName());
             volumeDeleted = true;
-        } catch (Exception e) {
+        } catch (KubernetesClientException e) {
             log().error("{} Failed to delete volume {}", logPrefix(), dynamicMount.volumeDescription().id(), e);
+            if (KuberUtils.isNotRetryable(e)) {
+                return StepResult.CONTINUE;
+            }
             return StepResult.RESTART;
         }
         return StepResult.CONTINUE;
@@ -204,7 +215,6 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             mountDeleted = true;
         } catch (Exception e) {
             log().error("{} Failed to delete mount {}", logPrefix(), dynamicMount.id(), e);
-            return StepResult.RESTART;
         }
         return StepResult.FINISH;
     }

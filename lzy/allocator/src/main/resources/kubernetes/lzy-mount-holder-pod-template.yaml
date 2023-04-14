@@ -14,20 +14,16 @@ spec:
         privileged: true
         runAsUser: 0
       command: ["sh", "-c", "tail -f /dev/null"]
-      volumeMounts:
-        - mountPath: /mnt
-          name: base-volume
-          mountPropagation: Bidirectional
-  volumes:
-    - name: base-volume
-      hostPath:
-        path: /mnt
-        type: Directory
   restartPolicy: Never
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         - labelSelector:
+            matchExpressions:
+              - key: lzy.ai/app
+                operator: In
+                values:
+                  - mount-holder
           topologyKey: "kubernetes.io/hostname"
   dnsPolicy: ClusterFirstWithHostNet
   hostNetwork: true

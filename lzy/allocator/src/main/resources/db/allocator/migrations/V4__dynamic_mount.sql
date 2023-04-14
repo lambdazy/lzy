@@ -16,5 +16,7 @@ CREATE TABLE IF NOT EXISTS dynamic_mount(
     UNIQUE (vm_id, mount_name)
 );
 
+CREATE INDEX IF NOT EXISTS dynamic_mount_vm_id_idx ON dynamic_mount(cluster_id, volume_claim_name);
+
 ALTER TABLE vm
     ADD COLUMN mount_pod_name TEXT DEFAULT NULL;

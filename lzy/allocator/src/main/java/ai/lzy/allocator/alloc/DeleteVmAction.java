@@ -2,6 +2,7 @@ package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.ClusterPod;
+import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.util.AllocatorUtils;
@@ -229,12 +230,18 @@ public final class DeleteVmAction extends OperationRunnerBase {
     }
 
     private StepResult deleteAllMounts() {
+        if (!allocationContext.mountConfig().isEnabled()) {
+            return StepResult.ALREADY_DONE;
+        }
         try {
             var unmountActions = withRetries(log(), () -> {
                 var actions = new ArrayList<Runnable>();
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                    var mounts = allocationContext.dynamicMountDao().getPending(vm.vmId(), tx);
+                    var mounts = allocationContext.dynamicMountDao().getByVm(vm.vmId(), tx);
                     for (var mount : mounts) {
+                        if (mount.state() == DynamicMount.State.DELETING) {
+                            continue;
+                        }
                         var unmountActionWithOp = allocationContext.createUnmountAction(vm, mount, tx);
                         actions.add(unmountActionWithOp.getLeft());
                     }
