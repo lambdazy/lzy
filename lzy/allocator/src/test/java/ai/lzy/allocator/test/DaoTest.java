@@ -7,7 +7,13 @@ import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.allocator.disk.dao.DiskDao;
-import ai.lzy.allocator.model.*;
+import ai.lzy.allocator.model.CachePolicy;
+import ai.lzy.allocator.model.DiskVolumeDescription;
+import ai.lzy.allocator.model.Session;
+import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.VolumeMount;
+import ai.lzy.allocator.model.VolumeRequest;
+import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.common.IdGenerator;
@@ -309,7 +315,7 @@ public class DaoTest {
             now().plus(Duration.ofDays(1)),
             "worker",
             "reqid",
-            "ott",
+            "ott" + UUID.randomUUID(),
             null,
             null);
         return vmDao.create(vmSpec, vmAllocState, null);
