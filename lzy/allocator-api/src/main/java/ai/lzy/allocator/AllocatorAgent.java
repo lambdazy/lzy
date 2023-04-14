@@ -1,5 +1,6 @@
 package ai.lzy.allocator;
 
+import ai.lzy.util.auth.credentials.OttHelper;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.VmAllocatorPrivateApi;
@@ -10,7 +11,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Timer;
@@ -62,8 +62,7 @@ public class AllocatorAgent extends TimerTask {
         Objects.requireNonNull(this.heartbeatPeriod);
         Objects.requireNonNull(ott);
 
-        var auth = Base64.getEncoder().encodeToString((this.vmId + '/' + ott).getBytes());
-        authInterceptor = ClientHeaderInterceptor.authorization(() -> auth);
+        authInterceptor = OttHelper.createOttClientInterceptor(this.vmId, ott);
 
         timer = new Timer("allocator-agent-timer-" + this.vmId);
     }

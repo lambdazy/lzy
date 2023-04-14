@@ -46,8 +46,6 @@ public interface VmDao {
     @Nullable
     Map<String, String> getAllocatorMeta(String vmId, @Nullable TransactionHandle tx) throws SQLException;
 
-    void setVmSubjectId(String vmId, String vmSubjectId, @Nullable TransactionHandle tx) throws SQLException;
-
     void setTunnelPod(String vmId, String tunnelPodName, @Nullable TransactionHandle tx) throws SQLException;
 
     void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle tx)
@@ -71,4 +69,10 @@ public interface VmDao {
 
     @VisibleForTesting
     boolean hasDeadVm(String vmId) throws SQLException;
+
+    @Nullable
+    Vm findVmByOtt(String vmOtt, @Nullable TransactionHandle tx) throws SQLException;
+
+    @Nullable
+    String resetVmOtt(String vmOtt, @Nullable TransactionHandle tx) throws SQLException;
 }

@@ -3,12 +3,8 @@ package ai.lzy.allocator.alloc;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
-import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.util.auth.exceptions.AuthException;
-import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import com.google.protobuf.Any;
 import com.google.protobuf.Empty;
 
@@ -23,8 +19,6 @@ public final class DeleteVmAction extends OperationRunnerBase {
     private final String vmId;
     private final AllocationContext allocationContext;
     private Vm vm;
-    private String vmSubjectId = null;
-    private boolean iamSubjectDeleted = false;
     private boolean tunnelDeleted = false;
     private boolean tunnelAgentDeleted = false;
     private boolean deallocated = false;
@@ -60,8 +54,7 @@ public final class DeleteVmAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(this::start, this::deleteIamSubject, this::deleteTunnel, this::deallocateTunnel,
-                this::deallocateVm, this::cleanDb);
+        return List.of(this::start, this::deleteTunnel, this::deallocateTunnel, this::deallocateVm, this::cleanDb);
     }
 
     private StepResult start() {
@@ -95,47 +88,6 @@ public final class DeleteVmAction extends OperationRunnerBase {
             }
             case ALLOCATING -> throw new IllegalStateException("Unexpected value: " + vm.status());
         };
-    }
-
-    private StepResult deleteIamSubject() {
-        if (iamSubjectDeleted) {
-            return StepResult.ALREADY_DONE;
-        }
-
-        if (vmSubjectId == null) {
-            vmSubjectId = vm.instanceProperties().vmSubjectId();
-            if (vmSubjectId == null || vmSubjectId.isEmpty()) {
-                try {
-                    var vmSubject = allocationContext.subjectClient()
-                        .findSubject(AuthProvider.INTERNAL, vm.vmId(), SubjectType.VM);
-                    if (vmSubject != null) {
-                        log().error("{}: Found leaked IAM subject {}", logPrefix(), vmSubject.id());
-                        vmSubjectId = vmSubject.id();
-                    }
-                } catch (AuthException e) {
-                    log().info("{} Removing IAM subject {} error: {}", logPrefix(), vmSubjectId, e.getMessage());
-                }
-            }
-        }
-
-        if (vmSubjectId != null && !vmSubjectId.isEmpty()) {
-            log().info("{} Removing IAM subject {}...", logPrefix(), vmSubjectId);
-            try {
-                allocationContext.subjectClient().removeSubject(new ai.lzy.iam.resources.subjects.Vm(vmSubjectId));
-                iamSubjectDeleted = true;
-            } catch (AuthException e) {
-                if (e instanceof AuthNotFoundException) {
-                    log().warn("{} IAM subject {} not found", logPrefix(), vmSubjectId);
-                    iamSubjectDeleted = true;
-                } else {
-                    log().error("{} Error during deleting IAM subject {}: {}. Retry later...",
-                        logPrefix(), vmSubjectId, e.getMessage());
-                    return StepResult.RESTART;
-                }
-            }
-        }
-
-        return StepResult.CONTINUE;
     }
 
     private StepResult deleteTunnel() {

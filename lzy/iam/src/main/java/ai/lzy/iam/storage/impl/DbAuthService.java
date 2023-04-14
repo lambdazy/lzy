@@ -1,12 +1,15 @@
 package ai.lzy.iam.storage.impl;
 
 import ai.lzy.iam.clients.AuthenticateService;
-import ai.lzy.iam.resources.subjects.*;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.resources.subjects.User;
+import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.util.auth.credentials.OttCredentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
@@ -20,10 +23,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
 import java.io.StringReader;
-import java.sql.Connection;
 import java.sql.SQLException;
-import java.time.Instant;
-import java.util.Base64;
 import javax.annotation.Nonnull;
 
 @Singleton
@@ -36,73 +36,11 @@ public class DbAuthService implements AuthenticateService {
 
     @Override
     public Subject authenticate(Credentials credentials) throws AuthException {
-        if (credentials instanceof OttCredentials ott) {
-            return authenticateOtt(ott);
-        }
-
         if (credentials instanceof JwtCredentials) {
             return authenticateJwt(credentials);
         }
 
         throw new AuthUnauthenticatedException("Failed to authenticate. Unknown credentials type.");
-    }
-
-    @Nonnull
-    private Subject authenticateOtt(OttCredentials ott) {
-        var decoded = new String(Base64.getDecoder().decode(ott.token()));
-        int separatorIdx = decoded.indexOf('/');
-
-        var providerSubjectId = decoded.substring(0, separatorIdx);
-        var token = decoded.substring(separatorIdx + 1);
-
-        LOG.debug("Authenticate by OTT: id={}, token={}...", providerSubjectId, token.substring(4));
-
-        try (var conn = storage.connect();
-             var st = conn.prepareStatement("""
-                SELECT
-                    c.user_id AS user_id,
-                    c.name AS cred_name,
-                    c.expired_at AS expired_at,
-                    u.user_type AS user_type
-                FROM credentials AS c
-                JOIN users AS u
-                  ON c.user_id = u.user_id
-                WHERE u.provider_user_id = ? AND u.auth_provider = 'INTERNAL'
-                  AND c.type = 'OTT' AND c.value = ?
-                """))
-        {
-            st.setString(1, providerSubjectId);
-            st.setString(2, token);
-
-            var rs = st.executeQuery();
-            if (rs.next()) {
-                var subjectId = rs.getString("user_id");
-                var subjectType = SubjectType.valueOf(rs.getString("user_type"));
-                var expiredAt = rs.getTimestamp("expired_at").toInstant();
-                var credName = rs.getString("cred_name");
-
-                Subject result = null;
-                if (expiredAt.isAfter(Instant.now())) {
-                    result = switch (subjectType) {
-                        case USER -> throw new AuthInternalException("USER subject is incompatible with OTT auth");
-                        case WORKER -> throw new AuthInternalException("WORKER subject is incompatible with JWT auth");
-                        case VM -> new Vm(subjectId);
-                    };
-                } else {
-                    LOG.debug("Credentials '{}' ({}) for {} is expired", credName, subjectType, subjectId);
-                }
-
-                deleteSubject(conn, subjectId);
-
-                if (result != null) {
-                    LOG.info("Successfully checked {}::{} token with key name {}", subjectType, subjectId, credName);
-                    return result;
-                }
-            }
-            throw new AuthPermissionDeniedException("Permission denied. Not found valid key.");
-        } catch (SQLException e) {
-            throw new AuthInternalException(e);
-        }
     }
 
     @Nonnull
@@ -168,7 +106,6 @@ public class DbAuthService implements AuthenticateService {
                         var subject = switch (subjectType) {
                             case USER -> new User(subjectId);
                             case WORKER -> new Worker(subjectId);
-                            case VM -> throw new AuthInternalException("VM subject is incompatible with JWT auth");
                         };
 
                         LOG.info("Successfully checked {}::{} token with key name {}",
@@ -182,17 +119,6 @@ public class DbAuthService implements AuthenticateService {
             throw new AuthPermissionDeniedException("Permission denied. Not found valid key.");
         } catch (SQLException e) {
             throw new AuthInternalException(e);
-        }
-    }
-
-    private void deleteSubject(Connection conn, String subjectId) {
-        LOG.debug("Delete subject {} after using OTT token", subjectId);
-
-        try (var st = conn.prepareStatement("DELETE FROM users where user_id = ?")) {
-            st.setString(1, subjectId);
-            st.execute();
-        } catch (SQLException e) {
-            LOG.error("Cannot delete subject {} after using OTT token: {}", subjectId, e.getMessage());
         }
     }
 }

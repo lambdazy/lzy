@@ -10,8 +10,6 @@ import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.util.auth.credentials.OttCredentials;
-import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
@@ -19,17 +17,13 @@ import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
 import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 
 public class DbAuthServiceTest {
     public static final Logger LOG = LogManager.getLogger(DbAuthServiceTest.class);
@@ -188,25 +182,6 @@ public class DbAuthServiceTest {
             authenticateService.authenticate(new JwtCredentials(jwt));
         } catch (AuthPermissionDeniedException e) {
             LOG.info("Valid error::{}", e.getInternalDetails());
-        }
-    }
-
-    @Test
-    public void doubleAuthOtt() {
-        var token = UUID.randomUUID().toString();
-
-        var vm = subjectService.createSubject(AuthProvider.INTERNAL, "vm-01", SubjectType.VM, List.of(
-            SubjectCredentials.ott("main", token, Duration.ofDays(1))), "hash");
-
-        var ott = Base64.getEncoder().encodeToString(("vm-01/" + token).getBytes());
-
-        authenticateService.authenticate(new OttCredentials(ott));
-
-        try {
-            authenticateService.authenticate(new OttCredentials(ott));
-            Assert.fail();
-        } catch (AuthException e) {
-            System.err.println(e.getMessage());
         }
     }
 }

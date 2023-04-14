@@ -2,21 +2,21 @@ package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.AllocatorMetrics;
+import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.alloc.impl.kuber.KuberTunnelAllocator;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.gc.GarbageCollector;
+import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
+import ai.lzy.util.auth.credentials.OttHelper;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.DiskServiceGrpc;
@@ -47,6 +47,7 @@ import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
@@ -93,6 +94,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected OperationsExecutor operationsExecutor;
     protected AllocatorMetrics metrics;
     protected GarbageCollector gc;
+    protected VmDao vmDao;
 
     protected void updateStartupProperties(Map<String, Object> props) {}
 
@@ -141,8 +143,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         var credentials = config.getIam().createRenewableToken();
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
-        privateAllocatorBlockingStub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "Test",
-            () -> credentials.get().token());
+        privateAllocatorBlockingStub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "Test", null);
         operationServiceApiBlockingStub = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test",
             () -> credentials.get().token());
         authorizedAllocatorBlockingStub = newBlockingClient(unauthorizedAllocatorBlockingStub, "Test",
@@ -156,6 +157,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         metrics = allocatorCtx.getBean(AllocatorMetrics.class);
         gc = allocatorCtx.getBean(GarbageCollector.class);
+        vmDao = allocatorCtx.getBean(VmDao.class);
     }
 
     protected void tearDown() {
@@ -277,21 +279,32 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected void registerVm(String vmId, String clusterId) {
+        Vm vm;
+        try {
+            vm = vmDao.get(vmId, null);
+        } catch (SQLException e) {
+            Assert.fail(e.getMessage());
+            return;
+        }
+
+        Assert.assertNotNull(vm);
+
         TimeUtils.waitFlagUp(() -> {
             try {
                 return withGrpcContext(() -> {
-                    privateAllocatorBlockingStub.register(
-                        VmAllocatorPrivateApi.RegisterRequest.newBuilder()
-                            .setVmId(vmId)
-                            .putMetadata(NAMESPACE_KEY, NAMESPACE_VALUE)
-                            .putMetadata(CLUSTER_ID_KEY, clusterId)
-                            .build()
-                    );
+                    privateAllocatorBlockingStub
+                        .withInterceptors(OttHelper.createOttClientInterceptor(vmId, vm.allocateState().vmOtt()))
+                        .register(
+                            VmAllocatorPrivateApi.RegisterRequest.newBuilder()
+                                .setVmId(vmId)
+                                .putMetadata(NAMESPACE_KEY, NAMESPACE_VALUE)
+                                .putMetadata(CLUSTER_ID_KEY, clusterId)
+                                .build());
                     return true;
                 });
             } catch (StatusRuntimeException e) {
                 if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
-                    System.err.println("Fail to register VM %s: %s".formatted(vmId, e.getStatus().toString()));
+                    System.err.printf("Fail to register VM %s: %s%n", vmId, e.getStatus());
                     return false;
                 }
                 throw new RuntimeException(e);
@@ -381,8 +394,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
     protected record AllocatedVm(
         String vmId,
-        String podName,
-        Subject iamSubj
+        String podName
     ) {}
 
     protected AllocatedVm allocateVm(String sessionId, @Nullable String idempotencyKey) throws Exception {
@@ -410,9 +422,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         if (allocOp.getDone()) {
             var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
-            var vmSubj = super.getSubject(AuthProvider.INTERNAL, vmId, SubjectType.VM);
-            Assert.assertNotNull(vmSubj);
-            return new AllocatedVm(vmId, "unknown", vmSubj);
+            return new AllocatedVm(vmId, "unknown");
         }
 
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
@@ -427,10 +437,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         allocOp = waitOpSuccess(allocOp);
         Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
 
-        var vmSubj = super.getSubject(AuthProvider.INTERNAL, vmId, SubjectType.VM);
-        Assert.assertNotNull(vmSubj);
-
-        return new AllocatedVm(vmId, podName, vmSubj);
+        return new AllocatedVm(vmId, podName);
     }
 
     protected void freeVm(String vmId) {

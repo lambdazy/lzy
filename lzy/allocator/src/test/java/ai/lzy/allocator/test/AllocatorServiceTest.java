@@ -1,9 +1,8 @@
 package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.model.debug.InjectedFailures;
-import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.OttHelper;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.*;
@@ -239,9 +238,6 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
 
-        var vmSubj = super.getSubject(AuthProvider.INTERNAL, vm1.vmId(), SubjectType.VM);
-        Assert.assertNull(vmSubj);
-
         assertVmMetrics("S", -1, 0, 0);
     }
 
@@ -379,9 +375,6 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
             HttpURLConnection.HTTP_INTERNAL_ERROR /* fail the first remove request */));
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
-
-        var vmSubj = super.getSubject(AuthProvider.INTERNAL, vm1.vmId(), SubjectType.VM);
-        Assert.assertNull(vmSubj);
     }
 
     @Test
@@ -409,11 +402,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final var allocateResponseSecond = operationSecond.getResponse().unpack(AllocateResponse.class);
         Assert.assertEquals(cachedVm.vmId(), allocateResponseSecond.getVmId());
 
-        var vmSubj2 = super.getSubject(AuthProvider.INTERNAL, allocateMetadataSecond.getVmId(), SubjectType.VM);
-        Assert.assertNotNull(vmSubj2);
-
         Assert.assertEquals(cachedVm.vmId(), allocateMetadataSecond.getVmId());
-        Assert.assertEquals(cachedVm.iamSubj(), vmSubj2);
 
         assertVmMetrics("S", -1, 1, 0);
 
@@ -425,9 +414,6 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         assertVmMetrics("S", -1, 0, 1);
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
-
-        var vmSubj = super.getSubject(AuthProvider.INTERNAL, cachedVm.vmId(), SubjectType.VM);
-        Assert.assertNull(vmSubj);
 
         assertVmMetrics("S", 0, 0, 0);
     }
@@ -562,9 +548,6 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         deleteSession(sessionId, true);
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
-
-        var vmSubj = super.getSubject(AuthProvider.INTERNAL, allocateMetadata.getVmId(), SubjectType.VM);
-        Assert.assertNull(vmSubj);
     }
 
     @Test
@@ -583,6 +566,9 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(AllocateMetadata.class);
 
+        var vm = vmDao.get(allocateMetadata.getVmId(), null);
+        Assert.assertNotNull(vm);
+
         final String podName = future.get();
         mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
@@ -596,8 +582,12 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         try {
             //noinspection ResultOfMethodCallIgnored
-            privateAllocatorBlockingStub.register(
-                VmAllocatorPrivateApi.RegisterRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+            privateAllocatorBlockingStub
+                .withInterceptors(OttHelper.createOttClientInterceptor(vm.vmId(), vm.allocateState().vmOtt()))
+                .register(
+                    VmAllocatorPrivateApi.RegisterRequest.newBuilder()
+                        .setVmId(allocateMetadata.getVmId())
+                        .build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             switch (e.getStatus().getCode()) {
@@ -668,6 +658,9 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .build());
         var allocateMetadata = allocate.getMetadata().unpack(AllocateMetadata.class);
 
+        var vm = vmDao.get(allocateMetadata.getVmId(), null);
+        Assert.assertNotNull(vm);
+
         final String podName = future.get();
         mockGetPod(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
@@ -678,8 +671,12 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         try {
             //noinspection ResultOfMethodCallIgnored
-            privateAllocatorBlockingStub.register(
-                VmAllocatorPrivateApi.RegisterRequest.newBuilder().setVmId(allocateMetadata.getVmId()).build());
+            privateAllocatorBlockingStub
+                .withInterceptors(OttHelper.createOttClientInterceptor(vm.vmId(), vm.allocateState().vmOtt()))
+                .register(
+                    VmAllocatorPrivateApi.RegisterRequest.newBuilder()
+                        .setVmId(allocateMetadata.getVmId())
+                        .build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.ALREADY_EXISTS.getCode(),

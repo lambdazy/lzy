@@ -7,7 +7,11 @@ import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
-import ai.lzy.iam.resources.subjects.*;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.resources.subjects.User;
+import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.v1.iam.IAM;
 
 public class ProtoConverter {
@@ -36,7 +40,6 @@ public class ProtoConverter {
         return switch (subjectType) {
             case USER -> new User(subject.getId());
             case WORKER -> new Worker(subject.getId());
-            case VM -> new Vm(subject.getId());
         };
     }
 
@@ -77,10 +80,8 @@ public class ProtoConverter {
             subjectType = SubjectType.USER;
         } else if (subject instanceof Worker) {
             subjectType = SubjectType.WORKER;
-        } else if (subject instanceof Vm) {
-            subjectType = SubjectType.VM;
         } else {
-            throw new RuntimeException("Unknown subject type " + subject.getClass().getName());
+            throw new RuntimeException("Unknown subject type " + subject.getClass());
         }
         return IAM.Subject.newBuilder()
                 .setId(subject.id())
