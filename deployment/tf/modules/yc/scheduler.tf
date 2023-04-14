@@ -212,7 +212,7 @@ resource "kubernetes_deployment" "scheduler" {
             for_each = local.kafka_env_map
 
             content {
-              name = "SCHEDULER_${env.key}"
+              name  = "SCHEDULER_${env.key}"
               value = env.value
             }
           }
@@ -220,7 +220,7 @@ resource "kubernetes_deployment" "scheduler" {
           dynamic "env" {
             for_each = var.enable_kafka ? [1] : []
             content {
-              name = "SCHEDULER_KAFKA_BOOTSTRAP_SERVERS"
+              name  = "SCHEDULER_KAFKA_BOOTSTRAP_SERVERS"
               value = module.kafka[0].bootstrap-servers
             }
           }
@@ -240,11 +240,11 @@ resource "kubernetes_deployment" "scheduler" {
           }
         }
         container {
-          name = "unified-agent"
-          image = var.unified-agent-image
+          name              = "unified-agent"
+          image             = var.unified-agent-image
           image_pull_policy = "Always"
           env {
-            name = "FOLDER_ID"
+            name  = "FOLDER_ID"
             value = var.folder_id
           }
           volume_mount {
@@ -257,7 +257,7 @@ resource "kubernetes_deployment" "scheduler" {
           config_map {
             name = kubernetes_config_map.unified-agent-config["scheduler"].metadata[0].name
             items {
-              key = "config"
+              key  = "config"
               path = "config.yml"
             }
           }
@@ -270,7 +270,7 @@ resource "kubernetes_deployment" "scheduler" {
             secret {
               secret_name = module.kafka[0].truststore-secret-name
               items {
-                key = "ca.p12"
+                key  = "ca.p12"
                 path = "truststore.p12"
               }
             }
@@ -288,15 +288,18 @@ resource "kubernetes_deployment" "scheduler" {
         }
         affinity {
           pod_anti_affinity {
-            required_during_scheduling_ignored_during_execution {
-              label_selector {
-                match_expressions {
-                  key      = "app.kubernetes.io/part-of"
-                  operator = "In"
-                  values   = ["lzy"]
+            preferred_during_scheduling_ignored_during_execution {
+              weight = 1
+              pod_affinity_term {
+                label_selector {
+                  match_expressions {
+                    key      = "app.kubernetes.io/part-of"
+                    operator = "In"
+                    values   = ["lzy"]
+                  }
                 }
+                topology_key = "kubernetes.io/hostname"
               }
-              topology_key = "kubernetes.io/hostname"
             }
           }
         }

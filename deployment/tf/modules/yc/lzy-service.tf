@@ -200,7 +200,7 @@ resource "kubernetes_deployment" "lzy-service" {
             for_each = local.kafka_env_map
 
             content {
-              name = "LZY_SERVICE_${env.key}"
+              name  = "LZY_SERVICE_${env.key}"
               value = env.value
             }
           }
@@ -208,7 +208,7 @@ resource "kubernetes_deployment" "lzy-service" {
           dynamic "env" {
             for_each = var.enable_kafka ? [1] : []
             content {
-              name = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
+              name  = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
               value = module.kafka[0].internal-bootstrap
             }
           }
@@ -257,11 +257,11 @@ resource "kubernetes_deployment" "lzy-service" {
           }
         }
         container {
-          name = "unified-agent"
-          image = var.unified-agent-image
+          name              = "unified-agent"
+          image             = var.unified-agent-image
           image_pull_policy = "Always"
           env {
-            name = "FOLDER_ID"
+            name  = "FOLDER_ID"
             value = var.folder_id
           }
           volume_mount {
@@ -276,7 +276,7 @@ resource "kubernetes_deployment" "lzy-service" {
           config_map {
             name = kubernetes_config_map.unified-agent-config["lzy-service"].metadata[0].name
             items {
-              key = "config"
+              key  = "config"
               path = "config.yml"
             }
           }
@@ -290,7 +290,7 @@ resource "kubernetes_deployment" "lzy-service" {
             secret {
               secret_name = module.kafka[0].truststore-secret-name
               items {
-                key = "ca.p12"
+                key  = "ca.p12"
                 path = "truststore.p12"
               }
             }
@@ -305,7 +305,7 @@ resource "kubernetes_deployment" "lzy-service" {
             secret {
               secret_name = module.kafka[0].keystore-secret-name
               items {
-                key = "cluster-operator.p12"
+                key  = "cluster-operator.p12"
                 path = "keystore.p12"
               }
             }
@@ -324,15 +324,18 @@ resource "kubernetes_deployment" "lzy-service" {
         }
         affinity {
           pod_anti_affinity {
-            required_during_scheduling_ignored_during_execution {
-              label_selector {
-                match_expressions {
-                  key      = "app.kubernetes.io/part-of"
-                  operator = "In"
-                  values   = ["lzy"]
+            preferred_during_scheduling_ignored_during_execution {
+              weight = 1
+              pod_affinity_term {
+                label_selector {
+                  match_expressions {
+                    key      = "app.kubernetes.io/part-of"
+                    operator = "In"
+                    values   = ["lzy"]
+                  }
                 }
+                topology_key = "kubernetes.io/hostname"
               }
-              topology_key = "kubernetes.io/hostname"
             }
           }
         }
