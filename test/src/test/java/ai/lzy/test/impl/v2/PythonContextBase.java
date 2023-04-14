@@ -121,7 +121,10 @@ public class PythonContextBase {
     private static boolean containsAsSubstring(List<String> strs, String substr) {
         var iterator = strs.iterator();
         while (iterator.hasNext()) {
-            var line = iterator.next().replaceFirst("\\[LZY-REMOTE-[^\\[]*\\] - ", "");
+            var line = iterator.next();
+            line = line.replaceAll("\\x1b\\[[0-9]+m", ""); // remove colors
+            line = line.replaceFirst("\\[LZY-REMOTE-[^\\[]*\\] ", "");
+            line = line.replaceFirst("\\[LZY-LOCAL\\] ", "");
             if (line.contains(substr)) {
                 iterator.remove();
                 return true;

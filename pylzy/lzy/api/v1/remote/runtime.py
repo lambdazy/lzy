@@ -251,14 +251,14 @@ class RemoteRuntime(Runtime):
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
         async for msg in client.read_std_slots(execution_id, self.__logs_offset):
-            task_id_prefix = COLOURS["WHITE"] + "[" + msg.task_id + "] " + RESET_COLOR
+            task_id_prefix = COLOURS["WHITE"] + "[LZY-REMOTE-" + msg.task_id + "] " + RESET_COLOR
             if isinstance(msg, StderrMessage):
                 system_log = "[SYS]" in msg.message
                 prefix = COLOURS[get_syslog_color()] if system_log else ""
                 suffix = RESET_COLOR if system_log else ""
-                sys.stderr.write(task_id_prefix + prefix + msg.message + suffix)
+                sys.stderr.write(task_id_prefix + prefix + msg.message + suffix + '\n')
             else:
-                sys.stdout.write(task_id_prefix + msg.message)
+                sys.stdout.write(task_id_prefix + msg.message + '\n')
 
             self.__logs_offset = max(self.__logs_offset, msg.offset)
 
