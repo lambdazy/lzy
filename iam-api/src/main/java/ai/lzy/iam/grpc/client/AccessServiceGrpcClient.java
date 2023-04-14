@@ -4,7 +4,6 @@ import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
@@ -13,22 +12,13 @@ import ai.lzy.v1.iam.LACS;
 import ai.lzy.v1.iam.LzyAccessServiceGrpc;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.function.Supplier;
 
 public class AccessServiceGrpcClient implements AccessClient {
-    private static final Logger LOG = LogManager.getLogger(AccessServiceGrpcClient.class);
-
     private final String clientName;
     private final Channel channel;
     private final LzyAccessServiceGrpc.LzyAccessServiceBlockingStub accessService;
-
-    public AccessServiceGrpcClient(String clientName, GrpcConfig config, Supplier<Credentials> tokenSupplier) {
-        this(clientName, GrpcUtils.newGrpcChannel(config.host(), config.port(), LzyAccessServiceGrpc.SERVICE_NAME),
-            tokenSupplier);
-    }
 
     public AccessServiceGrpcClient(String clientName, Channel channel, Supplier<Credentials> tokenSupplier) {
         this.clientName = clientName;

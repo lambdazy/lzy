@@ -262,7 +262,7 @@ final class StartExecutionCompanion {
             state.setSubjectId(subj.id());
 
             owner.abClient.setAccessBindings(new Workflow(state.getUserId() + "/" + state.getWorkflowName()),
-                List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
+                List.of(new AccessBinding(Role.LZY_WORKER, subj)));
         } catch (Exception e) {
             LOG.error("Cannot build credentials for portal, workflow <{}/{}>", state.getUserId(),
                 state.getWorkflowName(), e);

@@ -88,7 +88,7 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
 
             try {
                 abClient.setAccessBindings(new Workflow(task.userId() + "/" + task.workflowName()),
-                    List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
+                    List.of(new AccessBinding(Role.LZY_WORKER, subj)));
             } catch (StatusRuntimeException e) {
                 if (!e.getStatus().getCode().equals(Status.Code.ALREADY_EXISTS)) {
                     throw e;

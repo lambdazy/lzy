@@ -519,7 +519,7 @@ public class PortalTestBase {
             final var subj = subjectClient.getSubject(subjId);
 
             accessBindingClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
-                List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
+                List.of(new AccessBinding(Role.LZY_WORKER, subj)));
         }
 
         private GeneratedCredentials generateCredentials(String login, String provider)
