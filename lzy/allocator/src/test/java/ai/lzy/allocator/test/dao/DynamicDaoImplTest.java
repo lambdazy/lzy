@@ -73,7 +73,7 @@ public class DynamicDaoImplTest {
         var vmSpec = new Vm.Spec(UUID.randomUUID().toString(), sessionId, "s", "a", List.of(),
             List.of(), List.of(), null, ClusterRegistry.ClusterType.User);
         var allocState = new Vm.AllocateState(operation1.id(), Instant.now(), Instant.now(), "allocator",
-            "foo", "ott");
+            "foo", "ott" + UUID.randomUUID());
         return vmDao.create(vmSpec, allocState, null);
     }
 
