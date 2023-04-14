@@ -185,11 +185,11 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           }
         }
         container {
-          name = "unified-agent"
-          image = var.unified-agent-image
+          name              = "unified-agent"
+          image             = var.unified-agent-image
           image_pull_policy = "Always"
           env {
-            name = "FOLDER_ID"
+            name  = "FOLDER_ID"
             value = var.folder_id
           }
           volume_mount {
@@ -247,7 +247,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           config_map {
             name = kubernetes_config_map.unified-agent-config["site"].metadata[0].name
             items {
-              key = "config"
+              key  = "config"
               path = "config.yml"
             }
           }
@@ -261,6 +261,23 @@ resource "kubernetes_deployment" "lzy_backoffice" {
         }
         node_selector = {
           type = "lzy"
+        }
+        affinity {
+          pod_anti_affinity {
+            preferred_during_scheduling_ignored_during_execution {
+              weight = 1
+              pod_affinity_term {
+                label_selector {
+                  match_expressions {
+                    key      = "app.kubernetes.io/part-of"
+                    operator = "In"
+                    values   = ["lzy"]
+                  }
+                }
+                topology_key = "kubernetes.io/hostname"
+              }
+            }
+          }
         }
       }
     }
