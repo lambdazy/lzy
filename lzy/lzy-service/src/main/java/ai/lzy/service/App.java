@@ -34,13 +34,13 @@ public class App {
     private final MetricReporter metricReporter;
 
     public App(LzyServiceConfig config, LzyService lzyService,
+               @Named("IamServiceChannel") ManagedChannel iamChannel,
                @Named("LzyServiceMetricReporter") MetricReporter metricReporter,
                @Named("LzyServiceOperationDao") OperationDao operationDao,
                @Named("LzyServiceServerExecutor") ExecutorService workersPool)
     {
         this.metricReporter = metricReporter;
-        var authInterceptor = new AuthServerInterceptor(
-            new AuthenticateServiceGrpcClient("LzyService", config.getIam().getAddress()));
+        var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient("LzyService", iamChannel));
 
         var operationService = new OperationsService(operationDao);
 

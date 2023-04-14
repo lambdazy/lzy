@@ -3,7 +3,10 @@ package ai.lzy.iam.storage.impl;
 import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.iam.storage.db.IamDataSource;
-import ai.lzy.util.auth.credentials.*;
+import ai.lzy.util.auth.credentials.Credentials;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.OttCredentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
@@ -81,15 +84,15 @@ public class DbAuthService implements AuthenticateService {
                 Subject result = null;
                 if (expiredAt.isAfter(Instant.now())) {
                     result = switch (subjectType) {
-                        case USER -> new User(subjectId);
-                        case WORKER -> new Worker(subjectId);
+                        case USER -> throw new AuthInternalException("USER subject is incompatible with OTT auth");
+                        case WORKER -> throw new AuthInternalException("WORKER subject is incompatible with JWT auth");
                         case VM -> new Vm(subjectId);
                     };
                 } else {
                     LOG.debug("Credentials '{}' ({}) for {} is expired", credName, subjectType, subjectId);
                 }
 
-                deleteOttCredentials(conn, subjectId, credName);
+                deleteSubject(conn, subjectId);
 
                 if (result != null) {
                     LOG.info("Successfully checked {}::{} token with key name {}", subjectType, subjectId, credName);
@@ -165,7 +168,7 @@ public class DbAuthService implements AuthenticateService {
                         var subject = switch (subjectType) {
                             case USER -> new User(subjectId);
                             case WORKER -> new Worker(subjectId);
-                            case VM -> new Vm(subjectId); // TODO: fail?
+                            case VM -> throw new AuthInternalException("VM subject is incompatible with JWT auth");
                         };
 
                         LOG.info("Successfully checked {}::{} token with key name {}",
@@ -182,17 +185,14 @@ public class DbAuthService implements AuthenticateService {
         }
     }
 
-    private void deleteOttCredentials(Connection conn, String subjectId, String credentialsName) {
-        LOG.debug("Delete used OTT {} for {}", credentialsName, subjectId);
+    private void deleteSubject(Connection conn, String subjectId) {
+        LOG.debug("Delete subject {} after using OTT token", subjectId);
 
-        try (var st = conn.prepareStatement("""
-            DELETE FROM credentials WHERE name = ? AND user_id = ?"""))
-        {
-            st.setString(1, credentialsName);
-            st.setString(2, subjectId);
+        try (var st = conn.prepareStatement("DELETE FROM users where user_id = ?")) {
+            st.setString(1, subjectId);
             st.execute();
         } catch (SQLException e) {
-            LOG.error("Cannot delete used OTT {} for {}: {}", credentialsName, subjectId, e.getMessage(), e);
+            LOG.error("Cannot delete subject {} after using OTT token: {}", subjectId, e.getMessage());
         }
     }
 }
