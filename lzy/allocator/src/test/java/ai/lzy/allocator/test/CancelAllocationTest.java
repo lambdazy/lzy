@@ -3,9 +3,6 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.services.AllocatorService;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.VmAllocatorApi;
@@ -65,10 +62,6 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         var allocOp = operationsDao.get(x.allocOpId, null);
         Assert.assertEquals(Status.CANCELLED.getCode(),
             Status.fromCodeValue(allocOp.error().getCode().value()).getCode());
-
-        var vmIamSubject = allocatorCtx.getBean(SubjectServiceGrpcClient.class)
-            .findSubject(AuthProvider.INTERNAL, x.vmId, SubjectType.VM);
-        Assert.assertNull(vmIamSubject);
     }
 
     @Test
@@ -102,46 +95,6 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
                 LongRunning.CancelOperationRequest.newBuilder()
                     .setOperationId(op.getId())
                     .build());
-            System.err.println("--> cancel: " + TextFormat.printer().shortDebugString(resp.getError()));
-            latch.countDown();
-            return true;
-        });
-
-        waitVm(vm);
-        assertVmCleaned(vm);
-    }
-
-    @Test
-    public void cancelAllocate2() throws Exception {
-        var latch = new CountDownLatch(1);
-
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(2).set(waitOn(latch));
-
-        var vm = allocateImpl((__, op) -> {
-            var resp = operationServiceApiBlockingStub.cancel(
-                LongRunning.CancelOperationRequest.newBuilder()
-                    .setOperationId(op.getId())
-                    .build());
-            System.err.println("--> cancel: " + TextFormat.printer().shortDebugString(resp.getError()));
-            latch.countDown();
-            return false;
-        });
-
-        waitVm(vm);
-        assertVmCleaned(vm);
-    }
-
-    @Test
-    public void cancelAllocate2WithRestart() throws Exception {
-        var latch = new CountDownLatch(1);
-
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(2).set(waitOnAndTerminate(latch, "term"));
-
-        var vm = allocateImpl((__, op) -> {
-            var resp = withGrpcContext(() -> operationServiceApiBlockingStub.cancel(
-                LongRunning.CancelOperationRequest.newBuilder()
-                    .setOperationId(op.getId())
-                    .build()));
             System.err.println("--> cancel: " + TextFormat.printer().shortDebugString(resp.getError()));
             latch.countDown();
             return true;

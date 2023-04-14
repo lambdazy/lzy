@@ -89,7 +89,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
     @Test
     public void createSubjectWithCredentials() {
         var creds1 = new SubjectCredentials("first", "first value", CredentialsType.PUBLIC_KEY);
-        var creds2 = new SubjectCredentials("second", "second value", CredentialsType.OTT,
+        var creds2 = new SubjectCredentials("second", "second value", CredentialsType.PUBLIC_KEY,
             Instant.now().plus(1, ChronoUnit.DAYS));
 
         var subject = subjectClient.createSubject(AuthProvider.INTERNAL, "Superman", SubjectType.WORKER,

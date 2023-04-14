@@ -2,7 +2,11 @@ package ai.lzy.iam.clients.stub;
 
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.*;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.resources.subjects.User;
+import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 
@@ -30,7 +34,6 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
         return switch (type) {
             case USER -> new User(id);
             case WORKER -> new Worker(id);
-            case VM -> new Vm(id);
         };
     }
 

@@ -48,16 +48,6 @@ public class CredentialsTtlTest {
     }
 
     @Test
-    public void ottRequiresTtl() {
-        try {
-            new SubjectCredentials("name", "value", CredentialsType.OTT, null);
-            Assert.fail();
-        } catch (IllegalArgumentException e) {
-            Assert.assertEquals("OTT must be with ttl", e.getMessage());
-        }
-    }
-
-    @Test
     public void test() {
         var expired = Instant.now().minus(1, ChronoUnit.DAYS);
         var actual = Instant.now().plus(1, ChronoUnit.DAYS);
@@ -65,18 +55,15 @@ public class CredentialsTtlTest {
         var creds1 = new SubjectCredentials("1", "1", CredentialsType.PUBLIC_KEY);
         var creds2 = new SubjectCredentials("2", "2", CredentialsType.PUBLIC_KEY, actual);
         var creds3 = new SubjectCredentials("3", "3", CredentialsType.PUBLIC_KEY, expired);
-        var creds4 = new SubjectCredentials("4", "4", CredentialsType.OTT, actual);
-        var creds5 = new SubjectCredentials("5", "5", CredentialsType.OTT, expired);
 
         var subject = subjectService.createSubject(AuthProvider.GITHUB, "subject", SubjectType.USER, List.of(
-            creds1, creds2, creds3, creds4, creds5), "some-hash");
+            creds1, creds2, creds3), "some-hash");
 
         var creds = subjectService.listCredentials(subject);
-        Assert.assertEquals(3, creds.size());
+        Assert.assertEquals(2, creds.size());
 
         creds = creds.stream().sorted(Comparator.comparing(SubjectCredentials::name)).toList();
         Assert.assertEquals(creds1, creds.get(0));
         Assert.assertEquals(creds2, creds.get(1));
-        Assert.assertEquals(creds4, creds.get(2));
     }
 }

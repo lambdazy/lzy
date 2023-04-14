@@ -13,6 +13,12 @@
 
     <dependencies>
         <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>util-grpc</artifactId>
+            <version>${revision}${changelist}</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-core</artifactId>
         </dependency>

@@ -42,7 +42,7 @@ public class VmDaoImpl implements VmDao {
         "status";
 
     private static final String INSTANCE_FIELDS =
-        "vm_subject_id, tunnel_pod_name";
+        "tunnel_pod_name";
 
     private static final String ALLOCATION_START_FIELDS =
         "allocation_op_id, allocation_started_at, allocation_deadline, allocation_worker, allocation_reqid, vm_ott";
@@ -137,11 +137,6 @@ public class VmDaoImpl implements VmDao {
         FROM vm
         WHERE id = ?""";
 
-    private static final String QUERY_SET_VM_SUBJECT_ID = """
-        UPDATE vm
-        SET vm_subject_id = ?
-        WHERE id = ?""";
-
     private static final String QUERY_SET_TUNNEL_PON_NAME = """
         UPDATE vm
         SET tunnel_pod_name = ?
@@ -191,6 +186,16 @@ public class VmDaoImpl implements VmDao {
         WHERE (status = 'IDLE' OR status = 'RUNNING') AND allocation_worker = ?
         """.formatted(ALL_FIELDS);
 
+    private static final String QUERY_READ_VM_BY_OTT = """
+        SELECT %s
+        FROM vm
+        WHERE vm_ott = ?""".formatted(ALL_FIELDS);
+
+    private static final String QUERY_RESET_VM_OTT = """
+        UPDATE vm
+        SET vm_ott = ''
+        WHERE vm_ott = ?
+        RETURNING id""";
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
@@ -431,17 +436,6 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public void setVmSubjectId(String vmId, String vmSubjectId, @Nullable TransactionHandle tx) throws SQLException {
-        DbOperation.execute(tx, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_SET_VM_SUBJECT_ID)) {
-                s.setString(1, vmSubjectId);
-                s.setString(2, vmId);
-                s.executeUpdate();
-            }
-        });
-    }
-
-    @Override
     public void setTunnelPod(String vmId, String tunnelPodName, @Nullable TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_SET_TUNNEL_PON_NAME)) {
@@ -594,13 +588,43 @@ public class VmDaoImpl implements VmDao {
              PreparedStatement st = conn.prepareStatement("""
                 SELECT 1
                 FROM dead_vms
-                WHERE id = ?
-                """))
+                WHERE id = ?"""))
         {
             st.setString(1, vmId);
             var rs = st.executeQuery();
             return rs.next();
         }
+    }
+
+    @Nullable
+    @Override
+    public Vm findVmByOtt(String vmOtt, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_READ_VM_BY_OTT)) {
+                st.setString(1, vmOtt);
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    try {
+                        return readVm(rs);
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException("Cannot read vm by ott " + vmOtt, e);
+                    }
+                } else {
+                    return null;
+                }
+            }
+        });
+    }
+
+    @Override
+    public String resetVmOtt(String vmOtt, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_RESET_VM_OTT)) {
+                st.setString(1, vmOtt);
+                var rs = st.executeQuery();
+                return rs.next() ? rs.getString("id") : null;
+            }
+        });
     }
 
     private Vm readVm(ResultSet rs) throws SQLException, JsonProcessingException {
@@ -635,7 +659,6 @@ public class VmDaoImpl implements VmDao {
         final var vmStatus = Vm.Status.valueOf(rs.getString(++idx));
 
         // instance properties
-        final var vmSubjectId = rs.getString(++idx);
         final var tunnelPodName = rs.getString(++idx);
 
         // allocate state
@@ -714,7 +737,7 @@ public class VmDaoImpl implements VmDao {
             new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, tunnelSettings,
                 clusterType),
             vmStatus,
-            new Vm.InstanceProperties(vmSubjectId, tunnelPodName),
+            new Vm.InstanceProperties(tunnelPodName),
             new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationWorker,
                 allocationReqid, vmOtt, allocatorMeta, volumeClaims),
             runState,

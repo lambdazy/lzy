@@ -1,6 +1,7 @@
 package ai.lzy.allocator;
 
 import ai.lzy.allocator.alloc.AllocationContext;
+import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.gc.GarbageCollector;
 import ai.lzy.allocator.services.AllocatorPrivateService;
@@ -51,7 +52,7 @@ public class AllocatorMain {
 
     public AllocatorMain(@Named("AllocatorMetricReporter") MetricReporter metricReporter, AllocatorService allocator,
                          AllocatorPrivateService allocatorPrivate, DiskService diskService,
-                         ServiceConfig config, GarbageCollector gc, VmPoolService vmPool,
+                         ServiceConfig config, GarbageCollector gc, VmPoolService vmPool, VmDao vmDao,
                          @Named("AllocatorOperationsService") OperationsService operationsService,
                          @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
                          AllocationContext allocationContext)
@@ -74,15 +75,19 @@ public class AllocatorMain {
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
 
-        var builder = newGrpcServer("0.0.0.0", address.getPort(),
-            new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel))
-                .withUnauthenticated(AllocatorPrivateGrpc.getHeartbeatMethod()))
+        var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel))
+            .withUnauthenticated(
+                AllocatorPrivateGrpc.getHeartbeatMethod(),
+                AllocatorPrivateGrpc.getRegisterMethod());
+
+        var builder = newGrpcServer("0.0.0.0", address.getPort(), auth)
             .intercept(MetricsGrpcInterceptor.server(APP));
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
+        var vmOttAuth = new VmOttAuthInterceptor(vmDao, AllocatorPrivateGrpc.getRegisterMethod());
 
         builder.addService(ServerInterceptors.intercept(allocator, internalOnly));
-        builder.addService(allocatorPrivate);
+        builder.addService(ServerInterceptors.intercept(allocatorPrivate, vmOttAuth));
         builder.addService(ServerInterceptors.intercept(operationsService, internalOnly));
         builder.addService(ServerInterceptors.intercept(vmPool, internalOnly));
         builder.addService(ServerInterceptors.intercept(diskService, internalOnly));

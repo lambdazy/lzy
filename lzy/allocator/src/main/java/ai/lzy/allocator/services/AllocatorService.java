@@ -437,7 +437,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         op.deadline(),
                         allocationContext.selfWorkerId(),
                         ofNullable(GrpcHeaders.getRequestId()).orElse("unknown"),
-                        UUID.randomUUID().toString(),
+                        /* vmOtt */ UUID.randomUUID().toString(),  // TODO: add expired_at
                         null,
                         null);
 
