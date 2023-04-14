@@ -12,16 +12,12 @@ import ai.lzy.v1.iam.LABS;
 import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
 public class AccessBindingServiceGrpcClient implements AccessBindingClient {
-    private static final Logger LOG = LogManager.getLogger(AccessServiceGrpcClient.class);
-
     private final String clientName;
     private final Channel channel;
     private final LzyAccessBindingServiceGrpc.LzyAccessBindingServiceBlockingStub accessBindingService;
