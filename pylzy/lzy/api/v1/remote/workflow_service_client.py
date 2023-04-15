@@ -189,12 +189,12 @@ class WorkflowServiceClient:
         async for msg in stream:
             if msg.HasField("stderr"):
                 for task_lines in msg.stderr.data:
-                    for line in task_lines.lines.split('\n'):
-                        yield StderrMessage(task_lines.taskId, line + '\n', msg.offset)
+                    for line in task_lines.lines.splitlines():
+                        yield StderrMessage(task_lines.taskId, line, msg.offset)
             if msg.HasField("stdout"):
                 for task_lines in msg.stdout.data:
-                    for line in task_lines.lines.split('\n'):
-                        yield StdoutMessage(task_lines.taskId, line + '\n', msg.offset)
+                    for line in task_lines.lines.splitlines():
+                        yield StdoutMessage(task_lines.taskId, line, msg.offset)
 
     @retry(config=RETRY_CONFIG, action_name="starting to execute graph")
     async def execute_graph(self, workflow_name: str, execution_id: str, graph: Graph) -> str:
