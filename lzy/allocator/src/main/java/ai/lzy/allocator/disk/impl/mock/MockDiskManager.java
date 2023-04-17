@@ -10,6 +10,7 @@ import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.grpc.ContextAwareTask;
@@ -18,6 +19,10 @@ import ai.lzy.v1.DiskServiceApi;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.Nullable;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import lombok.Lombok;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -25,12 +30,7 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import javax.annotation.Nullable;
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
@@ -45,17 +45,20 @@ public class MockDiskManager implements DiskManager {
     private final DiskDao diskDao;
     private final DiskOpDao diskOpDao;
     private final OperationDao operationsDao;
+    private final IdGenerator idGenerator;
     private final Map<String, Disk> disks = new ConcurrentHashMap<>();
 
     @Inject
     public MockDiskManager(ServiceConfig config, AllocatorDataSource storage, DiskDao diskDao, DiskOpDao diskOpDao,
-                           @Named("AllocatorOperationDao") OperationDao operationsDao)
+                           @Named("AllocatorOperationDao") OperationDao operationsDao,
+                           @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
         this.instanceId = config.getInstanceId();
         this.storage = storage;
         this.diskDao = diskDao;
         this.diskOpDao = diskOpDao;
         this.operationsDao = operationsDao;
+        this.idGenerator = idGenerator;
     }
 
     public void put(Disk disk) {
@@ -77,7 +80,7 @@ public class MockDiskManager implements DiskManager {
 
     @Override
     public DiskOperation newCreateDiskOperation(OuterOperation outerOp, DiskSpec spec, DiskMeta meta) {
-        final String id = UUID.randomUUID().toString();
+        final String id = idGenerator.generate("create-disk-");
         final Disk disk = new Disk(id, spec, meta);
         disks.put(id, disk);
 
@@ -135,7 +138,7 @@ public class MockDiskManager implements DiskManager {
         if (notFound) {
             newDisk = null;
         } else {
-            final String id = UUID.randomUUID().toString();
+            final String id = idGenerator.generate("clone-disk-");
             newDisk = new Disk(id, newDiskSpec, newDiskMeta);
             disks.put(id, newDisk);
         }

@@ -6,6 +6,7 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.services.AllocatorService;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -25,9 +26,10 @@ public class AllocatorProxy extends AllocatorService {
 
     public AllocatorProxy(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                           SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
-                          ServiceConfig config, ServiceConfig.CacheLimits cacheLimits)
+                          ServiceConfig config, ServiceConfig.CacheLimits cacheLimits,
+                          @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
-        super(vmDao, operationsDao, sessionsDao, diskDao, allocationContext, config, cacheLimits);
+        super(vmDao, operationsDao, sessionsDao, diskDao, allocationContext, config, cacheLimits, idGenerator);
     }
 
     @Override
