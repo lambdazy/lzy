@@ -64,9 +64,19 @@ resource "kubernetes_stateful_set" "allocator" {
             name  = "ALLOCATOR_METRICS_PORT"
             value = local.allocator-metrics-port
           }
+
           env {
-            name  = "ALLOCATOR_ADDRESS"
-            value = "${kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.allocator-port}"
+            name = "ALLOCATOR_HOSTS"
+            value_from {
+              field_ref {
+                field_path = "status.podIPs"
+              }
+            }
+          }
+
+          env {
+            name  = "ALLOCATOR_PORT"
+            value = local.allocator-port
           }
 
           env {
