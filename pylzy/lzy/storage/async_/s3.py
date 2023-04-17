@@ -48,6 +48,7 @@ class S3Client(AsyncStorageClient):
         real_progress = progress if progress is not None else _empty_progress
 
         current_count = 0
+        exc: Optional[Exception] = None
         while current_count < self.__retry_count:
             try:
                 async with self._get_client_context() as client:
@@ -56,19 +57,24 @@ class S3Client(AsyncStorageClient):
                     real_progress(0, True)
                     await client.download_fileobj(bucket, key, data, Callback=lambda x: real_progress(x, False))
                     return
-            except (ServerTimeoutError, AioReadTimeoutError, EndpointConnectionError):
+            except (ServerTimeoutError, AioReadTimeoutError, EndpointConnectionError) as e:
                 warnings.warn(
                     f"Lost connection while reading data from {uri}."
                     f" Retrying, attempt {current_count}/{self.__retry_count}")
                 await asyncio.sleep(self.__retry_period_s)
                 current_count += 1
+                exc = e
 
-        raise RuntimeError("Cannot read data from s3")
+        if exc is not None:
+            raise RuntimeError("Cannot read data from s3") from exc
+        else:
+            raise RuntimeError("Cannot read data from s3")
 
     async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None) -> str:
         real_progress = progress if progress is not None else _empty_progress
 
         current_count = 0
+        exc: Optional[Exception] = None
         while current_count < self.__retry_count:
             try:
                 async with self._get_client_context() as client:
@@ -77,14 +83,18 @@ class S3Client(AsyncStorageClient):
                     real_progress(0, True)
                     await client.upload_fileobj(data, bucket, key, Callback=lambda x: real_progress(x, False))
                     return uri_from_bucket(self.scheme, bucket, key)
-            except (ServerTimeoutError, EndpointConnectionError):
+            except (ServerTimeoutError, EndpointConnectionError) as e:
                 warnings.warn(
                     f"Lost connection while reading data from {uri}."
                     f" Retrying, attempt {current_count}/{self.__retry_count}")
                 await asyncio.sleep(self.__retry_period_s)
                 current_count += 1
+                exc = e
 
-        raise RuntimeError("Cannot write data to s3")
+        if exc is not None:
+            raise RuntimeError("Cannot write data into s3") from exc
+        else:
+            raise RuntimeError("Cannot write data into s3")
 
     async def copy(self, from_uri: str, to_uri: str) -> None:
         bucket_from, key_from = bucket_from_uri(self.scheme, from_uri)

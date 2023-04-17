@@ -165,8 +165,7 @@ class DefaultSnapshot(Snapshot):
                             bar.reset()
                         else:
                             bar.update(update)
-                    await self.__storage_client.write(entry.storage_uri, cast(BinaryIO, f),
-                                                      progress=progress)
+                    await self.__storage_client.write(entry.storage_uri, cast(BinaryIO, f),  progress=progress)
             else:
                 _LOG.debug("Data already uploaded for entry %s", entry_id)
 
