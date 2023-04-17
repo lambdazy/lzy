@@ -126,7 +126,14 @@ class DefaultSnapshot(Snapshot):
             size = await self.__storage_client.size_in_bytes(storage_uri)
             with tqdm(total=size, desc=f"Downloading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                       unit_divisor=1024, colour=get_syslog_color()) as bar:
-                await self.__storage_client.read(storage_uri, cast(BinaryIO, f), progress=lambda x: bar.update(x))
+
+                def progress(update: int, restart: bool):
+                    if restart:
+                        bar.reset()
+                    else:
+                        bar.update(update)
+
+                await self.__storage_client.read(storage_uri, cast(BinaryIO, f), progress=progress)
                 f.seek(0)
                 res = self.__serializer_registry.find_serializer_by_type(entry.typ).deserialize(cast(BinaryIO, f))
                 return Result(res)
@@ -152,8 +159,13 @@ class DefaultSnapshot(Snapshot):
                 _LOG.debug("Upload data for entry %s", entry_id)
                 with tqdm(total=length, desc=f"Uploading {entry.name}", file=sys.stdout, unit='B', unit_scale=True,
                           unit_divisor=1024, colour=get_syslog_color()) as bar:
-                    await self.__storage_client.write(entry.storage_uri, cast(BinaryIO, f),
-                                                      progress=lambda x: bar.update(x))
+
+                    def progress(update: int, restart: bool):
+                        if restart:
+                            bar.reset()
+                        else:
+                            bar.update(update)
+                    await self.__storage_client.write(entry.storage_uri, cast(BinaryIO, f),  progress=progress)
             else:
                 _LOG.debug("Data already uploaded for entry %s", entry_id)
 

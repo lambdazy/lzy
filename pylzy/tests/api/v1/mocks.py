@@ -65,10 +65,10 @@ class StorageClientMock(AsyncStorageClient):
     async def size_in_bytes(self, uri: str) -> int:
         pass
 
-    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], None]] = None) -> None:
+    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int, bool], None]] = None) -> None:
         pass
 
-    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], None]] = None):
+    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int, bool], None]] = None):
         self.__store_counts__[uri] = self.__store_counts__.setdefault(uri, 0) + 1
 
     async def blob_exists(self, uri: str) -> bool:
