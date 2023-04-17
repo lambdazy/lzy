@@ -73,7 +73,9 @@ public class KuberMountHolderManager implements MountHolderManager {
                 .withWorkloads(List.of(mountHolderWorkload), false)
                 .withHostVolumes(List.of(hostVolume))
                 .withPodAffinity(KuberLabels.LZY_VM_ID_LABEL, "In", vmId)
-                //todo anti-affinity to other mount holders
+                .withLabels(Map.of(
+                    KuberLabels.LZY_POD_SESSION_ID_LABEL, mountToVm.sessionId()
+                ))
                 .build();
 
             final Pod pod;
