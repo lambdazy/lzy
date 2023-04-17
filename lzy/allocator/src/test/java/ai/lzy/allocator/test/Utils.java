@@ -2,6 +2,7 @@ package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
+import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -11,7 +12,6 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import org.junit.Assert;
 import yandex.cloud.sdk.Zone;
 
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
@@ -26,7 +26,7 @@ public class Utils {
 
     public static DiskSpec createTestDiskSpec(int gb, Zone zone) {
         return new DiskSpec(
-            "test-disk-" + UUID.randomUUID().toString().substring(0, 4),
+            new RandomIdGenerator().generate("test-disk-", 4),
             DiskType.HDD,
             gb,
             zone.getId()

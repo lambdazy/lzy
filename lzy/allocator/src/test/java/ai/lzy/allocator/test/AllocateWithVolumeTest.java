@@ -7,6 +7,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.AllocatorGrpc;
@@ -27,6 +28,7 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
@@ -40,7 +42,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.annotation.Nullable;
@@ -59,6 +60,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
     private ManagedChannel channel;
     private KubernetesClient kuber;
     private DiskManager diskManager;
+    private IdGenerator idGenerator;
 
     @Before
     public void before() throws IOException, InterruptedException {
@@ -90,6 +92,8 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
             AllocatorGrpc.newBlockingStub(channel), "Test", () -> credentials.get().token());
         privateAllocatorBlockingStub = newBlockingClient(
             AllocatorPrivateGrpc.newBlockingStub(channel), "Test", () -> credentials.get().token());
+
+        idGenerator = context.getBean(IdGenerator.class, Qualifiers.byName("AllocatorIdGenerator"));
     }
 
     @After
@@ -153,7 +157,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
     {
         var createSessionOp = allocator.createSession(
             VmAllocatorApi.CreateSessionRequest.newBuilder()
-                .setOwner(UUID.randomUUID().toString())
+                .setOwner(idGenerator.generate("user-"))
                 .setCachePolicy(
                     VmAllocatorApi.CachePolicy.newBuilder()
                         .setIdleTimeout(Durations.ZERO)

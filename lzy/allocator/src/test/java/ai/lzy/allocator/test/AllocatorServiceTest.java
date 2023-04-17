@@ -32,7 +32,6 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -203,7 +202,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 operationServiceApiBlockingStub,
                 authorizedAllocatorBlockingStub.allocate(
                     AllocateRequest.newBuilder()
-                        .setSessionId(UUID.randomUUID().toString())
+                        .setSessionId(idGenerator.generate("sid-"))
                         .setPoolLabel("S")
                         .setClusterType(AllocateRequest.ClusterType.USER)
                         .addWorkload(AllocateRequest.Workload.getDefaultInstance())
@@ -612,7 +611,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         try {
             //noinspection ResultOfMethodCallIgnored
             authorizedAllocatorBlockingStub.free(
-                FreeRequest.newBuilder().setVmId(UUID.randomUUID().toString()).build());
+                FreeRequest.newBuilder().setVmId(idGenerator.generate("vm-fake-")).build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
             Assert.assertEquals(e.getStatus().toString(), Status.NOT_FOUND.getCode(), e.getStatus().getCode());

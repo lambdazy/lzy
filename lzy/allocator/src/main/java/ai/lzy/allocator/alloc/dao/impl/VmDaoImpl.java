@@ -7,6 +7,7 @@ import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
@@ -27,7 +28,11 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.joining;
@@ -199,11 +204,15 @@ public class VmDaoImpl implements VmDao {
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
+    private final IdGenerator idGenerator;
 
     @Inject
-    public VmDaoImpl(AllocatorDataSource storage, @Named("AllocatorObjectMapper") ObjectMapper objectMapper) {
+    public VmDaoImpl(AllocatorDataSource storage, @Named("AllocatorObjectMapper") ObjectMapper objectMapper,
+                     @Named("AllocatorIdGenerator") IdGenerator idGenerator)
+    {
         this.storage = storage;
         this.objectMapper = objectMapper;
+        this.idGenerator = idGenerator;
     }
 
     @Nullable
@@ -243,7 +252,7 @@ public class VmDaoImpl implements VmDao {
 
     @Override
     public Vm create(Vm.Spec vmSpec, Vm.AllocateState allocState, @Nullable TransactionHandle tx) throws SQLException {
-        final var vmId = "vm-" + vmSpec.poolLabel() + "-" + UUID.randomUUID();
+        final var vmId = idGenerator.generate("vm-" + vmSpec.poolLabel() + "-", 16);
 
         DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_CREATE_VM)) {

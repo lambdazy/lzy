@@ -12,6 +12,7 @@ import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -70,11 +71,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final AllocationContext allocationContext;
     private final ServiceConfig config;
     private final ServiceConfig.CacheLimits cacheConfig;
+    private final IdGenerator idGenerator;
 
     @Inject
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
-                            ServiceConfig config, ServiceConfig.CacheLimits cacheConfig)
+                            ServiceConfig config, ServiceConfig.CacheLimits cacheConfig,
+                            @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
@@ -83,6 +86,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         this.allocationContext = allocationContext;
         this.config = config;
         this.cacheConfig = cacheConfig;
+        this.idGenerator = idGenerator;
 
         restoreRunningActions();
     }
@@ -182,8 +186,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        final var operationId = UUID.randomUUID().toString();
-        final var sessionId = UUID.randomUUID().toString();
+        final var operationId = idGenerator.generate("create-session-");
+        final var sessionId = idGenerator.generate("sid-");
 
         final var response = CreateSessionResponse.newBuilder()
             .setSessionId(sessionId)
@@ -598,20 +602,20 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         LOG.error(message);
                         throw Status.NOT_FOUND.withDescription(message).asException();
                     }
-                    yield new DiskVolumeDescription("disk-volume-" + UUID.randomUUID(), volume.getName(),
+                    yield new DiskVolumeDescription(idGenerator.generate("disk-volume-"), volume.getName(),
                         diskVolume.getDiskId(), disk.spec().sizeGb());
                 }
 
                 case HOST_PATH_VOLUME -> {
                     final var hostPathVolume = volume.getHostPathVolume();
                     final var hostPathType = HostPathType.valueOf(hostPathVolume.getHostPathType().name());
-                    yield new HostPathVolumeDescription("host-path-volume-" + UUID.randomUUID(), volume.getName(),
+                    yield new HostPathVolumeDescription(idGenerator.generate("host-path-volume-"), volume.getName(),
                         hostPathVolume.getPath(), hostPathType);
                 }
 
                 case NFS_VOLUME -> {
                     final var nfsVolume = volume.getNfsVolume();
-                    yield new NFSVolumeDescription("nfs-volume-" + UUID.randomUUID(), volume.getName(),
+                    yield new NFSVolumeDescription(idGenerator.generate("nfs-volume-"), volume.getName(),
                         nfsVolume.getServer(), nfsVolume.getShare(), nfsVolume.getCapacity(),
                         nfsVolume.getMountOptionsList());
                 }

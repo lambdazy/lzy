@@ -12,6 +12,7 @@ import ai.lzy.allocator.gc.GarbageCollector;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -50,7 +51,6 @@ import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -95,6 +95,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected AllocatorMetrics metrics;
     protected GarbageCollector gc;
     protected VmDao vmDao;
+    protected IdGenerator idGenerator;
 
     protected void updateStartupProperties(Map<String, Object> props) {}
 
@@ -158,6 +159,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         metrics = allocatorCtx.getBean(AllocatorMetrics.class);
         gc = allocatorCtx.getBean(GarbageCollector.class);
         vmDao = allocatorCtx.getBean(VmDao.class);
+        idGenerator = allocatorCtx.getBean(IdGenerator.class, Qualifiers.byName("AllocatorIdGenerator"));
     }
 
     protected void tearDown() {
@@ -183,7 +185,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected String createSession(Duration idleTimeout) {
-        return createSession(UUID.randomUUID().toString(), idleTimeout);
+        return createSession(idGenerator.generate("sid-"), idleTimeout);
     }
 
     protected String createSession(String owner, Duration idleTimeout) {
