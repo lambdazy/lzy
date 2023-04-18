@@ -15,6 +15,7 @@ import jakarta.inject.Singleton;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -36,7 +37,8 @@ public class AllocatorContext {
         opts.putAll(new HashMap<String, Object>(Map.of(
             "allocator.instance-id", "xxx",
             "allocator.iam.address", iam.address(),
-            "allocator.address", address.toString(),
+            "allocator.hosts", List.of(address.getHost()),
+            "allocator.port", address.getPort(),
             "allocator.kuber-allocator.enabled", "false",
             "allocator.thread-allocator.enabled", "true",
             "allocator.thread-allocator.vm-jar-file", jarPath,
