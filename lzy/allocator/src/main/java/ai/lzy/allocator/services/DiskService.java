@@ -1,7 +1,12 @@
 package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.disk.*;
+import ai.lzy.allocator.disk.Disk;
+import ai.lzy.allocator.disk.DiskManager;
+import ai.lzy.allocator.disk.DiskMeta;
+import ai.lzy.allocator.disk.DiskMetrics;
+import ai.lzy.allocator.disk.DiskOperation;
+import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
@@ -169,7 +174,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                                     .build());
 
                             createDiskOperation.modifyMeta(meta);
-                            createDiskOperation.setResponse(resp);
+                            createDiskOperation.completeWith(resp);
 
                             operationsDao.complete(createDiskOperation.id(), meta, resp, tx);
 

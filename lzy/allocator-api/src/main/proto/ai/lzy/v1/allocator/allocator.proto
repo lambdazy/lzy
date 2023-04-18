@@ -45,7 +45,7 @@ service Allocator {
 
   rpc Mount (MountRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
-      // metadata: null
+      metadata: "MountMetadata"
       response: "MountResponse"
     };
   }
@@ -170,6 +170,10 @@ message MountRequest {
     DiskVolumeType disk_volume = 3;
     //it's supposed that we'll have other mount types like NFS
   }
+}
+
+message MountMetadata {
+  DynamicMount mount = 1;
 }
 
 message MountResponse {

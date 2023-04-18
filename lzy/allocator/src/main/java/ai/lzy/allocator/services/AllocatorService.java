@@ -352,7 +352,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                             builder.addEndpoints(endpoint.toProto());
                         }
 
-                        op.setResponse(builder.build());
+                        op.completeWith(builder.build());
 
                         operationsDao.create(op, tx);
                         sessionsDao.touch(session.sessionId(), tx);
@@ -601,10 +601,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     checkExistingMounts(vm, dynamicMount, tx);
-                    var response = VmAllocatorApi.MountResponse.newBuilder()
+                    var meta = VmAllocatorApi.MountMetadata.newBuilder()
                         .setMount(dynamicMount.toProto())
                         .build();
-                    op.setResponse(response);
+                    op.modifyMeta(meta);
                     operationsDao.create(op, tx);
                     allocationContext.dynamicMountDao().create(dynamicMount, tx);
                     sessionsDao.touch(session.sessionId(), tx);

@@ -13,6 +13,8 @@ import ai.lzy.allocator.volume.VolumeManager;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.v1.VmAllocatorApi;
+import com.google.protobuf.Any;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.grpc.Status;
 import org.jetbrains.annotations.NotNull;
@@ -265,9 +267,16 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             var update = DynamicMount.Update.builder()
                 .state(DynamicMount.State.READY)
                 .build();
-            //todo what if dynamic mount is null?
-            this.dynamicMount = withRetries(log(), () -> allocationContext.dynamicMountDao().update(dynamicMount.id(),
-                update, null));
+            withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    //todo what if dynamic mount is null?
+                    this.dynamicMount = allocationContext.dynamicMountDao().update(dynamicMount.id(), update, tx);
+                    completeOperation(null, Any.pack(VmAllocatorApi.MountResponse.newBuilder()
+                        .setMount(dynamicMount.toProto())
+                        .build()), tx);
+                    tx.commit();
+                }
+            });
         } catch (Exception e) {
             log().error("{} Couldn't update mount {} state", logPrefix(), dynamicMount.id(), e);
             fail(Status.ABORTED.withDescription("Couldn't update mount " + dynamicMount.id() + " state: " +

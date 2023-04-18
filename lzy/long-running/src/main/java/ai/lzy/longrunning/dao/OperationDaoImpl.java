@@ -292,7 +292,7 @@ public class OperationDaoImpl implements OperationDao {
                 if (meta != null) {
                     op.modifyMeta(meta);
                 }
-                op.setResponse(response);
+                op.completeWith(response);
                 return op;
             }
         });
@@ -333,7 +333,7 @@ public class OperationDaoImpl implements OperationDao {
 
                 var rs = st.executeQuery();
                 var op = processResult(id, rs, "failed");
-                op.setError(io.grpc.Status.fromCodeValue(error.getCode()).withDescription(error.getMessage()));
+                op.completeWith(io.grpc.Status.fromCodeValue(error.getCode()).withDescription(error.getMessage()));
                 return op;
             }
         });

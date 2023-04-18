@@ -137,7 +137,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         if (channel == null) {
             LOG.warn(operationDescription + " skipped, channel not found");
 
-            operation.setResponse(Any.pack(LCMPS.ChannelDestroyResponse.getDefaultInstance()));
+            operation.completeWith(Any.pack(LCMPS.ChannelDestroyResponse.getDefaultInstance()));
             try {
                 withRetries(LOG, () -> operationDao.create(operation, null));
             } catch (Exception e) {

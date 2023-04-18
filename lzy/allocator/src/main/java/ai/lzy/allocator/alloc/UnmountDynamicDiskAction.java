@@ -6,6 +6,9 @@ import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.longrunning.OperationRunnerBase;
+import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.v1.VmAllocatorApi;
+import com.google.protobuf.Any;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import jakarta.annotation.Nullable;
 
@@ -211,7 +214,13 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         }
 
         try {
-            withRetries(log(), () -> allocationContext.dynamicMountDao().delete(dynamicMount.id(), null));
+            withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    allocationContext.dynamicMountDao().delete(dynamicMount.id(), tx);
+                    completeOperation(null, Any.pack(VmAllocatorApi.UnmountResponse.getDefaultInstance()), tx);
+                    tx.commit();
+                }
+            });
             mountDeleted = true;
         } catch (Exception e) {
             log().error("{} Failed to delete mount {}", logPrefix(), dynamicMount.id(), e);
