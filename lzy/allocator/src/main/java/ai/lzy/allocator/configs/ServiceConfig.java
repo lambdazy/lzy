@@ -27,15 +27,17 @@ public class ServiceConfig {
     private List<String> userClusters = new ArrayList<>();
 
     public String getAddress() {
-        String ipv4Host = hosts.stream().filter(host -> host.contains(".")).findFirst().orElse(null);
         String ipv6Host = hosts.stream().filter(host -> host.contains(":")).findFirst().orElse(null);
+        String ipv4Host = hosts.stream().filter(host -> host.contains(".")).findFirst().orElse(null);
 
-        String host = ipv6Host != null ? ipv6Host : ipv4Host; // ipv6 has a higher priority than ipv4
-        if (host == null) {
-            throw new IllegalArgumentException("No hosts specified");
+        // ipv6 has a higher priority than ipv4
+        if (ipv6Host != null) {
+            return HostAndPort.fromParts(ipv6Host, port).toString();
         }
-
-        return HostAndPort.fromParts(host, port).toString();
+        if (ipv4Host != null) {
+            return HostAndPort.fromParts(ipv4Host, port).toString();
+        }
+        return HostAndPort.fromParts(hosts.get(0), port).toString();
     }
 
     @ConfigurationBuilder("database")
