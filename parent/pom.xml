@@ -6,6 +6,10 @@
     <artifactId>parent</artifactId>
     <version>${revision}${changelist}</version>
     <packaging>pom</packaging>
+    <modules>
+        <module>../lzy/s3-sink-api</module>
+        <module>../lzy/s3-sink</module>
+    </modules>
 
     <distributionManagement>
         <repository>
