@@ -6,6 +6,7 @@ import ai.lzy.allocator.model.HostPathVolumeDescription;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Volume.AccessMode;
 import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.vmpool.VmPoolSpec;
 import io.fabric8.kubernetes.api.model.*;
@@ -251,16 +252,19 @@ public class PodSpecBuilder {
         return this;
     }
 
-    public PodSpecBuilder withHostVolumes(List<HostPathVolumeDescription> volumeRequests) {
+    public PodSpecBuilder withHostVolumes(List<VolumeRequest> volumeRequests) {
         for (var request : volumeRequests) {
+            if (!(request.volumeDescription() instanceof HostPathVolumeDescription descr)) {
+                continue;
+            }
             final var volume = new VolumeBuilder()
-                .withName(request.id())
+                .withName(request.volumeId())
                 .withHostPath(new HostPathVolumeSourceBuilder()
-                    .withPath(request.path())
-                    .withType(request.hostPathType().asString())
+                    .withPath(descr.path())
+                    .withType(descr.hostPathType().asString())
                     .build())
                 .build();
-            volumes.put(request.name(), volume);
+            volumes.put(descr.name(), volume);
         }
         return this;
     }

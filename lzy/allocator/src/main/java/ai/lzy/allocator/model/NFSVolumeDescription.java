@@ -9,7 +9,6 @@ import java.util.Objects;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescription {
-    private final String id;
     private final String name;
     private final String server;
     private final String share;
@@ -18,24 +17,17 @@ public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescriptio
     private final List<String> mountOptions;
 
     @JsonCreator
-    public NFSVolumeDescription(@JsonProperty("id") String id,
-                                @JsonProperty("name") String name,
+    public NFSVolumeDescription(@JsonProperty("name") String name,
                                 @JsonProperty("server") String server,
                                 @JsonProperty("share") String share,
                                 @JsonProperty("read_only") boolean readOnly,
                                 @JsonProperty("mount_options") List<String> mountOptions)
     {
-        this.id = id;
         this.name = name;
         this.server = server;
         this.share = share;
         this.readOnly = readOnly;
         this.mountOptions = mountOptions;
-    }
-
-    @Override
-    public String id() {
-        return id;
     }
 
     @Override
@@ -62,7 +54,6 @@ public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescriptio
     @Override
     public String toString() {
         return "HostPathVolumeDescription{" +
-                "id='" + id + '\'' +
                 ", name='" + name + '\'' +
                 ", path='" + share + '\'' +
                 ", server='" + server + '\'' +
@@ -80,8 +71,7 @@ public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescriptio
             return false;
         }
         NFSVolumeDescription that = (NFSVolumeDescription) o;
-        return Objects.equals(id, that.id)
-            && Objects.equals(server, that.server)
+        return Objects.equals(server, that.server)
             && Objects.equals(share, that.share)
             && Objects.equals(readOnly, that.readOnly)
             && mountOptions.equals(that.mountOptions);
@@ -89,6 +79,6 @@ public class NFSVolumeDescription extends VolumeRequest.ResourceVolumeDescriptio
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, server, share, readOnly, mountOptions);
+        return Objects.hash(server, share, readOnly, mountOptions);
     }
 }

@@ -28,11 +28,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.joining;
@@ -40,8 +36,8 @@ import static java.util.stream.Collectors.joining;
 @Singleton
 public class VmDaoImpl implements VmDao {
     private static final String SPEC_FIELDS =
-        "id, session_id, pool_label, zone, init_workloads_json, workloads_json, volume_requests_json, " +
-        "v6_proxy_address, tunnel_index, cluster_type";
+        "id, session_id, pool_label, zone, init_workloads_json, workloads_json, " +
+        "volume_requests_json, volume_descriptions_json, v6_proxy_address, tunnel_index, cluster_type";
 
     private static final String STATUS_FIELDS =
         "status";
@@ -82,7 +78,7 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_CREATE_VM = """
         INSERT INTO vm (%s, %s, %s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_START_FIELDS);
 
     private static final String QUERY_START_DELETE_VM = """
@@ -106,7 +102,7 @@ public class VmDaoImpl implements VmDao {
             FROM vm
             WHERE session_id = ? AND pool_label = ? AND zone = ? AND status = 'IDLE'
                 AND workloads_json = ? AND init_workloads_json = ?
-                AND volume_requests_json = ?
+                AND volume_descriptions_json = ?
                 AND COALESCE(v6_proxy_address, '') = ?
             LIMIT 1
         )
@@ -256,6 +252,19 @@ public class VmDaoImpl implements VmDao {
 
         DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_CREATE_VM)) {
+                var initWorkloads = vmSpec.initWorkloads().stream()
+                    .sorted(Comparator.comparing(Workload::image))
+                    .toList();
+                var workloads = vmSpec.workloads().stream()
+                    .sorted(Comparator.comparing(Workload::image))
+                    .toList();
+                var volumeRequests = vmSpec.volumeRequests().stream()
+                    .sorted(Comparator.comparing(r -> r.volumeDescription().name()))
+                    .toList();
+                var volumeDescriptions = volumeRequests.stream()
+                    .map(VolumeRequest::volumeDescription)
+                    .toList();
+
                 int idx = 0;
 
                 // spec
@@ -263,9 +272,10 @@ public class VmDaoImpl implements VmDao {
                 s.setString(++idx, vmSpec.sessionId());
                 s.setString(++idx, vmSpec.poolLabel());
                 s.setString(++idx, vmSpec.zone());
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.workloads()));
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
+                s.setString(++idx, objectMapper.writeValueAsString(initWorkloads));
+                s.setString(++idx, objectMapper.writeValueAsString(workloads));
+                s.setString(++idx, objectMapper.writeValueAsString(volumeRequests));
+                s.setString(++idx, objectMapper.writeValueAsString(volumeDescriptions));
                 s.setString(++idx, vmSpec.tunnelSettings() == null ? null
                     : vmSpec.tunnelSettings().proxyV6Address().getHostAddress());
                 if (vmSpec.tunnelSettings() == null) {
@@ -328,14 +338,27 @@ public class VmDaoImpl implements VmDao {
     public Vm acquire(Vm.Spec vmSpec, @Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_ACQUIRE_VM)) {
-                int idx = 0;
 
+                List<Workload> workloads = vmSpec.workloads().stream()
+                    .sorted(Comparator.comparing(Workload::image))
+                    .toList();
+
+                List<Workload> initWorkloads = vmSpec.initWorkloads().stream()
+                    .sorted(Comparator.comparing(Workload::image))
+                    .toList();
+
+                List<VolumeRequest.VolumeDescription> volumeDescriptions = vmSpec.volumeRequests().stream()
+                    .sorted(Comparator.comparing(r -> r.volumeDescription().name()))
+                    .map(VolumeRequest::volumeDescription)
+                    .toList();
+
+                int idx = 0;
                 s.setString(++idx, vmSpec.sessionId());
                 s.setString(++idx, vmSpec.poolLabel());
                 s.setString(++idx, vmSpec.zone());
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.workloads()));
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
+                s.setString(++idx, objectMapper.writeValueAsString(workloads));
+                s.setString(++idx, objectMapper.writeValueAsString(initWorkloads));
+                s.setString(++idx, objectMapper.writeValueAsString(volumeDescriptions));
                 s.setString(++idx, vmSpec.tunnelSettings() != null
                     ? vmSpec.tunnelSettings().proxyV6Address().getHostAddress() : "");
 
@@ -648,6 +671,7 @@ public class VmDaoImpl implements VmDao {
         final var workloads = objectMapper.readValue(rs.getString(++idx), new TypeReference<List<Workload>>() {});
         final var volumeRequests = objectMapper.readValue(rs.getString(++idx),
             new TypeReference<List<VolumeRequest>>() {});
+        ++idx; // skip descriptions
         final var v6ProxyAddress = Optional.ofNullable(rs.getString(++idx))
             .map(x -> {
                 try {

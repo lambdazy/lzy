@@ -47,6 +47,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -593,7 +594,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         final var requests = new ArrayList<VolumeRequest>(volumes.size());
 
         for (var volume : volumes) {
-            final var descr = switch (volume.getVolumeTypeCase()) {
+            final var req = switch (volume.getVolumeTypeCase()) {
                 case DISK_VOLUME -> {
                     final var diskVolume = volume.getDiskVolume();
                     final var disk = diskDao.get(diskVolume.getDiskId(), transaction);
@@ -602,22 +603,22 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         LOG.error(message);
                         throw Status.NOT_FOUND.withDescription(message).asException();
                     }
-                    yield new DiskVolumeDescription(idGenerator.generate("disk-volume-"), volume.getName(),
-                        diskVolume.getDiskId(), disk.spec().sizeGb());
+                    yield new VolumeRequest(idGenerator.generate("disk-volume-").toLowerCase(Locale.ROOT),
+                        new DiskVolumeDescription(volume.getName(), diskVolume.getDiskId(), disk.spec().sizeGb()));
                 }
 
                 case HOST_PATH_VOLUME -> {
                     final var hostPathVolume = volume.getHostPathVolume();
                     final var hostPathType = HostPathType.valueOf(hostPathVolume.getHostPathType().name());
-                    yield new HostPathVolumeDescription(idGenerator.generate("host-path-volume-"), volume.getName(),
-                        hostPathVolume.getPath(), hostPathType);
+                    yield new VolumeRequest(idGenerator.generate("host-path-volume-").toLowerCase(Locale.ROOT),
+                        new HostPathVolumeDescription(volume.getName(), hostPathVolume.getPath(), hostPathType));
                 }
 
                 case NFS_VOLUME -> {
                     final var nfsVolume = volume.getNfsVolume();
-                    yield new NFSVolumeDescription(idGenerator.generate("nfs-volume-"), volume.getName(),
-                        nfsVolume.getServer(), nfsVolume.getShare(), nfsVolume.getReadOnly(),
-                        nfsVolume.getMountOptionsList());
+                    yield new VolumeRequest(idGenerator.generate("nfs-volume-").toLowerCase(Locale.ROOT),
+                        new NFSVolumeDescription(volume.getName(), nfsVolume.getServer(),
+                            nfsVolume.getShare(), nfsVolume.getReadOnly(), nfsVolume.getMountOptionsList()));
                 }
 
                 case VOLUMETYPE_NOT_SET -> {
@@ -627,7 +628,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 }
             };
 
-            requests.add(new VolumeRequest(descr));
+            requests.add(req);
         }
 
         return requests;
