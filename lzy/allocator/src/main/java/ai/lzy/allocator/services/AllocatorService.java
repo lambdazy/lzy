@@ -616,7 +616,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 case NFS_VOLUME -> {
                     final var nfsVolume = volume.getNfsVolume();
                     yield new NFSVolumeDescription(idGenerator.generate("nfs-volume-"), volume.getName(),
-                        nfsVolume.getServer(), nfsVolume.getShare(), nfsVolume.getCapacity(),
+                        nfsVolume.getServer(), nfsVolume.getShare(), nfsVolume.getReadOnly(),
                         nfsVolume.getMountOptionsList());
                 }
 

@@ -115,11 +115,13 @@ public class KuberVolumeManager implements VolumeManager {
                 .build();
         } else if (resourceVolumeDescription instanceof NFSVolumeDescription nfsVolumeDescription) {
             diskId = volumeName; // NFS doesn't have real diskId, but it is required field for CSI
-            diskSize = nfsVolumeDescription.capacity();
+            diskSize = 1; // it's needed for volume <-> volume claim matching
 
             LOG.info("Creating persistent NFS volume for disk=" + volumeName);
 
-            accessMode = Volume.AccessMode.READ_WRITE_MANY;
+            accessMode = nfsVolumeDescription.readOnly()
+                ? Volume.AccessMode.READ_ONLY_MANY
+                : Volume.AccessMode.READ_WRITE_MANY;
             resourceName = nfsVolumeDescription.name();
             storageClass = NFS_STORAGE_CLASS_NAME;
             volume = new PersistentVolumeBuilder()
@@ -135,6 +137,7 @@ public class KuberVolumeManager implements VolumeManager {
                     .withCsi(new CSIPersistentVolumeSourceBuilder()
                         .withDriver(NFS_DRIVER)
                         .withVolumeHandle(diskId)
+                        .withReadOnly(nfsVolumeDescription.readOnly())
                         .withVolumeAttributes(Map.of(
                             "server", nfsVolumeDescription.server(),
                             "share", nfsVolumeDescription.share()))
@@ -169,15 +172,13 @@ public class KuberVolumeManager implements VolumeManager {
 
         LOG.info("Creating persistent volume claim {} for volume={}", claimName, volume);
 
-        final Volume.AccessMode accessMode = Volume.AccessMode.READ_WRITE_ONCE;
-
         final PersistentVolumeClaim volumeClaim = new PersistentVolumeClaimBuilder()
             .withNewMetadata()
                 .withName(claimName)
                 .withNamespace(DEFAULT_NAMESPACE)
             .endMetadata()
             .withNewSpec()
-                .withAccessModes(accessMode.asString())
+                .withAccessModes(volume.accessMode().asString())
                 .withVolumeName(volume.name())
                 .withStorageClassName(volume.storageClass())
                 .withResources(
@@ -191,7 +192,8 @@ public class KuberVolumeManager implements VolumeManager {
         try {
             final var claim = client.persistentVolumeClaims().resource(volumeClaim).create();
             final var claimId = claim.getMetadata().getUid();
-            LOG.info("Successfully created persistent volume claim name={} claimId={}", claimName, claimId);
+            LOG.info("Successfully created persistent volume claim name={} claimId={}, accessModes=[{}]",
+                claimName, claimId, String.join(", ", claim.getSpec().getAccessModes()));
             return new VolumeClaim(claimName, volume);
         } catch (KubernetesClientException e) {
             if (KuberUtils.isResourceAlreadyExist(e)) {
