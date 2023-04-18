@@ -124,7 +124,6 @@ public class KuberVmAllocator implements VmAllocator {
             if (allocState.volumeClaims() == null) {
                 final var resourceVolumes = vmSpec.volumeRequests().stream()
                     .filter(request -> request.volumeDescription() instanceof VolumeRequest.ResourceVolumeDescription)
-                    .map(request -> (VolumeRequest.ResourceVolumeDescription) request.volumeDescription())
                     .toList();
 
                 final var volumeClaims = KuberVolumeManager.allocateVolumes(client, resourceVolumes);
@@ -169,7 +168,6 @@ public class KuberVmAllocator implements VmAllocator {
                 .withVolumes(requireNonNull(allocState.volumeClaims()))
                 .withHostVolumes(vmSpec.volumeRequests().stream()
                     .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
-                    .map(v -> (HostPathVolumeDescription) v.volumeDescription())
                     .toList())
                 // --shm-size=1G
                 .withEmptyDirVolume("dshm", "/dev/shm", new EmptyDirVolumeSource("Memory", Quantity.parse("1Gi")))

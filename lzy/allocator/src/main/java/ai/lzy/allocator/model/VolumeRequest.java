@@ -10,11 +10,19 @@ import java.util.Objects;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 public class VolumeRequest {
+    private final String volumeId;
     private final VolumeDescription volumeDescription;
 
     @JsonCreator
-    public VolumeRequest(@JsonProperty("volumeDescription") VolumeDescription volumeDescription) {
+    public VolumeRequest(@JsonProperty("volumeId") String volumeId,
+                         @JsonProperty("volumeDescription") VolumeDescription volumeDescription)
+    {
+        this.volumeId = volumeId;
         this.volumeDescription = volumeDescription;
+    }
+
+    public String volumeId() {
+        return volumeId;
     }
 
     public VolumeDescription volumeDescription() {
@@ -24,7 +32,8 @@ public class VolumeRequest {
     @Override
     public String toString() {
         return "VolumeRequest{" +
-            "volumeDescription=" + volumeDescription +
+            "volumeId=" + volumeId +
+            ", volumeDescription=" + volumeDescription +
             '}';
     }
 
@@ -37,12 +46,13 @@ public class VolumeRequest {
             return false;
         }
         VolumeRequest that = (VolumeRequest) o;
-        return Objects.equals(volumeDescription, that.volumeDescription);
+        return Objects.equals(volumeId, that.volumeId)
+            && Objects.equals(volumeDescription, that.volumeDescription);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(volumeDescription);
+        return Objects.hash(volumeId, volumeDescription);
     }
 
     @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, property = "type")
@@ -52,7 +62,6 @@ public class VolumeRequest {
         @JsonSubTypes.Type(value = NFSVolumeDescription.class)
     })
     public abstract static class VolumeDescription {
-        public abstract String id();
         public abstract String name();
     }
 
