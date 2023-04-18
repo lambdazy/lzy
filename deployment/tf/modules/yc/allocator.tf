@@ -69,7 +69,7 @@ resource "kubernetes_stateful_set" "allocator" {
             name = "ALLOCATOR_HOSTS"
             value_from {
               field_ref {
-                field_path = "status.podIPs"
+                field_path = [kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]]
               }
             }
           }
