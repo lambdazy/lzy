@@ -19,9 +19,7 @@ from typing import (
     cast,
 )
 
-from lzy.api.v1 import DockerPullPolicy
-from lzy.proxy.result import Just
-from lzy.storage.api import Storage, FSCredentials
+from lzy.proxy.result import Result
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
@@ -163,7 +161,7 @@ class RemoteRuntime(Runtime):
                 for call in cast(LzyWorkflow, self.__workflow).call_queue:
                     if call.signature.func.name == status.failed_task:
                         exception = await cast(LzyWorkflow, self.__workflow).snapshot.get_data(call.exception_id)
-                        if isinstance(exception, Just):
+                        if isinstance(exception, Result):
                             raise exception.value
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"

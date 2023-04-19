@@ -8,7 +8,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type, cast, IO
 
-from lzy.proxy.result import Just
+from lzy.proxy.result import Result
 
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.startup import ProcessingRequest
@@ -162,7 +162,7 @@ class LocalRuntime(Runtime):
                 await self.__from_file_to_storage(exc_entry.storage_uri, folder + "/" + exc_eid)
 
                 exception = await self.__workflow.snapshot.get_data(call.exception_id)
-                if isinstance(exception, Just):
+                if isinstance(exception, Result):
                     raise exception.value
                 raise LzyExecutionException(f"Error during execution of {call.signature.func.callable}")
 
