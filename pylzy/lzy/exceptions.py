@@ -1,0 +1,2 @@
+class BadProvisioning(Exception):
+    pass

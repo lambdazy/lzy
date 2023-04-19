@@ -52,6 +52,7 @@ from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_syslog_color
 from lzy.storage.api import Storage, FSCredentials
 from lzy.utils.grpc import retry, RetryConfig
+from lzy.utils.format import pretty_protobuf
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
 
@@ -257,22 +258,6 @@ class RemoteRuntime(Runtime):
 
         return modules_uploaded
 
-    @staticmethod
-    def __resolve_pool(
-        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
-    ) -> Optional[VmPoolSpec]:
-        provisioning.validate()
-        for spec in pool_specs:
-            if (
-                provisioning.cpu_type == spec.cpuType
-                and cast(int, provisioning.cpu_count) <= spec.cpuCount
-                and provisioning.gpu_type == spec.gpuType
-                and cast(int, provisioning.gpu_count) <= spec.gpuCount
-                and cast(int, provisioning.ram_size_gb) <= spec.ramGb
-            ):
-                return spec
-        return None
-
     @retry(action_name="listening to std slots", config=RetryConfig(max_retry=12000, backoff_multiplier=1.2))
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
@@ -340,13 +325,7 @@ class RemoteRuntime(Runtime):
             data_descriptions[exc_entry.storage_uri] = data_description_by_entry(exc_entry)
             exc_description: Tuple[Type, str] = (exc_entry.typ, exc_slot_path)
 
-            pool = self.__resolve_pool(call.provisioning, pools)
-
-            if pool is None:
-                raise ValueError(
-                    f"Cannot resolve pool for operation "
-                    f"{call.signature.func.name}:\nAvailable: {pools}\n Expected: {call.provisioning}"
-                )
+            pool = call.provisioning.resolve_pool(pools)
             pool_to_call.append((pool, call))
 
             docker_image: Optional[str]
@@ -419,7 +398,7 @@ class RemoteRuntime(Runtime):
         if self.__workflow.is_interactive:  # TODO(artolord) add costs
             s = ""
             for pool, call in pool_to_call:
-                s += f"Call to op {call.signature.func.name} mapped to pool {pool.poolSpecName}\n"
+                s += f"Call to op {call.signature.func.name} mapped to pool {pretty_protobuf(pool)}\n"
 
             s += "Are you sure you want to run the graph with this configuration?"
 

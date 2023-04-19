@@ -6,7 +6,13 @@ from typing import Any, Callable, Dict, Optional, Sequence, TypeVar, Iterable, M
 from lzy.api.v1.call import LzyCall, wrap_call
 from lzy.api.v1.env import DockerPullPolicy, Env, DockerCredentials
 from lzy.api.v1.local.runtime import LocalRuntime
-from lzy.api.v1.provisioning import Provisioning, GpuType, CpuType
+from lzy.api.v1.provisioning import (
+    Provisioning,
+    GpuType,
+    CpuType,
+    IntegerRequirement,
+    StringRequirement
+)
 from lzy.api.v1.remote.runtime import RemoteRuntime
 from lzy.api.v1.remote.workflow_service_client import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV, WorkflowServiceClient
 from lzy.api.v1.runtime import Runtime
@@ -53,12 +59,12 @@ def op(
     docker_image: Optional[str] = None,
     docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
     local_modules_path: Optional[Sequence[str]] = None,
-    provisioning: Provisioning = Provisioning(),
-    cpu_type: Optional[str] = None,
-    cpu_count: Optional[int] = None,
-    gpu_type: Optional[str] = None,
-    gpu_count: Optional[int] = None,
-    ram_size_gb: Optional[int] = None,
+    provisioning: Optional[Provisioning] = None,
+    cpu_type: Optional[StringRequirement] = None,
+    cpu_count: Optional[IntegerRequirement] = None,
+    gpu_type: Optional[StringRequirement] = None,
+    gpu_count: Optional[IntegerRequirement] = None,
+    ram_size_gb: Optional[IntegerRequirement] = None,
     env: Env = Env(),
     description: str = "",
     version: str = "0.0",
@@ -68,15 +74,25 @@ def op(
     docker_only: bool = False,
     docker_credentials: Optional[DockerCredentials] = None
 ):
-    if env_variables is None:
-        env_variables = {}
+    if (
+        docker_only
+        and None in (conda_yaml_path, local_modules_path, libraries, python_version)
+    ):
+        raise TypeError(
+            "'docker_only' is not compatible with explicit python env settings "
+            "(conda_yaml_path, local_modules_path, libraries, python_version)"
+        )
 
-    if docker_only and (conda_yaml_path is not None
-                        or local_modules_path is not None
-                        or libraries is not None
-                        or python_version is not None):
-        raise ValueError("'docker_only' is not compatible with explicit python env settings "
-                         "(conda_yaml_path, local_modules_path, libraries, python_version)")
+    libraries = libraries or {}
+    env_variables = env_variables or {}
+    provisioning = provisioning or Provisioning()
+    provisioning = provisioning.override(
+        cpu_type=cpu_type,
+        cpu_count=cpu_count,
+        gpu_type=gpu_type,
+        gpu_count=gpu_count,
+        ram_size_gb=ram_size_gb
+    )
 
     def deco(f):
         """
@@ -97,11 +113,7 @@ def op(
                 output_types = infer_result.value  # expecting multiple return types
 
         nonlocal provisioning
-        provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
-
         nonlocal libraries
-        libraries = {} if not libraries else libraries
-
         nonlocal env
         env = env.override(
             Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
@@ -235,36 +247,43 @@ class Lzy:
         docker_image: Optional[str] = None,
         docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
         local_modules_path: Optional[Sequence[str]] = None,
-        provisioning: Provisioning = Provisioning.default(),
         interactive: bool = True,
-        cpu_type: Optional[str] = None,
-        cpu_count: Optional[int] = None,
-        gpu_type: Optional[str] = None,
-        gpu_count: Optional[int] = None,
-        ram_size_gb: Optional[int] = None,
+        provisioning: Optional[Provisioning] = None,
+        cpu_type: Optional[StringRequirement] = None,
+        cpu_count: Optional[IntegerRequirement] = None,
+        gpu_type: Optional[StringRequirement] = None,
+        gpu_count: Optional[IntegerRequirement] = None,
+        ram_size_gb: Optional[IntegerRequirement] = None,
         docker_only: bool = False,
         env_variables: Optional[Mapping[str, str]] = None,
         docker_credentials: Optional[DockerCredentials] = None,
         env: Env = Env()
     ) -> LzyWorkflow:
-
-        if env_variables is None:
-            env_variables = {}
-
         self.__register_default_runtime_storage()
 
-        if docker_only and (conda_yaml_path is not None
-                            or local_modules_path is not None
-                            or libraries is not None
-                            or python_version is not None):
-            raise ValueError("'docker_only' is not compatible with explicit python env"
-                             " settings (conda_yaml_path, local_modules_path, libraries, python_version)")
+        if (
+            docker_only
+            and None in (conda_yaml_path, local_modules_path, libraries, python_version)
+        ):
+            raise TypeError(
+                "'docker_only' is not compatible with explicit python env settings "
+                "(conda_yaml_path, local_modules_path, libraries, python_version)"
+            )
 
         if docker_only and docker_image is None:
-            raise ValueError("docker_only is set, but docker image is not set")
+            raise TypeError("docker_only is set, but docker image is not set")
 
-        provisioning = provisioning.override(Provisioning(cpu_type, cpu_count, gpu_type, gpu_count, ram_size_gb))
-        provisioning.validate()
+        env_variables = env_variables or {}
+        libraries = libraries or {}
+
+        provisioning = provisioning or Provisioning()
+        provisioning = provisioning.override(
+            cpu_type=cpu_type,
+            cpu_count=cpu_count,
+            gpu_type=gpu_type,
+            gpu_count=gpu_count,
+            ram_size_gb=ram_size_gb
+        )
 
         # it is important to detect py env before registering lazy calls to avoid materialization of them
         frame = inspect.stack()[1].frame
@@ -277,8 +296,6 @@ class Lzy:
         else:
             auto_py_env = None
             local_modules_path = []
-
-        libraries = {} if not libraries else libraries
 
         env = env.override(
             Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,

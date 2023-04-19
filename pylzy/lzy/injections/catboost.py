@@ -1,8 +1,9 @@
 from dataclasses import dataclass
 from typing import Union, Optional
 
-from lzy.api.v1 import Provisioning, op, Lzy
-from lzy.api.v1.provisioning import GpuType
+
+import lzy.api.v1.provisioning as lp
+from lzy.api.v1 import op, Lzy
 from lzy.injections.extensions import extend
 
 
@@ -15,16 +16,29 @@ def inject_catboost() -> None:
         model: Union[CatBoostClassifier, CatBoostRegressor, CatBoostRanker]
 
     @extend((CatBoostClassifier, CatBoostRegressor, CatBoostRanker))
-    def fit(self, *args, cpu_type: Optional[str] = None, cpu_count: Optional[int] = None,
-            gpu_type: Optional[str] = None, gpu_count: Optional[int] = None, ram_size_gb: Optional[int] = None,
-            **kwargs):
-        if cpu_count or cpu_type or gpu_type or gpu_count or ram_size_gb:
-            provisioning = Provisioning.default().override(Provisioning(cpu_count=cpu_count, cpu_type=cpu_type,
-                                                                        gpu_type=gpu_type, gpu_count=gpu_count,
-                                                                        ram_size_gb=ram_size_gb))
-            provisioning.validate()
+    def fit(
+        self,
+        *args,
+        provisioning: Optional[Provisioning] = None,
+        cpu_type: Optional[lp.StringRequirement] = None,
+        cpu_count: Optional[lp.IntegerRequirement] = None,
+        gpu_type: Optional[lp.StringRequirement] = None,
+        gpu_count: Optional[lp.IntegerRequirement] = None,
+        ram_size_gb: Optional[lp.IntegerRequirement] = None,
+        **kwargs
+    ):
 
-            if provisioning.gpu_type is not None and provisioning.gpu_type != GpuType.NO_GPU.value:
+        if cpu_count or cpu_type or gpu_type or gpu_count or ram_size_gb:
+            provisioning = provisioning or Provisioning()
+            provisioning = provisioning.override(
+                cpu_count=cpu_count,
+                cpu_type=cpu_type,
+                gpu_type=gpu_type,
+                gpu_count=gpu_count,
+                ram_size_gb=ram_size_gb,
+            )
+
+            if provisioning.gpu_type is not None and provisioning.gpu_type != lp.GpuType.NO_GPU.value:
                 self._init_params["task_type"] = "GPU"
                 self._init_params["devices"] = "0:1"
             else:
