@@ -2,6 +2,7 @@ package ai.lzy.service.graph;
 
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.junit.Ignore;
@@ -48,7 +49,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
 
         onExecuteGraph(request -> countOfTasks.addAndGet(request.getTasksCount()));
 
-        authorizedWorkflowClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
+        var graphId = authorizedWorkflowClient.executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
                 .setWorkflowName("workflow_1")
                 .setExecutionId(workflow.getExecutionId())
                 .setGraph(graphWithRepeatedOps())
@@ -59,7 +60,7 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
     }
 
     @Test
-    public void workflowsNotShareCache() {
+    public void workflowsNotShareCache() throws InvalidProtocolBufferException {
         var graphs = sequenceOfGraphs(storageConfig);
         var countOfTasks = new AtomicInteger(0);
 
@@ -72,6 +73,8 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
                 .setGraph(graphs.get(0))
                 .build()).getGraphId();
 
+        finishWorkflow("workflow_1", workflow1.getExecutionId());
+
         var workflow2 = startWorkflow("workflow_2");
         var graphId2 = authorizedWorkflowClient.executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_2")
@@ -79,9 +82,48 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
                 .setGraph(graphs.get(1))
                 .build()).getGraphId();
 
+        finishWorkflow("workflow_2", workflow2.getExecutionId());
+
         assertFalse(graphId1.isBlank());
         assertFalse(graphId2.isBlank());
         assertEquals(3, countOfTasks.get());
+    }
+
+    @Test
+    public void executeGraphWithSingleProducerMultipleConsumers() {
+        var workflowName = "workflow_1";
+        var s3locator = authorizedWorkflowClient.getOrCreateDefaultStorage(
+            LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
+        var createWorkflowResponse = authorizedWorkflowClient.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).setSnapshotStorage(s3locator).build());
+        var executionId = createWorkflowResponse.getExecutionId();
+
+        var graphs = producerAndConsumersGraphs();
+
+        var graphId1 = authorizedWorkflowClient.executeGraph(
+            LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
+                .setExecutionId(executionId)
+                .setGraph(graphs.get(0))
+                .build()).getGraphId();
+
+        var graphId2 = authorizedWorkflowClient.executeGraph(
+            LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
+                .setExecutionId(executionId)
+                .setGraph(graphs.get(1))
+                .build()).getGraphId();
+
+        var graphId3 = authorizedWorkflowClient.executeGraph(
+            LWFS.ExecuteGraphRequest.newBuilder()
+                .setWorkflowName(workflowName)
+                .setExecutionId(executionId)
+                .setGraph(graphs.get(2))
+                .build()).getGraphId();
+
+        assertFalse(graphId1.isBlank());
+        assertFalse(graphId2.isBlank());
+        assertFalse(graphId3.isBlank());
     }
 
     @Ignore
@@ -155,29 +197,28 @@ public class GraphExecutionTest extends AbstractGraphExecutionTest {
             .addAllOperations(thirdOperations)
             .build();
 
-        LWFS.ExecuteGraphResponse firstGraphExecution = authorizedWorkflowClient.executeGraph(
+        var firstGraphId = authorizedWorkflowClient.executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .setGraph(firstGraph)
-                .build());
+                .build()).getGraphId();
 
-        LWFS.ExecuteGraphResponse secondGraphExecution = authorizedWorkflowClient.executeGraph(
+        var secondGraphId = authorizedWorkflowClient.executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .setGraph(secondGraph)
-                .build());
+                .build()).getGraphId();
 
-        LWFS.ExecuteGraphResponse thirdGraphExecution = authorizedWorkflowClient.executeGraph(
+        var thirdGraphId = authorizedWorkflowClient.executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .setGraph(thirdGraph)
-                .build());
+                .build()).getGraphId();
 
-        List.of(firstGraphExecution, secondGraphExecution, thirdGraphExecution)
-            .forEach(response -> assertFalse(response.getGraphId().isBlank()));
+        List.of(firstGraphId, secondGraphId, thirdGraphId).forEach(graphId -> assertFalse(graphId.isBlank()));
     }
 
     @Test

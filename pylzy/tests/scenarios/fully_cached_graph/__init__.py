@@ -13,16 +13,17 @@ def bar_with_print(message: str) -> str:
     return f"message from bar: {message}"
 
 
-workflow_name = "wf"
+if __name__ == '__main__':
+    workflow_name = "wf"
 
-with Lzy().workflow(name=workflow_name, interactive=False):
-    n = "number"
-    v = 42
-    mes = bar_with_print(foo_with_print(n, v))
-    print(mes)
+    with Lzy().workflow(name=workflow_name, interactive=False):
+        n = "number"
+        v = 42
+        mes = bar_with_print(foo_with_print(n, v))
+        print(mes)
 
-with Lzy().workflow(name=workflow_name, interactive=False):
-    n = "number"
-    v = 42
-    mes = bar_with_print(foo_with_print(n, v))
-    print(f"again -- {mes}")
+    with Lzy().workflow(name=workflow_name, interactive=False):
+        n = "number"
+        v = 42
+        mes = bar_with_print(foo_with_print(n, v))
+        print(f"again -- {mes}")

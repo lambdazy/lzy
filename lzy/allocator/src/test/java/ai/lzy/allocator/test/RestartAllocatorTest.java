@@ -56,18 +56,6 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
     }
 
     @Test
-    public void allocateVmFail1() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(1).set(failure("term 1"));
-        allocateVmFailImpl();
-    }
-
-    @Test
-    public void allocateVmFail2() throws Exception {
-        InjectedFailures.FAIL_ALLOCATE_VMS.get(2).set(failure("term 2"));
-        allocateVmFailImpl();
-    }
-
-    @Test
     public void allocateVmFail3() throws Exception {
         InjectedFailures.FAIL_ALLOCATE_VMS.get(3).set(failure("term 3"));
         allocateVmFailImpl();

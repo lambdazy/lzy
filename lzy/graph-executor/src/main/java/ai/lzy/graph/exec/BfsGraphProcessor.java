@@ -169,7 +169,8 @@ public class BfsGraphProcessor implements GraphProcessor {
     }
 
     private Set<TaskDescription> getNextExecutionGroup(GraphExecutionState graphExecution)
-                                                                        throws GraphBuilder.GraphValidationException {
+        throws GraphBuilder.GraphValidationException
+    {
         final DirectedGraph<TaskVertex, ChannelEdge> graph = graphBuilder.build(graphExecution.description());
 
         final CondensedGraph<TaskVertex, ChannelEdge> condensedGraph = Algorithms.condenseGraph(graph);
@@ -221,7 +222,8 @@ public class BfsGraphProcessor implements GraphProcessor {
                         }
                         final var status = api.status(graphExecution.workflowId(), exec.id());
                         return status != null && status.hasSuccess();
-                    })) {
+                    }))
+            {
                 nextGroup.add(comp);
             }
         }

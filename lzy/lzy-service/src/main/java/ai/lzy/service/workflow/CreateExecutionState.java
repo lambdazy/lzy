@@ -16,6 +16,7 @@ final class CreateExecutionState {
     private String stdoutChannelId;
     private String stderrChannelId;
     private String portalId;
+    private String subjectId;
     private Status errorStatus;
 
     public CreateExecutionState(String userId, String workflowName, String storageName,
@@ -26,6 +27,14 @@ final class CreateExecutionState {
         this.storageConfig = storageConfig;
         this.storageName = storageName;
         this.executionId = workflowName + "_" + UUID.randomUUID();
+    }
+
+    public String getSubjectId() {
+        return subjectId;
+    }
+
+    public void setSubjectId(String subjectId) {
+        this.subjectId = subjectId;
     }
 
     public String getStorageName() {

@@ -1,5 +1,6 @@
 package ai.lzy.service;
 
+import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.DummyMetricReporter;
@@ -10,6 +11,9 @@ import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.kafka.KafkaAdminClient;
+import ai.lzy.util.kafka.NoopKafkaAdminClient;
+import ai.lzy.util.kafka.ScramKafkaAdminClient;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -37,6 +41,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 
+import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Factory
@@ -138,5 +143,30 @@ public class BeanFactory {
     @Named("LzyServiceStorageClientFactory")
     public StorageClientFactory storageClientFactory() {
         return new StorageClientFactory(10, 10);
+    }
+
+    @Singleton
+    @Named("LzyServiceKafkaAdminClient")
+    @Requires(notEnv = "test")
+    public KafkaAdminClient kafkaAdminClient(LzyServiceConfig config) {
+        if (config.getKafka().isEnabled()) {
+            return new ScramKafkaAdminClient(config.getKafka());
+        }
+        return new NoopKafkaAdminClient();
+    }
+
+    @Singleton
+    @Named("LzyServiceKafkaAdminClient")
+    @Requires(env = "test")
+    public KafkaAdminClient testKafkaAdminClient(LzyServiceConfig config) {
+        return new NoopKafkaAdminClient();
+    }
+
+    @Singleton
+    @Named("LzySubjectServiceClient")
+    public SubjectServiceGrpcClient subjectServiceGrpcClient(@Named("IamServiceChannel") ManagedChannel iamChannel,
+                                                             @Named("LzyServiceIamToken") RenewableJwt userCreds)
+    {
+        return new SubjectServiceGrpcClient(APP, iamChannel, userCreds::get);
     }
 }

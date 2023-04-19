@@ -3,10 +3,10 @@ disable_existing_loggers: False
 
 formatters:
   local:
-    format: "${LZY_SYSTEM_LOG_COLOR}[LZY LOCAL] - %(asctime)s - [%(levelname)s] - %(message)s\x1b[0m"
+    format: "\x1b[37m[LZY-LOCAL] ${LZY_SYSTEM_LOG_COLOR}%(asctime)s - [%(levelname)s] - %(message)s\x1b[0m"
 
   remote:
-    format: "[SYS] - %(asctime)s - [%(levelname)s] - %(message)s"
+    format: "[SYS] %(asctime)s - [%(levelname)s] - %(message)s"
 
 handlers:
   local:
@@ -19,7 +19,7 @@ handlers:
     level: 0
     class: logging.StreamHandler
     formatter: remote
-    stream  : ext://sys.stdout
+    stream  : ext://sys.stderr
 
 loggers:
   lzy:

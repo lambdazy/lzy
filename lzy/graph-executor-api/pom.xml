@@ -5,33 +5,27 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.9-SNAPSHOT</version>
+        <version>${revision}${changelist}</version>
         <relativePath>../../parent</relativePath>
     </parent>
-    <artifactId>graph-executor-api</artifactId>
-    <version>1.9-SNAPSHOT</version>
 
-    <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
+    <artifactId>graph-executor-api</artifactId>
 
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>model</artifactId>
-            <version>1.9-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>scheduler-api</artifactId>
-            <version>1.9-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-auth</artifactId>
-            <version>1.9-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>
@@ -49,20 +43,16 @@
     </dependencies>
 
     <build>
-        <resources>
-            <resource>
-                <directory>src/main/proto</directory>
-                <includes>
-                    <include>**/*.proto</include>
-                </includes>
-            </resource>
-        </resources>
         <plugins>
+            <!-- the plugin resolves ${revision} and other version placeholders in installed/deployed poms -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+            </plugin>
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
-
 </project>

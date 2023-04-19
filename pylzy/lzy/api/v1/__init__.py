@@ -18,12 +18,13 @@ from lzy.api.v1.utils.types import infer_return_type
 from lzy.api.v1.whiteboards import whiteboard_
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import configure_logging
-from lzy.proxy.result import Nothing
+from lzy.proxy.result import Absence
 from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
 from lzy.storage.registry import DefaultStorageRegistry
+from lzy.utils.format import pretty_function
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.whiteboards.api import WhiteboardManager, WhiteboardIndexClient
 from lzy.whiteboards.index import WhiteboardIndexedManager, RemoteWhiteboardIndexClient, WB_USER_ENV, WB_KEY_PATH_ENV, \
@@ -86,9 +87,9 @@ def op(
         nonlocal output_types
         if output_types is None:
             infer_result = infer_return_type(f)
-            if isinstance(infer_result, Nothing):
+            if isinstance(infer_result, Absence):
                 raise TypeError(
-                    f"{f} return type is not annotated. "
+                    f"Return type is not annotated for {pretty_function(f)}. "
                     f"Please for proper use of {op.__name__} "
                     f"annotate return type of your function."
                 )
@@ -266,7 +267,8 @@ class Lzy:
         provisioning.validate()
 
         # it is important to detect py env before registering lazy calls to avoid materialization of them
-        namespace = inspect.stack()[1].frame.f_globals
+        frame = inspect.stack()[1].frame
+        namespace = {**frame.f_globals, **frame.f_locals}
         auto_py_env: PyEnv = self.__env_provider.provide(namespace)
 
         libraries = {} if not libraries else libraries

@@ -5,11 +5,11 @@ from lzy.api.v1 import Provisioning, op, Lzy
 from lzy.api.v1.provisioning import GpuType
 from lzy.injections.extensions import extend
 
-# noinspection PyPackageRequirements
-from catboost import CatBoostClassifier, CatBoostRanker, CatBoostRegressor
-
 
 def inject_catboost() -> None:
+    # noinspection PyPackageRequirements
+    from catboost import CatBoostClassifier, CatBoostRanker, CatBoostRegressor
+
     @dataclass
     class UnfitCatboostModel:
         model: Union[CatBoostClassifier, CatBoostRegressor, CatBoostRanker]

@@ -4,6 +4,7 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.ExecutionStatus;
+import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.data.PortalStatus;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.v1.common.LMST;
@@ -16,6 +17,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -57,6 +59,11 @@ public class ExecutionDaoImpl implements ExecutionDao {
         SET portal = cast(? as portal_status), portal_vm_address = ?, portal_fs_address = ?
         WHERE execution_id = ?""";
 
+    private static final String QUERY_UPDATE_SUBJECT_ID = """
+        UPDATE workflow_executions
+        SET portal_subject_id = ?
+        WHERE execution_id = ?""";
+
     private static final String QUERY_GET_EXEC_FINISH_DATA = """
         SELECT execution_id, finished_at, finished_with_error, finished_error_code
         FROM workflow_executions
@@ -90,7 +97,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
           portal_fs_address,
           portal_stdout_channel_id,
           portal_stderr_channel_id,
-          portal_id
+          portal_id,
+          portal_subject_id
         FROM workflow_executions
         WHERE execution_id = ?""";
 
@@ -105,6 +113,16 @@ public class ExecutionDaoImpl implements ExecutionDao {
         FROM workflow_executions
         WHERE execution_status = 'ERROR'
         LIMIT 1""";
+
+    private static final String QUERY_UPDATE_KAFKA_TOPIC = """
+        UPDATE workflow_executions
+        SET kafka_topic_json = ?
+        WHERE execution_id = ? AND kafka_topic_json is null""";
+
+    private static final String QUERY_GET_KAFKA_TOPIC = """
+        SELECT kafka_topic_json
+        FROM workflow_executions
+        WHERE execution_id = ?""";
 
     private final LzyServiceStorage storage;
     private final ObjectMapper objectMapper;
@@ -200,6 +218,19 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 statement.setString(2, vmAddress);
                 statement.setString(3, fsAddress);
                 statement.setString(4, executionId);
+                statement.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void updatePortalSubjectId(String executionId, String subjectId, TransactionHandle transaction)
+        throws SQLException
+    {
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement(QUERY_UPDATE_SUBJECT_ID)) {
+                statement.setString(1, subjectId);
+                statement.setString(2, executionId);
                 statement.executeUpdate();
             }
         });
@@ -368,14 +399,17 @@ public class ExecutionDaoImpl implements ExecutionDao {
     @Override
     @Nullable
     public PortalDescription getPortalDescription(String executionId) throws SQLException {
-        PortalDescription[] descriptions = {null};
-
-        DbOperation.execute(null, storage, con -> {
+        return DbOperation.execute(null, storage, con -> {
             try (var statement = con.prepareStatement(QUERY_GET_PORTAL_DESCRIPTION)) {
                 statement.setString(1, executionId);
                 ResultSet rs = statement.executeQuery();
 
                 if (rs.next()) {
+                    if (rs.getString(1) == null) {
+                        LOG.warn("Portal for executionId {} not started yet", executionId);
+                        return null;
+                    }
+
                     var status = PortalDescription.PortalStatus.valueOf(rs.getString(1));
                     var allocateSessionId = rs.getString(2);
                     var vmId = rs.getString(3);
@@ -386,16 +420,16 @@ public class ExecutionDaoImpl implements ExecutionDao {
                     var stdoutChannelId = rs.getString(6);
                     var stderrChannelId = rs.getString(7);
                     var portalId = rs.getString(8);
+                    var portalSubjectId = rs.getString(9);
 
-                    descriptions[0] = new PortalDescription(portalId, allocateSessionId, vmId, vmAddress, fsAddress,
-                        stdoutChannelId, stderrChannelId, status);
+                    return new PortalDescription(portalId, portalSubjectId, allocateSessionId, vmId,
+                        vmAddress, fsAddress, stdoutChannelId, stderrChannelId, status);
                 } else {
                     LOG.warn("Cannot find portal description: { executionId: {} }", executionId);
+                    return null;
                 }
             }
         });
-
-        return descriptions[0];
     }
 
     @Override
@@ -434,5 +468,50 @@ public class ExecutionDaoImpl implements ExecutionDao {
             }
         });
         return res[0];
+    }
+
+    @Override
+    public void setKafkaTopicDesc(String executionId, KafkaTopicDesc topicDesc,
+                                  @Nullable TransactionHandle transaction) throws SQLException
+    {
+        DbOperation.execute(transaction, storage, con -> {
+            try (PreparedStatement stmt = con.prepareStatement(QUERY_UPDATE_KAFKA_TOPIC)) {
+                stmt.setString(1, objectMapper.writeValueAsString(topicDesc));
+                stmt.setString(2, executionId);
+                var res = stmt.executeUpdate();
+
+                if (res != 1) {
+                    throw new RuntimeException("Expected 1 updated topic desc, but updates "
+                        + res + " , execution_id: " + executionId);
+                }
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump kafka topic desc: " + topicDesc, e);
+            }
+        });
+    }
+
+    @Override
+    public KafkaTopicDesc getKafkaTopicDesc(String executionId, TransactionHandle transaction) throws SQLException {
+        return DbOperation.execute(transaction, storage, con -> {
+            try (PreparedStatement stmt = con.prepareStatement(QUERY_GET_KAFKA_TOPIC)) {
+                stmt.setString(1, executionId);
+                var qs = stmt.executeQuery();
+
+                if (qs.next()) {
+                    var kafkaJson = qs.getString(1);
+
+                    if (kafkaJson == null) {
+                        return null;
+                    }
+
+                    return objectMapper.readValue(kafkaJson, KafkaTopicDesc.class);
+                } else {
+                    return null;
+                }
+
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot deserialize kafka topic desc", e);
+            }
+        });
     }
 }

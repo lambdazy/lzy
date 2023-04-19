@@ -35,6 +35,9 @@
 .project
 .settings
 
+# vim
+*.sw?
+
 # Gradle and Maven with auto-import
 # When using Gradle or Maven with auto-import, you should exclude module files,
 # since they will be recreated, and may cause churn.  Uncomment if using
@@ -130,6 +133,7 @@ dependency-reduced-pom.xml
 buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
+**/.flattened-pom.xml
 
 # End of https://www.gitignore.io/api/java,maven,intellij+all
 
@@ -167,7 +171,6 @@ pylzy/google
 pylzy/_build
 
 **/*.env
-pylzy/*.egg-info
 **/.vscode
 
 *.coverage
@@ -199,8 +202,5 @@ test/slot.json
 
 /pylzy/.tox/
 worker/docker/tmp-for-context
-
-/pylzy/readme.md
-/pylzy/LICENSE
 
 lzy-test-cert.pem

@@ -50,4 +50,14 @@ jobs:
       - name: "Publish allocator api"
         timeout-minutes: 10
         run: |
-          cd lzy/allocator-api/ && mvn clean deploy --also-make-dependents && cd ..
+          cd lzy/allocator-api/ && mvn clean deploy --also-make-dependents && cd ../..
+
+      - name: "Publish model"
+        timeout-minutes: 10
+        run: |
+          cd model/ && mvn clean deploy --also-make-dependents && cd ..
+
+      - name: "Publish whiteboard api"
+        timeout-minutes: 10
+        run: |
+          cd whiteboard-api/ && mvn clean deploy --also-make-dependents && cd ..

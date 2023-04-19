@@ -1,14 +1,15 @@
 package ai.lzy.allocator.vmpool;
 
+import ai.lzy.common.IdGenerator;
 import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
+import jakarta.inject.Named;
 
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import javax.inject.Singleton;
 
@@ -20,28 +21,28 @@ import static ai.lzy.allocator.vmpool.GpuTypes.NO_GPU;
 @Requires(property = "allocator.mock-mk8s.enabled", value = "true")
 public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
 
-    private final Map<String, ClusterDescription> labelsToClusters = new ConcurrentHashMap<>(Map.of(
-        "S", new ClusterDescription(
-            "S-" + UUID.randomUUID(),
-            HostAndPort.fromString("localhost:1256"),
-            "", ClusterType.User),
-        "M", new ClusterDescription(
-            "M-" + UUID.randomUUID(),
-            HostAndPort.fromString("localhost:1256"),
-            "", ClusterType.User)
-    ));
+    private final Map<String, ClusterDescription> labelsToClusters;
+    private final Map<String, ClusterDescription> idsToClusters;
 
     private final Map<String, VmPoolSpec> vmPools = Map.of(
         "s", new VmPoolSpec("s", CASCADE_LAKE.value(), 2, NO_GPU.value(), 0, 4, Set.of("ru-central1-a")),
         "m", new VmPoolSpec("m", CASCADE_LAKE.value(), 4, NO_GPU.value(), 0, 4, Set.of("ru-central1-a"))
     );
 
-    private final Map<String, ClusterDescription> idsToClusters;
+    public MockMk8s(@Named("AllocatorIdGenerator") IdGenerator idGenerator) {
+        labelsToClusters = Map.of(
+            "S", new ClusterDescription(
+                idGenerator.generate("S-"),
+                HostAndPort.fromString("localhost:1256"),
+                "", ClusterType.User),
+            "M", new ClusterDescription(
+                idGenerator.generate("M-"),
+                HostAndPort.fromString("localhost:1256"),
+                "", ClusterType.User)
+        );
 
-    public MockMk8s() {
-        this.idsToClusters = new ConcurrentHashMap<>();
-        labelsToClusters.forEach(
-            (s, clusterDescription) -> idsToClusters.put(clusterDescription.clusterId(), clusterDescription));
+        idsToClusters = labelsToClusters.entrySet().stream()
+                .collect(Collectors.toMap(e -> e.getValue().clusterId(), Map.Entry::getValue));
     }
 
     @Nullable

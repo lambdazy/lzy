@@ -74,11 +74,13 @@ public final class GrpcUtils {
                 .intercept(authInterceptor)
                 .intercept(GrpcLogsInterceptor.server())
                 .intercept(RequestIdInterceptor.server())
+                .intercept(RemoteAddressInterceptor.create())
                 .intercept(GrpcHeadersServerInterceptor.create());
         } else {
             return builder
                 .intercept(GrpcLogsInterceptor.server())
                 .intercept(RequestIdInterceptor.server())
+                .intercept(RemoteAddressInterceptor.create())
                 .intercept(GrpcHeadersServerInterceptor.create());
         }
     }

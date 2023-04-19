@@ -218,3 +218,7 @@ jobs:
     min-pool-size: 3
     max-pool-size: 5
     enabled: true
+
+worker:
+  kafka:
+    enabled: true

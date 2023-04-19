@@ -1,8 +1,10 @@
 package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
+import ai.lzy.worker.ServiceConfig;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
@@ -11,6 +13,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
+@Singleton
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
     private static final String RESOURCES_PATH = "/tmp/resources/";
@@ -23,11 +26,11 @@ public class EnvironmentFactory {
 
     private final boolean hasGpu;
 
-    public EnvironmentFactory(int gpuCount) {
-        this.hasGpu = gpuCount > 0;
+    public EnvironmentFactory(ServiceConfig config) {
+        this.hasGpu = config.getGpuCount() > 0;
     }
 
-    public AuxEnvironment create(String fsRoot, LME.EnvSpec env) {
+    public AuxEnvironment create(String taskId, String fsRoot, LME.EnvSpec env) {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
@@ -61,14 +64,14 @@ public class EnvironmentFactory {
                     } catch (Exception e) {
                         LOG.error("Cannot kill docker container {}", cachedEnv.containerId, e);
                     }
-                    baseEnv = new DockerEnvironment(config, credentials);
+                    baseEnv = new DockerEnvironment(config, DockerEnvironment.generateClient(credentials));
                     createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
                 } else {
                     baseEnv = cachedEnv;
                 }
 
             } else {
-                baseEnv = new DockerEnvironment(config, credentials);
+                baseEnv = new DockerEnvironment(config, DockerEnvironment.generateClient(credentials));
                 createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
             }
         } else {
@@ -78,7 +81,7 @@ public class EnvironmentFactory {
         if (env.hasPyenv()) {
             return new CondaEnvironment(env.getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
         } else if (env.hasProcessEnv()) {
-            return new SimpleBashEnvironment(baseEnv, Map.of());
+            return new SimpleBashEnvironment(taskId, baseEnv, Map.of());
         } else {
             LOG.error("Error while creating env: undefined env");
             throw Status.UNIMPLEMENTED.withDescription("Provided unsupported env")

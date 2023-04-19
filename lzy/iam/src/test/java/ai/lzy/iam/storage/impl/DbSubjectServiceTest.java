@@ -2,7 +2,11 @@ package ai.lzy.iam.storage.impl;
 
 import ai.lzy.iam.BaseSubjectServiceApiTest;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.*;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.model.db.test.DatabaseTestUtils;
@@ -15,7 +19,11 @@ import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.FixMethodOrder;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
 import java.time.Duration;
@@ -59,9 +67,8 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     @Test
     public void createMultipleSameSubjectsIsOkay() {
         var credentials = List.of(
-            new SubjectCredentials("key", "val", CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(120))),
-            new SubjectCredentials("cookie", "val", CredentialsType.COOKIE, Instant.now().plus(Duration.ofHours(24))),
-            new SubjectCredentials("ott", "val", CredentialsType.OTT, Instant.now().plus(Duration.ofDays(30)))
+            new SubjectCredentials("key1", "val", CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(120))),
+            new SubjectCredentials("key2", "val", CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(30)))
         );
 
         var dima = createSubject("Dima", SubjectType.USER, credentials);
@@ -94,11 +101,9 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
                     readyLatch.await();
 
                     var credentials = List.of(
-                        new SubjectCredentials("key", "val", CredentialsType.PUBLIC_KEY,
+                        new SubjectCredentials("key1", "val", CredentialsType.PUBLIC_KEY,
                             Instant.now().plus(Duration.ofDays(120))),
-                        new SubjectCredentials("cookie", "val", CredentialsType.COOKIE,
-                            Instant.now().plus(Duration.ofHours(24))),
-                        new SubjectCredentials("ott", "val", CredentialsType.OTT,
+                        new SubjectCredentials("key2", "val", CredentialsType.PUBLIC_KEY,
                             Instant.now().plus(Duration.ofDays(30)))
                     );
 
@@ -125,9 +130,8 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     @Test
     public void createSameSubjectsWithDifferentInitCredentialsIsError() {
         var credentials = List.of(
-            new SubjectCredentials("key", "val", CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(120))),
-            new SubjectCredentials("cookie", "val", CredentialsType.COOKIE, Instant.now().plus(Duration.ofHours(24))),
-            new SubjectCredentials("ott", "val", CredentialsType.OTT, Instant.now().plus(Duration.ofDays(30)))
+            new SubjectCredentials("key1", "val", CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(120))),
+            new SubjectCredentials("key2", "val", CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(30)))
         );
 
         var dima = createSubject("Dima", SubjectType.USER, credentials);
@@ -143,7 +147,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
     @Test
     public void createSubjectsWithSameAuthButDifferentPropertiesIsError() {
-        var alisa = createSubject("Alisa", SubjectType.VM);
+        var alisa = createSubject("Alisa", SubjectType.USER);
 
         assertThrows(AuthUniqueViolationException.class, () ->
             createSubject("Alisa", SubjectType.WORKER,
@@ -234,7 +238,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         var credentialName1 = "work-macbook";
         var credentialName2 = "virtual-vm";
         var credentials1 = new SubjectCredentials(credentialName1, "Value", CredentialsType.PUBLIC_KEY);
-        var credentials2 = new SubjectCredentials(credentialName2, "Value", CredentialsType.OTT,
+        var credentials2 = new SubjectCredentials(credentialName2, "Value", CredentialsType.PUBLIC_KEY,
             Instant.now().plus(Duration.ofDays(30)));
 
         assertThrows(AuthInternalException.class, () ->
@@ -278,13 +282,9 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         assertEquals("Value", credentials2.value());
         assertEquals(CredentialsType.PUBLIC_KEY, credentials2.type());
 
-        var credentials1ReplicaWithOtherValueAndType = new SubjectCredentials(credentialsName1, "--vALuE--",
-            CredentialsType.COOKIE);
         var credentials2ReplicaWithOtherTypeAndTtl = new SubjectCredentials(credentialsName2, "Value",
-            CredentialsType.OTT, Instant.now().plus(Duration.ofDays(30)));
+            CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(30)));
 
-        assertThrows(AuthUniqueViolationException.class, () ->
-            subjectService.addCredentials(dima, credentials1ReplicaWithOtherValueAndType));
         assertThrows(AuthUniqueViolationException.class, () ->
             subjectService.addCredentials(dima, credentials2ReplicaWithOtherTypeAndTtl));
     }
@@ -294,10 +294,10 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         var credentialName1 = "work-macbook";
         var credentialName2 = "virtual-vm";
         var credentials1 = new SubjectCredentials(credentialName1, "Value", CredentialsType.PUBLIC_KEY);
-        var credentials2 = new SubjectCredentials(credentialName2, "Value", CredentialsType.OTT,
+        var credentials2 = new SubjectCredentials(credentialName2, "Value", CredentialsType.PUBLIC_KEY,
             Instant.now().plus(Duration.ofDays(30)));
-        var credentials2ReplicaWithOtherTtl = new SubjectCredentials(credentialName2, "Value", CredentialsType.OTT,
-            Instant.now().plus(Duration.ofMinutes(30)));
+        var credentials2ReplicaWithOtherTtl = new SubjectCredentials(credentialName2, "Value",
+            CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofMinutes(30)));
 
         assertThrows(AuthInternalException.class, () ->
             createSubject("Anton", SubjectType.USER,

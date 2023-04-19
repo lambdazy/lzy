@@ -100,13 +100,39 @@ resource "kubernetes_deployment" "whiteboard" {
               }
             }
           }
+
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = local.whiteboard-k8s-name
+          }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
         }
         container {
-          name = "unified-agent"
-          image = var.unified-agent-image
+          name              = "unified-agent"
+          image             = var.unified-agent-image
           image_pull_policy = "Always"
           env {
-            name = "FOLDER_ID"
+            name  = "FOLDER_ID"
             value = var.folder_id
           }
           volume_mount {
@@ -119,13 +145,37 @@ resource "kubernetes_deployment" "whiteboard" {
           config_map {
             name = kubernetes_config_map.unified-agent-config["whiteboard"].metadata[0].name
             items {
-              key = "config"
+              key  = "config"
               path = "config.yml"
             }
           }
         }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
+          }
+        }
         node_selector = {
           type = "lzy"
+        }
+        affinity {
+          pod_anti_affinity {
+            preferred_during_scheduling_ignored_during_execution {
+              weight = 1
+              pod_affinity_term {
+                label_selector {
+                  match_expressions {
+                    key      = "app.kubernetes.io/part-of"
+                    operator = "In"
+                    values   = ["lzy"]
+                  }
+                }
+                topology_key = "kubernetes.io/hostname"
+              }
+            }
+          }
         }
       }
     }

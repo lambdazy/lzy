@@ -10,6 +10,7 @@ import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
@@ -32,7 +33,6 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static java.time.Instant.now;
 
@@ -47,6 +47,7 @@ public class DaoTest {
     private DiskDao diskDao;
     private Storage storage;
     private ApplicationContext context;
+    private IdGenerator idGenerator;
 
     @Before
     public void setUp() {
@@ -57,6 +58,7 @@ public class DaoTest {
         sessionDao = context.getBean(SessionDao.class);
         vmDao = context.getBean(VmDao.class);
         diskDao = context.getBean(DiskDao.class);
+        idGenerator = context.getBean(IdGenerator.class, Qualifiers.byName("AllocatorIdGenerator"));
     }
 
     @After
@@ -72,7 +74,7 @@ public class DaoTest {
             .build();
 
         final var op1 = new Operation(
-            UUID.randomUUID().toString(),
+            idGenerator.generate("op-"),
             "test",
             now(),
             "Some op",
@@ -112,7 +114,7 @@ public class DaoTest {
             .build();
 
         var op = new Operation(
-            UUID.randomUUID().toString(),
+            idGenerator.generate("op-"),
             "test",
             now(),
             "Some op",
@@ -156,9 +158,9 @@ public class DaoTest {
     }
 
     private Session createSession() throws SQLException {
-        var opId = UUID.randomUUID().toString();
+        var opId = idGenerator.generate("op-");
         var op = Operation.createCompleted(opId, "owner", "descr", null, null, Empty.getDefaultInstance());
-        var sid = UUID.randomUUID().toString();
+        var sid = idGenerator.generate("sid-");
         var s = new Session(sid, "owner", "descr", new CachePolicy(Duration.ofSeconds(10)), opId);
 
         try (var tx = TransactionHandle.create(storage)) {
@@ -181,7 +183,7 @@ public class DaoTest {
         final var wl1 = new Workload(
             "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222),
             List.of(volume));
-        final var volumeRequest = new VolumeRequest(new DiskVolumeDescription("id-1", "diskVolume", "diskId", 3));
+        final var volumeRequest = new VolumeRequest("id-1", new DiskVolumeDescription("diskVolume", "diskId", 3));
 
         final var vmSpec = new Vm.Spec(
             "placeholder",

@@ -4,35 +4,31 @@ from dataclasses import dataclass
 from typing import BinaryIO, Optional, Union, Iterable, Callable, Any
 
 
+class StorageCredentials(ABC):
+    pass
+
+
 @dataclasses.dataclass
-class AzureCredentials:
+class AzureCredentials(StorageCredentials):
     connection_string: str
 
 
 @dataclasses.dataclass
-class AzureSasCredentials:
+class AzureSasCredentials(StorageCredentials):
     endpoint: str
     signature: str
 
 
 @dataclasses.dataclass
-class S3Credentials:
+class S3Credentials(StorageCredentials):
     endpoint: str
     access_key_id: str
     secret_access_key: str
 
 
 @dataclasses.dataclass
-class FSCredentials:
+class FSCredentials(StorageCredentials):
     pass
-
-
-StorageCredentials = Union[
-    AzureCredentials,
-    S3Credentials,
-    AzureSasCredentials,
-    FSCredentials
-]
 
 
 @dataclass
@@ -66,11 +62,25 @@ class AsyncStorageClient(ABC):
         pass
 
     @abstractmethod
-    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], Any]] = None) -> None:
+    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None) -> None:
+        """
+        Read data from remote storage into BinaryIO
+        @param uri: URI of data in storage
+        @param dest: Stream to write data to. This IO must be seekable to enable retries
+        @param progress: Function to report progress.
+                         Arguments are: int - bytes downloaded, bool - if True, must reset progress to 0
+        """
         pass
 
     @abstractmethod
-    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
+    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None):
+        """
+        Upload data into remote storage from BinaryIO
+        @param uri: URI of destination
+        @param data: data to upload
+        @param progress: Function to report progress.
+                         Arguments are: int - bytes uploaded, bool - if True, must reset progress to 0
+        """
         pass
 
     @abstractmethod

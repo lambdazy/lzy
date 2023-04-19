@@ -19,7 +19,6 @@ import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource;
 import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.StatusDetails;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micronaut.context.annotation.Requires;
@@ -125,7 +124,6 @@ public class KuberVmAllocator implements VmAllocator {
             if (allocState.volumeClaims() == null) {
                 final var resourceVolumes = vmSpec.volumeRequests().stream()
                     .filter(request -> request.volumeDescription() instanceof VolumeRequest.ResourceVolumeDescription)
-                    .map(request -> (VolumeRequest.ResourceVolumeDescription) request.volumeDescription())
                     .toList();
 
                 final var volumeClaims = KuberVolumeManager.allocateVolumes(client, resourceVolumes);
@@ -170,10 +168,10 @@ public class KuberVmAllocator implements VmAllocator {
                 .withVolumes(requireNonNull(allocState.volumeClaims()))
                 .withHostVolumes(vmSpec.volumeRequests().stream()
                     .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
-                    .map(v -> (HostPathVolumeDescription) v.volumeDescription())
                     .toList())
                 // --shm-size=1G
                 .withEmptyDirVolume("dshm", "/dev/shm", new EmptyDirVolumeSource("Memory", Quantity.parse("1Gi")))
+                .withLoggingVolume()
                 // not to be allocated with another vm
                 .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", VM_POD_APP_LABEL_VALUE)
                 // not to be allocated with pods from other session
@@ -265,9 +263,42 @@ public class KuberVmAllocator implements VmAllocator {
         final var clusterId = meta.get(CLUSTER_ID_KEY);
         final var credentials = clusterRegistry.getCluster(clusterId);
         final var ns = meta.get(NAMESPACE_KEY);
+        final var podName = meta.get(POD_NAME_KEY);
+
+        var nodeName = meta.get(NODE_NAME_KEY);
+        var nodeInstanceId = meta.get(NODE_INSTANCE_ID_KEY);
 
         try (final var client = factory.build(credentials)) {
-            List<StatusDetails> statusDetails = client.pods()
+
+            if (nodeInstanceId == null) {
+                LOG.warn("Node for VM {} not specified, try to find it via K8s...", vmId);
+
+                var pod = getVmPod(ns, podName, client);
+                if (pod != null) {
+                    nodeName = pod.getSpec().getNodeName();
+                    if (nodeName != null) {
+                        final var node = client.nodes().withName(nodeName).get();
+
+                        if (node != null) {
+                            final var providerId = node.getSpec() != null ? node.getSpec().getProviderID() : null;
+
+                            LOG.warn("Found node {} ({}) for VM {}", nodeName, providerId, vmId);
+
+                            nodeInstanceId = providerId != null && providerId.startsWith("yandex://")
+                                ? providerId.substring("yandex://".length())
+                                : null;
+                        } else {
+                            LOG.warn("Cannot find node {} for VM {}", nodeName, vmId);
+                        }
+                    } else {
+                        LOG.warn("Cannot find node for VM {}, podSpec: {}", vmId, pod.getSpec());
+                    }
+                } else {
+                    LOG.error("No pods found for VM {}", vmId);
+                }
+            }
+
+            var statusDetails = client.pods()
                 .inNamespace(ns)
                 .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId.toLowerCase(Locale.ROOT))
                 .delete();
@@ -286,21 +317,20 @@ public class KuberVmAllocator implements VmAllocator {
             }
         }
 
-        var nodeName = meta.get(NODE_NAME_KEY);
-        var nodeInstanceId = meta.get(NODE_INSTANCE_ID_KEY);
-
         if (nodeInstanceId == null) {
             LOG.error("Cannot delete node for VM {} (node {}): unknown", vmId, nodeName);
             return Result.SUCCESS;
         }
 
         // TODO(artolord) make optional deletion of system nodes
-        if (credentials.type().equals(ClusterRegistry.ClusterType.User)) {
+        if (credentials.type().equals(ClusterRegistry.ClusterType.User) || vmId.contains("portal")) {
             try {
                 nodeRemover.removeNode(vmId, nodeName, nodeInstanceId);
             } catch (Exception e) {
                 return Result.RETRY_LATER;
             }
+        } else {
+            LOG.info("Don't remove system service node {}, instanceId: {}, vmId: {}", nodeName, nodeInstanceId, vmId);
         }
 
         return Result.SUCCESS;

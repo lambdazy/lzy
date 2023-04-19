@@ -26,8 +26,8 @@ resource "yandex_kubernetes_node_group" "portals" {
     }
 
     resources {
-      memory = 2
-      cores  = 2
+      memory = 4
+      cores  = 4
     }
 
     boot_disk {
@@ -66,6 +66,7 @@ resource "kubernetes_daemonset" "portal_cpu_fictive_containers" {
       }
       spec {
         container {
+          image_pull_policy = "Always"
           image   = var.portal_image
           name    = "fictive-portal"
           command = ["sleep", "10000000d"]

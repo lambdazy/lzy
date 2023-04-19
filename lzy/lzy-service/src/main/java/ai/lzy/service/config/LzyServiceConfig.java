@@ -3,6 +3,7 @@ package ai.lzy.service.config;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
 import ai.lzy.storage.config.StorageClientConfiguration;
+import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
@@ -29,6 +30,9 @@ public class LzyServiceConfig {
 
     private StartupPortalConfig portal;
 
+    @ConfigurationBuilder("kafka")
+    private final KafkaConfig kafka = new KafkaConfig();
+
     @Getter
     @Setter
     @ConfigurationProperties("portal")
@@ -40,6 +44,9 @@ public class LzyServiceConfig {
         private String stderrChannelName;
         private String poolLabel;
         private String poolZone;
+        private int workersPoolSize = 10;
+        private int downloadsPoolSize = 5;
+        private int chunksPoolSize = 5;
     }
 
     @ConfigurationBuilder("iam")

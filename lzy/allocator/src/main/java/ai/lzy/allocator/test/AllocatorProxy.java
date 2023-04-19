@@ -6,6 +6,7 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.services.AllocatorService;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -13,11 +14,9 @@ import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import lombok.Setter;
 
 @Singleton
 @Requires(env = "test-mock")
-@Setter
 public class AllocatorProxy extends AllocatorService {
 
     private volatile Runnable onCreateSession = () -> {};
@@ -27,9 +26,10 @@ public class AllocatorProxy extends AllocatorService {
 
     public AllocatorProxy(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                           SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
-                          ServiceConfig config, ServiceConfig.CacheLimits cacheLimits)
+                          ServiceConfig config, ServiceConfig.CacheLimits cacheLimits,
+                          @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
-        super(vmDao, operationsDao, sessionsDao, diskDao, allocationContext, config, cacheLimits);
+        super(vmDao, operationsDao, sessionsDao, diskDao, allocationContext, config, cacheLimits, idGenerator);
     }
 
     @Override
@@ -62,5 +62,21 @@ public class AllocatorProxy extends AllocatorService {
     {
         onFree.run();
         super.free(request, responseObserver);
+    }
+
+    public void setOnCreateSession(Runnable onCreateSession) {
+        this.onCreateSession = onCreateSession;
+    }
+
+    public void setOnDeleteSession(Runnable onDeleteSession) {
+        this.onDeleteSession = onDeleteSession;
+    }
+
+    public void setOnAllocate(Runnable onAllocate) {
+        this.onAllocate = onAllocate;
+    }
+
+    public void setOnFree(Runnable onFree) {
+        this.onFree = onFree;
     }
 }

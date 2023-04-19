@@ -19,8 +19,3 @@ Configuration:
         level: error
         AppenderRef:
           ref: Console
-
-      - name: "ai.lzy.model.utils.FreePortFinder"
-        level: error
-        AppenderRef:
-          ref: Console

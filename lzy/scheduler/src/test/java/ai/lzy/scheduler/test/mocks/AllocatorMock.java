@@ -32,7 +32,7 @@ public class AllocatorMock implements WorkersAllocator {
 
     public AllocatorMock(ServiceConfig config) {
         opService = new LocalOperationService("name");
-        server = GrpcUtils.newGrpcServer(HostAndPort.fromString(config.getAllocatorAddress()), null)
+        server = GrpcUtils.newGrpcServer(HostAndPort.fromString(config.getAllocatorAddress()), GrpcUtils.NO_AUTH)
             .addService(opService)
             .build();
 

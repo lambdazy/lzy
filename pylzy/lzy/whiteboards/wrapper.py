@@ -2,14 +2,13 @@ import asyncio
 import sys
 import tempfile
 from enum import Enum
-from typing import Dict, Union, Any, Iterable, Type
-
 from serialzy.api import SerializerRegistry, Schema, Serializer
 from tqdm import tqdm
+from typing import Dict, Union, Any, Iterable, Type
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, WhiteboardField
-from lzy.logs.config import get_color
-from lzy.proxy.result import Nothing
+from lzy.logs.config import get_syslog_color
+from lzy.proxy.result import Absence
 from lzy.storage.api import StorageRegistry
 from lzy.utils.event_loop import LzyEventLoop
 
@@ -50,9 +49,9 @@ class WhiteboardWrapper:
         }
 
     def __getattr__(self, item: str) -> Any:
-        var = self.__fields.get(item, Nothing())
+        var = self.__fields.get(item, Absence())
 
-        if isinstance(var, Nothing):
+        if isinstance(var, Absence):
             raise AttributeError(f"Whiteboard field {item} not found")
 
         if isinstance(var, WhiteboardField):
@@ -72,7 +71,7 @@ class WhiteboardWrapper:
 
     @property
     def tags(self) -> Iterable[str]:
-        return self.__wb.tags
+        return self.__wb.tags  # type: ignore
 
     @property
     def storage_uri(self) -> str:
@@ -120,9 +119,17 @@ class WhiteboardWrapper:
     async def __load_and_deserialize(self, name: str, storage_uri: str, serializer: Serializer, typ: Type) -> Any:
         size = await self.__storage.size_in_bytes(storage_uri)
         with tqdm(total=size, desc=f"Downloading {name}", file=sys.stdout, unit='B', unit_scale=True,
-                  unit_divisor=1024, colour=get_color()) as bar:
+                  unit_divisor=1024, colour=get_syslog_color()) as bar:
             with tempfile.TemporaryFile() as f:
-                await self.__storage.read(storage_uri, f, progress=lambda x: bar.update(x))  # type: ignore
+                bar.clear()
+
+                def progress(update: int, restart: bool):
+                    if restart:
+                        bar.reset()
+                    else:
+                        bar.update(update)
+
+                await self.__storage.read(storage_uri, f, progress=progress)  # type: ignore
                 f.seek(0)
                 # Running in separate thread to not block loop
                 return await asyncio.get_running_loop().run_in_executor(None, serializer.deserialize, f, typ)

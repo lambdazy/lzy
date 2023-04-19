@@ -4,6 +4,7 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.PortalClientProvider;
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.debug.InjectedFailures;
@@ -58,6 +59,7 @@ public class GraphExecutionService {
     private final PortalClientProvider portalClients;
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
 
+
     public GraphExecutionService(GraphDao graphDao, ExecutionDao executionDao,
                                  CleanExecutionCompanion cleanExecutionCompanion, PortalClientProvider portalClients,
                                  @Named("LzyServiceStorageClientFactory") StorageClientFactory storageClientFactory,
@@ -65,7 +67,8 @@ public class GraphExecutionService {
                                  @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                                  @Named("AllocatorServiceChannel") ManagedChannel allocatorChannel,
                                  @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
-                                 @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel)
+                                 @Named("GraphExecutorServiceChannel") ManagedChannel graphExecutorChannel,
+                                 LzyServiceConfig config)
     {
         this.storageClients = storageClientFactory;
         this.portalClients = portalClients;
@@ -87,7 +90,7 @@ public class GraphExecutionService {
             LzyChannelManagerPrivateGrpc.newBlockingStub(channelManagerChannel), APP,
             () -> internalUserCredentials.get().token());
 
-        this.builder = new GraphBuilder(executionDao, channelManagerClient);
+        this.builder = new GraphBuilder(executionDao, channelManagerClient, config.getKafka());
     }
 
     @Nullable
@@ -225,6 +228,7 @@ public class GraphExecutionService {
                             .addAllTasks(state.getTasks())
                             .addAllChannels(state.getChannels())
                             .build());
+
                 } catch (StatusRuntimeException e) {
                     if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
                         e.getStatus()))

@@ -10,6 +10,7 @@ import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.model.DiskVolumeDescription;
 import ai.lzy.allocator.model.Volume;
 import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.services.DiskService;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
@@ -72,9 +73,9 @@ public class VolumeManagerTest {
     public void createVolumeTest() throws NotFoundException {
         final Disk disk = createDisk(createTestDiskSpec(3), new DiskMeta("user_id"));
 
-        final Volume volume = volumeManager.create(
-            new DiskVolumeDescription("id-1", "some-volume-name", disk.id(), disk.spec().sizeGb())
-        );
+        final Volume volume = volumeManager.create(new VolumeRequest("id-1",
+            new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
+        ));
         final VolumeClaim volumeClaim = volumeManager.createClaim(volume);
         Assert.assertNull(volumeManager.get(volume.name()));
         Assert.assertNull(volumeManager.getClaim(volumeClaim.name()));
@@ -178,9 +179,9 @@ public class VolumeManagerTest {
             final Disk disk = createDisk(testDiskSpec, new DiskMeta("user-id"));
 
             final Instant volumeCreation = Instant.now();
-            final Volume volume = volumeManager.create(
-                new DiskVolumeDescription("id-1", "some-volume-name", disk.id(), disk.spec().sizeGb())
-            );
+            final Volume volume = volumeManager.create(new VolumeRequest("id-1",
+                new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
+            ));
 
             final Instant volumeClaimCreation = Instant.now();
             final VolumeClaim volumeClaim = volumeManager.createClaim(volume);

@@ -105,7 +105,7 @@ def process_execution(
     except Exception as e:
         logger.error(f"Error while reading arguments: {e}")
         write_data(exception_path[1], exception_path[0], e, serializers, logger)
-        raise e
+        raise
 
     logger.info(f"Executing operation '{op.__name__}'")
     start = time.time()
@@ -114,7 +114,7 @@ def process_execution(
     except Exception as e:
         logger.error(f"Execution completed with error {e} in {time.time() - start}")
         write_data(exception_path[1], exception_path[0], e, serializers, logger)
-        raise e
+        raise
     logger.info(f"Execution completed in {time.time() - start} sec")
 
     logger.info("Writing results...")
@@ -127,7 +127,7 @@ def process_execution(
     except Exception as e:
         logger.error("Error while writing result: {}", e)
         write_data(exception_path[1], exception_path[0], e, serializers, logger)
-        raise e
+        raise
 
 
 @dataclasses.dataclass

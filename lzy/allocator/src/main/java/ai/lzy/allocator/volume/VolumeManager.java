@@ -8,7 +8,7 @@ import ai.lzy.allocator.model.VolumeRequest;
 import javax.annotation.Nullable;
 
 public interface VolumeManager {
-    Volume create(VolumeRequest.ResourceVolumeDescription resourceVolumeType) throws NotFoundException;
+    Volume create(VolumeRequest resourceVolumeType) throws NotFoundException;
     VolumeClaim createClaim(Volume volume);
 
     @Nullable

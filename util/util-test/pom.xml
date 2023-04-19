@@ -5,27 +5,22 @@
     <parent>
         <groupId>ai.lzy</groupId>
         <artifactId>parent</artifactId>
-        <version>1.9-SNAPSHOT</version>
+        <version>${revision}${changelist}</version>
         <relativePath>../../parent</relativePath>
     </parent>
-    <artifactId>util-test</artifactId>
-    <version>1.9-SNAPSHOT</version>
 
-    <properties>
-        <maven.compiler.source>17</maven.compiler.source>
-        <maven.compiler.target>17</maven.compiler.target>
-    </properties>
+    <artifactId>util-test</artifactId>
 
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>channel-manager-api</artifactId>
-            <version>1.9-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>model</artifactId>
-            <version>1.9-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>
@@ -51,20 +46,21 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>portal-api</artifactId>
-            <version>1.9-SNAPSHOT</version>
+            <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <!-- the plugin resolves ${revision} and other version placeholders in installed/deployed poms -->
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-checkstyle-plugin</artifactId>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
             </plugin>
         </plugins>
     </build>

@@ -1,12 +1,11 @@
 import logging.config
-import random
-from logging import Logger
 import os
+import random
 import string
+import yaml
+from logging import Logger
 from pathlib import Path
 from typing import Optional, Dict, Any, cast
-
-import yaml
 
 LZY_LOG_CONFIG_PATH = "LZY_LOG_CONFIG_PATH"
 LZY_LOG_LEVEL = "LZY_LOG_LEVEL"
@@ -20,7 +19,7 @@ COLOURS = {'BLACK': '\x1b[30m', 'RED': '\x1b[31m', 'GREEN': '\x1b[32m',
 RESET_COLOR = "\x1b[0m"
 
 
-def get_color() -> str:
+def get_syslog_color() -> str:
     color = os.environ.get(LZY_SYSTEM_LOG_COLOR, default="CYAN").upper()
     if color == "RANDOM":
         return list(COLOURS.keys())[random.randint(0, len(COLOURS) - 1)]
@@ -31,7 +30,7 @@ def get_color() -> str:
 
 def get_logging_config() -> Dict[str, Any]:
     level = os.environ.get(LZY_LOG_LEVEL, default="INFO")
-    color = get_color()
+    color = get_syslog_color()
 
     # keep LZY_LOGGING_CONFIG_ENV for compatibility
     lzy_config_path: Optional[str] = os.getenv(LZY_LOG_CONFIG_PATH, default=None) or os.getenv("LZY_LOGGING_CONFIG_ENV",

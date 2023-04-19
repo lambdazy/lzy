@@ -13,6 +13,8 @@ import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
+import ai.lzy.v1.iam.LzySubjectServiceGrpc;
+import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
@@ -26,6 +28,8 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.Date;
 
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+
 public class ClientAuthTest {
 
     @Rule
@@ -33,6 +37,7 @@ public class ClientAuthTest {
 
     ApplicationContext ctx;
     LzyIAM lzyIAM;
+    ManagedChannel iamChannel;
     SubjectServiceGrpcClient subjectClient;
     AuthenticateServiceGrpcClient authClient;
 
@@ -47,14 +52,16 @@ public class ClientAuthTest {
         var internalUserCredentials = JwtUtils.credentials(internalUserConfig.userName(), AuthProvider.INTERNAL.name(),
             Date.from(Instant.now()), JwtUtils.afterDays(1), internalUserConfig.credentialPrivateKey());
 
-        subjectClient = new SubjectServiceGrpcClient("TestClient", getIamAddress(), () -> internalUserCredentials);
-        authClient = new AuthenticateServiceGrpcClient("TestClient", getIamAddress());
+        iamChannel = newGrpcChannel(getIamAddress().host(), getIamAddress().port(), LzySubjectServiceGrpc.SERVICE_NAME);
+        subjectClient = new SubjectServiceGrpcClient("TestClient", iamChannel, () -> internalUserCredentials);
+        authClient = new AuthenticateServiceGrpcClient("TestClient", iamChannel);
     }
 
     @After
     public void shutdown() {
         ctx.getBean(IamDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
 
+        iamChannel.shutdown();
         lzyIAM.close();
         ctx.close();
     }

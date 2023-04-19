@@ -5,7 +5,6 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.utils.GrpcConfig;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
@@ -17,8 +16,6 @@ import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import io.grpc.Channel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.Arrays;
 import java.util.List;
@@ -29,17 +26,10 @@ import javax.annotation.Nullable;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 
 public class SubjectServiceGrpcClient implements SubjectServiceClient {
-    private static final Logger LOG = LogManager.getLogger(SubjectServiceGrpcClient.class);
-
     private final String clientName;
     private final Channel channel;
     private final LzySubjectServiceGrpc.LzySubjectServiceBlockingStub subjectService;
     private final Supplier<Credentials> tokenSupplier;
-
-    public SubjectServiceGrpcClient(String clientName, GrpcConfig config, Supplier<Credentials> tokenSupplier) {
-        this(clientName, GrpcUtils.newGrpcChannel(config.host(), config.port(), LzySubjectServiceGrpc.SERVICE_NAME),
-            tokenSupplier);
-    }
 
     public SubjectServiceGrpcClient(String clientName, Channel channel, Supplier<Credentials> tokenSupplier) {
         this.clientName = clientName;

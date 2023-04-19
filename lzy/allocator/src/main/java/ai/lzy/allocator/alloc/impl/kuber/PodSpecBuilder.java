@@ -6,6 +6,7 @@ import ai.lzy.allocator.model.HostPathVolumeDescription;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Volume.AccessMode;
 import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.vmpool.VmPoolSpec;
 import io.fabric8.kubernetes.api.model.*;
@@ -131,6 +132,26 @@ public class PodSpecBuilder {
                             .withNewFieldRef("v1", "status.hostIP")
                             .build()
                     )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.K8S_POD_NAME)
+                    .withValueFrom(
+                        new EnvVarSourceBuilder()
+                            .withNewFieldRef("v1", "metadata.name")
+                            .build()
+                    )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.K8S_NAMESPACE)
+                    .withValueFrom(
+                        new EnvVarSourceBuilder()
+                            .withNewFieldRef("v1", "metadata.namespace")
+                            .build()
+                    )
+                    .build(),
+                new EnvVarBuilder()
+                    .withName(AllocatorAgent.K8S_CONTAINER_NAME)
+                    .withValue(workload.name())
                     .build()
             ));
             container.setEnv(envList);
@@ -174,6 +195,25 @@ public class PodSpecBuilder {
         return this;
     }
 
+    public PodSpecBuilder withLoggingVolume() {
+        final var volumeName = "varloglzy";
+        if (volumes.containsKey(volumeName)) {
+            return this;
+        }
+        final var volumePath = "/var/log/lzy";
+        final var volume = new VolumeBuilder()
+            .withName(volumeName)
+            .withHostPath(new HostPathVolumeSource(volumePath, "DirectoryOrCreate"))
+            .build();
+        final var mount = new VolumeMountBuilder()
+            .withName(volumeName)
+            .withMountPath(volumePath)
+            .build();
+        volumes.put(volumeName, volume);
+        additionalVolumeMounts.put(volumeName, mount);
+        return this;
+    }
+
     public PodSpecBuilder withEmptyDirVolume(String name, String path, EmptyDirVolumeSource emptyDir) {
         final var volume = new VolumeBuilder()
             .withName(name)
@@ -212,16 +252,19 @@ public class PodSpecBuilder {
         return this;
     }
 
-    public PodSpecBuilder withHostVolumes(List<HostPathVolumeDescription> volumeRequests) {
+    public PodSpecBuilder withHostVolumes(List<VolumeRequest> volumeRequests) {
         for (var request : volumeRequests) {
+            if (!(request.volumeDescription() instanceof HostPathVolumeDescription descr)) {
+                continue;
+            }
             final var volume = new VolumeBuilder()
-                .withName(request.id())
+                .withName(request.volumeId())
                 .withHostPath(new HostPathVolumeSourceBuilder()
-                    .withPath(request.path())
-                    .withType(request.hostPathType().asString())
+                    .withPath(descr.path())
+                    .withType(descr.hostPathType().asString())
                     .build())
                 .build();
-            volumes.put(request.name(), volume);
+            volumes.put(descr.name(), volume);
         }
         return this;
     }

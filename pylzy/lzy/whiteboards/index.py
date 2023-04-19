@@ -13,7 +13,6 @@ from google.protobuf.timestamp_pb2 import Timestamp
 # noinspection PyPackageRequirements
 from grpc.aio import Channel
 
-from lzy.logs.config import get_logger
 from lzy.utils.event_loop import LzyEventLoop
 from serialzy.api import SerializerRegistry
 
@@ -123,6 +122,24 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
     async def update(self, wb: Whiteboard):
         await self.__start()
         await self.__stub.UpdateWhiteboard(UpdateWhiteboardRequest(whiteboard=wb))
+
+
+class DummyWhiteboardIndexClient(WhiteboardIndexClient):
+    async def get(self, id_: str) -> Optional[Whiteboard]:
+        return None
+
+    async def query(self,
+                    name: Optional[str] = None,
+                    tags: Sequence[str] = (),
+                    not_before: Optional[datetime.datetime] = None,
+                    not_after: Optional[datetime.datetime] = None) -> AsyncIterable[Whiteboard]:
+        yield  # type: ignore
+
+    async def register(self, wb: Whiteboard) -> None:
+        pass
+
+    async def update(self, wb: Whiteboard):
+        pass
 
 
 class WhiteboardIndexedManager(WhiteboardManager):
@@ -251,7 +268,7 @@ class WhiteboardIndexedManager(WhiteboardManager):
             await storage_client.read(wb_meta_uri, cast(BinaryIO, f))
             f.seek(0)
             try:
-                wb = ParseDict(json.load(f), Whiteboard())
+                wb: Whiteboard = ParseDict(json.load(f), Whiteboard())
             except JSONDecodeError as e:
                 raise RuntimeError("Whiteboard corrupted, failed to load", e)
 

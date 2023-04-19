@@ -26,7 +26,7 @@ public class ProcessEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public void install(StreamQueue out, StreamQueue err) {}
+    public void install(StreamQueue.LogHandle logHandle) {}
 
     @Override
     public LzyProcess runProcess(String... command) {

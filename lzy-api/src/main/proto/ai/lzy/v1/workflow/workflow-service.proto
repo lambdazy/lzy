@@ -115,16 +115,25 @@ message StopGraphResponse {}
 
 message ReadStdSlotsRequest {
   string executionId = 1;
+
+  // Offset of data to read from.
+  // If 0 or not set, read from the beginning.
+  /* optional */ uint64 offset = 2;
 }
 
 message ReadStdSlotsResponse {
-  oneof data {
-    Data stdout = 1;
-    Data stderr = 2;
+  Data stdout = 1;
+  Data stderr = 2;
+
+  uint64 offset = 3;
+
+  message TaskLines {
+    string taskId = 1;
+    string lines = 2;
   }
 
   message Data {
-    repeated string data = 1;
+    repeated TaskLines data = 1;
   }
 }
 

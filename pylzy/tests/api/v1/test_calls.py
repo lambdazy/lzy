@@ -368,7 +368,7 @@ class LzyCallsTests(TestCase):
         self.assertEqual(int, func.output_types[0])
 
     def test_no_return_hint(self):
-        with self.assertRaisesRegex(TypeError, "return type is not annotated*"):
+        with self.assertRaisesRegex(TypeError, r"Return type is not annotated for function `no_hint` at .*"):
             @op
             def no_hint():
                 pass

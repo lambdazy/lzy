@@ -10,7 +10,7 @@ Configuration:
 
   Loggers:
     Root:
-      level: error
+      level: warn
       AppenderRef:
         ref: Console
 
@@ -21,14 +21,5 @@ Configuration:
       - name: "ai.lzy.model.utils.FreePortFinder"
         level: error
 
-      - name: "ai.lzy.allocator"
-        level: debug
-
-      - name: "ai.lzy.iam"
-        level: warn
-
       - name: io.zonky.test
         level: warn
-
-      - name: ai.lzy.longrunning.OperationsExecutor
-        level: debug

@@ -1,6 +1,7 @@
 package ai.lzy.portal.config;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+import jakarta.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,8 +17,11 @@ public class PortalConfig {
     private int portalApiPort;
     private int slotsApiPort;
 
+    @Nullable
     private String stdoutChannelId;
+    @Nullable
     private String stderrChannelId;
+
     private String channelManagerAddress;
     private String whiteboardAddress;
 
@@ -28,6 +32,17 @@ public class PortalConfig {
     private String vmId;
     private String allocatorAddress;
     private Duration allocatorHeartbeatPeriod;
+
+    private ConcurrencyConfig concurrency;
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("concurrency")
+    public static final class ConcurrencyConfig {
+        private int workersPoolSize = 10;
+        private int downloadsPoolSize = 5;
+        private int chunksPoolSize = 5;
+    }
 
     public String toSafeString() {
         return "{ " + "portalId: " + portalId +

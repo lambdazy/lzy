@@ -4,7 +4,7 @@
 
     <groupId>ai.lzy</groupId>
     <artifactId>parent</artifactId>
-    <version>1.9-SNAPSHOT</version>
+    <version>${revision}${changelist}</version>
     <packaging>pom</packaging>
 
     <distributionManagement>
@@ -16,6 +16,9 @@
     </distributionManagement>
 
     <properties>
+        <revision>1.10</revision>
+        <changelist>-SNAPSHOT</changelist>
+
         <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -46,12 +49,12 @@
         <guava.version>31.1-jre</guava.version>
         <hibernate.version>5.6.9.Final</hibernate.version>
         <io.kubernetes.version>15.0.1</io.kubernetes.version>
-        <jackson-annotations.version>2.14.1</jackson-annotations.version>
-        <jackson-core.version>2.14.1</jackson-core.version>
-        <jackson-databind.version>2.14.1</jackson-databind.version>
-        <jackson-dataformat-yaml.version>2.14.1</jackson-dataformat-yaml.version>
-        <jackson-datatype-jdk8.version>2.14.1</jackson-datatype-jdk8.version>
-        <jackson-datatype-jsr310.version>2.14.1</jackson-datatype-jsr310.version>
+        <jackson-annotations.version>2.13.5</jackson-annotations.version>
+        <jackson-core.version>2.13.5</jackson-core.version>
+        <jackson-databind.version>2.13.5</jackson-databind.version>
+        <jackson-dataformat-xxx.version>2.13.5</jackson-dataformat-xxx.version>
+        <jackson-datatype-jdk8.version>2.13.5</jackson-datatype-jdk8.version>
+        <jackson-datatype-jsr310.version>2.13.5</jackson-datatype-jsr310.version>
         <jackson-datatype-protobuf.version>0.9.13</jackson-datatype-protobuf.version>
 
         <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
@@ -65,7 +68,7 @@
         <jnr-fuse.version>0.5.7</jnr-fuse.version>
         <jsonwebtoken.version>0.11.2</jsonwebtoken.version>
         <jsr305.version>3.0.2</jsr305.version>
-        <kafka.version>1.0.0</kafka.version>
+        <kafka.version>3.4.0</kafka.version>
         <kotlin-stdlib.version>1.5.21</kotlin-stdlib.version>
         <log4j.version>2.18.0</log4j.version>
         <lombok.version>1.18.24</lombok.version>
@@ -121,6 +124,7 @@
         <mockwebserver.version>4.10.0</mockwebserver.version>
         <micronaut-test.version>3.6.2</micronaut-test.version>
         <s3mock_2.13.version>0.2.6</s3mock_2.13.version>
+        <resilience4j.version>2.0.2</resilience4j.version>
     </properties>
 
     <dependencyManagement>
@@ -210,7 +214,22 @@
             <dependency>
                 <groupId>com.fasterxml.jackson.dataformat</groupId>
                 <artifactId>jackson-dataformat-yaml</artifactId>
-                <version>${jackson-dataformat-yaml.version}</version>
+                <version>${jackson-dataformat-xxx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-protobuf</artifactId>
+                <version>${jackson-dataformat-xxx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-xml</artifactId>
+                <version>${jackson-dataformat-xxx.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fasterxml.jackson.dataformat</groupId>
+                <artifactId>jackson-dataformat-cbor</artifactId>
+                <version>${jackson-dataformat-xxx.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson.datatype</groupId>
@@ -575,11 +594,6 @@
                 <version>${log4j.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.fasterxml.jackson.dataformat</groupId>
-                <artifactId>jackson-dataformat-protobuf</artifactId>
-                <version>${jackson-dataformat-yaml.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.apache.logging.log4j</groupId>
                 <artifactId>log4j-slf4j-impl</artifactId>
                 <version>${log4j.version}</version>
@@ -636,6 +650,11 @@
                 <version>${slf4j.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.github.resilience4j</groupId>
+                <artifactId>resilience4j-retry</artifactId>
+                <version>${resilience4j.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>pl.pragmatists</groupId>
                 <artifactId>JUnitParams</artifactId>
                 <version>${JUnitParams.version}</version>
@@ -676,7 +695,6 @@
                 <scope>test</scope>
             </dependency>
         </dependencies>
-
     </dependencyManagement>
 
     <repositories>
@@ -691,6 +709,27 @@
     </repositories>
 
     <build>
+        <resources>
+            <resource>
+                <directory>${project.basedir}/src/main/proto</directory>
+                <includes>
+                    <include>**/*.proto</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/src/test/proto</directory>
+                <includes>
+                    <include>**/*.proto</include>
+                </includes>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>${project.basedir}/src/test/resources</directory>
+            </resource>
+        </resources>
+
         <pluginManagement>
             <plugins>
                 <plugin>
@@ -710,7 +749,8 @@
                     <version>${checkstyle-maven-plugin.version}</version>
                     <configuration>
                         <configLocation>${project.basedir}/../../.idea/codeStyles/LzyCheckStyle.xml</configLocation>
-                        <sourceDirectories>${project.basedir}/src</sourceDirectories>
+                        <sourceDirectories>${project.build.sourceDirectory}</sourceDirectories>
+                        <testSourceDirectories>${project.build.testSourceDirectory}</testSourceDirectories>
                         <encoding>UTF-8</encoding>
                         <consoleOutput>true</consoleOutput>
                         <failsOnError>true</failsOnError>
@@ -749,6 +789,31 @@
                             <version>${log4j.version}</version>
                         </dependency>
                     </dependencies>
+                </plugin>
+                <plugin>
+                    <groupId>org.codehaus.mojo</groupId>
+                    <artifactId>flatten-maven-plugin</artifactId>
+                    <version>1.4.0</version>
+                    <configuration>
+                        <updatePomFile>true</updatePomFile>
+                        <flattenMode>resolveCiFriendliesOnly</flattenMode>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <id>flatten</id>
+                            <phase>process-resources</phase>
+                            <goals>
+                                <goal>flatten</goal>
+                            </goals>
+                        </execution>
+                        <execution>
+                            <id>flatten.clean</id>
+                            <phase>clean</phase>
+                            <goals>
+                                <goal>clean</goal>
+                            </goals>
+                        </execution>
+                    </executions>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -808,6 +873,12 @@
                 <groupId>com.github.ekryd.sortpom</groupId>
                 <artifactId>sortpom-maven-plugin</artifactId>
                 <version>3.2.0</version>
+            </plugin>
+            <!-- the plugin resolves ${revision} and other version placeholders in installed/deployed poms -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>flatten-maven-plugin</artifactId>
+                <version>1.4.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

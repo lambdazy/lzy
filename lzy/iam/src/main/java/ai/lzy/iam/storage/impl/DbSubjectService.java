@@ -17,7 +17,11 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -471,7 +475,6 @@ public class DbSubjectService {
         return switch (type) {
             case USER -> new User(id);
             case WORKER -> new Worker(id);
-            case VM -> new Vm(id);
         };
     }
 

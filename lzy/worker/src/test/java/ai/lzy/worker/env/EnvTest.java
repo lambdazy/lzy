@@ -1,6 +1,7 @@
 package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
+import ai.lzy.worker.ServiceConfig;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -14,12 +15,16 @@ public class EnvTest {
 
     @Before
     public void before() {
-        this.factory = new EnvironmentFactory(0);
+
+        var conf = new ServiceConfig();
+        conf.setGpuCount(0);
+
+        this.factory = new EnvironmentFactory(conf);
     }
 
     @Test
     public void testBashEnv() {
-        var env = factory.create("", LME.EnvSpec.newBuilder()
+        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .build());
 
@@ -29,7 +34,7 @@ public class EnvTest {
 
     @Test
     public void testEnvVariables() throws Exception {
-        var env = factory.create("", LME.EnvSpec.newBuilder()
+        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .putEnv("LOL", "kek")
             .build());
@@ -45,7 +50,7 @@ public class EnvTest {
 
     @Test
     public void testDocker() {
-        var env = factory.create("", LME.EnvSpec.newBuilder()
+        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setDockerImage("ubuntu:latest")
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .build());
@@ -56,7 +61,7 @@ public class EnvTest {
 
     @Test
     public void testConda() {
-        var env = factory.create("", LME.EnvSpec.newBuilder()
+        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setPyenv(LME.PythonEnv.newBuilder()
                 .setName("py39")
                 .setYaml("""

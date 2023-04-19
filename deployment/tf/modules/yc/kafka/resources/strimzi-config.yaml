@@ -1,0 +1,4 @@
+watchNamespaces:
+  - default
+nodeSelector:
+  "type": lzy

@@ -26,6 +26,7 @@ import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
@@ -71,10 +72,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 
-import static ai.lzy.channelmanager.ProtoConverter.*;
+import static ai.lzy.channelmanager.ProtoConverter.makeChannelStatusCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
+import static ai.lzy.channelmanager.ProtoConverter.makeDestroyChannelCommand;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static org.junit.Assert.assertTrue;
 
 public class PortalTestBase {
@@ -237,7 +242,7 @@ public class PortalTestBase {
         portalSlotsClient = newBlockingClient(
             LzySlotsApiGrpc.newBlockingStub(portalSlotsChannel),
             "Test",
-            NO_AUTH_TOKEN); // TODO: Auth
+            portalUser.credentials().credentials()::token);
 
         portalOpsClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(portalApiChannel), "TestClient",
             () -> internalUserCredentials.get().token());
@@ -333,9 +338,13 @@ public class PortalTestBase {
         var workerId = UUID.randomUUID().toString();
         var allocatorDuration = Duration.ofSeconds(5);
 
+        var kafkaConfig = new KafkaConfig();
+        kafkaConfig.setEnabled(false);
+
         var ctx = Worker.startApplication(workerId,
             config.getAllocatorAddress(), config.getIamAddress(), allocatorDuration,
-            config.getChannelManagerAddress(), "localhost", "token_" + workerId, 0);
+            config.getChannelManagerAddress(), "localhost", "token_" + workerId, 0, kafkaConfig);
+
         var worker = ctx.getBean(Worker.class);
         var config = ctx.getBean(ServiceConfig.class);
 
@@ -464,6 +473,7 @@ public class PortalTestBase {
                     }
                 });
             } catch (Exception e) {
+                LOG.error("Cannot read portal slot from channel {}: {}", channelName, e.getMessage());
                 values.offer(e);
             }
         });
@@ -509,7 +519,7 @@ public class PortalTestBase {
             final var subj = subjectClient.getSubject(subjId);
 
             accessBindingClient.setAccessBindings(new Workflow(userId + "/" + workflowName),
-                List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
+                List.of(new AccessBinding(Role.LZY_WORKER, subj)));
         }
 
         private GeneratedCredentials generateCredentials(String login, String provider)

@@ -61,7 +61,7 @@ def _from(creds: grpc_STORAGE_CREDS) -> StorageCredentials:
 
 
 @_from.register
-def _(creds: storage_pb2.S3Credentials) -> StorageCredentials:
+def _(creds: storage_pb2.S3Credentials) -> S3Credentials:
     return S3Credentials(
         access_key_id=creds.accessToken,
         endpoint=creds.endpoint,
@@ -70,14 +70,14 @@ def _(creds: storage_pb2.S3Credentials) -> StorageCredentials:
 
 
 @_from.register  # type: ignore[no-redef]
-def _(creds: storage_pb2.AzureBlobStorageCredentials) -> StorageCredentials:
+def _(creds: storage_pb2.AzureBlobStorageCredentials) -> AzureCredentials:
     return AzureCredentials(
         connection_string=creds.connectionString,
     )
 
 
 @overload
-def from_(obj: storage_pb2.S3Credentials) -> S3Credentials:
+def from_(obj: storage_pb2.S3Credentials) -> S3Credentials:  # type: ignore
     ...
 
 

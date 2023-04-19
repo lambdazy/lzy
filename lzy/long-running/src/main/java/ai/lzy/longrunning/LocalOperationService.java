@@ -1,11 +1,13 @@
 package ai.lzy.longrunning;
 
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunning.CancelOperationRequest;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Any;
 import com.google.protobuf.Message;
+import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -77,16 +79,21 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
      * Execute operation in new Thread and complete it on response or error
      */
     public OperationSnapshot execute(Operation op, Supplier<Message> runnable) {
+        var ctx = Context.current().fork();
+
         final var thread = new Thread(null, () -> {
-            try {
-                final var response = runnable.get();
-                updateResponse(op.id(), response);
-            } catch (StatusRuntimeException e) {
-                updateError(op.id(), e.getStatus());
-            } catch (Exception e) {
-                LOG.error("Error while executing op {}: ", op.id(), e);
-                updateError(op.id(), Status.INTERNAL.withDescription(e.getMessage()));
-            }
+            GrpcHeaders.withContext(ctx, () -> {
+                try {
+                    final var response =  runnable.get();
+                    updateResponse(op.id(), response);
+                } catch (StatusRuntimeException e) {
+                    updateError(op.id(), e.getStatus());
+                } catch (Exception e) {
+                    LOG.error("Error while executing op {}: ", op.id(), e);
+                    updateError(op.id(), Status.INTERNAL.withDescription(e.getMessage()));
+                }
+            });
+
         }, "operation-" + op.id());
 
         thread.start();

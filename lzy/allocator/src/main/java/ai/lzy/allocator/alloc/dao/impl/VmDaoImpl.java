@@ -7,6 +7,7 @@ import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
@@ -35,14 +36,14 @@ import static java.util.stream.Collectors.joining;
 @Singleton
 public class VmDaoImpl implements VmDao {
     private static final String SPEC_FIELDS =
-        "id, session_id, pool_label, zone, init_workloads_json, workloads_json, volume_requests_json, " +
-        "v6_proxy_address, tunnel_index, cluster_type";
+        "id, session_id, pool_label, zone, init_workloads_json, workloads_json, " +
+        "volume_requests_json, volume_descriptions_json, v6_proxy_address, tunnel_index, cluster_type";
 
     private static final String STATUS_FIELDS =
         "status";
 
     private static final String INSTANCE_FIELDS =
-        "vm_subject_id, tunnel_pod_name";
+        "tunnel_pod_name";
 
     private static final String ALLOCATION_START_FIELDS =
         "allocation_op_id, allocation_started_at, allocation_deadline, allocation_worker, allocation_reqid, vm_ott";
@@ -77,7 +78,7 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_CREATE_VM = """
         INSERT INTO vm (%s, %s, %s)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """.formatted(SPEC_FIELDS, STATUS_FIELDS, ALLOCATION_START_FIELDS);
 
     private static final String QUERY_START_DELETE_VM = """
@@ -101,7 +102,7 @@ public class VmDaoImpl implements VmDao {
             FROM vm
             WHERE session_id = ? AND pool_label = ? AND zone = ? AND status = 'IDLE'
                 AND workloads_json = ? AND init_workloads_json = ?
-                AND volume_requests_json = ?
+                AND volume_descriptions_json = ?
                 AND COALESCE(v6_proxy_address, '') = ?
             LIMIT 1
         )
@@ -137,11 +138,6 @@ public class VmDaoImpl implements VmDao {
         FROM vm
         WHERE id = ?""";
 
-    private static final String QUERY_SET_VM_SUBJECT_ID = """
-        UPDATE vm
-        SET vm_subject_id = ?
-        WHERE id = ?""";
-
     private static final String QUERY_SET_TUNNEL_PON_NAME = """
         UPDATE vm
         SET tunnel_pod_name = ?
@@ -175,7 +171,7 @@ public class VmDaoImpl implements VmDao {
         SELECT %s
         FROM vm
         WHERE (status = 'IDLE' AND idle_deadline < NOW())
-           OR (status = 'RUNNING' AND activity_deadline < NOW())
+           OR ((status = 'RUNNING' OR status = 'IDLE') AND activity_deadline < NOW())
         LIMIT ?""".formatted(ALL_FIELDS);
 
     private static final String QUERY_LOAD_NOT_COMPLETED_VMS = """
@@ -191,14 +187,28 @@ public class VmDaoImpl implements VmDao {
         WHERE (status = 'IDLE' OR status = 'RUNNING') AND allocation_worker = ?
         """.formatted(ALL_FIELDS);
 
+    private static final String QUERY_READ_VM_BY_OTT = """
+        SELECT %s
+        FROM vm
+        WHERE vm_ott = ?""".formatted(ALL_FIELDS);
+
+    private static final String QUERY_RESET_VM_OTT = """
+        UPDATE vm
+        SET vm_ott = ''
+        WHERE vm_ott = ?
+        RETURNING id""";
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
+    private final IdGenerator idGenerator;
 
     @Inject
-    public VmDaoImpl(AllocatorDataSource storage, @Named("AllocatorObjectMapper") ObjectMapper objectMapper) {
+    public VmDaoImpl(AllocatorDataSource storage, @Named("AllocatorObjectMapper") ObjectMapper objectMapper,
+                     @Named("AllocatorIdGenerator") IdGenerator idGenerator)
+    {
         this.storage = storage;
         this.objectMapper = objectMapper;
+        this.idGenerator = idGenerator;
     }
 
     @Nullable
@@ -238,10 +248,23 @@ public class VmDaoImpl implements VmDao {
 
     @Override
     public Vm create(Vm.Spec vmSpec, Vm.AllocateState allocState, @Nullable TransactionHandle tx) throws SQLException {
-        final var vmId = "vm-" + vmSpec.poolLabel() + "-" + UUID.randomUUID();
+        final var vmId = idGenerator.generate("vm-" + vmSpec.poolLabel() + "-", 16);
 
         DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_CREATE_VM)) {
+                var initWorkloads = vmSpec.initWorkloads().stream()
+                    .sorted(Comparator.comparing(Workload::image))
+                    .toList();
+                var workloads = vmSpec.workloads().stream()
+                    .sorted(Comparator.comparing(Workload::image))
+                    .toList();
+                var volumeRequests = vmSpec.volumeRequests().stream()
+                    .sorted(Comparator.comparing(r -> r.volumeDescription().name()))
+                    .toList();
+                var volumeDescriptions = volumeRequests.stream()
+                    .map(VolumeRequest::volumeDescription)
+                    .toList();
+
                 int idx = 0;
 
                 // spec
@@ -249,9 +272,10 @@ public class VmDaoImpl implements VmDao {
                 s.setString(++idx, vmSpec.sessionId());
                 s.setString(++idx, vmSpec.poolLabel());
                 s.setString(++idx, vmSpec.zone());
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.workloads()));
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
+                s.setString(++idx, objectMapper.writeValueAsString(initWorkloads));
+                s.setString(++idx, objectMapper.writeValueAsString(workloads));
+                s.setString(++idx, objectMapper.writeValueAsString(volumeRequests));
+                s.setString(++idx, objectMapper.writeValueAsString(volumeDescriptions));
                 s.setString(++idx, vmSpec.tunnelSettings() == null ? null
                     : vmSpec.tunnelSettings().proxyV6Address().getHostAddress());
                 if (vmSpec.tunnelSettings() == null) {
@@ -314,14 +338,27 @@ public class VmDaoImpl implements VmDao {
     public Vm acquire(Vm.Spec vmSpec, @Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_ACQUIRE_VM)) {
-                int idx = 0;
 
+                List<Workload> workloads = vmSpec.workloads().stream()
+                    .sorted(Comparator.comparing(Workload::image))
+                    .toList();
+
+                List<Workload> initWorkloads = vmSpec.initWorkloads().stream()
+                    .sorted(Comparator.comparing(Workload::image))
+                    .toList();
+
+                List<VolumeRequest.VolumeDescription> volumeDescriptions = vmSpec.volumeRequests().stream()
+                    .sorted(Comparator.comparing(r -> r.volumeDescription().name()))
+                    .map(VolumeRequest::volumeDescription)
+                    .toList();
+
+                int idx = 0;
                 s.setString(++idx, vmSpec.sessionId());
                 s.setString(++idx, vmSpec.poolLabel());
                 s.setString(++idx, vmSpec.zone());
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.workloads()));
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.initWorkloads()));
-                s.setString(++idx, objectMapper.writeValueAsString(vmSpec.volumeRequests()));
+                s.setString(++idx, objectMapper.writeValueAsString(workloads));
+                s.setString(++idx, objectMapper.writeValueAsString(initWorkloads));
+                s.setString(++idx, objectMapper.writeValueAsString(volumeDescriptions));
                 s.setString(++idx, vmSpec.tunnelSettings() != null
                     ? vmSpec.tunnelSettings().proxyV6Address().getHostAddress() : "");
 
@@ -426,17 +463,6 @@ public class VmDaoImpl implements VmDao {
                 }
             } catch (JsonProcessingException e) {
                 throw new RuntimeException("Cannot dump values", e);
-            }
-        });
-    }
-
-    @Override
-    public void setVmSubjectId(String vmId, String vmSubjectId, @Nullable TransactionHandle tx) throws SQLException {
-        DbOperation.execute(tx, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_SET_VM_SUBJECT_ID)) {
-                s.setString(1, vmSubjectId);
-                s.setString(2, vmId);
-                s.executeUpdate();
             }
         });
     }
@@ -594,13 +620,43 @@ public class VmDaoImpl implements VmDao {
              PreparedStatement st = conn.prepareStatement("""
                 SELECT 1
                 FROM dead_vms
-                WHERE id = ?
-                """))
+                WHERE id = ?"""))
         {
             st.setString(1, vmId);
             var rs = st.executeQuery();
             return rs.next();
         }
+    }
+
+    @Nullable
+    @Override
+    public Vm findVmByOtt(String vmOtt, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_READ_VM_BY_OTT)) {
+                st.setString(1, vmOtt);
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    try {
+                        return readVm(rs);
+                    } catch (JsonProcessingException e) {
+                        throw new RuntimeException("Cannot read vm by ott " + vmOtt, e);
+                    }
+                } else {
+                    return null;
+                }
+            }
+        });
+    }
+
+    @Override
+    public String resetVmOtt(String vmOtt, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_RESET_VM_OTT)) {
+                st.setString(1, vmOtt);
+                var rs = st.executeQuery();
+                return rs.next() ? rs.getString("id") : null;
+            }
+        });
     }
 
     private Vm readVm(ResultSet rs) throws SQLException, JsonProcessingException {
@@ -615,6 +671,7 @@ public class VmDaoImpl implements VmDao {
         final var workloads = objectMapper.readValue(rs.getString(++idx), new TypeReference<List<Workload>>() {});
         final var volumeRequests = objectMapper.readValue(rs.getString(++idx),
             new TypeReference<List<VolumeRequest>>() {});
+        ++idx; // skip descriptions
         final var v6ProxyAddress = Optional.ofNullable(rs.getString(++idx))
             .map(x -> {
                 try {
@@ -635,7 +692,6 @@ public class VmDaoImpl implements VmDao {
         final var vmStatus = Vm.Status.valueOf(rs.getString(++idx));
 
         // instance properties
-        final var vmSubjectId = rs.getString(++idx);
         final var tunnelPodName = rs.getString(++idx);
 
         // allocate state
@@ -714,7 +770,7 @@ public class VmDaoImpl implements VmDao {
             new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, tunnelSettings,
                 clusterType),
             vmStatus,
-            new Vm.InstanceProperties(vmSubjectId, tunnelPodName),
+            new Vm.InstanceProperties(tunnelPodName),
             new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationWorker,
                 allocationReqid, vmOtt, allocatorMeta, volumeClaims),
             runState,

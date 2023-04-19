@@ -1,38 +1,32 @@
-import datetime
-import sys
-import uuid
-from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Sequence, AsyncIterable, Dict
-
 # noinspection PyPackageRequirements
 import grpc
-from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
-# noinspection PyPackageRequirements
-from google.protobuf.any_pb2 import Any
+import sys
+import uuid
 from serialzy.serializers.primitive import PrimitiveSerializer
+from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Sequence, Dict
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
+from ai.lzy.v1.long_running.operation_pb2 import Operation, GetOperationRequest
+from ai.lzy.v1.long_running.operation_pb2_grpc import LongRunningServiceServicer
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import RegisterWhiteboardRequest, RegisterWhiteboardResponse, \
     UpdateWhiteboardRequest, UpdateWhiteboardResponse, GetRequest, GetResponse, ListRequest, ListResponse
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceServicer
-
-from lzy.logs.config import get_logger
-
+from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
 from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
     FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse, \
     AbortWorkflowRequest, AbortWorkflowResponse, GetOrCreateDefaultStorageResponse, GetOrCreateDefaultStorageRequest, \
     ExecuteGraphRequest, ExecuteGraphResponse, GetAvailablePoolsRequest, GetAvailablePoolsResponse
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
+# noinspection PyPackageRequirements
+from google.protobuf.any_pb2 import Any
 # noinspection PyUnresolvedReferences
 from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient, Provisioning
 from lzy.api.v1.runtime import ProgressStep
+from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
-from lzy.whiteboards.api import WhiteboardIndexClient
-
-from ai.lzy.v1.long_running.operation_pb2 import Operation, GetOperationRequest
-from ai.lzy.v1.long_running.operation_pb2_grpc import LongRunningServiceServicer
 
 _LOG = get_logger(__name__)
 
@@ -71,10 +65,10 @@ class StorageClientMock(AsyncStorageClient):
     async def size_in_bytes(self, uri: str) -> int:
         pass
 
-    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], None]] = None) -> None:
+    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int, bool], None]] = None) -> None:
         pass
 
-    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], None]] = None):
+    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int, bool], None]] = None):
         self.__store_counts__[uri] = self.__store_counts__.setdefault(uri, 0) + 1
 
     async def blob_exists(self, uri: str) -> bool:
@@ -166,10 +160,10 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
             context.abort(grpc.StatusCode.INTERNAL, "some_error")
 
         yield ReadStdSlotsResponse(
-            stdout=ReadStdSlotsResponse.Data(data=("Some stdout",))
+            stdout=ReadStdSlotsResponse.Data(data=(ReadStdSlotsResponse.TaskLines(taskId="1", lines="Some stdout"),))
         )
         yield ReadStdSlotsResponse(
-            stderr=ReadStdSlotsResponse.Data(data=("Some stderr",))
+            stderr=ReadStdSlotsResponse.Data(data=(ReadStdSlotsResponse.TaskLines(taskId="1", lines="Some stderr"),))
         )
 
     def GetOrCreateDefaultStorage(self, request: GetOrCreateDefaultStorageRequest,
@@ -231,24 +225,6 @@ class StorageRegistryMock(StorageRegistry):
         return StorageClientMock()
 
     def available_storages(self) -> Iterable[str]:
-        pass
-
-
-class WhiteboardIndexClientMock(WhiteboardIndexClient):
-    async def get(self, id_: str) -> Optional[Whiteboard]:
-        pass
-
-    async def query(self,
-                    name: Optional[str] = None,
-                    tags: Sequence[str] = (),
-                    not_before: Optional[datetime.datetime] = None,
-                    not_after: Optional[datetime.datetime] = None) -> AsyncIterable[Whiteboard]:
-        pass
-
-    async def register(self, wb: Whiteboard) -> None:
-        pass
-
-    async def update(self, wb: Whiteboard):
         pass
 
 

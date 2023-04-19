@@ -9,15 +9,10 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.model.CachePolicy;
-import ai.lzy.allocator.model.DiskVolumeDescription;
-import ai.lzy.allocator.model.HostPathVolumeDescription;
-import ai.lzy.allocator.model.NFSVolumeDescription;
-import ai.lzy.allocator.model.Session;
-import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.VolumeRequest;
-import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -27,14 +22,7 @@ import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
-import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.FreeRequest;
-import ai.lzy.v1.VmAllocatorApi.FreeResponse;
+import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.VolumeApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.common.annotations.VisibleForTesting;
@@ -59,7 +47,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -68,8 +56,6 @@ import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.GrpcHeaders.createContext;
-import static ai.lzy.util.grpc.GrpcHeaders.withContext;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
@@ -86,11 +72,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final AllocationContext allocationContext;
     private final ServiceConfig config;
     private final ServiceConfig.CacheLimits cacheConfig;
+    private final IdGenerator idGenerator;
 
     @Inject
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
-                            ServiceConfig config, ServiceConfig.CacheLimits cacheConfig)
+                            ServiceConfig config, ServiceConfig.CacheLimits cacheConfig,
+                            @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
@@ -99,6 +87,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         this.allocationContext = allocationContext;
         this.config = config;
         this.cacheConfig = cacheConfig;
+        this.idGenerator = idGenerator;
 
         restoreRunningActions();
     }
@@ -112,7 +101,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 for (var vm : vms) {
                     switch (vm.status()) {
                         case RUNNING -> {
-                            allocationContext.metrics().runningAllocations.labels(vm.poolLabel()).inc();
+                            allocationContext.metrics().runningVms.labels(vm.poolLabel()).inc();
                             run++;
                         }
                         case IDLE -> {
@@ -137,14 +126,14 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                 vms.forEach(vm -> {
                     var action = switch (vm.status()) {
-                        case ALLOCATING -> {
-                            var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, vm.allocateState().reqid()));
-                            yield withContext(ctx, () -> new AllocateVmAction(vm, allocationContext, true));
-                        }
+                        case ALLOCATING -> GrpcHeaders.withContext()
+                            .withHeader(GrpcHeaders.X_REQUEST_ID, vm.allocateState().reqid())
+                            .run(() -> new AllocateVmAction(vm, allocationContext, true));
                         case DELETING -> {
-                            var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, vm.deleteState().reqid()));
                             var deleteOpId = vm.deleteState().operationId();
-                            yield withContext(ctx, () -> new DeleteVmAction(vm, deleteOpId, allocationContext));
+                            yield GrpcHeaders.withContext()
+                                .withHeader(GrpcHeaders.X_REQUEST_ID, vm.deleteState().reqid())
+                                .run(() -> new DeleteVmAction(vm, deleteOpId, allocationContext));
                         }
                         case IDLE, RUNNING -> throw new RuntimeException("Unexpected Vm state %s".formatted(vm));
                     };
@@ -163,9 +152,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 LOG.info("Found {} not completed sessions removal", sessions.size());
                 sessions.forEach(s -> {
                     var reqid = Optional.ofNullable(s.deleteReqid()).orElse("unknown");
-                    var ctx = createContext(Map.of(GrpcHeaders.X_REQUEST_ID, reqid));
-                    withContext(ctx, () ->
-                        allocationContext.startNew(new DeleteSessionAction(s, s.deleteOpId(), allocationContext)));
+                    GrpcHeaders.withContext()
+                        .withHeader(GrpcHeaders.X_REQUEST_ID, reqid)
+                        .run(() -> allocationContext.startNew(
+                            new DeleteSessionAction(s, s.deleteOpId(), allocationContext, sessionsDao)));
                 });
             }
         } catch (SQLException e) {
@@ -197,8 +187,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
-        final var operationId = UUID.randomUUID().toString();
-        final var sessionId = UUID.randomUUID().toString();
+        final var operationId = idGenerator.generate("create-session-");
+        final var sessionId = idGenerator.generate("sid-");
 
         final var response = CreateSessionResponse.newBuilder()
             .setSessionId(sessionId)
@@ -281,7 +271,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     assert op.id().equals(session.deleteOpId());
                     assert reqid.equals(session.deleteReqid());
 
-                    return Pair.of(op, new DeleteSessionAction(session, op.id(), allocationContext));
+                    return Pair.of(op, new DeleteSessionAction(session, op.id(), allocationContext, sessionsDao));
                 }
             });
         } catch (Exception ex) {
@@ -452,7 +442,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         op.deadline(),
                         allocationContext.selfWorkerId(),
                         ofNullable(GrpcHeaders.getRequestId()).orElse("unknown"),
-                        UUID.randomUUID().toString(),
+                        /* vmOtt */ UUID.randomUUID().toString(),  // TODO: add expired_at
                         null,
                         null);
 
@@ -604,7 +594,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         final var requests = new ArrayList<VolumeRequest>(volumes.size());
 
         for (var volume : volumes) {
-            final var descr = switch (volume.getVolumeTypeCase()) {
+            final var req = switch (volume.getVolumeTypeCase()) {
                 case DISK_VOLUME -> {
                     final var diskVolume = volume.getDiskVolume();
                     final var disk = diskDao.get(diskVolume.getDiskId(), transaction);
@@ -613,22 +603,22 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         LOG.error(message);
                         throw Status.NOT_FOUND.withDescription(message).asException();
                     }
-                    yield new DiskVolumeDescription("disk-volume-" + UUID.randomUUID(), volume.getName(),
-                        diskVolume.getDiskId(), disk.spec().sizeGb());
+                    yield new VolumeRequest(idGenerator.generate("disk-volume-").toLowerCase(Locale.ROOT),
+                        new DiskVolumeDescription(volume.getName(), diskVolume.getDiskId(), disk.spec().sizeGb()));
                 }
 
                 case HOST_PATH_VOLUME -> {
                     final var hostPathVolume = volume.getHostPathVolume();
                     final var hostPathType = HostPathType.valueOf(hostPathVolume.getHostPathType().name());
-                    yield new HostPathVolumeDescription("host-path-volume-" + UUID.randomUUID(), volume.getName(),
-                        hostPathVolume.getPath(), hostPathType);
+                    yield new VolumeRequest(idGenerator.generate("host-path-volume-").toLowerCase(Locale.ROOT),
+                        new HostPathVolumeDescription(volume.getName(), hostPathVolume.getPath(), hostPathType));
                 }
 
                 case NFS_VOLUME -> {
                     final var nfsVolume = volume.getNfsVolume();
-                    yield new NFSVolumeDescription("nfs-volume-" + UUID.randomUUID(), volume.getName(),
-                        nfsVolume.getServer(), nfsVolume.getShare(), nfsVolume.getCapacity(),
-                        nfsVolume.getMountOptionsList());
+                    yield new VolumeRequest(idGenerator.generate("nfs-volume-").toLowerCase(Locale.ROOT),
+                        new NFSVolumeDescription(volume.getName(), nfsVolume.getServer(),
+                            nfsVolume.getShare(), nfsVolume.getReadOnly(), nfsVolume.getMountOptionsList()));
                 }
 
                 case VOLUMETYPE_NOT_SET -> {
@@ -638,7 +628,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 }
             };
 
-            requests.add(new VolumeRequest(descr));
+            requests.add(req);
         }
 
         return requests;

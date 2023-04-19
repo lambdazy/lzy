@@ -1,5 +1,6 @@
 package ai.lzy.allocator.test;
 
+import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.impl.SessionDaoImpl;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -18,7 +19,6 @@ import org.postgresql.util.PSQLState;
 
 import java.io.IOException;
 import java.sql.SQLException;
-import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -78,11 +78,14 @@ public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
     }
 
     @Test
-    public void testCreateAndDeleteSession() {
+    public void testCreateAndDeleteSession() throws SQLException {
         var sessionId = createSession(Durations.fromSeconds(100));
 
         var op = deleteSession(sessionId, true);
         Assert.assertTrue(op.toString(), op.hasResponse());
+
+        var session = allocatorCtx.getBean(SessionDao.class).get(sessionId, null);
+        Assert.assertNull(session);
     }
 
     @Test
@@ -108,7 +111,7 @@ public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
             //noinspection ResultOfMethodCallIgnored
             authorizedAllocatorBlockingStub.createSession(
                 VmAllocatorApi.CreateSessionRequest.newBuilder()
-                    .setOwner(UUID.randomUUID().toString())
+                    .setOwner(idGenerator.generate("user-"))
                     .build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
@@ -122,7 +125,7 @@ public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
             //noinspection ResultOfMethodCallIgnored
             authorizedAllocatorBlockingStub.createSession(
                 VmAllocatorApi.CreateSessionRequest.newBuilder()
-                    .setOwner(UUID.randomUUID().toString())
+                    .setOwner(idGenerator.generate("user-"))
                     .setCachePolicy(
                         VmAllocatorApi.CachePolicy.newBuilder()
                             .build())

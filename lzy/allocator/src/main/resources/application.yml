@@ -12,8 +12,9 @@ allocator:
   service-clusters: []
   user-clusters: []
 
-  address: 'localhost:1234'
-  heartbeat-timeout: 1m
+  hosts: ['localhost']
+  port: 1234
+  heartbeat-timeout: 15s
   allocation-timeout: 15m
 
   enable-http-debug: false

@@ -3,12 +3,16 @@ package ai.lzy.worker.env;
 import ai.lzy.v1.common.LME;
 import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.annotation.Nullable;
 import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +22,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -40,12 +45,8 @@ public class CondaEnvironment implements AuxEnvironment {
         RECONFIGURE_CONDA = reconfigure;
     }
 
-    public CondaEnvironment(
-        LME.PythonEnv pythonEnv,
-        BaseEnvironment baseEnv,
-        String resourcesPath,
-        String localModulesPath
-    )
+    public CondaEnvironment(LME.PythonEnv pythonEnv, BaseEnvironment baseEnv, String resourcesPath,
+                            String localModulesPath)
     {
         this.resourcesPath = resourcesPath;
         this.localModulesPathPrefix = localModulesPath;
@@ -71,7 +72,7 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
-    public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
+    public void install(StreamQueue.LogHandle logHandle) throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
         try {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
@@ -99,8 +100,8 @@ public class CondaEnvironment implements AuxEnvironment {
                             condaFile.getAbsolutePath())
                     );
 
-                    out.add(lzyProcess.out());
-                    err.add(lzyProcess.err());
+                    var futOut = logHandle.logOut(lzyProcess.out());
+                    var futErr = logHandle.logErr(lzyProcess.err());
 
                     final int rc;
                     try {
@@ -108,6 +109,9 @@ public class CondaEnvironment implements AuxEnvironment {
                     } catch (InterruptedException e) {
                         throw new EnvironmentInstallationException("Environment installation cancelled");
                     }
+
+                    futOut.get();
+                    futErr.get();
                     if (rc != 0) {
                         String errorMessage = "Failed to create/update conda env\n"
                             + "  ReturnCode: " + rc + "\n"
@@ -150,18 +154,21 @@ public class CondaEnvironment implements AuxEnvironment {
                 extractFiles(tempFile, localModulesAbsolutePath.toString());
                 tempFile.deleteOnExit();
             }
-        } catch (IOException e) {
+        } catch (IOException | InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         } finally {
             lockForMultithreadingTests.unlock();
         }
     }
 
-    private LzyProcess execInEnv(String command, String[] envp) {
+    private LzyProcess execInEnv(String command, @Nullable String[] envp) {
         LOG.info("Executing command " + command);
-        String[] bashCmd =
-            new String[] {"bash", "-c", "cd " + localModulesAbsolutePath + " && eval \"$(conda shell.bash hook)\" " +
-                "&& conda activate " + envName + " && " + command};
+        var bashCmd = new String[] {
+            "bash",
+            "-c",
+            "cd %s && eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
+                .formatted(localModulesAbsolutePath, envName, command)
+        };
         return baseEnv.runProcess(bashCmd, envp);
     }
 
@@ -175,7 +182,7 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         List<String> envList = new ArrayList<>();
         envList.add("LOCAL_MODULES=" + localModulesAbsolutePath);
         if (envp != null) {

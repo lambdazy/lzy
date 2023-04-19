@@ -23,4 +23,6 @@ public interface SessionDao {
     List<Session> listDeleting(@Nullable TransactionHandle transaction) throws SQLException;
 
     int countActiveSessions() throws SQLException;
+
+    void removeSession(String sessionId, @Nullable TransactionHandle transactionHandle) throws SQLException;
 }

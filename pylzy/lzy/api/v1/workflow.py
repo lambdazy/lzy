@@ -237,12 +237,8 @@ class LzyWorkflow:
         await asyncio.gather(*wb_copy_tasks)
 
     def __gen_results_uri_in_cache(self, call: 'LzyCall'):
-        parts = [self.__owner.storage_uri]
         # user may not be set in tests
-        if self.__user is not None:
-            parts.append(self.__user)
-        parts.extend(['lzy_runs', self.__name, 'ops/'])
-        uri_prefix = '/'.join(parts)
+        parts = [self.__owner.storage_uri, '' if self.__user is None else self.__user, 'lzy_runs', self.__name, 'ops']
 
         args_hashes = [self.snapshot.get(eid).data_hash for eid in call.arg_entry_ids]
         kwargs_hashes = []
@@ -253,10 +249,13 @@ class LzyWorkflow:
         op_name = call.signature.func.callable.__name__
         op_version = call.version
 
+        parts.extend([op_name, op_version, inputs_hashes_concat])
+        uri_prefix = '/'.join(filter(bool, parts))
+
         for i, eid in enumerate(call.entry_ids):
             if eid not in self.__filled_entry_ids:
                 entry = self.snapshot.get(eid)
-                entry.storage_uri = uri_prefix + f"{op_name}/{op_version}/{inputs_hashes_concat}/return_{str(i)}"
+                entry.storage_uri = uri_prefix + f"/return_{str(i)}"
                 entry.data_hash = md5_of_str(entry.storage_uri)
                 self.__filled_entry_ids.add(eid)
 

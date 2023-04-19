@@ -1,0 +1,3 @@
+worker:
+  kafka:
+    enabled: true

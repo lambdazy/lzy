@@ -10,54 +10,64 @@ for ARG in "$@"; do
   esac
 done
 
-function project_version() {
-    mvn help:evaluate -Dexpression=project.version -q -DforceStdout
+function revision() {
+    mvn help:evaluate -Dexpression=revision -q -DforceStdout
+}
+
+function changelist() {
+    mvn help:evaluate -Dexpression=changelist -q -DforceStdout
 }
 
 git checkout master
 git pull
 
 cd parent
-CURRENT_VERSION=$(project_version | awk -F'-' '{print $1}')
+CURRENT_REVISION=$(revision)
+REVISION_PARTS=($(echo $CURRENT_REVISION | awk -F'.' '{print $1, $2}'))
+CURRENT_MAJOR=${REVISION_PARTS[0]}
+CURRENT_MINOR=${REVISION_PARTS[1]}
+NEXT_REVISION=
 
-echo "CURRENT VERSION IS $CURRENT_VERSION"
-git branch "releases/R-$CURRENT_VERSION"
+echo "CURRENT VERSION IS $CURRENT_REVISION"
+git branch "releases/R-$CURRENT_REVISION"
 
 if [[ $MAJOR == true ]]; then
   # x+1.0-SNAPSHOT
-  mvn build-helper:parse-version versions:set \
-    -DnewVersion="\${parsedVersion.nextMajorVersion}.0\${parsedVersion.qualifier?}" \
-    -DgenerateBackupPoms=false -DprocessAllModules
+  NEXT_REVISION="$((CURRENT_MAJOR + 1)).0"
 else
   # x.y+1-SNAPSHOT
-  mvn build-helper:parse-version versions:set \
-    -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion}\${parsedVersion.qualifier?}" \
-    -DgenerateBackupPoms=false -DprocessAllModules
+  NEXT_REVISION="${CURRENT_MAJOR}.$((CURRENT_MINOR + 1))"
 fi
 
-NEXT_SNAPSHOT_VERSION=$(project_version)
-NEXT_PYTHON_VERSION=$(project_version | awk -F'-' '{print $1}')
-echo "$NEXT_PYTHON_VERSION" > ../pylzy/lzy/version/version
+mvn versions:set-property -Dproperty=revision \
+    -DnewVersion="$NEXT_REVISION" \
+    -DgenerateBackupPoms=false -DprocessAllModules
+
+CHANGELIST=$(changelist)
+echo "$NEXT_REVISION" > ../pylzy/lzy/version/version
 
 git add -u ..
-git commit -m "set version $NEXT_SNAPSHOT_VERSION"
+git commit -m "set version ${NEXT_REVISION}${CHANGELIST}"
 
-git checkout "releases/R-$CURRENT_VERSION"
+git checkout "releases/R-$CURRENT_REVISION"
 
 # x.y.0
-mvn build-helper:parse-version versions:set \
-  -DnewVersion="\${parsedVersion.majorVersion}.\${parsedVersion.minorVersion}.0" \
-  -DgenerateBackupPoms=false -DprocessAllModules
+mvn versions:set-property -Dproperty=changelist \
+      -DnewVersion="" \
+      -DgenerateBackupPoms=false -DprocessAllModules
+mvn versions:set-property -Dproperty=revision \
+      -DnewVersion="${CURRENT_REVISION}.0" \
+      -DgenerateBackupPoms=false -DprocessAllModules
 
-RELEASE_VERSION=$(project_version)
+RELEASE_VERSION=$(revision)
 echo "$RELEASE_VERSION" > ../pylzy/lzy/version/version
 git add -u ..
 git commit -m "set version $RELEASE_VERSION"
 git tag "R-$RELEASE_VERSION"
-git push origin "releases/R-$CURRENT_VERSION" #branch
+git push origin "releases/R-$CURRENT_REVISION" #branch
 git push origin "R-$RELEASE_VERSION" #tag
 git push origin master
 
-echo "release-branch=releases/R-$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+echo "release-branch=releases/R-$CURRENT_REVISION" >> "$GITHUB_OUTPUT"
 echo "release-version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
 echo "release-tag=R-$RELEASE_VERSION" >> "$GITHUB_OUTPUT"

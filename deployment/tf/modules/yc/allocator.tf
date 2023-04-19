@@ -29,6 +29,11 @@ locals {
 }
 
 resource "kubernetes_stateful_set" "allocator" {
+  depends_on = [
+    yandex_kubernetes_node_group.portals,
+    yandex_kubernetes_node_group.workers,
+    yandex_kubernetes_node_group.services
+  ]
   metadata {
     name   = local.allocator-k8s-name
     labels = local.allocator-labels
@@ -56,12 +61,22 @@ resource "kubernetes_stateful_set" "allocator" {
           }
 
           env {
-            name = "ALLOCATOR_METRICS_PORT"
+            name  = "ALLOCATOR_METRICS_PORT"
             value = local.allocator-metrics-port
           }
+
           env {
-            name  = "ALLOCATOR_ADDRESS"
-            value = "${kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.allocator-port}"
+            name = "ALLOCATOR_HOSTS"
+            value_from {
+              field_ref {
+                field_path = [kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]]
+              }
+            }
+          }
+
+          env {
+            name  = "ALLOCATOR_PORT"
+            value = local.allocator-port
           }
 
           env {
@@ -180,9 +195,34 @@ resource "kubernetes_stateful_set" "allocator" {
             }
           }
 
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = local.allocator-k8s-name
+          }
+
           volume_mount {
             name       = "sa-key"
             mount_path = "/tmp/sa-key/"
+          }
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
           }
         }
 
@@ -216,9 +256,16 @@ resource "kubernetes_stateful_set" "allocator" {
           config_map {
             name = kubernetes_config_map.unified-agent-config["allocator"].metadata[0].name
             items {
-              key = "config"
+              key  = "config"
               path = "config.yml"
             }
+          }
+        }
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {
@@ -226,15 +273,18 @@ resource "kubernetes_stateful_set" "allocator" {
         }
         affinity {
           pod_anti_affinity {
-            required_during_scheduling_ignored_during_execution {
-              label_selector {
-                match_expressions {
-                  key      = "app.kubernetes.io/part-of"
-                  operator = "In"
-                  values   = ["lzy"]
+            preferred_during_scheduling_ignored_during_execution {
+              weight = 1
+              pod_affinity_term {
+                label_selector {
+                  match_expressions {
+                    key      = "app.kubernetes.io/part-of"
+                    operator = "In"
+                    values   = ["lzy"]
+                  }
                 }
+                topology_key = "kubernetes.io/hostname"
               }
-              topology_key = "kubernetes.io/hostname"
             }
           }
         }

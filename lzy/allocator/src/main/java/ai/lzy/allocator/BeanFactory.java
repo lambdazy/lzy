@@ -6,6 +6,8 @@ import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.common.IdGenerator;
+import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.OperationsService;
@@ -40,6 +42,12 @@ import java.time.Duration;
 public class BeanFactory {
 
     private static final Duration YC_CALL_TIMEOUT = Duration.ofSeconds(30);
+
+    @Singleton
+    @Named("AllocatorIdGenerator")
+    public IdGenerator idGenerator() {
+        return new RandomIdGenerator();
+    }
 
     @Singleton
     @Requires(property = "allocator.yc-credentials.enabled", value = "true")

@@ -12,7 +12,7 @@ class FsStorageClient(AsyncStorageClient):
         path = self.__path_from_uri(uri)
         return os.path.getsize(path)
 
-    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int], Any]] = None) -> None:
+    async def read(self, uri: str, dest: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None) -> None:
         path = self.__path_from_uri(uri)
         with open(path, "rb") as file:
             while True:
@@ -20,10 +20,10 @@ class FsStorageClient(AsyncStorageClient):
                 if not read:
                     break
                 if progress:
-                    progress(len(read))
+                    progress(len(read), False)
                 dest.write(read)
 
-    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int], Any]] = None):
+    async def write(self, uri: str, data: BinaryIO, progress: Optional[Callable[[int, bool], Any]] = None):
         path = self.__path_from_uri(uri)
         parent = Path(path).parent.absolute()
         if not os.path.exists(parent):
@@ -34,7 +34,7 @@ class FsStorageClient(AsyncStorageClient):
                 if not read:
                     break
                 if progress:
-                    progress(len(read))
+                    progress(len(read), False)
                 file.write(read)
 
     async def blob_exists(self, uri: str) -> bool:

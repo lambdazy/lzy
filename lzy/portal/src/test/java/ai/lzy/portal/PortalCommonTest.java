@@ -96,8 +96,14 @@ public class PortalCommonTest extends PortalTestBase {
                 .formatted(taskOutputSlot), taskOutputSlot, worker, true, snapshotId);
 
             Assert.assertEquals("[LZY-REMOTE-" + firstTaskId + "] - hello\n", portalStdout.take());
-            Assert.assertTrue(portalStdout.isEmpty());
-            Assert.assertTrue(portalStderr.isEmpty());
+            if (!portalStdout.isEmpty()) {
+                Assert.fail("Should be empty: " +
+                    portalStdout.stream().map(Object::toString).collect(Collectors.joining(", ", "[", "]")));
+            }
+            if (!portalStderr.isEmpty()) {
+                Assert.fail("Should be empty: " +
+                    portalStderr.stream().map(Object::toString).collect(Collectors.joining(", ", "[", "]")));
+            }
             waitPortalCompleted();
             finishPortal();
 

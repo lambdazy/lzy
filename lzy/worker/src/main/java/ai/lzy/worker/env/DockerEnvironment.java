@@ -7,9 +7,15 @@ import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
+import com.github.dockerjava.api.exception.DockerClientException;
+import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
 import com.github.dockerjava.core.DockerClientBuilder;
+import io.github.resilience4j.core.IntervalFunction;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -23,83 +29,103 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import javax.annotation.Nullable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class DockerEnvironment extends BaseEnvironment {
 
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final long GB_AS_BYTES = 1073741824;
 
-    @Nullable public String containerId = null;
-
+    @Nullable
+    public String containerId = null;
     private final BaseEnvConfig config;
     private final DockerClient client;
+    private final Retry retry;
 
-    public DockerEnvironment(BaseEnvConfig config, @Nullable LME.DockerCredentials credentials) {
-        super();
+    public DockerEnvironment(BaseEnvConfig config, DockerClient client) {
         this.config = config;
-        this.client = generateClient(credentials);
+        this.client = client;
+        var retryConfig = new RetryConfig.Builder<>()
+            .maxAttempts(3)
+            .intervalFunction(IntervalFunction.ofExponentialBackoff(1000))
+            .retryExceptions(DockerException.class, DockerClientException.class)
+            .build();
+        retry = Retry.of("docker-client-retry", retryConfig);
     }
 
     @Override
-    public void install(StreamQueue out, StreamQueue err) throws EnvironmentInstallationException {
+    public void install(StreamQueue.LogHandle handle) throws EnvironmentInstallationException {
+        if (containerId != null) {
+            handle.logOut("Using already running container from cache");
+            LOG.info("Using already running container from cache; containerId: {}", containerId);
+            return;
+        }
 
-        try (var handle = new StreamQueue.LogHandle(out, err, LOG)) {
-            if (containerId != null) {
-                handle.logOut("Using already running container from cache");
-                return;
+        String sourceImage = config.image();
+        try {
+            prepareImage(sourceImage, handle);
+        } catch (InterruptedException e) {
+            handle.logErr("Image pulling was interrupted");
+            throw new RuntimeException(e);
+        } catch (Exception e) {
+            handle.logErr("Error while pulling image: {}", e);
+            LOG.error("Error while pulling image {}", sourceImage, e);
+            throw new RuntimeException(e);
+        }
+
+        handle.logOut("Creating container from image {} ...", sourceImage);
+
+        final List<Mount> dockerMounts = new ArrayList<>();
+        config.mounts().forEach(m -> {
+            var mount = new Mount().withType(MountType.BIND).withSource(m.source()).withTarget(m.target());
+            if (m.isRshared()) {
+                mount.withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED));
             }
+            dockerMounts.add(mount);
+        });
 
-            try {
-                prepareImage(config, handle);
-            } catch (Exception e) {
-                handle.logErr("Error while pulling image: {}", e);
-                throw new RuntimeException(e);
-            }
+        final HostConfig hostConfig = new HostConfig();
+        hostConfig.withMounts(dockerMounts);
 
-            var sourceImage = config.image();
-
-            handle.logOut("Creating container from image={} ... , config = {}", sourceImage, config);
-
-            final List<Mount> dockerMounts = new ArrayList<>();
-            config.mounts().forEach(m -> {
-                var mount = new Mount().withType(MountType.BIND).withSource(m.source()).withTarget(m.target());
-                if (m.isRshared()) {
-                    mount.withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED));
-                }
-                dockerMounts.add(mount);
-            });
-
-            final HostConfig hostConfig = new HostConfig();
-            hostConfig.withMounts(dockerMounts);
-
-            // --gpus all --ipc=host --shm-size=1G
-            if (config.needGpu()) {
-                hostConfig.withDeviceRequests(List.of(new DeviceRequest()
+        // --gpus all --ipc=host --shm-size=1G
+        if (config.needGpu()) {
+            hostConfig.withDeviceRequests(
+                List.of(
+                    new DeviceRequest()
                         .withDriver("nvidia")
-                        .withCapabilities(List.of(List.of("gpu")))
-                    ))
-                    .withIpcMode("host")
-                    .withShmSize(GB_AS_BYTES);
-            }
+                        .withCapabilities(List.of(List.of("gpu")))))
+                .withIpcMode("host")
+                .withShmSize(GB_AS_BYTES);
+        }
 
-            final var container = client.createContainerCmd(sourceImage)
+        AtomicInteger containerCreatingAttempt = new AtomicInteger(0);
+        final var container = retry.executeSupplier(() -> {
+            LOG.info("Creating container... (attempt {}); image: {}, config: {}",
+                containerCreatingAttempt.incrementAndGet(), sourceImage, config);
+            return client.createContainerCmd(sourceImage)
                 .withHostConfig(hostConfig)
                 .withAttachStdout(true)
                 .withAttachStderr(true)
                 .withTty(true)
                 .withEnv(config.envVars())
                 .exec();
+        });
 
-            final String containerId = container.getId();
-            handle.logOut("Creating container from image={} done, id={}", sourceImage, containerId);
+        final String containerId = container.getId();
+        handle.logOut("Creating container from image {} done", sourceImage);
+        LOG.info("Creating container done; containerId: {}, image: {}", containerId, sourceImage);
 
-            handle.logOut("Starting env container with id {} ...", containerId);
-            client.startContainerCmd(container.getId()).exec();
-            handle.logOut("Starting env container with id {} done", containerId);
+        handle.logOut("Environment container starting ...");
+        AtomicInteger containerStartingAttempt = new AtomicInteger(0);
+        retry.executeSupplier(() -> {
+            LOG.info("Starting env container... (attempt {}); containerId: {}, image: {}",
+                containerStartingAttempt.incrementAndGet(), containerId, sourceImage);
+            return client.startContainerCmd(containerId).exec();
+        });
+        handle.logOut("Environment container started");
+        LOG.info("Starting env container done; containerId: {}, image: {}", containerId, sourceImage);
 
-            this.containerId = containerId;
-        }
+        this.containerId = containerId;
     }
 
     @Override
@@ -108,7 +134,7 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         assert containerId != null;
 
         final int bufferSize = 4096;
@@ -132,12 +158,12 @@ public class DockerEnvironment extends BaseEnvironment {
         if (envp != null && envp.length > 0) {
             execCmd.withEnv(List.of(envp));
         }
-        final ExecCreateCmdResponse exec = execCmd.exec();
+        final ExecCreateCmdResponse exec = retry.executeSupplier(execCmd::exec);
         LOG.info("Executing cmd {}", String.join(" ", command));
 
         var feature = new CompletableFuture<>();
 
-        var startCmd = client.execStartCmd(exec.getId())
+        var startCmd = retry.executeSupplier(() -> client.execStartCmd(exec.getId())
             .exec(new ResultCallbackTemplate<>() {
                 @Override
                 public void onComplete() {
@@ -179,7 +205,7 @@ public class DockerEnvironment extends BaseEnvironment {
                             + item.getStreamType());
                     }
                 }
-            });
+            }));
 
         return new LzyProcess() {
             @Override
@@ -201,7 +227,8 @@ public class DockerEnvironment extends BaseEnvironment {
             public int waitFor() throws InterruptedException {
                 try {
                     feature.get();
-                    return Math.toIntExact(client.inspectExecCmd(exec.getId()).exec().getExitCodeLong());
+                    return Math.toIntExact(retry.executeSupplier(() -> client.inspectExecCmd(exec.getId()).exec())
+                        .getExitCodeLong());
                 } catch (InterruptedException e) {
                     try {
                         startCmd.close();
@@ -218,9 +245,9 @@ public class DockerEnvironment extends BaseEnvironment {
             @Override
             public void signal(int sigValue) {
                 if (containerId != null) {
-                    client.killContainerCmd(containerId)
+                    retry.executeSupplier(() -> client.killContainerCmd(containerId)
                         .withSignal(String.valueOf(sigValue))
-                        .exec();
+                        .exec());
                 }
             }
         };
@@ -229,7 +256,7 @@ public class DockerEnvironment extends BaseEnvironment {
     @Override
     public void close() throws Exception {
         if (containerId != null) {
-            client.killContainerCmd(containerId).exec();
+            retry.executeSupplier(() -> client.killContainerCmd(containerId).exec());
         }
     }
 
@@ -237,18 +264,17 @@ public class DockerEnvironment extends BaseEnvironment {
         return config;
     }
 
-    private void prepareImage(BaseEnvConfig config, StreamQueue.LogHandle handle) {
-        handle.logOut("Pulling image {} ...", config.image());
-        final var pullingImage = client
-            .pullImageCmd(config.image())
-            .exec(new PullImageResultCallback());
-        try {
-            pullingImage.awaitCompletion();
-        } catch (InterruptedException e) {
-            handle.logErr("Pulling image {} was interrupted", config.image());
-            throw new RuntimeException(e);
-        }
-        handle.logOut("Pulling image {} done", config.image());
+    private void prepareImage(String image, StreamQueue.LogHandle handle) throws Exception {
+        handle.logOut("Pulling image {} ...", image);
+        AtomicInteger pullingAttempt = new AtomicInteger(0);
+        retry.executeCallable(() -> {
+            LOG.info("Pulling image {}, attempt {}", image, pullingAttempt.incrementAndGet());
+            final var pullingImage = client
+                .pullImageCmd(config.image())
+                .exec(new PullImageResultCallback());
+            return pullingImage.awaitCompletion();
+        });
+        handle.logOut("Pulling image {} done", image);
     }
 
     public static DockerClient generateClient(@Nullable LME.DockerCredentials credentials) {

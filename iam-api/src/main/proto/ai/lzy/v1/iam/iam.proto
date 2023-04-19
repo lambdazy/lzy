@@ -27,8 +27,6 @@ message Credentials {
   enum Type {
     CREDENTIALS_TYPE_UNSPECIFIED = 0;
     PUBLIC_KEY = 1;
-    OTT = 2;
-    COOKIE = 3;
   }
 }
 

@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 @JsonDeserialize
 public record GraphDescription(
     List<TaskDescription> tasks,
-    Map<String, ChannelDescription> channels // Map from channel id to its description
+    Map<String, ChannelDescription> channels  // Map from channel id to its description
 )
 {
 

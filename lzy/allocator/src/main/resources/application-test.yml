@@ -1,7 +1,8 @@
 allocator:
   instance-id: ${random.uuid}
 
-  address: 'localhost:8799'
+  hosts: ['localhost']
+  port: 8799
 
   allocation-timeout: 5s
   heartbeat-timeout: 5s

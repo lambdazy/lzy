@@ -15,6 +15,8 @@ locals {
   lzy-service-k8s-name = "lzy-service"
   lzy-service-image    = var.lzy-service-image
 }
+
+
 resource "kubernetes_deployment" "lzy-service" {
   metadata {
     name   = local.lzy-service-k8s-name
@@ -119,6 +121,21 @@ resource "kubernetes_deployment" "lzy-service" {
           }
 
           env {
+            name  = "LZY_SERVICE_PORTAL_WORKERS_POOL_SIZE"
+            value = "10"
+          }
+
+          env {
+            name  = "LZY_SERVICE_PORTAL_DOWNLOADS_POOL_SIZE"
+            value = "5"
+          }
+
+          env {
+            name  = "LZY_SERVICE_PORTAL_CHUNKS_POOL_SIZE"
+            value = "5"
+          }
+
+          env {
             name = "LZY_SERVICE_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
@@ -178,13 +195,73 @@ resource "kubernetes_deployment" "lzy-service" {
             name  = "LZY_SERVICE_STORAGE_BUCKET_CREATION_TIMEOUT"
             value = "20s"
           }
+
+          dynamic "env" {
+            for_each = local.kafka_env_map
+
+            content {
+              name  = "LZY_SERVICE_${env.key}"
+              value = env.value
+            }
+          }
+
+          dynamic "env" {
+            for_each = var.enable_kafka ? [1] : []
+            content {
+              name  = "LZY_SERVICE_KAFKA_BOOTSTRAP_SERVERS"
+              value = module.kafka[0].internal-bootstrap
+            }
+          }
+
+          env {
+            name = "K8S_POD_NAME"
+            value_from {
+              field_ref {
+                field_path = "metadata.name"
+              }
+            }
+          }
+          env {
+            name = "K8S_NAMESPACE"
+            value_from {
+              field_ref {
+                field_path = "metadata.namespace"
+              }
+            }
+          }
+          env {
+            name  = "K8S_CONTAINER_NAME"
+            value = local.lzy-service-k8s-name
+          }
+
+          volume_mount {
+            name       = "varloglzy"
+            mount_path = "/var/log/lzy"
+          }
+
+          dynamic "volume_mount" {
+            for_each = var.enable_kafka ? [1] : []
+
+            content {
+              mount_path = "/truststore"
+              name       = "truststore"
+            }
+          }
+          dynamic "volume_mount" {
+            for_each = var.enable_kafka ? [1] : []
+
+            content {
+              mount_path = "/keystore"
+              name       = "keystore"
+            }
+          }
         }
         container {
-          name = "unified-agent"
-          image = var.unified-agent-image
+          name              = "unified-agent"
+          image             = var.unified-agent-image
           image_pull_policy = "Always"
           env {
-            name = "FOLDER_ID"
+            name  = "FOLDER_ID"
             value = var.folder_id
           }
           volume_mount {
@@ -192,14 +269,54 @@ resource "kubernetes_deployment" "lzy-service" {
             mount_path = "/etc/yandex/unified_agent/conf.d/"
           }
         }
+
+        dns_policy = "ClusterFirst"
         volume {
           name = "unified-agent-config"
           config_map {
             name = kubernetes_config_map.unified-agent-config["lzy-service"].metadata[0].name
             items {
-              key = "config"
+              key  = "config"
               path = "config.yml"
             }
+          }
+        }
+
+        dynamic "volume" {
+          for_each = var.enable_kafka ? [1] : []
+
+          content {
+            name = "truststore"
+            secret {
+              secret_name = module.kafka[0].truststore-secret-name
+              items {
+                key  = "ca.p12"
+                path = "truststore.p12"
+              }
+            }
+          }
+        }
+
+        dynamic "volume" {
+          for_each = var.enable_kafka ? [1] : []
+
+          content {
+            name = "keystore"
+            secret {
+              secret_name = module.kafka[0].keystore-secret-name
+              items {
+                key  = "cluster-operator.p12"
+                path = "keystore.p12"
+              }
+            }
+          }
+        }
+
+        volume {
+          name = "varloglzy"
+          host_path {
+            path = "/var/log/lzy"
+            type = "DirectoryOrCreate"
           }
         }
         node_selector = {
@@ -207,15 +324,18 @@ resource "kubernetes_deployment" "lzy-service" {
         }
         affinity {
           pod_anti_affinity {
-            required_during_scheduling_ignored_during_execution {
-              label_selector {
-                match_expressions {
-                  key      = "app.kubernetes.io/part-of"
-                  operator = "In"
-                  values   = ["lzy"]
+            preferred_during_scheduling_ignored_during_execution {
+              weight = 1
+              pod_affinity_term {
+                label_selector {
+                  match_expressions {
+                    key      = "app.kubernetes.io/part-of"
+                    operator = "In"
+                    values   = ["lzy"]
+                  }
                 }
+                topology_key = "kubernetes.io/hostname"
               }
-              topology_key = "kubernetes.io/hostname"
             }
           }
         }

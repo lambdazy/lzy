@@ -1,13 +1,11 @@
 import asyncio
 import atexit
 import os
+from abc import ABC
 from dataclasses import dataclass
-from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
-
 # noinspection PyPackageRequirements
 from grpc.aio import Channel
-
-from lzy.utils.event_loop import LzyEventLoop
+from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
 from ai.lzy.v1.long_running.operation_pb2 import GetOperationRequest
@@ -36,6 +34,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials, AzureCredentials
+from lzy.utils.event_loop import LzyEventLoop
 from lzy.utils.grpc import add_headers_interceptor, build_channel, build_token, retry, RetryConfig
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
@@ -71,22 +70,21 @@ GraphStatus = Union[Waiting, Executing, Completed, Failed]
 
 
 @dataclass
-class StdoutMessage:
-    data: str
+class StdlogMessage(ABC):
+    task_id: str
+    message: str
+    offset: int
 
 
-@dataclass
-class StderrMessage:
-    data: str
+class StderrMessage(StdlogMessage):
+    pass
 
 
-Message = Union[StderrMessage, StdoutMessage]
-RETRY_CONFIG = RetryConfig(
-    initial_backoff_ms=1000,
-    max_retry=12000,
-    backoff_multiplier=1,
-    max_backoff_ms=10000
-)
+class StdoutMessage(StdlogMessage):
+    pass
+
+
+RETRY_CONFIG = RetryConfig(max_retry=12000, backoff_multiplier=1.2)
 CHANNEL: Optional[Channel] = None
 
 
@@ -119,9 +117,9 @@ class WorkflowServiceClient:
 
         global CHANNEL
         if not CHANNEL:
-            CHANNEL = build_channel(address, interceptors=interceptors,
+            CHANNEL = build_channel(address, enable_retry=True,
+                                    interceptors=interceptors,
                                     service_names=("LzyWorkflowService", "LongRunningService"),
-                                    enable_retry=True,
                                     keepalive_ms=1000)
 
         self.__stub = LzyWorkflowServiceStub(CHANNEL)
@@ -184,18 +182,20 @@ class WorkflowServiceClient:
             AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
         )
 
-    async def read_std_slots(self, execution_id: str) -> AsyncIterator[Message]:
+    async def read_std_slots(self, execution_id: str, logs_offset: int) -> AsyncIterator[StdlogMessage]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
-            ReadStdSlotsRequest(executionId=execution_id)
+            ReadStdSlotsRequest(executionId=execution_id, offset=logs_offset)
         )
 
         async for msg in stream:
             if msg.HasField("stderr"):
-                for line in msg.stderr.data:
-                    yield StderrMessage(line)
-            elif msg.HasField("stdout"):
-                for line in msg.stdout.data:
-                    yield StdoutMessage(line)
+                for task_lines in msg.stderr.data:
+                    for line in task_lines.lines.splitlines():
+                        yield StderrMessage(task_lines.taskId, line, msg.offset)
+            if msg.HasField("stdout"):
+                for task_lines in msg.stdout.data:
+                    for line in task_lines.lines.splitlines():
+                        yield StdoutMessage(task_lines.taskId, line, msg.offset)
 
     @retry(config=RETRY_CONFIG, action_name="starting to execute graph")
     async def execute_graph(self, workflow_name: str, execution_id: str, graph: Graph) -> str:
@@ -246,7 +246,7 @@ class WorkflowServiceClient:
             GetAvailablePoolsRequest(executionId=execution_id)
         )
 
-        return pools.poolSpecs
+        return pools.poolSpecs  # type: ignore
 
     @retry(config=RETRY_CONFIG, action_name="getting default storage")
     async def get_or_create_storage(self) -> Optional[Storage]:

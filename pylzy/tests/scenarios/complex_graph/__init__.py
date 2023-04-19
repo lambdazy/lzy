@@ -16,12 +16,13 @@ def just_return_none(a: int, b: int) -> None:
     return None
 
 
-with Lzy().workflow(name="wf", interactive=False, env=Env(env_variables={"LOL": "kek"})):
-    a = 39
-    for i in range(3):
-        a = repeatable_op(a)
+if __name__ == '__main__':
+    with Lzy().workflow(name="wf", interactive=False, env=Env(env_variables={"LOL": "kek"})):
+        a = 39
+        for i in range(3):
+            a = repeatable_op(a)
 
-    # noinspection PyNoneFunctionAssignment
-    res = just_return_none(1, 1)
-    print(res)
-    print(a)
+        # noinspection PyNoneFunctionAssignment
+        res = just_return_none(1, 1)
+        print(res)
+        print(a)

@@ -22,7 +22,7 @@ public class TunnelAgentMain {
 
     public TunnelAgentMain(LzyTunnelAgentService tunnelAgentService, String addr) {
         this.address = HostAndPort.fromString(addr);
-        this.server = GrpcUtils.newGrpcServer(address, null)
+        this.server = GrpcUtils.newGrpcServer(address, GrpcUtils.NO_AUTH)
             .intercept(GrpcExceptionHandlingInterceptor.server())
             .addService(tunnelAgentService)
             .addService(ProtoReflectionService.newInstance())

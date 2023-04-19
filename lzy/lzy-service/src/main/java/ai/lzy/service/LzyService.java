@@ -71,7 +71,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     private final Duration bucketCreationTimeout;
 
     private final Storage storage;
-    private final WorkflowMetrics metrics;
+    private final LzyServiceMetrics metrics;
     private final OperationDao operationDao;
     private final WorkflowDao workflowDao;
     private final ExecutionDao executionDao;
@@ -84,7 +84,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                       @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
                       @Named("StorageServiceChannel") ManagedChannel storageChannel
         /*, GarbageCollector gc */, @Named("LzyServiceServerExecutor") ExecutorService workersPool,
-                      WorkflowMetrics metrics)
+                      LzyServiceMetrics metrics)
     {
         this.cleanExecutionCompanion = cleanExecutionCompanion;
         this.instanceId = config.getInstanceId();
@@ -229,12 +229,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         try {
             cleanExecutionCompanion.finishWorkflow(userId, workflowName, executionId, abortStatus);
             cleanExecutionCompanion.cleanExecution(executionId);
-        } catch (IllegalStateException ise) {
-            LOG.error("Execution from argument is not an active in workflow: " +
-                "{ userId: {}, workflowName: {}, executionId: {} }", userId, workflowName, executionId);
-            response.onError(Status.FAILED_PRECONDITION.withDescription("Cannot abort user workflow " +
-                "'%s'. Execution '%s' is not an active".formatted(workflowName, executionId)).asRuntimeException());
-            return;
         } catch (NotFoundException nfe) {
             LOG.error("Workflow with active execution not found: { userId: {}, workflowName: {}, executionId: {} }",
                 userId, workflowName, executionId);

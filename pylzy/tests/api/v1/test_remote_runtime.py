@@ -18,8 +18,9 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
 from ai.lzy.v1.long_running.operation_pb2_grpc import (
     add_LongRunningServiceServicer_to_server,
 )
-from api.v1.mocks import WorkflowServiceMock, WhiteboardIndexClientMock, OperationsServiceMock, EnvProviderMock
+from tests.api.v1.mocks import WorkflowServiceMock, OperationsServiceMock, EnvProviderMock
 from lzy.api.v1 import Lzy, op
+from lzy.whiteboards.index import DummyWhiteboardIndexClient
 from lzy.logs.config import get_logger
 from lzy.storage.api import Storage
 
@@ -48,7 +49,7 @@ class RemoteRuntimeTests(TestCase):
         with open(name, "wb") as f:
             f.write(key.export_key("PEM"))
 
-        self.lzy = Lzy(whiteboard_client=WhiteboardIndexClientMock(), py_env_provider=EnvProviderMock())
+        self.lzy = Lzy(whiteboard_client=DummyWhiteboardIndexClient(), py_env_provider=EnvProviderMock())
         self.lzy.auth(user="ArtoLord", key_path=name, endpoint="localhost:12345")
 
     def tearDown(self) -> None:

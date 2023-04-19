@@ -6,7 +6,6 @@ import tempfile
 import zipfile
 from asyncio import Task
 from io import BytesIO
-from pathlib import Path
 from typing import (
     Callable,
     Dict,
@@ -31,6 +30,7 @@ from ai.lzy.v1.workflow.workflow_pb2 import (
     Operation,
     VmPoolSpec,
 )
+from lzy.api.v1 import DockerPullPolicy
 from lzy.api.v1.call import LzyCall
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
@@ -38,7 +38,7 @@ from lzy.api.v1.remote.workflow_service_client import (
     Completed,
     Executing,
     Failed,
-    StdoutMessage,
+    StderrMessage,
     WorkflowServiceClient,
 )
 from lzy.api.v1.runtime import (
@@ -47,10 +47,11 @@ from lzy.api.v1.runtime import (
 )
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.conda import generate_conda_yaml
-from lzy.api.v1.utils.files import fileobj_hash, zip_module, sys_path_parent
+from lzy.api.v1.utils.files import fileobj_hash, zip_module
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
-from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_color
+from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_syslog_color
+from lzy.storage.api import Storage, FSCredentials
 from lzy.utils.grpc import retry, RetryConfig
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
@@ -85,6 +86,8 @@ class RemoteRuntime(Runtime):
         self.__std_slots_listener: Optional[Task] = None
         self.__running = False
 
+        self.__logs_offset = 0  # Logs offset for retries of reading log data
+
     async def storage(self) -> Optional[Storage]:
         if not self.__storage:
             self.__storage = await self.__workflow_client.get_or_create_storage()
@@ -103,6 +106,7 @@ class RemoteRuntime(Runtime):
         self.__workflow = workflow
         self.__execution_id = exec_id
         self.__std_slots_listener = asyncio.create_task(self.__listen_to_std_slots(exec_id))
+        self.__logs_offset = 0
         return cast(str, exec_id)
 
     async def exec(
@@ -172,6 +176,11 @@ class RemoteRuntime(Runtime):
         try:
             await client.abort_workflow(cast(LzyWorkflow, self.__workflow).name, self.__execution_id,
                                         "Workflow execution aborted")
+            try:
+                if self.__std_slots_listener is not None:
+                    await asyncio.wait_for(self.__std_slots_listener, timeout=1)
+            except asyncio.TimeoutError:
+                _LOG.warning(f"Cannot wait for end of std logs of execution.")
         finally:
             self.__running = False
             self.__execution_id = None
@@ -184,6 +193,11 @@ class RemoteRuntime(Runtime):
             return
         try:
             await client.finish_workflow(self.__workflow.name, self.__execution_id, "Workflow completed")
+            try:
+                if self.__std_slots_listener is not None:
+                    await asyncio.wait_for(self.__std_slots_listener, timeout=1)
+            except asyncio.TimeoutError:
+                _LOG.warning(f"Cannot wait for end of std logs of execution.")
         finally:
             self.__running = False
             self.__execution_id = None
@@ -198,15 +212,9 @@ class RemoteRuntime(Runtime):
         for local_module in module_paths:
 
             with tempfile.NamedTemporaryFile("rb") as archive:
-                if not os.path.isdir(local_module):
-                    prefix = sys_path_parent(local_module)
-                    if prefix is None:
-                        raise RuntimeError(f'Invalid local module path {local_module}')
-                    with zipfile.ZipFile(archive.name, "w") as z:
-                        z.write(local_module, (Path(local_module).relative_to(prefix)))
-                else:
-                    with zipfile.ZipFile(archive.name, "w") as z:
-                        zip_module(local_module, z)
+                with zipfile.ZipFile(archive.name, "w") as z:
+                    zip_module(local_module, z)
+
                 archive.seek(0)
                 file = cast(BytesIO, archive.file)
                 key = os.path.join(
@@ -248,22 +256,20 @@ class RemoteRuntime(Runtime):
                 return spec
         return None
 
-    @retry(action_name="listening to std slots", config=RetryConfig(
-        initial_backoff_ms=1000,
-        max_retry=12000,
-        backoff_multiplier=1,
-        max_backoff_ms=10000
-    ))
+    @retry(action_name="listening to std slots", config=RetryConfig(max_retry=12000, backoff_multiplier=1.2))
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
-        async for data in client.read_std_slots(execution_id):
-            if isinstance(data, StdoutMessage):
-                system_log = "[SYS]" in data.data
-                prefix = COLOURS[get_color()] if system_log else ""
+        async for msg in client.read_std_slots(execution_id, self.__logs_offset):
+            task_id_prefix = COLOURS["WHITE"] + "[LZY-REMOTE-" + msg.task_id + "] " + RESET_COLOR
+            if isinstance(msg, StderrMessage):
+                system_log = "[SYS]" in msg.message
+                prefix = COLOURS[get_syslog_color()] if system_log else ""
                 suffix = RESET_COLOR if system_log else ""
-                sys.stdout.write(prefix + data.data + suffix)
+                sys.stderr.write(task_id_prefix + prefix + msg.message + suffix + '\n')
             else:
-                sys.stderr.write(data.data)
+                sys.stdout.write(task_id_prefix + msg.message + '\n')
+
+            self.__logs_offset = max(self.__logs_offset, msg.offset)
 
         sys.stdout.flush()
         sys.stderr.flush()
@@ -445,7 +451,7 @@ class RemoteRuntime(Runtime):
 
             print(s)
             s = input("(Yes/[No]): ")
-            if s != "Yes":
+            if s.lower() not in ("yes", "y"):
                 raise RuntimeError("Graph execution cancelled")
 
         return Graph(

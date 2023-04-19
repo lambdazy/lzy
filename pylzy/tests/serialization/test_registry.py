@@ -1,7 +1,7 @@
 from unittest import TestCase
 
 from lzy.serialization.registry import LzySerializerRegistry
-from serialization.serializer import TestSerializer
+from tests.serialization.serializer import TestSerializer
 
 
 class FileSerializationTests(TestCase):
@@ -13,7 +13,7 @@ class FileSerializationTests(TestCase):
         self.registry.register_serializer(serializer, 999)
         imports = self.registry.imports()
         self.assertEqual(1, len(imports))
-        self.assertEqual("serialization.serializer", imports[0].module_name)
+        self.assertEqual("tests.serialization.serializer", imports[0].module_name)
         self.assertEqual("TestSerializer", imports[0].class_name)
         self.assertEqual(999, imports[0].priority)
 
@@ -28,7 +28,7 @@ class FileSerializationTests(TestCase):
         imports = self.registry.imports()
 
         self.assertEqual(1, len(imports))
-        self.assertEqual("serialization.serializer", imports[0].module_name)
+        self.assertEqual("tests.serialization.serializer", imports[0].module_name)
         self.assertEqual("TestSerializer", imports[0].class_name)
         self.assertEqual(999, imports[0].priority)
 
