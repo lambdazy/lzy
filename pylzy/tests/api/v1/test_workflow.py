@@ -4,7 +4,6 @@ from typing import List, Optional, Union, Tuple, Dict
 from unittest import TestCase, skip
 
 from lzy.api.v1 import Lzy, op, LocalRuntime, materialize
-from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.utils.proxy_adapter import materialized, is_lzy_proxy
 from tests.api.v1.mocks import EnvProviderMock
 
@@ -84,7 +83,7 @@ class LzyWorkflowTests(TestCase):
             # noinspection PyTypeChecker
             return [1, 2, 3]
 
-        with self.assertRaises(LzyExecutionException):
+        with self.assertRaises(TypeError):
             with self.lzy.workflow(self.workflow_name):
                 invalid_list_type_returns()
 
@@ -466,3 +465,12 @@ class LzyWorkflowTests(TestCase):
             self.assertTrue(
                 "Simultaneous workflows are not supported" in str(context.exception)
             )
+
+    def test_exception(self):
+        @op
+        def exception() -> None:
+            raise TypeError("exception")
+
+        with self.assertRaises(TypeError):
+            with self.lzy.workflow("test"):
+                exception()

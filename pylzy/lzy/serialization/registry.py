@@ -7,6 +7,7 @@ from typing import Optional, Sequence, Type, Set, Any, cast
 from serialzy.api import Serializer
 from serialzy.registry import DefaultSerializerRegistry
 
+from lzy.serialization.exception import ExceptionSerializer
 from lzy.serialization.file import FileSerializer
 
 
@@ -25,6 +26,7 @@ class LzySerializerRegistry(DefaultSerializerRegistry):
         super().__init__()
 
         self.register_serializer(FileSerializer())
+        self.register_serializer(ExceptionSerializer())
         self.__inited = True
 
         for typ, serializers in self._type_registry.items():

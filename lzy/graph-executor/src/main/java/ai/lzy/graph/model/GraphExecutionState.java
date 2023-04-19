@@ -30,7 +30,8 @@ public record GraphExecutionState(
         List<TaskExecution> executions,
         List<TaskExecution> currentExecutionGroup,
         Status status,
-        String errorDescription
+        String errorDescription,
+        String failedTask
 ) {
 
     private static final Logger LOG = LogManager.getLogger(GraphExecutionState.class);
@@ -48,6 +49,7 @@ public record GraphExecutionState(
             case COMPLETED -> statusBuilder.setCompleted(Completed.newBuilder().build());
             case FAILED -> statusBuilder.setFailed(
                 Failed.newBuilder()
+                    .setFailedTask(failedTask)
                     .setDescription(errorDescription)
                     .build()
             );
@@ -137,6 +139,7 @@ public record GraphExecutionState(
         private List<TaskExecution> currentExecutionGroup = new ArrayList<>();
         private Status status = Status.WAITING;
         private String errorDescription = null;
+        private String failedTask = null;
 
         public GraphExecutionStateBuilder withWorkflowId(String workflowId) {
             this.workflowId = workflowId;
@@ -183,6 +186,11 @@ public record GraphExecutionState(
             return this;
         }
 
+        public GraphExecutionStateBuilder withFailedTask(String failedTask) {
+            this.failedTask = failedTask;
+            return this;
+        }
+
         public GraphExecutionState build() {
             if (workflowId == null || id == null || description == null) {
                 throw new NullPointerException(
@@ -190,7 +198,7 @@ public record GraphExecutionState(
             }
             return new GraphExecutionState(
                 workflowId, workflowName, userId, id, description, executions, currentExecutionGroup,
-                status, errorDescription
+                status, errorDescription, failedTask
             );
         }
     }

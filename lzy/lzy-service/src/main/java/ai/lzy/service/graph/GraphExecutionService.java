@@ -418,7 +418,9 @@ public class GraphExecutionService {
                 }
             }
             case FAILED -> graphStatusResponse.setFailed(LWFS.GraphStatusResponse.Failed.newBuilder()
-                .setDescription(graphStatus.getStatus().getFailed().getDescription()));
+                .setDescription(graphStatus.getStatus().getFailed().getDescription())
+                .setFailedTask(graphStatus.getStatus().getFailed().getFailedTask())
+            );
         }
 
         response.onNext(graphStatusResponse.build());

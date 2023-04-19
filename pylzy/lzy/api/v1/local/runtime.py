@@ -8,6 +8,8 @@ from collections import defaultdict
 from pathlib import Path
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type, cast, IO
 
+from lzy.proxy.result import Just
+
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.pickle import pickle
@@ -111,6 +113,12 @@ class LocalRuntime(Runtime):
                 entry = self.__workflow.snapshot.get(eid)
                 ret_descriptions.append((entry.typ, str(path)[len(folder):]))
 
+            exc_eid = call.exception_id
+            exc_path = Path(folder + "/" + exc_eid)
+            exc_path.touch()
+            exc_entry = self.__workflow.snapshot.get(exc_eid)
+            e_description = (exc_entry.typ, str(exc_path)[len(folder):])
+
             request = ProcessingRequest(
                 get_logging_config(),
                 serializers=self.__workflow.owner.serializer_registry.imports(),
@@ -118,6 +126,7 @@ class LocalRuntime(Runtime):
                 args_paths=arg_descriptions,
                 kwargs_paths=kwarg_descriptions,
                 output_paths=ret_descriptions,
+                exception_path=e_description,
                 lazy_arguments=call.lazy_arguments
             )
 
@@ -150,6 +159,11 @@ class LocalRuntime(Runtime):
 
             rc = result.wait()
             if rc != 0:
+                await self.__from_file_to_storage(exc_entry.storage_uri, folder + "/" + exc_eid)
+
+                exception = await self.__workflow.snapshot.get_data(call.exception_id)
+                if isinstance(exception, Just):
+                    raise exception.value
                 raise LzyExecutionException(f"Error during execution of {call.signature.func.callable}")
 
             data_to_put = []

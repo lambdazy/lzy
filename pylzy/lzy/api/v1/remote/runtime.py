@@ -21,6 +21,7 @@ from typing import (
 )
 
 from lzy.api.v1 import DockerPullPolicy
+from lzy.proxy.result import Just
 from lzy.storage.api import Storage, FSCredentials
 
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
@@ -155,6 +156,11 @@ class RemoteRuntime(Runtime):
             if isinstance(status, Failed):
                 progress(ProgressStep.FAILED)
                 _LOG.debug(f"Graph {graph_id} execution failed: {status.description}")
+                for call in cast(LzyWorkflow, self.__workflow).call_queue:
+                    if call.signature.func.name == status.failed_task:
+                        exception = await cast(LzyWorkflow, self.__workflow).snapshot.get_data(call.exception_id)
+                        if isinstance(exception, Just):
+                            raise exception.value
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )
@@ -337,6 +343,23 @@ class RemoteRuntime(Runtime):
                 )
                 ret_descriptions.append((entry.typ, slot_path))
 
+            entry = self.__workflow.snapshot.get(call.exception_id)
+            slot_path = f"/{call.id}/{entry.id}"
+            output_slots.append(Operation.SlotDescription(path=slot_path, storageUri=entry.storage_uri))
+
+            data_descriptions[entry.storage_uri] = DataDescription(
+                storageUri=entry.storage_uri,
+                dataScheme=DataScheme(
+                    dataFormat=entry.data_scheme.data_format,
+                    schemeFormat=entry.data_scheme.schema_format,
+                    schemeContent=entry.data_scheme.schema_content if entry.data_scheme.schema_content else "",
+                    metadata=entry.data_scheme.meta
+                )
+                if entry.data_scheme is not None
+                else None,
+            )
+            e_description: Tuple[Type, str] = (entry.typ, slot_path)
+
             pool = self.__resolve_pool(call.provisioning, pools)
 
             if pool is None:
@@ -379,6 +402,7 @@ class RemoteRuntime(Runtime):
                 args_paths=arg_descriptions,
                 kwargs_paths=kwarg_descriptions,
                 output_paths=ret_descriptions,
+                exception_path=e_description,
                 lazy_arguments=call.lazy_arguments
             )
 

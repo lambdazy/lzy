@@ -85,6 +85,7 @@ def process_execution(
     args_paths: Sequence[Tuple[Type, str]],
     kwargs_paths: Mapping[str, Tuple[Type, str]],
     output_paths: Sequence[Tuple[Type, str]],
+    exception_path: Tuple[Type, str],
     logger: Logger,
     lazy_arguments: bool
 ):
@@ -103,6 +104,7 @@ def process_execution(
         }
     except Exception as e:
         logger.error(f"Error while reading arguments: {e}")
+        write_data(exception_path[1], exception_path[0], e, serializers, logger)
         raise e
 
     logger.info(f"Executing operation '{op.__name__}'")
@@ -111,6 +113,7 @@ def process_execution(
         res = op(*args, **kwargs)
     except Exception as e:
         logger.error(f"Execution completed with error {e} in {time.time() - start}")
+        write_data(exception_path[1], exception_path[0], e, serializers, logger)
         raise e
     logger.info(f"Execution completed in {time.time() - start} sec")
 
@@ -123,6 +126,7 @@ def process_execution(
             write_data(out[1], out[0], data, serializers, logger)
     except Exception as e:
         logger.error("Error while writing result: {}", e)
+        write_data(exception_path[1], exception_path[0], e, serializers, logger)
         raise e
 
 
@@ -134,6 +138,7 @@ class ProcessingRequest:
     args_paths: Sequence[Tuple[Type, str]]
     kwargs_paths: Mapping[str, Tuple[Type, str]]
     output_paths: Sequence[Tuple[Type, str]]
+    exception_path: Tuple[Type, str]
     lazy_arguments: bool = True
 
 
@@ -174,7 +179,8 @@ def main(arg: str):
     logger = get_remote_logger(__name__)
     logger.info("Starting execution...")
     logger.debug(f"Running with environment: {os.environ}")
-    process_execution(registry, req.op, req.args_paths, req.kwargs_paths, req.output_paths, logger, req.lazy_arguments)
+    process_execution(registry, req.op, req.args_paths, req.kwargs_paths, req.output_paths,
+                      req.exception_path, logger, req.lazy_arguments)
     logger.info("Finishing execution...")
 
 

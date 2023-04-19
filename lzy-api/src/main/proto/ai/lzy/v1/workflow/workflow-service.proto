@@ -96,6 +96,7 @@ message GraphStatusResponse {
   message Completed {}
   message Failed {
     string description = 1;
+    string failedTask = 2;
   }
 }
 
