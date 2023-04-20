@@ -18,6 +18,7 @@ from typing import (
 
 from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
 from lzy.exceptions import BadProvisioning
+from lzy.utils.format import pretty_protobuf
 
 __all__ = [
     'CpuType',
@@ -115,12 +116,6 @@ class Provisioning:
         compare=False,
     )
 
-    _original_spec: Optional[VmPoolSpec] = dataclasses.field(
-        default=None,
-        repr=False,
-        compare=False,
-    )
-
     spec_relation: ClassVar[Dict[str, str]] = {
         'cpu_type': 'cpuType',
         'cpu_count': 'cpuCount',
@@ -139,13 +134,13 @@ class Provisioning:
         )
 
     @classmethod
-    def from_spec(cls, spec: VmPoolSpec) -> "Provisioning":
+    def from_proto(cls, spec: VmPoolSpec) -> "Provisioning":
         fields = {}
 
         for provisioning_field, spec_field in cls.spec_relation.items():
             fields[provisioning_field] = getattr(spec, spec_field)
 
-        return cls(_original_spec=spec, **fields)
+        return cls(**fields)
 
     def _filter_spec(self, spec: "Provisioning") -> bool:
         if (
@@ -168,26 +163,29 @@ class Provisioning:
     def resolve_pool(self, pool_specs: Sequence[VmPoolSpec]) -> VmPoolSpec:
         canonized = self.canonize()
 
-        specs: List[Provisioning] = [self.from_spec(spec) for spec in pool_specs]
-        eligible: List[Provisioning] = [pool for pool in specs if canonized._filter_spec(pool)]
+        spec_scores = []
 
-        if not eligible:
-            raise BadProvisioning(f"not a single one available spec from {specs!r} eligible for requirements {self}")
+        for proto_spec in pool_specs:
+            provisioning = self.from_proto(proto_spec)
 
-        scores: List[Tuple[float, Provisioning]]  = []
+            if canonized._filter_spec(provisioning):
+                continue
 
-        for spec in eligible:
-            score = self.score_function(canonized, spec)
-            logging.debug("eligible spec %r have score %f", spec, score)
-            scores.append((score, spec))
+            score = self.score_function(canonized, provisioning)
+            spec_scores.append((score, proto_spec, provisioning))
+            logging.debug("eligible spec %r have score %f", provisioning, score)
 
-        scores.sort(reverse=True)
+        if not spec_scores:
+            pool_specs_repr = [pretty_protobuf(pool) for pool in pool_specs]
+            raise BadProvisioning(f"not a single one available spec from {pool_specs_repr!r} eligible for requirements {self}")
 
-        max_score, max_spec = scores[0]
+        spec_scores.sort(reverse=True)
 
-        logging.info("choose a spec %r with a max score %f", max_spec, max_score)
+        max_score, max_proto_spec, max_provisioning = spec_scores[0]
 
-        return max_spec._original_spec
+        logging.info("choose a spec %r with a max score %f", max_provisioning, max_score)
+
+        return max_proto_spec
 
     def override(
         self,
