@@ -2,6 +2,16 @@ syntax = "proto3";
 
 package ai.lzy.v1.history;
 
+message Whiteboards {
+  repeated Whiteboard whiteboards = 1;
+
+  message Whiteboard {
+    string name = 1;
+    string storageUrl = 2;
+    repeated string tags = 3;
+  }
+}
+
 message Provisioning {
   string cpuType = 1;
   int32 cpuCount = 2;

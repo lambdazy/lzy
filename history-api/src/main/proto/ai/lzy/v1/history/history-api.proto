@@ -8,41 +8,49 @@ import "ai/lzy/v1/history/history.proto";
 
 service HistoryService {
   rpc GetWorkflows (GetWorkflowsRequest) returns (GetWorkflowsResponse);
-  rpc GetWorkflowDetails (GetWorkflowDetailsRequest) returns (GetWorkflowDetailsResponse);
-
   rpc GetExecutions (GetExecutionsRequest) returns (GetExecutionsResponse);
-  rpc GetExecutionStatus (GetExecutionRequest) returns (GetExecutionStatusResponse);
-  rpc GetExecutionDetails (GetExecutionRequest) returns (GetExecutionDetailsResponse);
 
-  rpc GetGraphs (GetGraphsRequest) returns (GetGraphsResponse);
+  rpc GetExecution (GetExecutionRequest) returns (GetExecutionResponse);
+  rpc GetExecutionDetails (GetExecutionRequest) returns (GetExecutionDetailsResponse);
+  rpc GetExecutionStatus (GetExecutionRequest) returns (GetExecutionStatusResponse);
+
   rpc GetTaskDetails (GetTaskDetailsRequest) returns (GetTaskDetailsResponse);
 }
 
 message GetWorkflowsRequest {
   Filter filter = 1;
-  Ordering orderBy = 2;
+  Sorting sortedBy = 2;
 
   // pagination
   int32 pageSize = 3;
   string pageToken = 4;
 
-  message Ordering {
-    string name = 1;
+  message Sorting {
+    oneof criteria {
+      Name workflowName = 1;
+      LastExecutionAt lastExecutionAt = 2;
+      RunTime runTime = 3;
+    }
 
-    google.protobuf.Timestamp createdAt = 3;
-    google.protobuf.Timestamp updatedAt = 4;
+    message Name {
+      bool ascending = 1;
+    }
 
-    bool ascending = 5;
+    message LastExecutionAt {
+      bool ascending = 1;
+    }
+
+    message RunTime {
+      bool ascending = 1;
+    }
   }
 
   message Filter {
-    string name = 1;
-    string owner = 2;
+    string workflowName = 1;
+    string workflowOwner = 2;
 
-    google.protobuf.Timestamp createdAfter = 3;
-    google.protobuf.Timestamp createdBefore = 4;
-    google.protobuf.Timestamp updatedAfter = 5;
-    google.protobuf.Timestamp updatedBefore = 6;
+    google.protobuf.Timestamp lastExecutionAfter = 3;
+    google.protobuf.Timestamp lastExecutionBefore = 4;
   }
 }
 
@@ -53,46 +61,48 @@ message GetWorkflowsResponse {
   string nextPageToken = 2;
 
   message Workflow {
-    string name = 1;
-    string owner = 2;
-    string storageUrl = 3;
+    string workflowName = 1;
+    string workflowOwner = 2;
+
+    google.protobuf.Duration runTime = 3;
 
     string lastExecutionId = 4;
-    ExecutionStatus lastExecutionStatus = 5;
+    string lastExecutionOwner = 5;
+    string lastExecutionStorageUrl = 6;
 
-    google.protobuf.Duration runTime = 6;
-    google.protobuf.Timestamp createdAt = 7;
-    google.protobuf.Timestamp updatedAt = 8;
+    ExecutionStatus lastExecutionStatus = 7;
+
+    google.protobuf.Timestamp lastExecutionStartAt = 8;
+    google.protobuf.Timestamp lastExecutionFinishAt = 9;
   }
-}
-
-message GetWorkflowDetailsRequest {
-  string owner = 1;
-  string workflowName = 2;
-}
-
-message GetWorkflowDetailsResponse {
-  WorkflowDetails workflowDetails = 1;
-
-  message WorkflowDetails {}
 }
 
 message GetExecutionsRequest {
   Filter filter = 1;
-  Ordering orderBy = 2;
+  Sorting sortedBy = 2;
 
   // pagination
   int32 pageSize = 3;
   string pageToken = 4;
 
-  message Ordering {
-    string owner = 1;
+  message Sorting {
+    oneof criteria {
+      StartedAt startedAt = 1;
+      FinishedAt finishedAt = 2;
+      RunTime runTime = 3;
+    }
 
-    google.protobuf.Timestamp startedAt = 2;
-    google.protobuf.Timestamp finishedAt = 3;
-    google.protobuf.Duration runTime = 4;
+    message StartedAt {
+      bool ascending = 1;
+    }
 
-    bool ascending = 5;
+    message FinishedAt {
+      bool ascending = 1;
+    }
+
+    message RunTime {
+      bool ascending = 1;
+    }
   }
 
   message Filter {
@@ -118,7 +128,7 @@ message GetExecutionsResponse {
   message Execution {
     string executionId = 1;
     string workflowName = 2;
-    string userId = 3;
+    string owner = 3;
 
     ExecutionStatus executionStatus = 4;
     string description = 5;
@@ -137,8 +147,9 @@ message GetExecutionDetailsResponse {
   ExecutionDetails executionDetails = 1;
 
   message ExecutionDetails {
-    Provisioning provisioning = 1;
-    Env env = 2;
+    Whiteboards whiteboards = 1;
+    Provisioning provisioning = 2;
+    Env env = 3;
   }
 }
 
@@ -146,12 +157,9 @@ message GetExecutionStatusResponse {
   ExecutionStatus status = 1;
 }
 
-message GetGraphsRequest {
-  string executionId = 1;
-}
-
-message GetGraphsResponse {
+message GetExecutionResponse {
   repeated Graph graphs = 1;
+  GetExecutionDetailsResponse.ExecutionDetails executionDetails = 2;
 
   message Graph {
     string graphId = 1;
@@ -163,10 +171,14 @@ message GetGraphsResponse {
       string version = 3;
       bool cached = 4;
 
-      Status status = 5;
+      google.protobuf.Timestamp startedAt = 5;
+      google.protobuf.Timestamp finishedAt = 6;
+      google.protobuf.Duration runTime = 7;
 
-      repeated Input inputs = 6;
-      repeated Output outputs = 7;
+      Status status = 8;
+
+      repeated Input inputs = 9;
+      repeated Output outputs = 10;
 
       message Status {
         oneof status {
@@ -212,7 +224,7 @@ message GetTaskDetailsResponse {
   string version = 3;
   bool cached = 4;
 
-  GetGraphsResponse.Graph.Task.Status status = 5;
+  GetExecutionResponse.Graph.Task.Status status = 5;
 
   repeated Input inputs = 6;
   repeated Output outputs = 7;
@@ -220,37 +232,38 @@ message GetTaskDetailsResponse {
   Provisioning provisioning = 8;
   Env env = 9;
 
-  string logsStorageUrl = 10;
+  string stdoutStorageUrl = 10;
+  string stderrStorageUrl = 11;
 
   message Input {
     string name = 1;
     string type = 2;
-    string storageUrl = 3;
+    string presignedStorageUrl = 3;
   }
 
   message Output {
     string name = 1;
     string type = 2;
-    string storageUrl = 3;
+    string presignedStorageUrl = 3;
   }
 }
 
 message ExecutionStatus {
   oneof status {
-    Starting starting = 1;
-    Running running = 2;
-    Failed failed = 3;
+    Prepare prepare = 1;
+    Run run = 2;
+    Fail fail = 3;
     Success success = 4;
   }
 
-  message Starting {}
+  message Prepare {}
 
-  message Running {
+  message Run {
     repeated string skipped = 1;
     repeated string completed = 2;
   }
 
-  message Failed {
+  message Fail {
     string description = 1;
   }
 
