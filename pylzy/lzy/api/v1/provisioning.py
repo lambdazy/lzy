@@ -1,5 +1,4 @@
 import dataclasses
-import logging
 
 from enum import Enum
 from typing import (
@@ -18,6 +17,7 @@ from typing import (
 
 from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
 from lzy.exceptions import BadProvisioning
+from lzy.logs.config import get_logger
 from lzy.utils.format import pretty_protobuf
 
 __all__ = [
@@ -32,7 +32,7 @@ __all__ = [
 ]
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 DEFAULT_WEIGHTS = {
@@ -116,7 +116,7 @@ class Provisioning:
         compare=False,
     )
 
-    spec_relation: ClassVar[Dict[str, str]] = {
+    proto_relation: ClassVar[Dict[str, str]] = {
         'cpu_type': 'cpuType',
         'cpu_count': 'cpuCount',
         'gpu_type': 'gpuType',
@@ -124,20 +124,11 @@ class Provisioning:
         'ram_size_gb': 'ramGb'
     }
 
-    def canonize(self) -> "Provisioning":
-        return self.override(
-            cpu_count=_coerce(self.cpu_count, 0),
-            gpu_count=_coerce(self.gpu_count, 0),
-            ram_size_gb=_coerce(self.ram_size_gb, 0),
-            cpu_type=_coerce(self.cpu_type, None),
-            gpu_type=_coerce(self.gpu_type, None),
-        )
-
     @classmethod
     def from_proto(cls, spec: VmPoolSpec) -> "Provisioning":
         fields = {}
 
-        for provisioning_field, spec_field in cls.spec_relation.items():
+        for provisioning_field, spec_field in cls.proto_relation.items():
             fields[provisioning_field] = getattr(spec, spec_field)
 
         return cls(**fields)
@@ -150,30 +141,39 @@ class Provisioning:
         ):
             return False
 
-        cpu_type = _coerce(self.cpu_type, None)
-        gpu_type = _coerce(self.gpu_type, None)
         if (
-            cpu_type and cpu_type != spec.cpu_type or
-            gpu_type and gpu_type != spec.gpu_type
+            self.cpu_type and self.cpu_type != spec.cpu_type or
+            self.gpu_type and self.gpu_type != spec.gpu_type
         ):
             return False
 
         return True
 
     def resolve_pool(self, pool_specs: Sequence[VmPoolSpec]) -> VmPoolSpec:
-        canonized = self.canonize()
+        # For a purposes of filtering and scoring we need finalize out Provisioning:
+        # replace Any and None with something eligeble for comparsion.
+        # At this moment Any and None have no difference, this difference
+        # only matters for merging provisionings from workflow an ops.
+        finalized = self.override(
+            cpu_count=_coerce(self.cpu_count, 0),
+            gpu_count=_coerce(self.gpu_count, 0),
+            ram_size_gb=_coerce(self.ram_size_gb, 0),
+            cpu_type=_coerce(self.cpu_type, None),
+            gpu_type=_coerce(self.gpu_type, None),
+        )
+        finalized._validate()
 
         spec_scores = []
 
         for proto_spec in pool_specs:
             provisioning = self.from_proto(proto_spec)
 
-            if canonized._filter_spec(provisioning):
+            if finalized._filter_spec(provisioning):
                 continue
 
-            score = self.score_function(canonized, provisioning)
+            score = self.score_function(finalized, provisioning)
             spec_scores.append((score, proto_spec, provisioning))
-            logging.debug("eligible spec %r have score %f", provisioning, score)
+            logger.debug("eligible spec %r have score %f", provisioning, score)
 
         if not spec_scores:
             pool_specs_repr = [pretty_protobuf(pool) for pool in pool_specs]
@@ -183,7 +183,7 @@ class Provisioning:
 
         max_score, max_proto_spec, max_provisioning = spec_scores[0]
 
-        logging.info("choose a spec %r with a max score %f", max_provisioning, max_score)
+        logger.info("choose a spec %r with a max score %f for a provisioning requirements %r", max_provisioning, max_score, self)
 
         return max_proto_spec
 
@@ -224,8 +224,6 @@ class Provisioning:
 
         return self.__class__(**new_kwargs)
 
-    def validate(self) -> None:
-        canonized = self.canonize()
-
-        if canonized.gpu_count > 0 and canonized.gpu_type == GpuType.NO_GPU.value:
+    def _validate(self) -> None:
+        if self.gpu_count > 0 and self.gpu_type == GpuType.NO_GPU.value:
             raise BadProvisioning(f"gpu_type is set to {self.gpu_type} while gpu_count is {self.gpu_count}")
