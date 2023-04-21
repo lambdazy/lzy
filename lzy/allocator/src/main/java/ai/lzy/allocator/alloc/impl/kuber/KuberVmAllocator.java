@@ -225,8 +225,10 @@ public class KuberVmAllocator implements VmAllocator {
 
         final var podName = meta.get(POD_NAME_KEY);
         final var clusterId = meta.get(CLUSTER_ID_KEY);
-        if (podName == null || clusterId == null) {
-            throw new InvalidConfigurationException("VM " + vm.vmId() + " does not have pod name or cluster id");
+        final var namespace = meta.get(NAMESPACE_KEY);
+        if (podName == null || clusterId == null || namespace == null) {
+            throw new InvalidConfigurationException("VM " + vm.vmId() +
+                " does not have pod name or cluster id or namespace");
         }
 
         var cluster = clusterRegistry.getCluster(clusterId);
@@ -241,7 +243,7 @@ public class KuberVmAllocator implements VmAllocator {
 
         LOG.info("Unmounting {} from {} and container {}", mountPath, podName, workload.name());
         try (var client = k8sClientFactory.build(cluster)) {
-            final var exec = client.pods().inNamespace(NAMESPACE_VALUE).withName(podName)
+            final var exec = client.pods().inNamespace(namespace).withName(podName)
                 .inContainer(workload.name())
                 .redirectingError()
                 .exec("umount", mountPath);

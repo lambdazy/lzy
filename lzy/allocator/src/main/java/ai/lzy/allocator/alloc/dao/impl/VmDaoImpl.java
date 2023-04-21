@@ -140,12 +140,12 @@ public class VmDaoImpl implements VmDao {
         FROM vm
         WHERE id = ?""";
 
-    private static final String QUERY_SET_TUNNEL_PON_NAME = """
+    private static final String QUERY_SET_TUNNEL_POD_NAME = """
         UPDATE vm
         SET tunnel_pod_name = ?
         WHERE id = ?""";
 
-    private static final String QUERY_SET_MOUNT_PON_NAME = """
+    private static final String QUERY_SET_MOUNT_POD_NAME = """
         UPDATE vm
         SET mount_pod_name = ?
         WHERE id = ?""";
@@ -489,7 +489,7 @@ public class VmDaoImpl implements VmDao {
     @Override
     public void setTunnelPod(String vmId, String tunnelPodName, @Nullable TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_SET_TUNNEL_PON_NAME)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_SET_TUNNEL_POD_NAME)) {
                 s.setString(1, tunnelPodName);
                 s.setString(2, vmId);
                 s.executeUpdate();
@@ -500,7 +500,7 @@ public class VmDaoImpl implements VmDao {
     @Override
     public void setMountPod(String vmId, String mountPodName, TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_SET_MOUNT_PON_NAME)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_SET_MOUNT_POD_NAME)) {
                 s.setString(1, mountPodName);
                 s.setString(2, vmId);
                 s.executeUpdate();

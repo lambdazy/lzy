@@ -15,7 +15,9 @@ import io.grpc.Status;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -24,13 +26,14 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     private final AllocationContext allocationContext;
     private final VolumeManager volumeManager;
     private final MountHolderManager mountHolderManager;
-    private final Vm vm;
+    private Vm vm;
     private DynamicMount dynamicMount;
     private Volume volume;
     private VolumeClaim volumeClaim;
     private ClusterPod mountPod;
     private boolean podStarted;
     private UnmountDynamicDiskAction unmountAction;
+    private List<DynamicMount> activeMounts;
 
     public MountDynamicDiskAction(Vm vm, DynamicMount dynamicMount, AllocationContext allocationContext) {
         super(dynamicMount.mountOperationId(), String.format("Mount %s to VM %s", dynamicMount.mountName(), vm.vmId()),
@@ -46,8 +49,9 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(this::createVolume, this::createVolumeClaim, this::setVolumeInfo, this::attachVolumeToPod,
-            this::waitForPod, this::checkIfVmStillExists, this::setDynamicMountReady);
+        return List.of(this::createVolume, this::createVolumeClaim, this::setVolumeInfo, this::prepareActiveMounts,
+            this::attachVolumeToPod, this::updateVmMountPod, this::waitForPod, this::checkIfVmStillExists,
+            this::setDynamicMountReady);
     }
 
     @Override
@@ -64,6 +68,8 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             } catch (Exception e) {
                 log().error("{} Failed to start unmount dynamic disk action", logPrefix(), e);
             }
+        } else {
+            log().info("{} Mount disk finished", logPrefix());
         }
     }
 
@@ -164,6 +170,22 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         return StepResult.CONTINUE;
     }
 
+    private StepResult prepareActiveMounts() {
+        if (activeMounts != null) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        try {
+            activeMounts = withRetries(log(), () -> allocationContext.dynamicMountDao()
+                .getByVmAndStates(vm.vmId(), List.of(DynamicMount.State.READY), null));
+        } catch (Exception e) {
+            log().error("{} Failed to read active mounts for vm {}", logPrefix(), vm.vmId(), e);
+            fail(Status.ABORTED.withDescription("Failed to read active mounts for vm"));
+            return StepResult.FINISH;
+        }
+        return StepResult.CONTINUE;
+    }
+
     private StepResult attachVolumeToPod() {
         if (mountPod != null) {
             return StepResult.ALREADY_DONE;
@@ -177,12 +199,15 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         }
 
         var mountPod = ClusterPod.of(dynamicMount.clusterId(), mountPodName);
+        var dynamicMounts = new ArrayList<DynamicMount>(activeMounts.size() + 1);
+        dynamicMounts.add(dynamicMount);
+        dynamicMounts.addAll(activeMounts);
 
+        log().info("{} Attaching mount {}", logPrefix(), dynamicMount.id());
         try {
-            mountHolderManager.attachVolume(mountPod, dynamicMount, volumeClaim);
-            this.mountPod = mountPod;
+            this.mountPod = allocationContext.mountHolderManager().recreateWith(vm.spec(), mountPod, dynamicMounts);
         } catch (KubernetesClientException e) {
-            log().error("{} Couldn't attach mount {} to pod {}", logPrefix(), dynamicMount.id(), mountPodName, e);
+            log().error("{} Couldn't attach mount {}", logPrefix(), dynamicMount.id(), e);
             if (KuberUtils.isNotRetryable(e)) {
                 fail(Status.CANCELLED.withDescription("Couldn't attach mount " + dynamicMount.id() + " to pod " +
                     mountPodName + ": " + e.getMessage()));
@@ -191,6 +216,24 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.RESTART;
         }
 
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult updateVmMountPod() {
+        if (Objects.equals(vm.instanceProperties().mountPodName(), mountPod.podName())) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        log().info("{} Updating vm {} with new mount pod {}", logPrefix(), vm.vmId(), mountPod.podName());
+        try {
+            withRetries(log(), () ->
+                allocationContext.vmDao().setMountPod(vm.vmId(), mountPod.podName(), null));
+            vm = vm.withMountPod(mountPod.podName());
+        } catch (Exception e) {
+            log().error("{} Failed to update vm {} with new mount pod {}", logPrefix(), vm.vmId(),
+                mountPod.podName(), e);
+            fail(Status.ABORTED.withDescription("Failed to update vm with new mount pod"));
+        }
         return StepResult.CONTINUE;
     }
 
@@ -258,6 +301,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.FINISH;
         }
 
+        log().info("{} Setting mount {} state to READY", logPrefix(), dynamicMount.id());
         try {
             var update = DynamicMount.Update.builder()
                 .state(DynamicMount.State.READY)

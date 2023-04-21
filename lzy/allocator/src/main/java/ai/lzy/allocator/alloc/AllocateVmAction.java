@@ -192,7 +192,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
 
         log().info("{} Allocating mount pod for VM {}", logPrefix(), vm.vmId());
         try {
-            mountHolder = allocationContext.mountHolderManager().allocateMountHolder(vm.spec());
+            mountHolder = allocationContext.mountHolderManager().allocateMountHolder(vm.spec(), List.of());
             mountPodAllocated = true;
         } catch (KubernetesClientException e) {
             log().error("{} Cannot allocate mount holder for vm {}: {}", logPrefix(), vm.vmId(), e.getMessage());

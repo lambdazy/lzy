@@ -23,7 +23,11 @@ public final class AllocatorUtils {
         return meta.get(KuberVmAllocator.CLUSTER_ID_KEY);
     }
 
-    public static void readToLog(Logger log, String logPrefix, InputStream is) {
+    public static void readToLog(Logger log, String logPrefix, @Nullable InputStream is) {
+        if (is == null) {
+            log.warn("Stream is null");
+            return;
+        }
         try (var reader = new BufferedReader(new InputStreamReader(is))) {
             String line;
             while ((line = reader.readLine()) != null) {

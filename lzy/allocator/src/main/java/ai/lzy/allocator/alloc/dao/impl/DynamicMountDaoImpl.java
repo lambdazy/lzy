@@ -4,6 +4,7 @@ import ai.lzy.allocator.alloc.dao.DynamicMountDao;
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.model.db.DaoUtils;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -53,6 +54,10 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
     private static final String GET_BY_VM_QUERY = """
         SELECT %s FROM dynamic_mount WHERE vm_id = ?
         """.formatted(ALL_FIELDS);
+
+    private static final String GET_BY_VM_AND_STATES_TEMPLATE = """
+        SELECT %s FROM dynamic_mount WHERE vm_id = ? AND state IN %s
+        """;
 
     private final AllocatorDataSource storage;
     private final ObjectMapper objectMapper;
@@ -184,6 +189,32 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
         return DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(GET_BY_VM_QUERY)) {
                 s.setString(1, vmId);
+                final var rs = s.executeQuery();
+                var result = new ArrayList<DynamicMount>();
+                while (rs.next()) {
+                    result.add(readDynamicMount(rs));
+                }
+                return result;
+            }
+        });
+    }
+
+    @Override
+    public List<DynamicMount> getByVmAndStates(String vmId, List<DynamicMount.State> states,
+                                               @Nullable TransactionHandle tx) throws SQLException
+    {
+        if (states.isEmpty()) {
+            return List.of();
+        }
+        return DbOperation.execute(tx, storage, con -> {
+            var paramString = DaoUtils.generateNParamArray(states.size());
+            var query = GET_BY_VM_AND_STATES_TEMPLATE.formatted(ALL_FIELDS, paramString);
+            try (PreparedStatement s = con.prepareStatement(query)) {
+                int idx = 0;
+                s.setString(++idx, vmId);
+                for (var state : states) {
+                    s.setString(++idx, state.name());
+                }
                 final var rs = s.executeQuery();
                 var result = new ArrayList<DynamicMount>();
                 while (rs.next()) {
