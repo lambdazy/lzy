@@ -45,13 +45,10 @@ import java.net.InetAddress;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NODE_INSTANCE_ID_KEY;
 import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
@@ -401,11 +398,14 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                         var endpoints = allocationContext.allocator().getVmEndpoints(existingVm.vmId(), tx);
 
+                        var vmInstanceId = existingVm.allocateState().allocatorMeta().get(NODE_INSTANCE_ID_KEY);
+
                         var builder = AllocateResponse.newBuilder()
                             .setSessionId(existingVm.sessionId())
                             .setPoolId(existingVm.poolLabel())
                             .setVmId(existingVm.vmId())
-                            .putAllMetadata(requireNonNull(existingVm.runState()).vmMeta());
+                            .putAllMetadata(requireNonNull(existingVm.runState()).vmMeta())
+                            .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId != null ? vmInstanceId : "null");
 
                         for (var endpoint: endpoints) {
                             builder.addEndpoints(endpoint.toProto());
