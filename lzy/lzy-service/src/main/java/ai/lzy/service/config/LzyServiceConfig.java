@@ -30,6 +30,8 @@ public class LzyServiceConfig {
 
     private StartupPortalConfig portal;
 
+    private String s3SinkAddress = null;  // If not set, not using s3 sink
+
     @ConfigurationBuilder("kafka")
     private final KafkaConfig kafka = new KafkaConfig();
 

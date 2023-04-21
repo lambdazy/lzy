@@ -21,6 +21,7 @@ import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
+import ai.lzy.v1.kafka.KafkaS3Sink;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.portal.LzyPortalApi;
@@ -71,6 +72,7 @@ public class CleanExecutionCompanion {
     @Nullable
     private final KafkaAdminClient kafkaAdminClient;
     private final KafkaLogsListeners kafkaLogsListeners;
+    private final BeanFactory.S3SinkClient s3SinkClient;
 
     public CleanExecutionCompanion(PortalClientProvider portalClients, LzyServiceStorage storage,
                                    WorkflowDao workflowDao, ExecutionDao executionDao, GraphDao graphDao,
@@ -82,7 +84,8 @@ public class CleanExecutionCompanion {
                                    @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
                                    LzyServiceMetrics metrics,
                                    @Named("LzyServiceKafkaAdminClient") KafkaAdminClient kafkaAdminClient,
-                                   KafkaLogsListeners kafkaLogsListeners)
+                                   KafkaLogsListeners kafkaLogsListeners,
+                                   BeanFactory.S3SinkClient s3SinkClient)
     {
         this.storage = storage;
         this.workflowDao = workflowDao;
@@ -105,6 +108,8 @@ public class CleanExecutionCompanion {
             GraphExecutorGrpc.newBlockingStub(graphExecutorChannel), APP, () -> internalUserCredentials.get().token());
         this.allocatorClient = newBlockingClient(
             AllocatorGrpc.newBlockingStub(allocatorChannel), APP, () -> internalUserCredentials.get().token());
+
+        this.s3SinkClient = s3SinkClient;
     }
 
     public void finishWorkflow(String userId, @Nullable String workflowName, String executionId, Status reason)
@@ -482,11 +487,12 @@ public class CleanExecutionCompanion {
                 LOG.error("Cannot remove kafka user for execution {}: ", executionId, ex);
             }
 
-            try {
-                kafkaAdminClient.dropTopic(kafkaDesc.topicName());
-            } catch (Exception ex) {
-                LOG.error("Cannot remove topic for execution {}: ", executionId, ex);
+            if (s3SinkClient.enabled()) {  // Completing job, it will delete topic
+                s3SinkClient.stub().complete(KafkaS3Sink.CompleteRequest.newBuilder()
+                    .setJobId(kafkaDesc.sinkTaskId())
+                    .build());
             }
+
         } else {
             LOG.warn("Cannot find kafka description for execution {}", executionId);
         }

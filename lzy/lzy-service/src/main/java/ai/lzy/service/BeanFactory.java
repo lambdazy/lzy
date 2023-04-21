@@ -20,15 +20,19 @@ import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.graph.GraphExecutorGrpc;
 import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
+import ai.lzy.v1.kafka.S3SinkServiceGrpc;
+import ai.lzy.v1.kafka.S3SinkServiceGrpc.S3SinkServiceBlockingStub;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.CollectorRegistry;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
@@ -42,6 +46,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nonnull;
 
 import static ai.lzy.service.LzyService.APP;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Factory
@@ -168,5 +173,47 @@ public class BeanFactory {
                                                              @Named("LzyServiceIamToken") RenewableJwt userCreds)
     {
         return new SubjectServiceGrpcClient(APP, iamChannel, userCreds::get);
+    }
+
+    @Singleton
+    public static class S3SinkClient {
+        private final boolean enabled;
+        private final S3SinkServiceBlockingStub stub;
+        private final ManagedChannel channel;
+
+        public S3SinkClient(@Named("LzyServiceIamToken") RenewableJwt userCreds, LzyServiceConfig config) {
+            enabled = config.getS3SinkAddress() != null;
+
+            if (!enabled) {
+                stub = null;
+                channel = null;
+                return;
+            }
+
+            channel = newGrpcChannel(config.getS3SinkAddress(), S3SinkServiceGrpc.SERVICE_NAME);
+
+            stub = newBlockingClient(S3SinkServiceGrpc.newBlockingStub(channel),
+                S3SinkServiceGrpc.SERVICE_NAME,
+                () -> userCreds.get().token());
+
+        }
+
+        public boolean enabled() {
+            return enabled;
+        }
+
+        public S3SinkServiceBlockingStub stub() {
+            if (!enabled) {
+                throw Status.INTERNAL
+                    .withDescription("Trying to get stub of S3Sink, but it is not enabled")
+                    .asRuntimeException();
+            }
+            return stub;
+        }
+
+        @PreDestroy
+        public void close() {
+            channel.shutdownNow();
+        }
     }
 }

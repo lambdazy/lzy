@@ -34,6 +34,8 @@
         <module>whiteboard</module>
         <module>worker-api</module>
         <module>site</module>
+        <module>s3-sink-api</module>
+        <module>s3-sink</module>
     </modules>
 
     <build>
