@@ -398,7 +398,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                         var endpoints = allocationContext.allocator().getVmEndpoints(existingVm.vmId(), tx);
 
-                        var vmInstanceId = existingVm.allocateState().allocatorMeta().get(NODE_INSTANCE_ID_KEY);
+                        var meta = existingVm.allocateState().allocatorMeta();
+                        var vmInstanceId = meta == null ? null : meta.get(NODE_INSTANCE_ID_KEY);
 
                         var builder = AllocateResponse.newBuilder()
                             .setSessionId(existingVm.sessionId())

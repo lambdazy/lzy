@@ -125,7 +125,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                         }
 
                         var meta = allocationContext.vmDao().getAllocatorMeta(vm.vmId(), transaction);
-                        var vmInstanceId = meta.get(NODE_INSTANCE_ID_KEY);
+                        var vmInstanceId = meta == null ? null : meta.get(NODE_INSTANCE_ID_KEY);
 
                         var response = Any.pack(
                             AllocateResponse.newBuilder()
