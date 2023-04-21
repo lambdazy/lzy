@@ -2,6 +2,7 @@ import inspect
 import google.protobuf.message
 import google.protobuf.text_format
 
+
 def pretty_function(func):
     name = func.__name__
     typename = type(func).__name__

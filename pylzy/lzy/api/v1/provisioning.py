@@ -185,14 +185,19 @@ class Provisioning:
             logger.debug("eligible spec %r have score %f", provisioning, score)
 
         if not spec_scores:
-            pool_specs_repr = [pretty_protobuf(pool) for pool in pool_specs]
-            raise BadProvisioning(f"not a single one available spec from {pool_specs_repr!r} eligible for requirements {self}")
+            pool_specs_repr = ','.join([pretty_protobuf(pool) for pool in pool_specs])
+            raise BadProvisioning(
+                f"not a single one available spec from {pool_specs_repr!s} eligible for requirements {self}"
+            )
 
         spec_scores.sort(reverse=True)
 
         max_score, max_proto_spec, max_provisioning = spec_scores[0]
 
-        logger.info("choose a spec %r with a max score %f for a provisioning requirements %r", max_provisioning, max_score, self)
+        logger.info(
+            "choose a spec %r with a max score %f for a provisioning requirements %r",
+            max_provisioning, max_score, self
+        )
 
         return max_proto_spec
 
