@@ -20,11 +20,11 @@ def inject_catboost() -> None:
         self,
         *args,
         provisioning: Optional[lp.Provisioning] = None,
-        cpu_type: Optional[lp.StringRequirement] = None,
-        cpu_count: Optional[lp.IntegerRequirement] = None,
-        gpu_type: Optional[lp.StringRequirement] = None,
-        gpu_count: Optional[lp.IntegerRequirement] = None,
-        ram_size_gb: Optional[lp.IntegerRequirement] = None,
+        cpu_type: lp.StringRequirement = None,
+        cpu_count: lp.IntegerRequirement = None,
+        gpu_type: lp.StringRequirement = None,
+        gpu_count: lp.IntegerRequirement = None,
+        ram_size_gb: lp.IntegerRequirement = None,
         **kwargs
     ):
 

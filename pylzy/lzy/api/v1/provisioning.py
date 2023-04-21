@@ -47,8 +47,8 @@ class AnyRequirement:
 
 Any = AnyRequirement()
 
-IntegerRequirement = Union[int, AnyRequirement]
-StringRequirement = Union[str, AnyRequirement]
+IntegerRequirement = Union[int, AnyRequirement, None]
+StringRequirement = Union[str, AnyRequirement, None]
 T = TypeVar('T')
 
 
@@ -100,13 +100,13 @@ def minimum_score_function(requested: "Provisioning", spec: "Provisioning") -> f
 
 @dataclasses.dataclass(frozen=True)
 class Provisioning:
-    cpu_type: Optional[StringRequirement] = None
-    cpu_count: Optional[IntegerRequirement] = None
+    cpu_type: StringRequirement = None
+    cpu_count: IntegerRequirement = None
 
-    gpu_type: Optional[StringRequirement] = None
-    gpu_count: Optional[IntegerRequirement] = None
+    gpu_type: StringRequirement = None
+    gpu_count: IntegerRequirement = None
 
-    ram_size_gb: Optional[IntegerRequirement] = None
+    ram_size_gb: IntegerRequirement = None
 
     score_function: Callable[["Provisioning", "Provisioning"], float] = dataclasses.field(
         default=minimum_score_function,
@@ -170,10 +170,6 @@ class Provisioning:
         return True
 
     def resolve_pool(self, pool_specs: Sequence[VmPoolSpec]) -> VmPoolSpec:
-        # For a purposes of filtering and scoring we need finalize out Provisioning:
-        # replace Any and None with something eligeble for comparsion.
-        # At this moment Any and None have no difference, this difference
-        # only matters for merging provisionings from workflow an ops.
         self._validate()
 
         spec_scores = []
