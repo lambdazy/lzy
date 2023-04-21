@@ -116,6 +116,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
+        log().info("{} Creating volume for {}", logPrefix(), dynamicMount.volumeDescription());
         try {
             this.volume = volumeManager.create(dynamicMount.clusterId(), dynamicMount.volumeRequest());
         } catch (KubernetesClientException e) {
@@ -135,6 +136,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
+        log().info("{} Creating volume claim for {}", logPrefix(), volume.name());
         try {
             this.volumeClaim = volumeManager.createClaim(dynamicMount.clusterId(), volume);
         } catch (KubernetesClientException e) {
@@ -270,6 +272,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult checkIfVmStillExists() {
+        log().info("{} Checking if vm {} still exists", logPrefix(), vm.vmId());
         try {
             var freshVm = withRetries(log(), () -> allocationContext.vmDao().get(vm.vmId(), null));
             if (freshVm == null) {

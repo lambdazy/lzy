@@ -188,6 +188,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
+        log().info("{} Unmounting mount point {} from vm {}", logPrefix(), dynamicMount.mountPath(), vm.vmId());
         try {
             allocationContext.allocator().unmountFromVm(vm, dynamicMount.mountPath());
             volumeUnmounted = true;
@@ -206,6 +207,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult countDynamicMounts() {
+        log().info("{} Counting dynamic mounts for volume claim {}", logPrefix(), dynamicMount.volumeClaimName());
         try {
             var count = withRetries(log(), () -> allocationContext.dynamicMountDao()
                 .countVolumeClaimUsages(dynamicMount.clusterId(), dynamicMount.volumeClaimName(), null));
@@ -224,12 +226,12 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         if (volumeClaimDeleted || skipClaimDeletion) {
             return StepResult.ALREADY_DONE;
         }
+        log().info("{} Deleting volume claim {}", logPrefix(), dynamicMount.volumeClaimName());
         try {
             allocationContext.volumeManager().deleteClaim(dynamicMount.clusterId(), dynamicMount.volumeClaimName());
             volumeClaimDeleted = true;
         } catch (KubernetesClientException e) {
-            log().error("{} Failed to delete volume claim {}", logPrefix(), dynamicMount.volumeRequest()
-                .volumeId(), e);
+            log().error("{} Failed to delete volume claim {}", logPrefix(), dynamicMount.volumeClaimName(), e);
             if (KuberUtils.isNotRetryable(e)) {
                 return StepResult.CONTINUE;
             }
@@ -248,11 +250,12 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
+        log().info("{} Deleting volume {}", logPrefix(), dynamicMount.volumeName());
         try {
             allocationContext.volumeManager().delete(dynamicMount.clusterId(), dynamicMount.volumeName());
             volumeDeleted = true;
         } catch (KubernetesClientException e) {
-            log().error("{} Failed to delete volume {}", logPrefix(), dynamicMount.volumeRequest().volumeId(), e);
+            log().error("{} Failed to delete volume {}", logPrefix(), dynamicMount.volumeName(), e);
             if (KuberUtils.isNotRetryable(e)) {
                 return StepResult.CONTINUE;
             }
