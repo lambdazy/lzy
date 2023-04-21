@@ -5,6 +5,7 @@ import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.volume.VolumeManager;
+import ai.lzy.logs.LogContextKey;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.model.db.TransactionHandle;
@@ -12,11 +13,13 @@ import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.Any;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.grpc.Status;
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -26,12 +29,14 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     private final AllocationContext allocationContext;
     private final VolumeManager volumeManager;
     private final MountHolderManager mountHolderManager;
+    @Nonnull
     private Vm vm;
     private DynamicMount dynamicMount;
     private Volume volume;
     private VolumeClaim volumeClaim;
     private ClusterPod mountPod;
     private boolean podStarted;
+    @Nullable
     private UnmountDynamicDiskAction unmountAction;
     private List<DynamicMount> activeMounts;
 
@@ -91,7 +96,14 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         }
     }
 
-    @NotNull
+    @Override
+    protected Map<String, String> prepareLogContext() {
+        var ctx =  super.prepareLogContext();
+        ctx.put(LogContextKey.VM_ID, vm.vmId());
+        ctx.put(LogContextKey.DYNAMIC_MOUNT_ID, dynamicMount.id());
+        return ctx;
+    }
+
     private UnmountDynamicDiskAction createUnmountAction(Status status, TransactionHandle tx)
         throws SQLException
     {

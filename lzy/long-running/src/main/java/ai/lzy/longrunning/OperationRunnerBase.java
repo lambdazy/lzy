@@ -1,5 +1,7 @@
 package ai.lzy.longrunning;
 
+import ai.lzy.logs.LogContextKey;
+import ai.lzy.logs.LogUtils;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
@@ -15,7 +17,9 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -43,52 +47,61 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
 
     @Override
     protected final void execute() {
-        try {
-            if (!loadOperation()) {
-                return;
-            }
+        LogUtils.withLoggingContext(prepareLogContext(), () -> {
+            try {
+                if (!loadOperation()) {
+                    return;
+                }
 
-            if (expireOperation()) {
-                return;
-            }
+                if (expireOperation()) {
+                    return;
+                }
 
-            for (var step : steps()) {
-                final var stepResult = step.get();
-                switch (stepResult.code()) {
-                    case ALREADY_DONE -> { }
-                    case CONTINUE -> {
-                        var update = updateOperationProgress();
-                        switch (update.code()) {
-                            case ALREADY_DONE, CONTINUE -> { }
-                            case RESTART -> {
-                                executor.retryAfter(this, update.delay());
-                                return;
-                            }
-                            case FINISH -> {
-                                notifyFinished();
-                                return;
+                for (var step : steps()) {
+                    final var stepResult = step.get();
+                    switch (stepResult.code()) {
+                        case ALREADY_DONE -> { }
+                        case CONTINUE -> {
+                            var update = updateOperationProgress();
+                            switch (update.code()) {
+                                case ALREADY_DONE, CONTINUE -> { }
+                                case RESTART -> {
+                                    executor.retryAfter(this, update.delay());
+                                    return;
+                                }
+                                case FINISH -> {
+                                    notifyFinished();
+                                    return;
+                                }
                             }
                         }
-                    }
-                    case RESTART -> {
-                        executor.retryAfter(this, stepResult.delay());
-                        return;
-                    }
-                    case FINISH -> {
-                        notifyFinished();
-                        return;
+                        case RESTART -> {
+                            executor.retryAfter(this, stepResult.delay());
+                            return;
+                        }
+                        case FINISH -> {
+                            notifyFinished();
+                            return;
+                        }
                     }
                 }
+            } catch (Throwable e) {
+                notifyFinished();
+                if (e instanceof Error err && isInjectedError(err)) {
+                    log.error("{} Terminated by InjectedFailure exception: {}", logPrefix, e.getMessage());
+                } else {
+                    log.error("{} Terminated by exception: {}", logPrefix, e.getMessage(), e);
+                    throw e;
+                }
             }
-        } catch (Throwable e) {
-            notifyFinished();
-            if (e instanceof Error err && isInjectedError(err)) {
-                log.error("{} Terminated by InjectedFailure exception: {}", logPrefix, e.getMessage());
-            } else {
-                log.error("{} Terminated by exception: {}", logPrefix, e.getMessage(), e);
-                throw e;
-            }
-        }
+        });
+    }
+
+    protected Map<String, String> prepareLogContext() {
+        var ctx = new HashMap<String, String>();
+        ctx.put(LogContextKey.OPERATION_ID, id);
+        ctx.put(LogContextKey.ACTION, getClass().getSimpleName());
+        return ctx;
     }
 
     private boolean loadOperation() {

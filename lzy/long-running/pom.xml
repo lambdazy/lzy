@@ -29,6 +29,11 @@
             <artifactId>util-grpc</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>util-log</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>jakarta.annotation</groupId>

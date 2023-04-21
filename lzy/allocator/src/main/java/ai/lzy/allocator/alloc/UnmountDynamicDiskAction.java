@@ -5,6 +5,7 @@ import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.util.KuberUtils;
+import ai.lzy.logs.LogContextKey;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.VmAllocatorApi;
@@ -13,6 +14,7 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import jakarta.annotation.Nullable;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -52,6 +54,16 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     @Override
     protected void notifyFinished() {
         log().info("{} Finished unmounting volume {}", logPrefix(), dynamicMount.id());
+    }
+
+    @Override
+    protected Map<String, String> prepareLogContext() {
+        var ctx =  super.prepareLogContext();
+        if (vm != null) {
+            ctx.put(LogContextKey.VM_ID, vm.vmId());
+        }
+        ctx.put(LogContextKey.DYNAMIC_MOUNT_ID, dynamicMount.id());
+        return ctx;
     }
 
     @Override
