@@ -76,9 +76,9 @@ def op(
 ):
     if (
         docker_only
-        and None in (conda_yaml_path, local_modules_path, libraries, python_version)
+        and any((conda_yaml_path, local_modules_path, libraries, python_version))
     ):
-        raise TypeError(
+        raise ValueError(
             "'docker_only' is not compatible with explicit python env settings "
             "(conda_yaml_path, local_modules_path, libraries, python_version)"
         )
@@ -263,15 +263,15 @@ class Lzy:
 
         if (
             docker_only
-            and None in (conda_yaml_path, local_modules_path, libraries, python_version)
+            and any((conda_yaml_path, local_modules_path, libraries, python_version))
         ):
-            raise TypeError(
+            raise ValueError(
                 "'docker_only' is not compatible with explicit python env settings "
                 "(conda_yaml_path, local_modules_path, libraries, python_version)"
             )
 
         if docker_only and docker_image is None:
-            raise TypeError("docker_only is set, but docker image is not set")
+            raise ValueError("docker_only is set, but docker image is not set")
 
         env_variables = env_variables or {}
         libraries = libraries or {}
