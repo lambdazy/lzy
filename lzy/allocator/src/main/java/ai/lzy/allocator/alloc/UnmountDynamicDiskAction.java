@@ -74,11 +74,10 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             activeMounts = withRetries(log(), () -> allocationContext.dynamicMountDao()
                 .getByVmAndStates(vm.vmId(), List.of(DynamicMount.State.READY), null));
             var mountIds = activeMounts.stream().map(DynamicMount::id).toList();
-            log().info("{} Found {} active mounts for vm {}: {}", logPrefix(), activeMounts.size(), vm.vmId(),
+            log().info("{} Found {} active mounts for vm: {}", logPrefix(), activeMounts.size(),
                 mountIds);
         } catch (Exception e) {
-            log().error("{} Failed to update vm {} with active mount {}", logPrefix(), vm.vmId(),
-                dynamicMount.id(), e);
+            log().error("{} Failed to update vm with active mount {}", logPrefix(), dynamicMount.id(), e);
         }
         return StepResult.CONTINUE;
     }
@@ -124,14 +123,13 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Updating vm {} with new mount pod {}", logPrefix(), vm.vmId(), updatedMountPod.podName());
+        log().info("{} Updating vm with new mount pod {}", logPrefix(), updatedMountPod.podName());
         try {
             withRetries(log(), () ->
                 allocationContext.vmDao().setMountPod(vm.vmId(), updatedMountPod.podName(), null));
             vm = vm.withMountPod(updatedMountPod.podName());
         } catch (Exception e) {
-            log().error("{} Failed to update vm {} with new mount pod {}", logPrefix(), vm.vmId(),
-                updatedMountPod.podName(), e);
+            log().error("{} Failed to update vm with new mount pod {}", logPrefix(), updatedMountPod.podName(), e);
         }
         return StepResult.CONTINUE;
     }
@@ -188,16 +186,14 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Unmounting mount point {} from vm {}", logPrefix(), dynamicMount.mountPath(), vm.vmId());
+        log().info("{} Unmounting mount point {}", logPrefix(), dynamicMount.mountPath());
         try {
             allocationContext.allocator().unmountFromVm(vm, dynamicMount.mountPath());
             volumeUnmounted = true;
         } catch (InvalidConfigurationException e) {
-            log().error("{} Failed to unmount volume {} from vm {}", logPrefix(), dynamicMount.id(),
-                vm.vmId(), e);
+            log().error("{} Failed to unmount volume", logPrefix(), e);
         } catch (KubernetesClientException e) {
-            log().error("{} Failed to unmount volume {} from vm {}", logPrefix(), dynamicMount.id(),
-                vm.vmId(), e);
+            log().error("{} Failed to unmount volume", logPrefix(), e);
             if (KuberUtils.isNotRetryable(e)) {
                 return StepResult.CONTINUE;
             }

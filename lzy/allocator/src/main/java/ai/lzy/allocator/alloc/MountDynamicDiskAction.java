@@ -181,7 +181,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             activeMounts = withRetries(log(), () -> allocationContext.dynamicMountDao()
                 .getByVmAndStates(vm.vmId(), List.of(DynamicMount.State.READY), null));
         } catch (Exception e) {
-            log().error("{} Failed to read active mounts for vm {}", logPrefix(), vm.vmId(), e);
+            log().error("{} Failed to read active mounts for vm", logPrefix(), e);
             fail(Status.ABORTED.withDescription("Failed to read active mounts for vm"));
             return StepResult.FINISH;
         }
@@ -195,7 +195,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
 
         var mountPodName = vm.instanceProperties().mountPodName();
         if (mountPodName == null) {
-            log().error("{} Mount pod name is not found for vm {}", logPrefix(), vm.vmId());
+            log().error("{} Mount pod name is not found for vm", logPrefix());
             fail(Status.FAILED_PRECONDITION.withDescription("Mount pod name is not found for vm " + vm.vmId()));
             return StepResult.FINISH;
         }
@@ -226,14 +226,13 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Updating vm {} with new mount pod {}", logPrefix(), vm.vmId(), mountPod.podName());
+        log().info("{} Updating vm with new mount pod {}", logPrefix(), mountPod.podName());
         try {
             withRetries(log(), () ->
                 allocationContext.vmDao().setMountPod(vm.vmId(), mountPod.podName(), null));
             vm = vm.withMountPod(mountPod.podName());
         } catch (Exception e) {
-            log().error("{} Failed to update vm {} with new mount pod {}", logPrefix(), vm.vmId(),
-                mountPod.podName(), e);
+            log().error("{} Failed to update vm with new mount pod {}", logPrefix(), mountPod.podName(), e);
             fail(Status.ABORTED.withDescription("Failed to update vm with new mount pod"));
         }
         return StepResult.CONTINUE;
@@ -272,27 +271,27 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult checkIfVmStillExists() {
-        log().info("{} Checking if vm {} still exists", logPrefix(), vm.vmId());
+        log().info("{} Checking if vm still exists", logPrefix());
         try {
             var freshVm = withRetries(log(), () -> allocationContext.vmDao().get(vm.vmId(), null));
             if (freshVm == null) {
-                log().info("{} Vm {} is deleted", logPrefix(), vm.vmId());
+                log().info("{} Vm is deleted", logPrefix());
                 fail(Status.CANCELLED.withDescription("Vm " + vm.vmId() + " is deleted"));
                 return StepResult.FINISH;
             }
             switch (freshVm.status()) {
                 case IDLE, ALLOCATING, RUNNING -> {
-                    log().info("{} Vm {} is in status {}", logPrefix(), vm.vmId(), freshVm.status());
+                    log().info("{} Vm is in status {}", logPrefix(), freshVm.status());
                     return StepResult.CONTINUE;
                 }
                 case DELETING -> {
-                    log().error("{} Vm {} is deleting", logPrefix(), vm.vmId());
+                    log().error("{} Vm is deleting", logPrefix());
                     fail(Status.FAILED_PRECONDITION.withDescription("Vm " + vm.vmId() + " is deleting"));
                     return StepResult.FINISH;
                 }
             }
         } catch (Exception e) {
-            log().error("{} Couldn't get vm {}", logPrefix(), vm.vmId(), e);
+            log().error("{} Couldn't get vm", logPrefix(), e);
             fail(Status.CANCELLED.withDescription("Couldn't get vm " + vm.vmId() + ": " + e.getMessage()));
             return StepResult.FINISH;
         }
