@@ -6,10 +6,8 @@ from typing import (
     Callable,
     ClassVar,
     Dict,
-    List,
     Optional,
     Sequence,
-    Tuple,
     TypeVar,
     Union,
     cast,
@@ -51,18 +49,18 @@ Any = AnyRequirement()
 
 IntegerRequirement = Union[int, AnyRequirement]
 StringRequirement = Union[str, AnyRequirement]
-TRequirement = TypeVar('TRequirement')
+T = TypeVar('T')
 
 
-def _coerce(value: Optional[TRequirement], default: Optional[TRequirement]) -> Optional[TRequirement]:
+def _coerce(value: Union[None, AnyRequirement, T], default: T) -> T:
     if (
         value is Any or
         value is typingAny or
         value is None
     ):
-        return default
+        return cast(T, default)
 
-    return cast(TRequirement, value)
+    return cast(T, value)
 
 
 class CpuType(Enum):
@@ -83,9 +81,9 @@ def maximum_score_function(requested: "Provisioning", spec: "Provisioning") -> f
     Use it when you need the best spec available.
     """
 
-    d_gpu = spec.gpu_count - requested.gpu_count
-    d_cpu = spec.cpu_count - requested.cpu_count
-    d_ram = spec.ram_size_gb- requested.ram_size_gb
+    d_gpu = spec.gpu_count_final - requested.gpu_count_final
+    d_cpu = spec.cpu_count_final - requested.cpu_count_final
+    d_ram = spec.ram_size_gb_final - requested.ram_size_gb_final
 
     return d_gpu * DEFAULT_WEIGHTS['gpu'] + d_cpu * DEFAULT_WEIGHTS['cpu'] + d_ram * DEFAULT_WEIGHTS['ram']
 
@@ -124,6 +122,28 @@ class Provisioning:
         'ram_size_gb': 'ramGb'
     }
 
+    # NB: _final properties used only for type narrowing
+
+    @property
+    def cpu_type_final(self) -> str:
+        return _coerce(self.cpu_type, '')
+
+    @property
+    def gpu_type_final(self) -> str:
+        return _coerce(self.gpu_type, '')
+
+    @property
+    def cpu_count_final(self) -> int:
+        return _coerce(self.cpu_count, 0)
+
+    @property
+    def gpu_count_final(self) -> int:
+        return _coerce(self.gpu_count, 0)
+
+    @property
+    def ram_size_gb_final(self) -> int:
+        return _coerce(self.ram_size_gb, 0)
+
     @classmethod
     def from_proto(cls, spec: VmPoolSpec) -> "Provisioning":
         fields = {}
@@ -135,15 +155,15 @@ class Provisioning:
 
     def _filter_spec(self, spec: "Provisioning") -> bool:
         if (
-            spec.cpu_count < self.cpu_count or
-            spec.gpu_count < self.gpu_count or
-            spec.ram_size_gb < self.ram_size_gb
+            spec.cpu_count_final < self.cpu_count_final or
+            spec.gpu_count_final < self.gpu_count_final or
+            spec.ram_size_gb_final < self.ram_size_gb_final
         ):
             return False
 
         if (
-            self.cpu_type and self.cpu_type != spec.cpu_type or
-            self.gpu_type and self.gpu_type != spec.gpu_type
+            self.cpu_type_final and self.cpu_type_final != spec.cpu_type_final or
+            self.gpu_type_final and self.gpu_type_final != spec.gpu_type_final
         ):
             return False
 
@@ -154,24 +174,17 @@ class Provisioning:
         # replace Any and None with something eligeble for comparsion.
         # At this moment Any and None have no difference, this difference
         # only matters for merging provisionings from workflow an ops.
-        finalized = self.override(
-            cpu_count=_coerce(self.cpu_count, 0),
-            gpu_count=_coerce(self.gpu_count, 0),
-            ram_size_gb=_coerce(self.ram_size_gb, 0),
-            cpu_type=_coerce(self.cpu_type, None),
-            gpu_type=_coerce(self.gpu_type, None),
-        )
-        finalized._validate()
+        self._validate()
 
         spec_scores = []
 
         for proto_spec in pool_specs:
             provisioning = self.from_proto(proto_spec)
 
-            if finalized._filter_spec(provisioning):
+            if self._filter_spec(provisioning):
                 continue
 
-            score = self.score_function(finalized, provisioning)
+            score = self.score_function(self, provisioning)
             spec_scores.append((score, proto_spec, provisioning))
             logger.debug("eligible spec %r have score %f", provisioning, score)
 
@@ -225,5 +238,5 @@ class Provisioning:
         return self.__class__(**new_kwargs)
 
     def _validate(self) -> None:
-        if self.gpu_count > 0 and self.gpu_type == GpuType.NO_GPU.value:
+        if self.gpu_count_final > 0 and self.gpu_type_final == GpuType.NO_GPU.value:
             raise BadProvisioning(f"gpu_type is set to {self.gpu_type} while gpu_count is {self.gpu_count}")

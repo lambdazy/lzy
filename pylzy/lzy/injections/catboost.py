@@ -19,7 +19,7 @@ def inject_catboost() -> None:
     def fit(
         self,
         *args,
-        provisioning: Optional[Provisioning] = None,
+        provisioning: Optional[lp.Provisioning] = None,
         cpu_type: Optional[lp.StringRequirement] = None,
         cpu_count: Optional[lp.IntegerRequirement] = None,
         gpu_type: Optional[lp.StringRequirement] = None,
@@ -29,7 +29,7 @@ def inject_catboost() -> None:
     ):
 
         if cpu_count or cpu_type or gpu_type or gpu_count or ram_size_gb:
-            provisioning = provisioning or Provisioning()
+            provisioning = provisioning or lp.Provisioning()
             provisioning = provisioning.override(
                 cpu_count=cpu_count,
                 cpu_type=cpu_type,
