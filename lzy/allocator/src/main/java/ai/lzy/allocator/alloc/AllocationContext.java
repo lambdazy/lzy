@@ -31,8 +31,7 @@ public record AllocationContext(
     TunnelAllocator tunnelAllocator,
     AllocatorMetrics metrics,
     @Named("AllocatorSelfWorkerId") String selfWorkerId
-)
-{
+) {
     public void startNew(Runnable action) {
         executor.startNew(action);
     }

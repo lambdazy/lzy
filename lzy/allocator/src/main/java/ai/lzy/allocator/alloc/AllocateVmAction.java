@@ -29,7 +29,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
     public AllocateVmAction(Vm vm, AllocationContext allocationContext, boolean restore) {
         super(vm.allocOpId(), "VM " + vm.vmId(), allocationContext.storage(), allocationContext.operationsDao(),
             allocationContext.executor());
-        
+
         this.vm = vm;
         this.allocationContext = allocationContext;
 

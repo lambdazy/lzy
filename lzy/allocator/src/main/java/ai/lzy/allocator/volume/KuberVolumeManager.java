@@ -10,6 +10,7 @@ import ai.lzy.allocator.model.VolumeRequest;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -18,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 public class KuberVolumeManager implements VolumeManager {
     public static final String REQUESTED_VOLUME_NAME_LABEL = "lzy-requested-volume-name";
@@ -218,7 +218,7 @@ public class KuberVolumeManager implements VolumeManager {
 
             final List<String> accessModes = persistentVolume.getSpec().getAccessModes();
             assert persistentVolume.getSpec().getCapacity()
-                    .get(VOLUME_CAPACITY_STORAGE_KEY).getFormat().equals(KUBER_GB_NAME);
+                .get(VOLUME_CAPACITY_STORAGE_KEY).getFormat().equals(KUBER_GB_NAME);
             assert accessModes.size() == 1;
 
             final Volume volume = new Volume(
@@ -244,7 +244,7 @@ public class KuberVolumeManager implements VolumeManager {
         try {
             LOG.info("Trying to find volumeClaim with name={}", volumeClaimName);
             final var pvc = client.persistentVolumeClaims()
-                    .inNamespace(DEFAULT_NAMESPACE).withName(volumeClaimName).get();
+                .inNamespace(DEFAULT_NAMESPACE).withName(volumeClaimName).get();
             if (pvc == null) {
                 return null;
             }

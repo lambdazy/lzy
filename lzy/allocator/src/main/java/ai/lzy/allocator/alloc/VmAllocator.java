@@ -5,9 +5,9 @@ import ai.lzy.allocator.model.Vm;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
 import io.grpc.Status;
+import jakarta.annotation.Nullable;
 
 import java.util.List;
-import javax.annotation.Nullable;
 
 public interface VmAllocator {
 
@@ -70,6 +70,7 @@ public interface VmAllocator {
 
     /**
      * Get endpoints of vm to connect to it
+     *
      * @param vmId id of vm to get hosts
      * @return list of vm's endpoints
      */

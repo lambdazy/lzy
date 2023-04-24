@@ -1,8 +1,7 @@
 package ai.lzy.allocator.vmpool;
 
 import com.google.common.net.HostAndPort;
-
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public interface ClusterRegistry {
 

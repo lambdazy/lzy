@@ -71,7 +71,6 @@ public class AllocatorMetrics {
         .register();
 
 
-
     // allocator private API
 
     public final Counter registerSuccess = Counter

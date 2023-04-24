@@ -244,7 +244,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
         try {
             if (vm.status() != Vm.Status.DELETING) {
                 withRetries(LOG, () -> allocationContext.vmDao().updateActivityDeadline(
-                        vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout())));
+                    vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout())));
             }
         } catch (Exception ex) {
             allocationContext.metrics().hbFail.inc();
