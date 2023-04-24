@@ -7,7 +7,6 @@ CREATE TABLE graph_execution_state
     user_id                      TEXT                                     NOT NULL,
     id                           TEXT                                     NOT NULL,
     error_description            TEXT                                     NULL,
-    failed_task                  TEXT                                     NULL,
     status                       graph_execution_status default 'WAITING' NOT NULL,
 
     graph_description_json       TEXT                                     NOT NULL,

@@ -96,7 +96,7 @@ class LocalRuntime(Runtime):
                 entry = self.__workflow.snapshot.get(eid)
                 entry_path = folder + "/" + eid
                 args_read.append(self.__from_storage_to_file(entry.storage_uri, entry_path))
-                arg_descriptions.append((entry.typ, entry_path[len(folder):]))
+                arg_descriptions.append((entry.typ, f'/{eid}'))
             await asyncio.gather(*args_read)
 
             kwargs_read = []
@@ -104,20 +104,20 @@ class LocalRuntime(Runtime):
                 entry = self.__workflow.snapshot.get(eid)
                 entry_path = folder + "/" + eid
                 kwargs_read.append(self.__from_storage_to_file(entry.storage_uri, entry_path))
-                kwarg_descriptions[name] = (entry.typ, entry_path[len(folder):])
+                kwarg_descriptions[name] = (entry.typ, f'/{eid}')
             await asyncio.gather(*kwargs_read)
 
             for i, eid in enumerate(call.entry_ids):
                 path = Path(folder + "/" + eid)
                 path.touch()
                 entry = self.__workflow.snapshot.get(eid)
-                ret_descriptions.append((entry.typ, str(path)[len(folder):]))
+                ret_descriptions.append((entry.typ, f'/{eid}'))
 
             exc_eid = call.exception_id
             exc_path = Path(folder + "/" + exc_eid)
             exc_path.touch()
             exc_entry = self.__workflow.snapshot.get(exc_eid)
-            e_description = (exc_entry.typ, str(exc_path)[len(folder):])
+            exc_description = (exc_entry.typ, f'/{exc_eid}')
 
             request = ProcessingRequest(
                 get_logging_config(),
@@ -126,7 +126,7 @@ class LocalRuntime(Runtime):
                 args_paths=arg_descriptions,
                 kwargs_paths=kwarg_descriptions,
                 output_paths=ret_descriptions,
-                exception_path=e_description,
+                exception_path=exc_description,
                 lazy_arguments=call.lazy_arguments
             )
 
@@ -163,7 +163,8 @@ class LocalRuntime(Runtime):
 
                 exception = await self.__workflow.snapshot.get_data(call.exception_id)
                 if isinstance(exception, Result):
-                    raise exception.value
+                    exc = exception.value
+                    raise exc[1].with_traceback(exc[2])
                 raise LzyExecutionException(f"Error during execution of {call.signature.func.callable}")
 
             data_to_put = []

@@ -112,7 +112,7 @@ def process_execution(
     try:
         res = op(*args, **kwargs)
     except Exception as e:
-        logger.error(f"Execution completed with error {e} in {time.time() - start}")
+        logger.error(f"Execution completed with error `{e}` in {time.time() - start}")
         write_data(exception_path[1], exception_path[0], e, serializers, logger)
         raise
     logger.info(f"Execution completed in {time.time() - start} sec")

@@ -72,8 +72,8 @@ class LzyCall:
             eid = workflow.snapshot.create_entry(name, arg_typ).id
             self.__entry_ids.append(eid)
 
-        name = sign.func.callable.__name__ + ".exception"
-        self.__exception: str = workflow.snapshot.create_entry(name, Exception).id
+        exc_name = sign.func.callable.__name__ + ".exception"
+        self.__exception_id: str = workflow.snapshot.create_entry(exc_name, Exception).id
 
         # yep, we should store local data to storage just in LzyCall.__init__
         # because the data can be changed before dependent op will be actually executed
@@ -105,7 +105,7 @@ class LzyCall:
 
     @property
     def exception_id(self) -> str:
-        return self.__exception
+        return self.__exception_id
 
     @property
     def args(self) -> Tuple[Any, ...]:

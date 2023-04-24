@@ -423,7 +423,8 @@ public class GraphExecutionService {
             }
             case FAILED -> graphStatusResponse.setFailed(LWFS.GraphStatusResponse.Failed.newBuilder()
                 .setDescription(graphStatus.getStatus().getFailed().getDescription())
-                .setFailedTask(graphStatus.getStatus().getFailed().getFailedTask())
+                .setFailedTaskId(graphStatus.getStatus().getFailed().getFailedTaskId())
+                .setFailedTaskName(graphStatus.getStatus().getFailed().getFailedTaskName())
             );
         }
 

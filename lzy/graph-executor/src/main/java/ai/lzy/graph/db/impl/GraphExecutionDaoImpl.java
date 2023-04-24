@@ -34,12 +34,13 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     private final ObjectMapper objectMapper;
 
     private static final String GRAPH_INSERT_FIELDS_LIST = """
-        workflow_id, workflow_name, user_id, id, error_description, failed_task, status,
+        workflow_id, workflow_name, user_id, id, error_description, failed_task_id, failed_task_name, status,
         graph_description_json, task_executions_json, current_execution_group_json, last_updated, acquired""";
 
     private static final String GRAPH_SELECT_FIELDS_LIST = """
-        workflow_id, workflow_name, user_id, id, error_description, failed_task, status::text as status,
-        graph_description_json, task_executions_json, current_execution_group_json, last_updated, acquired""";
+        workflow_id, workflow_name, user_id, id, error_description, failed_task_id, failed_task_name,
+        status::text as status, graph_description_json, task_executions_json, current_execution_group_json,
+        last_updated, acquired""";
 
     @Inject
     public GraphExecutionDaoImpl(GraphExecutorDataSource storage) {
@@ -60,7 +61,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
         DbOperation.execute(transaction, storage, connection -> {
             try (var st = connection.prepareStatement(
                 "INSERT INTO graph_execution_state (" + GRAPH_INSERT_FIELDS_LIST + ")"
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?::graph_execution_status, ?, ?, ?, ?, ?)"))
+                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?::graph_execution_status, ?, ?, ?, ?, ?)"))
             {
                 String id = UUID.randomUUID().toString();
                 state[0] = GraphExecutionState.builder()
@@ -188,7 +189,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
              final PreparedStatement st = con.prepareStatement("""
                  UPDATE graph_execution_state
                  SET error_description = ?,
-                     failed_task = ?,
+                     failed_task_id = ?,
+                     failed_task_name = ?,
                      status = ?::graph_execution_status,
                      graph_description_json = ?,
                      task_executions_json = ?,
@@ -199,7 +201,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
         {
             int count = 0;
             st.setString(++count, graph.errorDescription());
-            st.setString(++count, graph.failedTask());
+            st.setString(++count, graph.failedTaskId());
+            st.setString(++count, graph.failedTaskName());
             st.setString(++count, graph.status().name());
             st.setString(++count, objectMapper.writeValueAsString(graph.description()));
             st.setString(++count, objectMapper.writeValueAsString(graph.executions()));
@@ -221,7 +224,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
         final String userId = resultSet.getString("user_id");
         final String id = resultSet.getString("id");
         final String errorDescription = resultSet.getString("error_description");
-        final String failedTask = resultSet.getString("failed_task");
+        final String failedTaskId = resultSet.getString("failed_task_id");
+        final String failedTaskName = resultSet.getString("failed_task_name");
         final GraphExecutionState.Status status = GraphExecutionState.Status.valueOf(resultSet.getString("status"));
         final String graphDescriptionJson = resultSet.getString("graph_description_json");
         final String taskExecutionsJson = resultSet.getString("task_executions_json");
@@ -232,7 +236,7 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
             currentExecutionGroupJson, new TypeReference<>() {});
         return new GraphExecutionState(
             workflowId, workflowName, userId, id, graph, executions,
-            currentExecutionGroup, status, errorDescription, failedTask
+            currentExecutionGroup, status, errorDescription, failedTaskId, failedTaskName
         );
     }
 
@@ -256,7 +260,8 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
         st.setString(++count, state.userId());
         st.setString(++count, state.id());
         st.setString(++count, state.errorDescription());
-        st.setString(++count, state.failedTask());
+        st.setString(++count, state.failedTaskId());
+        st.setString(++count, state.failedTaskName());
         st.setString(++count, state.status().name());
         st.setString(++count, objectMapper.writeValueAsString(state.description()));
         st.setString(++count, objectMapper.writeValueAsString(state.executions()));
