@@ -463,7 +463,8 @@ public class KuberVmAllocator implements VmAllocator {
             return List.of();
         }
 
-        LOG.info("Allocate volume " + volumesRequests.stream().map(Objects::toString).collect(Collectors.joining(", ")));
+        LOG.info("Allocate volume " + volumesRequests.stream().map(Objects::toString)
+            .collect(Collectors.joining(", ")));
 
         return volumesRequests.stream()
             .map(volumeRequest -> {
