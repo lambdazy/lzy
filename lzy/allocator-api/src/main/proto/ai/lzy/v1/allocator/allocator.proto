@@ -42,6 +42,23 @@ service Allocator {
 
   // Return control of vm to allocator
   rpc Free (FreeRequest) returns (FreeResponse);
+
+  rpc Mount (MountRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      metadata: "MountMetadata"
+      response: "MountResponse"
+    };
+  }
+
+  rpc ListMounts (ListMountsRequest) returns (ListMountsResponse);
+
+  rpc Unmount (UnmountRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "UnmountResponse"
+    };
+  }
+
 }
 
 // ========= Create session ==========
@@ -143,3 +160,55 @@ message FreeRequest {
 }
 
 message FreeResponse {}
+
+// ========= Mount disk ==========
+
+message MountRequest {
+  string vm_id = 1;
+  string mount_path = 2;
+  oneof VolumeType {
+    DiskVolumeType disk_volume = 3;
+    //it's supposed that we'll have other mount types like NFS
+  }
+}
+
+message MountMetadata {
+  DynamicMount mount = 1;
+}
+
+message MountResponse {
+  DynamicMount mount = 1;
+}
+
+// ========= List mounts ==========
+
+message ListMountsRequest {
+  string vm_id = 1;
+}
+
+message ListMountsResponse {
+  repeated DynamicMount mounts = 1;
+}
+
+message DynamicMount {
+  string id = 1;
+  optional string vm_id = 2;
+  string mount_name = 3;
+  string mount_path = 4;
+  optional string volume_name = 5;
+  optional string volume_claim_name = 6;
+  VolumeRequest volume_request = 7;
+  string state = 8;
+  string mount_operation_id = 9;
+  optional string unmount_operation_id = 10;
+}
+
+// ========= Unmount disk ==========
+
+message UnmountRequest {
+  string vm_id = 1;
+  string mount_id = 2;
+}
+
+message UnmountResponse {
+}

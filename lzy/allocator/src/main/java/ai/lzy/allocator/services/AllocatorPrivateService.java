@@ -131,7 +131,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                                 .addAllEndpoints(hosts)
                                 .putAllMetadata(request.getMetadataMap())
                                 .build());
-                        op.setResponse(response);
+                        op.completeWith(response);
 
                         try {
                             allocationContext.operationsDao().complete(op.id(), response, transaction);

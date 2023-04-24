@@ -22,6 +22,7 @@ public class ServiceConfig {
     private List<String> hosts = new ArrayList<>(); // either [<ipv4>] or [<ipv4>,<ipv6>]
     private Integer port;
     private Duration allocationTimeout;
+    private Duration mountTimeout;
     private Duration heartbeatTimeout;
     private List<String> serviceClusters = new ArrayList<>();
     private List<String> userClusters = new ArrayList<>();
@@ -160,5 +161,15 @@ public class ServiceConfig {
         private String requestContainerImage;
         private String requestContainerGrpCurlPath;
         private int agentPort;
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("mount")
+    public static final class MountConfig {
+        private boolean enabled = false;
+        private String podImage;
+        private String workerMountPoint;
+        private String hostMountPoint;
     }
 }

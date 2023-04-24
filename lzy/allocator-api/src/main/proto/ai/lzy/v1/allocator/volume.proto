@@ -14,8 +14,19 @@ message Volume {
   }
 }
 
+message VolumeRequest {
+  string id = 1;
+  string name = 2;
+  oneof VolumeType {
+    DiskVolumeType disk_volume = 3;
+    HostPathVolumeType host_path_volume = 4;
+    NFSVolumeType nfs_volume = 5;
+  }
+}
+
 message DiskVolumeType {
   string disk_id = 1;
+  int32 size_gb = 2;
 }
 
 message HostPathVolumeType {

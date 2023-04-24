@@ -27,9 +27,11 @@ public class AllocatorProxy extends AllocatorService {
     public AllocatorProxy(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                           SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
                           ServiceConfig config, ServiceConfig.CacheLimits cacheLimits,
+                          ServiceConfig.MountConfig mountConfig,
                           @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
-        super(vmDao, operationsDao, sessionsDao, diskDao, allocationContext, config, cacheLimits, idGenerator);
+        super(vmDao, operationsDao, sessionsDao, diskDao, allocationContext, config, cacheLimits, mountConfig,
+            idGenerator);
     }
 
     @Override

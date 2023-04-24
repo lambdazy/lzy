@@ -20,7 +20,6 @@ import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.DiskServiceApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
@@ -49,6 +48,7 @@ public class VolumeManagerTest {
     private DiskService diskService;
     private VolumeManager volumeManager;
     private OperationsService operations;
+    private String clusterId;
 
     @Before
     public void before() throws IOException {
@@ -60,32 +60,31 @@ public class VolumeManagerTest {
         operations = context.getBean(OperationsService.class);
         final ServiceConfig serviceConfig = context.getBean(ServiceConfig.class);
         final ClusterRegistry clusterRegistry = context.getBean(ClusterRegistry.class);
-        final String clusterId = serviceConfig.getUserClusters().stream().findFirst().orElse(null);
+        clusterId = serviceConfig.getUserClusters().stream().findFirst().orElse(null);
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        final KubernetesClient client = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX))
-            .build(clusterRegistry.getCluster(clusterId));
-        volumeManager = new KuberVolumeManager(client);
+        var kuberClientFactory = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX));
+        volumeManager = new KuberVolumeManager(kuberClientFactory, clusterRegistry);
     }
 
     @Test
     public void createVolumeTest() throws NotFoundException {
         final Disk disk = createDisk(createTestDiskSpec(3), new DiskMeta("user_id"));
 
-        final Volume volume = volumeManager.create(new VolumeRequest("id-1",
+        final Volume volume = volumeManager.create(clusterId, new VolumeRequest("id-1",
             new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
         ));
-        final VolumeClaim volumeClaim = volumeManager.createClaim(volume);
-        Assert.assertNull(volumeManager.get(volume.name()));
-        Assert.assertNull(volumeManager.getClaim(volumeClaim.name()));
-        volumeManager.deleteClaim(volumeClaim.name());
-        volumeManager.delete(volume.name());
+        final VolumeClaim volumeClaim = volumeManager.createClaim(clusterId, volume);
+        Assert.assertNull(volumeManager.get(clusterId, volume.name()));
+        Assert.assertNull(volumeManager.getClaim(clusterId, volumeClaim.name()));
+        volumeManager.deleteClaim(clusterId, volumeClaim.name());
+        volumeManager.delete(clusterId, volume.name());
 
         deleteDisk(disk);
 
-        Assert.assertNull(volumeManager.get(volume.name()));
-        Assert.assertNull(volumeManager.getClaim(volumeClaim.name()));
+        Assert.assertNull(volumeManager.get(clusterId, volume.name()));
+        Assert.assertNull(volumeManager.getClaim(clusterId, volumeClaim.name()));
     }
 
     private void deleteDisk(Disk disk) {
@@ -179,18 +178,18 @@ public class VolumeManagerTest {
             final Disk disk = createDisk(testDiskSpec, new DiskMeta("user-id"));
 
             final Instant volumeCreation = Instant.now();
-            final Volume volume = volumeManager.create(new VolumeRequest("id-1",
+            final Volume volume = volumeManager.create(clusterId, new VolumeRequest("id-1",
                 new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
             ));
 
             final Instant volumeClaimCreation = Instant.now();
-            final VolumeClaim volumeClaim = volumeManager.createClaim(volume);
+            final VolumeClaim volumeClaim = volumeManager.createClaim(clusterId, volume);
 
             final Instant volumeClaimDeletion = Instant.now();
-            volumeManager.deleteClaim(volumeClaim.name());
+            volumeManager.deleteClaim(clusterId, volumeClaim.name());
 
             final Instant volumeDeletion = Instant.now();
-            volumeManager.delete(volume.name());
+            volumeManager.delete(clusterId, volume.name());
 
             final Instant diskDeletion = Instant.now();
             deleteDisk(disk);
