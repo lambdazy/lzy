@@ -3,33 +3,28 @@ package ai.lzy.allocator.alloc.impl.kuber;
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.HostPathVolumeDescription;
-import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Volume.AccessMode;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
-import ai.lzy.allocator.vmpool.VmPoolSpec;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class PodSpecBuilder {
     public static final String VM_POD_TEMPLATE_PATH = "kubernetes/lzy-vm-pod-template.yaml";
     public static final String TUNNEL_POD_TEMPLATE_PATH = "kubernetes/lzy-tunnel-pod-template.yaml";
-    private static final List<Toleration> GPU_VM_POD_TOLERATION = List.of(
-        new TolerationBuilder()
-            .withKey("sku")
-            .withOperator("Equal")
-            .withValue("gpu")
-            .withEffect("NoSchedule")
-            .build());
+    public static final String MOUNT_HOLDER_POD_TEMPLATE_PATH = "kubernetes/lzy-mount-holder-pod-template.yaml";
+
     public static final String AFFINITY_TOPOLOGY_KEY = "kubernetes.io/hostname";
 
-    private final Vm.Spec vmSpec;
-    private final VmPoolSpec poolSpec;
     private final Pod pod;
     private final ServiceConfig config;
     private final List<Container> containers = new ArrayList<>();
@@ -38,42 +33,19 @@ public class PodSpecBuilder {
     private final Map<String, VolumeMount> additionalVolumeMounts = new HashMap<>();
     private final List<PodAffinityTerm> podAffinityTerms = new ArrayList<>();
     private final List<PodAffinityTerm> podAntiAffinityTerms = new ArrayList<>();
+    private final List<EnvVar> workloadsEnvList = new ArrayList<>();
 
-    public PodSpecBuilder(Vm.Spec vmSpec, VmPoolSpec poolSpec, KubernetesClient client, ServiceConfig config,
-                          String templatePath, String podNamePrefix)
-    {
-        this.vmSpec = vmSpec;
-        this.poolSpec = poolSpec;
+    public PodSpecBuilder(String podName, String templatePath, KubernetesClient client, ServiceConfig config) {
         pod = loadPodTemplate(client, templatePath);
-
-        this.config = config;
-
-        String vmId = vmSpec.vmId();
-        final String podName = podNamePrefix + vmId.toLowerCase(Locale.ROOT);
 
         // k8s pod name can only contain symbols [-a-z0-9]
         final var name = podName.replaceAll("[^-a-z0-9]", "-");
         pod.getMetadata().setName(name);
         pod.getMetadata().setUid(name); // TODO: required or not?
-        var labels = pod.getMetadata().getLabels();
 
-        Objects.requireNonNull(labels);
-        labels.putAll(Map.of(
-            KuberLabels.LZY_POD_NAME_LABEL, podName,
-            KuberLabels.LZY_POD_SESSION_ID_LABEL, vmSpec.sessionId(),
-            KuberLabels.LZY_VM_ID_LABEL, vmId.toLowerCase(Locale.ROOT)
-        ));
-        pod.getMetadata().setLabels(labels);
+        this.config = config;
 
-        pod.getSpec().setTolerations(GPU_VM_POD_TOLERATION);
         pod.getSpec().setAutomountServiceAccountToken(false);
-
-        final Map<String, String> nodeSelector = Map.of(
-            KuberLabels.NODE_POOL_LABEL, vmSpec.poolLabel(),
-            KuberLabels.NODE_POOL_AZ_LABEL, vmSpec.zone(),
-            KuberLabels.NODE_POOL_STATE_LABEL, "ACTIVE"
-        );
-        pod.getSpec().setNodeSelector(nodeSelector);
     }
 
     private Pod loadPodTemplate(KubernetesClient client, String templatePath) {
@@ -86,6 +58,33 @@ public class PodSpecBuilder {
 
     public String getPodName() {
         return pod.getMetadata().getName();
+    }
+
+    public PodSpecBuilder withLabels(Map<String, String> labels) {
+        var podLabels = pod.getMetadata().getLabels();
+        podLabels.putAll(labels);
+        pod.getMetadata().setLabels(podLabels);
+        return this;
+    }
+
+    public PodSpecBuilder withTolerations(List<Toleration> tolerations) {
+        pod.getSpec().setTolerations(tolerations);
+        return this;
+    }
+
+    public PodSpecBuilder withNodeSelector(Map<String, String> nodeSelector) {
+        pod.getSpec().setNodeSelector(nodeSelector);
+        return this;
+    }
+
+    public PodSpecBuilder withEnvVars(Map<String, String> envList) {
+        envList.forEach((name, value) -> workloadsEnvList.add(
+            new EnvVarBuilder()
+                .withName(name)
+                .withValue(value)
+                .build()
+        ));
+        return this;
     }
 
     public PodSpecBuilder withWorkloads(List<Workload> workloads, boolean init) {
@@ -106,10 +105,6 @@ public class PodSpecBuilder {
                     .withValue(config.getAddress())
                     .build(),
                 new EnvVarBuilder()
-                    .withName(AllocatorAgent.VM_ID_KEY)
-                    .withValue(vmSpec.vmId())
-                    .build(),
-                new EnvVarBuilder()
                     .withName(AllocatorAgent.VM_HEARTBEAT_PERIOD)
                     .withValue(config.getHeartbeatTimeout().dividedBy(2).toString())
                     .build(),
@@ -120,10 +115,6 @@ public class PodSpecBuilder {
                             .withNewFieldRef("v1", "status.podIP")
                             .build()
                     )
-                    .build(),
-                new EnvVarBuilder()
-                    .withName(AllocatorAgent.VM_GPU_COUNT)
-                    .withValue(String.valueOf(poolSpec.gpuCount()))
                     .build(),
                 new EnvVarBuilder()
                     .withName(AllocatorAgent.VM_NODE_IP_ADDRESS)
@@ -315,10 +306,12 @@ public class PodSpecBuilder {
                     .withMountPropagation(volumeMount.getMountPropagation())
                     .build())
                 .collect(Collectors.toList());
-
             additionalVolumeMounts.forEach((__, mount) -> mounts.add(mount));
-
             container.setVolumeMounts(mounts);
+
+            var envList = container.getEnv();
+            envList.addAll(workloadsEnvList);
+            container.setEnv(envList);
         }
 
         pod.getSpec().setContainers(containers);

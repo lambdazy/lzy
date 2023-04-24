@@ -1,9 +1,15 @@
 package ai.lzy.allocator.alloc;
 
+import ai.lzy.allocator.alloc.dao.DynamicMountDao;
+import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
+import ai.lzy.allocator.alloc.impl.kuber.MountHolderManager;
 import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
+import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.allocator.volume.VolumeManager;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationsExecutor;
@@ -12,6 +18,7 @@ import ai.lzy.model.db.TransactionHandle;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
@@ -25,12 +32,17 @@ public record AllocationContext(
     AllocatorDataSource storage,
     @Named("AllocatorOperationDao") OperationDao operationsDao,
     VmDao vmDao,
+    SessionDao sessionDao,
     @Named("AllocatorOperationsExecutor") OperationsExecutor executor,
     @Named("AllocatorSubjectServiceClient") SubjectServiceGrpcClient subjectClient,
     VmAllocator allocator,
     TunnelAllocator tunnelAllocator,
     AllocatorMetrics metrics,
-    @Named("AllocatorSelfWorkerId") String selfWorkerId
+    @Named("AllocatorSelfWorkerId") String selfWorkerId,
+    MountHolderManager mountHolderManager,
+    VolumeManager volumeManager,
+    DynamicMountDao dynamicMountDao,
+    ServiceConfig.MountConfig mountConfig
 ) {
     public void startNew(Runnable action) {
         executor.startNew(action);
@@ -81,5 +93,42 @@ public record AllocationContext(
         vmDao.delete(vm.vmId(), deleteState, tx);
 
         return new DeleteVmAction(vm, deleteOp.id(), this);
+    }
+
+    public Pair<UnmountDynamicDiskAction, Operation> createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,
+                                                                         @Nullable TransactionHandle tx)
+        throws SQLException
+    {
+        return createUnmountAction(vm, dynamicMount,
+            new Operation.IdempotencyKey("unmount-disk-%s-%s".formatted(dynamicMount.vmId(), dynamicMount.id()),
+                dynamicMount.vmId() + dynamicMount.id()), "system", tx
+        );
+    }
+
+    public Pair<UnmountDynamicDiskAction, Operation> createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,
+                                                                         Operation.IdempotencyKey idempotencyKey,
+                                                                         String createdBy,
+                                                                         @Nullable TransactionHandle tx)
+        throws SQLException
+    {
+        var op = Operation.create(
+            createdBy,
+            "Unmount mount %s from vm %s".formatted(dynamicMount.id(), dynamicMount.vmId()),
+            Duration.ofDays(10),
+            idempotencyKey,
+            null
+        );
+        operationsDao().create(op, tx);
+        var update = DynamicMount.Update.builder()
+            .state(DynamicMount.State.DELETING)
+            .unmountOperationId(op.id())
+            .build();
+
+        var updatedMount = dynamicMountDao().update(dynamicMount.id(), update, tx);
+        if (updatedMount == null) {
+            throw new IllegalStateException("Dynamic mount with id " + dynamicMount.id() + " is not found for update");
+        }
+
+        return Pair.of(new UnmountDynamicDiskAction(vm, updatedMount, this), op);
     }
 }

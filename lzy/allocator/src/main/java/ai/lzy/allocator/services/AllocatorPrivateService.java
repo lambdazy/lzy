@@ -136,7 +136,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                                 .putAllMetadata(request.getMetadataMap())
                                 .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId != null ? vmInstanceId : "null")
                                 .build());
-                        op.setResponse(response);
+                        op.completeWith(response);
 
                         try {
                             allocationContext.operationsDao().complete(op.id(), response, transaction);

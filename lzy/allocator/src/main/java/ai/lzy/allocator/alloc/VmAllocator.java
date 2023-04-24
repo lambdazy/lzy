@@ -60,6 +60,8 @@ public interface VmAllocator {
      */
     Result allocate(Vm.Ref vmRef) throws InvalidConfigurationException;
 
+    void unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException;
+
     /**
      * Idempotent operation to destroy vm
      * If vm is not allocated, does nothing

@@ -19,7 +19,7 @@ public record Vm(
     @Nullable DeletingState deleteState
 ) {
     public Vm(Spec spec, Status status, AllocateState allocateState) {
-        this(spec, status, new InstanceProperties(null), allocateState, null, null, null);
+        this(spec, status, new InstanceProperties(null, null), allocateState, null, null, null);
     }
 
     @Override
@@ -55,10 +55,15 @@ public record Vm(
     ) { }
 
     public record InstanceProperties(
-        @Nullable String tunnelPodName
+        @Nullable String tunnelPodName,
+        @Nullable String mountPodName
     ) {
         public InstanceProperties withTunnelPod(String tunnelPodName) {
-            return new InstanceProperties(tunnelPodName);
+            return new InstanceProperties(tunnelPodName, mountPodName);
+        }
+
+        public InstanceProperties withMountPod(String mountPodName) {
+            return new InstanceProperties(tunnelPodName, mountPodName);
         }
     }
 
@@ -155,6 +160,11 @@ public record Vm(
 
     public Vm withTunnelPod(String tunnelPod) {
         return new Vm(spec, status, instanceProperties.withTunnelPod(tunnelPod), allocateState, runState, idleState,
+            deleteState);
+    }
+
+    public Vm withMountPod(String mountPod) {
+        return new Vm(spec, status, instanceProperties.withMountPod(mountPod), allocateState, runState, idleState,
             deleteState);
     }
 

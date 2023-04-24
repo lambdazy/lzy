@@ -1,8 +1,8 @@
 package ai.lzy.allocator.test;
 
+import ai.lzy.allocator.alloc.RestoreOperations;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.model.debug.InjectedFailures.TerminateException;
-import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.util.Durations;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -163,7 +163,7 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
 
         failKuberAlloc.set(false);
 
-        allocatorCtx.getBean(AllocatorService.class).testRestart(false);
+        allocatorCtx.getBean(RestoreOperations.class); //calls restore after construction
 
         final String podName = createdPod.get();
         mockGetPod(podName);

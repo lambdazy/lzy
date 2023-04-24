@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +68,13 @@ public record Workload(
     public Workload withEnv(String key, String value) {
         final var env = new HashMap<>(this.env);
         env.put(key, value);
+
+        return new Workload(name, image, env, args, portBindings, mounts);
+    }
+
+    public Workload withVolumeMount(VolumeMount volume) {
+        var mounts = new ArrayList<>(this.mounts);
+        mounts.add(volume);
 
         return new Workload(name, image, env, args, portBindings, mounts);
     }

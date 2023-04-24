@@ -8,6 +8,7 @@ import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.common.IdGenerator;
+import ai.lzy.model.db.DaoUtils;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
@@ -15,6 +16,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Lists;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -28,7 +30,13 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.joining;
@@ -43,7 +51,7 @@ public class VmDaoImpl implements VmDao {
         "status";
 
     private static final String INSTANCE_FIELDS =
-        "tunnel_pod_name";
+        "tunnel_pod_name, mount_pod_name";
 
     private static final String ALLOCATION_START_FIELDS =
         "allocation_op_id, allocation_started_at, allocation_deadline, allocation_worker, allocation_reqid, vm_ott";
@@ -143,6 +151,11 @@ public class VmDaoImpl implements VmDao {
         SET tunnel_pod_name = ?
         WHERE id = ?""";
 
+    private static final String QUERY_SET_MOUNT_PON_NAME = """
+        UPDATE vm
+        SET mount_pod_name = ?
+        WHERE id = ?""";
+
     private static final String QUERY_UPDATE_VOLUME_CLAIMS = """
         UPDATE vm
         SET volume_claims_json = ?
@@ -197,6 +210,13 @@ public class VmDaoImpl implements VmDao {
         SET vm_ott = ''
         WHERE vm_ott = ?
         RETURNING id""";
+
+    private static final String QUERY_VM_BY_IDS_TEMPLATE = """
+        SELECT %s
+        FROM vm
+        WHERE id in %s
+        """;
+
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
@@ -479,6 +499,17 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
+    public void setMountPod(String vmId, String mountPodName, TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_SET_MOUNT_PON_NAME)) {
+                s.setString(1, mountPodName);
+                s.setString(2, vmId);
+                s.executeUpdate();
+            }
+        });
+    }
+
+    @Override
     public void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle tx)
         throws SQLException
     {
@@ -659,6 +690,35 @@ public class VmDaoImpl implements VmDao {
         });
     }
 
+    @Override
+    public List<Vm> loadByIds(Set<String> vmIds, TransactionHandle tx) throws SQLException {
+        if (vmIds.isEmpty()) {
+            return List.of();
+        }
+        return DbOperation.execute(tx, storage, conn -> {
+            final var vms = new ArrayList<Vm>(vmIds.size());
+            for (List<String> idsPart : Lists.partition(List.copyOf(vmIds), 100)) {
+                var params = DaoUtils.generateNParamArray(idsPart.size());
+                var query = QUERY_VM_BY_IDS_TEMPLATE.formatted(ALL_FIELDS, params);
+                try (PreparedStatement s = conn.prepareStatement(query)) {
+                    int i = 1;
+
+                    for (String vmId : idsPart) {
+                        s.setString(i++, vmId);
+                    }
+
+                    final var res = s.executeQuery();
+                    while (res.next()) {
+                        vms.add(readVm(res));
+                    }
+                } catch (JsonProcessingException e) {
+                    throw new RuntimeException("Cannot read vm", e);
+                }
+            }
+            return vms;
+        });
+    }
+
     private Vm readVm(ResultSet rs) throws SQLException, JsonProcessingException {
         int idx = 0;
 
@@ -693,6 +753,7 @@ public class VmDaoImpl implements VmDao {
 
         // instance properties
         final var tunnelPodName = rs.getString(++idx);
+        final var mountPodName = rs.getString(++idx);
 
         // allocate state
         final var allocationOpId = rs.getString(++idx);
@@ -770,7 +831,7 @@ public class VmDaoImpl implements VmDao {
             new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, tunnelSettings,
                 clusterType),
             vmStatus,
-            new Vm.InstanceProperties(tunnelPodName),
+            new Vm.InstanceProperties(tunnelPodName, mountPodName),
             new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationWorker,
                 allocationReqid, vmOtt, allocatorMeta, volumeClaims),
             runState,
