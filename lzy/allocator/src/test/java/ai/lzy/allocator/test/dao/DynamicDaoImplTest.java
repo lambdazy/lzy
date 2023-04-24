@@ -9,6 +9,7 @@ import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.NFSVolumeDescription;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.Operation;
@@ -87,8 +88,8 @@ public class DynamicDaoImplTest {
     public void createAndGet() throws Exception {
         var diskMount = dynamicMountModel(vm.vmId(), "allocator", operation.id());
         var nfsMount = DynamicMount.createNew(vm.vmId(), "2", "nfs",
-            "nfs", new NFSVolumeDescription("42", "nfs", "nfs-42", "share", 42,
-                List.of("foo", "bar")),
+            "nfs", new VolumeRequest("42", new NFSVolumeDescription("nfs", "nfs-42", "share", true,
+                List.of("foo", "bar"))),
             operation.id(), "allocator");
 
         dynamicMountDao.create(diskMount, null);
@@ -232,7 +233,7 @@ public class DynamicDaoImplTest {
     private static DynamicMount dynamicMountModel(String vmId, String workerId, String operationId, String clusterId) {
         var random = UUID.randomUUID().toString();
         return DynamicMount.createNew(vmId, clusterId, "disk" + random,
-            "disk" + random, new DiskVolumeDescription("42", "disk", "disk-42", 42),
+            "disk" + random, new VolumeRequest("42", new DiskVolumeDescription("disk", "disk-42", 42)),
             operationId, workerId);
     }
 }

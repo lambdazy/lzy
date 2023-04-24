@@ -75,7 +75,7 @@ public class VolumeManagerTest {
         final Volume volume = volumeManager.create(clusterId, new VolumeRequest("id-1",
             new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb())
         ));
-        final VolumeClaim volumeClaim = volumeManager.createClaim(volume);
+        final VolumeClaim volumeClaim = volumeManager.createClaim(clusterId, volume);
         Assert.assertNull(volumeManager.get(clusterId, volume.name()));
         Assert.assertNull(volumeManager.getClaim(clusterId, volumeClaim.name()));
         volumeManager.deleteClaim(clusterId, volumeClaim.name());

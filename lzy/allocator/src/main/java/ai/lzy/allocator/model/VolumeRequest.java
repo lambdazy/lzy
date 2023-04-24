@@ -1,5 +1,6 @@
 package ai.lzy.allocator.model;
 
+import ai.lzy.v1.VolumeApi;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -66,5 +67,30 @@ public class VolumeRequest {
     }
 
     public abstract static class ResourceVolumeDescription extends VolumeDescription {
+    }
+
+    public VolumeApi.VolumeRequest toProto() {
+        var builder = VolumeApi.VolumeRequest.newBuilder()
+            .setId(volumeId)
+            .setName(volumeDescription.name());
+        if (volumeDescription instanceof DiskVolumeDescription diskVolumeDescription) {
+            builder.setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
+                .setDiskId(diskVolumeDescription.diskId())
+                .setSizeGb(diskVolumeDescription.sizeGb())
+                .build());
+        } else if (volumeDescription instanceof HostPathVolumeDescription hostPathVolumeDescription) {
+            builder.setHostPathVolume(VolumeApi.HostPathVolumeType.newBuilder()
+                .setPath(hostPathVolumeDescription.path())
+                .setHostPathType(hostPathVolumeDescription.hostPathType().toProto())
+                .build());
+        } else if (volumeDescription instanceof NFSVolumeDescription nfsVolumeDescription) {
+            builder.setNfsVolume(VolumeApi.NFSVolumeType.newBuilder()
+                .setServer(nfsVolumeDescription.server())
+                .setShare(nfsVolumeDescription.share())
+                .setReadOnly(nfsVolumeDescription.readOnly())
+                .addAllMountOptions(nfsVolumeDescription.mountOptions())
+                .build());
+        }
+        return builder.build();
     }
 }

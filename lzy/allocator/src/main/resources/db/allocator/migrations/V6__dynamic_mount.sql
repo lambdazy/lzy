@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS dynamic_mount(
     id                  TEXT    NOT NULL,
     vm_id               TEXT    NULL        REFERENCES vm(id) ON DELETE SET NULL,
     cluster_id          TEXT    NOT NULL,
-    volume_desc         JSONB   NOT NULL,
+    volume_request      JSONB   NOT NULL,
     mount_path          TEXT    NOT NULL,
     mount_name          TEXT    NOT NULL,
     worker_id           TEXT    NOT NULL,

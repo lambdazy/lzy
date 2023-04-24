@@ -1,7 +1,6 @@
 package ai.lzy.allocator.model;
 
 import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.VolumeApi;
 import jakarta.annotation.Nullable;
 
 import java.util.UUID;
@@ -14,7 +13,7 @@ public record DynamicMount(
     String mountName,
     @Nullable String volumeName,
     @Nullable String volumeClaimName,
-    VolumeRequest.ResourceVolumeDescription volumeDescription,
+    VolumeRequest volumeRequest,
     String mountOperationId,
     @Nullable String unmountOperationId,
     State state,
@@ -27,11 +26,11 @@ public record DynamicMount(
     }
 
     public static DynamicMount createNew(String vmId, String clusterId, String mountName, String mountPath,
-                                         VolumeRequest.ResourceVolumeDescription volumeDescription,
+                                         VolumeRequest volumeRequest,
                                          String mountOperationId, String workerId)
     {
         return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, mountName, null, null,
-            volumeDescription, mountOperationId, null, State.PENDING, workerId);
+            volumeRequest, mountOperationId, null, State.PENDING, workerId);
     }
 
     public VmAllocatorApi.DynamicMount toProto() {
@@ -40,13 +39,8 @@ public record DynamicMount(
             .setMountName(mountName)
             .setMountPath(mountPath)
             .setMountOperationId(mountOperationId)
-            .setState(state.name());
-        if (volumeDescription instanceof DiskVolumeDescription diskVolumeDescription) {
-            builder.setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
-                .setDiskId(diskVolumeDescription.diskId())
-                .setSizeGb(diskVolumeDescription.sizeGb())
-                .build());
-        }
+            .setState(state.name())
+            .setVolumeRequest(volumeRequest.toProto());
         if (vmId != null) {
             builder.setVmId(vmId);
         }

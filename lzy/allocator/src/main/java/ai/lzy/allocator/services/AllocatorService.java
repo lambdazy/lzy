@@ -771,12 +771,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         var type = request.getVolumeTypeCase();
         if (type == VmAllocatorApi.MountRequest.VolumeTypeCase.DISK_VOLUME) {
             var diskVolume = request.getDiskVolume();
-            var id = "vm-volume-" + diskVolume.getDiskId();
-            final var diskVolumeDescription = new DiskVolumeDescription(id, id, diskVolume.getDiskId(),
+            var id = idGenerator.generate("vm-volume-");
+            final var diskVolumeDescription = new DiskVolumeDescription(id, diskVolume.getDiskId(),
                 diskVolume.getSizeGb());
             var mountName = "disk-" + diskVolume.getDiskId();
             var dynamicMount = DynamicMount.createNew(vm.vmId(), clusterId, mountName,
-                request.getMountPath(), diskVolumeDescription, op.id(), allocationContext.selfWorkerId());
+                request.getMountPath(), new VolumeRequest(id, diskVolumeDescription), op.id(),
+                allocationContext.selfWorkerId());
             return new MountWithAction(dynamicMount, new MountDynamicDiskAction(vm, dynamicMount, allocationContext));
         }
         throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription("unsupported volume type: " + type));

@@ -197,10 +197,7 @@ message DynamicMount {
   string mount_path = 4;
   optional string volume_name = 5;
   optional string volume_claim_name = 6;
-  oneof VolumeType {
-    DiskVolumeType disk_volume = 7;
-    //it's supposed that we'll have other mount types like NFS
-  }
+  VolumeRequest volume_request = 7;
   string state = 8;
   string mount_operation_id = 9;
   optional string unmount_operation_id = 10;

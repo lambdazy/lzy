@@ -5,7 +5,6 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
-import ai.lzy.allocator.model.HostPathVolumeDescription;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Volume;
 import ai.lzy.allocator.model.VolumeClaim;
@@ -188,9 +187,7 @@ public class KuberVmAllocator implements VmAllocator {
                         .toList(),
                     false)
                 .withVolumes(requireNonNull(allocState.volumeClaims()))
-                .withHostVolumes(vmSpec.volumeRequests().stream()
-                    .filter(v -> v.volumeDescription() instanceof HostPathVolumeDescription)
-                    .toList())
+                .withHostVolumes(vmSpec.volumeRequests())
                 // --shm-size=1G
                 .withEmptyDirVolume("dshm", "/dev/shm", new EmptyDirVolumeSource("Memory", Quantity.parse("1Gi")))
                 .withLoggingVolume()
@@ -460,21 +457,21 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     private List<VolumeClaim> allocateVolumes(String clusterId,
-                                              List<VolumeRequest.ResourceVolumeDescription> volumesRequest)
+                                              List<VolumeRequest> volumesRequests)
     {
-        if (volumesRequest.isEmpty()) {
+        if (volumesRequests.isEmpty()) {
             return List.of();
         }
 
-        LOG.info("Allocate volume " + volumesRequest.stream().map(Objects::toString).collect(Collectors.joining(", ")));
+        LOG.info("Allocate volume " + volumesRequests.stream().map(Objects::toString).collect(Collectors.joining(", ")));
 
-        return volumesRequest.stream()
+        return volumesRequests.stream()
             .map(volumeRequest -> {
                 final Volume volume;
                 try {
                     volume = volumeManager.create(clusterId, volumeRequest);
                 } catch (Exception e) {
-                    LOG.error("Error while creating volume {}: {}", volumeRequest.id(), e.getMessage());
+                    LOG.error("Error while creating volume {}: {}", volumeRequest.volumeId(), e.getMessage());
                     throw new RuntimeException(e);
                 }
                 return volumeManager.createClaim(clusterId, volume);

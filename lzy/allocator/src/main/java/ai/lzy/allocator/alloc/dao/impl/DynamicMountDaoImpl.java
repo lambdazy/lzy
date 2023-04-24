@@ -21,11 +21,11 @@ import java.util.List;
 
 @Singleton
 public class DynamicMountDaoImpl implements DynamicMountDao {
-    private static final String ALL_FIELDS = "id, vm_id, cluster_id, volume_desc, mount_path, mount_name, worker_id," +
-        " mount_op_id, volume_name, volume_claim_name, mount_op_id, unmount_op_id, state";
+    private static final String ALL_FIELDS = "id, vm_id, cluster_id, volume_request, mount_path, mount_name," +
+        " worker_id, mount_op_id, volume_name, volume_claim_name, mount_op_id, unmount_op_id, state";
 
     private static final String CREATE_DYNAMIC_MOUNT_QUERY = """
-        INSERT INTO dynamic_mount (id, vm_id, cluster_id, volume_desc, mount_path, mount_name,
+        INSERT INTO dynamic_mount (id, vm_id, cluster_id, volume_request, mount_path, mount_name,
             worker_id, mount_op_id, state)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
@@ -72,7 +72,7 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
                 s.setString(++idx, dynamicMount.clusterId());
                 var jsonObject = new PGobject();
                 jsonObject.setType("json");
-                jsonObject.setValue(objectMapper.writeValueAsString(dynamicMount.volumeDescription()));
+                jsonObject.setValue(objectMapper.writeValueAsString(dynamicMount.volumeRequest()));
                 s.setObject(++idx, jsonObject);
                 s.setString(++idx, dynamicMount.mountPath());
                 s.setString(++idx, dynamicMount.mountName());
@@ -81,8 +81,8 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
                 s.setString(++idx, dynamicMount.state().name());
                 s.execute();
             } catch (JsonProcessingException e) {
-                throw new RuntimeException("Cannot write volume description: %s"
-                    .formatted(dynamicMount.volumeDescription()), e);
+                throw new RuntimeException("Cannot write volume request: %s"
+                    .formatted(dynamicMount.volumeRequest()), e);
             }
         });
     }
@@ -237,8 +237,8 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
             var id = rs.getString("id");
             var vmId = rs.getString("vm_id");
             var clusterId = rs.getString("cluster_id");
-            var volumeDesc = objectMapper.readValue(rs.getString("volume_desc"),
-                VolumeRequest.ResourceVolumeDescription.class);
+            var volumeDesc = objectMapper.readValue(rs.getString("volume_request"),
+                VolumeRequest.class);
             var mountPath = rs.getString("mount_path");
             var mountName = rs.getString("mount_name");
             var workerId = rs.getString("worker_id");

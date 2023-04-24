@@ -5,6 +5,7 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.model.DiskVolumeDescription;
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VolumeApi;
 import com.google.protobuf.util.Durations;
@@ -106,9 +107,11 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var sessionId = createSession(Durations.ZERO);
         var vm = allocateVm(sessionId, null);
         var mount1 = DynamicMount.createNew(vm.vmId(), "foo", "bar", "baz",
-            new DiskVolumeDescription("disk-1", "disk-1", "1", 42), vm.allocationOpId(), "allocator");
+            new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42)),
+            vm.allocationOpId(), "allocator");
         var mount2 = DynamicMount.createNew(vm.vmId(), "foo", "qux", "quux",
-            new DiskVolumeDescription("disk-1", "disk-1", "1", 42), vm.allocationOpId(), "allocator");
+            new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42)),
+            vm.allocationOpId(), "allocator");
         dynamicMountDao.create(mount1, null);
         dynamicMountDao.create(mount2, null);
 
@@ -128,9 +131,11 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertFalse(fetchedMount1.hasUnmountOperationId());
         Assert.assertFalse(fetchedMount1.hasVolumeName());
         Assert.assertFalse(fetchedMount1.hasVolumeClaimName());
-        var diskVolumeDescription = (DiskVolumeDescription) mount1.volumeDescription();
-        Assert.assertEquals(diskVolumeDescription.diskId(), fetchedMount1.getDiskVolume().getDiskId());
-        Assert.assertEquals(diskVolumeDescription.sizeGb(), fetchedMount1.getDiskVolume().getSizeGb());
+        var diskVolumeDescription = (DiskVolumeDescription) mount1.volumeRequest().volumeDescription();
+        Assert.assertEquals(diskVolumeDescription.diskId(), fetchedMount1.getVolumeRequest().getDiskVolume()
+            .getDiskId());
+        Assert.assertEquals(diskVolumeDescription.sizeGb(), fetchedMount1.getVolumeRequest().getDiskVolume()
+            .getSizeGb());
 
         var fetchedMount2 = fetchedMountsById.get(mount2.id());
         Assert.assertNotNull(fetchedMount2);
@@ -142,9 +147,11 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertFalse(fetchedMount2.hasUnmountOperationId());
         Assert.assertFalse(fetchedMount2.hasVolumeName());
         Assert.assertFalse(fetchedMount2.hasVolumeClaimName());
-        diskVolumeDescription = (DiskVolumeDescription) mount2.volumeDescription();
-        Assert.assertEquals(diskVolumeDescription.diskId(), fetchedMount2.getDiskVolume().getDiskId());
-        Assert.assertEquals(diskVolumeDescription.sizeGb(), fetchedMount2.getDiskVolume().getSizeGb());
+        diskVolumeDescription = (DiskVolumeDescription) mount2.volumeRequest().volumeDescription();
+        Assert.assertEquals(diskVolumeDescription.diskId(), fetchedMount2.getVolumeRequest().getDiskVolume()
+            .getDiskId());
+        Assert.assertEquals(diskVolumeDescription.sizeGb(), fetchedMount2.getVolumeRequest().getDiskVolume()
+            .getSizeGb());
     }
 
 }

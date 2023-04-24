@@ -8,6 +8,7 @@ import ai.lzy.allocator.model.PodPhase;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeMount;
+import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
@@ -210,9 +211,10 @@ public class KuberMountHolderManager implements MountHolderManager {
     }
 
     @NotNull
-    public static HostPathVolumeDescription createHostPathVolume(ServiceConfig.MountConfig mountConfig) {
-        return new HostPathVolumeDescription("host-path-volume-" + UUID.randomUUID(), HOST_VOLUME_NAME,
-            mountConfig.getHostMountPoint(), HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE);
+    public static VolumeRequest createHostPathVolume(ServiceConfig.MountConfig mountConfig) {
+        return new VolumeRequest("host-path-volume-" + UUID.randomUUID(),
+            new HostPathVolumeDescription(HOST_VOLUME_NAME, mountConfig.getHostMountPoint(),
+                HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE));
     }
 
     @NotNull

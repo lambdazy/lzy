@@ -1,5 +1,6 @@
 package ai.lzy.allocator.model;
 
+import ai.lzy.v1.VolumeApi;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -37,6 +38,16 @@ public class HostPathVolumeDescription extends VolumeRequest.VolumeDescription {
 
         public String asString() {
             return repr;
+        }
+
+        public VolumeApi.HostPathVolumeType.HostPathType toProto() {
+            return switch (this) {
+                case DIRECTORY_OR_CREATE -> VolumeApi.HostPathVolumeType.HostPathType.DIRECTORY_OR_CREATE;
+                case DIRECTORY -> VolumeApi.HostPathVolumeType.HostPathType.DIRECTORY;
+                case FILE_OR_CREATE -> VolumeApi.HostPathVolumeType.HostPathType.FILE_OR_CREATE;
+                case FILE -> VolumeApi.HostPathVolumeType.HostPathType.FILE;
+                case SOCKET -> VolumeApi.HostPathVolumeType.HostPathType.SOCKET;
+            };
         }
     }
 

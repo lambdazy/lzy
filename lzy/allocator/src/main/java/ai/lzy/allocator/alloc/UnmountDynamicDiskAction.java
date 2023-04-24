@@ -176,7 +176,8 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             allocationContext.volumeManager().deleteClaim(dynamicMount.clusterId(), dynamicMount.volumeClaimName());
             volumeClaimDeleted = true;
         } catch (KubernetesClientException e) {
-            log().error("{} Failed to delete volume claim {}", logPrefix(), dynamicMount.volumeDescription().id(), e);
+            log().error("{} Failed to delete volume claim {}", logPrefix(), dynamicMount.volumeRequest()
+                .volumeId(), e);
             if (KuberUtils.isNotRetryable(e)) {
                 return StepResult.CONTINUE;
             }
@@ -199,7 +200,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             allocationContext.volumeManager().delete(dynamicMount.clusterId(), dynamicMount.volumeName());
             volumeDeleted = true;
         } catch (KubernetesClientException e) {
-            log().error("{} Failed to delete volume {}", logPrefix(), dynamicMount.volumeDescription().id(), e);
+            log().error("{} Failed to delete volume {}", logPrefix(), dynamicMount.volumeRequest().volumeId(), e);
             if (KuberUtils.isNotRetryable(e)) {
                 return StepResult.CONTINUE;
             }

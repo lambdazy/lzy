@@ -2,9 +2,9 @@ package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.model.HostPathVolumeDescription;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.vmpool.VmPoolSpec;
 import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource;
@@ -77,7 +77,7 @@ public class VmPodSpecBuilder {
         return this;
     }
 
-    public VmPodSpecBuilder withHostVolumes(List<HostPathVolumeDescription> volumeRequests) {
+    public VmPodSpecBuilder withHostVolumes(List<VolumeRequest> volumeRequests) {
         podSpecBuilder.withHostVolumes(volumeRequests);
         return this;
     }
