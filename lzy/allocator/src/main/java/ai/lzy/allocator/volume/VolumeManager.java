@@ -3,8 +3,7 @@ package ai.lzy.allocator.volume;
 import ai.lzy.allocator.model.Volume;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeRequest;
-
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public interface VolumeManager {
     Volume create(String clusterId, VolumeRequest volumeRequest);

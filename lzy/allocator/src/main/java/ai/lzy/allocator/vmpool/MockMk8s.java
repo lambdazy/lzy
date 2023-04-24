@@ -4,14 +4,14 @@ import ai.lzy.common.IdGenerator;
 import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
-import javax.inject.Singleton;
 
 import static ai.lzy.allocator.vmpool.CpuTypes.CASCADE_LAKE;
 import static ai.lzy.allocator.vmpool.GpuTypes.NO_GPU;
@@ -42,7 +42,7 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
         );
 
         idsToClusters = labelsToClusters.entrySet().stream()
-                .collect(Collectors.toMap(e -> e.getValue().clusterId(), Map.Entry::getValue));
+            .collect(Collectors.toMap(e -> e.getValue().clusterId(), Map.Entry::getValue));
     }
 
     @Nullable

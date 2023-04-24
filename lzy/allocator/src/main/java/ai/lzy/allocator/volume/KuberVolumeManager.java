@@ -8,14 +8,9 @@ import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import io.fabric8.kubernetes.api.model.CSIPersistentVolumeSourceBuilder;
-import io.fabric8.kubernetes.api.model.PersistentVolume;
-import io.fabric8.kubernetes.api.model.PersistentVolumeBuilder;
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
-import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,7 +19,6 @@ import org.jetbrains.annotations.NotNull;
 import java.net.HttpURLConnection;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 @Singleton
 public class KuberVolumeManager implements VolumeManager {
@@ -194,7 +188,7 @@ public class KuberVolumeManager implements VolumeManager {
 
             final List<String> accessModes = persistentVolume.getSpec().getAccessModes();
             assert persistentVolume.getSpec().getCapacity()
-                    .get(VOLUME_CAPACITY_STORAGE_KEY).getFormat().equals(KUBER_GB_NAME);
+                .get(VOLUME_CAPACITY_STORAGE_KEY).getFormat().equals(KUBER_GB_NAME);
             assert accessModes.size() == 1;
 
             final Volume volume = new Volume(
@@ -224,7 +218,7 @@ public class KuberVolumeManager implements VolumeManager {
         try (var client = kuberClientFactory.build(cluster)) {
             LOG.info("Trying to find volumeClaim with name={}", volumeClaimName);
             final var pvc = client.persistentVolumeClaims()
-                    .inNamespace(DEFAULT_NAMESPACE).withName(volumeClaimName).get();
+                .inNamespace(DEFAULT_NAMESPACE).withName(volumeClaimName).get();
             if (pvc == null) {
                 return null;
             }

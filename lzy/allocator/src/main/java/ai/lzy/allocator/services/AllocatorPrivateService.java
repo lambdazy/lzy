@@ -29,6 +29,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NODE_INSTANCE_ID_KEY;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
@@ -123,6 +124,9 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                             return Status.INTERNAL.withDescription("Cannot get endpoints of vm");
                         }
 
+                        var meta = allocationContext.vmDao().getAllocatorMeta(vm.vmId(), transaction);
+                        var vmInstanceId = meta == null ? null : meta.get(NODE_INSTANCE_ID_KEY);
+
                         var response = Any.pack(
                             AllocateResponse.newBuilder()
                                 .setPoolId(vm.poolLabel())
@@ -130,6 +134,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                                 .setVmId(vm.vmId())
                                 .addAllEndpoints(hosts)
                                 .putAllMetadata(request.getMetadataMap())
+                                .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId != null ? vmInstanceId : "null")
                                 .build());
                         op.completeWith(response);
 
@@ -239,7 +244,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
         try {
             if (vm.status() != Vm.Status.DELETING) {
                 withRetries(LOG, () -> allocationContext.vmDao().updateActivityDeadline(
-                        vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout())));
+                    vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout())));
             }
         } catch (Exception ex) {
             allocationContext.metrics().hbFail.inc();

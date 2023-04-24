@@ -43,8 +43,7 @@ public record AllocationContext(
     VolumeManager volumeManager,
     DynamicMountDao dynamicMountDao,
     ServiceConfig.MountConfig mountConfig
-)
-{
+) {
     public void startNew(Runnable action) {
         executor.startNew(action);
     }

@@ -15,6 +15,9 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.Nullable;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,9 +31,6 @@ import yandex.cloud.sdk.ServiceFactory;
 
 import java.util.Optional;
 import java.util.regex.Pattern;
-import javax.annotation.Nullable;
-import javax.inject.Inject;
-import javax.inject.Named;
 
 import static yandex.cloud.api.compute.v1.DiskServiceOuterClass.GetDiskRequest;
 import static yandex.cloud.api.compute.v1.SnapshotServiceGrpc.SnapshotServiceBlockingStub;
