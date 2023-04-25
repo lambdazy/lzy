@@ -90,6 +90,7 @@ def process_execution(
     lazy_arguments: bool
 ):
     logger.info("Reading arguments...")
+    typ, path = exception_path
 
     try:
         args = [
@@ -104,7 +105,7 @@ def process_execution(
         }
     except Exception as e:
         logger.error(f"Error while reading arguments: {e}")
-        write_data(exception_path[1], exception_path[0], e, serializers, logger)
+        write_data(path, typ, sys.exc_info(), serializers, logger)
         raise
 
     logger.info(f"Executing operation '{op.__name__}'")
@@ -113,7 +114,7 @@ def process_execution(
         res = op(*args, **kwargs)
     except Exception as e:
         logger.error(f"Execution completed with error `{e}` in {time.time() - start}")
-        write_data(exception_path[1], exception_path[0], e, serializers, logger)
+        write_data(path, typ, sys.exc_info(), serializers, logger)
         raise
     logger.info(f"Execution completed in {time.time() - start} sec")
 
@@ -126,7 +127,7 @@ def process_execution(
             write_data(out[1], out[0], data, serializers, logger)
     except Exception as e:
         logger.error("Error while writing result: {}", e)
-        write_data(exception_path[1], exception_path[0], e, serializers, logger)
+        write_data(path, typ, sys.exc_info(), serializers, logger)
         raise
 
 

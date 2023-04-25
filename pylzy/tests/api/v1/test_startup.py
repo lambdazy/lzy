@@ -1,6 +1,8 @@
 import os
 import tempfile
 import traceback
+from types import TracebackType
+from typing import Tuple
 from unittest import TestCase
 
 from lzy.api.v1.startup import ProcessingRequest
@@ -45,7 +47,7 @@ class StartupTests(TestCase):
             args_paths=[(str, arg_file_name)],
             kwargs_paths={"b": (File, kwarg_file_name)},
             output_paths=[(str, ret_file_name)],
-            exception_path=(Exception, exc_file_name)
+            exception_path=(Tuple[type, Exception, TracebackType], exc_file_name)
         )
 
         startup.main(pickle(req))
@@ -75,7 +77,7 @@ class StartupTests(TestCase):
             args_paths=[],
             kwargs_paths={},
             output_paths=[],
-            exception_path=(Exception, exc_file_name)
+            exception_path=(Tuple[type, Exception, TracebackType], exc_file_name)
         )
 
         original_traceback = None
@@ -85,7 +87,7 @@ class StartupTests(TestCase):
             original_traceback = e.__traceback__
 
         with open(exc_file_name, "rb") as f:
-            exc = ser.find_serializer_by_type(Exception).deserialize(f)
+            exc = ser.find_serializer_by_type(req.exception_path[0]).deserialize(f)
             self.assertEqual(ValueError, type(exc[1]))
             self.assertEqual(("test", ), exc[1].args)
             current_traceback = traceback.extract_tb(exc[2])
