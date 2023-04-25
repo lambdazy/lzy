@@ -5,13 +5,8 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
-import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.Volume;
-import ai.lzy.allocator.model.VolumeClaim;
-import ai.lzy.allocator.model.VolumeMount;
-import ai.lzy.allocator.model.VolumeRequest;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
-import ai.lzy.allocator.util.AllocatorUtils;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
@@ -29,6 +24,8 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
@@ -243,19 +240,27 @@ public class KuberVmAllocator implements VmAllocator {
 
         LOG.info("Unmounting {} from {} and container {}", mountPath, podName, workload.name());
         try (var client = k8sClientFactory.build(cluster)) {
-            final var exec = client.pods().inNamespace(namespace).withName(podName)
+            var out = new ByteArrayOutputStream(512);
+            final var exec = client.pods()
+                .inNamespace(NAMESPACE_VALUE)
+                .withName(podName)
                 .inContainer(workload.name())
-                .redirectingError()
+                .writingOutput(out)
+                .writingError(out)
                 .exec("umount", mountPath);
-            try (exec) {
-                AllocatorUtils.readToLog(LOG, "unmount " + mountPath, exec.getOutput());
-                var returnCode = exec.exitCode().get();
-                LOG.info("Unmount return code: {}", returnCode);
+            try (out) {
+                try (exec) {
+                    LOG.info("Unmount output: {}", out);
+                    var returnCode = exec.exitCode().get();
+                    LOG.info("Unmount return code: {}", returnCode);
+                }
             }
         } catch (ExecutionException e) {
             LOG.warn("Unmount execution error", e);
         } catch (InterruptedException e) {
             LOG.warn("Unmount interrupted");
+        } catch (IOException e) {
+            LOG.warn("Unmount output reading error", e);
         }
     }
 

@@ -130,8 +130,7 @@ public class KuberMountHolderManager implements MountHolderManager {
         final List<VolumeMount> mounts = new ArrayList<>(dynamicMounts.size() + 1);
         mounts.add(prepareVolumeMount(mountConfig));
         for (var dynamicMount : dynamicMounts) {
-            var volumeMount = new VolumeMount(dynamicMount.id(),
-                mountConfig.getWorkerMountPoint() + "/" + dynamicMount.mountPath(), false,
+            var volumeMount = new VolumeMount(dynamicMount.id(), dynamicMount.mountPath(), false,
                 VolumeMount.MountPropagation.BIDIRECTIONAL);
             mounts.add(volumeMount);
         }
@@ -179,7 +178,7 @@ public class KuberMountHolderManager implements MountHolderManager {
 
     @NotNull
     private String mountHolderName(String vmId) {
-        return idGenerator.generate(MOUNT_HOLDER_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT));
+        return idGenerator.generate(MOUNT_HOLDER_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT) + "-");
     }
 
 }

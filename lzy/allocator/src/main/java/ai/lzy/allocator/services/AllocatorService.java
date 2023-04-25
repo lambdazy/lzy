@@ -766,7 +766,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 diskVolume.getSizeGb());
             var mountName = "disk-" + diskVolume.getDiskId();
             var dynamicMount = DynamicMount.createNew(vm.vmId(), clusterId, mountName,
-                request.getMountPath(), new VolumeRequest(id, diskVolumeDescription), op.id(),
+                mountConfig.getWorkerMountPoint() + "/" + request.getMountPath(),
+                new VolumeRequest(id, diskVolumeDescription), op.id(),
                 allocationContext.selfWorkerId());
             return new MountWithAction(dynamicMount, new MountDynamicDiskAction(vm, dynamicMount, allocationContext));
         }
