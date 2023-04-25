@@ -5,6 +5,7 @@ import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.util.KuberUtils;
+import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.longrunning.dao.OperationCompletedException;
@@ -183,6 +184,9 @@ public final class AllocateVmAction extends OperationRunnerBase {
 
     private StepResult allocateMountPod() {
         if (!allocationContext.mountConfig().isEnabled()) {
+            return StepResult.ALREADY_DONE;
+        }
+        if (vm.spec().clusterType() == ClusterRegistry.ClusterType.System) {
             return StepResult.ALREADY_DONE;
         }
 

@@ -128,7 +128,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Creating volume for {}", logPrefix(), dynamicMount.volumeDescription());
+        log().info("{} Creating volume for {}", logPrefix(), dynamicMount.volumeRequest());
         try {
             this.volume = volumeManager.create(dynamicMount.clusterId(), dynamicMount.volumeRequest());
         } catch (KubernetesClientException e) {

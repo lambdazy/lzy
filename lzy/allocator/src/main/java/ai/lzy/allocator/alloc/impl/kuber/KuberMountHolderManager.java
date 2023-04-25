@@ -4,11 +4,13 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nonnull;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -17,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.MOUNT_HOLDER_POD_TEMPLATE_PATH;
@@ -34,14 +37,17 @@ public class KuberMountHolderManager implements MountHolderManager {
     private final KuberClientFactory factory;
     private final ServiceConfig config;
     private final ServiceConfig.MountConfig mountConfig;
+    private final IdGenerator idGenerator;
 
     public KuberMountHolderManager(ClusterRegistry clusterRegistry, KuberClientFactory factory, ServiceConfig config,
-                                   ServiceConfig.MountConfig mountConfig)
+                                   ServiceConfig.MountConfig mountConfig,
+                                   @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
         this.clusterRegistry = clusterRegistry;
         this.factory = factory;
         this.config = config;
         this.mountConfig = mountConfig;
+        this.idGenerator = idGenerator;
     }
 
     @Override
@@ -172,8 +178,8 @@ public class KuberMountHolderManager implements MountHolderManager {
     }
 
     @NotNull
-    private static String mountHolderName(String vmId) {
-        return MOUNT_HOLDER_POD_NAME_PREFIX + vmId + "-" + UUID.randomUUID();
+    private String mountHolderName(String vmId) {
+        return idGenerator.generate(MOUNT_HOLDER_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT));
     }
 
 }
