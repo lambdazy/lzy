@@ -106,8 +106,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         kubernetesServer = new KubernetesMockServer(new MockWebServer(), new ConcurrentHashMap<>(), false);
         kubernetesServer.init(InetAddress.getLoopbackAddress(), 0);
-//        kubernetesServer.expect().post().withPath("/api/v1/pods")
-//            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
 
         final Node node = new NodeBuilder()
             .withSpec(new NodeSpecBuilder()
