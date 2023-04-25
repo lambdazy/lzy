@@ -30,13 +30,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 import static java.util.Arrays.stream;
 import static java.util.stream.Collectors.joining;
@@ -51,7 +45,7 @@ public class VmDaoImpl implements VmDao {
         "status";
 
     private static final String INSTANCE_FIELDS =
-        "tunnel_pod_name, mount_pod_name";
+        "tunnel_pod_name, mount_pod_name, endpoints";
 
     private static final String ALLOCATION_START_FIELDS =
         "allocation_op_id, allocation_started_at, allocation_deadline, allocation_worker, allocation_reqid, vm_ott";
@@ -154,6 +148,11 @@ public class VmDaoImpl implements VmDao {
     private static final String QUERY_SET_MOUNT_PON_NAME = """
         UPDATE vm
         SET mount_pod_name = ?
+        WHERE id = ?""";
+
+    private static final String QUERY_SET_ENDPOINTS = """
+        UPDATE vm
+        SET endpoints = ?
         WHERE id = ?""";
 
     private static final String QUERY_UPDATE_VOLUME_CLAIMS = """
@@ -510,6 +509,19 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
+    public void setEndpoints(String vmId, List<Vm.Endpoint> endpoints, TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_SET_ENDPOINTS)) {
+                s.setString(1, objectMapper.writeValueAsString(endpoints));
+                s.setString(2, vmId);
+                s.executeUpdate();
+            } catch (JsonProcessingException e) {
+                throw new RuntimeException("Cannot dump values", e);
+            }
+        });
+    }
+
+    @Override
     public void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle tx)
         throws SQLException
     {
@@ -754,6 +766,7 @@ public class VmDaoImpl implements VmDao {
         // instance properties
         final var tunnelPodName = rs.getString(++idx);
         final var mountPodName = rs.getString(++idx);
+        final var endpoints = objectMapper.readValue(rs.getString(++idx), new TypeReference<List<Vm.Endpoint>>() {});
 
         // allocate state
         final var allocationOpId = rs.getString(++idx);
@@ -831,7 +844,7 @@ public class VmDaoImpl implements VmDao {
             new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, tunnelSettings,
                 clusterType),
             vmStatus,
-            new Vm.InstanceProperties(tunnelPodName, mountPodName),
+            new Vm.InstanceProperties(tunnelPodName, mountPodName, endpoints),
             new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationWorker,
                 allocationReqid, vmOtt, allocatorMeta, volumeClaims),
             runState,

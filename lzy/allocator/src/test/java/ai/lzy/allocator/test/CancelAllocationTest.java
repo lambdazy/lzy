@@ -157,7 +157,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         Assert.fail();
 
         final String podName = createdPod.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
 
         var clusterId = requireNonNull(withGrpcContext(() ->
             clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId());

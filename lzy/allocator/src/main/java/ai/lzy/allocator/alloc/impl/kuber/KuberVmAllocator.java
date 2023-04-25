@@ -16,10 +16,8 @@ import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.allocator.volume.VolumeManager;
-import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource;
-import io.fabric8.kubernetes.api.model.ListOptionsBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -27,7 +25,6 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -35,14 +32,12 @@ import org.apache.logging.log4j.Logger;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.VM_POD_TEMPLATE_PATH;
-import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static java.util.Objects.requireNonNull;
 
@@ -61,7 +56,6 @@ public class KuberVmAllocator implements VmAllocator {
     public static final String VM_POD_APP_LABEL_VALUE = "vm";
 
     private final VmDao vmDao;
-    private final OperationDao operationsDao;
     private final ClusterRegistry clusterRegistry;
     private final VmPoolRegistry poolRegistry;
     private final KuberClientFactory k8sClientFactory;
@@ -71,13 +65,11 @@ public class KuberVmAllocator implements VmAllocator {
     private final ServiceConfig.MountConfig mountConfig;
 
     @Inject
-    public KuberVmAllocator(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
-                            ClusterRegistry clusterRegistry, VmPoolRegistry poolRegistry,
+    public KuberVmAllocator(VmDao vmDao, ClusterRegistry clusterRegistry, VmPoolRegistry poolRegistry,
                             KuberClientFactory k8sClientFactory, VolumeManager volumeManager, NodeRemover nodeRemover,
                             ServiceConfig config, ServiceConfig.MountConfig mountConfig)
     {
         this.vmDao = vmDao;
-        this.operationsDao = operationsDao;
         this.clusterRegistry = clusterRegistry;
         this.poolRegistry = poolRegistry;
         this.k8sClientFactory = k8sClientFactory;
@@ -267,43 +259,10 @@ public class KuberVmAllocator implements VmAllocator {
 
     @Nullable
     public static Pod getVmPod(String namespace, String name, KubernetesClient client) {
-        final var podsList = client.pods()
-            .inNamespace(namespace)
-            .list(new ListOptionsBuilder()
-                .withLabelSelector(KuberLabels.LZY_POD_NAME_LABEL + "=" + name)
-                .build())
-            .getItems();
-        if (podsList.size() < 1) {
-            return null;
-        }
-        final var podSpec = podsList.get(0);
-        if (podSpec.getMetadata() != null &&
-            podSpec.getMetadata().getName() != null &&
-            podSpec.getMetadata().getName().equals(name))
-        {
-            return podSpec;
-        }
-        return null;
-    }
-
-    /**
-     * Find all pods with label "lzy.ai/vm-id"=<code>vmId</code>. It is expected to be the corresponding <code>vm</code>
-     * pod and optionally the <code>tunnel</code> pod on the same k8s node, if it exists. In the future, we may add
-     * other system pods necessary for this vm (for example, pod with mounted disc).
-     *
-     * @param namespace - k8s namespace with pods
-     * @param vmId      - id of vm
-     * @param client    - k8s client
-     * @return k8s pods in <code>namespace</code> with label "lzy.ai/vm-id"=<code>vmId</code> got by <code>client</code>
-     */
-    @Nullable
-    private List<Pod> getAllPodsWithVmId(String namespace, String vmId, KubernetesClient client) {
         return client.pods()
             .inNamespace(namespace)
-            .list(new ListOptionsBuilder()
-                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId.toLowerCase(Locale.ROOT))
-                .build()
-            ).getItems();
+            .withName(name)
+            .get();
     }
 
     /**
@@ -360,7 +319,7 @@ public class KuberVmAllocator implements VmAllocator {
 
             var statusDetails = client.pods()
                 .inNamespace(ns)
-                .withLabelSelector(KuberLabels.LZY_VM_ID_LABEL + "=" + vmId.toLowerCase(Locale.ROOT))
+                .withName(podName)
                 .delete();
             if (statusDetails.isEmpty()) {
                 LOG.warn("No delete status details were provided by k8s client after deleting pods with vm {}", vmId);
@@ -397,68 +356,76 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction) {
-        final List<VmEndpoint> hosts = new ArrayList<>();
+    public Vm updateAllocatedVm(Vm vm, @Nullable TransactionHandle tx) {
+        var meta = requireNonNull(vm.allocateState().allocatorMeta());
 
-        final var meta = withRetries(
-            defaultRetryPolicy(),
-            LOG,
-            () -> vmDao.getAllocatorMeta(vmId, transaction),
-            ex -> new RuntimeException("Database error: " + ex.getMessage(), ex));
-
-        if (meta == null) {
-            throw new RuntimeException("Cannot get allocator metadata for vmId " + vmId);
-        }
-
-        final var clusterId = meta.get(CLUSTER_ID_KEY);
-        final var credentials = clusterRegistry.getCluster(clusterId);
-        final var ns = meta.get(NAMESPACE_KEY);
-        final var podName = meta.get(POD_NAME_KEY);
+        final var clusterId = requireNonNull(meta.get(CLUSTER_ID_KEY));
+        final var credentials = requireNonNull(clusterRegistry.getCluster(clusterId));
+        final var ns = requireNonNull(meta.get(NAMESPACE_KEY));
+        final var podName = requireNonNull(meta.get(POD_NAME_KEY));
 
         try (final var client = k8sClientFactory.build(credentials)) {
             final var pod = getVmPod(ns, podName, client);
-            if (pod != null) {
-                final var nodeName = pod.getSpec().getNodeName();
-                final var node = client.nodes().withName(nodeName).get();
-
-                final var providerId = node.getSpec() != null ? node.getSpec().getProviderID() : null;
-                final var instanceId = providerId != null && providerId.startsWith("yandex://")
-                    ? providerId.substring("yandex://".length())
-                    : null;
-
-                LOG.info("VM {} is allocated at POD {} on node {} ({})", vmId, podName, nodeName, providerId);
-
-                for (final var address : node.getStatus().getAddresses()) {
-                    final var type = switch (address.getType().toLowerCase()) {
-                        case "hostname" -> VmEndpointType.HOST_NAME;
-                        case "internalip" -> VmEndpointType.INTERNAL_IP;
-                        case "externalip" -> VmEndpointType.EXTERNAL_IP;
-                        default -> throw new RuntimeException("Undefined type of node address: " + address.getType());
-                    };
-                    hosts.add(new VmEndpoint(type, address.getAddress()));
-                }
-
-                meta.put(NODE_NAME_KEY, nodeName);
-                if (instanceId != null) {
-                    meta.put(NODE_INSTANCE_ID_KEY, instanceId);
-                }
-            } else {
+            if (pod == null) {
                 throw new RuntimeException("Cannot get pod with name " + podName + " to get addresses");
             }
+
+            final var nodeName = pod.getSpec().getNodeName();
+            final var node = requireNonNull(client.nodes().withName(nodeName).get());
+
+            final var providerId = node.getSpec() != null ? node.getSpec().getProviderID() : null;
+            final var instanceId = providerId != null && providerId.startsWith("yandex://")
+                ? providerId.substring("yandex://".length())
+                : null;
+
+            meta.put(NODE_NAME_KEY, nodeName);
+            if (instanceId != null) {
+                meta.put(NODE_INSTANCE_ID_KEY, instanceId);
+            }
+
+            var endpoints = getPodEndpoints(pod, client);
+
+            vm = vm.withAllocateState(vm.allocateState().withAllocatorMeta(meta));
+            vm = vm.withEndpoints(endpoints);
+
+            LOG.info("VM {} is allocated at POD {} on node {} ({}) with endpoints [{}]",
+                vm.vmId(), podName, nodeName, providerId,
+                endpoints.stream().map(Objects::toString).collect(Collectors.joining(", ")));
         }
 
         try {
-            withRetries(LOG, () -> vmDao.setAllocatorMeta(vmId, meta, transaction));
+            final var vmRef = vm;
+            withRetries(LOG, () -> {
+                vmDao.setAllocatorMeta(vmRef.vmId(), meta, tx);
+                vmDao.setEndpoints(vmRef.vmId(), vmRef.instanceProperties().endpoints(), tx);
+            });
         } catch (Exception e) {
-            LOG.error("Cannot save updated allocator meta for vm {}: {}", vmId, e.getMessage());
+            LOG.error("Cannot save updated allocator meta for vm {}: {}", vm.vmId(), e.getMessage());
         }
 
-        return hosts;
+        return vm;
     }
 
-    private List<VolumeClaim> allocateVolumes(String clusterId,
-                                              List<VolumeRequest> volumesRequests)
-    {
+    private List<Vm.Endpoint> getPodEndpoints(Pod pod, KubernetesClient client) {
+        final var nodeName = pod.getSpec().getNodeName();
+        final var node = requireNonNull(client.nodes().withName(nodeName).get());
+
+        var endpoints = new ArrayList<Vm.Endpoint>();
+        for (final var address : node.getStatus().getAddresses()) {
+            final var type = switch (address.getType().toLowerCase()) {
+                case "hostname" -> Vm.Endpoint.Type.HOST_NAME;
+                case "internalip" -> Vm.Endpoint.Type.INTERNAL_IP;
+                case "externalip" -> Vm.Endpoint.Type.EXTERNAL_IP;
+                default -> throw new RuntimeException("Undefined type of node address: " + address.getType());
+            };
+
+            endpoints.add(new Vm.Endpoint(type, address.getAddress()));
+        }
+
+        return endpoints;
+    }
+
+    private List<VolumeClaim> allocateVolumes(String clusterId, List<VolumeRequest> volumesRequests) {
         if (volumesRequests.isEmpty()) {
             return List.of();
         }

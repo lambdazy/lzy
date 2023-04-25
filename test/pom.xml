@@ -45,12 +45,6 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>iam</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
             <artifactId>channel-manager</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>

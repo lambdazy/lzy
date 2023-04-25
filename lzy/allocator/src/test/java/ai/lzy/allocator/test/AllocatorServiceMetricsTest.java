@@ -181,7 +181,7 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
         latch.countDown();
 
         var podName = awaitAllocFuture.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
 
         var clusterId = requireNonNull(clusterRegistry.findCluster("S", "test-zone", CLUSTER_TYPE)).clusterId();
         registerVm(vmId, clusterId);
@@ -196,7 +196,7 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
         Assert.assertEquals(1, (int) metrics.runningVms.labels("S").get());
         Assert.assertEquals(0, (int) metrics.cachedVms.labels("S").get());
 
-        mockDeletePod(podName, () -> {}, HttpURLConnection.HTTP_OK);
+        mockDeletePodByName(podName, () -> {}, HttpURLConnection.HTTP_OK);
 
         return vmId;
     }

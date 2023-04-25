@@ -132,9 +132,9 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
             operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
         final String podName = getVmPodName(allocateMeta.getVmId());
-        mockGetPod(podName);
+        mockGetPodByName(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
-        mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+        mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
         waitOpError(operation, Status.INTERNAL);
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
@@ -161,12 +161,12 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                     .build()));
 
         final String podName = future.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
 
         var vmId = operation.getMetadata().unpack(AllocateMetadata.class).getVmId();
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
-        mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+        mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
         waitOpError(operation, Status.DEADLINE_EXCEEDED);
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
@@ -232,7 +232,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
             sessionId,
             vm -> {
                 assertVmMetrics("S", -1, 1, 0);
-                mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+                mockDeletePodByName(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
             });
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
@@ -339,10 +339,10 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
         final String podName = future.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
 
         var deleted = new CountDownLatch(1);
-        mockDeletePod(podName, deleted::countDown, HttpURLConnection.HTTP_OK);
+        mockDeletePodByName(podName, deleted::countDown, HttpURLConnection.HTTP_OK);
 
         assertVmMetrics("S", 1, 0, 0);
 
@@ -367,11 +367,12 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(2);
 
         var vm1 = allocateAndFreeVm(sessionId, vm ->
-            mockDeletePod(vm.podName(), () -> {
-                kuberRemoveRequestLatch.countDown();
-                mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
-            },
-            HttpURLConnection.HTTP_INTERNAL_ERROR /* fail the first remove request */));
+        {/* fail the first remove request */
+            mockDeletePodByName(vm.podName(), () -> {
+                    kuberRemoveRequestLatch.countDown();
+                mockDeletePodByName(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+            }, HttpURLConnection.HTTP_INTERNAL_ERROR);
+        });
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
     }
@@ -383,7 +384,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
 
         var cachedVm = allocateAndFreeVm(sessionId,
-            vm -> mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
+            vm -> mockDeletePodByName(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
 
         assertVmMetrics("S", -1, 0, 1);
 
@@ -424,7 +425,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
 
         var cachedVm = allocateAndFreeVm(sessionId,
-            vm -> mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
+            vm -> mockDeletePodByName(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
 
         final int N = 10;
         final var readyLatch = new CountDownLatch(N);
@@ -536,9 +537,9 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var allocateMetadata = allocate.getMetadata().unpack(AllocateMetadata.class);
 
         final String podName = future.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
-        mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+        mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
         String clusterId = withGrpcContext(() ->
             requireNonNull(clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId());
@@ -569,9 +570,9 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         Assert.assertNotNull(vm);
 
         final String podName = future.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
-        mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+        mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
         var op = authorizedAllocatorBlockingStub.deleteSession(
             DeleteSessionRequest.newBuilder()
@@ -625,7 +626,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
 
         var vm1 = allocateAndFreeVm(sessionId,
-            vm -> mockDeletePod(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
+            vm -> mockDeletePodByName(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
 
         try {
             //noinspection ResultOfMethodCallIgnored
@@ -661,9 +662,9 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         Assert.assertNotNull(vm);
 
         final String podName = future.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
-        mockDeletePod(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
+        mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
 
         String clusterId = requireNonNull(clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId();
         registerVm(allocateMetadata.getVmId(), clusterId);
@@ -741,7 +742,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var allocateMetadata = allocationStarted.getMetadata().unpack(AllocateMetadata.class);
 
         final String podName = future.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
 
         final PersistentVolume persistentVolume = persistentVolumeFuture.get();
         final PersistentVolumeClaim persistentVolumeClaim = persistentVolumeClaimFuture.get();
@@ -761,7 +762,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
             persistentVolumeClaim.getSpec().getResources().getRequests().get(VOLUME_CAPACITY_STORAGE_KEY));
 
         final CountDownLatch kuberRemoveResourceLatch = new CountDownLatch(3);
-        mockDeletePod(podName, kuberRemoveResourceLatch::countDown, HttpURLConnection.HTTP_OK);
+        mockDeletePodByName(podName, kuberRemoveResourceLatch::countDown, HttpURLConnection.HTTP_OK);
         mockDeleteResource(
             PERSISTENT_VOLUME_PATH,
             persistentVolume.getMetadata().getName(),

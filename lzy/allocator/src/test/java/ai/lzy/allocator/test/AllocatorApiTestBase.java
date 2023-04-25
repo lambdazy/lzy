@@ -26,17 +26,7 @@ import ai.lzy.v1.VmAllocatorPrivateApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
-import io.fabric8.kubernetes.api.model.Node;
-import io.fabric8.kubernetes.api.model.NodeAddressBuilder;
-import io.fabric8.kubernetes.api.model.NodeBuilder;
-import io.fabric8.kubernetes.api.model.NodeSpecBuilder;
-import io.fabric8.kubernetes.api.model.NodeStatusBuilder;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodListBuilder;
-import io.fabric8.kubernetes.api.model.PodSpecBuilder;
-import io.fabric8.kubernetes.api.model.PodStatusBuilder;
-import io.fabric8.kubernetes.api.model.StatusDetails;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
 import io.grpc.ManagedChannel;
@@ -58,8 +48,6 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Map;
@@ -69,10 +57,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.CLUSTER_ID_KEY;
-import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NAMESPACE_KEY;
-import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NAMESPACE_VALUE;
-import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.VM_POD_NAME_PREFIX;
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -121,8 +106,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         kubernetesServer = new KubernetesMockServer(new MockWebServer(), new ConcurrentHashMap<>(), false);
         kubernetesServer.init(InetAddress.getLoopbackAddress(), 0);
-        kubernetesServer.expect().post().withPath("/api/v1/pods")
-            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
 
         final Node node = new NodeBuilder()
             .withSpec(new NodeSpecBuilder()
@@ -261,15 +244,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             Status.fromCodeValue(updatedOperation.getError().getCode()).getCode());
     }
 
-    protected void mockGetPod(String podName) {
-        final Pod pod = constructPod(podName);
-        kubernetesServer.expect().get()
-            .withPath(POD_PATH + "?labelSelector=" +
-                URLEncoder.encode(KuberLabels.LZY_POD_NAME_LABEL + "=" + podName, StandardCharsets.UTF_8))
-            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().withItems(pod).build())
-            .always();
-    }
-
     protected void mockGetPodByName(String podName) {
         final Pod pod = constructPod(podName);
         kubernetesServer.expect().get()
@@ -389,17 +363,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             }).once();
     }
 
-    protected void mockDeletePod(String podName, Runnable onDelete, int responseCode) {
-        mockDeleteResource(POD_PATH, podName, onDelete, responseCode);
-        kubernetesServer.expect().delete()
-            // "lzy.ai/vm-id"=<VM id>
-            .withPath(POD_PATH + "?labelSelector=lzy.ai%2Fvm-id%3D" + podName.substring(VM_POD_NAME_PREFIX.length()))
-            .andReply(responseCode, (req) -> {
-                onDelete.run();
-                return new StatusDetails();
-            }).once();
-    }
-
     protected void mockDeletePodByName(String podName, Runnable onDelete, int responseCode) {
         mockDeleteResource(POD_PATH, podName, onDelete, responseCode);
         kubernetesServer.expect().delete()
@@ -448,7 +411,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
         final String podName = future.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
 
         String clusterId = withGrpcContext(() ->
             requireNonNull(clusterRegistry.findCluster(pool, ZONE, CLUSTER_TYPE)).clusterId());

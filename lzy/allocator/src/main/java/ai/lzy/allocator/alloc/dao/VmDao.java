@@ -51,6 +51,8 @@ public interface VmDao {
 
     void setMountPod(String vmId, String mountPodName, @Nullable TransactionHandle tx) throws SQLException;
 
+    void setEndpoints(String vmId, List<Vm.Endpoint> endpoints, @Nullable TransactionHandle tx) throws SQLException;
+
     void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle tx)
         throws SQLException;
 

@@ -1,8 +1,8 @@
 package ai.lzy.allocator.alloc.impl;
 
 import ai.lzy.allocator.alloc.VmAllocator;
+import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.model.db.TransactionHandle;
@@ -20,6 +20,7 @@ import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,10 +35,12 @@ public class ThreadVmAllocator implements VmAllocator {
     private final Method vmMain;
     private final ConcurrentHashMap<String, Thread> vmThreads = new ConcurrentHashMap<>();
     private final ServiceConfig cfg;
+    private final VmDao vmDao;
 
     @Inject
-    public ThreadVmAllocator(ServiceConfig serviceConfig, ServiceConfig.ThreadAllocator allocatorConfig) {
-        cfg = serviceConfig;
+    public ThreadVmAllocator(ServiceConfig serviceConfig, ServiceConfig.ThreadAllocator allocatorConfig, VmDao vmDao) {
+        this.cfg = serviceConfig;
+        this.vmDao = vmDao;
 
         try {
             Class<?> vmClass;
@@ -149,12 +152,15 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public List<VmEndpoint> getVmEndpoints(String vmId, @Nullable TransactionHandle transaction) {
-        return List.of(
-            new VmEndpoint(VmEndpointType.HOST_NAME, "localhost"),
-            new VmEndpoint(VmEndpointType.INTERNAL_IP, "127.0.0.1"));
+    public Vm updateAllocatedVm(Vm vm, @Nullable TransactionHandle tx) throws SQLException {
+        var endpoints = List.of(
+            new Vm.Endpoint(Vm.Endpoint.Type.HOST_NAME, "localhost"),
+            new Vm.Endpoint(Vm.Endpoint.Type.INTERNAL_IP, "127.0.0.1"));
+        vmDao.setEndpoints(vm.vmId(), endpoints, tx);
+        return vm.withEndpoints(endpoints);
     }
 
     @Override
-    public void unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException { }
+    public void unmountFromVm(Vm vm, String mountPath) {
+    }
 }
