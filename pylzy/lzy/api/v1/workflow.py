@@ -46,7 +46,7 @@ class LzyWorkflow:
         owner: "Lzy",
         env: Env,
         provisioning: Provisioning,
-        auto_py_env: PyEnv,
+        auto_py_env: Optional[PyEnv],
         *,
         eager: bool = False,
         interactive: bool = True
@@ -96,7 +96,7 @@ class LzyWorkflow:
         return self.__env
 
     @property
-    def auto_py_env(self) -> PyEnv:
+    def auto_py_env(self) -> Optional[PyEnv]:
         return self.__auto_py_env
 
     @property
