@@ -100,7 +100,7 @@ public class Job {
                 .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessToken,
                     secretToken)))
                 .region(Region.US_WEST_1)
-                .endpointOverride(new URI("http", null, hostAndPort.getHost(), hostAndPort.getPort(), null, null, null))
+                .endpointOverride(new URI(endpoint))
                 .forcePathStyle(true)
                 .build();
         } catch (URISyntaxException e) {
