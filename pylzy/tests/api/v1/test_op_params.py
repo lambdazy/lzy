@@ -312,6 +312,14 @@ class LzyOpParamsTests(TestCase):
             with self.lzy.workflow("test"):
                 func_with_docker()
 
+    def test_docker_only_pyenv_resolve(self):
+        def func_with_docker() -> None:
+            pass
+
+        with self.lzy.workflow("test", docker_only=True, docker_image='image1') as wf:
+            func_with_docker()
+            self.assertIsNone(wf.auto_py_env)
+
     def test_local_modules(self):
         @op
         def func_with_env() -> None:
