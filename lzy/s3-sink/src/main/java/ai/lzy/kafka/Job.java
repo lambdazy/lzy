@@ -3,7 +3,6 @@ package ai.lzy.kafka;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.kafka.KafkaS3Sink;
 import com.amazonaws.services.s3.AmazonS3URI;
-import com.google.common.net.HostAndPort;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
 import org.apache.kafka.clients.consumer.Consumer;
@@ -92,8 +91,6 @@ public class Job {
         props.put("group.id", UUID.randomUUID().toString());
 
         consumer = new KafkaConsumer<>(props);
-
-        var hostAndPort = HostAndPort.fromString(endpoint);
 
         try {
             storageClient = S3AsyncClient.builder()

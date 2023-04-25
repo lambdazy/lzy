@@ -333,17 +333,19 @@ final class StartExecutionCompanion {
             var formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy_HH.mm.ss");
 
             if (owner.s3SinkClient.enabled() && storageConfig.hasS3()) {
-                var storageUri = URI.create(storageConfig.getUri());
+                var storagePath = storageConfig.getUri().substring("s3://".length());  // Removing s3 prefix
 
-                var path = Path.of(storageUri.getPath())
+                var path = Path.of(storagePath)
                     .resolve("logs")
                     .resolve(formatter.format(LocalDateTime.now()) + state.getExecutionId() + ".log");
+
+                var uri = "s3://" + path;
 
                 LOG.info("Starting remote job on s3-sink, topic: {}, bucket: {}", topicName, storageConfig.getUri());
                 var resp = owner.s3SinkClient.stub().start(KafkaS3Sink.StartRequest.newBuilder()
                     .setTopicName(topicName)
                     .setStorageConfig(LMST.StorageConfig.newBuilder()
-                        .setUri("s3://" + path)
+                        .setUri(uri)
                         .setS3(storageConfig.getS3())
                         .build())
                     .build());

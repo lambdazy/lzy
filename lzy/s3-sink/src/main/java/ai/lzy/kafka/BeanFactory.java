@@ -1,5 +1,8 @@
 package ai.lzy.kafka;
 
+import ai.lzy.common.IdGenerator;
+import ai.lzy.common.RandomIdGenerator;
+import ai.lzy.common.UUIDIdGenerator;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;

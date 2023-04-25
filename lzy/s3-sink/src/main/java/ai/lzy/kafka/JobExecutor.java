@@ -1,5 +1,8 @@
 package ai.lzy.kafka;
 
+import ai.lzy.common.IdGenerator;
+import ai.lzy.common.RandomIdGenerator;
+import ai.lzy.common.UUIDIdGenerator;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
@@ -23,6 +26,7 @@ public class JobExecutor {
 
     // For tests only
     private final ConcurrentHashMap<String, CompletableFuture<Job.PollResult>> waiters = new ConcurrentHashMap<>();
+    private final IdGenerator idGenerator = new RandomIdGenerator();
 
 
     public JobExecutor() {
@@ -40,7 +44,7 @@ public class JobExecutor {
     }
 
     public String submit(Job job) {
-        var id = UUID.randomUUID().toString();
+        var id = idGenerator.generate("s3-sink-job");
 
         var handle = new JobHandle(job, id);
         handles.put(id, handle);
