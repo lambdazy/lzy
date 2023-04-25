@@ -60,6 +60,29 @@ resource "kubernetes_deployment" "s3_sink" {
             value = module.kafka[0].internal-bootstrap
           }
 
+          env {
+            name  = "S3_SINK_IAM_ADDRESS"
+            value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+          }
+          env {
+            name = "S3_SINK_IAM_INTERNAL_USER_NAME"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.iam_internal_user_data.metadata[0].name
+                key  = "username"
+              }
+            }
+          }
+          env {
+            name = "S3_SINK_IAM_INTERNAL_USER_PRIVATE_KEY"
+            value_from {
+              secret_key_ref {
+                name = kubernetes_secret.iam_internal_user_data.metadata[0].name
+                key  = "key"
+              }
+            }
+          }
+
           volume_mount {
             mount_path = "/truststore"
             name       = "truststore"
