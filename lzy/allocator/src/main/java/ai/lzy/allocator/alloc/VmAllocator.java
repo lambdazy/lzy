@@ -6,6 +6,8 @@ import ai.lzy.model.db.TransactionHandle;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
 
+import java.sql.SQLException;
+
 public interface VmAllocator {
 
     class Result {
@@ -67,5 +69,5 @@ public interface VmAllocator {
      */
     Result deallocate(Vm vm);
 
-    Vm updateAllocatedVm(Vm vm, @Nullable TransactionHandle tx);
+    Vm updateAllocatedVm(Vm vm, @Nullable TransactionHandle tx) throws SQLException;
 }

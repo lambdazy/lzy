@@ -10,7 +10,7 @@ Configuration:
 
   Loggers:
     Root:
-      level: warn
+      level: info
       AppenderRef:
         ref: Console
     Logger:
