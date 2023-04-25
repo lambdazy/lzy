@@ -13,6 +13,8 @@ import io.micronaut.context.ApplicationContext;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -20,12 +22,13 @@ import java.util.concurrent.TimeUnit;
 
 @Singleton
 public class Main {
+    private static final Logger LOG = LogManager.getLogger(Main.class);
+
     private final Server server;
 
     public Main(@Named("S3SinkIamChannel") ManagedChannel iamChannel, SinkServiceImpl sinkService,
                 ServiceConfig config)
     {
-
         var hostAndPort = HostAndPort.fromString(config.getAddress());
 
         var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient("LzyService", iamChannel));
@@ -44,6 +47,7 @@ public class Main {
 
         try {
             server.start();
+            LOG.info("S3-sink started on {}", config.getAddress());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

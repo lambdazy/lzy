@@ -239,7 +239,7 @@ resource "kubernetes_deployment" "lzy-service" {
 
             content {
               name = "LZY_SERVICE_S3_SINK_ADDRESS"
-              value = "${kubernetes_service.graph_executor_service.spec[0].cluster_ip}:${local.graph-port}"
+              value = "${kubernetes_service.s3_sink_service.spec[0].cluster_ip}:${local.s3-sink-port}"
             }
           }
 

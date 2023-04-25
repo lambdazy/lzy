@@ -29,7 +29,7 @@ import jakarta.annotation.Nullable;
 import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -330,14 +330,14 @@ final class StartExecutionCompanion {
 
             final String sinkJobId;
             var storageConfig = getState().getStorageConfig();
-            var formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy_hh.mm.ss");
+            var formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy_HH.mm.ss");
 
             if (owner.s3SinkClient.enabled() && storageConfig.hasS3()) {
                 var storageUri = URI.create(storageConfig.getUri());
 
                 var path = Path.of(storageUri.getPath())
                     .resolve("logs")
-                    .resolve(formatter.format(Instant.now()) + state.getExecutionId() + ".log");
+                    .resolve(formatter.format(LocalDateTime.now()) + state.getExecutionId() + ".log");
 
                 LOG.info("Starting remote job on s3-sink, topic: {}, bucket: {}", topicName, storageConfig.getUri());
                 var resp = owner.s3SinkClient.stub().start(KafkaS3Sink.StartRequest.newBuilder()
