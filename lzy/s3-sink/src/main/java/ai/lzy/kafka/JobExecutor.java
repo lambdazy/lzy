@@ -2,7 +2,6 @@ package ai.lzy.kafka;
 
 import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
-import ai.lzy.common.UUIDIdGenerator;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
@@ -11,7 +10,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
-import java.util.UUID;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 

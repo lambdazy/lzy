@@ -26,7 +26,6 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nullable;
 
-import java.net.URI;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.time.LocalDateTime;
