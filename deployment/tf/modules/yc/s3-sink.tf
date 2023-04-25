@@ -20,6 +20,11 @@ resource "kubernetes_deployment" "s3_sink" {
     strategy {
       type = "Recreate"
     }
+
+    selector {
+      match_labels = local.s3-sink-labels
+    }
+
     template {
       metadata {
         name   = local.s3-sink-k8s-name
@@ -86,6 +91,10 @@ resource "kubernetes_deployment" "s3_sink" {
               path = "keystore.p12"
             }
           }
+        }
+
+        node_selector = {
+          type = "lzy"
         }
       }
     }

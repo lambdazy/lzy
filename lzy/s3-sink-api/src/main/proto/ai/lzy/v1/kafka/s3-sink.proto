@@ -9,30 +9,30 @@ import "ai/lzy/v1/common/storage.proto";
 
 service S3SinkService {
   // Submit job to upload to storage
-  rpc Submit(SubmitRequest) returns (SubmitResponse);
+  rpc Start(StartRequest) returns (StartResponse);
 
 
   // Complete job.
   // Service will upload all not synced data to storage and then cancel job.
   // If you do not call this method, the job will always poll kafka to get data.
-  rpc Complete(CompleteRequest) returns (CompleteResponse);
+  rpc Stop(StopRequest) returns (StopResponse);
 }
 
 // ================ Submit =================
 
-message SubmitRequest {
+message StartRequest {
   common.StorageConfig storage_config = 1;
   string topic_name = 2;
 }
 
-message SubmitResponse {
+message StartResponse {
   string job_id = 1;
 }
 
 // ================ Complete =================
 
-message CompleteRequest {
+message StopRequest {
   string job_id = 1;
 }
 
-message CompleteResponse {}
+message StopResponse {}

@@ -339,6 +339,7 @@ final class StartExecutionCompanion {
                     .resolve("logs")
                     .resolve(formatter.format(Instant.now()) + state.getExecutionId() + ".log");
 
+                LOG.info("Starting remote job on s3-sink, topic: {}, bucket: {}", topicName, storageConfig.getUri());
                 var resp = owner.s3SinkClient.stub().submit(KafkaS3Sink.SubmitRequest.newBuilder()
                     .setTopicName(topicName)
                     .setStorageConfig(LMST.StorageConfig.newBuilder()

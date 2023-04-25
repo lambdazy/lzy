@@ -32,7 +32,3 @@ Configuration:
       AppenderRef:
         - ref: Console
         - ref: FluentBitFile
-
-    Logger:
-      - name: "ai.lzy.service.graph"
-        level: debug

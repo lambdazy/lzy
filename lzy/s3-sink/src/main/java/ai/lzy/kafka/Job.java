@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class Job {
     private static final Logger LOG = LogManager.getLogger(Job.class);
     private static final int BUFFER_SIZE = 1024 * 1024 * 5; // S3 multipart chunk must be at least 5Mb
+
     private final AtomicReference<State> state = new AtomicReference<>(State.Created);
     private final KafkaS3Sink.SubmitRequest request;
     private final AtomicBoolean completed = new AtomicBoolean(false);
@@ -40,16 +41,22 @@ public class Job {
 
     private final ByteBuffer s3ChunkBuffer = ByteBuffer.allocate(BUFFER_SIZE);
 
-    @Nullable private final Consumer<String, byte[]> consumer;
-    @Nullable private final S3AsyncClient storageClient;  // Support only s3 for now
+    @Nullable
+    private final Consumer<String, byte[]> consumer;
+    @Nullable
+    private final S3AsyncClient storageClient;  // Support only s3 for now
 
-    @Nullable private String multipartId;
-    @Nullable private int partNumber = 1;
+    @Nullable
+    private String multipartId;
+    @Nullable
+    private int partNumber = 1;
 
 
-    @Nullable private Iterator<ConsumerRecord<String, byte[]>> resultsStream;
+    @Nullable
+    private Iterator<ConsumerRecord<String, byte[]>> resultsStream;
 
-    @Nullable CompletableFuture<UploadPartResponse> uploadAwaitable;
+    @Nullable
+    CompletableFuture<UploadPartResponse> uploadAwaitable;
     private final String bucket;
     private final String key;
 
