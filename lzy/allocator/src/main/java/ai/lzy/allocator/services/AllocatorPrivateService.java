@@ -26,7 +26,6 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Set;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NODE_INSTANCE_ID_KEY;
@@ -113,28 +112,27 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                         allocationContext.vmDao().setVmRunning(
                             vm.vmId(), request.getMetadataMap(), activityDeadline, transaction);
 
-                        final List<AllocateResponse.VmEndpoint> hosts;
+
                         try {
-                            hosts = allocator.getVmEndpoints(vm.vmId(), transaction).stream()
-                                .map(VmAllocator.VmEndpoint::toProto)
-                                .toList();
+                            vm = allocator.updateAllocatedVm(vm, transaction);
                         } catch (Exception e) {
                             allocationContext.metrics().registerFail.inc();
                             LOG.error("Cannot get endpoints of vm {}", vm.vmId(), e);
                             return Status.INTERNAL.withDescription("Cannot get endpoints of vm");
                         }
 
-                        var meta = allocationContext.vmDao().getAllocatorMeta(vm.vmId(), transaction);
-                        var vmInstanceId = meta == null ? null : meta.get(NODE_INSTANCE_ID_KEY);
+                        var meta = vm.allocateState().allocatorMeta();
+                        var vmInstanceId = meta != null ? meta.get(NODE_INSTANCE_ID_KEY) : "null";
+                        var endpoints = vm.instanceProperties().endpoints().stream().map(Vm.Endpoint::toProto).toList();
 
                         var response = Any.pack(
                             AllocateResponse.newBuilder()
                                 .setPoolId(vm.poolLabel())
                                 .setSessionId(vm.sessionId())
                                 .setVmId(vm.vmId())
-                                .addAllEndpoints(hosts)
+                                .addAllEndpoints(endpoints)
                                 .putAllMetadata(request.getMetadataMap())
-                                .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId != null ? vmInstanceId : "null")
+                                .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId)
                                 .build());
                         op.completeWith(response);
 

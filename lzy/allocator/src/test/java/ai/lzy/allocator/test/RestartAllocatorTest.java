@@ -166,7 +166,7 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
         allocatorCtx.getBean(RestoreOperations.class); //calls restore after construction
 
         final String podName = createdPod.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
 
         var clusterId = requireNonNull(clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId();
         registerVm(vmId, clusterId);

@@ -1,6 +1,7 @@
 package ai.lzy.allocator.model;
 
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.v1.VmAllocatorApi;
 import jakarta.annotation.Nullable;
 
 import java.net.Inet6Address;
@@ -19,7 +20,7 @@ public record Vm(
     @Nullable DeletingState deleteState
 ) {
     public Vm(Spec spec, Status status, AllocateState allocateState) {
-        this(spec, status, new InstanceProperties(null, null), allocateState, null, null, null);
+        this(spec, status, new InstanceProperties(null, null, List.of()), allocateState, null, null, null);
     }
 
     @Override
@@ -54,16 +55,45 @@ public record Vm(
         int tunnelIndex
     ) { }
 
+    public record Endpoint(
+        Type type,
+        String value
+    ) {
+        public enum Type {
+            HOST_NAME,
+            EXTERNAL_IP,
+            INTERNAL_IP
+        }
+
+        public VmAllocatorApi.AllocateResponse.VmEndpoint toProto() {
+            final var typ = switch (type) {
+                case HOST_NAME -> VmAllocatorApi.AllocateResponse.VmEndpoint.VmEndpointType.HOST_NAME;
+                case EXTERNAL_IP -> VmAllocatorApi.AllocateResponse.VmEndpoint.VmEndpointType.EXTERNAL_IP;
+                case INTERNAL_IP -> VmAllocatorApi.AllocateResponse.VmEndpoint.VmEndpointType.INTERNAL_IP;
+            };
+
+            return VmAllocatorApi.AllocateResponse.VmEndpoint.newBuilder()
+                .setValue(value)
+                .setType(typ)
+                .build();
+        }
+    }
+
     public record InstanceProperties(
         @Nullable String tunnelPodName,
-        @Nullable String mountPodName
+        @Nullable String mountPodName,
+        List<Endpoint> endpoints
     ) {
         public InstanceProperties withTunnelPod(String tunnelPodName) {
-            return new InstanceProperties(tunnelPodName, mountPodName);
+            return new InstanceProperties(tunnelPodName, mountPodName, endpoints);
         }
 
         public InstanceProperties withMountPod(String mountPodName) {
-            return new InstanceProperties(tunnelPodName, mountPodName);
+            return new InstanceProperties(tunnelPodName, mountPodName, endpoints);
+        }
+
+        public InstanceProperties withEndpoints(List<Endpoint> endpoints) {
+            return new InstanceProperties(tunnelPodName, mountPodName, endpoints);
         }
     }
 
@@ -170,6 +200,11 @@ public record Vm(
 
     public Vm withAllocateState(AllocateState allocateState) {
         return new Vm(spec, status, instanceProperties, allocateState, runState, idleState, deleteState);
+    }
+
+    public Vm withEndpoints(List<Endpoint> endpoints) {
+        return new Vm(spec, status, instanceProperties.withEndpoints(endpoints), allocateState, runState, idleState,
+            deleteState);
     }
 
     public static final class Ref {

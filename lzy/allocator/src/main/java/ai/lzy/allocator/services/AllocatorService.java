@@ -9,14 +9,8 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.model.CachePolicy;
-import ai.lzy.allocator.model.DiskVolumeDescription;
 import ai.lzy.allocator.model.DynamicMount;
-import ai.lzy.allocator.model.HostPathVolumeDescription;
-import ai.lzy.allocator.model.NFSVolumeDescription;
-import ai.lzy.allocator.model.Session;
-import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.VolumeRequest;
-import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.util.AllocatorUtils;
 import ai.lzy.allocator.util.Errors;
@@ -31,14 +25,7 @@ import ai.lzy.util.grpc.ProtoConverter;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
-import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.FreeRequest;
-import ai.lzy.v1.VmAllocatorApi.FreeResponse;
+import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.VolumeApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.Any;
@@ -64,7 +51,10 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NODE_INSTANCE_ID_KEY;
@@ -338,19 +328,17 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                                 .setVmId(existingVm.vmId())
                                 .build());
 
-                        var endpoints = allocationContext.allocator().getVmEndpoints(existingVm.vmId(), tx);
-
                         var meta = existingVm.allocateState().allocatorMeta();
-                        var vmInstanceId = meta == null ? null : meta.get(NODE_INSTANCE_ID_KEY);
+                        var vmInstanceId = meta == null ? "null" : meta.get(NODE_INSTANCE_ID_KEY);
 
                         var builder = AllocateResponse.newBuilder()
                             .setSessionId(existingVm.sessionId())
                             .setPoolId(existingVm.poolLabel())
                             .setVmId(existingVm.vmId())
                             .putAllMetadata(requireNonNull(existingVm.runState()).vmMeta())
-                            .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId != null ? vmInstanceId : "null");
+                            .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId);
 
-                        for (var endpoint: endpoints) {
+                        for (var endpoint: existingVm.instanceProperties().endpoints()) {
                             builder.addEndpoints(endpoint.toProto());
                         }
 

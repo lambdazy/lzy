@@ -1,0 +1,2 @@
+ALTER TABLE vm
+    ADD COLUMN endpoints TEXT NOT NULL DEFAULT '[]';
