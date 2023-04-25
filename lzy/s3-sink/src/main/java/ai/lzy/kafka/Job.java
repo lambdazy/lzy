@@ -33,7 +33,7 @@ public class Job {
     private static final int BUFFER_SIZE = 1024 * 1024 * 5; // S3 multipart chunk must be at least 5Mb
 
     private final AtomicReference<State> state = new AtomicReference<>(State.Created);
-    private final KafkaS3Sink.SubmitRequest request;
+    private final KafkaS3Sink.StartRequest request;
     private final AtomicBoolean completed = new AtomicBoolean(false);
 
     private final List<CompletedPart> completedParts = new ArrayList<>();
@@ -74,7 +74,7 @@ public class Job {
         Completed
     }
 
-    public Job(KafkaHelper helper, KafkaS3Sink.SubmitRequest request) {
+    public Job(KafkaHelper helper, KafkaS3Sink.StartRequest request) {
         this.request = request;
 
         if (!request.getStorageConfig().hasS3()) {

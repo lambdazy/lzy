@@ -114,7 +114,7 @@ public class S3SinkTest{
         s3Client.createBucket("testsimple");
 
         writeIntoKafka(topic, "Some simple data");
-        var resp = stub.submit(KafkaS3Sink.SubmitRequest.newBuilder()
+        var resp = stub.start(KafkaS3Sink.StartRequest.newBuilder()
                 .setStorageConfig(LMST.StorageConfig.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint("localhost:12345")
@@ -128,7 +128,7 @@ public class S3SinkTest{
 
         var fut = executor.setupWaiter(resp.getJobId());
 
-        stub.complete(KafkaS3Sink.CompleteRequest.newBuilder()
+        stub.stop(KafkaS3Sink.StopRequest.newBuilder()
             .setJobId(resp.getJobId())
             .build());
 
@@ -138,13 +138,13 @@ public class S3SinkTest{
     }
 
     @Test
-    public void testWriteAfterSubmit() throws Exception {
-        var topic = "testWriteAfterSubmit";
-        s3Client.createBucket("testwriteaftersubmit");
+    public void testWriteAfterStart() throws Exception {
+        var topic = "testWriteAfterStart";
+        s3Client.createBucket("testwriteafterstart");
 
-        var uri = "s3://testwriteaftersubmit/a";
+        var uri = "s3://testwriteafterstart/a";
 
-        var resp = stub.submit(KafkaS3Sink.SubmitRequest.newBuilder()
+        var resp = stub.start(KafkaS3Sink.StartRequest.newBuilder()
             .setStorageConfig(LMST.StorageConfig.newBuilder()
                 .setS3(LMST.S3Credentials.newBuilder()
                     .setEndpoint("localhost:12345")
@@ -162,7 +162,7 @@ public class S3SinkTest{
         writeIntoKafka(topic, "2\n");
         writeIntoKafka(topic, "3\n");
 
-        stub.complete(KafkaS3Sink.CompleteRequest.newBuilder()
+        stub.stop(KafkaS3Sink.StopRequest.newBuilder()
             .setJobId(resp.getJobId())
             .build());
 
@@ -178,7 +178,7 @@ public class S3SinkTest{
 
         var uri = "s3://testlargedata/a";
 
-        var resp = stub.submit(KafkaS3Sink.SubmitRequest.newBuilder()
+        var resp = stub.start(KafkaS3Sink.StartRequest.newBuilder()
             .setStorageConfig(LMST.StorageConfig.newBuilder()
                 .setS3(LMST.S3Credentials.newBuilder()
                     .setEndpoint("localhost:12345")
@@ -201,7 +201,7 @@ public class S3SinkTest{
             writeIntoKafka(topic, largeString);
         }
 
-        stub.complete(KafkaS3Sink.CompleteRequest.newBuilder()
+        stub.stop(KafkaS3Sink.StopRequest.newBuilder()
             .setJobId(resp.getJobId())
             .build());
 
@@ -227,7 +227,7 @@ public class S3SinkTest{
 
         for (int i = 0; i < jobCount; i ++) {
 
-            var resp = stub.submit(KafkaS3Sink.SubmitRequest.newBuilder()
+            var resp = stub.start(KafkaS3Sink.StartRequest.newBuilder()
                 .setStorageConfig(LMST.StorageConfig.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint("localhost:12345")
@@ -259,12 +259,12 @@ public class S3SinkTest{
 
 
         for (int i = 0; i < jobCount; i ++) {  // Completing all jobs
-            stub.complete(KafkaS3Sink.CompleteRequest.newBuilder()
+            stub.stop(KafkaS3Sink.StopRequest.newBuilder()
                 .setJobId(ids.get(i))
                 .build());
         }
 
-        for (int i = 0; i < jobCount; i ++) {  // Waiting for all jobs to complete
+        for (int i = 0; i < jobCount; i ++) {  // Waiting for all jobs to stop
             futures.get(i).get();
         }
 

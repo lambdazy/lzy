@@ -1,10 +1,10 @@
 package ai.lzy.kafka;
 
 import ai.lzy.util.kafka.KafkaHelper;
-import ai.lzy.v1.kafka.KafkaS3Sink.CompleteRequest;
-import ai.lzy.v1.kafka.KafkaS3Sink.CompleteResponse;
-import ai.lzy.v1.kafka.KafkaS3Sink.SubmitRequest;
-import ai.lzy.v1.kafka.KafkaS3Sink.SubmitResponse;
+import ai.lzy.v1.kafka.KafkaS3Sink.StartRequest;
+import ai.lzy.v1.kafka.KafkaS3Sink.StartResponse;
+import ai.lzy.v1.kafka.KafkaS3Sink.StopRequest;
+import ai.lzy.v1.kafka.KafkaS3Sink.StopResponse;
 import ai.lzy.v1.kafka.S3SinkServiceGrpc;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -22,7 +22,7 @@ public class SinkServiceImpl extends S3SinkServiceGrpc.S3SinkServiceImplBase {
     }
 
     @Override
-    public void submit(SubmitRequest request, StreamObserver<SubmitResponse> responseObserver) {
+    public void start(StartRequest request, StreamObserver<StartResponse> responseObserver) {
         final Job job;
         try {
             job = new Job(helper, request);
@@ -34,17 +34,17 @@ public class SinkServiceImpl extends S3SinkServiceGrpc.S3SinkServiceImplBase {
 
         var id = executor.submit(job);
 
-        responseObserver.onNext(SubmitResponse.newBuilder()
+        responseObserver.onNext(StartResponse.newBuilder()
             .setJobId(id)
             .build());
         responseObserver.onCompleted();
     }
 
     @Override
-    public void complete(CompleteRequest request, StreamObserver<CompleteResponse> responseObserver) {
+    public void stop(StopRequest request, StreamObserver<StopResponse> responseObserver) {
         executor.complete(request.getJobId());
 
-        responseObserver.onNext(CompleteResponse.newBuilder().build());
+        responseObserver.onNext(StopResponse.newBuilder().build());
         responseObserver.onCompleted();
     }
 }

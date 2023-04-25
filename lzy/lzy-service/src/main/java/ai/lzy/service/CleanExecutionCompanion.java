@@ -488,7 +488,7 @@ public class CleanExecutionCompanion {
             }
 
             if (s3SinkClient.enabled()) {  // Completing job, it will delete topic
-                s3SinkClient.stub().complete(KafkaS3Sink.CompleteRequest.newBuilder()
+                s3SinkClient.stub().stop(KafkaS3Sink.StopRequest.newBuilder()
                     .setJobId(kafkaDesc.sinkTaskId())
                     .build());
             }
