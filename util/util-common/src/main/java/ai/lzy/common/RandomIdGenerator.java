@@ -4,7 +4,7 @@ import java.security.SecureRandom;
 import java.util.random.RandomGenerator;
 
 public class RandomIdGenerator implements IdGenerator {
-    private static final String SYMBOLS = "0123456789abcdefghijklmnopqrstuvwxyzABCBEFJHIGKLMNOPQRSTUVWXYZ";
+    private static final String SYMBOLS = "0123456789abcdefghijklmnopqrstuvwxyz";
     private static final RandomGenerator RND = new SecureRandom();
 
     public String generate(int length) {
