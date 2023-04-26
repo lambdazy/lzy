@@ -17,6 +17,7 @@ import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMST;
+import ai.lzy.v1.kafka.KafkaS3Sink;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -25,7 +26,10 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nullable;
 
+import java.nio.file.Path;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -323,7 +327,34 @@ final class StartExecutionCompanion {
             kafkaAdminClient.createUser(username, password);
             kafkaAdminClient.grantPermission(username, topicName);
 
-            var topicDesc = new KafkaTopicDesc(username, password, topicName);
+            final String sinkJobId;
+            var storageConfig = getState().getStorageConfig();
+            var formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy_HH.mm.ss");
+
+            if (owner.s3SinkClient.enabled() && storageConfig.hasS3()) {
+                var storagePath = storageConfig.getUri().substring("s3://".length());  // Removing s3 prefix
+
+                var path = Path.of(storagePath)
+                    .resolve("logs")
+                    .resolve(formatter.format(LocalDateTime.now()) + state.getExecutionId() + ".log");
+
+                var uri = "s3://" + path;
+
+                LOG.info("Starting remote job on s3-sink, topic: {}, bucket: {}", topicName, storageConfig.getUri());
+                var resp = owner.s3SinkClient.stub().start(KafkaS3Sink.StartRequest.newBuilder()
+                    .setTopicName(topicName)
+                    .setStorageConfig(LMST.StorageConfig.newBuilder()
+                        .setUri(uri)
+                        .setS3(storageConfig.getS3())
+                        .build())
+                    .build());
+
+                sinkJobId = resp.getJobId();
+            } else {
+                sinkJobId = null;
+            }
+
+            var topicDesc = new KafkaTopicDesc(username, password, topicName, sinkJobId);
 
             withRetries(LOG, () -> owner.executionDao.setKafkaTopicDesc(state.getExecutionId(), topicDesc, null));
         } catch (Exception e) {

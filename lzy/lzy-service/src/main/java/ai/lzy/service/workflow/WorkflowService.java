@@ -70,6 +70,7 @@ public class WorkflowService {
 
     final SubjectServiceGrpcClient subjectClient;
     final AccessBindingServiceGrpcClient abClient;
+    final BeanFactory.S3SinkClient s3SinkClient;
 
     private final CleanExecutionCompanion cleanExecutionCompanion;
     final ExecutionDao executionDao;
@@ -86,7 +87,7 @@ public class WorkflowService {
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel,
                            @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
-                           LzyServiceMetrics metrics,
+                           LzyServiceMetrics metrics, BeanFactory.S3SinkClient s3SinkClient,
                            KafkaAdminClient kafkaAdminClient, KafkaLogsListeners kafkaLogsListeners)
     {
         allocationTimeout = config.getWaitAllocationTimeout();
@@ -103,6 +104,7 @@ public class WorkflowService {
         this.executionDao = executionDao;
 
         this.cleanExecutionCompanion = cleanExecutionCompanion;
+        this.s3SinkClient = s3SinkClient;
         this.kafkaAdminClient = kafkaAdminClient;
         this.kafkaLogsListeners = kafkaLogsListeners;
         this.allocatorClient = newBlockingClient(

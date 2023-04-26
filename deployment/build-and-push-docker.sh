@@ -36,6 +36,7 @@ build_image portal lzy/portal
 build_image scheduler lzy/scheduler
 build_image storage lzy/storage
 build_image whiteboard lzy/whiteboard
+build_image s3-sink lzy/s3-sink
 
 for IMAGE in $IMAGES; do
     echo "Pushing $IMAGE"

@@ -118,5 +118,14 @@ variable "domain_name" {
 
 variable "enable_kafka" {
   type = bool
-  default = false
+  default = true
+}
+
+variable "s3_sink_enabled" {
+  type = bool
+  default = true
+}
+
+variable "s3-sink-image" {
+  type = string
 }

@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package ai.lzy.v1.kafka;
+
+option java_outer_classname = "KafkaS3Sink";
+option java_package = "ai.lzy.v1.kafka";
+
+import "ai/lzy/v1/common/storage.proto";
+
+service S3SinkService {
+  // Submit job to upload to storage
+  rpc Start(StartRequest) returns (StartResponse);
+
+
+  // Complete job.
+  // Service will upload all not synced data to storage and then cancel job.
+  // If you do not call this method, the job will always poll kafka to get data.
+  rpc Stop(StopRequest) returns (StopResponse);
+}
+
+// ================ Submit =================
+
+message StartRequest {
+  common.StorageConfig storage_config = 1;
+  string topic_name = 2;
+}
+
+message StartResponse {
+  string job_id = 1;
+}
+
+// ================ Complete =================
+
+message StopRequest {
+  string job_id = 1;
+}
+
+message StopResponse {}
