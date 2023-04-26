@@ -43,10 +43,10 @@ public interface VmAllocator {
 
         public static Result fromGrpcStatus(Status status) {
             return switch (status.getCode()) {
-                case UNAVAILABLE, INTERNAL, RESOURCE_EXHAUSTED, UNKNOWN, ABORTED, DEADLINE_EXCEEDED, CANCELLED,
-                    NOT_FOUND -> VmAllocator.Result.RETRY_LATER.withReason(status.getDescription());
-                case INVALID_ARGUMENT, FAILED_PRECONDITION, PERMISSION_DENIED, UNAUTHENTICATED, UNIMPLEMENTED,
-                    OUT_OF_RANGE, DATA_LOSS -> VmAllocator.Result.FAILED.withReason(status.getDescription());
+                case UNAVAILABLE, INTERNAL, RESOURCE_EXHAUSTED, ABORTED, DEADLINE_EXCEEDED
+                    -> VmAllocator.Result.RETRY_LATER.withReason(status.getDescription());
+                case CANCELLED, INVALID_ARGUMENT, FAILED_PRECONDITION, PERMISSION_DENIED, UNAUTHENTICATED, UNKNOWN,
+                    NOT_FOUND, UNIMPLEMENTED, OUT_OF_RANGE, DATA_LOSS -> VmAllocator.Result.FAILED.withReason(status.getDescription());
                 case OK, ALREADY_EXISTS -> VmAllocator.Result.SUCCESS;
             };
         }

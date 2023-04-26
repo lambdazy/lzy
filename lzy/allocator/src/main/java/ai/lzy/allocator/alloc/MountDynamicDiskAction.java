@@ -1,12 +1,7 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.alloc.impl.kuber.MountHolderManager;
-import ai.lzy.allocator.model.ClusterPod;
-import ai.lzy.allocator.model.DynamicMount;
-import ai.lzy.allocator.model.PodPhase;
-import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.Volume;
-import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.volume.VolumeManager;
@@ -120,7 +115,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         } catch (KubernetesClientException e) {
             log().error("{} Couldn't create volume for {}", logPrefix(), dynamicMount.volumeRequest(), e);
             if (KuberUtils.isNotRetryable(e)) {
-                fail(Status.ABORTED.withDescription("Couldn't create volume"));
+                fail(Status.CANCELLED.withDescription("Couldn't create volume"));
                 return StepResult.FINISH;
             }
             return StepResult.RESTART;
@@ -139,7 +134,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         } catch (KubernetesClientException e) {
             log().error("{} Couldn't create volume claim for {}", logPrefix(), volume.name(), e);
             if (KuberUtils.isNotRetryable(e)) {
-                fail(Status.ABORTED.withDescription("Couldn't create volume claim"));
+                fail(Status.CANCELLED.withDescription("Couldn't create volume claim"));
                 return StepResult.FINISH;
             }
             return StepResult.RESTART;
@@ -163,7 +158,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
                 update, null));
         } catch (Exception e) {
             log().error("{} Couldn't set volume info", logPrefix(), e);
-            fail(Status.ABORTED.withDescription("Couldn't set volume info"));
+            fail(Status.CANCELLED.withDescription("Couldn't set volume info"));
             return StepResult.FINISH;
         }
         return StepResult.CONTINUE;
@@ -189,7 +184,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         } catch (KubernetesClientException e) {
             log().error("{} Couldn't attach mount {} to pod {}", logPrefix(), dynamicMount.id(), mountPodName, e);
             if (KuberUtils.isNotRetryable(e)) {
-                fail(Status.ABORTED.withDescription("Couldn't attach mount " + dynamicMount.id() + " to pod " +
+                fail(Status.CANCELLED.withDescription("Couldn't attach mount " + dynamicMount.id() + " to pod " +
                     mountPodName + ": " + e.getMessage()));
                 return StepResult.FINISH;
             }
@@ -209,7 +204,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         } catch (KubernetesClientException e) {
             log().error("{} Couldn't check pod {} phase", logPrefix(), mountPod, e);
             if (KuberUtils.isNotRetryable(e)) {
-                fail(Status.ABORTED.withDescription("Couldn't check pod " + mountPod.podName() + " phase: " +
+                fail(Status.CANCELLED.withDescription("Couldn't check pod " + mountPod.podName() + " phase: " +
                     e.getMessage()));
                 return StepResult.FINISH;
             }
@@ -236,7 +231,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             var freshVm = withRetries(log(), () -> allocationContext.vmDao().get(vm.vmId(), null));
             if (freshVm == null) {
                 log().info("{} Vm {} is deleted", logPrefix(), vm.vmId());
-                fail(Status.ABORTED.withDescription("Vm " + vm.vmId() + " is deleted"));
+                fail(Status.CANCELLED.withDescription("Vm " + vm.vmId() + " is deleted"));
                 return StepResult.FINISH;
             }
             switch (freshVm.status()) {
@@ -252,7 +247,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             }
         } catch (Exception e) {
             log().error("{} Couldn't get vm {}", logPrefix(), vm.vmId(), e);
-            fail(Status.ABORTED.withDescription("Couldn't get vm " + vm.vmId() + ": " + e.getMessage()));
+            fail(Status.CANCELLED.withDescription("Couldn't get vm " + vm.vmId() + ": " + e.getMessage()));
             return StepResult.FINISH;
         }
         return StepResult.CONTINUE;
@@ -279,7 +274,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             });
         } catch (Exception e) {
             log().error("{} Couldn't update mount {} state", logPrefix(), dynamicMount.id(), e);
-            fail(Status.ABORTED.withDescription("Couldn't update mount " + dynamicMount.id() + " state: " +
+            fail(Status.CANCELLED.withDescription("Couldn't update mount " + dynamicMount.id() + " state: " +
                 e.getMessage()));
             return StepResult.FINISH;
         }

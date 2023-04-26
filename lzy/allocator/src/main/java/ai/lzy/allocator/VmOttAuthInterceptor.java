@@ -49,7 +49,7 @@ final class VmOttAuthInterceptor implements ServerInterceptor {
 
         var decodedOtt = OttHelper.decodeOtt(credentials);
 
-        LOG.debug("Authenticate VM by OTT: {}...", decodedOtt.toStringSafe());
+        LOG.info("Authenticate VM by OTT: {}", decodedOtt.toStringSafe());
 
         String vmId;
         try {
