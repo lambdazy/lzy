@@ -312,6 +312,20 @@ final class StartExecutionCompanion {
     }
 
     public void createKafkaTopic(KafkaAdminClient kafkaAdminClient) {
+
+        final KafkaTopicDesc desc;
+        try {
+            desc = withRetries(LOG, () -> owner.executionDao.getKafkaTopicDesc(state.getExecutionId(), null));
+        } catch (Exception e) {
+            LOG.error("Cannot get topic from db. executionId: {}", state.getExecutionId(), e);
+            state.fail(Status.INTERNAL, "Cannot create kafka topic");
+            return;
+        }
+
+        if (desc != null) {  // Idempotency support, topic already exists
+            return;
+        }
+
         var topicName = "topic_" + state.getExecutionId() + ".logs";
         var username = "user_" + state.getExecutionId().replace("-", "_");
         var password = UUID.randomUUID().toString();
@@ -327,7 +341,7 @@ final class StartExecutionCompanion {
 
             withRetries(LOG, () -> owner.executionDao.setKafkaTopicDesc(state.getExecutionId(), topicDesc, null));
         } catch (Exception e) {
-            LOG.error("Cannot save kafka topic data in db for execution {}", state.getExecutionId(), e);
+            LOG.error("Cannot create kafka topic for execution {}", state.getExecutionId(), e);
             state.fail(Status.INTERNAL, "Cannot create kafka topic");
 
             try {
