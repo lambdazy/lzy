@@ -16,8 +16,8 @@
     </distributionManagement>
 
     <properties>
-        <revision>1.11</revision>
-        <changelist>-SNAPSHOT</changelist>
+        <revision>1.11.0</revision>
+        <changelist></changelist>
 
         <java.version>17</java.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
