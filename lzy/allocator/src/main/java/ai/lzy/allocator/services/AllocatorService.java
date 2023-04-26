@@ -13,8 +13,8 @@ import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.util.AllocatorUtils;
-import ai.lzy.allocator.util.Errors;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.Errors;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
@@ -655,17 +655,32 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return;
         }
 
+        final DynamicMount mount;
+        try {
+            mount = withRetries(LOG, () -> allocationContext.dynamicMountDao().get(request.getMountId(), false, null));
+        } catch (Exception e) {
+            LOG.error("Cannot get mount {}: {}", request.getMountId(), e.getMessage(), e);
+            responseObserver.onError(Status.INTERNAL.withDescription("Error while get mount").asException());
+            return;
+        }
+        try {
+            validateMountForDeletion(request, mount);
+        } catch (StatusRuntimeException e) {
+            responseObserver.onError(e);
+            return;
+        }
+
         final Vm vm;
         try {
-            vm = withRetries(LOG, () -> vmDao.get(request.getVmId(), null));
+            vm = withRetries(LOG, () -> vmDao.get(mount.vmId(), null));
         } catch (Exception ex) {
-            LOG.error("Cannot get vm {}: {}", request.getVmId(), ex.getMessage(), ex);
+            LOG.error("Cannot get vm {}: {}", mount.vmId(), ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return;
         }
 
         if (vm == null) {
-            LOG.error("Cannot find vm {}", request.getVmId());
+            LOG.error("Cannot find vm {}", mount.vmId());
             responseObserver.onError(Status.NOT_FOUND.withDescription("Cannot find vm").asException());
             return;
         }
@@ -691,7 +706,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
                     var dynamicMount = allocationContext.dynamicMountDao().get(request.getMountId(),
                         true, tx);
-                    validateMountForDeletion(request, vm, dynamicMount);
+                    validateMountForDeletion(request, dynamicMount);
                     var unmountAction = allocationContext.createUnmountAction(vm, dynamicMount,
                         idempotencyKey, session.owner(), tx);
                     sessionsDao.touch(session.sessionId(), tx);
@@ -703,39 +718,31 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             responseObserver.onNext(action.getRight().toProto());
             responseObserver.onCompleted();
         } catch (StatusRuntimeException e) {
-            LOG.error("Error while unmount // vm {}: {}", request.getVmId(), e.getMessage(), e);
+            LOG.error("Error while unmount // vm {}: {}", mount.vmId(), e.getMessage(), e);
             responseObserver.onError(e);
         } catch (Exception e) {
-            LOG.error("Error while unmount // vm {}: {}", request.getVmId(), e.getMessage(), e);
+            LOG.error("Error while unmount // vm {}: {}", mount.vmId(), e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withDescription("Unexpected error: " + e.getMessage())
                 .asException());
         }
     }
 
-    private static void validateMountForDeletion(VmAllocatorApi.UnmountRequest request, Vm vm,
-                                                 DynamicMount dynamicMount)
-    {
+    private static void validateMountForDeletion(VmAllocatorApi.UnmountRequest request, DynamicMount dynamicMount) {
         if (dynamicMount == null) {
             throw Status.NOT_FOUND
                 .withDescription("Mount with id %s not found".formatted(request.getMountId()))
                 .asRuntimeException();
         }
-        if (!vm.vmId().equals(dynamicMount.vmId())) {
-            throw Status.FAILED_PRECONDITION
-                .withDescription("Mount with id %s does not belong to vm %s".formatted(dynamicMount.id(),
-                    vm.vmId()))
-                .asRuntimeException();
-        }
+        var errors = Errors.create();
         if (dynamicMount.state() != DynamicMount.State.READY) {
-            throw Status.FAILED_PRECONDITION
-                .withDescription("Mount with id %s is in wrong state: %s".formatted(dynamicMount.id(),
-                    dynamicMount.state()))
-                .asRuntimeException();
+            errors.add("Mount with id %s is in wrong state: %s. Expected state: %s".formatted(dynamicMount.id(),
+                dynamicMount.state(), DynamicMount.State.READY));
         }
         if (dynamicMount.unmountOperationId() != null) {
-            throw Status.FAILED_PRECONDITION
-                .withDescription("Mount with id %s is already unmounting".formatted(dynamicMount.id()))
-                .asRuntimeException();
+            errors.add("Mount with id %s is already unmounting".formatted(dynamicMount.id()));
+        }
+        if (errors.hasErrors()) {
+            throw errors.toStatusRuntimeException(Status.Code.FAILED_PRECONDITION);
         }
     }
 
@@ -929,9 +936,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                                            StreamObserver<LongRunning.Operation> response)
     {
         var errors = Errors.create();
-        if (request.getVmId().isBlank()) {
-            errors.add("vm_id isn't set");
-        }
         if (request.getMountId().isBlank()) {
             errors.add("mount_id isn't set");
         }

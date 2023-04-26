@@ -2,43 +2,15 @@ package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.model.DynamicMount;
-import ai.lzy.allocator.model.HostPathVolumeDescription;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.Volume.AccessMode;
-import ai.lzy.allocator.model.VolumeClaim;
-import ai.lzy.allocator.model.VolumeRequest;
-import ai.lzy.allocator.model.Workload;
-import io.fabric8.kubernetes.api.model.AffinityBuilder;
-import io.fabric8.kubernetes.api.model.Container;
-import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
-import io.fabric8.kubernetes.api.model.EmptyDirVolumeSource;
-import io.fabric8.kubernetes.api.model.EnvVar;
-import io.fabric8.kubernetes.api.model.EnvVarBuilder;
-import io.fabric8.kubernetes.api.model.EnvVarSourceBuilder;
-import io.fabric8.kubernetes.api.model.HostPathVolumeSource;
-import io.fabric8.kubernetes.api.model.HostPathVolumeSourceBuilder;
-import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
-import io.fabric8.kubernetes.api.model.LabelSelectorRequirementBuilder;
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodAffinityBuilder;
-import io.fabric8.kubernetes.api.model.PodAffinityTerm;
-import io.fabric8.kubernetes.api.model.PodAffinityTermBuilder;
-import io.fabric8.kubernetes.api.model.PodAntiAffinityBuilder;
-import io.fabric8.kubernetes.api.model.SecurityContext;
-import io.fabric8.kubernetes.api.model.Toleration;
 import io.fabric8.kubernetes.api.model.Volume;
-import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
-import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class PodSpecBuilder {
@@ -269,7 +241,7 @@ public class PodSpecBuilder {
     public PodSpecBuilder withDynamicVolumes(List<DynamicMount> volumeMounts) {
         for (DynamicMount volumeMount : volumeMounts) {
             final var volume = new VolumeBuilder()
-                .withName(volumeMount.volumeName())
+                .withName(volumeMount.id())
                 .withPersistentVolumeClaim(new PersistentVolumeClaimVolumeSource(volumeMount.volumeClaimName(), false))
                 .build();
             final String volumeRequestName = volumeMount.id();
