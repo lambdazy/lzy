@@ -323,6 +323,7 @@ final class StartExecutionCompanion {
         }
 
         if (desc != null) {  // Idempotency support, topic already exists
+            LOG.warn("Topic for execution (executionId: {}) already exists, reusing it", state.getExecutionId());
             return;
         }
 
