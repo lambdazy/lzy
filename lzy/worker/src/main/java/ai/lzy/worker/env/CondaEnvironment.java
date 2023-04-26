@@ -4,7 +4,6 @@ import ai.lzy.v1.common.LME;
 import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
-import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
@@ -12,11 +11,8 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -25,6 +21,8 @@ import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+
+import static ai.lzy.worker.env.AuxEnvironment.installLocalModules;
 
 public class CondaEnvironment implements AuxEnvironment {
     private static volatile boolean RECONFIGURE_CONDA = true;  // Only for tests
@@ -64,13 +62,7 @@ public class CondaEnvironment implements AuxEnvironment {
         return baseEnv;
     }
 
-    private void extractFiles(File file, String destinationDirectory) throws IOException {
-        LOG.info("CondaEnvironment::extractFiles trying to unzip module archive "
-            + file.getAbsolutePath());
-        try (ZipFile zipFile = new ZipFile(file.getAbsolutePath())) {
-            zipFile.extractAll(destinationDirectory);
-        }
-    }
+
 
     public void install(StreamQueue.LogHandle logHandle) throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
@@ -127,32 +119,12 @@ public class CondaEnvironment implements AuxEnvironment {
                 }
             }
 
-            Path localModulesPath = Path.of(this.localModulesPathPrefix, UUID.randomUUID().toString());
             try {
-                Files.createDirectories(localModulesPath);
+                this.localModulesAbsolutePath = installLocalModules(pythonEnv, localModulesPathPrefix, LOG);
             } catch (IOException e) {
-                String errorMessage = "Failed to create directory to download local modules into;\n"
-                    + "  Directory name: " + localModulesPath + "\n";
+                String errorMessage = "Failed to install local modules";
                 LOG.error(errorMessage);
                 throw new EnvironmentInstallationException(errorMessage);
-            }
-            this.localModulesAbsolutePath = localModulesPath.toAbsolutePath();
-
-            LOG.info("CondaEnvironment::installPyenv created directory to download local modules into");
-            for (var entry : pythonEnv.getLocalModulesList()) {
-                String name = entry.getName();
-                String url = entry.getUri();
-                LOG.info(
-                    "CondaEnvironment::installPyenv installing local module with name " + name + " and url " + url);
-
-                File tempFile = File.createTempFile("tmp-file", ".zip");
-
-                try (InputStream in = new URL(url).openStream()) {
-                    Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-                }
-
-                extractFiles(tempFile, localModulesAbsolutePath.toString());
-                tempFile.deleteOnExit();
             }
         } catch (IOException | InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
@@ -174,11 +146,6 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command) {
         return execInEnv(command, null);
-    }
-
-    @Override
-    public LzyProcess runProcess(String... command) {
-        return runProcess(command, null);
     }
 
     @Override

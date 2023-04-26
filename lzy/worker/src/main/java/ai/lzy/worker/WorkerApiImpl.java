@@ -96,14 +96,14 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             logHandle.addErrOutput(generateStdOutputStream(tid, stderrSpec));
             logHandle.addOutOutput(generateStdOutputStream(tid, stdoutSpec));
 
-            LOG.info("Configuring worker");
+            logHandle.logErr("Configuring worker");
 
-            final AuxEnvironment env = envFactory.create(tid, lzyFs.getMountPoint().toString(),
-                request.getTaskDesc().getOperation().getEnv());
+            final AuxEnvironment env;
 
             try {
-                env.base().install(logHandle);
-                env.install(logHandle);
+                env = envFactory.create(tid, lzyFs.getMountPoint().toString(),
+                    request.getTaskDesc().getOperation().getEnv(), logHandle);
+
             } catch (EnvironmentInstallationException e) {
                 LOG.error("Unable to install environment", e);
 

@@ -2,6 +2,7 @@ package ai.lzy.worker;
 
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMO.KafkaTopicDescription;
+import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -215,7 +216,7 @@ public class StreamQueue extends Thread {
         @Nullable String string
     ) {}
 
-    public static class LogHandle implements AutoCloseable {
+    public static class LogHandleImpl implements LogHandle {
         private static final String PREFIX = "[SYS] ";
         private final Logger logger;
         private final StreamQueue outQueue;
@@ -223,24 +224,13 @@ public class StreamQueue extends Thread {
         private final ArrayList<CompletableFuture<Void>> futures = new ArrayList<>();
 
 
-        public LogHandle(StreamQueue outQueue, StreamQueue errQueue, Logger logger) {
+        public LogHandleImpl(StreamQueue outQueue, StreamQueue errQueue, Logger logger) {
             this.logger = logger;
             this.outQueue = outQueue;
             this.errQueue = errQueue;
         }
 
-        public static LogHandle fromTopicDesc(Logger logger, String taskId, @Nullable KafkaTopicDescription topicDesc,
-                                              @Nullable KafkaHelper helper)
-        {
-            var outQueue = new StreamQueue(topicDesc, logger, taskId, "out", helper);
-            outQueue.start();
-
-            var errQueue = new StreamQueue(topicDesc, logger, taskId, "err", helper);
-            errQueue.start();
-
-            return new LogHandle(outQueue, errQueue, logger);
-        }
-
+        @Override
         public void logOut(String pattern, Object... values) {
             var formatted  = PREFIX + new FormattedMessage(pattern, values) + "\n";
 
@@ -248,12 +238,14 @@ public class StreamQueue extends Thread {
             futures.add(outQueue.add(formatted));
         }
 
+        @Override
         public CompletableFuture<Void> logOut(InputStream stream) {
             var fut = outQueue.add(stream);
             futures.add(fut);
             return fut;
         }
 
+        @Override
         public void logErr(String pattern, Object... values) {
             var formatted  = PREFIX + new FormattedMessage(pattern, values) + "\n";
 
@@ -261,16 +253,19 @@ public class StreamQueue extends Thread {
             futures.add(errQueue.add(formatted));
         }
 
+        @Override
         public CompletableFuture<Void> logErr(InputStream stream) {
             var fut = errQueue.add(stream);
             futures.add(fut);
             return fut;
         }
 
+        @Override
         public void addErrOutput(OutputStream stream) {
             errQueue.add(stream);
         }
 
+        @Override
         public void addOutOutput(OutputStream stream) {
             outQueue.add(stream);
         }
@@ -286,6 +281,65 @@ public class StreamQueue extends Thread {
             } catch (InterruptedException | ExecutionException e) {
                 logger.error("Cannot close out/error streams: ", e);
             }
+        }
+    }
+
+    public interface LogHandle extends AutoCloseable {
+        void logOut(String pattern, Object... values);
+
+        CompletableFuture<Void> logOut(InputStream stream);
+
+        void logErr(String pattern, Object... values);
+
+        CompletableFuture<Void> logErr(InputStream stream);
+
+        void addErrOutput(OutputStream stream);
+
+        void addOutOutput(OutputStream stream);
+
+        static LogHandle fromTopicDesc(Logger logger, String taskId, @Nullable KafkaTopicDescription topicDesc,
+                                              @Nullable KafkaHelper helper)
+        {
+            var outQueue = new StreamQueue(topicDesc, logger, taskId, "out", helper);
+            outQueue.start();
+
+            var errQueue = new StreamQueue(topicDesc, logger, taskId, "err", helper);
+            errQueue.start();
+
+            return new LogHandleImpl(outQueue, errQueue, logger);
+        }
+
+        void close();
+
+        @VisibleForTesting
+        static LogHandle empty() {
+            return new LogHandle() {
+
+                @Override
+                public void close() {}
+
+                @Override
+                public void logOut(String pattern, Object... values) {}
+
+                @Override
+                public CompletableFuture<Void> logOut(InputStream stream) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public void logErr(String pattern, Object... values) {}
+
+                @Override
+                public CompletableFuture<Void> logErr(InputStream stream) {
+                    return CompletableFuture.completedFuture(null);
+                }
+
+                @Override
+                public void addErrOutput(OutputStream stream) {}
+
+                @Override
+                public void addOutOutput(OutputStream stream) {}
+            };
         }
     }
 }

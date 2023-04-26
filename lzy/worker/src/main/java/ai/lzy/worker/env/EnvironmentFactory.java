@@ -2,13 +2,17 @@ package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
 import ai.lzy.worker.ServiceConfig;
+import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import jakarta.inject.Singleton;
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -30,7 +34,9 @@ public class EnvironmentFactory {
         this.hasGpu = config.getGpuCount() > 0;
     }
 
-    public AuxEnvironment create(String taskId, String fsRoot, LME.EnvSpec env) {
+    public AuxEnvironment create(String taskId, String fsRoot, LME.EnvSpec env, StreamQueue.LogHandle logHandle)
+        throws EnvironmentInstallationException
+    {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
@@ -78,15 +84,55 @@ public class EnvironmentFactory {
             baseEnv = localProcessEnv.withEnv(env.getEnvMap());
         }
 
+        baseEnv.install(logHandle);
+        final AuxEnvironment auxEnv;
+
         if (env.hasPyenv()) {
-            return new CondaEnvironment(env.getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
+            var proc = baseEnv.runProcess("conda", "--version");
+            final int res;
+
+            try {
+                res = proc.waitFor();
+            } catch (InterruptedException e) {
+                LOG.error("Installation of environment interrupted", e);
+                throw new EnvironmentInstallationException("Installation of environment interrupted");
+            }
+
+            if (res != 0) {
+                String err;
+                try {
+                    err = IOUtils.toString(proc.err(), StandardCharsets.UTF_8);
+                } catch (IOException e) {
+                    LOG.error("Cannot get error of getting conda version: ", e);
+                    err = "";
+                }
+
+                LOG.error("Cannot find conda in provided env, rc={}, env={}: {}", res, env, err);
+                auxEnv = new SimplePythonEnvironment(baseEnv, env.getPyenv(), LOCAL_MODULES_PATH);
+            } else {
+                final String out;
+
+                try {
+                    out = IOUtils.toString(proc.out(), StandardCharsets.UTF_8);
+                    LOG.info("Using conda with version \"{}\"", out);
+                } catch (IOException e) {
+                    LOG.error("Cannot find conda version", e);
+                }
+
+                auxEnv = new CondaEnvironment(env.getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
+            }
+
         } else if (env.hasProcessEnv()) {
-            return new SimpleBashEnvironment(taskId, baseEnv, Map.of());
+            auxEnv = new SimpleBashEnvironment(taskId, baseEnv, Map.of());
         } else {
             LOG.error("Error while creating env: undefined env");
             throw Status.UNIMPLEMENTED.withDescription("Provided unsupported env")
                 .asRuntimeException();
         }
+
+        auxEnv.install(logHandle);
+
+        return auxEnv;
     }
 
     @VisibleForTesting

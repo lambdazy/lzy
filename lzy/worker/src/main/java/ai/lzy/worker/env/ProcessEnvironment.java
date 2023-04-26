@@ -29,11 +29,6 @@ public class ProcessEnvironment extends BaseEnvironment {
     public void install(StreamQueue.LogHandle logHandle) {}
 
     @Override
-    public LzyProcess runProcess(String... command) {
-        return runProcess(String.join(" ", command), null);
-    }
-
-    @Override
     public LzyProcess runProcess(String[] command, String[] envp) {
         envp = inheritEnvp(envp);
 
