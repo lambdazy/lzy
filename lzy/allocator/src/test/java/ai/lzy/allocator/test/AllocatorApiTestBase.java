@@ -303,10 +303,14 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath) {
+        return awaitResourceCreate(resourceType, resourcePath, HttpURLConnection.HTTP_CREATED);
+    }
+
+    protected <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath, int statusCode) {
         final var future = new CompletableFuture<T>();
         kubernetesServer.expect().post()
             .withPath(resourcePath)
-            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+            .andReply(statusCode, (req) -> {
                 final var resource = Serialization.unmarshal(
                     new ByteArrayInputStream(req.getBody().readByteArray()), resourceType, Map.of());
                 future.complete(resource);

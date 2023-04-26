@@ -5,6 +5,8 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.impl.kuber.KuberMountHolderManager;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.*;
+import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VolumeApi;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -15,12 +17,15 @@ import io.fabric8.kubernetes.api.model.PodStatusBuilder;
 import io.fabric8.kubernetes.client.server.mock.OutputStreamMessage;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import jakarta.validation.constraints.NotNull;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.sql.SQLException;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -34,6 +39,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     public static final String HOST_MOUNT_POINT = "/mnt/host";
     private VmDao vmDao;
     private DynamicMountDao dynamicMountDao;
+    private OperationDao operationDao;
 
     @Before
     public void before() throws IOException {
@@ -41,6 +47,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
 
         vmDao = allocatorCtx.getBean(VmDao.class);
         dynamicMountDao = allocatorCtx.getBean(DynamicMountDao.class);
+        operationDao = allocatorCtx.getBean(OperationDao.class);
     }
 
     @After
@@ -174,6 +181,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var mountPodName = vm.instanceProperties().mountPodName();
         Assert.assertNotNull(mountPodName);
 
+        createReadyMount(vm, allocatedVm.allocationOpId());
+
         var pv = awaitResourceCreate(PersistentVolume.class, PERSISTENT_VOLUME_PATH);
         var pvc = awaitResourceCreate(PersistentVolumeClaim.class, PERSISTENT_VOLUME_CLAIM_PATH);
         mockDeletePodByName(mountPodName, 200);
@@ -218,7 +227,71 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertNull(updatedMount.unmountOperationId());
 
         var updatedVm = vmDao.get(vm.vmId(), null);
-        Assert.assertEquals(getName(updatedMountPod.get()), updatedVm.instanceProperties().mountPodName());
+        var mountPod = updatedMountPod.get();
+        Assert.assertEquals(getName(mountPod), updatedVm.instanceProperties().mountPodName());
+
+        Assert.assertEquals(3, mountPod.getSpec().getVolumes().size());
+        Assert.assertEquals(3, mountPod.getSpec().getContainers().get(0).getVolumeMounts().size());
+    }
+
+    @Test
+    public void mountShouldNotFailOnExistingVolumes() throws Exception {
+        var sessionId = createSession(Durations.fromDays(10));
+        var allocatedVm = allocateWithMountPod(sessionId);
+        var vm = vmDao.get(allocatedVm.vmId(), null);
+        var mountPodName = vm.instanceProperties().mountPodName();
+
+        var pv = awaitResourceCreate(PersistentVolume.class, PERSISTENT_VOLUME_PATH,
+            HttpURLConnection.HTTP_CONFLICT);
+        var pvc = awaitResourceCreate(PersistentVolumeClaim.class, PERSISTENT_VOLUME_CLAIM_PATH,
+            HttpURLConnection.HTTP_CONFLICT);
+        mockDeletePodByName(mountPodName, 200);
+        var updatedMountPod = mockCreatePod();
+        updatedMountPod.thenAccept(pod -> {
+            pod.setStatus(new PodStatusBuilder()
+                .withPhase(PodPhase.RUNNING.getPhase())
+                .build());
+            mockGetPodByName(pod);
+        });
+        var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
+        waitOpSuccess(mountOp);
+    }
+
+    @Test
+    public void unmountNotFound() {
+        var exception = Assert.assertThrows(StatusRuntimeException.class, () -> unmountDisk("foo"));
+        Assert.assertEquals(Status.NOT_FOUND.getCode(), exception.getStatus().getCode());
+        Assert.assertTrue(exception.getMessage().contains("Mount with id foo not found"));
+    }
+
+    @Test
+    public void unmountValidation() throws Exception {
+        var operation = Operation.create("foo", "bar", null, null);
+        operationDao.create(operation, null);
+
+        var mountPath = WORKER_MOUNT_POINT + "/foo";
+        var dynamicMount = DynamicMount.createNew(null, "foo", "disk-42",
+            mountPath, new VolumeRequest(UUID.randomUUID().toString(),
+                new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42)),
+            operation.id(), "allocator-0");
+        dynamicMountDao.create(dynamicMount, null);
+        var volumeClaimName = "claim-42";
+        var volumeName = "volume-42";
+        var update = DynamicMount.Update.builder()
+            .volumeClaimName(volumeClaimName)
+            .volumeName(volumeName)
+            .state(DynamicMount.State.DELETING)
+            .unmountOperationId(operation.id())
+            .build();
+        dynamicMountDao.update(dynamicMount.id(), update, null);
+        var exception = Assert.assertThrows(StatusRuntimeException.class,
+            () -> unmountDisk(dynamicMount.id()));
+        Assert.assertEquals(Status.FAILED_PRECONDITION.getCode(), exception.getStatus().getCode());
+        Assert.assertTrue(exception.getMessage()
+            .contains("Mount with id %s is in wrong state: %s. Expected state: READY".formatted(dynamicMount.id(),
+                DynamicMount.State.DELETING)));
+        Assert.assertTrue(exception.getMessage()
+            .contains("Mount with id %s is already unmounting".formatted(dynamicMount.id())));
     }
 
     @Test
@@ -256,12 +329,87 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> {}, 200);
         mockDeleteResource(PERSISTENT_VOLUME_PATH, volumeName, () -> {}, 200);
         mockUnmountCall(allocatedVm.podName(), dynamicMount.mountPath());
-        var unmountOp = unmountDisk(vm.vmId(), dynamicMount.id());
+        var unmountOp = unmountDisk(dynamicMount.id());
 
         waitOpSuccess(unmountOp);
 
         var updatedVm = vmDao.get(vm.vmId(), null);
-        Assert.assertEquals(getName(updatedMountPod.get()), updatedVm.instanceProperties().mountPodName());
+        var mountPod = updatedMountPod.get();
+        Assert.assertEquals(getName(mountPod), updatedVm.instanceProperties().mountPodName());
+        var mount = dynamicMountDao.get(dynamicMount.id(), false, null);
+        Assert.assertNull(mount);
+
+        Assert.assertEquals(1, mountPod.getSpec().getVolumes().size());
+        Assert.assertEquals(1, mountPod.getSpec().getContainers().get(0).getVolumeMounts().size());
+    }
+
+    @Test
+    public void unmountShouldNotDeleteUsedVolume() throws Exception {
+        var sessionId = createSession(Durations.fromDays(10));
+        var allocatedVm = allocateWithMountPod(sessionId);
+        var vm = vmDao.get(allocatedVm.vmId(), null);
+        Assert.assertNotNull(vm);
+        var mountPodName = vm.instanceProperties().mountPodName();
+        Assert.assertNotNull(mountPodName);
+
+        var mountPath = WORKER_MOUNT_POINT + "/foo";
+        var dynamicMount = DynamicMount.createNew(allocatedVm.vmId(), getClusterId(vm), "disk-42",
+            mountPath, new VolumeRequest(UUID.randomUUID().toString(),
+                new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42)),
+            allocatedVm.allocationOpId(), "allocator-0");
+        var anotherMount = createReadyMount(vm, allocatedVm.allocationOpId());
+
+        dynamicMountDao.create(dynamicMount, null);
+        var volumeClaimName = "claim-42";
+        var volumeName = "volume-42";
+        var update = DynamicMount.Update.builder()
+            .volumeClaimName(volumeClaimName)
+            .volumeName(volumeName)
+            .state(DynamicMount.State.READY)
+            .build();
+        dynamicMountDao.update(dynamicMount.id(), update, null);
+        dynamicMountDao.update(anotherMount.id(), update, null);
+
+        mockDeletePodByName(mountPodName, 200);
+        var updatedMountPod = mockCreatePod();
+        updatedMountPod.thenAccept(pod -> {
+            pod.setStatus(new PodStatusBuilder()
+                .withPhase(PodPhase.RUNNING.getPhase())
+                .build());
+            mockGetPodByName(pod);
+        });
+        mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> Assert.fail("Should not delete volume claim"), 403);
+        mockDeleteResource(PERSISTENT_VOLUME_PATH, volumeName, () -> Assert.fail("Should not delete volume"), 403);
+        mockUnmountCall(allocatedVm.podName(), dynamicMount.mountPath());
+        var unmountOp = unmountDisk(dynamicMount.id());
+
+        waitOpSuccess(unmountOp);
+
+        var updatedVm = vmDao.get(vm.vmId(), null);
+        var mountPod = updatedMountPod.get();
+        Assert.assertEquals(getName(mountPod), updatedVm.instanceProperties().mountPodName());
+        var vmMounts = dynamicMountDao.getByVm(vm.vmId(), null);
+        Assert.assertEquals(1, vmMounts.size());
+        Assert.assertEquals(anotherMount.id(), vmMounts.get(0).id());
+
+        Assert.assertEquals(2, mountPod.getSpec().getVolumes().size());
+        Assert.assertEquals(2, mountPod.getSpec().getContainers().get(0).getVolumeMounts().size());
+    }
+
+    @NotNull
+    private DynamicMount createReadyMount(Vm vm, String operationId) throws SQLException {
+        var id = UUID.randomUUID().toString();
+        var anotherMount = DynamicMount.createNew(vm.vmId(), getClusterId(vm), id,
+            WORKER_MOUNT_POINT + "/" + id, new VolumeRequest(id,
+                new DiskVolumeDescription(id, "disk-" + id, 42)), operationId,
+            "allocator");
+        dynamicMountDao.create(anotherMount, null);
+        var update = DynamicMount.Update.builder()
+            .state(DynamicMount.State.READY)
+            .volumeClaimName("claim-volume-" + id)
+            .volumeName("volume-" + id)
+            .build();
+        return dynamicMountDao.update(anotherMount.id(), update, null);
     }
 
     private void mockUnmountCall(String podName, String mountPath) {
@@ -288,9 +436,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             .build());
     }
 
-    private LongRunning.Operation unmountDisk(String vmId, String mountId) {
+    private LongRunning.Operation unmountDisk(String mountId) {
         return authorizedAllocatorBlockingStub.unmount(VmAllocatorApi.UnmountRequest.newBuilder()
-            .setVmId(vmId)
             .setMountId(mountId)
             .build());
     }
