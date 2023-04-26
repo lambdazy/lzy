@@ -198,7 +198,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
                 });
             } catch (StatusRuntimeException e) {
                 LOG.error("Failed to connect to remote slot: {}", e.getMessage(), e);
-                response.onError(Status.ABORTED.withCause(e).asException());
+                response.onError(Status.CANCELLED.withCause(e).asException());
             }
         };
 

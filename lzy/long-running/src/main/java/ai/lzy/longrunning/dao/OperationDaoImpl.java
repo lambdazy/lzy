@@ -322,8 +322,8 @@ public class OperationDaoImpl implements OperationDao {
     }
 
     @Override
-    public Operation fail(String id, Status error, TransactionHandle transaction) throws SQLException {
-        LOG.info("Update operation with error: { operationId: {} }", id);
+    public Operation fail(String id, Status error, @Nullable TransactionHandle transaction) throws SQLException {
+        LOG.info("Update operation {} with error: {}", id, error);
 
         return DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_ERROR)) {

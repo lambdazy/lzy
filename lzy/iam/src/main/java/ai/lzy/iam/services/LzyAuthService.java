@@ -21,9 +21,9 @@ public class LzyAuthService extends LzyAuthenticateServiceGrpc.LzyAuthenticateSe
 
     @Override
     public void authenticate(AuthenticateRequest request, StreamObserver<Subject> responseObserver) {
-        LOG.info("Authenticate user");
         try {
             var currentSubject = Objects.requireNonNull(AuthenticationContext.current()).getSubject();
+            LOG.debug("Authenticate subject " + currentSubject);
             responseObserver.onNext(ProtoConverter.from(currentSubject));
             responseObserver.onCompleted();
         } catch (AuthException e) {
