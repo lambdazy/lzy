@@ -164,7 +164,7 @@ class LocalRuntime(Runtime):
                 exception = await self.__workflow.snapshot.get_data(call.exception_id)
                 if isinstance(exception, Result):
                     exc_typ, exc_value, exc_trace = exception.value
-                    raise exc_value[1].with_traceback(exc_trace[2])
+                    raise exc_value.with_traceback(exc_trace)
                 raise LzyExecutionException(f"Error during execution of {call.signature.func.callable}")
 
             data_to_put = []

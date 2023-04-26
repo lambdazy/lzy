@@ -181,7 +181,7 @@ class RemoteRuntime(Runtime):
                         exception = await workflow.snapshot.get_data(call.exception_id)
                         if isinstance(exception, Result):
                             exc_typ, exc_value, exc_trace = exception.value
-                            raise exc_value[1].with_traceback(exc_trace[2])
+                            raise exc_value.with_traceback(exc_trace)
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )

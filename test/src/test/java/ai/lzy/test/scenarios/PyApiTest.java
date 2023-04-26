@@ -129,4 +129,9 @@ public class PyApiTest {
          */
         pythonContext.context().evalAndAssertScenarioResult("file_test");
     }
+
+    @Test
+    public void testExceptionSerialize() {
+        pythonContext.context().evalAndAssertScenarioResult("exception_serialize");
+    }
 }
