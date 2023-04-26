@@ -4,7 +4,7 @@ public interface IdGenerator {
     String generate(int length);
 
     default String generate() {
-        return generate(16);
+        return generate(20);
     }
 
     default String generate(String prefix, int length) {
@@ -12,6 +12,6 @@ public interface IdGenerator {
     }
 
     default String generate(String prefix) {
-        return generate(prefix, 16);
+        return generate(prefix, 20);
     }
 }

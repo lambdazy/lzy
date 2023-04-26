@@ -267,7 +267,7 @@ public class VmDaoImpl implements VmDao {
 
     @Override
     public Vm create(Vm.Spec vmSpec, Vm.AllocateState allocState, @Nullable TransactionHandle tx) throws SQLException {
-        final var vmId = idGenerator.generate("vm-" + vmSpec.poolLabel() + "-", 16);
+        final var vmId = idGenerator.generate("vm-" + vmSpec.poolLabel().toLowerCase(Locale.ROOT) + "-");
 
         DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_CREATE_VM)) {
