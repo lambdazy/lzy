@@ -53,9 +53,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
@@ -319,13 +319,18 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return future;
     }
 
-    protected Future<String> awaitAllocationRequest() {
+    protected Future<String> awaitAllocationRequest(@Nullable Consumer<String> onAllocate) {
         final var future = new CompletableFuture<String>();
         kubernetesServer.expect().post()
             .withPath(POD_PATH)
             .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
                 final var pod = Serialization.unmarshal(
                     new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
+
+                if (onAllocate != null) {
+                    onAllocate.accept(pod.getMetadata().getName());
+                }
+
                 future.complete(pod.getMetadata().getName());
                 return pod;
             })
@@ -333,23 +338,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return future;
     }
 
-    protected Future<String> awaitAllocationRequest(CountDownLatch latch) {
-        final var future = new CompletableFuture<String>();
-        kubernetesServer.expect().post()
-            .withPath(POD_PATH)
-            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
-                try {
-                    latch.await();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                final var pod = Serialization.unmarshal(
-                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
-                future.complete(pod.getMetadata().getName());
-                return pod;
-            })
-            .once();
-        return future;
+    protected Future<String> awaitAllocationRequest() {
+        return awaitAllocationRequest(null);
     }
 
     protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete,
@@ -385,7 +375,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected AllocatedVm allocateVm(String sessionId, String pool, @Nullable String idempotencyKey) throws Exception {
-        final var future = awaitAllocationRequest();
+        final var future = awaitAllocationRequest(this::mockGetPodByName);
 
         var allocOp = withGrpcContext(() -> {
             var stub = authorizedAllocatorBlockingStub;
@@ -411,7 +401,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
         final String podName = future.get();
-        mockGetPodByName(podName);
 
         String clusterId = withGrpcContext(() ->
             requireNonNull(clusterRegistry.findCluster(pool, ZONE, CLUSTER_TYPE)).clusterId());
