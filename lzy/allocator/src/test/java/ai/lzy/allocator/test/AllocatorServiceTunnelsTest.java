@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -118,8 +117,8 @@ public class AllocatorServiceTunnelsTest extends AllocatorApiTestBase {
     }
 
     private String allocateWithTunnel(String sessionId) throws Exception {
-        Future<String> tunnelPodFuture = awaitAllocationRequest();
-        Future<String> vmPodFuture = awaitAllocationRequest();
+        var tunnelPodFuture = mockCreatePod();
+        var vmPodFuture = mockCreatePod();
         Operation operation = authorizedAllocatorBlockingStub.allocate(
             AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
@@ -142,7 +141,7 @@ public class AllocatorServiceTunnelsTest extends AllocatorApiTestBase {
 
         waitOpSuccess(operation);
 
-        Assert.assertEquals(getTunnelPodName(allocateMetadata.getVmId()), tunnelPodFuture.get());
+        Assert.assertEquals(getTunnelPodName(allocateMetadata.getVmId()), getName(tunnelPodFuture.get()));
         return allocateMetadata.getVmId();
     }
 }

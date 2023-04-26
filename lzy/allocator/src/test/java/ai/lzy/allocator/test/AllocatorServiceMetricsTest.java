@@ -186,7 +186,7 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
 
         latch.countDown();
 
-        var podName = awaitAllocFuture.get();
+        var podName = getName(awaitAllocFuture.get());
         mockGetPodByName(podName);
 
         var clusterId = requireNonNull(clusterRegistry.findCluster("S", "test-zone", CLUSTER_TYPE)).clusterId();

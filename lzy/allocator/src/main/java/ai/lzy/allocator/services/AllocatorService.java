@@ -741,17 +741,23 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
     private void checkExistingMounts(Vm vm, DynamicMount dynamicMount, TransactionHandle tx) throws SQLException {
         var vmMounts = allocationContext.dynamicMountDao().getByVm(vm.vmId(), tx);
+        var errors = Errors.create();
         for (DynamicMount vmMount : vmMounts) {
             if (vmMount.mountPath().equals(dynamicMount.mountPath())) {
-                throw Status.ALREADY_EXISTS
-                    .withDescription("Mount with path %s already exists".formatted(vmMount.mountPath()))
-                    .asRuntimeException();
+                errors.add("Mount with path %s already exists".formatted(vmMount.mountPath()));
             }
             if (vmMount.mountName().equals(dynamicMount.mountName())) {
-                throw Status.ALREADY_EXISTS
-                    .withDescription("Mount with name %s already exists".formatted(vmMount.mountName()))
-                    .asRuntimeException();
+                errors.add("Mount with name %s already exists".formatted(vmMount.mountName()));
             }
+            if (vmMount.volumeRequest().volumeDescription() instanceof DiskVolumeDescription vmDisk &&
+                dynamicMount.volumeRequest().volumeDescription() instanceof DiskVolumeDescription requestDisk &&
+                vmDisk.diskId().equals(requestDisk.diskId()))
+            {
+                errors.add("Disk %s is already mounted".formatted(vmDisk.diskId()));
+            }
+        }
+        if (errors.hasErrors()) {
+            throw errors.toStatusRuntimeException(Status.Code.ALREADY_EXISTS);
         }
     }
 
@@ -787,7 +793,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return Operation.create(
                 session.owner(),
                 "Mount: disk=%s, vm=%s".formatted(diskId, request.getVmId()),
-                config.getAllocationTimeout(),
+                config.getMountTimeout(),
                 idempotencyKey,
                 AllocateMetadata.getDefaultInstance());
         }

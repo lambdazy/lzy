@@ -6,19 +6,11 @@ import ai.lzy.util.auth.credentials.OttHelper;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.*;
-import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
-import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.FreeRequest;
+import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunning.Operation;
 import com.google.protobuf.util.Durations;
-import io.fabric8.kubernetes.api.model.PersistentVolume;
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
-import io.fabric8.kubernetes.api.model.PersistentVolumeSpec;
-import io.fabric8.kubernetes.api.model.PodListBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.*;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.junit.After;
@@ -41,9 +33,7 @@ import java.util.function.Consumer;
 
 import static ai.lzy.allocator.model.Volume.AccessMode.READ_WRITE_ONCE;
 import static ai.lzy.allocator.test.Utils.waitOperation;
-import static ai.lzy.allocator.volume.KuberVolumeManager.KUBER_GB_NAME;
-import static ai.lzy.allocator.volume.KuberVolumeManager.VOLUME_CAPACITY_STORAGE_KEY;
-import static ai.lzy.allocator.volume.KuberVolumeManager.YCLOUD_DISK_DRIVER;
+import static ai.lzy.allocator.volume.KuberVolumeManager.*;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
@@ -160,7 +150,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                     .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                     .build()));
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         var vmId = operation.getMetadata().unpack(AllocateMetadata.class).getVmId();
 
@@ -337,7 +327,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         var deleted = new CountDownLatch(1);
         mockDeletePodByName(podName, deleted::countDown, HttpURLConnection.HTTP_OK);

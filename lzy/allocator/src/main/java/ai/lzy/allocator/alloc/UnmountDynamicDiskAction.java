@@ -131,6 +131,10 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
+        if (updatedMountPod == null) {
+            return StepResult.ALREADY_DONE;
+        }
+
         if (Objects.equals(vm.instanceProperties().mountPodName(), updatedMountPod.podName())) {
             return StepResult.ALREADY_DONE;
         }

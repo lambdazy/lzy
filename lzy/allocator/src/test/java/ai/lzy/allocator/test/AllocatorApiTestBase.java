@@ -18,11 +18,7 @@ import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.OttHelper;
-import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.AllocatorPrivateGrpc;
-import ai.lzy.v1.DiskServiceGrpc;
-import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.VmAllocatorPrivateApi;
+import ai.lzy.v1.*;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
@@ -51,18 +47,12 @@ import java.net.InetAddress;
 import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
+import java.util.concurrent.*;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorApiTestBase extends BaseTestWithIam {
@@ -252,6 +242,13 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             .always();
     }
 
+    protected void mockGetPodByName(Pod pod) {
+        kubernetesServer.expect().get()
+            .withPath(POD_PATH + "/" + getName(pod))
+            .andReturn(HttpURLConnection.HTTP_OK, pod)
+            .once();
+    }
+
     @NotNull
     private static Pod constructPod(String podName) {
         final Pod pod = new Pod();
@@ -353,6 +350,10 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             }).once();
     }
 
+    protected void mockDeletePodByName(String podName,  int responseCode) {
+        mockDeletePodByName(podName, () -> {}, responseCode);
+    }
+
     protected void mockDeletePodByName(String podName, Runnable onDelete, int responseCode) {
         mockDeleteResource(POD_PATH, podName, onDelete, responseCode);
         kubernetesServer.expect().delete()
@@ -437,5 +438,10 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     @NotNull
     public static String getTunnelPodName(String vmId) {
         return KuberTunnelAllocator.TUNNEL_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT);
+    }
+
+    @NotNull
+    public static String getName(HasMetadata resource) {
+        return resource.getMetadata().getName();
     }
 }
