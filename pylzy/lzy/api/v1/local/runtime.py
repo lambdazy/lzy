@@ -114,7 +114,7 @@ class LocalRuntime(Runtime):
                 ret_descriptions.append((entry.typ, f'/{eid}'))
 
             exc_eid = call.exception_id
-            exc_path = Path(folder + "/" + exc_eid)
+            exc_path = Path(folder) / exc_eid
             exc_path.touch()
             exc_entry = self.__workflow.snapshot.get(exc_eid)
             exc_description = (exc_entry.typ, f'/{exc_eid}')
@@ -163,8 +163,8 @@ class LocalRuntime(Runtime):
 
                 exception = await self.__workflow.snapshot.get_data(call.exception_id)
                 if isinstance(exception, Result):
-                    exc = exception.value
-                    raise exc[1].with_traceback(exc[2])
+                    exc_typ, exc_value, exc_trace = exception.value
+                    raise exc_value[1].with_traceback(exc_trace[2])
                 raise LzyExecutionException(f"Error during execution of {call.signature.func.callable}")
 
             data_to_put = []

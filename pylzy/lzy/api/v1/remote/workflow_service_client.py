@@ -63,7 +63,8 @@ class Completed:
 @dataclass
 class Failed:
     description: str
-    failed_task: str
+    failed_task_id: str
+    failed_task_name: str
 
 
 GraphStatus = Union[Waiting, Executing, Completed, Failed]
@@ -222,7 +223,7 @@ class WorkflowServiceClient:
             return Completed()
 
         if res.HasField("failed"):
-            return Failed(res.failed.description, res.failed.failedTask)
+            return Failed(res.failed.description, res.failed.failedTaskId, res.failed.failedTaskName)
 
         return Executing(
             res.executing.operationsCompleted,

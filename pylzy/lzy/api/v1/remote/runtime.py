@@ -75,16 +75,18 @@ def wrap_error(message: str = "Something went wrong"):
 
 
 def data_description_by_entry(entry: SnapshotEntry) -> DataDescription:
-    return DataDescription(
-        storageUri=entry.storage_uri,
-        dataScheme=DataScheme(
+    data_scheme = None
+    if entry.data_scheme is not None:
+        data_scheme = DataScheme(
             dataFormat=entry.data_scheme.data_format,
             schemeFormat=entry.data_scheme.schema_format,
             schemeContent=entry.data_scheme.schema_content if entry.data_scheme.schema_content else "",
             metadata=entry.data_scheme.meta
         )
-        if entry.data_scheme is not None
-        else None,
+
+    return DataDescription(
+        storageUri=entry.storage_uri,
+        dataScheme=data_scheme
     )
 
 
@@ -174,11 +176,12 @@ class RemoteRuntime(Runtime):
                 progress(ProgressStep.FAILED)
                 _LOG.debug(f"Graph {graph_id} execution failed: {status.description}")
                 for call in cast(LzyWorkflow, self.__workflow).call_queue:
-                    if call.signature.func.name == status.failed_task:
-                        exception = await cast(LzyWorkflow, self.__workflow).snapshot.get_data(call.exception_id)
+                    if call.signature.func.name == status.failed_task_name:
+                        workflow = cast(LzyWorkflow, self.__workflow)
+                        exception = await workflow.snapshot.get_data(call.exception_id)
                         if isinstance(exception, Result):
-                            exc = exception.value
-                            raise exc[1].with_traceback(exc[2])
+                            exc_typ, exc_value, exc_trace = exception.value
+                            raise exc_value[1].with_traceback(exc_trace[2])
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )
