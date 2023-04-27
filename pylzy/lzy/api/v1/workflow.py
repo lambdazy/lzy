@@ -262,7 +262,8 @@ class LzyWorkflow:
         eid = call.exception_id
         if eid not in self.__filled_entry_ids:
             entry = self.snapshot.get(eid)
-            entry.storage_uri = uri_prefix + f"/exception"
+            uri_suffix = f"{call.signature.func.callable.__name__}/{call.id}/exception"
+            entry.storage_uri = f"{self.__owner.storage_uri}/lzy_runs/{self.__name}/ops/" + uri_suffix
             entry.data_hash = md5_of_str(entry.storage_uri)
             self.__filled_entry_ids.add(eid)
 
