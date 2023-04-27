@@ -445,6 +445,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     private AllocatedVm allocateWithMountPod(String sessionId) throws Exception {
         var vmPodFuture = mockCreatePod();
         var mountPodFuture = mockCreatePod();
+        vmPodFuture.thenAccept(pod -> mockGetPodByName(getName(pod)));
         var operation = authorizedAllocatorBlockingStub.allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
@@ -458,7 +459,6 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var allocateMetadata = operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
         var clusterId = requireNonNull(clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId();
         var vmPod = vmPodFuture.get();
-        mockGetPodByName(getVmPodName(allocateMetadata.getVmId()));
         var mountPod = getName(mountPodFuture.get());
         Assert.assertTrue(mountPod.startsWith(KuberMountHolderManager.MOUNT_HOLDER_POD_NAME_PREFIX));
         registerVm(allocateMetadata.getVmId(), clusterId);

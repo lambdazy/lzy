@@ -138,7 +138,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         var sessionId = createSession(Durations.fromSeconds(100));
 
-        final var future = awaitAllocationRequest(this::mockGetPodByName);
+        final var future = mockCreatePod(this::mockGetPodByName);
 
         final Operation operation = withGrpcContext(() ->
             authorizedAllocatorBlockingStub.allocate(
@@ -314,7 +314,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void unexpectedlyFreeWhileAllocate() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
-        final var future = awaitAllocationRequest(this::mockGetPodByName);
+        final var future = mockCreatePod(this::mockGetPodByName);
 
         var allocOp = withGrpcContext(() -> authorizedAllocatorBlockingStub.allocate(
             AllocateRequest.newBuilder()
@@ -511,7 +511,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void deleteSessionWithActiveVmsAfterRegister() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
-        var future = awaitAllocationRequest(this::mockGetPodByName);
+        var future = mockCreatePod(this::mockGetPodByName);
 
         var allocate = withGrpcContext(() ->
             authorizedAllocatorBlockingStub.allocate(
@@ -524,7 +524,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                     .build()));
         var allocateMetadata = allocate.getMetadata().unpack(AllocateMetadata.class);
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
@@ -542,7 +542,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void deleteSessionWithActiveVmsBeforeRegister() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
-        var future = awaitAllocationRequest(this::mockGetPodByName);
+        var future = mockCreatePod(this::mockGetPodByName);
 
         var allocate = authorizedAllocatorBlockingStub.allocate(
             AllocateRequest.newBuilder()
@@ -557,7 +557,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var vm = vmDao.get(allocateMetadata.getVmId(), null);
         Assert.assertNotNull(vm);
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
@@ -634,7 +634,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void repeatedWorkerRegister() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
-        var future = awaitAllocationRequest(this::mockGetPodByName);
+        var future = mockCreatePod(this::mockGetPodByName);
 
         var allocate = authorizedAllocatorBlockingStub.allocate(
             AllocateRequest.newBuilder()
@@ -649,7 +649,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var vm = vmDao.get(allocateMetadata.getVmId(), null);
         Assert.assertNotNull(vm);
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
@@ -680,7 +680,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void runWithVolumes() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
-        var future = awaitAllocationRequest(this::mockGetPodByName);
+        var future = mockCreatePod(this::mockGetPodByName);
 
         final String volumeName = "volumeName";
         final String mountPath = "/mnt/volume";
@@ -729,7 +729,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .build());
         var allocateMetadata = allocationStarted.getMetadata().unpack(AllocateMetadata.class);
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         final PersistentVolume persistentVolume = persistentVolumeFuture.get();
         final PersistentVolumeClaim persistentVolumeClaim = persistentVolumeClaimFuture.get();

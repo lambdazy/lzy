@@ -47,7 +47,11 @@ import java.net.InetAddress;
 import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
@@ -320,8 +324,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return future;
     }
 
-    protected Future<String> awaitAllocationRequest(@Nullable Consumer<String> onAllocate) {
-        final var future = new CompletableFuture<String>();
+    protected CompletableFuture<Pod> mockCreatePod(@Nullable Consumer<String> onAllocate) {
+        final var future = new CompletableFuture<Pod>();
         kubernetesServer.expect().post()
             .withPath(POD_PATH)
             .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
@@ -332,15 +336,15 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
                     onAllocate.accept(pod.getMetadata().getName());
                 }
 
-                future.complete(pod.getMetadata().getName());
+                future.complete(pod);
                 return pod;
             })
             .once();
         return future;
     }
 
-    protected Future<String> awaitAllocationRequest() {
-        return awaitAllocationRequest(null);
+    protected CompletableFuture<Pod> mockCreatePod() {
+        return mockCreatePod(null);
     }
 
     protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete,
@@ -380,7 +384,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected AllocatedVm allocateVm(String sessionId, String pool, @Nullable String idempotencyKey) throws Exception {
-        final var future = awaitAllocationRequest(this::mockGetPodByName);
+        final var future = mockCreatePod(this::mockGetPodByName);
 
         var allocOp = withGrpcContext(() -> {
             var stub = authorizedAllocatorBlockingStub;
@@ -405,7 +409,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         String clusterId = withGrpcContext(() ->
             requireNonNull(clusterRegistry.findCluster(pool, ZONE, CLUSTER_TYPE)).clusterId());
