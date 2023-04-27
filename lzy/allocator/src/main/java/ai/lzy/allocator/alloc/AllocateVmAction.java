@@ -75,12 +75,12 @@ public final class AllocateVmAction extends OperationRunnerBase {
     }
 
     @Override
-    protected void onExpired(TransactionHandle tx) throws SQLException {
+    protected void onExpired(@Nullable TransactionHandle tx) throws SQLException {
         prepareDeleteVmAction("Allocation op '%s' expired".formatted(vm.allocateState().operationId()), tx);
     }
 
     @Override
-    protected void onCompletedOutside(Operation op, TransactionHandle tx) throws SQLException {
+    protected void onCompletedOutside(Operation op, @Nullable TransactionHandle tx) throws SQLException {
         if (op.error() != null) {
             prepareDeleteVmAction("Operation failed: %s".formatted(op.error().getCode()), tx);
         } else {
@@ -149,7 +149,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
             return switch (result.code()) {
                 case SUCCESS -> {
                     kuberRequestDone = true;
-                    yield StepResult.RESTART;
+                    yield StepResult.CONTINUE;
                 }
                 case RETRY_LATER -> StepResult.RESTART;
                 case FAILED -> {
@@ -236,12 +236,15 @@ public final class AllocateVmAction extends OperationRunnerBase {
         return StepResult.RESTART.after(Duration.ofMillis(500));
     }
 
-    private void prepareDeleteVmAction(String description, TransactionHandle tx) throws SQLException {
+    private void prepareDeleteVmAction(@Nullable String description, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         if (deleteVmAction != null) {
             return;
         }
 
-        deleteVmAction = allocationContext.createDeleteVmAction(vm, description, vm.allocateState().reqid(), tx);
+        deleteVmAction = allocationContext.createDeleteVmAction(vm, description != null ? description : "",
+            vm.allocateState().reqid(), tx);
     }
 
     private void fail(Status status) throws Exception {

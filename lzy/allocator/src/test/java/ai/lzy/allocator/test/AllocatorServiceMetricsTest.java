@@ -161,7 +161,13 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
 
     private String allocateVm() throws Exception {
         var latch = new CountDownLatch(1);
-        var awaitAllocFuture = awaitAllocationRequest(latch);
+        var awaitAllocFuture = awaitAllocationRequest(podName -> {
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        });
 
         var allocOp = authorizedAllocatorBlockingStub.allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()

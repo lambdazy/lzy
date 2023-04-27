@@ -46,9 +46,9 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         props.put("allocator.allocation-timeout", "30s");
         props.put("allocator.kuber-tunnel-allocator.enabled", "true");
         props.put("allocator.mount.enabled", "true");
-        props.put("allocator.mount.podImage", "ubuntu");
-        props.put("allocator.mount.workerMountPoint", "/mnt/worker");
-        props.put("allocator.mount.hostMountPoint", "/mnt/host");
+        props.put("allocator.mount.pod-image", "ubuntu");
+        props.put("allocator.mount.worker-mount-point", "/mnt/worker");
+        props.put("allocator.mount.host-mount-point", "/mnt/host");
     }
 
     @Test

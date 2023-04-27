@@ -1,24 +1,14 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.model.ClusterPod;
-import ai.lzy.allocator.model.DynamicMount;
-import ai.lzy.allocator.model.HostPathVolumeDescription;
-import ai.lzy.allocator.model.PodPhase;
-import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeMount;
-import ai.lzy.allocator.model.VolumeRequest;
-import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.RandomIdGenerator;
 import com.google.common.collect.ImmutableList;
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaimVolumeSource;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.Volume;
-import io.fabric8.kubernetes.api.model.VolumeBuilder;
-import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
+import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nonnull;
@@ -31,7 +21,6 @@ import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.MOUNT_HOLDER_POD_TEMPLATE_PATH;
 
@@ -212,7 +201,7 @@ public class KuberMountHolderManager implements MountHolderManager {
 
     @NotNull
     public static VolumeRequest createHostPathVolume(ServiceConfig.MountConfig mountConfig) {
-        return new VolumeRequest("host-path-volume-" + UUID.randomUUID(),
+        return new VolumeRequest(new RandomIdGenerator().generate("host-path-volume-", 20),
             new HostPathVolumeDescription(HOST_VOLUME_NAME, mountConfig.getHostMountPoint(),
                 HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE));
     }
