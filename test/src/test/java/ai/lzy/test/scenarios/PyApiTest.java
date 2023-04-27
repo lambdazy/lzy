@@ -76,7 +76,7 @@ public class PyApiTest {
     @Test
     public void testImportFile() {
         /* This scenario checks for:
-                1. Importing local file package 
+                1. Importing local file package
          */
         CondaEnvironment.reconfigureConda(true);
         pythonContext.context().evalAndAssertScenarioResult("import");
@@ -133,5 +133,10 @@ public class PyApiTest {
     @Test
     public void testExceptionSerialize() {
         pythonContext.context().evalAndAssertScenarioResult("exception_serialize");
+    }
+
+    @Test
+    public void testCachedException() {
+        pythonContext.context().evalAndAssertScenarioResult("cached_exception");
     }
 }

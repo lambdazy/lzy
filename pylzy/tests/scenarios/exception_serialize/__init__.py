@@ -3,6 +3,7 @@ from lzy.api.v1 import op, Lzy
 
 @op
 def raises() -> None:
+    print("exception was raised")
     raise Exception("test")
 
 
