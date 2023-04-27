@@ -5,6 +5,7 @@ import ai.lzy.allocator.model.VolumeMount;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.RandomIdGenerator;
 import com.google.common.collect.ImmutableList;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.*;
@@ -20,7 +21,6 @@ import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.MOUNT_HOLDER_POD_TEMPLATE_PATH;
 
@@ -201,8 +201,7 @@ public class KuberMountHolderManager implements MountHolderManager {
 
     @NotNull
     public static VolumeRequest createHostPathVolume(ServiceConfig.MountConfig mountConfig) {
-        // TODO: random UUID ?
-        return new VolumeRequest("host-path-volume-" + UUID.randomUUID(),
+        return new VolumeRequest(new RandomIdGenerator().generate("host-path-volume-", 20),
             new HostPathVolumeDescription(HOST_VOLUME_NAME, mountConfig.getHostMountPoint(),
                 HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE));
     }
