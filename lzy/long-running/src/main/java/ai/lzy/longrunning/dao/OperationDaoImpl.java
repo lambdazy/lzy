@@ -292,7 +292,7 @@ public class OperationDaoImpl implements OperationDao {
                 if (meta != null) {
                     op.modifyMeta(meta);
                 }
-                op.setResponse(response);
+                op.completeWith(response);
                 return op;
             }
         });
@@ -322,8 +322,8 @@ public class OperationDaoImpl implements OperationDao {
     }
 
     @Override
-    public Operation fail(String id, Status error, TransactionHandle transaction) throws SQLException {
-        LOG.info("Update operation with error: { operationId: {} }", id);
+    public Operation fail(String id, Status error, @Nullable TransactionHandle transaction) throws SQLException {
+        LOG.info("Update operation {} with error: {}", id, error);
 
         return DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_ERROR)) {
@@ -333,7 +333,7 @@ public class OperationDaoImpl implements OperationDao {
 
                 var rs = st.executeQuery();
                 var op = processResult(id, rs, "failed");
-                op.setError(io.grpc.Status.fromCodeValue(error.getCode()).withDescription(error.getMessage()));
+                op.completeWith(io.grpc.Status.fromCodeValue(error.getCode()).withDescription(error.getMessage()));
                 return op;
             }
         });

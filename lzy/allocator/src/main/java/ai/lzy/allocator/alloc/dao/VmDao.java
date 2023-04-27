@@ -10,6 +10,7 @@ import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public interface VmDao {
 
@@ -48,6 +49,10 @@ public interface VmDao {
 
     void setTunnelPod(String vmId, String tunnelPodName, @Nullable TransactionHandle tx) throws SQLException;
 
+    void setMountPod(String vmId, String mountPodName, @Nullable TransactionHandle tx) throws SQLException;
+
+    void setEndpoints(String vmId, List<Vm.Endpoint> endpoints, @Nullable TransactionHandle tx) throws SQLException;
+
     void setVolumeClaims(String vmId, List<VolumeClaim> volumeClaims, @Nullable TransactionHandle tx)
         throws SQLException;
 
@@ -66,6 +71,8 @@ public interface VmDao {
     List<Vm> loadActiveVmsActions(String workerId, @Nullable TransactionHandle tx) throws SQLException;
 
     List<Vm> loadRunningVms(String workerId, @Nullable TransactionHandle tx) throws SQLException;
+
+    List<Vm> loadByIds(Set<String> vmIds, @Nullable TransactionHandle tx) throws SQLException;
 
     @VisibleForTesting
     boolean hasDeadVm(String vmId) throws SQLException;

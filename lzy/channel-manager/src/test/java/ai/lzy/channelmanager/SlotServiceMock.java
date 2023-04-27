@@ -53,7 +53,7 @@ public class SlotServiceMock {
             responseObserver.onNext(op.toProto());
             responseObserver.onCompleted();
             LockSupport.parkNanos(OPERATION_DURATION.toNanos());
-            op.setResponse(Any.pack(LSA.ConnectSlotResponse.getDefaultInstance()));
+            op.completeWith(Any.pack(LSA.ConnectSlotResponse.getDefaultInstance()));
             operations.put(op.id(), op);
         }
 

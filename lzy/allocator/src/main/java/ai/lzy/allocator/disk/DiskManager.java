@@ -3,9 +3,9 @@ package ai.lzy.allocator.disk;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.longrunning.Operation;
 import io.grpc.StatusException;
+import jakarta.annotation.Nullable;
 
 import java.time.Instant;
-import javax.annotation.Nullable;
 
 public interface DiskManager {
 

@@ -269,10 +269,17 @@ class Lzy:
         # it is important to detect py env before registering lazy calls to avoid materialization of them
         frame = inspect.stack()[1].frame
         namespace = {**frame.f_globals, **frame.f_locals}
-        auto_py_env: PyEnv = self.__env_provider.provide(namespace)
+        auto_py_env: Optional[PyEnv]
+
+        if not docker_only:
+            auto_py_env = self.__env_provider.provide(namespace)
+            local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
+        else:
+            auto_py_env = None
+            local_modules_path = []
 
         libraries = {} if not libraries else libraries
-        local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
+
         env = env.override(
             Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
                 docker_only=docker_only, env_variables=env_variables, docker_credentials=docker_credentials)

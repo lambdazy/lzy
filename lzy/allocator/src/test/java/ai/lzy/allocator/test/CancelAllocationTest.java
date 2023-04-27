@@ -1,8 +1,8 @@
 package ai.lzy.allocator.test;
 
+import ai.lzy.allocator.alloc.RestoreOperations;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.model.debug.InjectedFailures;
-import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.VmAllocatorApi;
@@ -137,7 +137,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         if (action.apply(vmId, allocOp)) {
             System.err.println("--> do restart ...");
             operationsExecutor.dropAll();
-            allocatorCtx.getBean(AllocatorService.class).testRestart(false);
+            allocatorCtx.getBean(RestoreOperations.class); //calls restore after construction
             System.err.println("--> restart done");
         }
 
@@ -157,7 +157,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         Assert.fail();
 
         final String podName = createdPod.get();
-        mockGetPod(podName);
+        mockGetPodByName(podName);
 
         var clusterId = requireNonNull(withGrpcContext(() ->
             clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId());

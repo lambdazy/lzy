@@ -1,13 +1,16 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
+import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
+import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
 
@@ -25,11 +28,13 @@ public final class AllocateVmAction extends OperationRunnerBase {
     private boolean kuberRequestDone = false;
     @Nullable
     private DeleteVmAction deleteVmAction = null;
+    private boolean mountPodAllocated = false;
+    private ClusterPod mountHolder;
 
     public AllocateVmAction(Vm vm, AllocationContext allocationContext, boolean restore) {
         super(vm.allocOpId(), "VM " + vm.vmId(), allocationContext.storage(), allocationContext.operationsDao(),
             allocationContext.executor());
-        
+
         this.vm = vm;
         this.allocationContext = allocationContext;
 
@@ -44,7 +49,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<OperationRunnerBase.StepResult>> steps() {
-        return List.of(this::allocateTunnel, this::allocateVm, this::waitVm);
+        return List.of(this::allocateTunnel, this::allocateVm, this::allocateMountPod, this::setMountPod, this::waitVm);
     }
 
     @Override
@@ -70,12 +75,12 @@ public final class AllocateVmAction extends OperationRunnerBase {
     }
 
     @Override
-    protected void onExpired(TransactionHandle tx) throws SQLException {
+    protected void onExpired(@Nullable TransactionHandle tx) throws SQLException {
         prepareDeleteVmAction("Allocation op '%s' expired".formatted(vm.allocateState().operationId()), tx);
     }
 
     @Override
-    protected void onCompletedOutside(Operation op, TransactionHandle tx) throws SQLException {
+    protected void onCompletedOutside(Operation op, @Nullable TransactionHandle tx) throws SQLException {
         if (op.error() != null) {
             prepareDeleteVmAction("Operation failed: %s".formatted(op.error().getCode()), tx);
         } else {
@@ -144,7 +149,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
             return switch (result.code()) {
                 case SUCCESS -> {
                     kuberRequestDone = true;
-                    yield StepResult.RESTART;
+                    yield StepResult.CONTINUE;
                 }
                 case RETRY_LATER -> StepResult.RESTART;
                 case FAILED -> {
@@ -176,17 +181,70 @@ public final class AllocateVmAction extends OperationRunnerBase {
         }
     }
 
+    private StepResult allocateMountPod() {
+        if (!allocationContext.mountConfig().isEnabled()) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        if (mountPodAllocated) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        log().info("{} Allocating mount pod for VM {}", logPrefix(), vm.vmId());
+        try {
+            mountHolder = allocationContext.mountHolderManager().allocateMountHolder(vm.spec());
+            mountPodAllocated = true;
+        } catch (KubernetesClientException e) {
+            log().error("{} Cannot allocate mount holder for vm {}: {}", logPrefix(), vm.vmId(), e.getMessage());
+            if (KuberUtils.isNotRetryable(e)) {
+                try {
+                    fail(Status.INTERNAL.withDescription(e.getMessage()));
+                } catch (Exception ex) {
+                    log().error("{} Cannot fail operation: {}", logPrefix(), ex.getMessage(), ex);
+                }
+                return StepResult.FINISH;
+            }
+            return StepResult.RESTART;
+        }
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult setMountPod() {
+        if (!allocationContext.mountConfig().isEnabled()) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        if (vm.instanceProperties().mountPodName() != null) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        var pod = mountHolder.podName();
+        log().info("{} Setting mount pod name {} for VM", logPrefix(), pod);
+        try {
+            withRetries(log(), () -> allocationContext.vmDao().setMountPod(vm.vmId(), pod, null));
+        } catch (Exception e) {
+            log().error("{} Cannot save mount pod name {} for VM: {}. Retry later...",
+                logPrefix(), pod, e.getMessage());
+            return StepResult.RESTART;
+        }
+        vm = vm.withMountPod(pod);
+        return StepResult.CONTINUE;
+    }
+
     private StepResult waitVm() {
         log().info("{} ... waiting ...", logPrefix());
         return StepResult.RESTART.after(Duration.ofMillis(500));
     }
 
-    private void prepareDeleteVmAction(String description, TransactionHandle tx) throws SQLException {
+    private void prepareDeleteVmAction(@Nullable String description, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         if (deleteVmAction != null) {
             return;
         }
 
-        deleteVmAction = allocationContext.createDeleteVmAction(vm, description, vm.allocateState().reqid(), tx);
+        deleteVmAction = allocationContext.createDeleteVmAction(vm, description != null ? description : "",
+            vm.allocateState().reqid(), tx);
     }
 
     private void fail(Status status) throws Exception {

@@ -4,9 +4,11 @@ import ai.lzy.allocator.disk.DiskOperation;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
+import jakarta.annotation.Nullable;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -15,9 +17,7 @@ import java.sql.Timestamp;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
-import javax.inject.Inject;
-import javax.inject.Singleton;
+import javax.validation.constraints.NotNull;
 
 @Singleton
 public class DiskOpDao {

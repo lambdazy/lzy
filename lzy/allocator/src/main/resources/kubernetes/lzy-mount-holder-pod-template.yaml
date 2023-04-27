@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  labels:
+    app.kubernetes.io/name: lzy-vm-mount-holder
+    app.kubernetes.io/part-of: lzy
+    lzy.ai/app: mount-holder
+spec:
+  containers:
+    - name: mount-holder
+      image: alpine:3.14
+      imagePullPolicy: Always
+      securityContext:
+        privileged: true
+        runAsUser: 0
+      command: ["sh", "-c", "tail -f /dev/null"]
+  restartPolicy: Never
+  affinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        - labelSelector:
+            matchExpressions:
+              - key: lzy.ai/app
+                operator: In
+                values:
+                  - mount-holder
+          topologyKey: "kubernetes.io/hostname"
+  dnsPolicy: ClusterFirstWithHostNet
+  hostNetwork: true

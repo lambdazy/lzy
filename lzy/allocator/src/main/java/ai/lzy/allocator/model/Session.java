@@ -14,8 +14,7 @@ public record Session(
     String deleteOpId,
     @Nullable
     String deleteReqid
-)
-{
+) {
     public Session(String sessionId, String owner, String description, CachePolicy cachePolicy, String createOpId) {
         this(sessionId, owner, description, cachePolicy, createOpId, null, null);
     }

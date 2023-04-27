@@ -11,8 +11,7 @@ public record YcDeleteDiskState(
     String ycOperationId,
     String folderId,
     String diskId
-)
-{
+) {
     public YcDeleteDiskState withYcOperationId(String ycOperationId) {
         return new YcDeleteDiskState(ycOperationId, folderId, diskId);
     }

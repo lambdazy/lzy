@@ -127,7 +127,7 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
             LOG.info("[{}] Update operation response: { opId: {} }", name, opId);
 
             synchronized (op.operation.id()) {
-                op.operation.setResponse(response);
+                op.operation.completeWith(response);
                 op.operation.id().notifyAll();
                 return OperationSnapshot.of(op.operation);
             }
@@ -146,7 +146,7 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
             LOG.info("[{}] Update operation error: { opId: {} }", name, opId);
 
             synchronized (op.operation.id()) {
-                op.operation.setError(error);
+                op.operation.completeWith(error);
                 op.operation.id().notifyAll();
                 return OperationSnapshot.of(op.operation);
             }
@@ -216,7 +216,7 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
 
         synchronized (op.operation.id()) {
 
-            op.operation.setError(Status.CANCELLED.withDescription(request.getMessage()));
+            op.operation.completeWith(Status.CANCELLED.withDescription(request.getMessage()));
             op.operation.id().notifyAll();
 
             if (op.thread != null) {

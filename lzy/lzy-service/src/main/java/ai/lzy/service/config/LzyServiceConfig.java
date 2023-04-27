@@ -6,6 +6,7 @@ import ai.lzy.storage.config.StorageClientConfiguration;
 import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
+import jakarta.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -29,6 +30,9 @@ public class LzyServiceConfig {
     private Duration gcLeaderPeriod;
 
     private StartupPortalConfig portal;
+
+    @Nullable
+    private String s3SinkAddress = null;  // If not set, not using s3 sink
 
     @ConfigurationBuilder("kafka")
     private final KafkaConfig kafka = new KafkaConfig();

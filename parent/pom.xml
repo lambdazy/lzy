@@ -16,7 +16,7 @@
     </distributionManagement>
 
     <properties>
-        <revision>1.10</revision>
+        <revision>1.12</revision>
         <changelist>-SNAPSHOT</changelist>
 
         <java.version>17</java.version>
@@ -29,6 +29,7 @@
         <aws-java-sdk-core.version>1.12.112</aws-java-sdk-core.version>
         <azure-sdk-blob.version>12.20.1</azure-sdk-blob.version>
         <com.amazonaws.awsjavasdk.version>1.12.300</com.amazonaws.awsjavasdk.version>
+        <software.amazon.awssdk.s3.version>2.20.47</software.amazon.awssdk.s3.version>
 
         <bcprov-jdk18on.version>1.71.1</bcprov-jdk18on.version>
         <c3p0.version>0.9.5.5</c3p0.version>
@@ -125,6 +126,8 @@
         <micronaut-test.version>3.6.2</micronaut-test.version>
         <s3mock_2.13.version>0.2.6</s3mock_2.13.version>
         <resilience4j.version>2.0.2</resilience4j.version>
+        <embedded-kafka.version>3.4.0</embedded-kafka.version>
+        <s3mock-junit4.version>2.11.0</s3mock-junit4.version>
     </properties>
 
     <dependencyManagement>
@@ -190,6 +193,11 @@
                 <groupId>com.amazonaws</groupId>
                 <artifactId>aws-java-sdk-s3</artifactId>
                 <version>${com.amazonaws.awsjavasdk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>s3</artifactId>
+                <version>${software.amazon.awssdk.s3.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.amazonaws</groupId>
@@ -693,6 +701,27 @@
                 <artifactId>mockito-inline</artifactId>
                 <version>${mockito-inline.version}</version>
                 <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.github.embeddedkafka</groupId>
+                <artifactId>embedded-kafka_2.13</artifactId>
+                <version>${embedded-kafka.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.adobe.testing</groupId>
+                <artifactId>s3mock-junit4</artifactId>
+                <version>${s3mock-junit4.version}</version>
+                <scope>test</scope>
+                <exclusions>
+                    <exclusion>
+                        <groupId>org.apache.logging.log4j</groupId>
+                        <artifactId>log4j-to-slf4j</artifactId>
+                    </exclusion>
+                    <exclusion>
+                        <groupId>ch.qos.logback</groupId>
+                        <artifactId>logback-classic</artifactId>
+                    </exclusion>
+                </exclusions>
             </dependency>
         </dependencies>
     </dependencyManagement>

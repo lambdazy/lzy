@@ -108,8 +108,8 @@ public class AllocatorServiceTunnelsTest extends AllocatorApiTestBase {
 
         mockGetPodByName(getTunnelPodName(vmId));
         mockDeletePodByName(getTunnelPodName(vmId), () -> {}, HttpURLConnection.HTTP_OK);
-        mockGetPod(getVmPodName(vmId));
-        mockDeletePod(getVmPodName(vmId), countDownLatch::countDown, HttpURLConnection.HTTP_OK);
+        mockGetPodByName(getVmPodName(vmId));
+        mockDeletePodByName(getVmPodName(vmId), countDownLatch::countDown, HttpURLConnection.HTTP_OK);
         authorizedAllocatorBlockingStub.free(FreeRequest.newBuilder()
             .setVmId(vmId)
             .build());
@@ -137,7 +137,7 @@ public class AllocatorServiceTunnelsTest extends AllocatorApiTestBase {
         var allocateMetadata = operation.getMetadata().unpack(AllocateMetadata.class);
         String clusterId = requireNonNull(clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId();
         vmPodFuture.get();
-        mockGetPod(getVmPodName(allocateMetadata.getVmId()));
+        mockGetPodByName(getVmPodName(allocateMetadata.getVmId()));
         registerVm(allocateMetadata.getVmId(), clusterId);
 
         waitOpSuccess(operation);

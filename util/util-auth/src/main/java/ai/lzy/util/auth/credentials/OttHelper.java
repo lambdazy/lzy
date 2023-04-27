@@ -18,7 +18,7 @@ public final class OttHelper {
         String ott
     ) {
         public String toStringSafe() {
-            return subjectId + "/" + ott.substring(4);
+            return subjectId + "/" + ott.substring(0, 8) + "...";
         }
     }
 

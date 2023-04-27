@@ -61,7 +61,7 @@ public class DbAccessClient {
                 st.setString(++parameterIndex, Role.LZY_INTERNAL_USER.value());
                 final ResultSet rs = st.executeQuery();
                 if (rs.next()) {
-                    LOG.info("Internal access to resource::{}", resourceId);
+                    LOG.debug("Internal access to resource::{}", resourceId);
                     return true;
                 }
             } catch (SQLException e) {

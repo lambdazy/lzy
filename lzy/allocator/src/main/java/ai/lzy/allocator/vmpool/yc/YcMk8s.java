@@ -6,6 +6,9 @@ import ai.lzy.allocator.vmpool.*;
 import com.google.common.net.HostAndPort;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.Nullable;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import yandex.cloud.api.k8s.v1.ClusterServiceGrpc;
@@ -24,9 +27,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import javax.annotation.Nullable;
-import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import static yandex.cloud.api.k8s.v1.ClusterOuterClass.Cluster;
 

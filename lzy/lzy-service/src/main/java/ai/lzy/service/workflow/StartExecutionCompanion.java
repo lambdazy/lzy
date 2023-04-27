@@ -17,6 +17,7 @@ import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMST;
+import ai.lzy.v1.kafka.KafkaS3Sink;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.protobuf.InvalidProtocolBufferException;
@@ -25,7 +26,10 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nullable;
 
+import java.nio.file.Path;
 import java.time.Duration;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -312,6 +316,21 @@ final class StartExecutionCompanion {
     }
 
     public void createKafkaTopic(KafkaAdminClient kafkaAdminClient) {
+
+        final KafkaTopicDesc desc;
+        try {
+            desc = withRetries(LOG, () -> owner.executionDao.getKafkaTopicDesc(state.getExecutionId(), null));
+        } catch (Exception e) {
+            LOG.error("Cannot get topic from db. executionId: {}", state.getExecutionId(), e);
+            state.fail(Status.INTERNAL, "Cannot create kafka topic");
+            return;
+        }
+
+        if (desc != null) {  // Idempotency support, topic already exists
+            LOG.warn("Topic for execution (executionId: {}) already exists, reusing it", state.getExecutionId());
+            return;
+        }
+
         var topicName = "topic_" + state.getExecutionId() + ".logs";
         var username = "user_" + state.getExecutionId().replace("-", "_");
         var password = UUID.randomUUID().toString();
@@ -323,11 +342,38 @@ final class StartExecutionCompanion {
             kafkaAdminClient.createUser(username, password);
             kafkaAdminClient.grantPermission(username, topicName);
 
-            var topicDesc = new KafkaTopicDesc(username, password, topicName);
+            final String sinkJobId;
+            var storageConfig = getState().getStorageConfig();
+            var formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy_HH.mm.ss");
+
+            if (owner.s3SinkClient.enabled() && storageConfig.hasS3()) {
+                var storagePath = storageConfig.getUri().substring("s3://".length());  // Removing s3 prefix
+
+                var path = Path.of(storagePath)
+                    .resolve("logs")
+                    .resolve(formatter.format(LocalDateTime.now()) + state.getExecutionId() + ".log");
+
+                var uri = "s3://" + path;
+
+                LOG.info("Starting remote job on s3-sink, topic: {}, bucket: {}", topicName, storageConfig.getUri());
+                var resp = owner.s3SinkClient.stub().start(KafkaS3Sink.StartRequest.newBuilder()
+                    .setTopicName(topicName)
+                    .setStorageConfig(LMST.StorageConfig.newBuilder()
+                        .setUri(uri)
+                        .setS3(storageConfig.getS3())
+                        .build())
+                    .build());
+
+                sinkJobId = resp.getJobId();
+            } else {
+                sinkJobId = null;
+            }
+
+            var topicDesc = new KafkaTopicDesc(username, password, topicName, sinkJobId);
 
             withRetries(LOG, () -> owner.executionDao.setKafkaTopicDesc(state.getExecutionId(), topicDesc, null));
         } catch (Exception e) {
-            LOG.error("Cannot save kafka topic data in db for execution {}", state.getExecutionId(), e);
+            LOG.error("Cannot create kafka topic for execution {}", state.getExecutionId(), e);
             state.fail(Status.INTERNAL, "Cannot create kafka topic");
 
             try {

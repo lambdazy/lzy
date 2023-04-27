@@ -81,7 +81,7 @@ public class DeleteSessionAction extends OperationRunnerBase {
             try {
                 withRetries(log(), () -> {
                     try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                        completeOperation(null, Any.pack(Empty.getDefaultInstance()), null);
+                        completeOperation(null, Any.pack(Empty.getDefaultInstance()), tx);
                         sessionDao.removeSession(sessionId, tx);
                         tx.commit();
                     }
@@ -99,7 +99,7 @@ public class DeleteSessionAction extends OperationRunnerBase {
                 case ALLOCATING -> {
                     try {
                         withRetries(log(), () -> operationsDao()
-                            .fail(vm.allocOpId(), toProto(Status.ABORTED.withDescription("Session removed")), null));
+                            .fail(vm.allocOpId(), toProto(Status.CANCELLED.withDescription("Session removed")), null));
                     } catch (OperationCompletedException e) {
                         log().warn("{} Failed to abort VM {} allocation {}: already completed",
                             logPrefix(), vm.vmId(), vm.allocOpId());

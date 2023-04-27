@@ -4,8 +4,7 @@ import ai.lzy.metrics.MetricReporter;
 import io.prometheus.client.Counter;
 import io.prometheus.client.Histogram;
 import jakarta.inject.Named;
-
-import javax.inject.Singleton;
+import jakarta.inject.Singleton;
 
 @Singleton
 public class DiskMetrics {

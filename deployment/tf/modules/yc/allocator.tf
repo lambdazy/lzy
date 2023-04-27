@@ -66,12 +66,8 @@ resource "kubernetes_stateful_set" "allocator" {
           }
 
           env {
-            name = "ALLOCATOR_HOSTS"
-            value_from {
-              field_ref {
-                field_path = [kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]]
-              }
-            }
+            name  = "ALLOCATOR_HOSTS"
+            value = join(",", [kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]])
           }
 
           env {

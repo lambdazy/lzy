@@ -1,7 +1,8 @@
 package ai.lzy.allocator.vmpool;
 
+import jakarta.annotation.Nullable;
+
 import java.util.Map;
-import javax.annotation.Nullable;
 
 public interface VmPoolRegistry {
 

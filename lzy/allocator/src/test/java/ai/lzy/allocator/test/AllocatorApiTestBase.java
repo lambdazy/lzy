@@ -38,6 +38,8 @@ import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import jakarta.annotation.Nullable;
 import okhttp3.mockwebserver.MockWebServer;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -46,16 +48,14 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
@@ -66,6 +66,8 @@ import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorApiTestBase extends BaseTestWithIam {
+
+    private static final Logger LOG = LogManager.getLogger(AllocatorApiTestBase.class);
 
     protected static final long TIMEOUT_SEC = 10;
     protected static final String ZONE = "test-zone";
@@ -104,8 +106,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         kubernetesServer = new KubernetesMockServer(new MockWebServer(), new ConcurrentHashMap<>(), false);
         kubernetesServer.init(InetAddress.getLoopbackAddress(), 0);
-        kubernetesServer.expect().post().withPath("/api/v1/pods")
-            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().build()).always();
 
         final Node node = new NodeBuilder()
             .withSpec(new NodeSpecBuilder()
@@ -244,15 +244,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             Status.fromCodeValue(updatedOperation.getError().getCode()).getCode());
     }
 
-    protected void mockGetPod(String podName) {
-        final Pod pod = constructPod(podName);
-        kubernetesServer.expect().get()
-            .withPath(POD_PATH + "?labelSelector=" +
-                URLEncoder.encode(KuberLabels.LZY_POD_NAME_LABEL + "=" + podName, StandardCharsets.UTF_8))
-            .andReturn(HttpURLConnection.HTTP_OK, new PodListBuilder().withItems(pod).build())
-            .always();
-    }
-
     protected void mockGetPodByName(String podName) {
         final Pod pod = constructPod(podName);
         kubernetesServer.expect().get()
@@ -306,7 +297,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
                 });
             } catch (StatusRuntimeException e) {
                 if (e.getStatus().getCode() == Status.Code.FAILED_PRECONDITION) {
-                    System.err.printf("Fail to register VM %s: %s%n", vmId, e.getStatus());
+                    LOG.error("Fail to register VM {}: {}", vmId, e.getStatus());
                     return false;
                 }
                 throw new RuntimeException(e);
@@ -328,13 +319,18 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return future;
     }
 
-    protected Future<String> awaitAllocationRequest() {
+    protected Future<String> awaitAllocationRequest(@Nullable Consumer<String> onAllocate) {
         final var future = new CompletableFuture<String>();
         kubernetesServer.expect().post()
             .withPath(POD_PATH)
             .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
                 final var pod = Serialization.unmarshal(
                     new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
+
+                if (onAllocate != null) {
+                    onAllocate.accept(pod.getMetadata().getName());
+                }
+
                 future.complete(pod.getMetadata().getName());
                 return pod;
             })
@@ -342,23 +338,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return future;
     }
 
-    protected Future<String> awaitAllocationRequest(CountDownLatch latch) {
-        final var future = new CompletableFuture<String>();
-        kubernetesServer.expect().post()
-            .withPath(POD_PATH)
-            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
-                try {
-                    latch.await();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                final var pod = Serialization.unmarshal(
-                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
-                future.complete(pod.getMetadata().getName());
-                return pod;
-            })
-            .once();
-        return future;
+    protected Future<String> awaitAllocationRequest() {
+        return awaitAllocationRequest(null);
     }
 
     protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete,
@@ -366,17 +347,6 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     {
         kubernetesServer.expect().delete()
             .withPath(resourcePath + "/" + resourceName)
-            .andReply(responseCode, (req) -> {
-                onDelete.run();
-                return new StatusDetails();
-            }).once();
-    }
-
-    protected void mockDeletePod(String podName, Runnable onDelete, int responseCode) {
-        mockDeleteResource(POD_PATH, podName, onDelete, responseCode);
-        kubernetesServer.expect().delete()
-            // "lzy.ai/vm-id"=<VM id>
-            .withPath(POD_PATH + "?labelSelector=lzy.ai%2Fvm-id%3D" + podName.substring(VM_POD_NAME_PREFIX.length()))
             .andReply(responseCode, (req) -> {
                 onDelete.run();
                 return new StatusDetails();
@@ -396,7 +366,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
     protected record AllocatedVm(
         String vmId,
-        String podName
+        String podName,
+        String allocationOpId
     ) {}
 
     protected AllocatedVm allocateVm(String sessionId, @Nullable String idempotencyKey) throws Exception {
@@ -404,7 +375,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected AllocatedVm allocateVm(String sessionId, String pool, @Nullable String idempotencyKey) throws Exception {
-        final var future = awaitAllocationRequest();
+        final var future = awaitAllocationRequest(this::mockGetPodByName);
 
         var allocOp = withGrpcContext(() -> {
             var stub = authorizedAllocatorBlockingStub;
@@ -424,13 +395,12 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         if (allocOp.getDone()) {
             var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
-            return new AllocatedVm(vmId, "unknown");
+            return new AllocatedVm(vmId, "unknown", allocOp.getId());
         }
 
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
         final String podName = future.get();
-        mockGetPod(podName);
 
         String clusterId = withGrpcContext(() ->
             requireNonNull(clusterRegistry.findCluster(pool, ZONE, CLUSTER_TYPE)).clusterId());
@@ -439,7 +409,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         allocOp = waitOpSuccess(allocOp);
         Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
 
-        return new AllocatedVm(vmId, podName);
+        return new AllocatedVm(vmId, podName, allocOp.getId());
     }
 
     protected void freeVm(String vmId) {

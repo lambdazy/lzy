@@ -82,17 +82,17 @@ public class Operation {
         this.error = error;
     }
 
-    public void setResponse(Any response) {
+    public void completeWith(Any response) {
         modifiedAt = Instant.now();
         done = true;
         this.response = response;
     }
 
-    public void setResponse(Message response) {
-        setResponse(Any.pack(response));
+    public void completeWith(Message response) {
+        completeWith(Any.pack(response));
     }
 
-    public void setError(Status error) {
+    public void completeWith(Status error) {
         modifiedAt = Instant.now();
         done = true;
         this.error = error;

@@ -26,9 +26,9 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Set;
 
+import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NODE_INSTANCE_ID_KEY;
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
@@ -112,26 +112,29 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                         allocationContext.vmDao().setVmRunning(
                             vm.vmId(), request.getMetadataMap(), activityDeadline, transaction);
 
-                        final List<AllocateResponse.VmEndpoint> hosts;
+
                         try {
-                            hosts = allocator.getVmEndpoints(vm.vmId(), transaction).stream()
-                                .map(VmAllocator.VmEndpoint::toProto)
-                                .toList();
+                            vm = allocator.updateAllocatedVm(vm, transaction);
                         } catch (Exception e) {
                             allocationContext.metrics().registerFail.inc();
                             LOG.error("Cannot get endpoints of vm {}", vm.vmId(), e);
                             return Status.INTERNAL.withDescription("Cannot get endpoints of vm");
                         }
 
+                        var meta = vm.allocateState().allocatorMeta();
+                        var vmInstanceId = meta != null ? meta.get(NODE_INSTANCE_ID_KEY) : "null";
+                        var endpoints = vm.instanceProperties().endpoints().stream().map(Vm.Endpoint::toProto).toList();
+
                         var response = Any.pack(
                             AllocateResponse.newBuilder()
                                 .setPoolId(vm.poolLabel())
                                 .setSessionId(vm.sessionId())
                                 .setVmId(vm.vmId())
-                                .addAllEndpoints(hosts)
+                                .addAllEndpoints(endpoints)
                                 .putAllMetadata(request.getMetadataMap())
+                                .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId)
                                 .build());
-                        op.setResponse(response);
+                        op.completeWith(response);
 
                         try {
                             allocationContext.operationsDao().complete(op.id(), response, transaction);
@@ -239,7 +242,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
         try {
             if (vm.status() != Vm.Status.DELETING) {
                 withRetries(LOG, () -> allocationContext.vmDao().updateActivityDeadline(
-                        vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout())));
+                    vm.vmId(), Instant.now().plus(config.getHeartbeatTimeout())));
             }
         } catch (Exception ex) {
             allocationContext.metrics().hbFail.inc();

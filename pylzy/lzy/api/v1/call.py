@@ -163,12 +163,15 @@ def wrap_call(
 
         env_updated = active_workflow.env.override(env)
         if env_updated.conda_yaml_path is None:
-            # it is guaranteed that PyEnv is not None if conda_yaml_path is None
+
             py_env = active_workflow.auto_py_env
-            env_updated = active_workflow.env.override(Env(
-                py_env.python_version if not active_workflow.env.python_version else None,
-                py_env.libraries, None, None, None, py_env.local_modules_path
-            )).override(env)
+
+            if py_env is not None:  # If None, not using py_env
+                env_updated = active_workflow.env.override(Env(
+                    py_env.python_version if not active_workflow.env.python_version else None,
+                    py_env.libraries, None, None, None, py_env.local_modules_path
+                )).override(env)
+
         env_updated.validate()
 
         signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot,

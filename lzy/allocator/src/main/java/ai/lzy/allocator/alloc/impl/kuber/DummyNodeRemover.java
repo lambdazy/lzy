@@ -1,10 +1,9 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
 import io.micronaut.context.annotation.Secondary;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import javax.inject.Singleton;
 
 @Singleton
 @Secondary

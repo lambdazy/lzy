@@ -1,7 +1,12 @@
 package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.disk.*;
+import ai.lzy.allocator.disk.Disk;
+import ai.lzy.allocator.disk.DiskManager;
+import ai.lzy.allocator.disk.DiskMeta;
+import ai.lzy.allocator.disk.DiskMetrics;
+import ai.lzy.allocator.disk.DiskOperation;
+import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.disk.dao.DiskOpDao;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
@@ -25,6 +30,10 @@ import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
+import jakarta.annotation.PreDestroy;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import lombok.Lombok;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -32,10 +41,6 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
-import javax.annotation.Nullable;
-import javax.annotation.PreDestroy;
-import javax.inject.Named;
-import javax.inject.Singleton;
 
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
@@ -169,7 +174,7 @@ public class DiskService extends DiskServiceGrpc.DiskServiceImplBase {
                                     .build());
 
                             createDiskOperation.modifyMeta(meta);
-                            createDiskOperation.setResponse(resp);
+                            createDiskOperation.completeWith(resp);
 
                             operationsDao.complete(createDiskOperation.id(), meta, resp, tx);
 

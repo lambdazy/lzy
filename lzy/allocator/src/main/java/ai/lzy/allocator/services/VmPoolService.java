@@ -3,11 +3,10 @@ package ai.lzy.allocator.services;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import io.grpc.stub.StreamObserver;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import javax.inject.Inject;
-import javax.inject.Singleton;
 
 import static ai.lzy.v1.VmPoolServiceApi.GetVmPoolsRequest;
 import static ai.lzy.v1.VmPoolServiceApi.VmPools;
