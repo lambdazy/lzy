@@ -14,7 +14,6 @@ if __name__ == '__main__':
         with Lzy().workflow(name=workflow_name, interactive=False):
             raises()
     except Exception as e:
-        print(e)
         pass
 
     with Lzy().workflow(name=workflow_name, interactive=False):
