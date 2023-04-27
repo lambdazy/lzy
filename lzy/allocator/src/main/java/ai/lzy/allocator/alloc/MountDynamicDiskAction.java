@@ -194,7 +194,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
                 .getByVmAndStates(vm.vmId(), List.of(DynamicMount.State.READY), null));
         } catch (Exception e) {
             log().error("{} Failed to read active mounts for vm", logPrefix(), e);
-            fail(Status.ABORTED.withDescription("Failed to read active mounts for vm"));
+            fail(Status.CANCELLED.withDescription("Failed to read active mounts for vm"));
             return StepResult.FINISH;
         }
         return StepResult.CONTINUE;
@@ -245,7 +245,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
             vm = vm.withMountPod(mountPod.podName());
         } catch (Exception e) {
             log().error("{} Failed to update vm with new mount pod {}", logPrefix(), mountPod.podName(), e);
-            fail(Status.ABORTED.withDescription("Failed to update vm with new mount pod"));
+            fail(Status.CANCELLED.withDescription("Failed to update vm with new mount pod"));
         }
         return StepResult.CONTINUE;
     }

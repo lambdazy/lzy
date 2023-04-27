@@ -255,12 +255,8 @@ public class KuberVmAllocator implements VmAllocator {
                     LOG.info("Unmount return code: {}", returnCode);
                 }
             }
-        } catch (ExecutionException e) {
-            LOG.warn("Unmount execution error", e);
-        } catch (InterruptedException e) {
-            LOG.warn("Unmount interrupted");
-        } catch (IOException e) {
-            LOG.warn("Unmount output reading error", e);
+        } catch (ExecutionException | InterruptedException | IOException e) {
+            LOG.warn("Failed to unmount {} from {}", mountPath, podName, e);
         }
     }
 
