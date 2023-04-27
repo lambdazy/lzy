@@ -1,0 +1,23 @@
+[
+    {
+        "poolSpecName": "small",
+        "cpuType": "Intel Cascade Lake",
+        "cpuCount": 4,
+        "gpuType": "NO_GPU",
+        "ramGb": 32,
+        "zones": [
+            "ru-central1-a"
+        ]
+    },
+    {
+        "poolSpecName": "large",
+        "cpuType": "Intel Broadwell",
+        "cpuCount": 8,
+        "gpuType": "V100",
+        "gpuCount": 1,
+        "ramGb": 48,
+        "zones": [
+            "ru-central1-a"
+        ]
+    }
+]

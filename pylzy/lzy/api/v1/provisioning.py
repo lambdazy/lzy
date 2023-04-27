@@ -76,6 +76,9 @@ class GpuType(Enum):
     T4 = "T4"
 
 
+ScoreFunctionType = Callable[["Provisioning", "Provisioning"], float]
+
+
 def maximum_score_function(requested: "Provisioning", spec: "Provisioning") -> float:
     """Score function that scores big machines the max.
     Use it when you need the best spec available.
@@ -108,8 +111,8 @@ class Provisioning:
 
     ram_size_gb: IntegerRequirement = None
 
-    score_function: Callable[["Provisioning", "Provisioning"], float] = dataclasses.field(
-        default=minimum_score_function,
+    score_function: Optional[ScoreFunctionType] = dataclasses.field(
+        default=None,
         repr=False,
         compare=False,
     )
@@ -144,6 +147,10 @@ class Provisioning:
     def ram_size_gb_final(self) -> int:
         return _coerce(self.ram_size_gb, 0)
 
+    @property
+    def score_function_final(self) -> ScoreFunctionType:
+        return _coerce(self.score_function, minimum_score_function)
+
     @classmethod
     def from_proto(cls, spec: VmPoolSpec) -> "Provisioning":
         fields = {}
@@ -172,15 +179,18 @@ class Provisioning:
     def resolve_pool(self, pool_specs: Sequence[VmPoolSpec]) -> VmPoolSpec:
         self._validate()
 
+        if not pool_specs:
+            raise BadProvisioning(f"there is no available pools on the server")
+
         spec_scores = []
 
         for proto_spec in pool_specs:
             provisioning = self.from_proto(proto_spec)
 
-            if self._filter_spec(provisioning):
+            if not self._filter_spec(provisioning):
                 continue
 
-            score = self.score_function(self, provisioning)
+            score = self.score_function_final(self, provisioning)
             spec_scores.append((score, proto_spec, provisioning))
             logger.debug("eligible spec %r have score %f", provisioning, score)
 

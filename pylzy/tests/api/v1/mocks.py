@@ -3,7 +3,17 @@ import grpc
 import sys
 import uuid
 from serialzy.serializers.primitive import PrimitiveSerializer
-from typing import List, Callable, Optional, Iterable, BinaryIO, Iterator, Sequence, Dict
+from typing import (
+    List,
+    Callable,
+    Optional,
+    Iterable,
+    BinaryIO,
+    Iterator,
+    Sequence,
+    Dict,
+    Tuple,
+)
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
 from ai.lzy.v1.long_running.operation_pb2 import Operation, GetOperationRequest
@@ -32,8 +42,10 @@ _LOG = get_logger(__name__)
 
 
 class RuntimeMock(Runtime):
-    def __init__(self):
+    def __init__(self, *, vm_pool_specs: Optional[Sequence[VmPoolSpec]] = None):
         self.calls: List[LzyCall] = []
+        self.vm_pool_specs = vm_pool_specs
+        self.pool_to_call: List[Tuple[LzyCall, VmPoolSpec]] = []
 
     async def storage(self) -> Optional[Storage]:
         return None
@@ -43,6 +55,14 @@ class RuntimeMock(Runtime):
 
     async def exec(self, calls: List[LzyCall], progress: Callable[[ProgressStep], None]) -> None:
         self.calls = calls
+
+        if not self.vm_pool_specs:
+            return
+
+        for call in self.calls:
+            pool = call.provisioning.resolve_pool(self.vm_pool_specs)
+
+            call._vm_pool_spec = pool
 
     async def abort(self) -> None:
         pass
