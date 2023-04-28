@@ -445,8 +445,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     }
 
     private AllocatedVm allocateWithMountPod(String sessionId) throws Exception {
-        var vmPodFuture = mockCreatePod();
         var mountPodFuture = mockCreatePod();
+        var vmPodFuture = mockCreatePod();
         vmPodFuture.thenAccept(pod -> mockGetPodByName(getName(pod)));
         var operation = authorizedAllocatorBlockingStub.allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()

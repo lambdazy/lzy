@@ -50,7 +50,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<OperationRunnerBase.StepResult>> steps() {
-        return List.of(this::allocateTunnel, this::allocateVm, this::allocateMountPod, this::setMountPod, this::waitVm);
+        return List.of(this::allocateTunnel, this::allocateMountPod, this::setMountPod, this::allocateVm, this::waitVm);
     }
 
     @Override
@@ -136,52 +136,6 @@ public final class AllocateVmAction extends OperationRunnerBase {
         return StepResult.CONTINUE;
     }
 
-    private StepResult allocateVm() {
-        if (kuberRequestDone) {
-            return StepResult.ALREADY_DONE;
-        }
-
-        InjectedFailures.failAllocateVm5();
-
-        final var vmRef = new Vm.Ref(vm);
-        try {
-            var result = allocationContext.allocator().allocate(vmRef);
-            vm = vmRef.vm();
-            return switch (result.code()) {
-                case SUCCESS -> {
-                    kuberRequestDone = true;
-                    yield StepResult.CONTINUE;
-                }
-                case RETRY_LATER -> StepResult.RESTART;
-                case FAILED -> {
-                    log().error("{} Fail allocation: {}", logPrefix(), result.message());
-                    fail(Status.INTERNAL.withDescription(result.message()));
-                    yield StepResult.FINISH;
-                }
-            };
-        } catch (Exception e) {
-            vm = vmRef.vm();
-            log().error("{} Error during VM allocation: {}", logPrefix(), e.getMessage(), e);
-            allocationContext.metrics().allocationError.inc();
-            var status = e instanceof InvalidConfigurationException
-                ? Status.INVALID_ARGUMENT.withDescription(e.getMessage())
-                : Status.INTERNAL.withDescription(e.getMessage());
-            try {
-                fail(status);
-                return StepResult.FINISH;
-            } catch (OperationCompletedException ex) {
-                log().error("{} Cannot fail operation: already completed", logPrefix());
-                return StepResult.FINISH;
-            } catch (NotFoundException ex) {
-                log().error("{} Cannot fail operation: not found", logPrefix());
-                return StepResult.FINISH;
-            } catch (Exception ex) {
-                log().error("{} Cannot fail operation: {}", logPrefix(), e.getMessage(), e);
-                return StepResult.RESTART;
-            }
-        }
-    }
-
     private StepResult allocateMountPod() {
         if (!allocationContext.mountConfig().isEnabled()) {
             return StepResult.ALREADY_DONE;
@@ -233,6 +187,52 @@ public final class AllocateVmAction extends OperationRunnerBase {
         }
         vm = vm.withMountPod(pod);
         return StepResult.CONTINUE;
+    }
+
+    private StepResult allocateVm() {
+        if (kuberRequestDone) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        InjectedFailures.failAllocateVm5();
+
+        final var vmRef = new Vm.Ref(vm);
+        try {
+            var result = allocationContext.allocator().allocate(vmRef);
+            vm = vmRef.vm();
+            return switch (result.code()) {
+                case SUCCESS -> {
+                    kuberRequestDone = true;
+                    yield StepResult.CONTINUE;
+                }
+                case RETRY_LATER -> StepResult.RESTART;
+                case FAILED -> {
+                    log().error("{} Fail allocation: {}", logPrefix(), result.message());
+                    fail(Status.INTERNAL.withDescription(result.message()));
+                    yield StepResult.FINISH;
+                }
+            };
+        } catch (Exception e) {
+            vm = vmRef.vm();
+            log().error("{} Error during VM allocation: {}", logPrefix(), e.getMessage(), e);
+            allocationContext.metrics().allocationError.inc();
+            var status = e instanceof InvalidConfigurationException
+                ? Status.INVALID_ARGUMENT.withDescription(e.getMessage())
+                : Status.INTERNAL.withDescription(e.getMessage());
+            try {
+                fail(status);
+                return StepResult.FINISH;
+            } catch (OperationCompletedException ex) {
+                log().error("{} Cannot fail operation: already completed", logPrefix());
+                return StepResult.FINISH;
+            } catch (NotFoundException ex) {
+                log().error("{} Cannot fail operation: not found", logPrefix());
+                return StepResult.FINISH;
+            } catch (Exception ex) {
+                log().error("{} Cannot fail operation: {}", logPrefix(), e.getMessage(), e);
+                return StepResult.RESTART;
+            }
+        }
     }
 
     private StepResult waitVm() {
