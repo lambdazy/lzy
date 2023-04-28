@@ -5,6 +5,8 @@ import ai.lzy.scheduler.db.JobDao;
 import ai.lzy.scheduler.providers.JobProvider;
 import ai.lzy.scheduler.providers.JobSerializer;
 import io.micronaut.context.ApplicationContext;
+import jakarta.annotation.Nullable;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,8 +18,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
-import javax.annotation.PreDestroy;
 
 @Singleton
 public class JobService {

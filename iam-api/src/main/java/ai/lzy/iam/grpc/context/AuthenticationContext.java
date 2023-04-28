@@ -4,10 +4,10 @@ import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.utils.TokenParser;
 import ai.lzy.util.auth.credentials.Credentials;
 import io.grpc.Context;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 import java.util.Objects;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public class AuthenticationContext {
     public static final Context.Key<AuthenticationContext> KEY = Context.key("authentication-context");

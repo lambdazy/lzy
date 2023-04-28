@@ -1,6 +1,8 @@
 package ru.yandex.qe.s3.transfer.loop;
 
 import com.google.common.util.concurrent.*;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
@@ -18,8 +20,6 @@ import java.util.OptionalInt;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**

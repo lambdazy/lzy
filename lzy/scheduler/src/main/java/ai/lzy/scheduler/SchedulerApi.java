@@ -8,13 +8,13 @@ import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.context.ApplicationContext;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import javax.inject.Inject;
-import javax.inject.Named;
-import javax.inject.Singleton;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 

@@ -4,6 +4,7 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.scheduler.JobService;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 
 import java.sql.PreparedStatement;
@@ -11,7 +12,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 
 @Singleton
 public class JobDaoImpl implements JobDao {

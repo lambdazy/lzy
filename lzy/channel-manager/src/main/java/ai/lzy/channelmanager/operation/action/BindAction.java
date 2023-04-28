@@ -26,12 +26,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Any;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.time.Instant;
-import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 

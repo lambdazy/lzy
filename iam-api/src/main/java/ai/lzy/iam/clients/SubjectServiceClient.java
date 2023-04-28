@@ -6,10 +6,10 @@ import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
+import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 
 public interface SubjectServiceClient {
 

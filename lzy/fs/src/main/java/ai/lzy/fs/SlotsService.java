@@ -29,6 +29,8 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -42,8 +44,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.StreamSupport;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;

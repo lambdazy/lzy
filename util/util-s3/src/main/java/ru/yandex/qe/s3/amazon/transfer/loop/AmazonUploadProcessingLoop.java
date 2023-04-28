@@ -3,6 +3,7 @@ package ru.yandex.qe.s3.amazon.transfer.loop;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.*;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import jakarta.annotation.Nullable;
 import org.joda.time.DateTime;
 import ru.yandex.qe.s3.transfer.buffers.ByteBufferPool;
 import ru.yandex.qe.s3.transfer.loop.UploadProcessingLoop;
@@ -17,7 +18,6 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 /**

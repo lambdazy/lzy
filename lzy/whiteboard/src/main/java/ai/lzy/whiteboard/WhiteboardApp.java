@@ -12,6 +12,7 @@ import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.exceptions.NoSuchBeanException;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -23,7 +24,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 @Singleton
 public class WhiteboardApp {

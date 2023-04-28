@@ -1,6 +1,7 @@
 package ru.yandex.qe.s3.transfer.buffers;
 
 import com.google.common.collect.ImmutableMap;
+import jakarta.annotation.Nonnull;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
@@ -9,7 +10,6 @@ import org.apache.commons.pool2.impl.GenericObjectPool;
 import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.function.Supplier;
-import javax.annotation.Nonnull;
 
 /**
  * Established by terry on 14.07.15.

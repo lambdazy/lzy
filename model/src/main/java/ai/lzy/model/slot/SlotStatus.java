@@ -1,7 +1,8 @@
 package ai.lzy.model.slot;
 
+import jakarta.annotation.Nullable;
+
 import java.net.URI;
-import javax.annotation.Nullable;
 
 public interface SlotStatus {
     @Nullable

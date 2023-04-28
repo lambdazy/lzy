@@ -6,6 +6,7 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Transaction;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
@@ -15,7 +16,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import javax.annotation.Nullable;
 
 @Singleton
 public class QueueEventDaoImpl implements QueueEventDao {

@@ -17,9 +17,9 @@ import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphStatusRequest;
 import ai.lzy.worker.WorkerApiImpl;
+import jakarta.annotation.Nonnull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -116,7 +116,7 @@ public class SchedulerTest {
         Assert.assertTrue(status.hasCompleted());
     }
 
-    @NotNull
+    @Nonnull
     private String buildChannel(String channelName) {
         final var client = channelManager.context().privateClient();
         final var response = client.create(makeCreateChannelCommand("Semjon.Semjonych", "wf", "wf_id", channelName));

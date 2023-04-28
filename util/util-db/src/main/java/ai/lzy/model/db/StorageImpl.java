@@ -2,12 +2,12 @@ package ai.lzy.model.db;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.mchange.v2.c3p0.ComboPooledDataSource;
+import jakarta.annotation.PreDestroy;
 import org.flywaydb.core.Flyway;
 
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.function.Consumer;
-import javax.annotation.PreDestroy;
 
 public abstract class StorageImpl implements Storage {
     private static final String VALIDATION_QUERY_SQL = "select 1";

@@ -1,8 +1,8 @@
 package ru.yandex.qe.s3.transfer.download;
 
+import jakarta.annotation.Nonnull;
 import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
 
-import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 
 /**

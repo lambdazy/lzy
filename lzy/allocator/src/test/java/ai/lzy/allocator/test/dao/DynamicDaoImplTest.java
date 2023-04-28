@@ -3,13 +3,7 @@ package ai.lzy.allocator.test.dao;
 import ai.lzy.allocator.alloc.dao.DynamicMountDao;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
-import ai.lzy.allocator.model.CachePolicy;
-import ai.lzy.allocator.model.DiskVolumeDescription;
-import ai.lzy.allocator.model.DynamicMount;
-import ai.lzy.allocator.model.NFSVolumeDescription;
-import ai.lzy.allocator.model.Session;
-import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.VolumeRequest;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.Operation;
@@ -18,7 +12,7 @@ import ai.lzy.model.db.test.DatabaseTestUtils;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -224,12 +218,12 @@ public class DynamicDaoImplTest {
         Assert.assertEquals(1, count);
     }
 
-    @NotNull
+    @Nonnull
     private static DynamicMount dynamicMountModel(String vmId, String workerId, String operationId) {
         return dynamicMountModel(vmId, workerId, operationId, CLUSTER_ID);
     }
 
-    @NotNull
+    @Nonnull
     private static DynamicMount dynamicMountModel(String vmId, String workerId, String operationId, String clusterId) {
         var random = UUID.randomUUID().toString();
         return DynamicMount.createNew(vmId, clusterId, "disk" + random,

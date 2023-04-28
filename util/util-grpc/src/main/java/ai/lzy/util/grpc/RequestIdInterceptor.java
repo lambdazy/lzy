@@ -2,6 +2,7 @@ package ai.lzy.util.grpc;
 
 import io.grpc.*;
 import io.grpc.ForwardingServerCallListener.SimpleForwardingServerCallListener;
+import jakarta.annotation.Nullable;
 import lombok.Lombok;
 import org.apache.logging.log4j.CloseableThreadContext;
 import org.apache.logging.log4j.LogManager;
@@ -10,7 +11,6 @@ import org.apache.logging.log4j.Logger;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
-import javax.annotation.Nullable;
 
 public class RequestIdInterceptor {
     private static final Logger LOG = LogManager.getLogger(RequestIdInterceptor.class);

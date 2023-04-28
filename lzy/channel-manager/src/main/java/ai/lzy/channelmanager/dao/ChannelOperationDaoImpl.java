@@ -3,6 +3,7 @@ package ai.lzy.channelmanager.dao;
 import ai.lzy.channelmanager.operation.ChannelOperation;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 
 import java.sql.ResultSet;
@@ -11,7 +12,6 @@ import java.sql.Timestamp;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 
 @Singleton
 public class ChannelOperationDaoImpl implements ChannelOperationDao {

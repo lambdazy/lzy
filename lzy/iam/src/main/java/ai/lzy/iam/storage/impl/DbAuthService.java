@@ -16,6 +16,7 @@ import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import io.jsonwebtoken.Claims;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -24,7 +25,6 @@ import org.apache.logging.log4j.util.Strings;
 
 import java.io.StringReader;
 import java.sql.SQLException;
-import javax.annotation.Nonnull;
 
 @Singleton
 @Requires(beans = IamDataSource.class)

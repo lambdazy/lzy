@@ -4,13 +4,13 @@ import ai.lzy.channelmanager.model.Connection;
 import ai.lzy.channelmanager.model.Endpoint;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.slot.Slot;
+import jakarta.annotation.Nullable;
 
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 import static ai.lzy.channelmanager.model.Endpoint.SlotOwner.PORTAL;
 

@@ -1,7 +1,7 @@
 package ru.yandex.qe.s3.transfer;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 
 /**
  * @author entropia

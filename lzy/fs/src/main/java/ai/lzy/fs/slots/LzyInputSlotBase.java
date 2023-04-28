@@ -5,13 +5,13 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.net.URI;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 
 public abstract class LzyInputSlotBase extends LzySlotBase implements LzyInputSlot {
     private static final Logger LOG = LogManager.getLogger(LzyInputSlotBase.class);

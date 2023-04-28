@@ -6,6 +6,7 @@ import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.VmAllocatorPrivateApi;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,7 +18,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
-import javax.annotation.Nullable;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;

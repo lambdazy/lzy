@@ -1,8 +1,9 @@
 package ai.lzy.service.util;
 
+import jakarta.annotation.Nullable;
+
 import java.util.Collection;
 import java.util.HashSet;
-import javax.annotation.Nullable;
 
 public enum CollectionUtils {
     ;

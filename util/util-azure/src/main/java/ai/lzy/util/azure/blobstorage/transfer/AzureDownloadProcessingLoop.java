@@ -7,6 +7,8 @@ import com.azure.storage.blob.models.BlobRange;
 import com.azure.storage.blob.models.DownloadRetryOptions;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.Uninterruptibles;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.qe.s3.exceptions.S3TransferException;
@@ -26,8 +28,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import static java.lang.String.format;
 

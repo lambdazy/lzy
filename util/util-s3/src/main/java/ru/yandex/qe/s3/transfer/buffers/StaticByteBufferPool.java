@@ -1,6 +1,8 @@
 package ru.yandex.qe.s3.transfer.buffers;
 
 import com.google.common.base.Preconditions;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import ru.yandex.qe.s3.util.HumanReadable;
@@ -13,8 +15,6 @@ import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Byte buffer pool that pre-allocates all the buffers.<br> Useful for debugging {@code OutOfMemoryError}s.

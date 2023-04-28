@@ -1,13 +1,13 @@
 package ru.yandex.qe.s3.transfer.loop;
 
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import ru.yandex.qe.s3.transfer.TransferState;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * @author entropia

@@ -2,8 +2,8 @@ package ai.lzy.scheduler.db;
 
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
-import org.jetbrains.annotations.Nullable;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;

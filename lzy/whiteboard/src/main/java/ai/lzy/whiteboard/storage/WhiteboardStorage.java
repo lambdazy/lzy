@@ -3,12 +3,12 @@ package ai.lzy.whiteboard.storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.whiteboard.model.Whiteboard;
+import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
 import java.time.Instant;
 import java.util.List;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 
 public interface WhiteboardStorage {
 

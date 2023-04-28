@@ -5,8 +5,7 @@ import ai.lzy.channelmanager.exceptions.IllegalChannelGraphStateException;
 import ai.lzy.channelmanager.model.Connection;
 import ai.lzy.channelmanager.model.Endpoint;
 import ai.lzy.channelmanager.model.channel.Channel;
-
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 // TODO (lindvv): move to Channel.java
 public interface ChannelController {

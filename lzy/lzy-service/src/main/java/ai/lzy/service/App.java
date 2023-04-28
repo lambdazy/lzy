@@ -13,6 +13,7 @@ import com.google.common.net.HostAndPort;
 import io.grpc.*;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.runtime.Micronaut;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -23,7 +24,6 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nullable;
 
 @Singleton
 public class App {

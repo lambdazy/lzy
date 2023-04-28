@@ -16,12 +16,12 @@ import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import io.grpc.Channel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import jakarta.annotation.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 

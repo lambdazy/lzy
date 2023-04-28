@@ -9,11 +9,11 @@ import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
+import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 
 public class SubjectServiceClientStub implements SubjectServiceClient {
     @Override

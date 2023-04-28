@@ -2,10 +2,10 @@ package ru.yandex.qe.s3.ttl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.annotation.Nonnull;
 import org.joda.time.DateTime;
 
 import java.util.Objects;
-import javax.annotation.Nonnull;
 
 /**
  * @author nkey

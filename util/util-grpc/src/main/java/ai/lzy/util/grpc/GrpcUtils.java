@@ -8,12 +8,12 @@ import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.AbstractBlockingStub;
+import jakarta.annotation.Nullable;
 
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 
 public final class GrpcUtils {
 

@@ -1,11 +1,11 @@
 package ru.yandex.qe.s3.transfer.upload;
 
+import jakarta.annotation.Nonnull;
 import ru.yandex.qe.s3.transfer.ThrowingSupplier;
 import ru.yandex.qe.s3.transfer.TransferAbortPolicy;
 import ru.yandex.qe.s3.transfer.meta.Metadata;
 
 import java.io.InputStream;
-import javax.annotation.Nonnull;
 import javax.annotation.concurrent.Immutable;
 
 /**

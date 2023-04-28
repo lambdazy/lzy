@@ -12,10 +12,10 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.CookieValue;
 import io.micronaut.http.annotation.Post;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 
 import java.util.List;
 import java.util.stream.Collectors;
-import javax.validation.Valid;
 
 @Controller("key")
 public class Keys {

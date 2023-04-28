@@ -18,6 +18,7 @@ import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
+import jakarta.annotation.Nonnull;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -34,7 +35,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
-import javax.annotation.Nonnull;
 
 import static ai.lzy.portal.services.PortalService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;

@@ -13,13 +13,13 @@ import ai.lzy.test.GrpcUtils;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.env.PropertySource;
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
+import jakarta.annotation.Nullable;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-import javax.annotation.Nullable;
 
 public class BaseTestWithIam {
 

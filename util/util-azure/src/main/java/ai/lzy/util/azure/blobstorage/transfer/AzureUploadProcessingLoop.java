@@ -7,6 +7,8 @@ import com.azure.storage.blob.models.BlockListType;
 import com.azure.storage.blob.models.ParallelTransferOptions;
 import com.azure.storage.blob.specialized.BlockBlobClient;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,8 +31,6 @@ import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public class AzureUploadProcessingLoop extends UploadProcessingLoop {
 

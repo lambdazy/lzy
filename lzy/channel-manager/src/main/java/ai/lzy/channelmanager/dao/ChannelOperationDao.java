@@ -2,10 +2,10 @@ package ai.lzy.channelmanager.dao;
 
 import ai.lzy.channelmanager.operation.ChannelOperation;
 import ai.lzy.model.db.TransactionHandle;
+import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
 import java.util.List;
-import javax.annotation.Nullable;
 
 public interface ChannelOperationDao {
 

@@ -1,6 +1,8 @@
 package ru.yandex.qe.s3.transfer;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import ru.yandex.qe.s3.transfer.download.DownloadRequest;
 import ru.yandex.qe.s3.transfer.download.DownloadResult;
 import ru.yandex.qe.s3.transfer.download.DownloadState;
@@ -10,8 +12,6 @@ import ru.yandex.qe.s3.util.function.ThrowingFunction;
 
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 /**
  * Established by terry on 23.07.15.

@@ -2,11 +2,11 @@ package ai.lzy.scheduler.providers;
 
 import ai.lzy.scheduler.JobService;
 import ai.lzy.scheduler.providers.JobSerializer.SerializationException;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
-import javax.annotation.Nullable;
 
 public abstract class JobProviderBase<T> implements JobProvider {
     private static final Logger LOG = LogManager.getLogger(JobProviderBase.class);

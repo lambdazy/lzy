@@ -34,6 +34,7 @@ import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
@@ -42,7 +43,6 @@ import jakarta.inject.Singleton;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -789,7 +789,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
     private record MountWithAction(DynamicMount dynamicMount, MountDynamicDiskAction action) { }
 
-    @NotNull
+    @Nonnull
     private Operation createMountOperation(VmAllocatorApi.MountRequest request,
                                            Operation.IdempotencyKey idempotencyKey,
                                            Session session)

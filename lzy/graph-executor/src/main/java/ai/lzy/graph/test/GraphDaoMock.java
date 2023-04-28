@@ -8,12 +8,12 @@ import ai.lzy.graph.model.TaskExecution;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 
 import java.sql.SQLException;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 @Singleton
 @Requires(env = "test-mock")

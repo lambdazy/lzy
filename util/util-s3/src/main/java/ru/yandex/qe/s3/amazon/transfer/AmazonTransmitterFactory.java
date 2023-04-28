@@ -4,6 +4,8 @@ import com.amazonaws.retry.PredefinedRetryPolicies;
 import com.amazonaws.retry.RetryPolicy;
 import com.amazonaws.services.s3.AmazonS3;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import ru.yandex.qe.s3.amazon.policy.LogBackoffStrategy;
 import ru.yandex.qe.s3.amazon.policy.LogRetryCondition;
 import ru.yandex.qe.s3.amazon.transfer.loop.AmazonDownloadProcessingLoop;
@@ -27,8 +29,6 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 import static com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;

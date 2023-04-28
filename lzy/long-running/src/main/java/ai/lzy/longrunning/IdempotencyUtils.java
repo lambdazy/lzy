@@ -7,6 +7,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.Logger;
 
 import java.security.MessageDigest;
@@ -14,7 +15,6 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.concurrent.locks.LockSupport;
-import javax.annotation.Nullable;
 
 import static ai.lzy.longrunning.dao.OperationDao.OPERATION_IDEMPOTENCY_KEY_CONSTRAINT;
 import static ai.lzy.model.db.DbHelper.isUniqueViolation;

@@ -1,6 +1,6 @@
 package ai.lzy.storage.yc;
 
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public interface StorageCredentials {
 

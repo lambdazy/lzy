@@ -6,9 +6,8 @@ import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-
-import javax.inject.Named;
 
 @Factory
 public class BeanFactory {

@@ -5,12 +5,12 @@ import com.google.protobuf.Any;
 import com.google.protobuf.Message;
 import com.google.protobuf.Timestamp;
 import io.grpc.Status;
+import jakarta.annotation.Nullable;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.UUID;
-import javax.annotation.Nullable;
 
 public class Operation {
 

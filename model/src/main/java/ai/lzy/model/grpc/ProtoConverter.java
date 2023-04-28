@@ -6,9 +6,9 @@ import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.model.slot.SlotStatus;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS;
+import jakarta.annotation.Nullable;
 
 import java.net.URI;
-import javax.annotation.Nullable;
 
 public class ProtoConverter {
 

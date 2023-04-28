@@ -5,6 +5,7 @@ import ai.lzy.v1.tunnel.LzyTunnelAgentGrpc;
 import ai.lzy.v1.tunnel.TA;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -12,7 +13,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 @Singleton
 public class LzyTunnelAgentService extends LzyTunnelAgentGrpc.LzyTunnelAgentImplBase {

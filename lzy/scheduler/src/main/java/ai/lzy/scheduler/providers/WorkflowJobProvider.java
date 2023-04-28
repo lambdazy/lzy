@@ -9,6 +9,7 @@ import com.google.rpc.Status;
 import io.grpc.Status.Code;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -16,7 +17,6 @@ import org.apache.logging.log4j.Logger;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
-import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 

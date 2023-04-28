@@ -58,19 +58,19 @@
         <jackson-datatype-jsr310.version>2.13.5</jackson-datatype-jsr310.version>
         <jackson-datatype-protobuf.version>0.9.13</jackson-datatype-protobuf.version>
 
+        <!-- need for grpc javax.annotation.Generated -->
         <javax.annotation-api.version>1.3.2</javax.annotation-api.version>
-        <javax.inject.version>1</javax.inject.version>
-        <javax.validation.api.version>2.0.1.Final</javax.validation.api.version>
-
-        <jakarta.version>2.1.1</jakarta.version>
 
         <javax.ws.rs.version>2.1.1</javax.ws.rs.version>
+
+        <jakarta.annotation-api.version>2.1.1</jakarta.annotation-api.version>
+        <jakarta.validation-api.version>3.0.2</jakarta.validation-api.version>
+
         <jnr-ffi.version>2.2.12</jnr-ffi.version>
         <jnr-fuse.version>0.5.7</jnr-fuse.version>
         <jsonwebtoken.version>0.11.2</jsonwebtoken.version>
         <jsr305.version>3.0.2</jsr305.version>
         <kafka.version>3.4.0</kafka.version>
-        <kotlin-stdlib.version>1.5.21</kotlin-stdlib.version>
         <log4j.version>2.18.0</log4j.version>
         <lombok.version>1.18.24</lombok.version>
         <micronaut.version>3.7.5</micronaut.version>
@@ -527,22 +527,11 @@
                 <version>${netty.version}</version>
             </dependency>
 
-            <!-- TODO: replace with jakarta -->
+            <!-- need for grpc javax.annotation.Generated -->
             <dependency>
                 <groupId>javax.annotation</groupId>
                 <artifactId>javax.annotation-api</artifactId>
                 <version>${javax.annotation-api.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>javax.validation</groupId>
-                <artifactId>validation-api</artifactId>
-                <version>${javax.validation.api.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>jakarta.annotation</groupId>
-                <artifactId>jakarta.annotation-api</artifactId>
-                <version>${jakarta.version}</version>
             </dependency>
 
             <dependency>
@@ -550,6 +539,18 @@
                 <artifactId>javax.ws.rs-api</artifactId>
                 <version>${javax.ws.rs.version}</version>
             </dependency>
+
+            <dependency>
+                <groupId>jakarta.annotation</groupId>
+                <artifactId>jakarta.annotation-api</artifactId>
+                <version>${jakarta.annotation-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.validation</groupId>
+                <artifactId>jakarta.validation-api</artifactId>
+                <version>${jakarta.validation-api.version}</version>
+            </dependency>
+
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
@@ -626,16 +627,6 @@
                         <artifactId>c3p0</artifactId>
                     </exclusion>
                 </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.jetbrains.kotlin</groupId>
-                <artifactId>kotlin-stdlib</artifactId>
-                <version>${kotlin-stdlib.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.jetbrains.kotlin</groupId>
-                <artifactId>kotlin-stdlib-common</artifactId>
-                <version>${kotlin-stdlib.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.json</groupId>

@@ -2,8 +2,7 @@ package ai.lzy.util.grpc;
 
 import io.grpc.Context;
 import io.grpc.Metadata;
-
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public class ProxyHeaderContext {
     public static Context.Key<ProxyHeaderContext> KEY = Context.key("header-context");

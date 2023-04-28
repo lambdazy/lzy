@@ -12,6 +12,7 @@ import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 
 import java.net.URI;
@@ -26,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 
 import static ai.lzy.model.grpc.ProtoConverter.fromProto;
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
