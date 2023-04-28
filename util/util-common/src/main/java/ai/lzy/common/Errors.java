@@ -1,4 +1,4 @@
-package ai.lzy.allocator.util;
+package ai.lzy.common;
 
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;

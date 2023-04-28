@@ -206,8 +206,7 @@ message DynamicMount {
 // ========= Unmount disk ==========
 
 message UnmountRequest {
-  string vm_id = 1;
-  string mount_id = 2;
+  string mount_id = 1;
 }
 
 message UnmountResponse {

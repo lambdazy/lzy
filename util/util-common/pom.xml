@@ -11,7 +11,14 @@
     <artifactId>util-common</artifactId>
 
     <dependencies>
-
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-api</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

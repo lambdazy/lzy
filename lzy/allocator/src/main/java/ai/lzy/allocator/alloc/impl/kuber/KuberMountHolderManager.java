@@ -1,17 +1,16 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.model.VolumeMount;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
-import com.google.common.collect.ImmutableList;
-import io.fabric8.kubernetes.api.model.Volume;
-import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nonnull;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.MOUNT_HOLDER_POD_TEMPLATE_PATH;
@@ -37,18 +37,21 @@ public class KuberMountHolderManager implements MountHolderManager {
     private final KuberClientFactory factory;
     private final ServiceConfig config;
     private final ServiceConfig.MountConfig mountConfig;
+    private final IdGenerator idGenerator;
 
     public KuberMountHolderManager(ClusterRegistry clusterRegistry, KuberClientFactory factory, ServiceConfig config,
-                                   ServiceConfig.MountConfig mountConfig)
+                                   ServiceConfig.MountConfig mountConfig,
+                                   @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
         this.clusterRegistry = clusterRegistry;
         this.factory = factory;
         this.config = config;
         this.mountConfig = mountConfig;
+        this.idGenerator = idGenerator;
     }
 
     @Override
-    public ClusterPod allocateMountHolder(Vm.Spec mountToVm) {
+    public ClusterPod allocateMountHolder(Vm.Spec mountToVm, List<DynamicMount> mounts) {
         final var cluster = getCluster(mountToVm.poolLabel(), mountToVm.zone());
 
         String vmId = mountToVm.vmId();
@@ -56,7 +59,7 @@ public class KuberMountHolderManager implements MountHolderManager {
 
         try (final var client = factory.build(cluster)) {
             var mountHolderPodBuilder = new PodSpecBuilder(podName, MOUNT_HOLDER_POD_TEMPLATE_PATH, client, config);
-            var mountHolderWorkload = createWorkload();
+            var mountHolderWorkload = createWorkload(mounts);
             var hostVolume = createHostPathVolume(mountConfig);
 
             var podSpec = mountHolderPodBuilder
@@ -66,6 +69,7 @@ public class KuberMountHolderManager implements MountHolderManager {
                 .withLabels(Map.of(
                     KuberLabels.LZY_POD_SESSION_ID_LABEL, mountToVm.sessionId()
                 ))
+                .withDynamicVolumes(mounts)
                 .build();
 
             final Pod pod;
@@ -87,27 +91,9 @@ public class KuberMountHolderManager implements MountHolderManager {
     }
 
     @Override
-    public void attachVolume(ClusterPod clusterPod, DynamicMount mount, VolumeClaim claim) {
-        var cluster = getCluster(clusterPod.clusterId());
-        try (final var client = factory.build(cluster)) {
-            client.pods().inNamespace(NAMESPACE_VALUE).withName(clusterPod.podName())
-                .edit(pod -> attachDiskToPodInPlace(pod, mount, claim));
-        } catch (KubernetesClientException e) {
-            LOG.error("Failed to attach volume to pod {}: {}", clusterPod.podName(), e.getMessage(), e);
-            throw e;
-        }
-    }
-
-    @Override
-    public void detachVolume(ClusterPod clusterPod, String mountName) {
-        var cluster = getCluster(clusterPod.clusterId());
-        try (final var client = factory.build(cluster)) {
-            client.pods().inNamespace(NAMESPACE_VALUE).withName(clusterPod.podName())
-                .edit(pod -> detachDiskFromPodInPlace(pod, mountName));
-        } catch (KubernetesClientException e) {
-            LOG.error("Failed to detach volume from pod {}: {}", clusterPod.podName(), e.getMessage(), e);
-            throw e;
-        }
+    public ClusterPod recreateWith(Vm.Spec vm, ClusterPod currentPod, List<DynamicMount> mounts) {
+        deallocateMountHolder(currentPod);
+        return allocateMountHolder(vm, mounts);
     }
 
     @Override
@@ -115,6 +101,10 @@ public class KuberMountHolderManager implements MountHolderManager {
         var cluster = clusterRegistry.getCluster(clusterPod.clusterId());
         try (final var client = factory.build(cluster)) {
             var pod = client.pods().inNamespace(NAMESPACE_VALUE).withName(clusterPod.podName()).get();
+            if (pod == null) {
+                LOG.warn("Pod {} not found", clusterPod.podName());
+                return PodPhase.UNKNOWN;
+            }
             return PodPhase.fromString(pod.getStatus().getPhase());
         } catch (KubernetesClientException e) {
             LOG.error("Failed to check pod phase {}: {}", clusterPod.podName(), e.getMessage(), e);
@@ -122,51 +112,8 @@ public class KuberMountHolderManager implements MountHolderManager {
         }
     }
 
-    private Pod detachDiskFromPodInPlace(Pod pod, String mountName) {
-        PodSpec spec = pod.getSpec();
-        spec.getContainers()
-            .forEach(container -> {
-                var mounts = new ArrayList<>(container.getVolumeMounts());
-                mounts.removeIf(mount -> mount.getName().equals(mountName));
-                container.setVolumeMounts(mounts);
-            });
-        var volumes = new ArrayList<>(spec.getVolumes());
-        volumes.removeIf(volume -> volume.getName().equals(mountName));
-        spec.setVolumes(volumes);
-        return pod;
-    }
-
-    @NotNull
-    private Pod attachDiskToPodInPlace(Pod pod, DynamicMount mount, VolumeClaim claim) {
-        PodSpec spec = pod.getSpec();
-        spec.getContainers()
-            .forEach(container -> {
-                var mounts = new ArrayList<io.fabric8.kubernetes.api.model.VolumeMount>(
-                    container.getVolumeMounts().size() + 1);
-                mounts.addAll(container.getVolumeMounts());
-                mounts.add(new VolumeMountBuilder()
-                    .withName(mount.mountName())
-                    .withMountPath(mountConfig.getWorkerMountPoint() + "/" + mount.mountPath())
-                    .withReadOnly(false)
-                    .withMountPropagation(VolumeMount.MountPropagation.BIDIRECTIONAL.asString())
-                    .build());
-                container.setVolumeMounts(mounts);
-            });
-        var volumes = ImmutableList.<Volume>builder()
-            .addAll(spec.getVolumes())
-            .add(new VolumeBuilder()
-                .withName(mount.mountName())
-                .withPersistentVolumeClaim(new PersistentVolumeClaimVolumeSource(claim.name(), false))
-                .build()
-            )
-            .build();
-        pod.getSpec().setVolumes(volumes);
-        return pod;
-    }
-
     @Override
     public void deallocateMountHolder(ClusterPod clusterPod) {
-        // deallocate pod
         var cluster = getCluster(clusterPod.clusterId());
         try (final var client = factory.build(cluster)) {
             client.pods().inNamespace(NAMESPACE_VALUE).withName(clusterPod.podName()).delete();
@@ -179,9 +126,14 @@ public class KuberMountHolderManager implements MountHolderManager {
         }
     }
 
-    private Workload createWorkload() {
-        final List<VolumeMount> mounts = new ArrayList<>(2);
+    private Workload createWorkload(List<DynamicMount> dynamicMounts) {
+        final List<VolumeMount> mounts = new ArrayList<>(dynamicMounts.size() + 1);
         mounts.add(prepareVolumeMount(mountConfig));
+        for (var dynamicMount : dynamicMounts) {
+            var volumeMount = new VolumeMount(dynamicMount.id(), dynamicMount.mountPath(), false,
+                VolumeMount.MountPropagation.BIDIRECTIONAL);
+            mounts.add(volumeMount);
+        }
 
         return new Workload(
             "mount-holder",
@@ -225,8 +177,8 @@ public class KuberMountHolderManager implements MountHolderManager {
     }
 
     @NotNull
-    private static String mountHolderName(String vmId) {
-        return MOUNT_HOLDER_POD_NAME_PREFIX + vmId;
+    private String mountHolderName(String vmId) {
+        return idGenerator.generate(MOUNT_HOLDER_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT) + "-");
     }
 
 }

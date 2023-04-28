@@ -5,6 +5,7 @@ import lombok.Lombok;
 import org.apache.logging.log4j.CloseableThreadContext;
 import org.apache.logging.log4j.ThreadContext;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -23,7 +24,7 @@ public abstract class ContextAwareTask implements Runnable {
 
     public final void run() {
         var previous = grpcContext.attach();
-        try (var ignore = CloseableThreadContext.putAll(logContext)) {
+        try (var ignore = CloseableThreadContext.putAll(logContext).putAll(prepareLogContext())) {
             try {
                 execute();
             } catch (Exception e) {
@@ -35,4 +36,8 @@ public abstract class ContextAwareTask implements Runnable {
     }
 
     protected abstract void execute();
+
+    protected Map<String, String> prepareLogContext() {
+        return new HashMap<>();
+    }
 }

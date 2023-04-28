@@ -26,4 +26,7 @@ public interface DynamicMountDao {
     List<DynamicMount> getDeleting(String workerId, @Nullable TransactionHandle tx) throws SQLException;
 
     List<DynamicMount> getByVm(String vmId, @Nullable TransactionHandle tx) throws SQLException;
+
+    List<DynamicMount> getByVmAndStates(String vmId, List<DynamicMount.State> states,
+                                        @Nullable TransactionHandle tx) throws SQLException;
 }

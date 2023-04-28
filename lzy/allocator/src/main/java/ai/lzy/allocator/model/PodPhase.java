@@ -24,4 +24,8 @@ public enum PodPhase {
             default -> throw new IllegalStateException("Unknown pod phase: " + phase);
         };
     }
+
+    public String getPhase() {
+        return phase;
+    }
 }

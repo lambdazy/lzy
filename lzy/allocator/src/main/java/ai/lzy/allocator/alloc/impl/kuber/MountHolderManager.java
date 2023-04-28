@@ -4,15 +4,14 @@ import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.PodPhase;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.VolumeClaim;
+
+import java.util.List;
 
 public interface MountHolderManager {
 
-    ClusterPod allocateMountHolder(Vm.Spec mountToVm);
+    ClusterPod allocateMountHolder(Vm.Spec mountToVm, List<DynamicMount> mounts);
 
-    void attachVolume(ClusterPod clusterPod, DynamicMount mount, VolumeClaim claim);
-
-    void detachVolume(ClusterPod clusterPod, String mountName);
+    ClusterPod recreateWith(Vm.Spec vm, ClusterPod currentPod, List<DynamicMount> mounts);
 
     void deallocateMountHolder(ClusterPod clusterPod);
 

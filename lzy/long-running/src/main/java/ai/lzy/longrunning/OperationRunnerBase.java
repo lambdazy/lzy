@@ -1,5 +1,6 @@
 package ai.lzy.longrunning;
 
+import ai.lzy.logs.LogContextKey;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
@@ -16,6 +17,7 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -89,6 +91,13 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
                 throw e;
             }
         }
+    }
+
+    protected Map<String, String> prepareLogContext() {
+        var ctx = super.prepareLogContext();
+        ctx.put(LogContextKey.OPERATION_ID, id);
+        ctx.put(LogContextKey.ACTION, getClass().getSimpleName());
+        return ctx;
     }
 
     private boolean loadOperation() {

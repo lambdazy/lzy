@@ -6,19 +6,11 @@ import ai.lzy.util.auth.credentials.OttHelper;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.*;
-import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
-import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.FreeRequest;
+import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunning.Operation;
 import com.google.protobuf.util.Durations;
-import io.fabric8.kubernetes.api.model.PersistentVolume;
-import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
-import io.fabric8.kubernetes.api.model.PersistentVolumeSpec;
-import io.fabric8.kubernetes.api.model.PodListBuilder;
-import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.*;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.junit.After;
@@ -41,9 +33,7 @@ import java.util.function.Consumer;
 
 import static ai.lzy.allocator.model.Volume.AccessMode.READ_WRITE_ONCE;
 import static ai.lzy.allocator.test.Utils.waitOperation;
-import static ai.lzy.allocator.volume.KuberVolumeManager.KUBER_GB_NAME;
-import static ai.lzy.allocator.volume.KuberVolumeManager.VOLUME_CAPACITY_STORAGE_KEY;
-import static ai.lzy.allocator.volume.KuberVolumeManager.YCLOUD_DISK_DRIVER;
+import static ai.lzy.allocator.volume.KuberVolumeManager.*;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
@@ -148,7 +138,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         var sessionId = createSession(Durations.fromSeconds(100));
 
-        final var future = awaitAllocationRequest(this::mockGetPodByName);
+        final var future = mockCreatePod(this::mockGetPodByName);
 
         final Operation operation = withGrpcContext(() ->
             authorizedAllocatorBlockingStub.allocate(
@@ -160,7 +150,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                     .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                     .build()));
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         var vmId = operation.getMetadata().unpack(AllocateMetadata.class).getVmId();
 
@@ -324,7 +314,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void unexpectedlyFreeWhileAllocate() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
-        final var future = awaitAllocationRequest(this::mockGetPodByName);
+        final var future = mockCreatePod(this::mockGetPodByName);
 
         var allocOp = withGrpcContext(() -> authorizedAllocatorBlockingStub.allocate(
             AllocateRequest.newBuilder()
@@ -337,7 +327,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         var deleted = new CountDownLatch(1);
         mockDeletePodByName(podName, deleted::countDown, HttpURLConnection.HTTP_OK);
@@ -521,7 +511,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void deleteSessionWithActiveVmsAfterRegister() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
-        var future = awaitAllocationRequest(this::mockGetPodByName);
+        var future = mockCreatePod(this::mockGetPodByName);
 
         var allocate = withGrpcContext(() ->
             authorizedAllocatorBlockingStub.allocate(
@@ -534,7 +524,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                     .build()));
         var allocateMetadata = allocate.getMetadata().unpack(AllocateMetadata.class);
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
@@ -552,7 +542,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void deleteSessionWithActiveVmsBeforeRegister() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
-        var future = awaitAllocationRequest(this::mockGetPodByName);
+        var future = mockCreatePod(this::mockGetPodByName);
 
         var allocate = authorizedAllocatorBlockingStub.allocate(
             AllocateRequest.newBuilder()
@@ -567,7 +557,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var vm = vmDao.get(allocateMetadata.getVmId(), null);
         Assert.assertNotNull(vm);
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
@@ -644,7 +634,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void repeatedWorkerRegister() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
-        var future = awaitAllocationRequest(this::mockGetPodByName);
+        var future = mockCreatePod(this::mockGetPodByName);
 
         var allocate = authorizedAllocatorBlockingStub.allocate(
             AllocateRequest.newBuilder()
@@ -659,7 +649,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var vm = vmDao.get(allocateMetadata.getVmId(), null);
         Assert.assertNotNull(vm);
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
         mockDeletePodByName(podName, kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
@@ -690,7 +680,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void runWithVolumes() throws Exception {
         var sessionId = createSession(Durations.ZERO);
 
-        var future = awaitAllocationRequest(this::mockGetPodByName);
+        var future = mockCreatePod(this::mockGetPodByName);
 
         final String volumeName = "volumeName";
         final String mountPath = "/mnt/volume";
@@ -739,7 +729,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .build());
         var allocateMetadata = allocationStarted.getMetadata().unpack(AllocateMetadata.class);
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         final PersistentVolume persistentVolume = persistentVolumeFuture.get();
         final PersistentVolumeClaim persistentVolumeClaim = persistentVolumeClaimFuture.get();

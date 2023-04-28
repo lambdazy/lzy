@@ -18,11 +18,7 @@ import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.OttHelper;
-import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.AllocatorPrivateGrpc;
-import ai.lzy.v1.DiskServiceGrpc;
-import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.VmAllocatorPrivateApi;
+import ai.lzy.v1.*;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
@@ -60,9 +56,7 @@ import java.util.function.Consumer;
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorApiTestBase extends BaseTestWithIam {
@@ -252,6 +246,13 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             .always();
     }
 
+    protected void mockGetPod(Pod pod) {
+        kubernetesServer.expect().get()
+            .withPath(POD_PATH + "/" + getName(pod))
+            .andReturn(HttpURLConnection.HTTP_OK, pod)
+            .once();
+    }
+
     @NotNull
     private static Pod constructPod(String podName) {
         final Pod pod = new Pod();
@@ -306,10 +307,14 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath) {
+        return awaitResourceCreate(resourceType, resourcePath, HttpURLConnection.HTTP_CREATED);
+    }
+
+    protected <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath, int statusCode) {
         final var future = new CompletableFuture<T>();
         kubernetesServer.expect().post()
             .withPath(resourcePath)
-            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
+            .andReply(statusCode, (req) -> {
                 final var resource = Serialization.unmarshal(
                     new ByteArrayInputStream(req.getBody().readByteArray()), resourceType, Map.of());
                 future.complete(resource);
@@ -319,8 +324,8 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return future;
     }
 
-    protected Future<String> awaitAllocationRequest(@Nullable Consumer<String> onAllocate) {
-        final var future = new CompletableFuture<String>();
+    protected CompletableFuture<Pod> mockCreatePod(@Nullable Consumer<String> onAllocate) {
+        final var future = new CompletableFuture<Pod>();
         kubernetesServer.expect().post()
             .withPath(POD_PATH)
             .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
@@ -331,15 +336,15 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
                     onAllocate.accept(pod.getMetadata().getName());
                 }
 
-                future.complete(pod.getMetadata().getName());
+                future.complete(pod);
                 return pod;
             })
             .once();
         return future;
     }
 
-    protected Future<String> awaitAllocationRequest() {
-        return awaitAllocationRequest(null);
+    protected CompletableFuture<Pod> mockCreatePod() {
+        return mockCreatePod(null);
     }
 
     protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete,
@@ -351,6 +356,10 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
                 onDelete.run();
                 return new StatusDetails();
             }).once();
+    }
+
+    protected void mockDeletePodByName(String podName,  int responseCode) {
+        mockDeletePodByName(podName, () -> {}, responseCode);
     }
 
     protected void mockDeletePodByName(String podName, Runnable onDelete, int responseCode) {
@@ -375,7 +384,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected AllocatedVm allocateVm(String sessionId, String pool, @Nullable String idempotencyKey) throws Exception {
-        final var future = awaitAllocationRequest(this::mockGetPodByName);
+        final var future = mockCreatePod(this::mockGetPodByName);
 
         var allocOp = withGrpcContext(() -> {
             var stub = authorizedAllocatorBlockingStub;
@@ -400,7 +409,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
 
         var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
 
-        final String podName = future.get();
+        final String podName = getName(future.get());
 
         String clusterId = withGrpcContext(() ->
             requireNonNull(clusterRegistry.findCluster(pool, ZONE, CLUSTER_TYPE)).clusterId());
@@ -437,5 +446,10 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     @NotNull
     public static String getTunnelPodName(String vmId) {
         return KuberTunnelAllocator.TUNNEL_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT);
+    }
+
+    @NotNull
+    public static String getName(HasMetadata resource) {
+        return resource.getMetadata().getName();
     }
 }

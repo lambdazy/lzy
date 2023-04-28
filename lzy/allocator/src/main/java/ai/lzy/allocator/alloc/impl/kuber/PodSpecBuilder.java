@@ -2,20 +2,15 @@ package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.model.HostPathVolumeDescription;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.Volume.AccessMode;
-import ai.lzy.allocator.model.VolumeClaim;
-import ai.lzy.allocator.model.VolumeRequest;
-import ai.lzy.allocator.model.Workload;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClient;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class PodSpecBuilder {
@@ -235,6 +230,21 @@ public class PodSpecBuilder {
                         volumeClaim.accessMode() == AccessMode.READ_ONLY_MANY))
                 .build();
             final String volumeRequestName = volumeClaim.volumeRequestName();
+            if (volumes.containsKey(volumeRequestName)) {
+                throw new IllegalArgumentException("Two volumes with the same name " + volumeRequestName);
+            }
+            volumes.put(volumeRequestName, volume);
+        }
+        return this;
+    }
+
+    public PodSpecBuilder withDynamicVolumes(List<DynamicMount> volumeMounts) {
+        for (DynamicMount volumeMount : volumeMounts) {
+            final var volume = new VolumeBuilder()
+                .withName(volumeMount.id())
+                .withPersistentVolumeClaim(new PersistentVolumeClaimVolumeSource(volumeMount.volumeClaimName(), false))
+                .build();
+            final String volumeRequestName = volumeMount.id();
             if (volumes.containsKey(volumeRequestName)) {
                 throw new IllegalArgumentException("Two volumes with the same name " + volumeRequestName);
             }

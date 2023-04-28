@@ -161,7 +161,7 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
 
     private String allocateVm() throws Exception {
         var latch = new CountDownLatch(1);
-        var awaitAllocFuture = awaitAllocationRequest(podName -> {
+        var awaitAllocFuture = mockCreatePod(podName -> {
             try {
                 latch.await();
             } catch (InterruptedException e) {
@@ -186,7 +186,7 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
 
         latch.countDown();
 
-        var podName = awaitAllocFuture.get();
+        var podName = getName(awaitAllocFuture.get());
         mockGetPodByName(podName);
 
         var clusterId = requireNonNull(clusterRegistry.findCluster("S", "test-zone", CLUSTER_TYPE)).clusterId();
