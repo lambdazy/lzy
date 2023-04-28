@@ -291,6 +291,6 @@ class EnvProviderMock(PyEnvProvider):
         self.__libraries = libraries if libraries else {}
         self.__local_modules_path = local_modules_path if local_modules_path else []
 
-    def provide(self, namespace: Dict[str, Any]) -> PyEnv:
+    def provide(self, namespace: Dict[str, Any], exclude_packages: Iterable[str] = tuple()) -> PyEnv:
         info = sys.version_info
         return PyEnv(f"{info.major}.{info.minor}.{info.micro}", self.__libraries, self.__local_modules_path)
