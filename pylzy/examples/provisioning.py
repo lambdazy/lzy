@@ -6,9 +6,11 @@ from lzy.api.v1 import provisioning as lp
 def example1() -> int:
     return 1
 
+
 @op(cpu_count=8)
 def example2() -> int:
     return 2
+
 
 @op(gpu_count=lp.Any)
 def example3() -> int:
