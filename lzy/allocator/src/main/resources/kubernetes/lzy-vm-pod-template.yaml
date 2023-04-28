@@ -7,6 +7,8 @@ metadata:
     lzy.ai/app: vm
 spec:
   restartPolicy: Never
+  nodeSelector:
+    lzy.ai/node-ready-to-use: true
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
