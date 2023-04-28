@@ -13,15 +13,15 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class SimplePythonEnvironment implements AuxEnvironment {
-    private static final Logger LOG = LogManager.getLogger(SimplePythonEnvironment.class);
+public class PlainPythonEnvironment implements AuxEnvironment {
+    private static final Logger LOG = LogManager.getLogger(PlainPythonEnvironment.class);
 
     private final BaseEnvironment base;
     private final LME.PythonEnv env;
     private final String localModulesPathPrefix;
     private Path localModulesPath;
 
-    public SimplePythonEnvironment(BaseEnvironment base, LME.PythonEnv env, String localModulesPathPrefix) {
+    public PlainPythonEnvironment(BaseEnvironment base, LME.PythonEnv env, String localModulesPathPrefix) {
         this.env = env;
         this.base = base;
         this.localModulesPathPrefix = localModulesPathPrefix;

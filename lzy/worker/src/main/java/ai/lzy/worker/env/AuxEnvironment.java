@@ -35,12 +35,12 @@ public interface AuxEnvironment extends Environment {
         }
         var localModulesAbsolutePath = localModulesPath.toAbsolutePath();
 
-        log.info("CondaEnvironment::installPyenv created directory to download local modules into");
+        log.debug("Created directory to download local modules into");
         for (var entry : env.getLocalModulesList()) {
             String name = entry.getName();
             String url = entry.getUri();
-            log.info(
-                "CondaEnvironment::installPyenv installing local module with name " + name + " and url " + url);
+            log.debug(
+                "Installing local module with name " + name + " and url " + url);
 
             File tempFile = File.createTempFile("tmp-file", ".zip");
 
@@ -56,7 +56,7 @@ public interface AuxEnvironment extends Environment {
     }
 
     private static void extractFiles(File file, String destinationDirectory, Logger log) throws IOException {
-        log.info("CondaEnvironment::extractFiles trying to unzip module archive "
+        log.debug("Trying to unzip module archive "
             + file.getAbsolutePath());
         try (ZipFile zipFile = new ZipFile(file.getAbsolutePath())) {
             zipFile.extractAll(destinationDirectory);

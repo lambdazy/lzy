@@ -73,6 +73,8 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         parents: List[ModuleType] = []
         seen_modules: Set = set()
 
+        exclude = set(exclude_packages)
+
         def search(obj: Any) -> None:
             module = inspect.getmodule(obj)
             if module is None:
@@ -87,7 +89,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
             if name in STDLIB_LIST or name in sys.builtin_module_names:
                 return
 
-            if name in exclude_packages:
+            if name in exclude:
                 return  # Skipping excluded module
 
             # and find it among installed ones
