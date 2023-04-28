@@ -249,23 +249,25 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
     protected void notifyExpired() {
     }
 
-    protected void onExpired(TransactionHandle tx) throws SQLException {
+    protected void onExpired(@Nullable TransactionHandle tx) throws SQLException {
     }
 
-    protected void onNotFound(TransactionHandle tx) throws SQLException {
+    protected void onNotFound(@Nullable TransactionHandle tx) throws SQLException {
     }
 
-    protected void onCompletedOutside(Operation op, TransactionHandle tx) throws SQLException {
+    protected void onCompletedOutside(Operation op, @Nullable TransactionHandle tx) throws SQLException {
     }
 
     protected void notifyFinished() {
     }
 
-    protected final void failOperation(Status status, TransactionHandle tx) throws SQLException {
+    protected final void failOperation(Status status, @Nullable TransactionHandle tx) throws SQLException {
         operationsDao.fail(id, toProto(status), tx);
     }
 
-    protected final void completeOperation(@Nullable Any meta, Any response, TransactionHandle tx) throws SQLException {
+    protected final void completeOperation(@Nullable Any meta, Any response, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         operationsDao.complete(id, meta, response, tx);
     }
 

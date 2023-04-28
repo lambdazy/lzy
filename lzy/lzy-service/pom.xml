@@ -86,6 +86,11 @@
             <artifactId>util-kafka</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>s3-sink-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
 
         <!-- other external deps -->
         <dependency>

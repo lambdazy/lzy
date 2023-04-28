@@ -234,6 +234,15 @@ resource "kubernetes_deployment" "lzy-service" {
             value = local.lzy-service-k8s-name
           }
 
+          dynamic "env" {
+            for_each = var.s3_sink_enabled ? [1] : []
+
+            content {
+              name = "LZY_SERVICE_S3_SINK_ADDRESS"
+              value = "${kubernetes_service.s3_sink_service[0].spec[0].cluster_ip}:${local.s3-sink-port}"
+            }
+          }
+
           volume_mount {
             name       = "varloglzy"
             mount_path = "/var/log/lzy"
