@@ -1,9 +1,19 @@
+import pytest
 from unittest import TestCase
 
 from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
+from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
 from lzy.api.v1 import Lzy, op, Env, DockerPullPolicy
-from lzy.api.v1.provisioning import GpuType, Provisioning, CpuType
+from lzy.api.v1.provisioning import (
+    CpuType,
+    GpuType,
+    Provisioning,
+    maximum_score_function,
+    minimum_score_function,
+)
 from lzy.api.v1.call import LzyCall
+from lzy.api.v1.workflow import LzyWorkflow
+from lzy.exceptions import BadProvisioning
 from platform import python_version
 
 
@@ -12,11 +22,30 @@ def func() -> None:
     pass
 
 
+@pytest.mark.usefixtures('vm_pool_specs', 'vm_pool_spec_large', 'vm_pool_spec_small')
 class LzyOpParamsTests(TestCase):
+    vm_pool_specs = None
+    vm_pool_spec_large = None
+    vm_pool_spec_small = None
+
     def setUp(self):
-        self.lzy = Lzy(runtime=RuntimeMock(),
-                       storage_registry=StorageRegistryMock(),
-                       py_env_provider=EnvProviderMock({"pylzy": "0.0.0"}, ["local_module_path"]))
+        assert self.vm_pool_specs
+        assert self.vm_pool_spec_large
+        assert self.vm_pool_spec_small
+
+        self.lzy = Lzy(
+            runtime=RuntimeMock(
+                vm_pool_specs=self.vm_pool_specs,
+            ),
+            storage_registry=StorageRegistryMock(),
+            py_env_provider=EnvProviderMock({"pylzy": "0.0.0"}, ["local_module_path"])
+        )
+
+    def assert_pool_spec(self, wf: LzyWorkflow, etalon: VmPoolSpec):
+        call: LzyCall = wf.owner.runtime.calls[0]
+        vm_pool_spec = call._vm_pool_spec  # it is assigned at mock runtime
+
+        self.assertEqual(vm_pool_spec, etalon)
 
     def test_description(self):
         description = "my favourite func"
@@ -33,29 +62,27 @@ class LzyOpParamsTests(TestCase):
         self.assertEqual(description, call.description)
 
     def test_invalid_workflow_provisioning(self):
-        with self.assertRaisesRegex(ValueError, "cpu_type is not set"):
-            with self.lzy.workflow("test", provisioning=Provisioning()):
+        provisioning = Provisioning(
+            gpu_type=GpuType.NO_GPU.value,
+            gpu_count=4
+        )
+        with self.assertRaisesRegex(BadProvisioning, r"gpu_type is set to NO_GPU while gpu_count"):
+            with self.lzy.workflow("test", provisioning=provisioning):
                 func()
-        with self.assertRaisesRegex(ValueError, "cpu_count is not set"):
-            with self.lzy.workflow("test", provisioning=Provisioning(cpu_type=CpuType.BROADWELL.name)):
-                func()
-        with self.assertRaisesRegex(ValueError, "ram_size_gb is not set"):
-            with self.lzy.workflow("test", provisioning=Provisioning(cpu_type=CpuType.BROADWELL.name, cpu_count=4)):
-                func()
-        with self.assertRaisesRegex(ValueError, "gpu_type is not set"):
-            with self.lzy.workflow("test", provisioning=Provisioning(cpu_type=CpuType.BROADWELL.name, cpu_count=4,
-                                                                     ram_size_gb=8)):
-                func()
-        with self.assertRaisesRegex(ValueError, "gpu_count is not set"):
-            with self.lzy.workflow("test", provisioning=Provisioning(cpu_type=CpuType.BROADWELL.name, cpu_count=4,
-                                                                     ram_size_gb=8,
-                                                                     gpu_type=str(GpuType.NO_GPU.value))):
-                func()
-        with self.assertRaisesRegex(ValueError, "gpu_type is set to NO_GPU while gpu_count"):
-            with self.lzy.workflow("test", provisioning=Provisioning(cpu_type=CpuType.BROADWELL.name, cpu_count=4,
-                                                                     ram_size_gb=8, gpu_type=str(GpuType.NO_GPU.value),
-                                                                     gpu_count=4)):
-                func()
+
+    def test_unavailable_provisioning(self):
+        for field, value in (
+            ('cpu_count', 1000),
+            ('gpu_count', 1001),
+            ('ram_size_gb', 1002),
+            ('cpu_type', 'foo'),
+            ('gpu_type', 'bar'),
+        ):
+            kwargs = {field: value}
+
+            with self.assertRaisesRegex(BadProvisioning, r"not a single one available spec from"):
+                with self.lzy.workflow("test", **kwargs):
+                    func()
 
     def test_default_provisioning(self):
         with self.lzy.workflow("test") as wf:
@@ -63,46 +90,64 @@ class LzyOpParamsTests(TestCase):
 
         # noinspection PyUnresolvedReferences
         call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertEqual(Provisioning.default().cpu_type, call.provisioning.cpu_type)
-        self.assertEqual(Provisioning.default().cpu_count, call.provisioning.cpu_count)
-        self.assertEqual(Provisioning.default().ram_size_gb, call.provisioning.ram_size_gb)
-        self.assertEqual(Provisioning.default().gpu_count, call.provisioning.gpu_count)
-        self.assertEqual(Provisioning.default().gpu_type, call.provisioning.gpu_type)
+        provisioning: Provisioning = call.provisioning
+
+        self.assertEqual(None, provisioning.cpu_type)
+        self.assertEqual(None, provisioning.gpu_type)
+        self.assertEqual(None, provisioning.cpu_count)
+        self.assertEqual(None, provisioning.ram_size_gb)
+        self.assertEqual(None, provisioning.gpu_count)
+
+        self.assertEqual('', provisioning.cpu_type_final)
+        self.assertEqual('', provisioning.gpu_type_final)
+        self.assertEqual(0, provisioning.cpu_count_final)
+        self.assertEqual(0, provisioning.ram_size_gb_final)
+        self.assertEqual(0, provisioning.gpu_count_final)
+
+        self.assert_pool_spec(wf, self.vm_pool_spec_small)
 
     def test_workflow_provisioning(self):
-        with self.lzy.workflow("test", gpu_count=4, gpu_type=GpuType.A100.name) as wf:
+        with self.lzy.workflow("test", gpu_count=1, gpu_type=GpuType.V100.name) as wf:
             func()
 
         # noinspection PyUnresolvedReferences
         call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertEqual(Provisioning.default().cpu_type, call.provisioning.cpu_type)
-        self.assertEqual(Provisioning.default().cpu_count, call.provisioning.cpu_count)
-        self.assertEqual(Provisioning.default().ram_size_gb, call.provisioning.ram_size_gb)
-        self.assertEqual(4, call.provisioning.gpu_count)
-        self.assertEqual(GpuType.A100.name, call.provisioning.gpu_type)
+        provisioning = call.provisioning
+
+        self.assertIsNone(None, provisioning.cpu_type)
+        self.assertIsNone(None, provisioning.cpu_count)
+        self.assertIsNone(None, provisioning.ram_size_gb)
+        self.assertEqual(1, provisioning.gpu_count)
+        self.assertEqual(GpuType.V100.name, provisioning.gpu_type)
+
+        self.assert_pool_spec(wf, self.vm_pool_spec_large)
 
     def test_op_provisioning(self):
-        @op(gpu_count=8, provisioning=Provisioning(gpu_count=4, cpu_count=16))
+        @op(gpu_count=1, provisioning=Provisioning(gpu_count=4, cpu_count=8))
         def func_with_provisioning() -> None:
             pass
 
-        with self.lzy.workflow("test", gpu_type=GpuType.A100.name, cpu_count=32) as wf:
+        with self.lzy.workflow("test", gpu_type=GpuType.V100.name, cpu_count=32, gpu_count=1) as wf:
             func_with_provisioning()
 
         # noinspection PyUnresolvedReferences
         call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertEqual(Provisioning.default().cpu_type, call.provisioning.cpu_type)
-        self.assertEqual(16, call.provisioning.cpu_count)
-        self.assertEqual(Provisioning.default().ram_size_gb, call.provisioning.ram_size_gb)
-        self.assertEqual(8, call.provisioning.gpu_count)
-        self.assertEqual(GpuType.A100.name, call.provisioning.gpu_type)
+        provisioning = call.provisioning
+
+        self.assertEqual(None, provisioning.cpu_type)
+        self.assertEqual(8, provisioning.cpu_count)
+        self.assertEqual(None, provisioning.ram_size_gb)
+        self.assertEqual(1, provisioning.gpu_count)
+        self.assertEqual(GpuType.V100.name, provisioning.gpu_type)
+
+        self.assert_pool_spec(wf, self.vm_pool_spec_large)
 
     def test_op_provisioning_invalid(self):
         @op(gpu_count=8)
         def func_with_provisioning() -> None:
             pass
 
-        with self.assertRaisesRegex(ValueError, "gpu_type is set to NO_GPU while gpu_count"):
+        with self.assertRaisesRegex(BadProvisioning, "gpu_type is set to NO_GPU while gpu_count"):
             with self.lzy.workflow("test", gpu_type=str(GpuType.NO_GPU.value)):
                 func_with_provisioning()
 
@@ -127,6 +172,28 @@ class LzyOpParamsTests(TestCase):
             # noinspection PyTypeChecker
             with self.lzy.workflow("test", docker_image="lzy", docker_pull_policy=None):
                 func()
+
+    def test_provisioning_score_func(self):
+        with self.lzy.workflow("test") as wf:
+            func()
+
+        self.assert_pool_spec(wf, self.vm_pool_spec_small)
+
+        with self.lzy.workflow(
+            "test",
+            provisioning=Provisioning(score_function=minimum_score_function)
+        ) as wf:
+            func()
+
+        self.assert_pool_spec(wf, self.vm_pool_spec_small)
+
+        with self.lzy.workflow(
+            "test",
+            provisioning=Provisioning(score_function=maximum_score_function)
+        ) as wf:
+            func()
+
+        self.assert_pool_spec(wf, self.vm_pool_spec_large)
 
     def test_default_env(self):
         with self.lzy.workflow("test") as wf:

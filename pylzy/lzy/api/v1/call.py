@@ -159,7 +159,6 @@ def wrap_call(
             return f(*args, **kwargs)
 
         prov = active_workflow.provisioning.override(provisioning)
-        prov.validate()
 
         env_updated = active_workflow.env.override(env)
         if env_updated.conda_yaml_path is None:
