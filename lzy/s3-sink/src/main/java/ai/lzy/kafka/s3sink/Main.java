@@ -1,14 +1,11 @@
-package ai.lzy.kafka;
+package ai.lzy.kafka.s3sink;
 
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
-import ai.lzy.util.grpc.GrpcLogsInterceptor;
-import ai.lzy.util.grpc.RequestIdInterceptor;
+import ai.lzy.util.grpc.GrpcUtils;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
-import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.context.ApplicationContext;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
@@ -17,8 +14,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.util.concurrent.TimeUnit;
 
 @Singleton
 public class Main {
@@ -29,19 +24,10 @@ public class Main {
     public Main(@Named("S3SinkIamChannel") ManagedChannel iamChannel, SinkServiceImpl sinkService,
                 ServiceConfig config)
     {
-        var hostAndPort = HostAndPort.fromString(config.getAddress());
 
-        var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient("LzyService", iamChannel));
+        var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient("S3Sink", iamChannel));
 
-        server = NettyServerBuilder.forAddress(new InetSocketAddress(hostAndPort.getHost(), hostAndPort.getPort()))
-            .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(500, TimeUnit.MILLISECONDS)
-            .keepAliveTime(1000, TimeUnit.MILLISECONDS)
-            .keepAliveTimeout(500, TimeUnit.MILLISECONDS)
-            .intercept(authInterceptor)
-            .intercept(GrpcLogsInterceptor.server())
-            .intercept(RequestIdInterceptor.server(true))
-            .intercept(GrpcHeadersServerInterceptor.create())
+        server = GrpcUtils.newGrpcServer(HostAndPort.fromString(config.getAddress()), auth)
             .addService(sinkService)
             .build();
 

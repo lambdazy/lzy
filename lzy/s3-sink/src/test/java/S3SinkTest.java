@@ -1,8 +1,8 @@
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.kafka.Job;
-import ai.lzy.kafka.JobExecutor;
-import ai.lzy.kafka.Main;
-import ai.lzy.kafka.ServiceConfig;
+import ai.lzy.kafka.s3sink.Job;
+import ai.lzy.kafka.s3sink.JobExecutor;
+import ai.lzy.kafka.s3sink.Main;
+import ai.lzy.kafka.s3sink.ServiceConfig;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMST;
@@ -22,16 +22,20 @@ import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.junit.*;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.ClassRule;
+import org.junit.Test;
 import scala.collection.immutable.Map$;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -42,7 +46,7 @@ import java.util.concurrent.TimeUnit;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
-public class S3SinkTest{
+public class S3SinkTest {
     private static ApplicationContext context;
     private static Main app;
     private static BaseTestWithIam iamContext;
@@ -80,7 +84,7 @@ public class S3SinkTest{
 
         Map<String, Object> appConf = Map.of(
             "s3-sink.kafka.enabled", "true",
-            "s3-sink.kafka.bootstrapServers", "localhost:8001",
+            "s3-sink.kafka.bootstrap-servers", "localhost:8001",
             "s3-sink.iam.address", "localhost:" + iamContext.getPort()
         );
 
@@ -101,7 +105,8 @@ public class S3SinkTest{
         producer = new KafkaProducer<>(helper.toProperties());
         s3Client = AmazonS3ClientBuilder.standard()
             .withPathStyleAccessEnabled(true)
-            .withEndpointConfiguration(new AwsClientBuilder.EndpointConfiguration("http://localhost:12345", "us-west-1"))
+            .withEndpointConfiguration(
+                new AwsClientBuilder.EndpointConfiguration("http://localhost:12345", "us-west-1"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
 
@@ -113,7 +118,7 @@ public class S3SinkTest{
         var topic = "testSimpleTopic";
         s3Client.createBucket("testsimple");
 
-        writeIntoKafka(topic, "Some simple data");
+        writeToKafka(topic, "Some simple data");
         var resp = stub.start(KafkaS3Sink.StartRequest.newBuilder()
                 .setStorageConfig(LMST.StorageConfig.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
@@ -158,9 +163,9 @@ public class S3SinkTest{
 
         var fut = executor.setupWaiter(resp.getJobId());
 
-        writeIntoKafka(topic, "1\n");
-        writeIntoKafka(topic, "2\n");
-        writeIntoKafka(topic, "3\n");
+        writeToKafka(topic, "1\n");
+        writeToKafka(topic, "2\n");
+        writeToKafka(topic, "3\n");
 
         stub.stop(KafkaS3Sink.StopRequest.newBuilder()
             .setJobId(resp.getJobId())
@@ -192,13 +197,13 @@ public class S3SinkTest{
 
         var fut = executor.setupWaiter(resp.getJobId());
 
-        char[] chars = new char[1024 * 1023];  // 1023 Kb of data, max size of kafka message
-        Arrays.fill(chars, 'a');
+        int messages = 10;
+        int messageSize = 1024 * 1023; // 1023 Kb of data, max size of kafka message
 
-        String largeString = new String(chars);
-
-        for (int i = 0; i < 6; i++) {  // Writing 6 time to fill job's buffer
-            writeIntoKafka(topic, largeString);
+        // Writing more than 6 time to fill job's buffer
+        for (int i = 0; i < messages; i++) {
+            var data = StringUtils.repeat((char) ('a' + i), messageSize);
+            writeToKafka(topic, data);
         }
 
         stub.stop(KafkaS3Sink.StopRequest.newBuilder()
@@ -209,9 +214,15 @@ public class S3SinkTest{
 
         var res = readFromS3(uri);
 
-        Assert.assertTrue(  // Do not check content to not print difference in logs if not equals
-            (largeString + largeString + largeString + largeString + largeString + largeString).equals(res)
-        );
+        Assert.assertEquals(messageSize * messages, res.length());
+        for (int i = 0; i < messages; ++i) {
+            for (int j = 0; j < 5; ++j) {
+                Assert.assertEquals((char) ('a' + i), res.charAt(i * messageSize + j));
+            }
+            for (int j = messageSize - 5; j < messageSize; ++j) {
+                Assert.assertEquals((char) ('a' + i), res.charAt(i * messageSize + j));
+            }
+        }
     }
 
     @Test
@@ -225,8 +236,7 @@ public class S3SinkTest{
 
         s3Client.createBucket("testparallel");
 
-        for (int i = 0; i < jobCount; i ++) {
-
+        for (int i = 0; i < jobCount; i++) {
             var resp = stub.start(KafkaS3Sink.StartRequest.newBuilder()
                 .setStorageConfig(LMST.StorageConfig.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
@@ -247,9 +257,9 @@ public class S3SinkTest{
 
         var msgFutures = new ArrayList<Future<RecordMetadata>>(10 * jobCount);
 
-        for (int j = 0; j < 10; j ++) {  // Generating 10 messages for every job
-            for (int i = 0; i < jobCount; i ++) {
-                msgFutures.add(writeIntoKafkaAsync(topic + i, "Some simple data"));
+        for (int j = 0; j < 10; j++) {  // Generating 10 messages for every job
+            for (int i = 0; i < jobCount; i++) {
+                msgFutures.add(writeToKafkaAsync(topic + i, "Some simple data"));
             }
         }
 
@@ -258,24 +268,22 @@ public class S3SinkTest{
         }
 
 
-        for (int i = 0; i < jobCount; i ++) {  // Completing all jobs
+        for (int i = 0; i < jobCount; i++) {  // Completing all jobs
             stub.stop(KafkaS3Sink.StopRequest.newBuilder()
                 .setJobId(ids.get(i))
                 .build());
         }
 
-        for (int i = 0; i < jobCount; i ++) {  // Waiting for all jobs to stop
+        for (int i = 0; i < jobCount; i++) {  // Waiting for all jobs to stop
             futures.get(i).get();
         }
 
         var data = new String(new char[10]).replace("\0", "Some simple data");
 
-        for (int i = 0; i < jobCount; i ++) {  // Asserting all data
+        for (int i = 0; i < jobCount; i++) {  // Asserting all data
             Assert.assertEquals(data, readFromS3("s3://testparallel/" + i));
         }
     }
-
-
 
     @AfterClass
     public static void tearDown() throws Exception {
@@ -291,10 +299,11 @@ public class S3SinkTest{
         producer.close();
     }
 
-    public void writeIntoKafka(String topic, String data) throws ExecutionException, InterruptedException {
-        producer.send(new ProducerRecord<>(topic, data.getBytes())).get();
+    public void writeToKafka(String topic, String data) throws ExecutionException, InterruptedException {
+        writeToKafkaAsync(topic, data).get();
     }
-    public Future<RecordMetadata> writeIntoKafkaAsync(String topic, String data) {
+
+    public Future<RecordMetadata> writeToKafkaAsync(String topic, String data) {
         return producer.send(new ProducerRecord<>(topic, data.getBytes()));
     }
 

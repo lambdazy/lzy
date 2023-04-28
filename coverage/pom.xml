@@ -19,12 +19,6 @@
             <groupId>ai.lzy</groupId>
             <artifactId>allocator</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.grpc</groupId>
-                    <artifactId>grpc-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
@@ -60,12 +54,6 @@
             <groupId>ai.lzy</groupId>
             <artifactId>scheduler</artifactId>
             <version>${project.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>io.grpc</groupId>
-                    <artifactId>grpc-core</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
@@ -85,6 +73,11 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>long-running</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>s3-sink</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

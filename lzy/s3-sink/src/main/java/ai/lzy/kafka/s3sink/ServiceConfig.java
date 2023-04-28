@@ -1,4 +1,4 @@
-package ai.lzy.kafka;
+package ai.lzy.kafka.s3sink;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.util.kafka.KafkaConfig;
@@ -18,4 +18,20 @@ public class ServiceConfig {
 
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();
+
+    public enum MetricsKind {
+        Disabled,
+        Logger,
+        Prometheus,
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("metrics")
+    public static final class MetricsConfig {
+        private MetricsKind kind = MetricsKind.Disabled;
+        private int port = 17080;
+        private String loggerName = "LogMetricReporter";
+        private String loggerLevel = "info";
+    }
 }
