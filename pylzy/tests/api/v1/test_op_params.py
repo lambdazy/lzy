@@ -279,47 +279,6 @@ class LzyOpParamsTests(TestCase):
         call: LzyCall = wf.owner.runtime.calls[0]
         self.assertEqual(call.env.env_variables, {"a": "a1", "b": "b", "c": "c"})
 
-    def test_docker_only(self):
-        @op(docker_only=True)
-        def func_with_docker() -> None:
-            pass
-
-        with self.lzy.workflow("test", docker_image='image1') as wf:
-            func_with_docker()
-
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-
-        self.assertEqual(True, call.env.docker_only)
-        self.assertEqual("image1", call.env.docker_image)
-
-    def test_docker_only_validation(self):
-
-        with self.assertRaises(ValueError):
-            @op(docker_only=True, conda_yaml_path="/tmp/conda.path")
-            def func_with_docker() -> None:
-                pass
-
-        with self.assertRaises(ValueError):
-            with self.lzy.workflow("test", docker_only=True, local_modules_path=[""]):
-                func_with_docker()
-
-        @op(docker_only=True)
-        def func_with_docker() -> None:
-            pass
-
-        with self.assertRaises(ValueError):
-            with self.lzy.workflow("test"):
-                func_with_docker()
-
-    def test_docker_only_pyenv_resolve(self):
-        def func_with_docker() -> None:
-            pass
-
-        with self.lzy.workflow("test", docker_only=True, docker_image='image1') as wf:
-            func_with_docker()
-            self.assertIsNone(wf.auto_py_env)
-
     def test_local_modules(self):
         @op
         def func_with_env() -> None:

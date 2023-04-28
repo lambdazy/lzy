@@ -64,7 +64,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
             except Exception as e:
                 _LOG.warning("Error while pypi nonexistent packages cache loading", e)
 
-    def provide(self, namespace: Dict[str, Any]) -> PyEnv:
+    def provide(self, namespace: Dict[str, Any], exclude_packages: Iterable[str] = tuple()) -> PyEnv:
         dist_versions: Dict[str, str] = all_installed_packages()
 
         distributions = packages_distributions()
@@ -86,6 +86,9 @@ class AutomaticPyEnvProvider(PyEnvProvider):
             name = module.__name__.split(".")[0]  # type: ignore
             if name in STDLIB_LIST or name in sys.builtin_module_names:
                 return
+
+            if name in exclude_packages:
+                return  # Skipping excluded module
 
             # and find it among installed ones
             all_from_pypi: bool = False
