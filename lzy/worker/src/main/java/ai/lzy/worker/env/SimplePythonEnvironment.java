@@ -87,6 +87,7 @@ public class SimplePythonEnvironment implements AuxEnvironment {
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));
         }
-        return base.runProcess(String.join(" ", list), envList.toArray(String[]::new));
+
+        return base.runProcess(new String[]{"bash", "-c", String.join(" ", list)}, envList.toArray(String[]::new));
     }
 }
