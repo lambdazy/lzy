@@ -246,7 +246,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             .always();
     }
 
-    protected void mockGetPodByName(Pod pod) {
+    protected void mockGetPod(Pod pod) {
         kubernetesServer.expect().get()
             .withPath(POD_PATH + "/" + getName(pod))
             .andReturn(HttpURLConnection.HTTP_OK, pod)

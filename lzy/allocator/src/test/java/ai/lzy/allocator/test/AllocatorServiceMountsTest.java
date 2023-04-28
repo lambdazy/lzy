@@ -59,6 +59,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     protected void updateStartupProperties(Map<String, Object> props) {
         super.updateStartupProperties(props);
         props.put("allocator.allocation-timeout", "30s");
+        props.put("allocator.heartbeat-timeout", "60m");
+        props.put("allocator.gc.initial-delay", "60m");
         props.put("allocator.mount-timeout", "30s");
         props.put("allocator.mount.enabled", "true");
         props.put("allocator.mount.pod-image", "ubuntu");
@@ -123,7 +125,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     @Test
     public void listMounts() throws Exception {
         var sessionId = createSession(Durations.ZERO);
-        var vm = allocateVm(sessionId, null);
+        var vm = allocateWithMountPod(sessionId);
         var mount1 = DynamicMount.createNew(vm.vmId(), "foo", "bar", "baz",
             new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42)),
             vm.allocationOpId(), "allocator");
@@ -191,7 +193,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             pod.setStatus(new PodStatusBuilder()
                 .withPhase(PodPhase.RUNNING.getPhase())
                 .build());
-            mockGetPodByName(pod);
+            mockGetPod(pod);
         });
         var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
 
@@ -251,7 +253,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             pod.setStatus(new PodStatusBuilder()
                 .withPhase(PodPhase.RUNNING.getPhase())
                 .build());
-            mockGetPodByName(pod);
+            mockGetPod(pod);
         });
         var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
         waitOpSuccess(mountOp);
@@ -324,7 +326,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             pod.setStatus(new PodStatusBuilder()
                 .withPhase(PodPhase.RUNNING.getPhase())
                 .build());
-            mockGetPodByName(pod);
+            mockGetPod(pod);
         });
         mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> {}, 200);
         mockDeleteResource(PERSISTENT_VOLUME_PATH, volumeName, () -> {}, 200);
@@ -376,7 +378,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             pod.setStatus(new PodStatusBuilder()
                 .withPhase(PodPhase.RUNNING.getPhase())
                 .build());
-            mockGetPodByName(pod);
+            mockGetPod(pod);
         });
         mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> Assert.fail("Should not delete volume claim"), 403);
         mockDeleteResource(PERSISTENT_VOLUME_PATH, volumeName, () -> Assert.fail("Should not delete volume"), 403);
