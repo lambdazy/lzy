@@ -1,9 +1,10 @@
-package ai.lzy.kafka;
+package ai.lzy.kafka.s3sink;
 
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.kafka.KafkaS3Sink;
 import com.amazonaws.services.s3.AmazonS3URI;
 import io.grpc.Status;
+import io.micronaut.http.MediaType;
 import jakarta.annotation.Nullable;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -11,7 +12,8 @@ import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import software.amazon.awssdk.auth.credentials.*;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.async.AsyncRequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3AsyncClient;
@@ -21,7 +23,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -31,31 +36,22 @@ public class Job {
     private static final Logger LOG = LogManager.getLogger(Job.class);
     private static final int BUFFER_SIZE = 1024 * 1024 * 5; // S3 multipart chunk must be at least 5Mb
 
+    private final String id;
     private final AtomicReference<State> state = new AtomicReference<>(State.Created);
     private final KafkaS3Sink.StartRequest request;
+    private final S3SinkMetrics metrics;
     private final AtomicBoolean completed = new AtomicBoolean(false);
-
     private final List<CompletedPart> completedParts = new ArrayList<>();
-
-
     private final ByteBuffer s3ChunkBuffer = ByteBuffer.allocate(BUFFER_SIZE);
-
-    @Nullable
     private final Consumer<String, byte[]> consumer;
-    @Nullable
     private final S3AsyncClient storageClient;  // Support only s3 for now
-
     @Nullable
     private String multipartId;
-    @Nullable
     private int partNumber = 1;
-
-
     @Nullable
     private Iterator<ConsumerRecord<String, byte[]>> resultsStream;
-
     @Nullable
-    CompletableFuture<UploadPartResponse> uploadAwaitable;
+    private CompletableFuture<UploadPartResponse> uploadAwaitable;
     private final String bucket;
     private final String key;
 
@@ -73,12 +69,13 @@ public class Job {
         Completed
     }
 
-    public Job(KafkaHelper helper, KafkaS3Sink.StartRequest request) {
+    public Job(String id, KafkaHelper helper, KafkaS3Sink.StartRequest request, S3SinkMetrics metrics) {
+        this.id = id;
         this.request = request;
+        this.metrics = metrics;
 
         if (!request.getStorageConfig().hasS3()) {
             LOG.error("{} Failed to upload data to s3: Supports only s3 storage for now", this);
-
             throw Status.UNIMPLEMENTED.withDescription("Supports only s3 storage for now").asRuntimeException();
         }
 
@@ -88,14 +85,16 @@ public class Job {
 
         var props = helper.toProperties();
         props.put("enable.auto.commit", "false");
-        props.put("group.id", UUID.randomUUID().toString());
+        props.put("group.id", id);
 
         consumer = new KafkaConsumer<>(props);
+        metrics.activeSessions.inc();
 
         try {
             storageClient = S3AsyncClient.builder()
-                .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessToken,
-                    secretToken)))
+                .credentialsProvider(
+                    StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(accessToken, secretToken)))
                 .region(Region.US_WEST_1)
                 .endpointOverride(new URI(endpoint))
                 .forcePathStyle(true)
@@ -112,36 +111,45 @@ public class Job {
 
         final CreateMultipartUploadResponse resp;
         try {
-            resp = storageClient.createMultipartUpload(CreateMultipartUploadRequest.builder()
+            resp = storageClient.createMultipartUpload(
+                CreateMultipartUploadRequest.builder()
                     .bucket(bucket)
                     .key(key)
-                    .contentType("text/plain")
+                    .contentType(MediaType.TEXT_PLAIN)
                     .build())
                 .get();
         } catch (InterruptedException | ExecutionException e) {
             LOG.error("{} Error while creating multipart upload", this, e);
+            metrics.errors.inc();
 
             try {
-                storageClient.abortMultipartUpload(AbortMultipartUploadRequest.builder()
+                storageClient.abortMultipartUpload(
+                    AbortMultipartUploadRequest.builder()
                         .uploadId(multipartId)
                         .bucket(bucket)
                         .key(key)
                         .build())
                     .get();
             } catch (InterruptedException | ExecutionException ex) {
+                metrics.errors.inc();
                 LOG.error("{} Error while aborting upload", this, ex);
             }
 
             consumer.close();
+            metrics.activeSessions.dec();
             throw Status.INTERNAL.asRuntimeException();
         }
 
         multipartId = resp.uploadId();
 
-        consumer.assign(List.of(new TopicPartition(request.getTopicName(), 0)));
-        consumer.seek(new TopicPartition(request.getTopicName(), 0), 0);
+        var partition = new TopicPartition(request.getTopicName(), /* partition */ 0);
+        consumer.assign(List.of(partition));
+        consumer.seek(partition, /* offset */ 0);
     }
 
+    public String id() {
+        return id;
+    }
 
     public synchronized PollResult poll() {
         return switch (state.get()) {
@@ -153,29 +161,24 @@ public class Job {
             }
 
             case AwaitingData -> {
-
                 // Blocks here. Kafka does not have non-blocking api for now
                 var results = consumer.poll(Duration.ofMillis(100));
 
                 if (results.isEmpty()) {
                     if (completed.get()) {
                         if (s3ChunkBuffer.position() > 0) {  // If some data remaining in chunk buffer, uploading it
-                            var size = s3ChunkBuffer.position();
+                            s3ChunkBuffer.flip();
 
-                            s3ChunkBuffer.position(0);
-
-                            var data = new byte[size];
-
-                            s3ChunkBuffer.get(data);
-
-                            uploadAwaitable = storageClient.uploadPart(UploadPartRequest.builder()
+                            uploadAwaitable = storageClient.uploadPart(
+                                UploadPartRequest.builder()
                                     .bucket(bucket)
                                     .key(key)
                                     .partNumber(partNumber)
                                     .uploadId(multipartId)
                                     .build(),
-                                AsyncRequestBody.fromBytes(data));
+                                AsyncRequestBody.fromByteBuffer(s3ChunkBuffer));
 
+                            metrics.uploadedBytes.inc(s3ChunkBuffer.limit());
                             s3ChunkBuffer.clear();
 
                             state.set(State.AwaitingUpload);
@@ -203,6 +206,7 @@ public class Job {
                         final var res = resultsStream.next();
 
                         if (res.value().length > BUFFER_SIZE) {
+                            metrics.errors.inc();
                             LOG.error("{} Chunks of size > 5Mb are not supported for now, skipping it", this);
                             continue;
                         }
@@ -211,7 +215,8 @@ public class Job {
                         s3ChunkBuffer.put(res.value(), 0, sizeToCopy);
 
                         if (s3ChunkBuffer.remaining() == 0) {
-                            uploadAwaitable = storageClient.uploadPart(UploadPartRequest.builder()
+                            uploadAwaitable = storageClient.uploadPart(
+                                UploadPartRequest.builder()
                                     .bucket(bucket)
                                     .key(key)
                                     .partNumber(partNumber)
@@ -219,6 +224,7 @@ public class Job {
                                     .build(),
                                 AsyncRequestBody.fromByteBuffer(s3ChunkBuffer));
 
+                            metrics.uploadedBytes.inc(s3ChunkBuffer.limit());
                             s3ChunkBuffer.clear();
 
                             // We can put all remaining data in buffer because data is no longer then buffer size
@@ -246,6 +252,7 @@ public class Job {
                             .build());
                     } catch (InterruptedException | ExecutionException e) {
                         LOG.error("{} Cannot upload data to s3: ", this, e);
+                        metrics.errors.inc();
 
                         yield new PollResult(true, Status.INTERNAL, Duration.ZERO);
                     }
@@ -264,20 +271,21 @@ public class Job {
                         .parts(completedParts)
                         .build();
 
-                    storageClient.completeMultipartUpload(CompleteMultipartUploadRequest.builder()
-                        .uploadId(multipartId)
-                        .bucket(bucket)
-                        .key(key)
-                        .multipartUpload(completedMultipartUpload)
-                        .build())
+                    storageClient.completeMultipartUpload(
+                        CompleteMultipartUploadRequest.builder()
+                            .uploadId(multipartId)
+                            .bucket(bucket)
+                            .key(key)
+                            .multipartUpload(completedMultipartUpload)
+                            .build())
                         .get();
                 } catch (InterruptedException | ExecutionException e) {
-
                     LOG.error("{} Cannot complete multipart upload: ", this, e);
-
+                    metrics.errors.inc();
                     yield new PollResult(true, Status.INTERNAL, Duration.ZERO);
                 }
 
+                metrics.activeSessions.dec();
                 consumer.close();
 
                 LOG.info("{} Upload completed: no more chunks available", this);
