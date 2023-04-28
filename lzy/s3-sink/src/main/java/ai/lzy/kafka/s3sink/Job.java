@@ -235,7 +235,6 @@ public class Job {
                         }
 
                     } catch (NoSuchElementException e) {
-                        metrics.errors.inc();
                         consumer.commitSync();  // Blocks here, but must be not very long
                         this.state.set(State.AwaitingData);
                         yield new PollResult(false, null, Duration.ZERO);
@@ -286,6 +285,7 @@ public class Job {
                     yield new PollResult(true, Status.INTERNAL, Duration.ZERO);
                 }
 
+                metrics.activeSessions.dec();
                 consumer.close();
 
                 LOG.info("{} Upload completed: no more chunks available", this);

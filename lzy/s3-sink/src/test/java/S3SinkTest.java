@@ -2,6 +2,7 @@ import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.kafka.s3sink.Job;
 import ai.lzy.kafka.s3sink.JobExecutor;
 import ai.lzy.kafka.s3sink.Main;
+import ai.lzy.kafka.s3sink.S3SinkMetrics;
 import ai.lzy.kafka.s3sink.ServiceConfig;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.kafka.KafkaHelper;
@@ -26,11 +27,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.*;
 import scala.collection.immutable.Map$;
 
 import java.io.IOException;
@@ -63,6 +60,7 @@ public class S3SinkTest {
     private static KafkaProducer<String, byte[]> producer;
     private static AmazonS3 s3Client;
     private static JobExecutor executor;
+    private static S3SinkMetrics metrics;
 
     @BeforeClass
     public static void setUp() throws Exception {
@@ -111,6 +109,34 @@ public class S3SinkTest {
             .build();
 
         executor = context.getBean(JobExecutor.class);
+        metrics = context.getBean(S3SinkMetrics.class);
+    }
+
+    @AfterClass
+    public static void tearDown() throws Exception {
+        iamContext.after();
+        kafka.stop(true);
+
+        app.close();
+        context.stop();
+
+        channel.shutdownNow();
+        channel.awaitTermination(100, TimeUnit.MILLISECONDS);
+
+        producer.close();
+    }
+
+    @Before
+    public void before() {
+        metrics.activeSessions.clear();
+        metrics.errors.clear();
+        metrics.uploadedBytes.clear();
+    }
+
+    @After
+    public void after() {
+        Assert.assertEquals(0, (long) metrics.errors.get());
+        Assert.assertEquals(0, (long) metrics.activeSessions.get());
     }
 
     @Test
@@ -223,6 +249,8 @@ public class S3SinkTest {
                 Assert.assertEquals((char) ('a' + i), res.charAt(i * messageSize + j));
             }
         }
+
+        Assert.assertEquals(messageSize * messages, (long) metrics.uploadedBytes.get());
     }
 
     @Test
@@ -283,20 +311,6 @@ public class S3SinkTest {
         for (int i = 0; i < jobCount; i++) {  // Asserting all data
             Assert.assertEquals(data, readFromS3("s3://testparallel/" + i));
         }
-    }
-
-    @AfterClass
-    public static void tearDown() throws Exception {
-        iamContext.after();
-        kafka.stop(true);
-
-        app.close();
-        context.stop();
-
-        channel.shutdownNow();
-        channel.awaitTermination(100, TimeUnit.MILLISECONDS);
-
-        producer.close();
     }
 
     public void writeToKafka(String topic, String data) throws ExecutionException, InterruptedException {
