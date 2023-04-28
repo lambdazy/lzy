@@ -17,7 +17,6 @@ import org.apache.logging.log4j.Logger;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -98,7 +97,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
     }
 
     protected Map<String, String> prepareLogContext() {
-        var ctx = new HashMap<String, String>();
+        var ctx = super.prepareLogContext();
         ctx.put(LogContextKey.OPERATION_ID, id);
         ctx.put(LogContextKey.ACTION, getClass().getSimpleName());
         return ctx;
