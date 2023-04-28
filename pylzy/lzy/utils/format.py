@@ -1,4 +1,6 @@
 import inspect
+import google.protobuf.message
+import google.protobuf.text_format
 
 
 def pretty_function(func):
@@ -23,3 +25,10 @@ def pretty_function(func):
             result = f'{result}:{line_no}'
 
     return result
+
+
+def pretty_protobuf(message: google.protobuf.message.Message):
+    return "<" + google.protobuf.text_format.MessageToString(
+        message,
+        as_one_line=True
+    ) + ">"

@@ -20,6 +20,7 @@ from ai.lzy.v1.long_running.operation_pb2_grpc import (
 )
 from tests.api.v1.mocks import WorkflowServiceMock, OperationsServiceMock, EnvProviderMock
 from lzy.api.v1 import Lzy, op
+from lzy.exceptions import BadProvisioning
 from lzy.whiteboards.index import DummyWhiteboardIndexClient
 from lzy.logs.config import get_logger
 from lzy.storage.api import Storage
@@ -101,7 +102,7 @@ class RemoteRuntimeTests(TestCase):
 
     def test_empty_pools(self):
         self.mock.return_empty_pools = True
-        with self.assertRaises(ValueError):
+        with self.assertRaises(BadProvisioning):
             with self.lzy.workflow("some_name", interactive=False):
                 opa()
 

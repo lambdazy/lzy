@@ -1,5 +1,7 @@
-package ai.lzy.kafka;
+package ai.lzy.kafka.s3sink;
 
+import ai.lzy.common.IdGenerator;
+import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.kafka.KafkaS3Sink.StartRequest;
 import ai.lzy.v1.kafka.KafkaS3Sink.StartResponse;
@@ -15,27 +17,32 @@ import jakarta.inject.Singleton;
 public class SinkServiceImpl extends S3SinkServiceGrpc.S3SinkServiceImplBase {
     private final JobExecutor executor;
     private final KafkaHelper helper;
+    private final S3SinkMetrics metrics;
+    private final IdGenerator idGenerator = new RandomIdGenerator();
 
-    public SinkServiceImpl(JobExecutor executor, @Named("S3SinkKafkaHelper") KafkaHelper helper) {
+    public SinkServiceImpl(JobExecutor executor, @Named("S3SinkKafkaHelper") KafkaHelper helper,
+                           S3SinkMetrics metrics)
+    {
         this.executor = executor;
         this.helper = helper;
+        this.metrics = metrics;
     }
 
     @Override
     public void start(StartRequest request, StreamObserver<StartResponse> responseObserver) {
         final Job job;
         try {
-            job = new Job(helper, request);
+            job = new Job(idGenerator.generate("s3sink-"), helper, request, metrics);
         } catch (StatusRuntimeException e) {
             responseObserver.onError(e);
             return;
         }
 
 
-        var id = executor.submit(job);
+        executor.submit(job);
 
         responseObserver.onNext(StartResponse.newBuilder()
-            .setJobId(id)
+            .setJobId(job.id())
             .build());
         responseObserver.onCompleted();
     }

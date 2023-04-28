@@ -1,16 +1,17 @@
-package ai.lzy.kafka;
+package ai.lzy.kafka.s3sink;
 
-import ai.lzy.common.IdGenerator;
-import ai.lzy.common.RandomIdGenerator;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 @Singleton
@@ -20,19 +21,18 @@ public class JobExecutor {
 
     private final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
     private final BlockingQueue<JobHandle> queue = new DelayQueue<>();
-    private final ConcurrentHashMap<String, JobHandle> handles = new ConcurrentHashMap<>();
+    private final Map<String, JobHandle> handles = new ConcurrentHashMap<>();
+    private final AtomicBoolean shutdown = new AtomicBoolean(false);
 
     // For tests only
-    private final ConcurrentHashMap<String, CompletableFuture<Job.PollResult>> waiters = new ConcurrentHashMap<>();
-    private final IdGenerator idGenerator = new RandomIdGenerator();
-
+    private final Map<String, CompletableFuture<Job.PollResult>> waiters = new ConcurrentHashMap<>();
 
     public JobExecutor() {
         for (int i = 0; i < THREAD_POOL_SIZE; i++) {
             threadPool.submit(() -> {
-                while (true) {
+                while (!shutdown.get()) {
                     try {
-                        queue.take().poll();
+                        queue.take().run();
                     } catch (Exception e) {
                         LOG.error("Exception while waiting for job from queue, exception is ignored: ", e);
                     }
@@ -41,15 +41,16 @@ public class JobExecutor {
         }
     }
 
-    public String submit(Job job) {
-        var id = idGenerator.generate("s3-sink-job");
+    @PreDestroy
+    public void shutdown() {
+        shutdown.set(true);
+        threadPool.shutdown();
+    }
 
-        var handle = new JobHandle(job, id);
-        handles.put(id, handle);
-
+    public void submit(Job job) {
+        var handle = new JobHandle(job);
+        handles.put(job.id(), handle);
         queue.add(handle);
-
-        return id;
     }
 
     public void complete(String id) {
@@ -65,15 +66,12 @@ public class JobExecutor {
     private class JobHandle implements Delayed {
         private final AtomicReference<Instant> nextRun = new AtomicReference<>(Instant.now());
         private final Job job;
-        private final String id;
 
-        private JobHandle(Job job, String id) {
+        private JobHandle(Job job) {
             this.job = job;
-            this.id = id;
         }
 
-
-        public synchronized void poll() {
+        public synchronized void run() {
             final Job.PollResult res;
             try {
                 res = job.poll();
@@ -83,10 +81,11 @@ public class JobExecutor {
             }
 
             if (res.completed()) {
-                handles.remove(id);
+                handles.remove(job.id());
 
-                if (waiters.containsKey(id)) {  // For tests only
-                    waiters.remove(id).complete(res);
+                var waiter = waiters.remove(job.id());
+                if (waiter != null)  {  // For tests only
+                    waiter.complete(res);
                 }
 
                 return;  // Job is completed, dropping it
@@ -95,7 +94,6 @@ public class JobExecutor {
             nextRun.set(Instant.now().plus(res.pollAfter()));
             queue.add(this);
         }
-
 
         @Override
         public long getDelay(TimeUnit unit) {

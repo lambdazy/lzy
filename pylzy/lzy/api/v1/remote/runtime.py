@@ -19,6 +19,9 @@ from typing import (
     cast,
 )
 
+from lzy.api.v1.snapshot import SnapshotEntry
+from lzy.proxy.result import Result
+
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
     DataDescription,
@@ -49,6 +52,7 @@ from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_syslog_color
 from lzy.storage.api import Storage, FSCredentials
 from lzy.utils.grpc import retry, RetryConfig
+from lzy.utils.format import pretty_protobuf
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
 
@@ -69,6 +73,22 @@ def wrap_error(message: str = "Something went wrong"):
         return wrap
 
     return decorator
+
+
+def data_description_by_entry(entry: SnapshotEntry) -> DataDescription:
+    data_scheme = None
+    if entry.data_scheme is not None:
+        data_scheme = DataScheme(
+            dataFormat=entry.data_scheme.data_format,
+            schemeFormat=entry.data_scheme.schema_format,
+            schemeContent=entry.data_scheme.schema_content if entry.data_scheme.schema_content else "",
+            metadata=entry.data_scheme.meta
+        )
+
+    return DataDescription(
+        storageUri=entry.storage_uri,
+        dataScheme=data_scheme
+    )
 
 
 class RemoteRuntime(Runtime):
@@ -155,6 +175,13 @@ class RemoteRuntime(Runtime):
             if isinstance(status, Failed):
                 progress(ProgressStep.FAILED)
                 _LOG.debug(f"Graph {graph_id} execution failed: {status.description}")
+                for call in cast(LzyWorkflow, self.__workflow).call_queue:
+                    if call.signature.func.name == status.failed_task_name:
+                        workflow = cast(LzyWorkflow, self.__workflow)
+                        exception = await workflow.snapshot.get_data(call.exception_id)
+                        if isinstance(exception, Result):
+                            exc_typ, exc_value, exc_trace = exception.value
+                            raise exc_value.with_traceback(exc_trace)
                 raise LzyExecutionException(
                     f"Failed executing graph {graph_id}: {status.description}"
                 )
@@ -230,22 +257,6 @@ class RemoteRuntime(Runtime):
 
         return modules_uploaded
 
-    @staticmethod
-    def __resolve_pool(
-        provisioning: Provisioning, pool_specs: Sequence[VmPoolSpec]
-    ) -> Optional[VmPoolSpec]:
-        provisioning.validate()
-        for spec in pool_specs:
-            if (
-                provisioning.cpu_type == spec.cpuType
-                and cast(int, provisioning.cpu_count) <= spec.cpuCount
-                and provisioning.gpu_type == spec.gpuType
-                and cast(int, provisioning.gpu_count) <= spec.gpuCount
-                and cast(int, provisioning.ram_size_gb) <= spec.ramGb
-            ):
-                return spec
-        return None
-
     @retry(action_name="listening to std slots", config=RetryConfig(max_retry=12000, backoff_multiplier=1.2))
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__workflow_client
@@ -289,19 +300,7 @@ class RemoteRuntime(Runtime):
                 input_slots.append(Operation.SlotDescription(path=slot_path, storageUri=entry.storage_uri))
                 arg_descriptions.append((entry.typ, slot_path))
 
-                scheme = entry.data_scheme
-
-                data_descriptions[entry.storage_uri] = DataDescription(
-                    storageUri=entry.storage_uri,
-                    dataScheme=DataScheme(
-                        dataFormat=scheme.data_format,
-                        schemeFormat=scheme.schema_format,
-                        schemeContent=scheme.schema_content if scheme.schema_content else "",
-                        metadata=entry.data_scheme.meta
-                    )
-                    if entry.data_scheme is not None
-                    else None,
-                )
+                data_descriptions[entry.storage_uri] = data_description_by_entry(entry)
 
             for name, eid in call.kwarg_entry_ids.items():
                 entry = self.__workflow.snapshot.get(eid)
@@ -309,43 +308,23 @@ class RemoteRuntime(Runtime):
                 input_slots.append(Operation.SlotDescription(path=slot_path, storageUri=entry.storage_uri))
                 kwarg_descriptions[name] = (entry.typ, slot_path)
 
-                data_descriptions[entry.storage_uri] = DataDescription(
-                    storageUri=entry.storage_uri,
-                    dataScheme=DataScheme(
-                        dataFormat=entry.data_scheme.data_format,
-                        schemeFormat=entry.data_scheme.schema_format,
-                        schemeContent=entry.data_scheme.schema_content if entry.data_scheme.schema_content else "",
-                        metadata=entry.data_scheme.meta
-                    )
-                    if entry.data_scheme is not None
-                    else None,
-                )
+                data_descriptions[entry.storage_uri] = data_description_by_entry(entry)
 
             for i, eid in enumerate(call.entry_ids):
                 entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/{entry.id}"
                 output_slots.append(Operation.SlotDescription(path=slot_path, storageUri=entry.storage_uri))
 
-                data_descriptions[entry.storage_uri] = DataDescription(
-                    storageUri=entry.storage_uri,
-                    dataScheme=DataScheme(
-                        dataFormat=entry.data_scheme.data_format,
-                        schemeFormat=entry.data_scheme.schema_format,
-                        schemeContent=entry.data_scheme.schema_content if entry.data_scheme.schema_content else "",
-                        metadata=entry.data_scheme.meta
-                    )
-                    if entry.data_scheme is not None
-                    else None,
-                )
+                data_descriptions[entry.storage_uri] = data_description_by_entry(entry)
                 ret_descriptions.append((entry.typ, slot_path))
 
-            pool = self.__resolve_pool(call.provisioning, pools)
+            exc_entry = self.__workflow.snapshot.get(call.exception_id)
+            exc_slot_path = f"/{call.id}/{exc_entry.id}"
+            output_slots.append(Operation.SlotDescription(path=exc_slot_path, storageUri=exc_entry.storage_uri))
+            data_descriptions[exc_entry.storage_uri] = data_description_by_entry(exc_entry)
+            exc_description: Tuple[Type, str] = (exc_entry.typ, exc_slot_path)
 
-            if pool is None:
-                raise ValueError(
-                    f"Cannot resolve pool for operation "
-                    f"{call.signature.func.name}:\nAvailable: {pools}\n Expected: {call.provisioning}"
-                )
+            pool = call.provisioning.resolve_pool(pools)
             pool_to_call.append((pool, call))
 
             docker_image: Optional[str]
@@ -378,6 +357,7 @@ class RemoteRuntime(Runtime):
                 args_paths=arg_descriptions,
                 kwargs_paths=kwarg_descriptions,
                 output_paths=ret_descriptions,
+                exception_path=exc_description,
                 lazy_arguments=call.lazy_arguments
             )
 
@@ -414,7 +394,7 @@ class RemoteRuntime(Runtime):
         if self.__workflow.is_interactive:  # TODO(artolord) add costs
             s = ""
             for pool, call in pool_to_call:
-                s += f"Call to op {call.signature.func.name} mapped to pool {pool.poolSpecName}\n"
+                s += f"Call to op {call.signature.func.name} mapped to pool {pretty_protobuf(pool)}\n"
 
             s += "Are you sure you want to run the graph with this configuration?"
 

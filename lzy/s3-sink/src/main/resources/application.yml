@@ -1,2 +1,6 @@
 s3-sink:
   address: "localhost:23920"
+
+  metrics:
+    kind: 'Prometheus'
+    port: 17081
