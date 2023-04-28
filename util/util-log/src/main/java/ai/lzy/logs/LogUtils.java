@@ -1,6 +1,6 @@
 package ai.lzy.logs;
 
-import org.apache.logging.log4j.ThreadContext;
+import org.apache.logging.log4j.CloseableThreadContext;
 
 import java.util.Map;
 import java.util.function.Supplier;
@@ -8,27 +8,15 @@ import java.util.function.Supplier;
 public final class LogUtils {
     private LogUtils() { }
 
-
-    public static void withLoggingContext(Map<String, String> values, Runnable f) {
-        var currentContext = ThreadContext.getImmutableContext();
-        try {
-            ThreadContext.putAll(values);
+    public static void withLoggingContext(Map<String, String> additionalContext, Runnable f) {
+        try (var ignore = CloseableThreadContext.putAll(additionalContext)) {
             f.run();
-        } finally {
-            ThreadContext.clearMap();
-            ThreadContext.putAll(currentContext);
         }
     }
 
-
-    public static <T> T withLoggingContext(Map<String, String> values, Supplier<T> f) {
-        var currentContext = ThreadContext.getImmutableContext();
-        try {
-            ThreadContext.putAll(values);
+    public static <T> T withLoggingContext(Map<String, String> additionalContext, Supplier<T> f) {
+        try (var ignore = CloseableThreadContext.putAll(additionalContext)) {
             return f.get();
-        } finally {
-            ThreadContext.clearMap();
-            ThreadContext.putAll(currentContext);
         }
     }
 }
