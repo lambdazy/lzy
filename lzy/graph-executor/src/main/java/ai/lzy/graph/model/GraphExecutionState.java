@@ -30,7 +30,9 @@ public record GraphExecutionState(
         List<TaskExecution> executions,
         List<TaskExecution> currentExecutionGroup,
         Status status,
-        String errorDescription
+        String errorDescription,
+        String failedTaskId,
+        String failedTaskName
 ) {
 
     private static final Logger LOG = LogManager.getLogger(GraphExecutionState.class);
@@ -48,6 +50,8 @@ public record GraphExecutionState(
             case COMPLETED -> statusBuilder.setCompleted(Completed.newBuilder().build());
             case FAILED -> statusBuilder.setFailed(
                 Failed.newBuilder()
+                    .setFailedTaskId(failedTaskId)
+                    .setFailedTaskName(failedTaskName)
                     .setDescription(errorDescription)
                     .build()
             );
@@ -137,6 +141,8 @@ public record GraphExecutionState(
         private List<TaskExecution> currentExecutionGroup = new ArrayList<>();
         private Status status = Status.WAITING;
         private String errorDescription = null;
+        private String failedTaskId = null;
+        private String failedTaskName = null;
 
         public GraphExecutionStateBuilder withWorkflowId(String workflowId) {
             this.workflowId = workflowId;
@@ -183,6 +189,16 @@ public record GraphExecutionState(
             return this;
         }
 
+        public GraphExecutionStateBuilder withFailedTaskId(String failedTaskId) {
+            this.failedTaskId = failedTaskId;
+            return this;
+        }
+
+        public GraphExecutionStateBuilder withFailedTaskName(String failedTaskName) {
+            this.failedTaskName = failedTaskName;
+            return this;
+        }
+
         public GraphExecutionState build() {
             if (workflowId == null || id == null || description == null) {
                 throw new NullPointerException(
@@ -190,7 +206,7 @@ public record GraphExecutionState(
             }
             return new GraphExecutionState(
                 workflowId, workflowName, userId, id, description, executions, currentExecutionGroup,
-                status, errorDescription
+                status, errorDescription, failedTaskId, failedTaskName
             );
         }
     }

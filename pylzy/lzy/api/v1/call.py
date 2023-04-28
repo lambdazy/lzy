@@ -3,6 +3,7 @@ import inspect
 import uuid
 from inspect import getfullargspec
 from itertools import chain, zip_longest
+from types import TracebackType
 from typing import Any, Callable, Dict, Mapping, Sequence, Tuple, TypeVar, Optional, List
 
 from serialzy.api import SerializerRegistry
@@ -72,6 +73,9 @@ class LzyCall:
             eid = workflow.snapshot.create_entry(name, arg_typ).id
             self.__entry_ids.append(eid)
 
+        exc_name = sign.func.callable.__name__ + ".exception"
+        self.__exception_id: str = workflow.snapshot.create_entry(exc_name, tuple).id
+
         # yep, we should store local data to storage just in LzyCall.__init__
         # because the data can be changed before dependent op will be actually executed
         LzyEventLoop.gather(*local_data_put_tasks)
@@ -99,6 +103,10 @@ class LzyCall:
     @property
     def entry_ids(self) -> Sequence[str]:
         return self.__entry_ids
+
+    @property
+    def exception_id(self) -> str:
+        return self.__exception_id
 
     @property
     def args(self) -> Tuple[Any, ...]:

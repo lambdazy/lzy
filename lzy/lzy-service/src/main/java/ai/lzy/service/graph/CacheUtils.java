@@ -24,7 +24,9 @@ class CacheUtils {
 
         for (var operation : state.getOperations()) {
             var cached = !operation.getOutputSlotsList().isEmpty() && operation.getOutputSlotsList().stream()
-                .map(SlotDescription::getStorageUri).allMatch(uri -> {
+                .map(SlotDescription::getStorageUri)
+                .filter(uri -> !uri.endsWith("exception"))
+                .allMatch(uri -> {
                     try {
                         return storageClient.blobExists(URI.create(uri));
                     } catch (Exception e) {

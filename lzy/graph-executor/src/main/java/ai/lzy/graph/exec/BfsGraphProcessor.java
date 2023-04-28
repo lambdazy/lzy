@@ -63,8 +63,8 @@ public class BfsGraphProcessor implements GraphProcessor {
                     }
                     if (status.hasError()) {
                         LOG.error("TaskVertex <" + task.id() + "> is in error state, stopping graph execution");
-                        yield stop(graph, "TaskVertex <" + task.id() + "> is in error state.\n" +
-                            "Error message: " + status.getError().getDescription());
+                        yield stop(graph, status.getError().getDescription(), task.id(),
+                            task.description().operation().getName());
                     }
                 }
                 if (completed == graph.description().tasks().size()) {
@@ -88,15 +88,25 @@ public class BfsGraphProcessor implements GraphProcessor {
 
     @Override
     public GraphExecutionState stop(GraphExecutionState graph, String errorDescription) {
+        return stop(graph, errorDescription, null, null);
+    }
+
+    public GraphExecutionState stop(GraphExecutionState graph, String errorDescription,
+                                    String failedTaskId, String failedTaskName)
+    {
         return switch (graph.status()) {
             case COMPLETED, FAILED -> graph;
             case WAITING -> graph.copyFromThis()
                 .withErrorDescription(errorDescription)
+                .withFailedTaskId(failedTaskId)
+                .withFailedTaskName(failedTaskName)
                 .withStatus(Status.FAILED)
                 .build();
             case EXECUTING -> {
                 final var state = graph.copyFromThis()
                     .withErrorDescription(errorDescription)
+                    .withFailedTaskId(failedTaskId)
+                    .withFailedTaskName(failedTaskName)
                     .withStatus(Status.FAILED)
                     .build();
                 graph.executions().forEach(t -> {
