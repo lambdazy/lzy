@@ -71,18 +71,8 @@ def op(
     cache: bool = False,
     lazy_arguments: bool = False,
     env_variables: Optional[Mapping[str, str]] = None,
-    docker_only: bool = False,
     docker_credentials: Optional[DockerCredentials] = None
 ):
-    if (
-        docker_only
-        and any((conda_yaml_path, local_modules_path, libraries, python_version))
-    ):
-        raise ValueError(
-            "'docker_only' is not compatible with explicit python env settings "
-            "(conda_yaml_path, local_modules_path, libraries, python_version)"
-        )
-
     libraries = libraries or {}
     env_variables = env_variables or {}
     provisioning = provisioning or Provisioning()
@@ -117,7 +107,7 @@ def op(
         nonlocal env
         env = env.override(
             Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
-                env_variables=env_variables, docker_only=docker_only, docker_credentials=docker_credentials)
+                env_variables=env_variables, docker_credentials=docker_credentials)
         )
 
         # yep, create lazy constructor and return it
@@ -254,24 +244,12 @@ class Lzy:
         gpu_type: StringRequirement = None,
         gpu_count: IntegerRequirement = None,
         ram_size_gb: IntegerRequirement = None,
-        docker_only: bool = False,
         env_variables: Optional[Mapping[str, str]] = None,
         docker_credentials: Optional[DockerCredentials] = None,
-        env: Env = Env()
+        env: Env = Env(),
+        exclude_packages: Iterable[str] = tuple()
     ) -> LzyWorkflow:
         self.__register_default_runtime_storage()
-
-        if (
-            docker_only
-            and any((conda_yaml_path, local_modules_path, libraries, python_version))
-        ):
-            raise ValueError(
-                "'docker_only' is not compatible with explicit python env settings "
-                "(conda_yaml_path, local_modules_path, libraries, python_version)"
-            )
-
-        if docker_only and docker_image is None:
-            raise ValueError("docker_only is set, but docker image is not set")
 
         env_variables = env_variables or {}
         libraries = libraries or {}
@@ -288,18 +266,13 @@ class Lzy:
         # it is important to detect py env before registering lazy calls to avoid materialization of them
         frame = inspect.stack()[1].frame
         namespace = {**frame.f_globals, **frame.f_locals}
-        auto_py_env: Optional[PyEnv]
 
-        if not docker_only:
-            auto_py_env = self.__env_provider.provide(namespace)
-            local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
-        else:
-            auto_py_env = None
-            local_modules_path = []
+        auto_py_env = self.__env_provider.provide(namespace, exclude_packages)
+        local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
 
         env = env.override(
             Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
-                docker_only=docker_only, env_variables=env_variables, docker_credentials=docker_credentials)
+                env_variables=env_variables, docker_credentials=docker_credentials)
         )
         env.validate()
 

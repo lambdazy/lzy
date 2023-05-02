@@ -129,11 +129,6 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String... command) {
-        return runProcess(command, null);
-    }
-
-    @Override
     public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         assert containerId != null;
 

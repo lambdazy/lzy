@@ -165,11 +165,10 @@ def wrap_call(
 
             py_env = active_workflow.auto_py_env
 
-            if py_env is not None:  # If None, not using py_env
-                env_updated = active_workflow.env.override(Env(
-                    py_env.python_version if not active_workflow.env.python_version else None,
-                    py_env.libraries, None, None, None, py_env.local_modules_path
-                )).override(env)
+            env_updated = active_workflow.env.override(Env(
+                py_env.python_version if not active_workflow.env.python_version else None,
+                py_env.libraries, None, None, None, py_env.local_modules_path
+            )).override(env)
 
         env_updated.validate()
 

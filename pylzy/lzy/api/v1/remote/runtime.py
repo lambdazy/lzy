@@ -139,8 +139,7 @@ class RemoteRuntime(Runtime):
         modules: Set[str] = set()
 
         for call in calls:
-            if not call.env.docker_only:
-                modules.update(cast(Sequence[str], call.env.local_modules_path))
+            modules.update(cast(Sequence[str], call.env.local_modules_path))
 
         urls = await self.__load_local_modules(modules)
 
@@ -336,23 +335,20 @@ class RemoteRuntime(Runtime):
 
             python_env: Optional[Operation.PythonEnvSpec]
 
-            if docker_image and call.env.docker_only:
-                python_env = None  # don't use conda for 'docker_only' ops
+            if call.env.conda_yaml_path:
+                with open(call.env.conda_yaml_path, "r") as file:
+                    conda_yaml = file.read()
             else:
-                if call.env.conda_yaml_path:
-                    with open(call.env.conda_yaml_path, "r") as file:
-                        conda_yaml = file.read()
-                else:
-                    conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
-                                                     cast(Dict[str, str], call.env.libraries))
+                conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
+                                                 cast(Dict[str, str], call.env.libraries))
 
-                python_env = Operation.PythonEnvSpec(
-                    yaml=conda_yaml,
-                    localModules=[
-                        Operation.PythonEnvSpec.LocalModule(name=name, url=url)
-                        for (name, url) in modules
-                    ],
-                )
+            python_env = Operation.PythonEnvSpec(
+                yaml=conda_yaml,
+                localModules=[
+                    Operation.PythonEnvSpec.LocalModule(name=name, url=url)
+                    for (name, url) in modules
+                ],
+            )
 
             request = ProcessingRequest(
                 get_logging_config(),

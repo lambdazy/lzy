@@ -2,6 +2,7 @@ package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
 import ai.lzy.worker.ServiceConfig;
+import ai.lzy.worker.StreamQueue;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -23,10 +24,10 @@ public class EnvTest {
     }
 
     @Test
-    public void testBashEnv() {
+    public void testBashEnv() throws EnvironmentInstallationException {
         var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .build());
+            .build(), StreamQueue.LogHandle.empty());
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof ProcessEnvironment);
@@ -37,7 +38,7 @@ public class EnvTest {
         var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .putEnv("LOL", "kek")
-            .build());
+            .build(), StreamQueue.LogHandle.empty());
 
         var proc = env.runProcess("echo $LOL");
         Assert.assertEquals(0, proc.waitFor());
@@ -49,18 +50,22 @@ public class EnvTest {
     }
 
     @Test
-    public void testDocker() {
+    public void testDocker() throws EnvironmentInstallationException {
+        EnvironmentFactory.installEnv(false);
         var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setDockerImage("ubuntu:latest")
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .build());
+            .build(), StreamQueue.LogHandle.empty());
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof DockerEnvironment);
+        EnvironmentFactory.installEnv(true);
     }
 
     @Test
-    public void testConda() {
+    public void testConda() throws EnvironmentInstallationException {
+        EnvironmentFactory.installEnv(false);  // Do not actually install conda
+
         var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setPyenv(LME.PythonEnv.newBuilder()
                 .setName("py39")
@@ -75,7 +80,9 @@ public class EnvTest {
                       - pylzy==1.0.0
                       - serialzy>=1.0.0""")
                 .build())
-            .build());
+            .build(), StreamQueue.LogHandle.empty());
+
+        EnvironmentFactory.installEnv(true);
 
         Assert.assertTrue(env instanceof CondaEnvironment);
     }

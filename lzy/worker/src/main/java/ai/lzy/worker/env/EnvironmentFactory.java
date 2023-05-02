@@ -2,15 +2,23 @@ package ai.lzy.worker.env;
 
 import ai.lzy.v1.common.LME;
 import ai.lzy.worker.ServiceConfig;
+import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import jakarta.inject.Singleton;
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 @Singleton
@@ -18,6 +26,7 @@ public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
     private static final String RESOURCES_PATH = "/tmp/resources/";
     private static final String LOCAL_MODULES_PATH = "/tmp/local_modules/";
+    private static final AtomicBoolean INSTALL_ENV = new AtomicBoolean(true);
 
 
     private final HashMap<String, DockerEnvironment> createdContainers = new HashMap<>();
@@ -30,7 +39,9 @@ public class EnvironmentFactory {
         this.hasGpu = config.getGpuCount() > 0;
     }
 
-    public AuxEnvironment create(String taskId, String fsRoot, LME.EnvSpec env) {
+    public AuxEnvironment create(String taskId, String fsRoot, LME.EnvSpec env, StreamQueue.LogHandle logHandle)
+        throws EnvironmentInstallationException
+    {
         //to mock environment in tests
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
@@ -78,20 +89,103 @@ public class EnvironmentFactory {
             baseEnv = localProcessEnv.withEnv(env.getEnvMap());
         }
 
+        if (INSTALL_ENV.get()) {
+            baseEnv.install(logHandle);
+        }
+
+        final AuxEnvironment auxEnv;
+
         if (env.hasPyenv()) {
-            return new CondaEnvironment(env.getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
+            final Environment.LzyProcess proc;
+
+            if (INSTALL_ENV.get()) {
+                proc = baseEnv.runProcess("conda", "--version");
+            } else {
+                proc = completedCondaProcess();  // Do not get actual conda version here, mock it for test
+            }
+            final int res;
+
+            try {
+                res = proc.waitFor();
+            } catch (InterruptedException e) {
+                LOG.error("Installation of environment interrupted", e);
+                throw new EnvironmentInstallationException("Installation of environment interrupted");
+            }
+
+            if (res != 0) {
+                String err;
+                try {
+                    err = IOUtils.toString(proc.err(), StandardCharsets.UTF_8);
+                } catch (IOException e) {
+                    LOG.error("Cannot get error of getting conda version: ", e);
+                    err = "";
+                }
+
+                LOG.error("Cannot find conda in provided env, rc={}, env={}: {}", res, env, err);
+                auxEnv = new PlainPythonEnvironment(baseEnv, env.getPyenv(), LOCAL_MODULES_PATH);
+            } else {
+                final String out;
+
+                try {
+                    out = IOUtils.toString(proc.out(), StandardCharsets.UTF_8);
+                    LOG.info("Using conda with version \"{}\"", out);
+                } catch (IOException e) {
+                    LOG.error("Cannot find conda version", e);
+                }
+
+                auxEnv = new CondaEnvironment(env.getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
+            }
+
         } else if (env.hasProcessEnv()) {
-            return new SimpleBashEnvironment(taskId, baseEnv, Map.of());
+            auxEnv = new SimpleBashEnvironment(taskId, baseEnv, Map.of());
         } else {
             LOG.error("Error while creating env: undefined env");
             throw Status.UNIMPLEMENTED.withDescription("Provided unsupported env")
                 .asRuntimeException();
         }
+
+        if (INSTALL_ENV.get()) {
+            auxEnv.install(logHandle);
+        }
+
+        return auxEnv;
+    }
+
+    private static Environment.LzyProcess completedCondaProcess() {
+        return new Environment.LzyProcess() {
+            @Override
+            public OutputStream in() {
+                return null;
+            }
+
+            @Override
+            public InputStream out() {
+                return new ByteArrayInputStream("1.0.0".getBytes());
+            }
+
+            @Override
+            public InputStream err() {
+                return null;
+            }
+
+            @Override
+            public int waitFor() {
+                return 0;
+            }
+
+            @Override
+            public void signal(int sigValue) {}
+        };
     }
 
     @VisibleForTesting
     public static void envForTests(Supplier<AuxEnvironment> env) {
         envForTests = env;
+    }
+
+    @VisibleForTesting
+    public static void installEnv(boolean b) {
+        INSTALL_ENV.set(b);
     }
 
 }

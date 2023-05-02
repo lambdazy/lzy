@@ -3,105 +3,141 @@ __package__ = None
 import os
 import sys
 from pathlib import Path
-from unittest import TestCase
+from typing import List
+
+import pytest
 
 from lzy.py_env.api import PyEnvProvider
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
 
 
-class ModulesSearchTests(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.this_test_directory: Path = Path(__file__).parent
-        cls.test_data_dir = cls.this_test_directory.parent / 'test_data'
+@pytest.fixture(scope="module")
+def test_data_dir() -> Path:
+    this_test_directory: Path = Path(__file__).parent
+    return this_test_directory.parent / 'test_data'
 
-    def setUp(self):
-        self.provider: PyEnvProvider = AutomaticPyEnvProvider()
 
-        self.old_cwd: Path = Path.cwd()
-        self.old_sys_path: List[str] = list(sys.path)
+@pytest.fixture(scope="module")
+def provider(test_data_dir: Path) -> PyEnvProvider:
+    provider: PyEnvProvider = AutomaticPyEnvProvider()
 
-        os.chdir(self.this_test_directory)
-        sys.path.append(str(self.test_data_dir))
+    old_cwd: Path = Path.cwd()
+    old_sys_path: List[str] = list(sys.path)
 
-    def tearDown(self):
-        os.chdir(self.old_cwd)
-        sys.path = self.old_sys_path
+    os.chdir(Path(__file__).parent)
+    sys.path.append(str(test_data_dir))
 
-    def test_modules_search(self):
-        # Arrange
-        from modules_for_tests.level1.level1 import Level1
-        from modules_for_tests_2.level import Level
+    yield provider
 
-        level1 = Level1()
-        level = Level()
+    os.chdir(old_cwd)
+    sys.path = old_sys_path
 
-        # Act
-        env = self.provider.provide({"level": level, "level1": level1})
-        remote = env.libraries
-        local_modules_path = env.local_modules_path
 
-        # Assert
-        self.assertEqual("echo", level1.echo())
-        self.assertEqual(
-            3 if sys.version_info < (3, 10) else 2,  # typing extensions is a standard module starting from 3.10
-            len(local_modules_path)
-        )
+def test_modules_search(provider: PyEnvProvider, test_data_dir: Path):
+    # Arrange
+    from modules_for_tests.level1.level1 import Level1
+    from modules_for_tests_2.level import Level
 
-        # noinspection DuplicatedCode
-        for path in (
-            "modules_for_tests",
-            "modules_for_tests_2",
-        ):
-            full_path = self.test_data_dir / path
-            self.assertIn(str(full_path), local_modules_path)
+    level1 = Level1()
+    level = Level()
 
-        for path in (
-            "modules_for_tests/level1",
-            "modules_for_tests/level1/level2",
-            "modules_for_tests/level1/level2/level3",
-            "modules_for_tests/level1/level2/level3/level3.py",
-            "modules_for_tests/level1/level2/level2.py",
-            "modules_for_tests/level1/level1.py",
-        ):
-            full_path = self.test_data_dir / path
-            self.assertNotIn(str(full_path), local_modules_path)
+    # Act
+    env = provider.provide({"level": level, "level1": level1})
+    remote = env.libraries
+    local_modules_path = env.local_modules_path
 
-        self.assertEqual({"PyYAML", "cloudpickle"}, set(remote.keys()))
+    # Assert
+    assert "echo" == level1.echo()
 
-    def test_modules_search_2(self):
-        from modules_for_tests.level1.level2_nb import level_foo
+    # typing extensions is a standard module starting from 3.10
+    assert (3 if sys.version_info < (3, 10) else 2) == len(local_modules_path)
 
-        env = self.provider.provide({"level_foo": level_foo})
-        local_modules_path = env.local_modules_path
+    # noinspection DuplicatedCode
+    for path in (
+        "modules_for_tests",
+        "modules_for_tests_2",
+    ):
+        full_path = test_data_dir / path
+        assert str(full_path) in local_modules_path
 
-        # noinspection DuplicatedCode
-        self.assertEqual(
-            2 if sys.version_info < (3, 10) else 1,  # typing extensions is a standard module starting from 3.10
-            len(local_modules_path)
-        )
+    for path in (
+        "modules_for_tests/level1",
+        "modules_for_tests/level1/level2",
+        "modules_for_tests/level1/level2/level3",
+        "modules_for_tests/level1/level2/level3/level3.py",
+        "modules_for_tests/level1/level2/level2.py",
+        "modules_for_tests/level1/level1.py",
+    ):
+        full_path = test_data_dir / path
+        assert str(full_path) not in local_modules_path
 
-        for path in (
-            "modules_for_tests",
-        ):
-            full_path = self.test_data_dir / path
-            self.assertIn(str(full_path), local_modules_path)
+    assert {"PyYAML", "cloudpickle"} == set(remote.keys())
 
-        for path in (
-            "modules_for_tests/level1",
-            "modules_for_tests/level1/level2",
-            "modules_for_tests/level1/level2/level3",
-            "modules_for_tests/level1/level2/level3/level3.py",
-            "modules_for_tests/level1/level2/level2.py",
-            "modules_for_tests/level1/level2_nb",
-        ):
-            full_path = self.test_data_dir / path
-            self.assertNotIn(str(full_path), local_modules_path)
 
-    def test_exceptional_builtin(self):
-        import _functools
+def test_modules_search_2(provider: PyEnvProvider, test_data_dir: Path):
+    from modules_for_tests.level1.level2_nb import level_foo
 
-        env = self.provider.provide({"_functools": _functools})
+    env = provider.provide({"level_foo": level_foo})
+    local_modules_path = env.local_modules_path
 
-        self.assertEqual(len(env.local_modules_path), 0)
-        self.assertEqual(len(env.libraries), 0)
+    # noinspection DuplicatedCode
+    assert 2 if sys.version_info < (3, 10) else 1 == len(local_modules_path)
+
+    for path in (
+        "modules_for_tests",
+    ):
+        full_path = test_data_dir / path
+        assert str(full_path) in local_modules_path
+
+    for path in (
+        "modules_for_tests/level1",
+        "modules_for_tests/level1/level2",
+        "modules_for_tests/level1/level2/level3",
+        "modules_for_tests/level1/level2/level3/level3.py",
+        "modules_for_tests/level1/level2/level2.py",
+        "modules_for_tests/level1/level2_nb",
+    ):
+        full_path = test_data_dir / path
+        assert str(full_path) not in local_modules_path
+
+
+def test_exceptional_builtin(provider: PyEnvProvider):
+    import _functools
+
+    env = provider.provide({"_functools": _functools})
+
+    assert len(env.local_modules_path) == 0
+    assert len(env.libraries) == 0
+
+
+def test_exclude_packages(provider: PyEnvProvider, test_data_dir: Path):
+    # Arrange
+    from modules_for_tests.level1.level1 import Level1
+    from modules_for_tests_2.level import Level
+
+    level1 = Level1()
+    level = Level()
+
+    # Act
+    env = provider.provide({"level": level, "level1": level1}, exclude_packages=("modules_for_tests_2",))
+    local_modules_path = env.local_modules_path
+
+    assert 2 if sys.version_info < (3, 10) else 1 == len(local_modules_path)
+
+    for path in (
+        "modules_for_tests",
+    ):
+        full_path = test_data_dir / path
+        assert str(full_path) in local_modules_path
+
+    for path in (
+        "modules_for_tests/level1",
+        "modules_for_tests/level1/level2",
+        "modules_for_tests/level1/level2/level3",
+        "modules_for_tests/level1/level2/level3/level3.py",
+        "modules_for_tests/level1/level2/level2.py",
+        "modules_for_tests/level1/level1.py",
+        "modules_for_tests2"
+    ):
+        full_path = test_data_dir / path
+        assert str(full_path) not in local_modules_path

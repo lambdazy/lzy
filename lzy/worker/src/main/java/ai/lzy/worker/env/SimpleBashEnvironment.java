@@ -45,11 +45,6 @@ public class SimpleBashEnvironment implements AuxEnvironment {
     public void install(StreamQueue.LogHandle logHandle) {}
 
     @Override
-    public LzyProcess runProcess(String... command) {
-        return runProcess(command, null);
-    }
-
-    @Override
     public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         return execInEnv(String.join(" ", command), envp);
     }

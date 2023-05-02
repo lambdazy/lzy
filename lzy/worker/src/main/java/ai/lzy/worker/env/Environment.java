@@ -14,7 +14,9 @@ public interface Environment extends AutoCloseable {
      */
     void install(StreamQueue.LogHandle logHandle) throws EnvironmentInstallationException;
 
-    LzyProcess runProcess(String... command);
+    default LzyProcess runProcess(String... command) {
+        return runProcess(command, null);
+    }
 
     LzyProcess runProcess(String[] command, @Nullable String[] envp);
 
