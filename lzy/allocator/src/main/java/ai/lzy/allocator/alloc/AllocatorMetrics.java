@@ -70,6 +70,10 @@ public class AllocatorMetrics {
         .subsystem(ALLOCATOR)
         .register();
 
+    public final Counter deleteVmErrors = Counter
+        .build("delete_vm_errors", "Delete VM Errors")
+        .subsystem(ALLOCATOR)
+        .register();
 
     // allocator private API
 

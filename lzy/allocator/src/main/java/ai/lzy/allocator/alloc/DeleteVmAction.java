@@ -50,6 +50,11 @@ public final class DeleteVmAction extends OperationRunnerBase {
     }
 
     @Override
+    protected void notifyExpired() {
+        allocationContext.metrics().deleteVmErrors.inc();
+    }
+
+    @Override
     protected List<Supplier<StepResult>> steps() {
         return List.of(this::start, this::deleteTunnel, this::deallocateTunnel,
             this::deallocateVm, this::deallocateMountPod, this::deleteAllMounts, this::cleanDb);
@@ -187,6 +192,7 @@ public final class DeleteVmAction extends OperationRunnerBase {
                 }
                 case FAILED -> {
                     log().error("{} Deallocation failed: {}", logPrefix(), ret.message());
+                    allocationContext.metrics().deleteVmErrors.inc();
                     yield StepResult.FINISH;
                 }
             };
