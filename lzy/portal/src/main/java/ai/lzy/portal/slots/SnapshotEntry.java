@@ -2,6 +2,7 @@ package ai.lzy.portal.slots;
 
 import ai.lzy.model.slot.Slot;
 import ai.lzy.portal.exceptions.CreateSlotException;
+import jakarta.annotation.Nullable;
 
 import java.io.IOException;
 import java.net.URI;
@@ -11,7 +12,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 
 final class SnapshotEntry {
     public enum State {

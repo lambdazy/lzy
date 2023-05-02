@@ -4,10 +4,9 @@ import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
+import jakarta.validation.ValidationException;
 import lombok.Getter;
 import lombok.Setter;
-
-import javax.validation.ValidationException;
 
 @Getter
 @Setter

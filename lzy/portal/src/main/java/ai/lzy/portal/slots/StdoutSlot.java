@@ -12,6 +12,8 @@ import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
 
 import java.net.URI;
@@ -19,8 +21,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public class StdoutSlot extends LzyOutputSlotBase {
     private final Map<String, StdoutInputSlot> task2slot = new HashMap<>();

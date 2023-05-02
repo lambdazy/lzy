@@ -5,6 +5,8 @@ import com.gc.iotools.stream.is.inspection.StatsInputStream;
 import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import org.apache.commons.io.input.BoundedInputStream;
 import org.joda.time.DateTime;
 import org.slf4j.Logger;
@@ -25,8 +27,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import static com.google.common.base.Stopwatch.createStarted;

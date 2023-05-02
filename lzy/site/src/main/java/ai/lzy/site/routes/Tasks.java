@@ -11,9 +11,9 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.CookieValue;
 import io.micronaut.http.annotation.Post;
 import jakarta.inject.Inject;
+import jakarta.validation.Valid;
 
 import java.util.List;
-import javax.validation.Valid;
 
 @Controller("/tasks")
 public class Tasks {

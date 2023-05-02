@@ -1,11 +1,12 @@
 package ru.yandex.qe.s3.transfer.buffers;
 
+import jakarta.annotation.Nonnull;
+
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Supplier;
-import javax.annotation.Nonnull;
 
 /**
  * Byte buffer pool used by {@link ru.yandex.qe.s3.transfer.loop.ProcessingLoop ProcessingLoop}s.

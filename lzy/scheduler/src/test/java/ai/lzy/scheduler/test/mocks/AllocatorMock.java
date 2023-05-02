@@ -19,7 +19,7 @@ import jakarta.annotation.PreDestroy;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.function.Consumer;
-import javax.inject.Singleton;
+import jakarta.inject.Singleton;
 
 @Singleton
 @Primary // for tests only

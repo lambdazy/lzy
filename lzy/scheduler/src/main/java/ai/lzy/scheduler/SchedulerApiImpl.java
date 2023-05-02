@@ -18,6 +18,8 @@ import ai.lzy.v1.scheduler.SchedulerGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import jakarta.inject.Inject;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -25,8 +27,6 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import javax.inject.Inject;
-import javax.inject.Singleton;
 
 @Singleton
 public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {

@@ -1,8 +1,9 @@
 package ai.lzy.model.db;
 
+import jakarta.annotation.Nullable;
+
 import java.sql.Connection;
 import java.sql.SQLException;
-import javax.annotation.Nullable;
 
 public interface DbOperation {
     static void execute(@Nullable TransactionHandle transaction, Storage storage, DbRunnable op)

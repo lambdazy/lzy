@@ -2,10 +2,10 @@ package ai.lzy.scheduler.db;
 
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.scheduler.JobService;
+import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
 import java.util.List;
-import javax.annotation.Nullable;
 
 public interface JobDao {
     void insert(JobService.Job job, @Nullable TransactionHandle tx) throws SQLException;

@@ -5,10 +5,10 @@ import ai.lzy.channelmanager.model.Endpoint;
 import ai.lzy.channelmanager.model.channel.Channel;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.slot.SlotInstance;
+import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
 import java.util.List;
-import javax.annotation.Nullable;
 
 public interface ChannelDao {
 

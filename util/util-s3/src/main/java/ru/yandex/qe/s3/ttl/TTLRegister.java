@@ -1,7 +1,8 @@
 package ru.yandex.qe.s3.ttl;
 
+import jakarta.annotation.Nonnull;
+
 import java.util.List;
-import javax.annotation.Nonnull;
 import javax.ws.rs.*;
 
 /**

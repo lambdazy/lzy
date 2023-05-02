@@ -12,6 +12,7 @@ import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import com.google.common.annotations.VisibleForTesting;
 import io.micronaut.context.annotation.Requires;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -28,7 +29,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
 import static ai.lzy.model.db.DbHelper.withRetries;

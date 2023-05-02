@@ -11,6 +11,7 @@ import io.grpc.Context;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -19,7 +20,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
-import javax.annotation.Nullable;
 
 public class LocalOperationService extends LongRunningServiceGrpc.LongRunningServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(LocalOperationService.class);

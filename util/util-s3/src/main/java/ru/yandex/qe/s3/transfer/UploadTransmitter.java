@@ -1,12 +1,12 @@
 package ru.yandex.qe.s3.transfer;
 
 import com.google.common.util.concurrent.ListenableFuture;
+import jakarta.annotation.Nonnull;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadState;
 
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
-import javax.annotation.Nonnull;
 
 /**
  * Established by terry on 23.07.15.

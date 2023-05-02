@@ -1,8 +1,7 @@
 package ai.lzy.scheduler.models;
 
 import ai.lzy.v1.common.LMO;
-
-import javax.annotation.Nullable;
+import jakarta.annotation.Nullable;
 
 public record TaskState(
     String id,

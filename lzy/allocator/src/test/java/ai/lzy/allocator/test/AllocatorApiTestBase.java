@@ -32,11 +32,11 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import okhttp3.mockwebserver.MockWebServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 import org.junit.Assert;
 import org.junit.Rule;
 
@@ -253,7 +253,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             .once();
     }
 
-    @NotNull
+    @Nonnull
     private static Pod constructPod(String podName) {
         final Pod pod = new Pod();
         pod.setMetadata(
@@ -438,17 +438,17 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         }
     }
 
-    @NotNull
+    @Nonnull
     public static String getVmPodName(String vmId) {
         return KuberVmAllocator.VM_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT);
     }
 
-    @NotNull
+    @Nonnull
     public static String getTunnelPodName(String vmId) {
         return KuberTunnelAllocator.TUNNEL_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT);
     }
 
-    @NotNull
+    @Nonnull
     public static String getName(HasMetadata resource) {
         return resource.getMetadata().getName();
     }

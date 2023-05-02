@@ -1,7 +1,8 @@
 package ai.lzy.model;
 
+import jakarta.annotation.Nonnull;
+
 import java.net.URI;
-import javax.annotation.Nonnull;
 
 public enum UriScheme {
     // services
@@ -17,7 +18,7 @@ public enum UriScheme {
 
     private final String scheme;
 
-    UriScheme(@Nonnull  String scheme) {
+    UriScheme(@Nonnull String scheme) {
         this.scheme = scheme;
     }
 

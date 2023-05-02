@@ -10,6 +10,7 @@ import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
 import com.google.protobuf.ByteString;
+import jakarta.annotation.Nullable;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -20,7 +21,6 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.util.UUID;
 import java.util.stream.Stream;
-import javax.annotation.Nullable;
 
 public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot {
     private static final Logger LOG = LogManager.getLogger(SnapshotInputSlot.class);

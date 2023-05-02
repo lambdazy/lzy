@@ -4,6 +4,7 @@ import ai.lzy.disk.model.EntityNotFoundException;
 import ai.lzy.v1.disk.LD;
 
 import java.util.List;
+import jakarta.annotation.Nullable;
 import javax.annotation.Nullable;
 
 public interface DiskClient {

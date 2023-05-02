@@ -1,5 +1,6 @@
 package ru.yandex.qe.s3.util;
 
+import jakarta.annotation.Nonnull;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
@@ -19,7 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import javax.annotation.Nonnull;
 
 import static java.util.concurrent.TimeUnit.*;
 

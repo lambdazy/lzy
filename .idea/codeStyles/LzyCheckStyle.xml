@@ -42,6 +42,10 @@
   <!-- Filter out Checkstyle warnings that have been suppressed with the @SuppressWarnings annotation -->
   <module name="SuppressWarningsFilter" />
   <module name="TreeWalker">
+    <module name="IllegalImport">
+      <property name="regexp" value="true"/>
+      <property name="illegalPkgs" value="^javax(?!\.ws|\.annotation\.WillClose|\.annotation\.concurrent.).*, ^org\.jetbrains\.annotations.*"/>
+    </module>
     <!-- Make the @SuppressWarnings annotations available to Checkstyle -->
     <module name="SuppressWarningsHolder" />
     <module name="OuterTypeFilename"/>

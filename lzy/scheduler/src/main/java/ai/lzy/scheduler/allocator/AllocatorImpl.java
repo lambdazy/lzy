@@ -16,6 +16,7 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
 import io.grpc.ManagedChannel;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -24,7 +25,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
-import javax.annotation.PreDestroy;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;

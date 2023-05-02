@@ -5,11 +5,10 @@ import ai.lzy.channelmanager.exceptions.IllegalChannelGraphStateException;
 import ai.lzy.channelmanager.model.Connection;
 import ai.lzy.channelmanager.model.Endpoint;
 import ai.lzy.channelmanager.model.channel.Channel;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import javax.annotation.Nullable;
 
 @Singleton
 public class ChannelControllerImpl implements ChannelController {

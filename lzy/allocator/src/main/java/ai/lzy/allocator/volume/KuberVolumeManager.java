@@ -10,11 +10,11 @@ import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 
 import java.net.HttpURLConnection;
 import java.util.List;
@@ -272,7 +272,7 @@ public class KuberVolumeManager implements VolumeManager {
         }
     }
 
-    @NotNull
+    @Nonnull
     private ClusterRegistry.ClusterDescription getClusterOrThrow(String clusterId) {
         var cluster = clusterRegistry.getCluster(clusterId);
         if (cluster == null) {

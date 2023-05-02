@@ -1,9 +1,10 @@
 package ai.lzy.model.db;
 
+import jakarta.annotation.Nullable;
+
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Objects;
-import javax.annotation.Nullable;
 
 public class DelegatingTransactionHandle implements TransactionHandle {
 

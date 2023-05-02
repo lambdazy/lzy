@@ -1,12 +1,11 @@
 package ai.lzy.fs.commands;
 
+import jakarta.annotation.Nullable;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
-
-import javax.annotation.Nullable;
 
 public interface LzyCommand {
     int execute(CommandLine command) throws Exception;

@@ -2,10 +2,10 @@ package ai.lzy.channelmanager.model.channel;
 
 import ai.lzy.channelmanager.model.Endpoint;
 import ai.lzy.model.slot.Slot;
+import jakarta.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
-import javax.annotation.Nullable;
 
 public class Receivers {
 

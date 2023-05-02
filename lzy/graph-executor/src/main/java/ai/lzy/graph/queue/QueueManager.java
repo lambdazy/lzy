@@ -14,13 +14,13 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
 import io.grpc.StatusException;
+import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -63,7 +63,7 @@ public class QueueManager extends Thread {
             private int count = 0;
 
             @Override
-            public synchronized Thread newThread(@NotNull Runnable r) {
+            public synchronized Thread newThread(@Nonnull Runnable r) {
                 return new Thread(EXECUTORS_TG, r, "graph-executor-" + (++count));
             }
         });
@@ -176,7 +176,7 @@ public class QueueManager extends Thread {
 
     }
 
-    private void process(@NotNull GraphExecutionKey stateKey) {
+    private void process(@Nonnull GraphExecutionKey stateKey) {
         final GraphExecutionState state;
         try {
             state = dao.acquire(stateKey.workflowId(), stateKey.graphId());

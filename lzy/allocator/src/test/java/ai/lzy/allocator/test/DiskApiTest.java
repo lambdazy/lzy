@@ -24,7 +24,7 @@ import io.grpc.StatusException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.jetbrains.annotations.NotNull;
+import jakarta.annotation.Nonnull;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -477,7 +477,7 @@ public class DiskApiTest extends BaseTestWithIam {
             5, TimeUnit.SECONDS);
     }
 
-    @NotNull
+    @Nonnull
     private DiskApi.Disk createDefaultDisk() throws InvalidProtocolBufferException {
         var createDiskOperation =
             diskService.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()

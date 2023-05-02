@@ -4,11 +4,10 @@ import ru.yandex.clickhouse.ClickHouseDataSource;
 
 import java.sql.Connection;
 import java.sql.SQLException;
-import javax.sql.DataSource;
 
 public class ConnectionFactory {
 
-    private static DataSource dataSource;
+    private static ClickHouseDataSource dataSource;
 
     public static Connection getDatabaseConnection() throws SQLException {
         if (dataSource == null) {

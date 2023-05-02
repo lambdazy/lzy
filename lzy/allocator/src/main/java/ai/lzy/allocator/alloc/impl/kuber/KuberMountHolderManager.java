@@ -14,7 +14,6 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
@@ -151,14 +150,14 @@ public class KuberMountHolderManager implements MountHolderManager {
             VolumeMount.MountPropagation.BIDIRECTIONAL);
     }
 
-    @NotNull
+    @Nonnull
     public static VolumeRequest createHostPathVolume(ServiceConfig.MountConfig mountConfig) {
         return new VolumeRequest(new RandomIdGenerator().generate("host-path-volume-", 20),
             new HostPathVolumeDescription(HOST_VOLUME_NAME, mountConfig.getHostMountPoint(),
                 HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE));
     }
 
-    @NotNull
+    @Nonnull
     private ClusterRegistry.ClusterDescription getCluster(String clusterId) {
         var cluster = clusterRegistry.getCluster(clusterId);
         if (cluster == null) {
@@ -167,7 +166,7 @@ public class KuberMountHolderManager implements MountHolderManager {
         return cluster;
     }
 
-    @NotNull
+    @Nonnull
     private ClusterRegistry.ClusterDescription getCluster(String poolLabel, String zone) {
         final var cluster = clusterRegistry.findCluster(poolLabel, zone, ClusterRegistry.ClusterType.User);
         if (cluster == null) {
@@ -176,7 +175,7 @@ public class KuberMountHolderManager implements MountHolderManager {
         return cluster;
     }
 
-    @NotNull
+    @Nonnull
     private String mountHolderName(String vmId) {
         return idGenerator.generate(MOUNT_HOLDER_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT) + "-");
     }

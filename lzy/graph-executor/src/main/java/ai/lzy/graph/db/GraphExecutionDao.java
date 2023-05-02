@@ -4,10 +4,10 @@ import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.DaoException;
+import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
 import java.util.List;
-import javax.annotation.Nullable;
 
 public interface GraphExecutionDao {
     GraphExecutionState create(String workflowId, String workflowName, String userId, GraphDescription description,

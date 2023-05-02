@@ -1,11 +1,11 @@
 package ru.yandex.qe.s3.transfer.upload;
 
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import ru.yandex.qe.s3.transfer.TransferState;
 import ru.yandex.qe.s3.transfer.TransferStatistic;
 import ru.yandex.qe.s3.transfer.TransferStatus;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 import javax.annotation.concurrent.Immutable;
 
 /**
