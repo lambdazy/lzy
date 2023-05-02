@@ -4,9 +4,12 @@ import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMO.KafkaTopicDescription;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
+import lombok.SneakyThrows;
+import org.apache.commons.io.IOUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.FormattedMessage;
 
@@ -298,7 +301,7 @@ public class StreamQueue extends Thread {
         void addOutOutput(OutputStream stream);
 
         static LogHandle fromTopicDesc(Logger logger, String taskId, @Nullable KafkaTopicDescription topicDesc,
-                                              @Nullable KafkaHelper helper)
+                                       @Nullable KafkaHelper helper)
         {
             var outQueue = new StreamQueue(topicDesc, logger, taskId, "out", helper);
             outQueue.start();
@@ -314,6 +317,7 @@ public class StreamQueue extends Thread {
         @VisibleForTesting
         static LogHandle empty() {
             return new LogHandle() {
+                private static final Logger LOG = LogManager.getLogger(LogHandle.class);
 
                 @Override
                 public void close() {}
@@ -321,16 +325,22 @@ public class StreamQueue extends Thread {
                 @Override
                 public void logOut(String pattern, Object... values) {}
 
+                @SneakyThrows
                 @Override
                 public CompletableFuture<Void> logOut(InputStream stream) {
+                    var res = IOUtils.toString(stream, StandardCharsets.UTF_8);
+                    LOG.info(res);
                     return CompletableFuture.completedFuture(null);
                 }
 
                 @Override
                 public void logErr(String pattern, Object... values) {}
 
+                @SneakyThrows
                 @Override
                 public CompletableFuture<Void> logErr(InputStream stream) {
+                    var res = IOUtils.toString(stream, StandardCharsets.UTF_8);
+                    LOG.error(res);
                     return CompletableFuture.completedFuture(null);
                 }
 

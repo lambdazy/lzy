@@ -11,10 +11,14 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
 @Singleton
@@ -22,6 +26,7 @@ public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
     private static final String RESOURCES_PATH = "/tmp/resources/";
     private static final String LOCAL_MODULES_PATH = "/tmp/local_modules/";
+    private static final AtomicBoolean INSTALL_ENV = new AtomicBoolean(true);
 
 
     private final HashMap<String, DockerEnvironment> createdContainers = new HashMap<>();
@@ -84,11 +89,20 @@ public class EnvironmentFactory {
             baseEnv = localProcessEnv.withEnv(env.getEnvMap());
         }
 
-        baseEnv.install(logHandle);
+        if (INSTALL_ENV.get()) {
+            baseEnv.install(logHandle);
+        }
+
         final AuxEnvironment auxEnv;
 
         if (env.hasPyenv()) {
-            var proc = baseEnv.runProcess("conda", "--version");
+            final Environment.LzyProcess proc;
+
+            if (INSTALL_ENV.get()) {
+                proc = baseEnv.runProcess("conda", "--version");
+            } else {
+                proc = completedCondaProcess();  // Do not get actual conda version here, mock it for test
+            }
             final int res;
 
             try {
@@ -130,14 +144,48 @@ public class EnvironmentFactory {
                 .asRuntimeException();
         }
 
-        auxEnv.install(logHandle);
+        if (INSTALL_ENV.get()) {
+            auxEnv.install(logHandle);
+        }
 
         return auxEnv;
+    }
+
+    private static Environment.LzyProcess completedCondaProcess() {
+        return new Environment.LzyProcess() {
+            @Override
+            public OutputStream in() {
+                return null;
+            }
+
+            @Override
+            public InputStream out() {
+                return new ByteArrayInputStream("1.0.0".getBytes());
+            }
+
+            @Override
+            public InputStream err() {
+                return null;
+            }
+
+            @Override
+            public int waitFor() {
+                return 0;
+            }
+
+            @Override
+            public void signal(int sigValue) {}
+        };
     }
 
     @VisibleForTesting
     public static void envForTests(Supplier<AuxEnvironment> env) {
         envForTests = env;
+    }
+
+    @VisibleForTesting
+    public static void installEnv(boolean b) {
+        INSTALL_ENV.set(b);
     }
 
 }

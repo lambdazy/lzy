@@ -56,8 +56,7 @@ public interface AuxEnvironment extends Environment {
     }
 
     private static void extractFiles(File file, String destinationDirectory, Logger log) throws IOException {
-        log.debug("Trying to unzip module archive "
-            + file.getAbsolutePath());
+        log.debug("Trying to unzip module archive {}", file.getAbsolutePath());
         try (ZipFile zipFile = new ZipFile(file.getAbsolutePath())) {
             zipFile.extractAll(destinationDirectory);
         }

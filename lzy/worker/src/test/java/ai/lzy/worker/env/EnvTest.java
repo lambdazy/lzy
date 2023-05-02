@@ -51,6 +51,7 @@ public class EnvTest {
 
     @Test
     public void testDocker() throws EnvironmentInstallationException {
+        EnvironmentFactory.installEnv(false);
         var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setDockerImage("ubuntu:latest")
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
@@ -58,10 +59,13 @@ public class EnvTest {
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof DockerEnvironment);
+        EnvironmentFactory.installEnv(true);
     }
 
     @Test
     public void testConda() throws EnvironmentInstallationException {
+        EnvironmentFactory.installEnv(false);  // Do not actually install conda
+
         var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setPyenv(LME.PythonEnv.newBuilder()
                 .setName("py39")
@@ -77,6 +81,8 @@ public class EnvTest {
                       - serialzy>=1.0.0""")
                 .build())
             .build(), StreamQueue.LogHandle.empty());
+
+        EnvironmentFactory.installEnv(true);
 
         Assert.assertTrue(env instanceof CondaEnvironment);
     }
