@@ -18,9 +18,14 @@ import org.apache.commons.cli.ParseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.time.Duration;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -41,7 +46,7 @@ public class Worker {
         options.addOption("h", "host", true, "Worker and FS host name");
         options.addOption(null, "vm-id", true, "Vm id from allocator");
         options.addOption(null, "allocator-heartbeat-period", true, "Allocator heartbeat period in duration format");
-        options.addOption(null, "kafka-bootstrap", true, "Kafka bootstrap servers if enabled");
+        options.addOption(null, "kafka-bootstrap", true, "Kafka bootstrap servers");
         options.addOption(null, "truststore-base64", true, "base64 encoded truststore file for kafka logs");
         options.addOption(null, "truststore-password", true, "Truststore password for kafka logs");
 
@@ -54,11 +59,8 @@ public class Worker {
     private final Server server;
     private final ApplicationContext context;
 
-    public Worker(ApplicationContext context,
-                  ServiceConfig config,
-                  @Named("WorkerServer") Server server,
-                  LzyFsServer lzyFsServer,
-                  @Named("AllocatorAgent") AllocatorAgent allocatorAgent)
+    public Worker(ApplicationContext context, ServiceConfig config, @Named("WorkerServer") Server server,
+                  LzyFsServer lzyFsServer, @Named("AllocatorAgent") AllocatorAgent allocatorAgent)
     {
         this.context = context;
         this.server = server;
@@ -148,28 +150,20 @@ public class Worker {
                 : allocatorToken;
 
             var kafkaConf = new KafkaConfig();
+            kafkaConf.setEnabled(true);
+            kafkaConf.setBootstrapServers(Arrays.stream(parse.getOptionValue("kafka-bootstrap").split(",")).toList());
 
-            var bootstrap = parse.getOptionValue("kafka-bootstrap");
+            var truststore = parse.getOptionValue("truststore-base64");
+            if (truststore != null) {
+                kafkaConf.setTlsEnabled(true);
+                var path = "/tmp/lzy_" + UUID.randomUUID() + ".jks";
 
-            if (bootstrap != null) {
-                kafkaConf.setEnabled(true);
-                kafkaConf.setBootstrapServers(Arrays.stream(bootstrap.split(",")).toList());
-
-                var truststore = parse.getOptionValue("truststore-base64");
-
-                if (truststore != null) {
-                    kafkaConf.setTlsEnabled(true);
-                    var path = "/tmp/lzy_" + UUID.randomUUID() + ".jks";
-
-                    try (var file = new FileOutputStream(path)) {
-                        file.write(Base64.getDecoder().decode(truststore));
-                    }
-
-                    kafkaConf.setTlsTruststorePath(path);
-                    kafkaConf.setTlsTruststorePassword(parse.getOptionValue("truststore-password"));
+                try (var file = new FileOutputStream(path)) {
+                    file.write(Base64.getDecoder().decode(truststore));
                 }
-            } else {
-                kafkaConf.setEnabled(false);
+
+                kafkaConf.setTlsTruststorePath(path);
+                kafkaConf.setTlsTruststorePassword(parse.getOptionValue("truststore-password"));
             }
 
             var ctx = startApplication(vmId, allocatorAddress, iamAddress, allocHeartbeatDur,
@@ -247,15 +241,13 @@ public class Worker {
 
         properties.put("worker.enable-http-debug", true);
 
-        if (kafka.isEnabled()) {
-            properties.put("worker.kafka.enabled", true); // ???? endpoint? keystore?
-            properties.put("worker.kafka.bootstrap-servers", String.join(",", kafka.getBootstrapServers()));
+        properties.put("worker.kafka.enabled", true);
+        properties.put("worker.kafka.bootstrap-servers", String.join(",", kafka.getBootstrapServers()));
 
-            if (kafka.isTlsEnabled()) {
-                properties.put("worker.kafka.tls-enabled", true);
-                properties.put("worker.kafka.tls-truststore-path", kafka.getTlsTruststorePath());
-                properties.put("worker.kafka.tls-truststore-password", kafka.getTlsTruststorePassword());
-            }
+        if (kafka.isTlsEnabled()) {
+            properties.put("worker.kafka.tls-enabled", true);
+            properties.put("worker.kafka.tls-truststore-path", kafka.getTlsTruststorePath());
+            properties.put("worker.kafka.tls-truststore-password", kafka.getTlsTruststorePassword());
         }
 
         properties.put("micronaut.server.host", "127.0.0.1"); // ! management api on localhost only !
