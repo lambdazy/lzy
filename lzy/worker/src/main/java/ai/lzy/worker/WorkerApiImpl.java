@@ -96,7 +96,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             logHandle.addErrOutput(generateStdOutputStream(tid, stderrSpec));
             logHandle.addOutOutput(generateStdOutputStream(tid, stdoutSpec));
 
-            logHandle.logErr("Configuring worker");
+            LOG.info("Configuring worker");
 
             final AuxEnvironment env;
 
