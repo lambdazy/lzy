@@ -199,7 +199,7 @@ public class SlotsManager implements AutoCloseable {
         var bindSlotOp = idempotentChannelManagerClient.bind(makeBindSlotCommand(slot.instance(), this.isPortal));
         LOG.info("Bind slot requested, operationId={}", bindSlotOp.getId());
 
-        bindSlotOp = awaitOperationDone(operationService, bindSlotOp.getId(), Duration.ofSeconds(10));
+        bindSlotOp = awaitOperationDone(operationService, bindSlotOp.getId(), Duration.ofSeconds(10)); ///////
         if (!bindSlotOp.getDone()) {
             throw new RuntimeException("Bind operation " + bindSlotOp.getId() + " hangs");
         }

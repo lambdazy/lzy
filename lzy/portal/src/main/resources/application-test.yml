@@ -3,8 +3,6 @@ portal:
   host: "localhost"
   portal-api-port: 7001
   slots-api-port: 7002
-  stdout-channel-id: "${portal.portal-id}:stdout"
-  stderr-channel-id: "${portal.portal-id}:stderr"
   channel-manager-address: "localhost:8122"
   whiteboard-address: "localhost:8999"
   iam-address: "localhost:8443"

@@ -105,13 +105,7 @@ public class KafkaLogsListeners {
                         consumer.assign(List.of(partition));
                         consumer.seek(partition, request.getOffset());
 
-                        var eos = false;
-
-                        while (!Context.current().isCancelled()) {
-                            if (finished.get() && eos) {
-                                break;
-                            }
-
+                        while (!Context.current().isCancelled() && !finished.get()) {
                             var records = consumer.poll(Duration.ofMillis(100));
                             if (records.count() > 0) {
                                 var outData = ReadStdSlotsResponse.Data.newBuilder();
@@ -123,6 +117,12 @@ public class KafkaLogsListeners {
 
                                     var taskId = record.key();
                                     var stream = record.headers().lastHeader("stream");
+
+                                    var eos = record.headers().lastHeader("eos") != null;
+                                    if (eos) {
+                                        continue;
+                                    }
+
                                     var data = ReadStdSlotsResponse.TaskLines.newBuilder()
                                         .setTaskId(taskId)
                                         .setLines(new String(record.value(), StandardCharsets.UTF_8))
@@ -144,10 +144,6 @@ public class KafkaLogsListeners {
                                 response.onNext(resp);
 
                                 consumer.commitSync();
-
-                                eos = false;
-                            } else {
-                                eos = true;
                             }
                         }
                     }
