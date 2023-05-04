@@ -91,6 +91,12 @@
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>util-common</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
 
         <dependency>
             <groupId>io.micronaut</groupId>
@@ -164,12 +170,6 @@
         <dependency>
             <groupId>io.github.embeddedkafka</groupId>
             <artifactId>embedded-kafka_2.13</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>util-common</artifactId>
-            <version>1.13-SNAPSHOT</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
