@@ -245,7 +245,7 @@ public class PortalTestBase {
         stopS3();
 
         finishStdlogsReader.finish();
-        dropKafkaTopicSafe(stdlogsTopic.getTopic());
+        //dropKafkaTopicSafe(stdlogsTopic.getTopic());
     }
 
     private static void startS3() {
