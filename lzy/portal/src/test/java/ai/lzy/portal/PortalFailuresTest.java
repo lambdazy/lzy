@@ -35,7 +35,7 @@ public class PortalFailuresTest extends PortalTestBase {
 
         Assert.assertEquals(Status.Code.INTERNAL, status.getCode());
         assertStdLogs(stdlogs, List.of(), List.of());
-        finishStdlogsReader.set(true);
+        finishStdlogsReader.finish();
 
         // clean up
         System.out.println("-- cleanup scenario --");
@@ -61,7 +61,7 @@ public class PortalFailuresTest extends PortalTestBase {
 
         Assert.assertEquals(Status.Code.NOT_FOUND, status.getCode());
         assertStdLogs(stdlogs, List.of(), List.of());
-        finishStdlogsReader.set(true);
+        finishStdlogsReader.finish();
 
         // clean up
         System.out.println("-- cleanup scenario --");
@@ -100,7 +100,7 @@ public class PortalFailuresTest extends PortalTestBase {
 
         Assert.assertEquals(Status.Code.INVALID_ARGUMENT, status.getCode());
         assertStdLogs(stdlogs, List.of(), List.of());
-        finishStdlogsReader.set(true);
+        finishStdlogsReader.finish();
 
         // clean up
         System.out.println("-- cleanup scenario --");
@@ -139,7 +139,7 @@ public class PortalFailuresTest extends PortalTestBase {
 
         Assert.assertEquals(Status.Code.INVALID_ARGUMENT, status.getCode());
         assertStdLogs(stdlogs, List.of(), List.of());
-        finishStdlogsReader.set(true);
+        finishStdlogsReader.finish();
 
         // clean up
         System.out.println("-- cleanup scenario --");
@@ -191,7 +191,7 @@ public class PortalFailuresTest extends PortalTestBase {
 
         Assert.assertTrue(snapshotData.isEmpty());
         assertStdLogs(stdlogs, List.of(), List.of());
-        finishStdlogsReader.set(true);
+        finishStdlogsReader.finish();
 
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");

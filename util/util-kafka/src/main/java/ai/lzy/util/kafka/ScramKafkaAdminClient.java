@@ -29,6 +29,11 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
     }
 
     @Override
+    public void shutdown() {
+        adminClient.close();
+    }
+
+    @Override
     public void createUser(String username, String password) throws StatusRuntimeException {
         try {
             adminClient.alterUserScramCredentials(

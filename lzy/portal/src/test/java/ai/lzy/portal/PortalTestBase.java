@@ -82,7 +82,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
@@ -140,7 +139,7 @@ public class PortalTestBase {
 
     protected static final IdGenerator idGenerator = new RandomIdGenerator();
 
-    protected AtomicBoolean finishStdlogsReader;
+    protected ReadKafkaTopicFinisher finishStdlogsReader;
     protected LMO.KafkaTopicDescription stdlogsTopic;
     protected ArrayBlockingQueue<Object> stdlogs;
 
@@ -165,8 +164,12 @@ public class PortalTestBase {
         var kafkaPort = GrpcUtils.rollPort();
         var zkPort = GrpcUtils.rollPort();
         kafkaBootstrapServer = "localhost:" + kafkaPort;
+        @SuppressWarnings("unchecked")
+        var brokerConf = (scala.collection.immutable.Map<String, String>) Map$.MODULE$.<String, String>empty()
+            .updated("zookeeper.session.timeout.ms", "60000")
+            .updated("zookeeper.connection.timeout.ms", "60000");
         var conf = Map$.MODULE$.<String, String>empty();
-        var config = EmbeddedKafkaConfig$.MODULE$.apply(kafkaPort, zkPort, conf, conf, conf);
+        var config = EmbeddedKafkaConfig$.MODULE$.apply(kafkaPort, zkPort, brokerConf, conf, conf);
         kafka = EmbeddedKafka.start(config);
         KafkaHelper.USE_AUTH.set(false);
         kafkaAdminClient = new ScramKafkaAdminClient(KafkaConfig.of(kafkaBootstrapServer));
@@ -185,7 +188,9 @@ public class PortalTestBase {
         mocksServer.stop();
         mocksServer = null;
 
+        kafkaAdminClient.shutdown();
         kafka.stop(true);
+        KafkaHelper.USE_AUTH.set(true);
 
         iamTestContext.after();
     }
@@ -221,7 +226,7 @@ public class PortalTestBase {
         startPortal();
         startS3();
 
-        finishStdlogsReader = new AtomicBoolean(false);
+        finishStdlogsReader = new ReadKafkaTopicFinisher();
         stdlogsTopic = prepareKafkaTopic("kafkauser", "password", idGenerator.generate("stdlogs-", 5));
         stdlogs = readKafkaTopic(stdlogsTopic.getTopic(), finishStdlogsReader);
     }
@@ -235,6 +240,7 @@ public class PortalTestBase {
 
         stopS3();
 
+        finishStdlogsReader.finish();
         dropKafkaTopicSafe(stdlogsTopic.getTopic());
     }
 
@@ -527,16 +533,39 @@ public class PortalTestBase {
         }
     }
 
+    public static final class ReadKafkaTopicFinisher {
+        private volatile boolean finish = false;
+        private volatile boolean consumerFinished = false;
+
+        public boolean shouldFinish() {
+            return finish;
+        }
+
+        public synchronized void finish() {
+            if (finish) {
+                return;
+            }
+            finish = true;
+            while (!consumerFinished) {
+                LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
+            }
+        }
+
+        void consumerFinished() {
+            consumerFinished = true;
+        }
+    }
+
     /**
      * @return Exception on error
      *         EosMessage on EOS
      *         StdlogMessage for each output line
      */
-    protected ArrayBlockingQueue<Object> readKafkaTopic(String topicName, AtomicBoolean finish) {
+    protected static ArrayBlockingQueue<Object> readKafkaTopic(String topicName, ReadKafkaTopicFinisher finisher) {
         var values = new ArrayBlockingQueue<>(100);
 
         var props = new KafkaHelper(KafkaConfig.of(kafkaBootstrapServer)).toProperties();
-        props.put("group.id", UUID.randomUUID().toString());
+        props.put("group.id", idGenerator.generate("portal-test-"));
 
         ForkJoinPool.commonPool().execute(() -> {
             try (var consumer = new KafkaConsumer<String, byte[]>(props)) {
@@ -545,13 +574,13 @@ public class PortalTestBase {
                 consumer.assign(List.of(partition));
                 consumer.seek(partition, 0);
 
-                while (!finish.get()) {
+                while (!finisher.shouldFinish()) {
                     var records = consumer.poll(Duration.ofMillis(100));
                     if (records.count() <= 0) {
                         continue;
                     }
 
-                    consumer.commitSync();
+                    // consumer.commitSync();
 
                     for (var record : records) {
                         var taskId = record.key();
@@ -576,6 +605,8 @@ public class PortalTestBase {
             } catch (Exception e) {
                 LOG.error("Cannot read from topic {}: {}", topicName, e.getMessage());
                 values.offer(e);
+            } finally {
+                finisher.consumerFinished();
             }
         });
 

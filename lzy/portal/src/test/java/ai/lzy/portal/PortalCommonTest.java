@@ -54,7 +54,7 @@ public class PortalCommonTest extends PortalTestBase {
             assertStdLogs(stdlogs, List.of(StdlogMessage.out(firstTaskId, "hello")), List.of());
             waitPortalCompleted();
             finishPortal();
-            finishStdlogsReader.set(true);
+            finishStdlogsReader.finish();
 
             var storageConfig = GrpcUtils.makeAmazonSnapshot(snapshotId, BUCKET_NAME, S3_ADDRESS).getStorageConfig();
             var s3client = storageClientFactory.provider(storageConfig).get();
@@ -88,7 +88,7 @@ public class PortalCommonTest extends PortalTestBase {
             assertStdLogs(stdlogs, List.of(StdlogMessage.out(firstTaskId, "hello")), List.of());
             waitPortalCompleted();
             finishPortal();
-            finishStdlogsReader.set(true);
+            finishStdlogsReader.finish();
 
             var storageConfig = GrpcUtils.makeAmazonSnapshot(snapshotId, BUCKET_NAME, S3_ADDRESS).getStorageConfig();
             var s3client = storageClientFactory.provider(storageConfig).get();
@@ -138,7 +138,7 @@ public class PortalCommonTest extends PortalTestBase {
 
             assertStdLogs(stdlogs, List.of(StdlogMessage.out(secondTaskId, "x")), List.of());
             waitPortalCompleted();
-            finishStdlogsReader.set(true);
+            finishStdlogsReader.finish();
         }
 
         // task_2 clean up
@@ -186,7 +186,7 @@ public class PortalCommonTest extends PortalTestBase {
                 StdlogMessage.out(firstTaskId, "hello from task_1"),
                 StdlogMessage.out(secondTaskId, "hello from task_2")),
             List.of());
-        finishStdlogsReader.set(true);
+        finishStdlogsReader.finish();
     }
 
     @Test
@@ -242,7 +242,7 @@ public class PortalCommonTest extends PortalTestBase {
             waitPortalCompleted();
         }
 
-        finishStdlogsReader.set(true);
+        finishStdlogsReader.finish();
 
         // task_3 clean up
         // task_2 clean up
@@ -298,7 +298,7 @@ public class PortalCommonTest extends PortalTestBase {
 
             // wait
             waitPortalCompleted();
-            finishStdlogsReader.set(true);
+            finishStdlogsReader.finish();
         }
 
         // task_3 clean up
