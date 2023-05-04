@@ -10,14 +10,6 @@
 
     <artifactId>allocator-api</artifactId>
 
-    <distributionManagement>
-        <repository>
-            <id>repsy</id>
-            <name>lzy allocator repo</name>
-            <url>https://repo.repsy.io/mvn/lzy/api</url>
-        </repository>
-    </distributionManagement>
-
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
