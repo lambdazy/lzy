@@ -6,6 +6,7 @@ import ai.lzy.allocator.vmpool.*;
 import com.google.common.net.HostAndPort;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
+import io.micronaut.scheduling.annotation.Scheduled;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -82,7 +83,10 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             .withInterceptors(
                 // TODO: forward X-REQUEST-ID header
                 new RequestIdInterceptor());
+    }
 
+    @Scheduled(fixedDelay = "10m")
+    public void syncClusters() {
         config.getServiceClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ true));
         config.getUserClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ false));
     }
@@ -152,7 +156,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     // TODO: getters for YC-specific data
 
     private void resolveCluster(String clusterId, boolean system) {
-        LOG.info("Resolve {} cluster {}...", ct(system), clusterId);
+        LOG.debug("Resolve {} cluster {}...", ct(system), clusterId);
 
         Cluster cluster;
         try {
@@ -176,42 +180,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             throw new RuntimeException(msg);
         }
 
-        var master = cluster.getMaster();
-        var masterCert = master.getMasterAuth().getClusterCaCertificate();
-        var masterInternalAddress = master.hasZonalMaster()
-            ? master.getZonalMaster().getInternalV4Address()
-            : master.getRegionalMaster().getInternalV4Address();
-        var masterExternalAddress = master.hasZonalMaster()
-            ? master.getZonalMaster().getExternalV4Address()
-            : master.getRegionalMaster().getExternalV4Address();
-
-        LOG.info("""
-            Resolved {} cluster {}:
-              id: {}
-              folder_id: {}
-              name: {}
-              description: {}
-              k8s-master-type: {}
-              k8s-master-internal: {}
-              k8s-master-external: {}
-              k83-master-cert: {}
-            """,
-            ct(system), clusterId, cluster.getId(), cluster.getFolderId(), cluster.getName(), cluster.getDescription(),
-            master.getMasterTypeCase(), masterInternalAddress, masterExternalAddress, /* masterCert */ "***");
-
-        folder2clusters.computeIfAbsent(cluster.getFolderId(), x -> new HashSet<>()).add(clusterId);
-        (system ? systemFolders : userFolders).add(cluster.getFolderId());
-
-        var clusterDesc = new ClusterDesc(
-            clusterId,
-            cluster.getFolderId(),
-            HostAndPort.fromString(masterInternalAddress),
-            HostAndPort.fromString(masterExternalAddress),
-            masterCert,
-            new HashMap<>(),
-            cluster.getIpAllocationPolicy().getClusterIpv4CidrBlock(),
-            system ? ClusterType.System : ClusterType.User);
-        clusters.put(clusterId, clusterDesc);
+        ClusterDesc clusterDesc = resolveClusterDescription(cluster, system);
 
         // process node groups
 
@@ -251,49 +220,117 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
                 continue;
             }
 
-            var nodeTemplate = nodeGroup.getNodeTemplate();
-            var spec = nodeTemplate.getResourcesSpec();
+            resolveVmPoolSpec(cluster, nodeGroup, label, zone, system);
 
-            var platform = nodeTemplate.getPlatformId();
-            final String cpuType;
-            final String gpuType;
+            var nodeGroupDesc = new NodeGroupDesc(zone, label, nodeGroup);
+            clusterDesc.nodeGroups().put(nodeGroup.getId(), nodeGroupDesc);
+        }
+    }
 
-            switch (platform) {
-                case "standard-v1" -> {
-                    cpuType = CpuTypes.BROADWELL.value();
-                    gpuType = GpuTypes.NO_GPU.value();
-                }
-                case "standard-v2" -> {
-                    cpuType = CpuTypes.CASCADE_LAKE.value();
-                    gpuType = GpuTypes.NO_GPU.value();
-                }
-                case "standard-v3" -> {
-                    cpuType = CpuTypes.ICE_LAKE.value();
-                    gpuType = GpuTypes.NO_GPU.value();
-                }
-                case "gpu-standard-v1" -> {
-                    cpuType = CpuTypes.BROADWELL.value();
-                    gpuType = GpuTypes.V100.value();
-                }
-                case "gpu-standard-v2" -> {
-                    cpuType = CpuTypes.CASCADE_LAKE.value();
-                    gpuType = GpuTypes.V100.value();
-                }
-                case "standard-v3-t4" -> {
-                    cpuType = CpuTypes.ICE_LAKE.value();
-                    gpuType = GpuTypes.T4.value();
-                }
-                case "gpu-standard-v3" -> {
-                    cpuType = CpuTypes.AMD_EPYC.value();
-                    gpuType = GpuTypes.A100.value();
-                }
-                default -> {
-                    LOG.error("Cannot resolve platform {} for pool {}", platform, label);
-                    throw new RuntimeException("Cannot resolve platform for pool " + label);
-                }
+    private ClusterDesc resolveClusterDescription(Cluster cluster, boolean system) {
+        var clusterId = cluster.getId();
+        var master = cluster.getMaster();
+        var masterCert = master.getMasterAuth().getClusterCaCertificate();
+        var masterInternalAddress = master.hasZonalMaster()
+            ? master.getZonalMaster().getInternalV4Address()
+            : master.getRegionalMaster().getInternalV4Address();
+        var masterExternalAddress = master.hasZonalMaster()
+            ? master.getZonalMaster().getExternalV4Address()
+            : master.getRegionalMaster().getExternalV4Address();
+
+        var clusterNewDesc = new ClusterDesc(
+            clusterId,
+            cluster.getFolderId(),
+            HostAndPort.fromString(masterInternalAddress),
+            HostAndPort.fromString(masterExternalAddress),
+            masterCert,
+            new HashMap<>(),
+            cluster.getIpAllocationPolicy().getClusterIpv4CidrBlock(),
+            system ? ClusterType.System : ClusterType.User);
+
+        ClusterDesc clusterOldDesc = clusters.get(clusterId);
+
+        if (clusterOldDesc != null && clusterOldDesc.equals(clusterNewDesc)) {
+            LOG.debug("Resolved old cluster {}", clusterId);
+            return clusterOldDesc;
+        }
+
+        LOG.info("""
+                Resolved {} new cluster {}:
+                  id: {}
+                  folder_id: {}
+                  name: {}
+                  description: {}
+                  k8s-master-type: {}
+                  k8s-master-internal: {}
+                  k8s-master-external: {}
+                  k83-master-cert: {}
+                """,
+            ct(system), clusterId, cluster.getId(), cluster.getFolderId(), cluster.getName(),
+            cluster.getDescription(),
+            master.getMasterTypeCase(), masterInternalAddress, masterExternalAddress, /* masterCert */ "***");
+
+        folder2clusters.computeIfAbsent(cluster.getFolderId(), x -> new HashSet<>()).add(clusterId);
+        (system ? systemFolders : userFolders).add(cluster.getFolderId());
+        clusters.put(clusterId, clusterNewDesc);
+        return clusterNewDesc;
+    }
+
+    private void resolveVmPoolSpec(Cluster cluster, NodeGroup nodeGroup, String label, String zone, boolean system) {
+        var nodeTemplate = nodeGroup.getNodeTemplate();
+        var spec = nodeTemplate.getResourcesSpec();
+
+        var platform = nodeTemplate.getPlatformId();
+        final String cpuType;
+        final String gpuType;
+
+        switch (platform) {
+            case "standard-v1" -> {
+                cpuType = CpuTypes.BROADWELL.value();
+                gpuType = GpuTypes.NO_GPU.value();
             }
+            case "standard-v2" -> {
+                cpuType = CpuTypes.CASCADE_LAKE.value();
+                gpuType = GpuTypes.NO_GPU.value();
+            }
+            case "standard-v3" -> {
+                cpuType = CpuTypes.ICE_LAKE.value();
+                gpuType = GpuTypes.NO_GPU.value();
+            }
+            case "gpu-standard-v1" -> {
+                cpuType = CpuTypes.BROADWELL.value();
+                gpuType = GpuTypes.V100.value();
+            }
+            case "gpu-standard-v2" -> {
+                cpuType = CpuTypes.CASCADE_LAKE.value();
+                gpuType = GpuTypes.V100.value();
+            }
+            case "standard-v3-t4" -> {
+                cpuType = CpuTypes.ICE_LAKE.value();
+                gpuType = GpuTypes.T4.value();
+            }
+            case "gpu-standard-v3" -> {
+                cpuType = CpuTypes.AMD_EPYC.value();
+                gpuType = GpuTypes.A100.value();
+            }
+            default -> {
+                LOG.error("Cannot resolve platform {} for pool {}", platform, label);
+                throw new RuntimeException("Cannot resolve platform for pool " + label);
+            }
+        }
 
-            LOG.info("""
+        var newVmSpec = new VmPoolSpec(label, cpuType, (int) spec.getCores(), gpuType, (int) spec.getGpus(),
+            (int) (spec.getMemory() >> 30), new HashSet<>());
+
+        var pool = system ? systemPools : userPools;
+        var oldVmSpec = pool.get(label);
+
+        if (oldVmSpec != null && oldVmSpec.equals(newVmSpec)) {
+            LOG.debug("Resolved old node group {}", nodeGroup.getId());
+            return;
+        }
+
+        LOG.info("""
                 Resolved node group {} ({}):
                   folder_id: {}
                   cluster_id: {}
@@ -304,21 +341,11 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
                   gpu: {} ({})
                   ram: {}
                 """,
-                nodeGroup.getId(), nodeGroup.getName(), cluster.getFolderId(), clusterId, zone, label,
-                nodeTemplate.getPlatformId(), spec.getCores(), cpuType, spec.getGpus(), gpuType, spec.getMemory());
+            nodeGroup.getId(), nodeGroup.getName(), cluster.getFolderId(), cluster.getId(), zone, label,
+            nodeTemplate.getPlatformId(), spec.getCores(), cpuType, spec.getGpus(), gpuType, spec.getMemory());
 
-            var nodeGroupDesc = new NodeGroupDesc(zone, label, nodeGroup);
-            clusterDesc.nodeGroups().put(nodeGroup.getId(), nodeGroupDesc);
-
-            var pool = system ? systemPools : userPools;
-            var vmSpec = pool.get(label);
-            if (vmSpec == null) {
-                vmSpec = new VmPoolSpec(label, cpuType, (int) spec.getCores(), gpuType, (int) spec.getGpus(),
-                    (int) (spec.getMemory() >> 30), new HashSet<>());
-                pool.put(label, vmSpec);
-            }
-            vmSpec.zones().add(zone);
-        }
+        pool.put(label, newVmSpec);
+        newVmSpec.zones().add(zone);
     }
 
     private static String ct(boolean system) {
