@@ -9,15 +9,13 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.List;
 
 
 public class PortalFailuresTest extends PortalTestBase {
     @Test
-    public void testSnapshotOnPortalWithNonActiveS3() {
+    public void testSnapshotOnPortalWithNonActiveS3() throws InterruptedException {
         stopS3();
-
-        var portalStdout = readPortalSlot("portal:stdout");
-        var portalStderr = readPortalSlot("portal:stderr");
 
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
@@ -36,8 +34,8 @@ public class PortalFailuresTest extends PortalTestBase {
             .build());
 
         Assert.assertEquals(Status.Code.INTERNAL, status.getCode());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
+        assertStdLogs(stdlogs, List.of(), List.of());
+        finishStdlogsReader.set(true);
 
         // clean up
         System.out.println("-- cleanup scenario --");
@@ -45,10 +43,7 @@ public class PortalFailuresTest extends PortalTestBase {
     }
 
     @Test
-    public void openOutputSlotBeforeInputSlot() {
-        var portalStdout = readPortalSlot("portal:stdout");
-        var portalStderr = readPortalSlot("portal:stderr");
-
+    public void openOutputSlotBeforeInputSlot() throws InterruptedException {
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
         // create channel for portal output slot
@@ -65,8 +60,8 @@ public class PortalFailuresTest extends PortalTestBase {
             .build());
 
         Assert.assertEquals(Status.Code.NOT_FOUND, status.getCode());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
+        assertStdLogs(stdlogs, List.of(), List.of());
+        finishStdlogsReader.set(true);
 
         // clean up
         System.out.println("-- cleanup scenario --");
@@ -75,9 +70,6 @@ public class PortalFailuresTest extends PortalTestBase {
 
     @Test
     public void makeSnapshotOfSlotThatAlreadyWasStored() throws Exception {
-        var portalStdout = readPortalSlot("portal:stdout");
-        var portalStderr = readPortalSlot("portal:stderr");
-
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
         // create channels for input portal slots
@@ -107,8 +99,8 @@ public class PortalFailuresTest extends PortalTestBase {
             .build());
 
         Assert.assertEquals(Status.Code.INVALID_ARGUMENT, status.getCode());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
+        assertStdLogs(stdlogs, List.of(), List.of());
+        finishStdlogsReader.set(true);
 
         // clean up
         System.out.println("-- cleanup scenario --");
@@ -117,9 +109,7 @@ public class PortalFailuresTest extends PortalTestBase {
     }
 
     @Test
-    public void makeSnapshotWithAlreadyUsedSnapshotId() {
-        var portalStdout = readPortalSlot("portal:stdout");
-        var portalStderr = readPortalSlot("portal:stderr");
+    public void makeSnapshotWithAlreadyUsedSnapshotId() throws InterruptedException {
 
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
@@ -148,8 +138,8 @@ public class PortalFailuresTest extends PortalTestBase {
             .build());
 
         Assert.assertEquals(Status.Code.INVALID_ARGUMENT, status.getCode());
-        Assert.assertTrue(portalStdout.isEmpty());
-        Assert.assertTrue(portalStderr.isEmpty());
+        assertStdLogs(stdlogs, List.of(), List.of());
+        finishStdlogsReader.set(true);
 
         // clean up
         System.out.println("-- cleanup scenario --");
@@ -163,8 +153,6 @@ public class PortalFailuresTest extends PortalTestBase {
 
         // create channels for task_1
         String channelId1 = createChannel("channel_1");
-        String stdoutChannelId1 = createChannel("task_1:stdout");
-        String stderrChannelId1 = createChannel("task_1:stderr");
 
         // configure portal to snapshot `channel-1` data
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
@@ -173,22 +161,10 @@ public class PortalFailuresTest extends PortalTestBase {
                 .setSlot(GrpcUtils.makeInputFileSlot("/portal_slot_1"))
                 .setChannelId(channelId1)
                 .build())
-            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
-                .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_1:stdout"))
-                .setChannelId(stdoutChannelId1)
-                .setStdout(GrpcUtils.makeStdoutStorage("task_1"))
-                .build())
-            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
-                .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_1:stderr"))
-                .setChannelId(stderrChannelId1)
-                .setStderr(GrpcUtils.makeStderrStorage("task_1"))
-                .build())
             .build());
 
         // create channels for task_2
         String channelId2 = createChannel("channel_2");
-        String stdoutChannelId2 = createChannel("task_2:stdout");
-        String stderrChannelId2 = createChannel("task_2:stderr");
 
         // configure portal to read snapshot `channel-2` data
         openPortalSlots(LzyPortalApi.OpenSlotsRequest.newBuilder()
@@ -196,16 +172,6 @@ public class PortalFailuresTest extends PortalTestBase {
                 .setSnapshot(GrpcUtils.makeAmazonSnapshot("snapshot_1", BUCKET_NAME, S3_ADDRESS))
                 .setSlot(GrpcUtils.makeOutputFileSlot("/portal_slot_2"))
                 .setChannelId(channelId2)
-                .build())
-            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
-                .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_2:stdout"))
-                .setChannelId(stdoutChannelId2)
-                .setStdout(GrpcUtils.makeStdoutStorage("task_2"))
-                .build())
-            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
-                .setSlot(GrpcUtils.makeInputFileSlot("/portal_task_2:stderr"))
-                .setChannelId(stderrChannelId2)
-                .setStderr(GrpcUtils.makeStderrStorage("task_2"))
                 .build())
             .build());
 
@@ -224,17 +190,15 @@ public class PortalFailuresTest extends PortalTestBase {
         waitPortalCompleted();
 
         Assert.assertTrue(snapshotData.isEmpty());
+        assertStdLogs(stdlogs, List.of(), List.of());
+        finishStdlogsReader.set(true);
 
         // task_1 clean up
         System.out.println("-- cleanup task1 scenario --");
         destroyChannel("channel_1");
-        destroyChannel("task_1:stdout");
-        destroyChannel("task_1:stderr");
 
         // task_2 clean up
         System.out.println("-- cleanup task2 scenario --");
         destroyChannel("channel_2");
-        destroyChannel("task_2:stdout");
-        destroyChannel("task_2:stderr");
     }
 }

@@ -23,4 +23,11 @@ public final class KafkaConfig {
 
     private String scramUsername;
     private String scramPassword;
+
+    public static KafkaConfig of(String bootstrapServer) {
+        var cfg = new KafkaConfig();
+        cfg.enabled = true;
+        cfg.bootstrapServers = List.of(bootstrapServer);
+        return cfg;
+    }
 }

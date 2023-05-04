@@ -159,6 +159,8 @@ public class StreamQueue extends Thread {
             if (srcPos > linesPos) {
                 writeLines(copyOfRange(buf, linesPos, srcPos));
             }
+
+            writeEos();
         } catch (IOException e) {
             logger.error("Error while writing to stream {}: ", streamName, e);
         }
@@ -182,16 +184,27 @@ public class StreamQueue extends Thread {
                 out.write(lines, 0, lines.length);
             }
         }
-        if (kafkaClient != null && topic != null) {
-            // Using single partition to manage global order of logs !!!
-            try {
-                var headers = new RecordHeaders();
-                headers.add("stream", streamName.getBytes(StandardCharsets.UTF_8));
 
-                kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, taskId, lines, headers)).get();
-            } catch (Exception e) {
-                logger.warn("Cannot send data to kafka: ", e);
-            }
+        // Using single partition to manage global order of logs !!!
+        try {
+            var headers = new RecordHeaders();
+            headers.add("stream", streamName.getBytes(StandardCharsets.UTF_8));
+
+            kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, taskId, lines, headers)).get();
+        } catch (Exception e) {
+            logger.warn("Cannot send data to kafka: ", e);
+        }
+    }
+
+    private void writeEos() {
+        try {
+            var headers = new RecordHeaders();
+            headers.add("stream", streamName.getBytes(StandardCharsets.UTF_8));
+            headers.add("eos", new byte[0]);
+
+            kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, taskId, new byte[0], headers)).get();
+        } catch (Exception e) {
+            logger.warn("Cannot send data to kafka: ", e);
         }
     }
 

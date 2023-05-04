@@ -35,7 +35,6 @@ public class Execution {
         } else if (process != null) {
             throw new IllegalStateException("LzyExecution has been already started");
         }
-        final long envExecFinishMillis;
 
         final String command = this.command + " " + arguments;
         LOG.info("Going to exec command " + command);
@@ -58,7 +57,7 @@ public class Execution {
             ));
 
         } finally {
-            envExecFinishMillis = System.currentTimeMillis();
+            var envExecFinishMillis = System.currentTimeMillis();
             MetricEventLogger.log(
                 new MetricEvent(
                     "env execution time",

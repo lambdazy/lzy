@@ -2,6 +2,8 @@ package ai.lzy.portal;
 
 import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
+import ai.lzy.common.IdGenerator;
+import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.iam.clients.AccessBindingClient;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.config.IamClientConfiguration;
@@ -26,7 +28,10 @@ import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.util.kafka.KafkaConfig;
+import ai.lzy.util.kafka.KafkaHelper;
+import ai.lzy.util.kafka.ScramKafkaAdminClient;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
@@ -50,27 +55,37 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import io.findify.s3mock.S3Mock;
+import io.github.embeddedkafka.EmbeddedK;
+import io.github.embeddedkafka.EmbeddedKafka;
+import io.github.embeddedkafka.EmbeddedKafkaConfig$;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.*;
+import scala.collection.immutable.Map$;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
+import java.util.stream.Collectors;
 
 import static ai.lzy.channelmanager.ProtoConverter.makeChannelStatusCommand;
 import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
@@ -119,6 +134,16 @@ public class PortalTestBase {
     private static LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub channelManagerPrivateClient;
     private static Map<String, String> createdChannels;
 
+    protected static String kafkaBootstrapServer;
+    private static EmbeddedK kafka;
+    protected static KafkaAdminClient kafkaAdminClient;
+
+    protected static final IdGenerator idGenerator = new RandomIdGenerator();
+
+    protected AtomicBoolean finishStdlogsReader;
+    protected LMO.KafkaTopicDescription stdlogsTopic;
+    protected ArrayBlockingQueue<Object> stdlogs;
+
     static {
         Worker.selectRandomValues(true);
     }
@@ -134,9 +159,17 @@ public class PortalTestBase {
         var mocksPort = GrpcUtils.rollPort();
         mocksAddress = "localhost:" + mocksPort;
 
-
         mocksServer = new MocksServer(mocksPort);
         mocksServer.start();
+
+        var kafkaPort = GrpcUtils.rollPort();
+        var zkPort = GrpcUtils.rollPort();
+        kafkaBootstrapServer = "localhost:" + kafkaPort;
+        var conf = Map$.MODULE$.<String, String>empty();
+        var config = EmbeddedKafkaConfig$.MODULE$.apply(kafkaPort, zkPort, conf, conf, conf);
+        kafka = EmbeddedKafka.start(config);
+        KafkaHelper.USE_AUTH.set(false);
+        kafkaAdminClient = new ScramKafkaAdminClient(KafkaConfig.of(kafkaBootstrapServer));
 
         userId = "uid";
         workflowName = "wf";
@@ -151,6 +184,8 @@ public class PortalTestBase {
 
         mocksServer.stop();
         mocksServer = null;
+
+        kafka.stop(true);
 
         iamTestContext.after();
     }
@@ -185,6 +220,10 @@ public class PortalTestBase {
 
         startPortal();
         startS3();
+
+        finishStdlogsReader = new AtomicBoolean(false);
+        stdlogsTopic = prepareKafkaTopic("kafkauser", "password", idGenerator.generate("stdlogs-", 5));
+        stdlogs = readKafkaTopic(stdlogsTopic.getTopic(), finishStdlogsReader);
     }
 
     @After
@@ -192,11 +231,11 @@ public class PortalTestBase {
         portalApiChannel.shutdown();
         portalSlotsChannel.shutdown();
         portal.stop();
-        destroyChannel("portal:stdout");
-        destroyChannel("portal:stderr");
         channelManagerTestContext.after();
 
         stopS3();
+
+        dropKafkaTopicSafe(stdlogsTopic.getTopic());
     }
 
     private static void startS3() {
@@ -217,13 +256,34 @@ public class PortalTestBase {
         }
     }
 
+    protected static void dropKafkaTopicSafe(String topicName) {
+        try {
+            kafkaAdminClient.dropTopic(topicName);
+        } catch (StatusRuntimeException ignored) {
+            // ignore
+        }
+    }
+
+    protected static LMO.KafkaTopicDescription prepareKafkaTopic(String username, String password, String topicName) {
+        kafkaAdminClient.createTopic(topicName);
+        try {
+            kafkaAdminClient.createUser(username, password);
+        } catch (StatusRuntimeException e) {
+            if (!e.getStatus().getCode().equals(Status.Code.ALREADY_EXISTS)) {
+                throw e;
+            }
+        }
+        //kafkaAdminClient.grantPermission(username, topicName);
+
+        return LMO.KafkaTopicDescription.newBuilder()
+            .addBootstrapServers(kafkaBootstrapServer)
+            .setTopic(topicName)
+            .setUsername(username)
+            .setPassword(password)
+            .build();
+    }
+
     private void startPortal() throws IOException, AllocatorAgent.RegisterException {
-        var stdoutChannelId = createChannel("portal:stdout");
-        var stderrChannelId = createChannel("portal:stderr");
-
-        config.setStdoutChannelId(stdoutChannelId);
-        config.setStderrChannelId(stderrChannelId);
-
         portal = context.getBean(App.class);
         portal.start();
 
@@ -255,19 +315,13 @@ public class PortalTestBase {
         assertTrue(op.hasResponse());
     }
 
-    protected String startTask(String fuze, String workerSlotName, WorkerDesc desc,
-                               boolean isPortalInput, String snapshotId)
+    protected String startTask(String fuze, String workerSlotName, WorkerDesc desc, boolean isPortalInput,
+                               String snapshotId, LMO.KafkaTopicDescription stdLogsTopic)
     {
-        var uniqId = UUID.randomUUID().toString();
+        var uniqId = idGenerator.generate();
 
         String channelName = "channel_" + uniqId;
         String channelId = createChannel(channelName);
-
-        String stdoutChannelName = uniqId + ":stdout";
-        String stdoutChannelId = createChannel(stdoutChannelName);
-
-        String stderrChannelName = uniqId + ":stderr";
-        String stderrChannelId = createChannel(stderrChannelName);
 
         String slotName = "/portal_slot_" + uniqId;
         LMS.Slot slot = isPortalInput ? GrpcUtils.makeInputFileSlot(slotName) : GrpcUtils.makeOutputFileSlot(slotName);
@@ -280,16 +334,6 @@ public class PortalTestBase {
                 .setSlot(slot)
                 .setChannelId(channelId)
                 .build())
-            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
-                .setSlot(GrpcUtils.makeInputFileSlot("/portal_%s:stdout".formatted(uniqId)))
-                .setChannelId(stdoutChannelId)
-                .setStdout(GrpcUtils.makeStdoutStorage(uniqId))
-                .build())
-            .addSlots(LzyPortal.PortalSlotDesc.newBuilder()
-                .setSlot(GrpcUtils.makeInputFileSlot("/portal_%s:stderr".formatted(uniqId)))
-                .setChannelId(stderrChannelId)
-                .setStderr(GrpcUtils.makeStderrStorage(uniqId))
-                .build())
             .build());
 
         var op = desc.workerStub.execute(LWS.ExecuteRequest.newBuilder()
@@ -300,15 +344,8 @@ public class PortalTestBase {
                         .build())
                     .setName("zygote_" + uniqId)
                     .setCommand(fuze)
-                    .setStdout(LMO.Operation.StdSlotDesc.newBuilder()
-                        .setName("/dev/stdout")
-                        .setChannelId(stdoutChannelId)
-                        .build())
-                    .setStderr(LMO.Operation.StdSlotDesc.newBuilder()
-                        .setName("/dev/stderr")
-                        .setChannelId(stderrChannelId)
-                        .build())
                     .addSlots(taskSlot)
+                    .setKafkaTopic(stdLogsTopic)
                     .build())
                 .addSlotAssignments(LMO.SlotToChannelAssignment.newBuilder()
                     .setSlotName(taskSlot.getName())
@@ -335,15 +372,13 @@ public class PortalTestBase {
             return ref;
         }
 
-        var workerId = UUID.randomUUID().toString();
+        var workerId = idGenerator.generate("worker-");
         var allocatorDuration = Duration.ofSeconds(5);
-
-        var kafkaConfig = new KafkaConfig();
-        kafkaConfig.setEnabled(false);
 
         var ctx = Worker.startApplication(workerId,
             config.getAllocatorAddress(), config.getIamAddress(), allocatorDuration,
-            config.getChannelManagerAddress(), "localhost", "token_" + workerId, 0, kafkaConfig);
+            config.getChannelManagerAddress(), "localhost", "token-" + workerId, 0,
+            KafkaConfig.of(kafkaBootstrapServer));
 
         var worker = ctx.getBean(Worker.class);
         var config = ctx.getBean(ServiceConfig.class);
@@ -479,6 +514,128 @@ public class PortalTestBase {
         });
 
         return values;
+    }
+
+    public record EosMessage(String taskId, String stream) {}
+
+    public record StdlogMessage(String taskId, String stream, String line) {
+        public static StdlogMessage out(String taskId, String line) {
+            return new StdlogMessage(taskId, "out", line);
+        }
+        public static StdlogMessage err(String taskId, String line) {
+            return new StdlogMessage(taskId, "err", line);
+        }
+    }
+
+    /**
+     * @return Exception on error
+     *         EosMessage on EOS
+     *         StdlogMessage for each output line
+     */
+    protected ArrayBlockingQueue<Object> readKafkaTopic(String topicName, AtomicBoolean finish) {
+        var values = new ArrayBlockingQueue<>(100);
+
+        var props = new KafkaHelper(KafkaConfig.of(kafkaBootstrapServer)).toProperties();
+        props.put("group.id", UUID.randomUUID().toString());
+
+        ForkJoinPool.commonPool().execute(() -> {
+            try (var consumer = new KafkaConsumer<String, byte[]>(props)) {
+                var partition = new TopicPartition(topicName, /* partition */ 0);
+
+                consumer.assign(List.of(partition));
+                consumer.seek(partition, 0);
+
+                while (!finish.get()) {
+                    var records = consumer.poll(Duration.ofMillis(100));
+                    if (records.count() <= 0) {
+                        continue;
+                    }
+
+                    consumer.commitSync();
+
+                    for (var record : records) {
+                        var taskId = record.key();
+                        var stream = new String(record.headers().lastHeader("stream").value(), StandardCharsets.UTF_8);
+
+                        var eos = record.headers().lastHeader("eos") != null;
+                        if (eos) {
+                            var msg = new EosMessage(taskId, stream);
+                            System.out.println(" ::: got " + msg);
+                            values.offer(msg);
+                            continue;
+                        }
+
+                        var lines = new String(record.value(), StandardCharsets.UTF_8);
+                        for (var line : lines.split("\n")) {
+                            var msg = new StdlogMessage(taskId, stream, line);
+                            System.out.println(" ::: got " + msg);
+                            values.offer(msg);
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                LOG.error("Cannot read from topic {}: {}", topicName, e.getMessage());
+                values.offer(e);
+            }
+        });
+
+        return values;
+    }
+
+    protected void assertStdLogs(BlockingQueue<Object> logs, List<StdlogMessage> stdout, List<StdlogMessage> stderr)
+        throws InterruptedException
+    {
+        var expectedStdout = new HashMap<String, Queue<StdlogMessage>>();
+        var expectedStderr = new HashMap<String, Queue<StdlogMessage>>();
+        var eosStdout = new HashSet<String>();
+        var eosStderr = new HashSet<String>();
+
+        record TaskStream(String taskId, String stream) {}
+
+        var notFinishedStreams = new HashSet<TaskStream>();
+
+        for (var out : stdout) {
+            expectedStdout.computeIfAbsent(out.taskId, __ -> new ArrayDeque<>()).add(out);
+            notFinishedStreams.add(new TaskStream(out.taskId, "out"));
+            notFinishedStreams.add(new TaskStream(out.taskId, "err"));
+        }
+
+        for (var err : stderr) {
+            expectedStderr.computeIfAbsent(err.taskId, __ -> new ArrayDeque<>()).add(err);
+            notFinishedStreams.add(new TaskStream(err.taskId, "out"));
+            notFinishedStreams.add(new TaskStream(err.taskId, "err"));
+        }
+
+        System.out.println(" --> waiting for streams: " +
+            notFinishedStreams.stream().map(Objects::toString).collect(Collectors.joining(",")));
+
+        while (!notFinishedStreams.isEmpty()) {
+            var log = logs.take();
+            if (log instanceof StdlogMessage msg) {
+                var remains = "out".equals(msg.stream)
+                    ? expectedStdout.get(msg.taskId)
+                    : expectedStderr.get(msg.taskId);
+
+                Assert.assertNotNull(remains);
+                Assert.assertFalse(remains.isEmpty());
+                Assert.assertEquals(remains.remove(), msg);
+            } else if (log instanceof EosMessage msg) {
+                var set = "out".equals(msg.stream) ? eosStdout : eosStderr;
+                Assert.assertTrue(set.add(msg.taskId));
+
+                var remains = "out".equals(msg.stream)
+                    ? expectedStdout.get(msg.taskId)
+                    : expectedStderr.get(msg.taskId);
+
+                Assert.assertTrue(remains == null || remains.isEmpty());
+                notFinishedStreams.remove(new TaskStream(msg.taskId, msg.stream));
+
+                System.out.println(" --> waiting for streams: " +
+                    notFinishedStreams.stream().map(Objects::toString).collect(Collectors.joining(",")));
+            } else {
+                Assert.fail(log.toString());
+            }
+        }
     }
 
     public record User(

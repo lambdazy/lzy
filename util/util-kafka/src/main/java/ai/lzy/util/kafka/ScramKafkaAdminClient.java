@@ -3,14 +3,16 @@ package ai.lzy.util.kafka;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.apache.kafka.clients.admin.*;
-import org.apache.kafka.common.acl.*;
+import org.apache.kafka.common.acl.AccessControlEntry;
+import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
 
-import static org.apache.kafka.common.acl.AclOperation.*;
+import static org.apache.kafka.common.acl.AclOperation.ALL;
+import static org.apache.kafka.common.acl.AclOperation.DESCRIBE;
 import static org.apache.kafka.common.acl.AclPermissionType.ALLOW;
 import static org.apache.kafka.common.resource.PatternType.LITERAL;
 import static org.apache.kafka.common.resource.ResourceType.TOPIC;
