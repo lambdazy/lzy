@@ -81,7 +81,6 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
@@ -245,7 +244,7 @@ public class PortalTestBase {
         stopS3();
 
         finishStdlogsReader.finish();
-        //dropKafkaTopicSafe(stdlogsTopic.getTopic());
+        dropKafkaTopicSafe(stdlogsTopic.getTopic());
     }
 
     private static void startS3() {
@@ -503,7 +502,7 @@ public class PortalTestBase {
 
         var values = new ArrayBlockingQueue<>(100);
 
-        ForkJoinPool.commonPool().execute(() -> {
+        var thread  = new Thread(() -> {
             try {
                 iter.forEachRemaining(message -> {
                     System.out.println(" ::: got " + JsonUtils.printSingleLine(message));
@@ -521,7 +520,8 @@ public class PortalTestBase {
                 LOG.error("Cannot read portal slot from channel {}: {}", channelName, e.getMessage());
                 values.offer(e);
             }
-        });
+        }, "");
+        thread.start();
 
         return values;
     }
@@ -572,7 +572,7 @@ public class PortalTestBase {
         var props = new KafkaHelper(KafkaConfig.of(kafkaBootstrapServer)).toProperties();
         props.put("group.id", idGenerator.generate("portal-test-"));
 
-        ForkJoinPool.commonPool().execute(() -> {
+        var thread = new Thread(() -> {
             try (var consumer = new KafkaConsumer<String, byte[]>(props)) {
                 var partition = new TopicPartition(topicName, /* partition */ 0);
 
@@ -623,6 +623,7 @@ public class PortalTestBase {
                 finisher.consumerFinished();
             }
         });
+        thread.start();
 
         return values;
     }
