@@ -32,26 +32,18 @@ public class StreamQueue extends Thread {
     private final String taskId;
     private final String streamName;
     private final AtomicBoolean stopping = new AtomicBoolean(false);
-    @Nullable
     private final KafkaProducer<String, byte[]> kafkaClient;
-    @Nullable
     private final String topic;
 
-    public StreamQueue(@Nullable KafkaTopicDescription topic, Logger log, String taskId, String streamName,
-                       @Nullable KafkaHelper helper)
-    {
+    public StreamQueue(KafkaTopicDescription topic, Logger log, String taskId, String streamName, KafkaHelper helper) {
         this.logger = log;
         this.taskId = taskId;
         this.streamName = streamName;
-        if (topic != null && helper != null) {
-            var props = helper.toProperties(topic.getUsername(), topic.getPassword());
 
-            this.kafkaClient = new KafkaProducer<>(props);
-            this.topic = topic.getTopic();
-        } else {
-            this.kafkaClient = null;
-            this.topic = null;
-        }
+        var props = helper.toProperties(topic.getUsername(), topic.getPassword());
+
+        this.kafkaClient = new KafkaProducer<>(props);
+        this.topic = topic.getTopic();
     }
 
     /**
@@ -167,6 +159,8 @@ public class StreamQueue extends Thread {
             if (srcPos > linesPos) {
                 writeLines(copyOfRange(buf, linesPos, srcPos));
             }
+
+            writeEos();
         } catch (IOException e) {
             logger.error("Error while writing to stream {}: ", streamName, e);
         }
@@ -190,16 +184,27 @@ public class StreamQueue extends Thread {
                 out.write(lines, 0, lines.length);
             }
         }
-        if (kafkaClient != null && topic != null) {
-            // Using single partition to manage global order of logs !!!
-            try {
-                var headers = new RecordHeaders();
-                headers.add("stream", streamName.getBytes(StandardCharsets.UTF_8));
 
-                kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, taskId, lines, headers)).get();
-            } catch (Exception e) {
-                logger.warn("Cannot send data to kafka: ", e);
-            }
+        // Using single partition to manage global order of logs !!!
+        try {
+            var headers = new RecordHeaders();
+            headers.add("stream", streamName.getBytes(StandardCharsets.UTF_8));
+
+            kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, taskId, lines, headers)).get();
+        } catch (Exception e) {
+            logger.warn("Cannot send data to kafka: ", e);
+        }
+    }
+
+    private void writeEos() {
+        try {
+            var headers = new RecordHeaders();
+            headers.add("stream", streamName.getBytes(StandardCharsets.UTF_8));
+            headers.add("eos", new byte[0]);
+
+            kafkaClient.send(new ProducerRecord<>(topic, /* partition */ 0, taskId, new byte[0], headers)).get();
+        } catch (Exception e) {
+            logger.warn("Cannot send data to kafka: ", e);
         }
     }
 
@@ -262,17 +267,6 @@ public class StreamQueue extends Thread {
             futures.add(fut);
             return fut;
         }
-
-        @Override
-        public void addErrOutput(OutputStream stream) {
-            errQueue.add(stream);
-        }
-
-        @Override
-        public void addOutOutput(OutputStream stream) {
-            outQueue.add(stream);
-        }
-
         @Override
         public void close() {
             try {
@@ -296,12 +290,8 @@ public class StreamQueue extends Thread {
 
         CompletableFuture<Void> logErr(InputStream stream);
 
-        void addErrOutput(OutputStream stream);
-
-        void addOutOutput(OutputStream stream);
-
-        static LogHandle fromTopicDesc(Logger logger, String taskId, @Nullable KafkaTopicDescription topicDesc,
-                                       @Nullable KafkaHelper helper)
+        static LogHandle fromTopicDesc(Logger logger, String taskId, KafkaTopicDescription topicDesc,
+                                       KafkaHelper helper)
         {
             var outQueue = new StreamQueue(topicDesc, logger, taskId, "out", helper);
             outQueue.start();
@@ -343,12 +333,6 @@ public class StreamQueue extends Thread {
                     LOG.error(res);
                     return CompletableFuture.completedFuture(null);
                 }
-
-                @Override
-                public void addErrOutput(OutputStream stream) {}
-
-                @Override
-                public void addOutOutput(OutputStream stream) {}
             };
         }
     }

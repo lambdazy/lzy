@@ -4,15 +4,13 @@ import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
-import ai.lzy.fs.slots.LineReaderSlot;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
-import ai.lzy.model.slot.TextLinesOutSlot;
-import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -23,19 +21,20 @@ import ai.lzy.worker.env.AuxEnvironment;
 import ai.lzy.worker.env.EnvironmentFactory;
 import ai.lzy.worker.env.EnvironmentInstallationException;
 import io.grpc.stub.StreamObserver;
-import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
+
+import static ai.lzy.logs.LogUtils.withLoggingContext;
+import static java.util.stream.Collectors.toMap;
 
 @Singleton
 public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
@@ -45,12 +44,11 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private final LzyFsServer lzyFs;
     private final LocalOperationService operationService;
     private final EnvironmentFactory envFactory;
-    @Nullable
     private final KafkaHelper kafkaHelper;
 
     public WorkerApiImpl(@Named("WorkerOperationService") LocalOperationService localOperationService,
                          EnvironmentFactory environmentFactory, LzyFsServer lzyFsServer,
-                         @Nullable @Named("WorkerKafkaHelper") KafkaHelper helper)
+                         @Named("WorkerKafkaHelper") KafkaHelper helper)
     {
         this.kafkaHelper = helper;
         this.operationService = localOperationService;
@@ -59,18 +57,18 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     }
 
     private synchronized LWS.ExecuteResponse executeOp(LWS.ExecuteRequest request) {
-        String tid = request.getTaskId();
+        var tid = request.getTaskId();
         var task = request.getTaskDesc();
         var op = task.getOperation();
 
         var lzySlots = new ArrayList<LzySlot>(task.getOperation().getSlotsCount());
         var slotAssignments = task.getSlotAssignmentsList().stream()
-            .collect(Collectors.toMap(LMO.SlotToChannelAssignment::getSlotName,
-                LMO.SlotToChannelAssignment::getChannelId));
+            .collect(toMap(LMO.SlotToChannelAssignment::getSlotName, LMO.SlotToChannelAssignment::getChannelId));
 
         for (var slot : op.getSlotsList()) {
             final var binding = slotAssignments.get(slot.getName());
             if (binding == null) {
+                LOG.error("Empty binding for slot {}", slot.getName());
                 return LWS.ExecuteResponse.newBuilder()
                     .setRc(ReturnCodes.INTERNAL_ERROR.getRc())
                     .setDescription("Internal error")
@@ -86,24 +84,13 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             }
         });
 
-        var topicDesc = request.getTaskDesc().getOperation().hasKafkaTopic()
-            ? request.getTaskDesc().getOperation().getKafkaTopic()
-            : null;
-
-        try (final var logHandle = LogHandle.fromTopicDesc(LOG, tid, topicDesc, kafkaHelper)) {
-            final var stdoutSpec = op.hasStdout() ? op.getStdout() : null;
-            final var stderrSpec = op.hasStderr() ? op.getStderr() : null;
-            logHandle.addErrOutput(generateStdOutputStream(tid, stderrSpec));
-            logHandle.addOutOutput(generateStdOutputStream(tid, stdoutSpec));
-
-            LOG.info("Configuring worker");
+        try (final var logHandle = LogHandle.fromTopicDesc(LOG, tid, op.getKafkaTopic(), kafkaHelper)) {
+            LOG.info("Configure worker...");
 
             final AuxEnvironment env;
 
             try {
-                env = envFactory.create(tid, lzyFs.getMountPoint().toString(),
-                    request.getTaskDesc().getOperation().getEnv(), logHandle);
-
+                env = envFactory.create(tid, lzyFs.getMountPoint().toString(), op.getEnv(), logHandle);
             } catch (EnvironmentInstallationException e) {
                 LOG.error("Unable to install environment", e);
 
@@ -119,7 +106,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
                     .build();
             }
 
-            LOG.info("Executing task {}", tid);
+            LOG.info("Executing task...");
 
             try {
                 var exec = new Execution(tid, op.getCommand(), "", lzyFs.getMountPoint().toString());
@@ -217,53 +204,36 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
         }
     }
 
-    private OutputStream generateStdOutputStream(String tid, @Nullable LMO.Operation.StdSlotDesc stdoutSpec) {
-        final OutputStream stdout;
-        if (stdoutSpec != null) {
-            stdout = new PipedOutputStream();
-
-            final PipedInputStream i;
-            try {
-                i = new PipedInputStream((PipedOutputStream) stdout);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-
-            final var slot = (LineReaderSlot) lzyFs.getSlotsManager().getOrCreateSlot(
-                tid,
-                new TextLinesOutSlot(stdoutSpec.getName()),
-                stdoutSpec.getChannelId());
-
-            slot.setStream(new LineNumberReader(new InputStreamReader(i, StandardCharsets.UTF_8)));
-        } else {
-            stdout = OutputStream.nullOutputStream();
-        }
-
-        return stdout;
-    }
-
     @Override
     public void execute(LWS.ExecuteRequest request, StreamObserver<LongRunning.Operation> response) {
-        if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
-            LOG.debug("Worker::execute " + JsonUtils.printRequest(request));
-        } else {
-            LOG.info("Worker::execute request (tid={}, executionId={})",
-                request.getTaskId(), request.getExecutionId());
-        }
+        withLoggingContext(
+            Map.of(
+                "tid", request.getTaskId(),
+                "exid", request.getExecutionId()),
+            () -> {
+                if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
+                    LOG.debug("Worker::execute {}", ProtoPrinter.safePrinter().printToString(request));
+                } else {
+                    LOG.info("Worker::execute request");
+                }
 
-        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null &&
-            loadExistingOpResult(idempotencyKey, response))
-        {
-            return;
-        }
+                var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+                if (idempotencyKey != null && loadExistingOpResult(idempotencyKey, response)) {
+                    return;
+                }
 
-        var op = Operation.create(request.getTaskId(), "Execute worker", null, idempotencyKey, null);
+                var op = Operation.create(
+                    request.getTaskId(),
+                    "Worker, executionId: " + request.getExecutionId() + ", taskId: " + request.getTaskId(),
+                    /* deadline */ null,
+                    idempotencyKey,
+                    /* meta */ null);
 
-        LocalOperationService.OperationSnapshot opSnapshot = operationService.execute(op, () -> executeOp(request));
+                var opSnapshot = operationService.execute(op, () -> executeOp(request));
 
-        response.onNext(opSnapshot.toProto());
-        response.onCompleted();
+                response.onNext(opSnapshot.toProto());
+                response.onCompleted();
+            });
     }
 
     private boolean loadExistingOpResult(Operation.IdempotencyKey key,

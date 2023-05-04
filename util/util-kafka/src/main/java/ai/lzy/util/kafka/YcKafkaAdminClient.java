@@ -57,6 +57,10 @@ public class YcKafkaAdminClient implements KafkaAdminClient {
     }
 
     @Override
+    public void shutdown() {
+    }
+
+    @Override
     public void createUser(String username, String password) {
         final OperationOuterClass.Operation op = stub.create(CreateUserRequest.newBuilder()
             .setClusterId(clusterId)
@@ -68,8 +72,6 @@ public class YcKafkaAdminClient implements KafkaAdminClient {
 
         awaitOperation(op);
     }
-
-
 
     @Override
     public void dropUser(String username) {

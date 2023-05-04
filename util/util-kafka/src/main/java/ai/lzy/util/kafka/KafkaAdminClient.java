@@ -11,4 +11,6 @@ public interface KafkaAdminClient {
     void dropTopic(String name) throws StatusRuntimeException;
 
     void grantPermission(String username, String topicName) throws StatusRuntimeException;
+
+    void shutdown();
 }

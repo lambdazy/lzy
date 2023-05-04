@@ -65,6 +65,9 @@ public class KafkaHelper {
         props.put("value.serializer", "org.apache.kafka.common.serialization.ByteArraySerializer");
         props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
 
+        props.put("request.timeout.ms", "60000");
+        props.put("default.api.timeout.ms", "60000");
+
         return props;
 
     }
