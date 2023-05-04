@@ -85,7 +85,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
                 new RequestIdInterceptor());
     }
 
-    @Scheduled(fixedDelay = "10m")
+    @Scheduled(fixedDelay = "${allocator.yc-mk8s.period}")
     public void syncClusters() {
         config.getServiceClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ true));
         config.getUserClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ false));
@@ -156,7 +156,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     // TODO: getters for YC-specific data
 
     private void resolveCluster(String clusterId, boolean system) {
-        LOG.debug("Resolve {} cluster {}...", ct(system), clusterId);
+        LOG.info("Resolve {} cluster {}...", ct(system), clusterId);
 
         Cluster cluster;
         try {
@@ -251,7 +251,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         ClusterDesc clusterOldDesc = clusters.get(clusterId);
 
         if (clusterOldDesc != null && clusterOldDesc.equals(clusterNewDesc)) {
-            LOG.debug("Resolved old cluster {}", clusterId);
+            LOG.info("Resolved old cluster {}", clusterId);
             return clusterOldDesc;
         }
 
@@ -326,7 +326,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         var oldVmSpec = pool.get(label);
 
         if (oldVmSpec != null && oldVmSpec.equals(newVmSpec)) {
-            LOG.debug("Resolved old node group {}", nodeGroup.getId());
+            LOG.info("Resolved old node group {}", nodeGroup.getId());
             return;
         }
 

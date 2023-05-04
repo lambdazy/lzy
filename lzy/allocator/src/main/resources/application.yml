@@ -19,6 +19,9 @@ allocator:
 
   enable-http-debug: false
 
+  yc-mk8s:
+    period: 1m
+
   gc:
     initial-delay: 10s
     cleanup-period: 3m
