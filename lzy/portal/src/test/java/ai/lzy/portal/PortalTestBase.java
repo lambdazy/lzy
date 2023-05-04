@@ -574,11 +574,20 @@ public class PortalTestBase {
                 consumer.assign(List.of(partition));
                 consumer.seek(partition, 0);
 
+                var ts = System.currentTimeMillis();
+
                 while (!finisher.shouldFinish()) {
                     var records = consumer.poll(Duration.ofMillis(100));
                     if (records.count() <= 0) {
+                        var now = System.currentTimeMillis();
+                        if (ts - now > 5000) {
+                            System.out.println("... waiting for data at topic " + topicName);
+                            ts = now;
+                        }
                         continue;
                     }
+
+                    ts = System.currentTimeMillis();
 
                     // consumer.commitSync();
 
