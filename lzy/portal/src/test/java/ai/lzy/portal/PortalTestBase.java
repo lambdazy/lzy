@@ -69,6 +69,7 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.*;
+import org.junit.rules.Timeout;
 import scala.collection.immutable.Map$;
 
 import java.io.IOException;
@@ -98,6 +99,9 @@ import static org.junit.Assert.assertTrue;
 
 public class PortalTestBase {
     private static final Logger LOG = LogManager.getLogger(PortalTestBase.class);
+
+    @Rule
+    public Timeout globalTimeout = Timeout.seconds(60);
 
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
@@ -542,6 +546,7 @@ public class PortalTestBase {
         }
 
         public synchronized void finish() {
+            System.out.println(" --> finish kafka topic reader...");
             if (finish) {
                 return;
             }

@@ -110,7 +110,6 @@ public class PortalFailuresTest extends PortalTestBase {
 
     @Test
     public void makeSnapshotWithAlreadyUsedSnapshotId() throws InterruptedException {
-
         System.out.println("\n----- PREPARE PORTAL FOR SCENARIO -----------------------------------------\n");
 
         // create channels for scenario
