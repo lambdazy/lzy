@@ -28,6 +28,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static yandex.cloud.api.k8s.v1.ClusterOuterClass.Cluster;
 
@@ -40,13 +41,13 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     private final ClusterServiceBlockingStub clusterServiceClient;
     private final NodeGroupServiceBlockingStub nodeGroupServiceClient;
 
-    private final Map<String, VmPoolSpec> systemPools = new HashMap<>();
-    private final Map<String, VmPoolSpec> userPools = new HashMap<>();
+    private final Map<String, VmPoolSpec> systemPools = new ConcurrentHashMap<>();
+    private final Map<String, VmPoolSpec> userPools = new ConcurrentHashMap<>();
 
     private final Set<String> systemFolders = new HashSet<>();
     private final Set<String> userFolders = new HashSet<>();
 
-    private final Map<String, Set<String>> folder2clusters = new HashMap<>();
+    private final Map<String, Set<String>> folder2clusters = new ConcurrentHashMap<>();
 
     private record NodeGroupDesc(
         String zone,
@@ -65,7 +66,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         ClusterType type
     ) {}
 
-    private final Map<String, ClusterDesc> clusters = new HashMap<>();
+    private final Map<String, ClusterDesc> clusters = new ConcurrentHashMap<>();
 
 
     @Inject
@@ -156,7 +157,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     // TODO: getters for YC-specific data
 
     private void resolveCluster(String clusterId, boolean system) {
-        LOG.info("Resolve {} cluster {}...", ct(system), clusterId);
+        LOG.debug("Resolve {} cluster {}...", ct(system), clusterId);
 
         Cluster cluster;
         try {
@@ -251,7 +252,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         ClusterDesc clusterOldDesc = clusters.get(clusterId);
 
         if (clusterOldDesc != null && clusterOldDesc.equals(clusterNewDesc)) {
-            LOG.info("Resolved old cluster {}", clusterId);
+            LOG.debug("Resolved old cluster {}", clusterId);
             return clusterOldDesc;
         }
 
@@ -326,7 +327,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         var oldVmSpec = pool.get(label);
 
         if (oldVmSpec != null && oldVmSpec.equals(newVmSpec)) {
-            LOG.info("Resolved old node group {}", nodeGroup.getId());
+            LOG.debug("Resolved old node group {}", nodeGroup.getId());
             return;
         }
 
