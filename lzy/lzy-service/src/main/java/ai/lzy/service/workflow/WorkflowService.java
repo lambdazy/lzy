@@ -3,6 +3,8 @@ package ai.lzy.service.workflow;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.OperationsExecutor;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.*;
@@ -12,12 +14,14 @@ import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.kafka.KafkaLogsListeners;
+import ai.lzy.service.workflow.start.StartExecutionAction;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
+import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
@@ -40,6 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
+import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -60,6 +65,8 @@ public class WorkflowService {
     private final String channelManagerAddress;
     private final String iamAddress;
     private final String whiteboardAddress;
+    private final OperationDao operationDao;
+    private final OperationsExecutor executor;
     private final LzyServiceMetrics metrics;
 
     final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
@@ -86,6 +93,8 @@ public class WorkflowService {
                            @Named("ChannelManagerServiceChannel") ManagedChannel channelManagerChannel,
                            @Named("IamServiceChannel") ManagedChannel iamChannel,
                            @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
+                           @Named("LzyServiceOperationDao") OperationDao operationDao,
+                           @Named("LzyServiceOperationsExecutor") OperationsExecutor operationsExecutor,
                            LzyServiceMetrics metrics,
                            KafkaAdminClient kafkaAdminClient, KafkaLogsListeners kafkaLogsListeners)
     {
@@ -96,6 +105,8 @@ public class WorkflowService {
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
         this.config = config;
+        this.operationDao = operationDao;
+        this.executor = operationsExecutor;
         this.metrics = metrics;
 
         this.storage = storage;
@@ -120,8 +131,8 @@ public class WorkflowService {
         this.abClient = new AccessBindingServiceGrpcClient(APP, iamChannel, internalUserCredentials::get);
     }
 
-    public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> response) {
-        var newExecution = StartExecutionCompanion.of(request, this, startupPortalConfig);
+    public void startWorkflow(Operation op, StartWorkflowRequest request, String StreamObserver<LongRunning.Operation> response) {
+        var action = new StartExecutionAction(op.id(), op.description(), storage, operationDao, executor, executionDao, );
         LOG.info("Start workflow. Create new execution: " + newExecution.getState());
         Consumer<Status> replyError = (status) -> {
             LOG.error("Fail to start new execution: status={}, msg={}.", status,
@@ -135,34 +146,7 @@ public class WorkflowService {
             return;
         }
 
-        var previousActiveExecutionId = newExecution.createExecutionInDao();
-        var executionId = newExecution.getExecutionId();
-
-        if (previousActiveExecutionId != null) {
-            LOG.info("Attempt to clean previous active execution of workflow: { wfName: {}, prevExId: {} }",
-                request.getWorkflowName(), previousActiveExecutionId);
-
-            Status errorStatus = Status.INTERNAL.withDescription("Cancelled by new execution start");
-            if (cleanExecutionCompanion.tryToFinishExecution(newExecution.getOwner(), previousActiveExecutionId,
-                errorStatus))
-            {
-                cleanExecutionCompanion.cleanExecution(previousActiveExecutionId);
-            }
-        }
-
-        if (newExecution.isInvalid()) {
-            replyError.accept(newExecution.getErrorStatus());
-            return;
-        }
-
-        if (config.getKafka().isEnabled()) {
-            newExecution.createKafkaTopic(kafkaAdminClient);
-
-            if (newExecution.isInvalid()) {
-                replyError.accept(newExecution.getErrorStatus());
-                return;
-            }
-        }
+        executor.startNew(action);
 
         metrics.activeExecutions.labels(newExecution.getOwner()).inc();
 
@@ -174,20 +158,6 @@ public class WorkflowService {
             startupPortalConfig.getChunksPoolSize(), startupPortalConfig.getStdoutChannelName(),
             startupPortalConfig.getStderrChannelName(), channelManagerAddress, iamAddress, whiteboardAddress,
             allocationTimeout, allocatorVmCacheTimeout, !config.getKafka().isEnabled());
-
-        if (newExecution.isInvalid()) {
-            LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
-                request.getWorkflowName(), executionId);
-
-            if (cleanExecutionCompanion.tryToFinishWorkflow(newExecution.getOwner(), request.getWorkflowName(),
-                executionId, newExecution.getErrorStatus()))
-            {
-                cleanExecutionCompanion.cleanExecution(executionId);
-            }
-
-            replyError.accept(newExecution.getErrorStatus());
-            return;
-        }
 
         LOG.info("Workflow started: " + newExecution.getState());
         response.onNext(StartWorkflowResponse.newBuilder().setExecutionId(executionId).build());

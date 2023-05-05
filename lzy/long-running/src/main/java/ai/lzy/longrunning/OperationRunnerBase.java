@@ -261,16 +261,26 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
     protected void notifyFinished() {
     }
 
-    protected final void failOperation(Status status, TransactionHandle tx) throws SQLException {
+    protected final void failOperation(Status status, @Nullable TransactionHandle tx) throws SQLException {
         operationsDao.fail(id, toProto(status), tx);
     }
 
-    protected final void completeOperation(@Nullable Any meta, Any response, TransactionHandle tx) throws SQLException {
+    protected final void completeOperation(@Nullable Any meta, Any response, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         operationsDao.complete(id, meta, response, tx);
+    }
+
+    protected final Storage storage() {
+        return storage;
     }
 
     protected final OperationDao operationsDao() {
         return operationsDao;
+    }
+
+    protected final OperationsExecutor executor() {
+        return executor;
     }
 
     public record StepResult(

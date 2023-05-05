@@ -7,6 +7,7 @@ import io.grpc.Status;
 import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
+import java.util.List;
 
 public interface ExecutionDao {
     void create(String userId, String executionId, String storageName, LMST.StorageConfig storageConfig,
@@ -14,11 +15,12 @@ public interface ExecutionDao {
 
     void delete(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
 
+    boolean exists(String execId, String userId, @Nullable TransactionHandle transaction) throws SQLException;
+
     void updateStdChannelIds(String executionId, String stdoutChannelId, String stderrChannelId,
                              @Nullable TransactionHandle transaction) throws SQLException;
 
-    void updatePortalVmAllocateSession(String executionId, String sessionId, String portalId,
-                                       @Nullable TransactionHandle transaction)
+    void updateAllocatorSession(String executionId, String sessionId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
     void updateAllocateOperationData(String executionId, String opId, String vmId,
@@ -28,10 +30,10 @@ public interface ExecutionDao {
                                @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    void updatePortalSubjectId(String executionId, String subjectId, @Nullable TransactionHandle transaction)
-        throws SQLException;
+    void updatePortalSubjectId(String executionId, String portalId, String subjectId,
+                               @Nullable TransactionHandle transaction) throws SQLException;
 
-    void updateFinishData(String userId, String executionId, Status status, @Nullable TransactionHandle transaction)
+    void updateFinishData(String executionId, Status status, @Nullable TransactionHandle transaction)
         throws SQLException;
 
     void setErrorExecutionStatus(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
@@ -66,4 +68,9 @@ public interface ExecutionDao {
 
     @Nullable
     KafkaTopicDesc getKafkaTopicDesc(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
+
+    List<String> getExecutionActiveOperations(String executionId, @Nullable TransactionHandle transaction);
+
+    void setExecutionStatus(String executionId, Status status, @Nullable TransactionHandle transaction)
+        throws SQLException;
 }

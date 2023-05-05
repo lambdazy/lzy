@@ -12,16 +12,21 @@ option java_outer_classname = "LWFS";
 option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowService {
-  rpc StartWorkflow (StartWorkflowRequest) returns (StartWorkflowResponse);
-  rpc FinishWorkflow (FinishWorkflowRequest) returns (ai.lzy.v1.longrunning.Operation) {
+  rpc StartWorkflow (StartWorkflowRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       // metadata: null
-      response: "FinishWorkflowResponse";
+      response: "StartWorkflowResponse";
     };
   }
+  rpc FinishWorkflow (FinishWorkflowRequest) returns (FinishWorkflowResponse);
   rpc AbortWorkflow (AbortWorkflowRequest) returns (AbortWorkflowResponse);
 
-  rpc ExecuteGraph (ExecuteGraphRequest) returns (ExecuteGraphResponse);
+  rpc ExecuteGraph (ExecuteGraphRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "ExecuteGraphResponse";
+    };
+  }
   rpc GraphStatus (GraphStatusRequest) returns (GraphStatusResponse);
   rpc StopGraph (StopGraphRequest) returns (StopGraphResponse);
 

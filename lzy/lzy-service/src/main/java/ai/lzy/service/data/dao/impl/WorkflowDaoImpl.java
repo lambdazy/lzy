@@ -1,9 +1,10 @@
-package ai.lzy.service.data.dao;
+package ai.lzy.service.data.dao.impl;
 
 
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
@@ -33,6 +34,11 @@ public class WorkflowDaoImpl implements WorkflowDao {
         SET active_execution_id = ?, modified_at = ? 
         WHERE user_id = ? AND active_execution_id = ?""";
 
+    private static final String QUERY_SET_ACTIVE_EXEC_NULL = """
+        UPDATE workflows SET active_execution_id = ?, modified_at = ?
+        WHERE user_id = ? AND workflow_name = ? AND active_execution_id = ?
+        """;
+
     private static final String SELECT_FOR_UPDATE_ACTIVE_EXECUTION_BY_WF_NAME = """
         SELECT user_id, workflow_name, modified_at, active_execution_id 
         FROM workflows
@@ -52,7 +58,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     @Override
     @Nullable
-    public String upsert(String ownerId, String workflowName, String executionId,
+    public String upsert(String userId, String workflowName, String newActiveExecId,
                          @Nullable TransactionHandle transaction) throws SQLException
     {
         String[] previousExecutionId = {null};
@@ -61,7 +67,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
             try (var selectSt = connection.prepareStatement(QUERY_SELECT_WORKFLOW + " FOR UPDATE",
                 ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
             {
-                selectSt.setString(1, ownerId);
+                selectSt.setString(1, userId);
                 selectSt.setString(2, workflowName);
 
                 ResultSet rs = selectSt.executeQuery();
@@ -69,16 +75,16 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
                 if (rs.next()) {
                     previousExecutionId[0] = rs.getString("active_execution_id");
-                    rs.updateString("active_execution_id", executionId);
+                    rs.updateString("active_execution_id", newActiveExecId);
                     rs.updateTimestamp("modified_at", now);
                     rs.updateRow();
                 } else {
                     try (var insertSt = connection.prepareStatement(QUERY_INSERT_WORKFLOW)) {
                         insertSt.setString(1, workflowName);
-                        insertSt.setString(2, ownerId);
+                        insertSt.setString(2, userId);
                         insertSt.setTimestamp(3, now);
                         insertSt.setTimestamp(4, now);
-                        insertSt.setString(5, executionId);
+                        insertSt.setString(5, newActiveExecId);
                         insertSt.execute();
                     }
                 }
@@ -86,6 +92,25 @@ public class WorkflowDaoImpl implements WorkflowDao {
         });
 
         return previousExecutionId[0];
+    }
+
+    @Override
+    @Nullable
+    public String getExecutionId(String userId, String wfName, TransactionHandle transaction) throws SQLException {
+        String[] activeExecutionId = {null};
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement(QUERY_SELECT_WORKFLOW)) {
+                statement.setString(1, userId);
+                statement.setString(2, wfName);
+                var rs = statement.executeQuery();
+                if (rs.next()) {
+                    activeExecutionId[0] = rs.getString("active_execution_id");
+                } else {
+                    throw new NotFoundException("Cannot found workflow of user");
+                }
+            }
+        });
+        return activeExecutionId[0];
     }
 
     @Override
@@ -111,8 +136,24 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public void setActiveExecutionToNull(String userId, String workflowName, String executionId,
-                                         @Nullable TransactionHandle transaction) throws SQLException
+    public boolean deactivate(String userId, String workflowName, String executionId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        boolean[] success = {false};
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement(QUERY_SET_ACTIVE_EXEC_NULL)) {
+                statement.setString(1, userId);
+                statement.setString(2, workflowName);
+                statement.setString(3, executionId);
+                success[0] = statement.executeUpdate() > 0;
+            }
+        });
+        return success[0];
+    }
+
+    @Override
+    public void deactivateA(String userId, String workflowName, String executionId,
+                            @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
             try (var stmt = connection.prepareStatement(SELECT_FOR_UPDATE_ACTIVE_EXECUTION_BY_WF_NAME,
@@ -138,7 +179,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public void setActiveExecutionToNull(String userId, String executionId, TransactionHandle tx) throws SQLException {
+    public void deactivateA(String userId, String executionId, TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, con -> {
             try (var stmt = con.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION)) {
                 stmt.setString(1, executionId);

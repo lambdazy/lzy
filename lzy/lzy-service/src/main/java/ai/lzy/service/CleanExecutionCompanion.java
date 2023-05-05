@@ -115,9 +115,9 @@ public class CleanExecutionCompanion {
         withRetries(LOG, () -> {
             try (var tx = TransactionHandle.create(storage)) {
                 if (workflowName == null) {
-                    workflowDao.setActiveExecutionToNull(userId, executionId, tx);
+                    workflowDao.deactivateA(userId, executionId, tx);
                 } else {
-                    workflowDao.setActiveExecutionToNull(userId, workflowName, executionId, tx);
+                    workflowDao.deactivate(userId, workflowName, executionId, tx);
                 }
                 executionDao.updateFinishData(userId, executionId, reason, tx);
                 executionDao.setErrorExecutionStatus(executionId, tx);
@@ -158,9 +158,9 @@ public class CleanExecutionCompanion {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     if (workflowName == null) {
-                        workflowDao.setActiveExecutionToNull(userId, executionId, tx);
+                        workflowDao.deactivateA(userId, executionId, tx);
                     } else {
-                        workflowDao.setActiveExecutionToNull(userId, workflowName, executionId, tx);
+                        workflowDao.deactivate(userId, workflowName, executionId, tx);
                     }
                     executionDao.updateFinishData(userId, executionId, reason, tx);
                     executionDao.setErrorExecutionStatus(executionId, tx);
@@ -453,7 +453,7 @@ public class CleanExecutionCompanion {
                 .setSessionId(sessionId)
                 .build());
 
-            withRetries(LOG, () -> executionDao.updatePortalVmAllocateSession(executionId, null, null, null));
+            withRetries(LOG, () -> executionDao.updateAllocatorSession(executionId, null, null, null));
 
             LOG.info("Allocator session for execution was deleted: { sessionId: {}, executionId: {} }",
                 sessionId, executionId);

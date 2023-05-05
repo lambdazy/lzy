@@ -38,14 +38,14 @@ public final class IdempotencyUtils {
 
             if (!idempotencyKey.equals(op.idempotencyKey())) {
                 log.error("Idempotency key {} conflict", idempotencyKey.token());
-                response.onError(Status.INVALID_ARGUMENT
-                    .withDescription("IdempotencyKey conflict").asException());
+                response.onError(Status.INVALID_ARGUMENT.withDescription("IdempotencyKey conflict")
+                    .asRuntimeException());
                 return true;
             }
         } catch (Exception ex) {
             log.error("Error while loading operation by idempotency key {}: {}",
                 idempotencyKey.token(), ex.getMessage(), ex);
-            response.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            response.onError(Status.INTERNAL.withDescription(ex.getMessage()).asRuntimeException());
             return true;
         }
 
@@ -61,7 +61,7 @@ public final class IdempotencyUtils {
             } catch (Exception e) {
                 log.error("Error while loading operation by idempotency key {}: {}",
                     idempotencyKey.token(), e.getMessage(), e);
-                response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
+                response.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
                 return true;
             }
         }
@@ -69,7 +69,7 @@ public final class IdempotencyUtils {
         if (!op.done()) {
             log.error("Error while loading operation by idempotency key {}: {}",
                 idempotencyKey.token(), "Cannot await completion of concurrent call which processed operation");
-            response.onError(Status.INTERNAL.withDescription("Concurrent call error").asException());
+            response.onError(Status.INTERNAL.withDescription("Cannot wait operation done").asRuntimeException());
             return true;
         }
 
@@ -106,7 +106,8 @@ public final class IdempotencyUtils {
         if (op != null) {
             if (!idempotencyKey.equals(op.idempotencyKey())) {
                 log.error("Idempotency key {} conflict", idempotencyKey.token());
-                response.onError(Status.INVALID_ARGUMENT.withDescription("IdempotencyKey conflict").asException());
+                response.onError(Status.INVALID_ARGUMENT.withDescription("IdempotencyKey conflict")
+                    .asRuntimeException());
                 return true;
             }
 
@@ -211,7 +212,8 @@ public final class IdempotencyUtils {
             }
 
             log.error("Idempotency key {} not found", idempotencyKey.token());
-            response.onError(Status.INTERNAL.withDescription("Idempotency key conflict").asException());
+            response.onError(Status.INTERNAL.withDescription("Idempotency key conflict")
+                .asRuntimeException());
             return true;
         }
         return false;

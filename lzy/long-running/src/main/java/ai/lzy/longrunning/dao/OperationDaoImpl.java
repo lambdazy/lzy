@@ -16,6 +16,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -130,6 +131,12 @@ public class OperationDaoImpl implements OperationDao {
         WHERE done = TRUE
           AND modified_at + INTERVAL '%d hours' < NOW()""";
 
+    private static final String QUERY_CANCEL_OPERATIONS = """
+        UPDATE operation
+        SET error = ?, done = TRUE, modified_at = NOW()
+        WHERE id IN ? AND done = FALSE
+        """;
+
     private final Storage storage;
 
     public OperationDaoImpl(Storage storage) {
@@ -194,7 +201,7 @@ public class OperationDaoImpl implements OperationDao {
             }
         });
 
-        LOG.info("Operation {} has been created", operation.id());
+        LOG.debug("Operation {} has been created", operation.id());
     }
 
     @Nullable
@@ -205,7 +212,7 @@ public class OperationDaoImpl implements OperationDao {
         var operation = getBy(idempotencyKey, QUERY_FIND_OPERATION, transaction);
 
         if (operation == null) {
-            LOG.info("Cannot find operation by { idempotencyKey: {} }", idempotencyKey);
+            LOG.debug("Cannot find operation by { idempotencyKey: {} }", idempotencyKey);
         }
 
         return operation;
@@ -217,7 +224,7 @@ public class OperationDaoImpl implements OperationDao {
         var operation = getBy(operationId, QUERY_GET_OPERATION, transaction);
 
         if (operation == null) {
-            LOG.info("Cannot find operation by { operationId: {} }", operationId);
+            LOG.debug("Cannot find operation by { operationId: {} }", operationId);
         }
 
         return operation;
@@ -227,6 +234,7 @@ public class OperationDaoImpl implements OperationDao {
     private Operation getBy(String key, String sql, @Nullable TransactionHandle transaction)
         throws SQLException
     {
+        LOG.debug("Get operation {}", key);
         return DbOperation.execute(transaction, storage, connection -> {
             try (PreparedStatement st = connection.prepareStatement(sql + forUpdate(transaction))) {
                 st.setString(1, key);
@@ -245,7 +253,7 @@ public class OperationDaoImpl implements OperationDao {
 
     @Override
     public void update(String id, @Nullable TransactionHandle transaction) throws SQLException {
-        LOG.info("Update operation {}", id);
+        LOG.debug("Update operation {}", id);
 
         DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_TIME)) {
@@ -277,7 +285,7 @@ public class OperationDaoImpl implements OperationDao {
 
         return DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(
-                    meta != null ? QUERY_UPDATE_OPERATION_META_RESPONSE : QUERY_UPDATE_OPERATION_RESPONSE))
+                meta != null ? QUERY_UPDATE_OPERATION_META_RESPONSE : QUERY_UPDATE_OPERATION_RESPONSE))
             {
                 int index = 0;
                 st.setString(++index, id);
@@ -305,7 +313,7 @@ public class OperationDaoImpl implements OperationDao {
 
     @Override
     public Operation updateMeta(String id, Any meta, @Nullable TransactionHandle transaction) throws SQLException {
-        LOG.info("Update operation {} meta", id);
+        LOG.debug("Update operation {} meta", id);
 
         return DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_META)) {
@@ -340,8 +348,23 @@ public class OperationDaoImpl implements OperationDao {
     }
 
     @Override
+    public void cancel(Collection<String> ids, Status error, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        LOG.info("Cancel operations {}", String.join(", ", ids));
+
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement(QUERY_CANCEL_OPERATIONS)) {
+                statement.setBytes(1, error.toByteArray());
+                statement.setString(2, "(" + String.join(", ", ids) + ")");
+                statement.executeUpdate();
+            }
+        });
+    }
+
+    @Override
     public boolean deleteCompletedOperation(String operationId, TransactionHandle transaction) throws SQLException {
-        LOG.info("Delete completed operation {}", operationId);
+        LOG.debug("Delete completed operation {}", operationId);
         return DbOperation.execute(transaction, storage, conn -> {
             try (PreparedStatement st = conn.prepareStatement(QUERY_DELETE_COMPLETED_OPERATION)) {
                 st.setString(1, operationId);
@@ -352,7 +375,7 @@ public class OperationDaoImpl implements OperationDao {
 
     @Override
     public int deleteOutdatedOperations(int hours) throws SQLException {
-        LOG.info("Delete outdated operations (more then {} hours)", hours);
+        LOG.debug("Delete outdated operations (more then {} hours)", hours);
         return DbOperation.execute(null, storage, conn -> {
             try (PreparedStatement st = conn.prepareStatement(QUERY_DELETE_OUTDATED_OPERATIONS.formatted(hours))) {
                 return st.executeUpdate();

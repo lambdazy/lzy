@@ -17,6 +17,7 @@ import javax.annotation.Nullable;
 @JsonSerialize
 @JsonDeserialize
 @NoArgsConstructor
+public
 class DataFlowGraph {
     private static final String edge = " -> ";
 

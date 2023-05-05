@@ -1,4 +1,4 @@
-package ai.lzy.service.data.dao;
+package ai.lzy.service.data.dao.impl;
 
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
@@ -6,6 +6,8 @@ import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.data.ExecutionStatus;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.data.PortalStatus;
+import ai.lzy.service.data.dao.ExecutionDao;
+import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.v1.common.LMST;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -38,6 +40,10 @@ public class ExecutionDaoImpl implements ExecutionDao {
     private static final String QUERY_DELETE_EXECUTION = """
         DELETE FROM workflow_executions
         WHERE execution_id = ?""";
+
+    private static final String QUERY_SELECT_EXECUTION = """
+        SELECT execution_id, user_id FROM workflow_executions WHERE execution_id = ? AND user_id = ?
+        """;
 
     private static final String QUERY_UPDATE_PORTAL_CHANNEL_IDS = """
         UPDATE workflow_executions
@@ -164,6 +170,19 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
+    public boolean exists(String execId, String userId, @Nullable TransactionHandle transaction) throws SQLException {
+        boolean[] result = {false};
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement(QUERY_SELECT_EXECUTION)) {
+                statement.setString(1, execId);
+                statement.setString(2, userId);
+                result[0] = statement.executeQuery().next();
+            }
+        });
+        return result[0];
+    }
+
+    @Override
     public void updateStdChannelIds(String executionId, String stdoutChannelId, String stderrChannelId,
                                     @Nullable TransactionHandle transaction) throws SQLException
     {
@@ -179,8 +198,8 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updatePortalVmAllocateSession(String executionId, String sessionId, String portalId,
-                                              @Nullable TransactionHandle transaction) throws SQLException
+    public void updateAllocatorSession(String executionId, String sessionId, String portalId,
+                                       @Nullable TransactionHandle transaction) throws SQLException
     {
         DbOperation.execute(transaction, storage, connection -> {
             try (var statement = connection.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {

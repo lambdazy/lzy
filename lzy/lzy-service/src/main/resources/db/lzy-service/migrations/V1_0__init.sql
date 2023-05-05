@@ -42,6 +42,18 @@ CREATE TABLE workflow_executions
 CREATE INDEX expired_workflow_executions_index ON workflow_executions (execution_status)
     WHERE execution_status = cast('ERROR' AS execution_status);
 
+CREATE TABLE execution_operations
+(
+    op_id               TEXT NOT NULL PRIMARY KEY,
+    op_type             TEXT NOT NULL,
+    service_instance_id TEXT NOT NULL, -- instance that created the op
+    execution_id        TEXT NOT NULL,
+
+    state_json          TEXT NOT NULL, -- some operation specific state
+
+    FOREIGN KEY (op_id) REFERENCES operation (id)
+);
+
 CREATE TABLE workflows
 (
     user_id             TEXT      NOT NULL,

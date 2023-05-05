@@ -1,6 +1,7 @@
 package ai.lzy.service;
 
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.DummyMetricReporter;
@@ -9,6 +10,7 @@ import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.PrometheusMetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.kafka.KafkaAdminClient;
@@ -29,6 +31,7 @@ import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Counter;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
@@ -168,5 +171,17 @@ public class BeanFactory {
                                                              @Named("LzyServiceIamToken") RenewableJwt userCreds)
     {
         return new SubjectServiceGrpcClient(APP, iamChannel, userCreds::get);
+    }
+
+    @Singleton
+    @Bean(preDestroy = "shutdown")
+    @Named("LzyServiceOperationsExecutor")
+    public OperationsExecutor operationsExecutor(@Named("LzyServiceMetricReporter") MetricReporter mr) {
+        final Counter errors = Counter
+            .build("executor_errors", "Executor unexpected errors")
+            .subsystem("allocator")
+            .register();
+
+        return new OperationsExecutor(5, 20, errors::inc, e -> e instanceof InjectedFailures.TerminateException);
     }
 }

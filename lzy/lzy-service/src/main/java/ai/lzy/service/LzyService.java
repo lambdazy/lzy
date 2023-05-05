@@ -1,32 +1,38 @@
 package ai.lzy.service;
 
-import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.InvalidStateException;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.data.ExecuteGraphOperationState;
+import ai.lzy.service.data.StartExecutionOperationState;
+import ai.lzy.service.data.StopExecutionOperationState;
 import ai.lzy.service.data.dao.ExecutionDao;
+import ai.lzy.service.data.dao.ExecutionOperationsDao;
 import ai.lzy.service.data.dao.GraphDao;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
-import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.service.graph.GraphExecutionService;
-import ai.lzy.service.graph.GraphExecutionState;
 import ai.lzy.service.util.StorageUtils;
 import ai.lzy.service.workflow.WorkflowService;
+import ai.lzy.service.workflow.finish.AbortExecutionAction;
 import ai.lzy.util.auth.credentials.RenewableJwt;
-import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc;
+import ai.lzy.v1.storage.LzyStorageServiceGrpc.LzyStorageServiceBlockingStub;
+import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.MessageOrBuilder;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -39,76 +45,79 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
 import java.net.URI;
-import java.sql.SQLException;
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
+import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import static ai.lzy.iam.grpc.context.AuthenticationContext.currentSubject;
 import static ai.lzy.longrunning.IdempotencyUtils.*;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
+import static ai.lzy.util.grpc.ProtoPrinter.safePrinter;
 import static ai.lzy.v1.workflow.LWFS.*;
 
 @Singleton
 public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBase {
     private static final Logger LOG = LogManager.getLogger(LzyService.class);
-
     public static final String APP = "LzyService";
 
-    private final CleanExecutionCompanion cleanExecutionCompanion;
     private final String instanceId;
 
-    private final WorkflowService workflowService;
-    private final GraphExecutionService graphExecutionService;
-
-    private final ExecutorService workersPool;
-
-    private final LzyStorageServiceGrpc.LzyStorageServiceBlockingStub storageServiceClient;
-    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub storageOpService;
-    private final Duration bucketCreationTimeout;
-
     private final Storage storage;
-    private final LzyServiceMetrics metrics;
     private final OperationDao operationDao;
     private final WorkflowDao workflowDao;
     private final ExecutionDao executionDao;
+    private final ExecutionOperationsDao executionOperationsDao;
     private final GraphDao graphDao;
+
+    private final WorkflowService workflowService;
+    private final GraphExecutionService graphExecutionService;
+    private final LzyStorageServiceBlockingStub storagesClient;
+    private final LongRunningServiceBlockingStub storageOpsClient;
+
+    private final LzyServiceConfig config;
+    private final ActionsManager actionsManager;
+    private final Duration bucketCreationTimeout;
+    private final LzyServiceMetrics metrics;
 
     public LzyService(WorkflowService workflowService, GraphExecutionService graphExecutionService,
                       GraphDao graphDao, ExecutionDao executionDao, WorkflowDao workflowDao,
                       LzyServiceStorage storage, @Named("LzyServiceOperationDao") OperationDao operationDao,
-                      CleanExecutionCompanion cleanExecutionCompanion, LzyServiceConfig config,
+                      ExecutionOperationsDao executionOperationsDao,
+                      LzyServiceConfig config, ActionsManager actionsManager,
                       @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
-                      @Named("StorageServiceChannel") ManagedChannel storageChannel
-        /*, GarbageCollector gc */, @Named("LzyServiceServerExecutor") ExecutorService workersPool,
+                      @Named("StorageServiceChannel") ManagedChannel storageChannel,
+                      @Named("LzyServiceOperationsExecutor") OperationsExecutor operationsExecutor,
                       LzyServiceMetrics metrics)
     {
-        this.cleanExecutionCompanion = cleanExecutionCompanion;
         this.instanceId = config.getInstanceId();
         this.bucketCreationTimeout = config.getStorage().getBucketCreationTimeout();
         this.workflowService = workflowService;
         this.graphExecutionService = graphExecutionService;
-        this.workersPool = workersPool;
         this.operationDao = operationDao;
         this.workflowDao = workflowDao;
         this.executionDao = executionDao;
         this.graphDao = graphDao;
         this.storage = storage;
+        this.config = config;
+        this.actionsManager = actionsManager;
         this.metrics = metrics;
+        this.executionOperationsDao = executionOperationsDao;
 
-        this.storageServiceClient = newBlockingClient(
+        this.storagesClient = newBlockingClient(
             LzyStorageServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
-        this.storageOpService = newBlockingClient(
+        this.storageOpsClient = newBlockingClient(
             LongRunningServiceGrpc.newBlockingStub(storageChannel), APP, () -> internalUserCredentials.get().token());
 
-        // gc.start();
-
-        restartNotCompletedOps();
+        // restartNotCompletedOps();
     }
 
+    /*
     @VisibleForTesting
     public void testRestart() {
         restartNotCompletedOps();
@@ -134,207 +143,428 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             throw new RuntimeException(e);
         }
     }
+    */
 
-    @Override
-    public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> responseObserver) {
-        workflowService.startWorkflow(request, responseObserver);
+    private boolean validate(StartWorkflowRequest request, StreamObserver<? extends MessageOrBuilder> response) {
+        LOG.debug("Validate StartWorkflowRequest: {}", safePrinter().printToString(request));
+        if (Strings.isBlank(request.getWorkflowName())) {
+            LOG.error("Cannot start workflow execution. Blank 'workflowName': {}",
+                safePrinter().printToString(request));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Blank 'workflowName'").asRuntimeException());
+            return true;
+        }
+
+        return false;
+    }
+
+    private boolean validate(String userId, FinishWorkflowRequest request,
+                             StreamObserver<? extends MessageOrBuilder> response)
+    {
+        LOG.debug("Validate FinishWorkflowRequest: {}", safePrinter().printToString(request));
+        if (Strings.isBlank(request.getExecutionId()) || Strings.isBlank(request.getWorkflowName())) {
+            LOG.error("Cannot finish workflow. Blank 'executionId' or 'workflowName': {}",
+                safePrinter().printToString(request));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Blank 'executionId' or 'workflowName'")
+                .asRuntimeException());
+            return true;
+        }
+
+        return checkPermissionOnExecution(userId, request.getExecutionId(), response);
+    }
+
+    private boolean validate(String userId, AbortWorkflowRequest request,
+                             StreamObserver<? extends MessageOrBuilder> response)
+    {
+        LOG.debug("Validate AbortWorkflowRequest: {}", safePrinter().printToString(request));
+        if (Strings.isBlank(request.getExecutionId()) || Strings.isBlank(request.getWorkflowName())) {
+            LOG.error("Cannot abort workflow. Blank 'executionId' or 'workflowName': {}",
+                safePrinter().printToString(request));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Blank 'executionId' or 'workflowName'")
+                .asRuntimeException());
+            return true;
+        }
+
+        return checkPermissionOnExecution(userId, request.getExecutionId(), response);
+    }
+
+    private boolean validate(String userId, ExecuteGraphRequest request,
+                             StreamObserver<? extends MessageOrBuilder> response)
+    {
+        LOG.debug("Validate ExecuteGraphRequest: {}", safePrinter().printToString(request));
+        if (Strings.isBlank(request.getExecutionId()) || Strings.isBlank(request.getWorkflowName())) {
+            LOG.error("Cannot execute graph in workflow execution. Blank 'executionId' or 'workflowName': {}",
+                safePrinter().printToString(request));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Blank 'executionId' or 'workflowName'")
+                .asRuntimeException());
+            return true;
+        }
+
+        return checkPermissionOnExecution(userId, request.getExecutionId(), response);
+    }
+
+    private boolean validate(String userId, GraphStatusRequest request,
+                             StreamObserver<? extends MessageOrBuilder> response)
+    {
+        LOG.debug("Validate GraphStatusRequest: {}", safePrinter().printToString(request));
+        if (Strings.isBlank(request.getExecutionId()) || Strings.isBlank(request.getGraphId())) {
+            LOG.error("Cannot obtain graph status. Blank 'executionId' or 'graphId': {}",
+                safePrinter().printToString(request));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Blank 'executionId' or 'graphId'")
+                .asRuntimeException());
+            return true;
+        }
+
+        return checkPermissionOnExecution(userId, request.getExecutionId(), response);
+    }
+
+    private boolean validate(String userId, StopGraphRequest request,
+                             StreamObserver<? extends MessageOrBuilder> response)
+    {
+        LOG.debug("Validate StopGraphRequest: {}", safePrinter().printToString(request));
+        if (Strings.isBlank(request.getExecutionId()) || Strings.isBlank(request.getGraphId())) {
+            LOG.error("Cannot stop graph. Blank 'executionId' or 'graphId': {}",
+                safePrinter().printToString(request));
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Blank 'executionId' or 'graphId'")
+                .asRuntimeException());
+            return true;
+        }
+
+        return checkPermissionOnExecution(userId, request.getExecutionId(), response);
     }
 
     @Override
-    public void finishWorkflow(FinishWorkflowRequest request, StreamObserver<LongRunning.Operation> response) {
+    public void startWorkflow(StartWorkflowRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+        var userId = currentSubject().id();
+        var wfName = request.getWorkflowName();
+        var newExecId = wfName + "_" + UUID.randomUUID();
+
+        LOG.info("Request to start workflow execution: { userId: {}, wfName: {}, newActiveExecId: {} }", userId,
+            wfName, newExecId);
+
+        if (validate(request, responseObserver)) {
+            return;
+        }
+
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, response, LOG)) {
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, responseObserver, LOG)) {
             return;
         }
 
-        var userId = AuthenticationContext.currentSubject().id();
-        var workflowName = request.getWorkflowName();
-        var executionId = request.getExecutionId();
-        var reason = request.getReason();
+        var startOpTimeout = config.getWaitAllocationTimeout().plus(Duration.ofSeconds(15));
 
-        if (Strings.isBlank(executionId) || Strings.isBlank(workflowName)) {
-            LOG.error("Cannot finish workflow. Blank 'executionId' or 'workflowName': {}",
-                ProtoPrinter.printer().printToString(request));
-            response.onError(Status.INVALID_ARGUMENT.withDescription("Blank 'executionId' or 'workflowName'")
-                .asRuntimeException());
-            return;
-        }
+        Operation startOp = Operation.create(userId, String.format("Start workflow execution: wfName='%s', " +
+            "newActiveExecId=%s", wfName, newExecId), startOpTimeout, idempotencyKey, null);
+        Operation stopOp = null;
+        String oldExecId;
 
-        LOG.info("Attempt to finish workflow: { userId: {}, workflowName: {}, executionId: {}, reason: {} }", userId,
-            workflowName, executionId, reason);
+        try (var tx = TransactionHandle.create(storage)) {
+            oldExecId = workflowDao.upsert(userId, wfName, newExecId, tx);
 
-        var op = Operation.create(userId, "Finish workflow: workflowName='%s', executionId='%s'"
-            .formatted(workflowName, executionId), null, idempotencyKey, null);
-        var finishStatus = Status.OK.withDescription(reason);
+            if (oldExecId != null) {
+                stopOp = Operation.create(userId, "Stop execution: execId='%s'".formatted(oldExecId),
+                    AbortExecutionAction.timeout, idempotencyKey, null);
+                operationDao.create(stopOp, tx);
+                executionOperationsDao.create(stopOp.id(), instanceId, oldExecId,
+                    new StopExecutionOperationState(), tx);
+            }
 
-        try {
-            withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    workflowDao.setActiveExecutionToNull(userId, workflowName, executionId, tx);
-                    executionDao.updateFinishData(userId, executionId, finishStatus, tx);
-                    operationDao.create(op, tx);
-                    executionDao.setCompletingExecutionStatus(executionId, tx);
-
-                    tx.commit();
-                }
-            });
-        } catch (NotFoundException e) {
-            LOG.error("Cannot finish workflow, not found: { workflowName: {}, executionId: {}, error: {} }",
-                workflowName, executionId, e.getMessage());
-            response.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
-            return;
-        } catch (IllegalStateException e) {
-            LOG.error("Cannot finish workflow, invalid state: { workflowName: {}, executionId: {}, error: {} }",
-                workflowName, executionId, e.getMessage());
-            response.onError(Status.FAILED_PRECONDITION.withDescription(e.getMessage()).asRuntimeException());
-            return;
+            operationDao.create(startOp, tx);
+            executionOperationsDao.create(startOp.id(), instanceId, newExecId, new StartExecutionOperationState(), tx);
+            tx.commit();
         } catch (Exception e) {
             if (idempotencyKey != null &&
-                handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, response, LOG))
+                handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, responseObserver, LOG))
             {
                 return;
             }
 
-            LOG.error("Unexpected error while finish workflow: { workflowName: {}, executionId: {}, error: {} }",
-                workflowName, executionId, e.getMessage());
-            response.onError(Status.INTERNAL.withDescription("Cannot finish execution " +
-                "'%s': %s".formatted(executionId, e.getMessage())).asRuntimeException());
+            LOG.error("Cannot start workflow: { userId: {}, wfName: {}, error: {} }", userId, wfName,
+                e.getMessage(), e);
+
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot start workflow").asRuntimeException());
             return;
         }
 
-        workersPool.submit(() -> workflowService.completeExecution(userId, executionId, op));
+        var idk = idempotencyKey != null ? idempotencyKey.token() : null;
+        try {
+            LOG.debug("Schedule action to start execution: { userId: {}, wfName: {} }", userId, wfName);
+            actionsManager.startExecutionAction(startOp.id(), startOp.description(), idk, userId, wfName, newExecId);
+        } catch (Exception e) {
+            LOG.error("Cannot schedule action to start new workflow execution: { userId: {}, wfName: {}, error: {} } ",
+                userId, wfName, e.getMessage(), e);
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot start workflow").asRuntimeException());
+            return;
+        }
+        try {
+            if (stopOp != null) {
+                LOG.debug("Schedule action to abort previous execution: { userId: {}, wfName: {} }", userId, wfName);
+                actionsManager.abortExecutionAction(stopOp.id(), stopOp.description(), idk, oldExecId,
+                    Status.CANCELLED.withDescription("by new started execution"));
+            }
+        } catch (Exception e) {
+            LOG.error("Cannot schedule action to finish previous active execution: { userId: {}, wfName: {}," +
+                " error: {} }", userId, wfName, e.getMessage(), e);
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot start workflow").asRuntimeException());
+            return;
+        }
 
-        response.onNext(op.toProto());
-        response.onCompleted();
+        responseObserver.onNext(startOp.toProto());
+        responseObserver.onCompleted();
     }
 
     @Override
-    public void abortWorkflow(AbortWorkflowRequest request, StreamObserver<AbortWorkflowResponse> response) {
-        var userId = AuthenticationContext.currentSubject().id();
-        var workflowName = request.getWorkflowName();
-        var executionId = request.getExecutionId();
+    public void finishWorkflow(FinishWorkflowRequest request, StreamObserver<FinishWorkflowResponse> responseObserver) {
+        var userId = currentSubject().id();
+        var wfName = request.getWorkflowName();
+        var execId = request.getExecutionId();
         var reason = request.getReason();
 
-        if (Strings.isBlank(workflowName) || Strings.isBlank(executionId)) {
-            LOG.error("Empty 'workflowName' or 'executionId': {}", ProtoPrinter.printer().printToString(request));
-            response.onError(Status.INVALID_ARGUMENT.withDescription("Empty 'workflowName' or 'executionId'")
-                .asRuntimeException());
+        LOG.info("Request to finish workflow with active execution: { userId: {}, wfName: {}, execId: {}, " +
+            "reason: {} }", userId, wfName, execId, reason);
+
+        if (validate(userId, request, responseObserver)) {
             return;
         }
 
-        LOG.info("Attempt to abort workflow with active execution: { workflowName: {}, executionId: {} }",
-            workflowName, executionId);
-
-        var abortStatus = Status.CANCELLED.withDescription(reason);
-        try {
-            cleanExecutionCompanion.finishWorkflow(userId, workflowName, executionId, abortStatus);
-            cleanExecutionCompanion.cleanExecution(executionId);
-        } catch (NotFoundException nfe) {
-            LOG.error("Workflow with active execution not found: { userId: {}, workflowName: {}, executionId: {} }",
-                userId, workflowName, executionId);
-            response.onError(Status.NOT_FOUND.withDescription("Cannot found user workflow " +
-                "'%s' with active execution '%s'".formatted(workflowName, executionId)).asRuntimeException());
-            return;
-        } catch (Exception e) {
-            LOG.error("Cannot abort workflow: { userId: {}, workflowName: {}, executionId: {}, error: {} }",
-                userId, workflowName, executionId, e.getMessage(), e);
-            response.onError(Status.INTERNAL.withDescription("Cannot abort workflow").asRuntimeException());
-            return;
-        }
-
-        response.onNext(AbortWorkflowResponse.getDefaultInstance());
-        response.onCompleted();
-    }
-
-    @Override
-    public void executeGraph(ExecuteGraphRequest request, StreamObserver<ExecuteGraphResponse> responseObserver) {
+        var checkOpResultDelay = Duration.ofMillis(300);
+        var opTimeout = Duration.ofSeconds(15);
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null &&
-            loadExistingOpResult(operationDao, idempotencyKey, responseObserver, ExecuteGraphResponse.class,
-                Duration.ofMillis(100), Duration.ofSeconds(5), LOG))
+        if (idempotencyKey != null && loadExistingOpResult(operationDao, idempotencyKey, responseObserver,
+            FinishWorkflowResponse.class, checkOpResultDelay, opTimeout, LOG))
         {
             return;
         }
 
-        String userId = AuthenticationContext.currentSubject().id();
-        String workflowName = request.getWorkflowName();
-        String executionId = request.getExecutionId();
+        boolean[] success = {false};
+        var op = Operation.create(userId, "Finish workflow execution: wfName='%s', activeExecId='%s'".formatted(
+            wfName, execId), opTimeout, idempotencyKey, null);
 
-        if (checkExecution(userId, executionId, responseObserver)) {
+        try {
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    success[0] = workflowDao.deactivate(userId, wfName, execId, tx);
+                    if (success[0]) {
+                        var opsToCancel = executionOperationsDao.get(execId, tx).stream()
+                            .filter(opInfo -> opInfo.type() != ExecutionOperationsDao.OpType.STOP)
+                            .map(ExecutionOperationsDao.OpInfo::opId)
+                            .toList();
+                        if (!opsToCancel.isEmpty()) {
+                            operationDao.cancel(opsToCancel, toProto(Status.CANCELLED.withDescription("Execution " +
+                                "was finished")), tx);
+                        }
+
+                        operationDao.create(op, tx);
+                        executionOperationsDao.create(op.id(), instanceId, execId, new StopExecutionOperationState(),
+                            tx);
+                    }
+                    tx.commit();
+                }
+            });
+        } catch (Exception e) {
+            if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, e, operationDao,
+                responseObserver, FinishWorkflowResponse.class, checkOpResultDelay, opTimeout, LOG))
+            {
+                return;
+            }
+
+            LOG.error("Cannot finish workflow: { userId: {}, wfName: {}, execId: {}, error: {} }",
+                userId, wfName, execId, e.getMessage(), e);
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot finish workflow").asRuntimeException());
             return;
         }
 
-        var op = Operation.create(userId, "Execute graph in execution: executionId='%s'".formatted(executionId),
-            null, idempotencyKey, null);
+        if (success[0]) {
+            var idk = idempotencyKey != null ? idempotencyKey.token() : null;
+            try {
+                LOG.debug("Schedule action to finish execution: { wfName: {}, execId: {} }", wfName, execId);
+                actionsManager.finishExecutionAction(op.id(), op.description(), idk, execId,
+                    Status.OK.withDescription(reason));
+            } catch (Exception e) {
+                LOG.error("Cannot schedule action to finish workflow: { wfName: {}, execId: {}, error: {} }", wfName,
+                    execId, e.getMessage(), e);
+                responseObserver.onError(
+                    Status.INTERNAL.withDescription("Cannot finish workflow").asRuntimeException());
+                return;
+            }
+        }
 
-        var state = new GraphExecutionState(userId, workflowName, executionId, op.id(), request.getGraph());
+        responseObserver.onNext(FinishWorkflowResponse.getDefaultInstance());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void abortWorkflow(AbortWorkflowRequest request, StreamObserver<AbortWorkflowResponse> responseObserver) {
+        var userId = currentSubject().id();
+        var wfName = request.getWorkflowName();
+        var execId = request.getExecutionId();
+        var reason = request.getReason();
+
+        LOG.info("Request to abort workflow with active execution: { userId: {}, wfName: {}, execId: {}, " +
+            "reason: {} }", userId, wfName, execId, reason);
+
+        if (validate(userId, request, responseObserver)) {
+            return;
+        }
+
+        var checkOpResultDelay = Duration.ofMillis(300);
+        var opTimeout = Duration.ofSeconds(15);
+        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOpResult(operationDao, idempotencyKey, responseObserver,
+            AbortWorkflowResponse.class, checkOpResultDelay, opTimeout, LOG))
+        {
+            return;
+        }
+
+        boolean[] success = {false};
+        var op = Operation.create(userId, String.format("Abort workflow with active execution: userId='%s', " +
+            "wfName='%s', activeExecId='%s'", userId, wfName, execId), null, idempotencyKey, null);
+
+        try {
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    success[0] = workflowDao.deactivate(userId, wfName, execId, tx);
+                    if (success[0]) {
+                        var opsToCancel = executionOperationsDao.get(execId, tx).stream()
+                            .filter(opInfo -> opInfo.type() != ExecutionOperationsDao.OpType.STOP)
+                            .map(ExecutionOperationsDao.OpInfo::opId)
+                            .toList();
+                        if (!opsToCancel.isEmpty()) {
+                            operationDao.cancel(opsToCancel, toProto(Status.CANCELLED.withDescription("Execution " +
+                                "was aborted")), tx);
+                        }
+
+                        operationDao.create(op, tx);
+                        executionOperationsDao.create(op.id(), instanceId, execId, new StopExecutionOperationState(),
+                            tx);
+                    }
+                    tx.commit();
+                }
+            });
+        } catch (NotFoundException e) {
+            LOG.error("Cannot abort workflow, not found: { wfName: {}, execId: {}, error: {} }",
+                wfName, execId, e.getMessage(), e);
+            responseObserver.onError(Status.NOT_FOUND.withDescription(e.getMessage()).asRuntimeException());
+            return;
+        } catch (IllegalStateException e) {
+            LOG.error("Cannot abort workflow, invalid state: { wfName: {}, execId: {}, error: {} }",
+                wfName, execId, e.getMessage(), e);
+            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(e.getMessage()).asRuntimeException());
+            return;
+        } catch (Exception e) {
+            if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, e, operationDao,
+                responseObserver, AbortWorkflowResponse.class, checkOpResultDelay, opTimeout, LOG))
+            {
+                return;
+            }
+
+            LOG.error("Unexpected error while abort workflow: { wfName: {}, execId: {}, error: {} }",
+                wfName, execId, e.getMessage(), e);
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot abort execution " +
+                "'%s': %s".formatted(execId, e.getMessage())).asRuntimeException());
+            return;
+        }
+
+        if (success[0]) {
+            var idk = idempotencyKey != null ? idempotencyKey.token() : null;
+            try {
+                LOG.debug("Schedule action to abort workflow: { wfName: {}, execId: {} }", wfName, execId);
+                actionsManager.abortExecutionAction(op.id(), op.description(), idk, execId,
+                    Status.CANCELLED.withDescription(reason));
+            } catch (Exception e) {
+                LOG.error("Cannot schedule action to abort workflow: { wfName: {}, execId: {} }", wfName, execId);
+                responseObserver.onError(Status.INTERNAL.withDescription("Cannot abort workflow").asRuntimeException());
+                return;
+            }
+        }
+
+        responseObserver.onNext(AbortWorkflowResponse.getDefaultInstance());
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void executeGraph(ExecuteGraphRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+        var userId = currentSubject().id();
+        var wfName = request.getWorkflowName();
+        var execId = request.getExecutionId();
+
+        LOG.info("Request to execute graph: { userId: {}, wfName: {}, execId: {} }", userId, wfName, execId);
+
+        if (validate(userId, request, responseObserver)) {
+            return;
+        }
+
+        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, responseObserver, LOG)) {
+            return;
+        }
+
+        var op = Operation.create(userId, "Execute graph: userId='%s', wfName='%s', activeExecId='%s'".formatted(
+            userId, wfName, execId), Duration.ofSeconds(10), idempotencyKey, null);
 
         try (var tx = TransactionHandle.create(storage)) {
-            operationDao.create(op, tx);
-            graphDao.put(state, instanceId, tx);
+            if (!Objects.equals(workflowDao.getExecutionId(userId, wfName, tx), execId)) {
+                throw new NotFoundException("Cannot found active execution with id='%s'".formatted(execId));
+            }
 
+            for (ExecutionOperationsDao.OpInfo opInfo : executionOperationsDao.get(execId, tx)) {
+                if (opInfo.type() == ExecutionOperationsDao.OpType.START) {
+                    throw new InvalidStateException("Execution with id='%s' is not started yet".formatted(execId));
+                }
+                if (opInfo.type() == ExecutionOperationsDao.OpType.STOP) {
+                    throw new InvalidStateException("Execution with id='%s' is being stopped".formatted(execId));
+                }
+            }
+
+            operationDao.create(op, tx);
+            executionOperationsDao.create(op.id(), instanceId, execId, new ExecuteGraphOperationState(), tx);
             tx.commit();
-        } catch (Exception ex) {
-            if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, ex, operationDao,
-                responseObserver, ExecuteGraphResponse.class, Duration.ofMillis(100), Duration.ofSeconds(5), LOG))
+        } catch (NotFoundException nfe) {
+            LOG.error("Cannot execute graph: { execId: {}, error: {} }", execId, nfe.toString(), nfe);
+            responseObserver.onError(Status.INVALID_ARGUMENT.withDescription(nfe.getMessage()).asRuntimeException());
+            return;
+        } catch (InvalidStateException ise) {
+            LOG.error("Cannot execute graph: { execId: {}, error: {} }", execId, ise.toString(), ise);
+            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(ise.getMessage()).asRuntimeException());
+            return;
+        } catch (Exception e) {
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, responseObserver, LOG))
             {
                 return;
             }
 
-            LOG.error("Cannot create execute graph operation for: { userId: {}, executionId: {}, error: {} }",
-                userId, executionId, ex.getMessage(), ex);
-            var status = Status.INTERNAL.withDescription(ex.getMessage());
-
-            if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId,
-                status))
-            {
-                cleanExecutionCompanion.cleanExecution(executionId);
-            }
-
-            responseObserver.onError(status.asException());
+            LOG.error("Cannot execute graph: { execId: {}, error: {} }", execId, e.getMessage(), e);
+            responseObserver.onError(Status.INTERNAL.withDescription(e.getMessage()).asRuntimeException());
             return;
         }
 
-        InjectedFailures.fail0();
+        var idk = idempotencyKey != null ? idempotencyKey.token() : null;
+        try {
+            LOG.debug("Schedule execute graph action: { execId: {} }", execId);
 
-        workersPool.submit(() -> {
-            var completedOp = graphExecutionService.executeGraph(state);
+            var poolsZone = Strings.isBlank(request.getGraph().getZone()) ? null : request.getGraph().getZone();
+            var operations = request.getGraph().getOperationsList();
+            var opsPoolSpec = operations.stream().map(LWF.Operation::getPoolSpecName).toList();
+            var slot2description = request.getGraph().getDataDescriptionsList().stream()
+                .collect(Collectors.toMap(LWF.DataDescription::getStorageUri, Function.identity()));
 
-            if (completedOp == null) {
-                // emulates service shutdown
-                responseObserver.onError(Status.DEADLINE_EXCEEDED.asRuntimeException());
-                return;
-            }
+            actionsManager.executeGraphAction(op.id(), op.description(), idk, userId, wfName, execId, poolsZone,
+                opsPoolSpec, slot2description, operations);
+        } catch (Exception e) {
+            LOG.error("Cannot schedule action to execute graph: { execId: {}, error: {} }", execId, e.getMessage(), e);
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot execute graph").asRuntimeException());
+            return;
+        }
 
-            try {
-                var resp = completedOp.response();
-                if (resp != null) {
-                    responseObserver.onNext(resp.unpack(ExecuteGraphResponse.class));
-                    responseObserver.onCompleted();
-                } else {
-                    var error = completedOp.error();
-                    assert error != null;
-                    responseObserver.onError(error.asRuntimeException());
-                }
-            } catch (Exception e) {
-                var status = Status.INTERNAL.withDescription("Cannot execute graph");
-                LOG.error("Cannot execute graph: {}", e.getMessage(), e);
-
-                if (cleanExecutionCompanion.tryToFinishWorkflow(userId, workflowName, executionId, status)) {
-                    cleanExecutionCompanion.cleanExecution(executionId);
-                }
-
-                responseObserver.onError(status.asRuntimeException());
-            }
-        });
+        responseObserver.onNext(op.toProto());
+        responseObserver.onCompleted();
     }
 
     @Override
     public void graphStatus(GraphStatusRequest request, StreamObserver<GraphStatusResponse> responseObserver) {
-        String userId = AuthenticationContext.currentSubject().id();
-        String executionId = request.getExecutionId();
+        var userId = currentSubject().id();
 
-        if (checkExecution(userId, executionId, responseObserver)) {
+        if (validate(userId, request, responseObserver)) {
             return;
         }
 
@@ -343,10 +573,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     @Override
     public void stopGraph(StopGraphRequest request, StreamObserver<StopGraphResponse> responseObserver) {
-        String userId = AuthenticationContext.currentSubject().id();
-        String executionId = request.getExecutionId();
+        var userId = currentSubject().id();
 
-        if (checkExecution(userId, executionId, responseObserver)) {
+        if (validate(userId, request, responseObserver)) {
             return;
         }
 
@@ -355,10 +584,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     @Override
     public void readStdSlots(ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> responseObserver) {
-        String userId = AuthenticationContext.currentSubject().id();
+        String userId = currentSubject().id();
         String executionId = request.getExecutionId();
 
-        if (checkExecution(userId, executionId, responseObserver)) {
+        if (checkPermissionOnExecution(userId, executionId, responseObserver)) {
             return;
         }
 
@@ -369,10 +598,10 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     public void getAvailablePools(GetAvailablePoolsRequest request,
                                   StreamObserver<GetAvailablePoolsResponse> responseObserver)
     {
-        String userId = AuthenticationContext.currentSubject().id();
+        String userId = currentSubject().id();
         String executionId = request.getExecutionId();
 
-        if (checkExecution(userId, executionId, responseObserver)) {
+        if (checkPermissionOnExecution(userId, executionId, responseObserver)) {
             return;
         }
 
@@ -383,7 +612,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     public void getOrCreateDefaultStorage(GetOrCreateDefaultStorageRequest request,
                                           StreamObserver<GetOrCreateDefaultStorageResponse> responseObserver)
     {
-        final String userId = AuthenticationContext.currentSubject().id();
+        final String userId = currentSubject().id();
         final String bucketName = StorageUtils.createInternalBucketName(userId);
 
         LOG.info("Get storage credentials for bucket {}", bucketName);
@@ -392,18 +621,18 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             LOG.info("Creating new temporary storage bucket if it does not exist: { bucketName: {}, userId: {} }",
                 bucketName, userId);
             LongRunning.Operation createOp =
-                withIdempotencyKey(storageServiceClient, userId + "_" + bucketName)
+                withIdempotencyKey(storagesClient, userId + "_" + bucketName)
                     .createStorage(LSS.CreateStorageRequest.newBuilder()
                         .setUserId(userId)
                         .setBucket(bucketName)
                         .build());
 
-            createOp = awaitOperationDone(storageOpService, createOp.getId(), bucketCreationTimeout);
+            createOp = awaitOperationDone(storageOpsClient, createOp.getId(), bucketCreationTimeout);
             if (!createOp.getDone()) {
                 try {
                     // do not wait until op is cancelled here
                     //noinspection ResultOfMethodCallIgnored
-                    storageOpService.cancel(
+                    storageOpsClient.cancel(
                         LongRunning.CancelOperationRequest.newBuilder().setOperationId(createOp.getId()).build());
                 } finally {
                     responseObserver.onError(Status.DEADLINE_EXCEEDED.withDescription(
@@ -459,23 +688,25 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         responseObserver.onCompleted();
     }
 
-    private <T> boolean checkExecution(String userId, String executionId, StreamObserver<T> responseObserver) {
+    private boolean checkPermissionOnExecution(String userId, String executionId,
+                                               StreamObserver<? extends MessageOrBuilder> response)
+    {
         try {
-            WorkflowDao.WorkflowInfo wfNameAndUserId = withRetries(LOG, () -> workflowDao.findWorkflowBy(executionId));
-            if (wfNameAndUserId == null || !Objects.equals(userId, wfNameAndUserId.userId())) {
-                LOG.error("Cannot find active execution of user: { executionId: {}, userId: {} }", executionId, userId);
-                responseObserver.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find active execution " +
-                    "'%s' of user '%s'".formatted(executionId, userId)).asRuntimeException());
-                return true;
+            if (withRetries(LOG, () -> executionDao.exists(executionId, userId, null))) {
+                return false;
             }
+
+            LOG.error("Cannot find execution of user: { execId: {}, userId: {} }", executionId, userId);
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find execution '%s' of user '%s'"
+                .formatted(executionId, userId)).asRuntimeException());
         } catch (Exception e) {
-            LOG.error("Cannot check that active execution of user exists: { executionId: {}, userId: " +
+            LOG.error("Cannot check that execution of user exists: { executionId: {}, userId: " +
                 "{}, error: {} } ", executionId, userId, e.getMessage());
-            responseObserver.onError(Status.INTERNAL.withDescription("Cannot execute graph").asRuntimeException());
-            return true;
+            response.onError(Status.INTERNAL.withDescription("Error while checking that user " +
+                "has permissions on requested execution").asRuntimeException());
         }
 
-        return false;
+        return true;
     }
 
     private void deleteTempUserBucket(String bucket) {
@@ -487,7 +718,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         try {
             @SuppressWarnings("unused")
-            var resp = storageServiceClient.deleteStorage(
+            var resp = storagesClient.deleteStorage(
                 LSS.DeleteStorageRequest.newBuilder()
                     .setBucket(bucket)
                     .build());

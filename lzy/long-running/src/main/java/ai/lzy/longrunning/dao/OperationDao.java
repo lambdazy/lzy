@@ -8,6 +8,7 @@ import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
+import java.util.Collection;
 
 public interface OperationDao {
 
@@ -61,6 +62,11 @@ public interface OperationDao {
      */
     Operation fail(String id, com.google.rpc.Status error, @Nullable TransactionHandle transaction) throws SQLException;
 
+    /**
+     * @throws SQLException                                 on any sql error
+     */
+    void cancel(Collection<String> ids, com.google.rpc.Status error, @Nullable TransactionHandle transaction)
+        throws SQLException;
 
     boolean deleteCompletedOperation(String operationId, @Nullable TransactionHandle transaction) throws SQLException;
 

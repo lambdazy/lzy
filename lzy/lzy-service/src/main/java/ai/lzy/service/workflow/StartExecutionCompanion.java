@@ -134,7 +134,7 @@ final class StartExecutionCompanion {
 
             state.setPortalId("portal_" + state.getExecutionId());
 
-            withRetries(LOG, () -> owner.executionDao.updatePortalVmAllocateSession(state.getExecutionId(),
+            withRetries(LOG, () -> owner.executionDao.updateAllocatorSession(state.getExecutionId(),
                 state.getSessionId(), state.getPortalId(), null));
 
             InjectedFailures.fail10();
