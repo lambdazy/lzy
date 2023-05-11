@@ -19,7 +19,7 @@ import lombok.Setter;
 import java.util.function.Consumer;
 
 @Singleton
-@Requires(env = "test-mock")
+@Requires(env = "graph-executor-decorator")
 @Setter
 public class GraphExecutorDecorator extends GraphExecutorApi {
     private volatile Consumer<GraphExecuteRequest> onExecute = (executeRequest) -> {};

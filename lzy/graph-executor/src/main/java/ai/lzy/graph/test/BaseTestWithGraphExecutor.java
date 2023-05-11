@@ -25,7 +25,8 @@ public class BaseTestWithGraphExecutor {
         var graphExecutorConfig = new YamlPropertySourceLoader()
             .read("graph-executor", new FileInputStream("../graph-executor/src/main/resources/application-test.yml"));
         graphExecutorConfig.putAll(overrides);
-        context = ApplicationContext.run(PropertySource.of(graphExecutorConfig), "test-mock");
+        context = ApplicationContext.run(PropertySource.of(graphExecutorConfig), "graph-executor-decorator",
+            "test-mock");
         var config = context.getBean(ServiceConfig.class);
         if (config.getPort() == 0) {
             config.setPort(GrpcUtils.rollPort());
