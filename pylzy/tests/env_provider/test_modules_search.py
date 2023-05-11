@@ -49,8 +49,7 @@ def test_modules_search(provider: PyEnvProvider, test_data_dir: Path):
     # Assert
     assert "echo" == level1.echo()
 
-    # typing extensions is a standard module starting from 3.10
-    assert (3 if sys.version_info < (3, 10) else 2) == len(local_modules_path)
+    assert 2 == len(local_modules_path)
 
     # noinspection DuplicatedCode
     for path in (
@@ -71,7 +70,10 @@ def test_modules_search(provider: PyEnvProvider, test_data_dir: Path):
         full_path = test_data_dir / path
         assert str(full_path) not in local_modules_path
 
-    assert {"PyYAML", "cloudpickle"} == set(remote.keys())
+    if sys.version_info < (3, 10):
+        assert {"PyYAML", "cloudpickle", "typing_extensions"} == set(remote.keys())
+    else:
+        assert {"PyYAML", "cloudpickle"} == set(remote.keys())
 
 
 def test_modules_search_2(provider: PyEnvProvider, test_data_dir: Path):
@@ -81,7 +83,7 @@ def test_modules_search_2(provider: PyEnvProvider, test_data_dir: Path):
     local_modules_path = env.local_modules_path
 
     # noinspection DuplicatedCode
-    assert 2 if sys.version_info < (3, 10) else 1 == len(local_modules_path)
+    assert 1 == len(local_modules_path)
 
     for path in (
         "modules_for_tests",
@@ -122,7 +124,7 @@ def test_exclude_packages(provider: PyEnvProvider, test_data_dir: Path):
     env = provider.provide({"level": level, "level1": level1}, exclude_packages=("modules_for_tests_2",))
     local_modules_path = env.local_modules_path
 
-    assert 2 if sys.version_info < (3, 10) else 1 == len(local_modules_path)
+    assert 1 == len(local_modules_path)
 
     for path in (
         "modules_for_tests",
@@ -141,3 +143,20 @@ def test_exclude_packages(provider: PyEnvProvider, test_data_dir: Path):
     ):
         full_path = test_data_dir / path
         assert str(full_path) not in local_modules_path
+
+
+def test_namespace_packages(provider: PyEnvProvider, test_data_dir: Path):
+    """
+    here we are checking that we capturing local google dir but doesn't capture
+    google dir from virtualenv's protobuf package
+    """
+
+    from google.lzy_namespace import NeverMind
+
+    nevermind = NeverMind()
+
+    env = provider.provide({"nevermind": nevermind})
+    remote = env.libraries
+    local_modules_path = env.local_modules_path
+
+    assert set(local_modules_path) == {str(test_data_dir / 'google')}

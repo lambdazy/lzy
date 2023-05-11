@@ -1,198 +1,351 @@
 import inspect
 import json
 import os
-import time
-from collections import defaultdict
-
 import sys
+import time
+
+from collections import defaultdict
+from hashlib import md5
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Dict, Iterable, List, Union, cast, Set
+from typing import Any, Dict, Iterable, List, cast, Set, FrozenSet, Optional
 
-import pkg_resources
 import requests
-from importlib_metadata import packages_distributions  # type: ignore
-from stdlib_list import stdlib_list
+import importlib_metadata
+
+from pypi_simple import PYPI_SIMPLE_ENDPOINT, PyPISimple  # type: ignore
 
 from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnv, PyEnvProvider
+from lzy.utils.paths import get_cache_path
 
-STDLIB_LIST = stdlib_list() if sys.version_info < (3, 10) else sys.stdlib_module_names  # type: ignore
+
+try:
+    STDLIB_LIST: FrozenSet[str] = sys.stdlib_module_names  # type: ignore
+except AttributeError:
+    # python_version < 3.10
+    from stdlib_list import stdlib_list
+
+    STDLIB_LIST: FrozenSet[str] = frozenset(stdlib_list())  # type: ignore
+
+CACHE_TYPE = Dict[str, Set[str]]
+
+INDEX_FILE = 'pypi_index_url'
+EXISTING_FILE = 'pypi_existing_packages'
+NONEXISTING_FILE = 'pypi_nonexisting_packages'
 
 _LOG = get_logger(__name__)
 
 
-def all_installed_packages() -> Dict[str, str]:
-    return {
-        entry.project_name: entry.version
-        # working_set is actually iterable see sources
-        for entry in pkg_resources.working_set  # pylint: disable=not-an-iterable
-    }
-
-
 class AutomaticPyEnvProvider(PyEnvProvider):
-    def __init__(self,
-                 existed_cache_file_path: str = "/tmp/pypi_existed_packages_cache",
-                 nonexistent_cache_file_path: str = "/tmp/pypi_nonexistent_packages_cache",
-                 cache_invalidation_period_hours: int = 24):
-        self.__existed_cache: Dict[str, List[str]] = defaultdict(list)
-        self.__nonexistent_cache: Dict[str, List[str]] = defaultdict(list)
+    def __init__(
+        self,
+        *,
+        drop_cache: bool = False,
+        cache_invalidation_time: int = 24 * 60 * 60,
+        pypi_index_url: str = PYPI_SIMPLE_ENDPOINT,
+    ):
+        self._cache_invalidation_time: int = cache_invalidation_time
+        self._pypi_index_url: str = pypi_index_url
+        pypi_index_url_md5 = md5(pypi_index_url.encode()).hexdigest()
 
-        self.__existed_cache_file_path = existed_cache_file_path
-        self.__nonexistent_cache_file_path = nonexistent_cache_file_path
-        self.__nonexistent_cache_creation_time = time.time()
+        self._existing_cache: CACHE_TYPE = defaultdict(set)
+        self._nonexisting_cache: CACHE_TYPE = defaultdict(set)
 
-        existed_cache_path = Path(existed_cache_file_path)
-        if existed_cache_path.exists():
-            try:
-                with open(existed_cache_path, "r") as file:
-                    self.__existed_cache.update(json.load(file))
-            except Exception as e:
-                _LOG.warning("Error while pypi existed packages cache loading", e)
+        self._existing_cache_file_path = get_cache_path(pypi_index_url_md5, EXISTING_FILE)
+        self._nonexisting_cache_file_path = get_cache_path(pypi_index_url_md5, NONEXISTING_FILE)
+        self._index_file_path = get_cache_path(pypi_index_url_md5, INDEX_FILE)
 
-        nonexistent_cache_path = Path(nonexistent_cache_file_path)
-        if nonexistent_cache_path.exists():
-            try:
-                with open(nonexistent_cache_path, "r") as file:
-                    creation_time = float(file.readline())
-                    modification_seconds_diff = time.time() - creation_time
-                    modification_hours_diff, _ = divmod(modification_seconds_diff, 3600)
-                    if modification_hours_diff >= cache_invalidation_period_hours:
-                        return  # do not load cache
-                    self.__nonexistent_cache_creation_time = creation_time
-                    self.__nonexistent_cache.update(json.load(file))
-            except Exception as e:
-                _LOG.warning("Error while pypi nonexistent packages cache loading", e)
+        if not drop_cache:
+            self._load_pypi_cache()
 
     def provide(self, namespace: Dict[str, Any], exclude_packages: Iterable[str] = tuple()) -> PyEnv:
-        dist_versions: Dict[str, str] = all_installed_packages()
-
-        distributions = packages_distributions()
-        remote_packages = {}
-        local_modules: List[ModuleType] = []
-        parents: List[ModuleType] = []
-        seen_modules: Set = set()
-
         exclude = set(exclude_packages)
 
+        distributions = importlib_metadata.packages_distributions()
+
+        remote_packages = {}
+
+        remote_packages_files: Set[str] = set()
+        local_modules: List[ModuleType] = []
+        seen_modules: Set[ModuleType] = set()
+        namespace_prefixes: Set[str] = set()
+
         def search(obj: Any) -> None:
-            module = inspect.getmodule(obj)
-            if module is None:
+            module: Optional[ModuleType] = inspect.getmodule(obj)
+            if (
+                module is None or
+                module in seen_modules
+            ):
                 return
 
-            if module in seen_modules:
-                return
             seen_modules.add(module)
 
-            # try to get module name
-            name = module.__name__.split(".")[0]  # type: ignore
-            if name in STDLIB_LIST or name in sys.builtin_module_names:
+            top_level: str = module.__name__.split(".")[0]
+            filename = getattr(module, '__file__', None)
+
+            if (
+                top_level in STDLIB_LIST or
+                top_level in sys.builtin_module_names or
+                top_level in exclude or
+                # maybe in previous iterations we findout that this
+                # module is from remote package; also it means that we
+                # already processed this package.
+                # NB: namespace packages doesn't have a filename and
+                # we cannot be sure we already processed em.
+                filename and filename in remote_packages_files
+            ):
                 return
 
-            if name in exclude:
-                return  # Skipping excluded module
-
-            # and find it among installed ones
+            # try to find module as installed package
             all_from_pypi: bool = False
-            if name in distributions:
-                all_from_pypi = len(distributions[name]) > 0
-                for package_name in distributions[name]:
-                    if package_name in dist_versions and self.__exists_in_pypi(package_name,
-                                                                               dist_versions[package_name]):
-                        remote_packages[package_name] = dist_versions[package_name]
+            if top_level in distributions:
+                # NB: one module can belong to several packages
+                packages = distributions[top_level]
+                all_from_pypi = bool(packages)
+
+                for package_name in packages:
+                    distribution = importlib_metadata.distribution(package_name)
+
+                    # NB: here we checking if package installed as editable installation
+                    # look at https://github.com/python/importlib_metadata/issues/404 discussion
+                    is_editable = bool(distribution.read_text('direct_url.json'))
+
+                    package_version = distribution.version
+
+                    if (
+                        not is_editable and
+                        package_version and
+                        self._exists_in_pypi(package_name, package_version)
+                    ):
+                        remote_packages[package_name] = package_version
+
+                        files = [str(distribution.locate_file(f)) for f in distribution.files]
+                        remote_packages_files.update(files)
                     else:
                         all_from_pypi = False
 
-            if all_from_pypi:
+            # Namespace package doesn't have a __file__;
+            # Later any module with __file__.startswith(namespace_prefix)
+            # will be treated as __path__ = [namespace_prefix] in goal of
+            # our local_modules_paths detection;
+            # Also this way we are extracting local and only local part of this
+            # namespace
+            if not all_from_pypi and not filename:
+                prefixes = getattr(module, '__path__', [])
+                namespace_prefixes.update(prefixes)
                 return
 
-            # if module is not found in distributions, try to find it as local one
-            if module in local_modules:
+            if (
+                # all packages, containing this top_level are installed from pypi
+                all_from_pypi or
+                # we just findout that this module is from remote package
+                filename in remote_packages_files
+            ):
                 return
+            # else:
+            #     # this module we considers as local module we wanna to locate
+            #     True == not all_from_pypi and and filename and filename not remote_packages
 
             local_modules.append(module)
-            for field in dir(module):
-                search(getattr(module, field))
 
-            # add all parent modules
-            full_module_name = module.__name__
-            current_parents: List[ModuleType] = []
-            while True:
-                last_dot_idx = full_module_name.rfind(".")
-                if last_dot_idx == -1:
-                    break
+            for field_name in dir(module):
+                symbol = getattr(module, field_name)
 
-                full_module_name = full_module_name[:last_dot_idx]
-                # if parent module_name in local_modules already then all parent
-                # modules there too already
-                parent = sys.modules[full_module_name]
-                current_parents.append(parent)
+                # recursion, baby!
+                search(symbol)
+
+            for parent in _get_module_parents(module):
+                # more recursion!
                 search(parent)
-            parents.extend(reversed(current_parents))
 
-        for _, entry in namespace.items():
+        for entry in namespace.values():
             search(entry)
 
-        # remove duplicates and keep order as dict preserves order since python3.7
-        all_local_modules = dict.fromkeys(parents)
-        all_local_modules.update(dict.fromkeys(reversed(local_modules)))
+        all_module_paths: List[str] = []
+        for local_module in local_modules:
+            path = _get_path(local_module, namespace_prefixes)
 
-        def get_path(module: ModuleType) -> Union[List[str], str, None]:
-            if not hasattr(module, "__path__") and not hasattr(module, "__file__"):
-                return None
-            elif not hasattr(module, "__path__"):
-                return str(module.__file__)
-            else:
-                # case for namespace package
-                return [module_path for module_path in set(module.__path__)]
-
-        def append_to_module_paths(f: str, paths: List[str]):  # type: ignore
-            for module_path in paths:
-                if module_path.startswith(f"{f}{os.sep}"):
-                    paths.remove(module_path)
-                elif f.startswith(f"{module_path}{os.sep}"):
-                    return
-            paths.append(f)
-
-        # reverse to ensure the right order: from leaves to the root
-        module_paths: List[str] = []
-        for local_module in all_local_modules:
-            path = get_path(local_module)
-            if path is None:
-                _LOG.warning(f"No path for module: {local_module}")
+            if not path:
+                _LOG.warning("no path for module: %s", local_module)
                 continue
-            elif type(path) == list:
-                for p in path:
-                    append_to_module_paths(p, module_paths)  # type: ignore
-            else:
-                append_to_module_paths(path, module_paths)  # type: ignore
 
-        self.__save_pypi_cache()
-        py_version = ".".join(cast(Iterable[str], map(str, sys.version_info[:3])))
-        return PyEnv(py_version, remote_packages, module_paths)
+            all_module_paths.extend(path)
 
-    def __save_pypi_cache(self):
-        with open(self.__existed_cache_file_path, "w") as file:
-            json.dump(self.__existed_cache, file)
-        with open(self.__nonexistent_cache_file_path, "w") as file:
-            file.write(f"{str(self.__nonexistent_cache_creation_time)}\n")
-            json.dump(self.__nonexistent_cache, file)
+        module_paths = _get_most_common_paths(all_module_paths)
 
-    def __exists_in_pypi(self, package_name: str, package_version: str) -> bool:
-        if package_name in self.__existed_cache and package_version in self.__existed_cache[package_name]:
+        self._save_pypi_cache()
+
+        version_info: List[str] = [str(i) for i in sys.version_info[:3]]
+        python_version = '.'.join(version_info)
+
+        return PyEnv(
+            python_version=python_version,
+            libraries=remote_packages,
+            local_modules_path=module_paths
+        )
+
+    def _load_cache_file(self, path: Path, cache: CACHE_TYPE) -> None:
+        if not self._existing_cache_file_path.exists():
+            return
+
+        try:
+            with path.open('r', encoding='utf-8') as file_:
+                cache_data: Dict[str, List[str]] = json.load(file_)
+                for package, versions in cache_data.items():
+                    cache[package].update(versions)
+        except Exception:
+            _LOG.warning("Error while loading cache file %s", path, exc_info=True)
+
+    def _load_pypi_cache(self) -> None:
+        self._load_cache_file(
+            self._existing_cache_file_path,
+            self._existing_cache
+        )
+
+        if not self._nonexisting_cache_file_path.exists():
+            return
+
+        modification_time = self._nonexisting_cache_file_path.stat().st_mtime
+        modification_seconds_diff = time.time() - modification_time
+
+        if modification_seconds_diff < self._cache_invalidation_time:
+            return
+
+        self._load_cache_file(
+            self._nonexisting_cache_file_path,
+            self._nonexisting_cache
+        )
+
+    def _save_cache_file(self, path: Path, cache: CACHE_TYPE) -> None:
+        def serialize_sets(obj):
+            if isinstance(obj, set):
+                return list(obj)
+
+            return obj
+
+        with path.open('w', encoding='utf-8') as file_:
+            json.dump(cache, file_, default=serialize_sets)
+
+    def _save_pypi_cache(self):
+        self._save_cache_file(
+            self._existing_cache_file_path,
+            self._existing_cache
+        )
+        self._save_cache_file(
+            self._nonexisting_cache_file_path,
+            self._nonexisting_cache
+        )
+
+        # just to know which cache folder which cache contains
+        self._index_file_path.write_text(self._pypi_index_url, encoding='utf-8')
+
+    def _exists_in_pypi(self, name: str, version: str) -> bool:
+        if version in self._existing_cache[name]:
             return True
-        elif package_name in self.__nonexistent_cache and package_version in self.__nonexistent_cache[package_name]:
+        if version in self._nonexisting_cache[name]:
             return False
 
-        _LOG.info(f"Checking {package_name}=={package_version} exists in pypi...")
+        _LOG.info("checking %s==%s exists in pypi index %s", name, version, self._pypi_index_url)
         with requests.Session() as session:
             session.max_redirects = (
                 5  # limit redirects to handle possible pypi incidents with redirect cycles
             )
-            response = session.get(f"https://pypi.python.org/pypi/{package_name}/{package_version}/json")
+            response = session.get(f"https://pypi.python.org/pypi/{name}/{version}/json")
         result: bool = 200 <= response.status_code < 300
         if result:
-            self.__existed_cache[package_name].append(package_version)
+            self._existing_cache[name].add(version)
         else:
-            self.__nonexistent_cache[package_name].append(package_version)
+            self._nonexisting_cache[name].add(version)
         return result
+
+
+def _path_startswith(path_to_test: str, path_substr: str) -> bool:
+    """
+    >>> _path_startswith('/a/b/c', '/a/b')
+    True
+    >>> _path_startswith('/a/b/c', '/a/b/')
+    True
+    >>> _path_startswith('/a/b/c', '/a/c')
+    False
+
+    """
+
+    if not path_substr.endswith(os.sep):
+        path_substr += os.sep
+
+    return path_to_test.startswith(path_substr)
+
+
+def _get_path(module: ModuleType, namespace_prefixes: Set[str]) -> List[str]:
+    filename = getattr(module, '__file__', None)
+
+    # this way we can findout that this module is a part of early noticed namespace packages
+    # and we wanna use __path__ of namespace instead of this modules paths because
+    # in other case we just lose namespace's __path__
+    if filename:
+        suitable_namespace_prefixes = [
+            p for p in namespace_prefixes if _path_startswith(filename, p)
+        ]
+        if suitable_namespace_prefixes:
+            return suitable_namespace_prefixes
+
+    if getattr(module, '__path__', None):
+        # In case of namespace packages which have parts across the disk.
+        # For example, google.__path__ ==
+        # _NamespacePath(['<site>/lib/python3.7/site-packages/google', '<home>/repos/lzy/pylzy/google']),
+        # But google.rpc.status_pb2 doesn't have an __path__ attr, only __file__
+        return list(module.__path__)
+
+    # modules outside a packages doesn't have __path__
+    if filename:
+        return [cast(str, module.__file__)]
+
+    # for example, interactive python shell will have an module __main__
+    # but will not have __path__ and __file__
+    return []
+
+
+def _get_most_common_paths(paths: List[str]) -> List[str]:
+    """
+    >>> _get_most_common_paths(['a/b/c', 'a/b/c/d', 'a/b/d', 'a/b', 'b/c/d', 'b/c', 'a/b'])
+    ['a/b', 'b/c']
+    """
+
+    paths_to_test = set(paths[:])
+    new_paths = []
+
+    while paths_to_test:
+        path_to_test = paths_to_test.pop()
+
+        most_common = True
+        for path_to_compare in list(paths_to_test):
+            if path_to_test.startswith(f'{path_to_compare}{os.sep}'):
+                most_common = False
+                break
+
+            if path_to_compare.startswith(f'{path_to_test}{os.sep}'):
+                paths_to_test.remove(path_to_compare)
+
+        if most_common:
+            new_paths.append(path_to_test)
+
+    return sorted(new_paths)
+
+
+def _get_module_parents(module: ModuleType) -> Iterable[ModuleType]:
+    module_name = module.__name__
+    parts = module_name.split('.')
+
+    # If we at module a.b.c, then after first parts.pop(),
+    # parts will be ['a', 'b'].
+    # And where is my `do { } while` (╯ ° □ °) ╯ (┻━┻)
+    parts.pop()
+
+    while parts:
+        parent_module_name = '.'.join(parts)
+        parent = sys.modules[parent_module_name]
+
+        yield parent
+
+        parts.pop()

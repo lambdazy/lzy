@@ -1,0 +1,2 @@
+class NeverMind:
+    pass
