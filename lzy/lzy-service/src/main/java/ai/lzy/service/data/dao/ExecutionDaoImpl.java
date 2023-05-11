@@ -35,15 +35,6 @@ public class ExecutionDaoImpl implements ExecutionDao {
             storage_uri, storage_credentials, execution_status)
         VALUES (?, ?, ?, ?, ?, ?, cast(? as execution_status))""";
 
-    private static final String QUERY_DELETE_EXECUTION = """
-        DELETE FROM workflow_executions
-        WHERE execution_id = ?""";
-
-    private static final String QUERY_UPDATE_PORTAL_CHANNEL_IDS = """
-        UPDATE workflow_executions
-        SET portal = cast(? as portal_status), portal_stdout_channel_id = ?, portal_stderr_channel_id = ?
-        WHERE execution_id = ?""";
-
     private static final String QUERY_UPDATE_ALLOCATOR_SESSION = """
         UPDATE workflow_executions
         SET portal = cast(? as portal_status), allocator_session_id = ?, portal_id = ?
@@ -95,18 +86,10 @@ public class ExecutionDaoImpl implements ExecutionDao {
           portal_vm_id,
           portal_vm_address,
           portal_fs_address,
-          portal_stdout_channel_id,
-          portal_stderr_channel_id,
           portal_id,
           portal_subject_id
         FROM workflow_executions
         WHERE execution_id = ?""";
-
-    private static final String QUERY_GET_ALLOCATOR_SESSION = """
-        SELECT allocator_session_id
-        FROM workflow_executions
-        WHERE execution_id = ?
-        """;
 
     private static final String QUERY_PICK_EXPIRED_EXECUTION = """
         SELECT execution_id
@@ -149,31 +132,6 @@ public class ExecutionDaoImpl implements ExecutionDao {
             } catch (JsonProcessingException e) {
                 LOG.error("Cannot dump storage data of execution: {}", e.getMessage());
                 throw new RuntimeException("Cannot dump values", e);
-            }
-        });
-    }
-
-    @Override
-    public void delete(String executionId, @Nullable TransactionHandle transaction) throws SQLException {
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var statement = connection.prepareStatement(QUERY_DELETE_EXECUTION)) {
-                statement.setString(1, executionId);
-                statement.execute();
-            }
-        });
-    }
-
-    @Override
-    public void updateStdChannelIds(String executionId, String stdoutChannelId, String stderrChannelId,
-                                    @Nullable TransactionHandle transaction) throws SQLException
-    {
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var statement = connection.prepareStatement(QUERY_UPDATE_PORTAL_CHANNEL_IDS)) {
-                statement.setString(1, PortalStatus.CREATING_SESSION.name());
-                statement.setString(2, stdoutChannelId);
-                statement.setString(3, stderrChannelId);
-                statement.setString(4, executionId);
-                statement.executeUpdate();
             }
         });
     }
@@ -417,40 +375,17 @@ public class ExecutionDaoImpl implements ExecutionDao {
                         HostAndPort.fromString(rs.getString(4));
                     var fsAddress = rs.getString(5) == null ? null :
                         HostAndPort.fromString(rs.getString(5));
-                    var stdoutChannelId = rs.getString(6);
-                    var stderrChannelId = rs.getString(7);
-                    var portalId = rs.getString(8);
-                    var portalSubjectId = rs.getString(9);
+                    var portalId = rs.getString(6);
+                    var portalSubjectId = rs.getString(7);
 
                     return new PortalDescription(portalId, portalSubjectId, allocateSessionId, vmId,
-                        vmAddress, fsAddress, stdoutChannelId, stderrChannelId, status);
+                        vmAddress, fsAddress, status);
                 } else {
                     LOG.warn("Cannot find portal description: { executionId: {} }", executionId);
                     return null;
                 }
             }
         });
-    }
-
-    @Override
-    @Nullable
-    public String getAllocatorSession(String executionId) throws SQLException {
-        String[] res = {null};
-
-        DbOperation.execute(null, storage, con -> {
-            try (var statement = con.prepareStatement(QUERY_GET_ALLOCATOR_SESSION)) {
-                statement.setString(1, executionId);
-                ResultSet rs = statement.executeQuery();
-
-                if (rs.next()) {
-                    res[0] = rs.getString(1);
-                } else {
-                    LOG.warn("Cannot find allocator session: { executionId: {} }", executionId);
-                }
-            }
-        });
-
-        return res[0];
     }
 
     @Override
