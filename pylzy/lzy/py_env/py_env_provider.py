@@ -120,7 +120,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                     ):
                         remote_packages[package_name] = package_version
 
-                        files = [str(distribution.locate_file(_)) for _ in distribution.files]
+                        files = [str(distribution.locate_file(f)) for f in distribution.files]
                         remote_packages_files.update(files)
                     else:
                         all_from_pypi = False
@@ -176,7 +176,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
 
         self._save_pypi_cache()
 
-        version_info: List[str] = [str(_) for _ in sys.version_info[:3]]
+        version_info: List[str] = [str(i) for i in sys.version_info[:3]]
         python_version = '.'.join(version_info)
 
         return PyEnv(
