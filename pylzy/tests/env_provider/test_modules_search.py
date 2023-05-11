@@ -70,7 +70,10 @@ def test_modules_search(provider: PyEnvProvider, test_data_dir: Path):
         full_path = test_data_dir / path
         assert str(full_path) not in local_modules_path
 
-    assert {"PyYAML", "cloudpickle", "typing_extensions"} == set(remote.keys())
+    if sys.version_info < (3, 10):
+        assert {"PyYAML", "cloudpickle", "typing_extensions"} == set(remote.keys())
+    else:
+        assert {"PyYAML", "cloudpickle"} == set(remote.keys())
 
 
 def test_modules_search_2(provider: PyEnvProvider, test_data_dir: Path):
