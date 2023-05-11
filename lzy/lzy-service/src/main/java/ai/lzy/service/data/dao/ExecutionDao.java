@@ -64,6 +64,5 @@ public interface ExecutionDao {
     void setKafkaTopicDesc(String executionId, KafkaTopicDesc topicDesc,
                            @Nullable TransactionHandle transaction) throws SQLException;
 
-    @Nullable
     KafkaTopicDesc getKafkaTopicDesc(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
 }

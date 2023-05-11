@@ -501,12 +501,16 @@ public class ExecutionDaoImpl implements ExecutionDao {
                     var kafkaJson = qs.getString(1);
 
                     if (kafkaJson == null) {
-                        return null;
+                        LOG.error("Null kafka topic data for execution: { execId: {} }", executionId);
+                        throw new RuntimeException("Null kafka topic data for execution with id='%s'".formatted(
+                            executionId));
                     }
 
                     return objectMapper.readValue(kafkaJson, KafkaTopicDesc.class);
                 } else {
-                    return null;
+                    LOG.error("Cannot get kafka topic for unknown execution: { execId: {} }", executionId);
+                    throw new RuntimeException("Cannot get kafka topic for unknown execution with id='%s'".formatted(
+                        executionId));
                 }
 
             } catch (JsonProcessingException e) {

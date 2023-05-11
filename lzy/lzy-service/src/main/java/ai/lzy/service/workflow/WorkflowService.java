@@ -3,12 +3,12 @@ package ai.lzy.service.workflow;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.Operation;
-import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.Storage;
-import ai.lzy.service.*;
+import ai.lzy.service.BeanFactory;
+import ai.lzy.service.CleanExecutionCompanion;
+import ai.lzy.service.LzyServiceMetrics;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.dao.ExecutionDao;
-import ai.lzy.service.data.dao.PortalDescription;
 import ai.lzy.service.data.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.kafka.KafkaLogsListeners;
@@ -27,7 +27,6 @@ import ai.lzy.v1.workflow.LWFS.StartWorkflowRequest;
 import ai.lzy.v1.workflow.LWFS.StartWorkflowResponse;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
-import io.grpc.stub.ServerCallStreamObserver;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -35,9 +34,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -74,8 +70,6 @@ public class WorkflowService {
 
     private final CleanExecutionCompanion cleanExecutionCompanion;
     final ExecutionDao executionDao;
-    private final Map<String, Queue<PortalSlotsListener>> listenersByExecution = new ConcurrentHashMap<>();
-    private final LzyServiceConfig config;
 
     private final KafkaAdminClient kafkaAdminClient;
     private final KafkaLogsListeners kafkaLogsListeners;
@@ -96,7 +90,6 @@ public class WorkflowService {
         channelManagerAddress = config.getChannelManagerAddress();
         iamAddress = config.getIam().getAddress();
         whiteboardAddress = config.getWhiteboardAddress();
-        this.config = config;
         this.metrics = metrics;
 
         this.storage = storage;
@@ -157,13 +150,11 @@ public class WorkflowService {
             return;
         }
 
-        if (config.getKafka().isEnabled()) {
-            newExecution.createKafkaTopic(kafkaAdminClient);
+        newExecution.createKafkaTopic(kafkaAdminClient);
 
-            if (newExecution.isInvalid()) {
-                replyError.accept(newExecution.getErrorStatus());
-                return;
-            }
+        if (newExecution.isInvalid()) {
+            replyError.accept(newExecution.getErrorStatus());
+            return;
         }
 
         metrics.activeExecutions.labels(newExecution.getOwner()).inc();
@@ -173,9 +164,8 @@ public class WorkflowService {
 
         newExecution.startPortal(startupPortalConfig.getDockerImage(), portalPort, slotsApiPort,
             startupPortalConfig.getWorkersPoolSize(), startupPortalConfig.getDownloadsPoolSize(),
-            startupPortalConfig.getChunksPoolSize(), startupPortalConfig.getStdoutChannelName(),
-            startupPortalConfig.getStderrChannelName(), channelManagerAddress, iamAddress, whiteboardAddress,
-            allocationTimeout, allocatorVmCacheTimeout, !config.getKafka().isEnabled());
+            startupPortalConfig.getChunksPoolSize(), channelManagerAddress, iamAddress, whiteboardAddress,
+            allocationTimeout, allocatorVmCacheTimeout);
 
         if (newExecution.isInvalid()) {
             LOG.info("Attempt to clean invalid execution that not started: { wfName: {}, execId:{} }",
@@ -203,31 +193,8 @@ public class WorkflowService {
     public void readStdSlots(LWFS.ReadStdSlotsRequest request, StreamObserver<LWFS.ReadStdSlotsResponse> response) {
         var executionId = request.getExecutionId();
         try {
-            var portalDesc = withRetries(LOG, () -> executionDao.getPortalDescription(executionId));
-            if (portalDesc == null) {
-                response.onError(Status.NOT_FOUND.withDescription("Portal not found.").asException());
-                return;
-            }
-
-            if (portalDesc.portalStatus() != PortalDescription.PortalStatus.VM_READY) {
-                response.onError(Status.FAILED_PRECONDITION
-                    .withDescription("Portal is creating, retry later.").asException());
-                return;
-            }
-
-            if (config.getKafka().isEnabled()) {
-                var topicDesc = DbHelper.withRetries(LOG, () -> executionDao.getKafkaTopicDesc(executionId, null));
-
-                if (topicDesc != null) {
-                    kafkaLogsListeners.listen(request, response, topicDesc);
-                    return;
-                }
-            }
-
-            var resp = (ServerCallStreamObserver<LWFS.ReadStdSlotsResponse>) response;
-            var listener = new PortalSlotsListener(portalDesc.fsAddress(), portalDesc.portalId(), resp);
-            listenersByExecution.computeIfAbsent(executionId, k -> new ConcurrentLinkedQueue<>()).add(listener);
-
+            var topicDesc = withRetries(LOG, () -> executionDao.getKafkaTopicDesc(executionId, null));
+            kafkaLogsListeners.listen(request, response, topicDesc);
         } catch (Exception e) {
             LOG.error("Error while reading std slots: ", e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());

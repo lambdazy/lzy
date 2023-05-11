@@ -35,7 +35,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 import static ai.lzy.iam.grpc.context.AuthenticationContext.currentSubject;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -117,22 +116,14 @@ final class StartExecutionCompanion {
 
     public void startPortal(String dockerImage, int portalPort, int slotsApiPort,
                             int workersPoolSize, int downloadPoolSize, int chunksPoolSize,
-                            String stdoutChannelName, String stderrChannelName,
                             String channelManagerAddress, String iamAddress, String whiteboardAddress,
-                            Duration allocationTimeout, Duration allocateVmCacheTimeout, boolean createStdChannels)
+                            Duration allocationTimeout, Duration allocateVmCacheTimeout)
     {
         LOG.info("Attempt to start portal for workflow execution: { wfName: {}, execId: {} }",
             state.getWorkflowName(), state.getExecutionId());
 
         try {
             InjectedFailures.fail9();
-
-            if (createStdChannels) {
-                createPortalStdChannels(stdoutChannelName, stderrChannelName);
-
-                withRetries(LOG, () -> owner.executionDao.updateStdChannelIds(state.getExecutionId(),
-                    state.getStdoutChannelId(), state.getStderrChannelId(), null));
-            }
 
             createAllocatorSession(allocateVmCacheTimeout);
 
@@ -204,21 +195,6 @@ final class StartExecutionCompanion {
         }
     }
 
-    // create channels thar receive portal stdout/stderr
-    private void createPortalStdChannels(String stdoutName, String stderrName) {
-        LOG.info("Creating portal stdout channel: { channelName: {} }", stdoutName);
-
-        var stdoutChannelId = owner.channelManagerClient.create(makeCreateChannelCommand(state.getUserId(),
-            state.getWorkflowName(), state.getExecutionId(), stdoutName)).getChannelId();
-        state.setStdoutChannelId(stdoutChannelId);
-
-        LOG.info("Creating portal stderr channel: { channelName: {} }", stderrName);
-
-        var stderrChannelId = owner.channelManagerClient.create(makeCreateChannelCommand(state.getUserId(),
-            state.getWorkflowName(), state.getExecutionId(), stderrName)).getChannelId();
-        state.setStderrChannelId(stderrChannelId);
-    }
-
     public void createAllocatorSession(Duration allocatorVmCacheTimeout) {
         LOG.info("Creating session for: { userId: {}, workflowName: {}, executionId: {} }", state.getUserId(),
             state.getWorkflowName(), state.getExecutionId());
@@ -287,14 +263,6 @@ final class StartExecutionCompanion {
             "-portal.concurrency.downloads-pool-size=" + downloadPoolSize,
             "-portal.concurrency.chunks-pool-size=" + chunksPoolSize));
 
-        if (state.getStdoutChannelId() != null) {
-            args.add("-portal.stdout-channel-id=" + state.getStdoutChannelId());
-        }
-
-        if (state.getStderrChannelId() != null) {
-            args.add("-portal.stderr-channel-id=" + state.getStderrChannelId());
-        }
-
         var portalEnvPKEY = "LZY_PORTAL_PKEY";
         var ports = Map.of(actualSlotsApiPort, actualSlotsApiPort, actualPortalPort, actualPortalPort);
 
@@ -316,21 +284,6 @@ final class StartExecutionCompanion {
     }
 
     public void createKafkaTopic(KafkaAdminClient kafkaAdminClient) {
-
-        final KafkaTopicDesc desc;
-        try {
-            desc = withRetries(LOG, () -> owner.executionDao.getKafkaTopicDesc(state.getExecutionId(), null));
-        } catch (Exception e) {
-            LOG.error("Cannot get topic from db. executionId: {}", state.getExecutionId(), e);
-            state.fail(Status.INTERNAL, "Cannot create kafka topic");
-            return;
-        }
-
-        if (desc != null) {  // Idempotency support, topic already exists
-            LOG.warn("Topic for execution (executionId: {}) already exists, reusing it", state.getExecutionId());
-            return;
-        }
-
         var topicName = "topic_" + state.getExecutionId() + ".logs";
         var username = "user_" + state.getExecutionId().replace("-", "_");
         var password = UUID.randomUUID().toString();

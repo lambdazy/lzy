@@ -8,7 +8,6 @@ import ai.lzy.v1.workflow.LWFS.ReadStdSlotsRequest;
 import ai.lzy.v1.workflow.LWFS.ReadStdSlotsResponse;
 import io.grpc.Context;
 import io.grpc.stub.StreamObserver;
-import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
@@ -17,11 +16,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -31,15 +26,10 @@ public class KafkaLogsListeners {
     private static final byte[] STDOUT_STREAM_HEADER = "out".getBytes(StandardCharsets.UTF_8);
 
     private final ConcurrentHashMap<String, ArrayList<Listener>> listeners = new ConcurrentHashMap<>();
-    @Nullable
     private final Properties kafkaSetup;
 
     public KafkaLogsListeners(LzyServiceConfig config) {
-        if (config.getKafka().isEnabled()) {
-            kafkaSetup = new KafkaHelper(config.getKafka()).toProperties();
-        } else {
-            kafkaSetup = null;
-        }
+        kafkaSetup = new KafkaHelper(config.getKafka()).toProperties();
     }
 
     public void listen(ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> response,
@@ -56,16 +46,12 @@ public class KafkaLogsListeners {
     }
 
     public void notifyFinished(String executionId) {
-        if (kafkaSetup == null) {
-            return;
-        }
-
         LOG.info("Finishing listeners for execution {}", executionId);
-        for (var listener: listeners.computeIfAbsent(executionId, (k) -> new ArrayList<>())) {
+        for (var listener : listeners.computeIfAbsent(executionId, (k) -> new ArrayList<>())) {
             listener.close();
         }
 
-        for (var listener: listeners.get(executionId)) {
+        for (var listener : listeners.get(executionId)) {
             try {
                 listener.join();
             } catch (InterruptedException e) {

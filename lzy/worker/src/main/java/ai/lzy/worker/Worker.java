@@ -150,7 +150,6 @@ public class Worker {
                 : allocatorToken;
 
             var kafkaConf = new KafkaConfig();
-            kafkaConf.setEnabled(true);
             kafkaConf.setBootstrapServers(Arrays.stream(parse.getOptionValue("kafka-bootstrap").split(",")).toList());
 
             var truststore = parse.getOptionValue("truststore-base64");
