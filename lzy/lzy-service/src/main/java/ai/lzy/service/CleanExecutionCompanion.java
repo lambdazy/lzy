@@ -4,7 +4,6 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.data.dao.ExecutionDao;
@@ -471,30 +470,25 @@ public class CleanExecutionCompanion {
     private void dropKafkaResources(String executionId) {
         final KafkaTopicDesc kafkaDesc;
         try {
-            kafkaDesc = DbHelper.withRetries(LOG, () -> executionDao.getKafkaTopicDesc(executionId, null));
+            kafkaDesc = withRetries(LOG, () -> executionDao.getKafkaTopicDesc(executionId, null));
         } catch (Exception e) {
             LOG.error("Cannot get kafka topic description from db for execution {}, please clear it", executionId, e);
             return;
         }
 
-        if (kafkaDesc != null) {
-            LOG.debug("Deleting kafka topic {} and user {} for execution {}",
-                kafkaDesc.topicName(), kafkaDesc.username(), executionId);
+        LOG.debug("Deleting kafka topic {} and user {} for execution {}",
+            kafkaDesc.topicName(), kafkaDesc.username(), executionId);
 
-            try {
-                kafkaAdminClient.dropUser(kafkaDesc.username());
-            } catch (Exception ex) {
-                LOG.error("Cannot remove kafka user for execution {}: ", executionId, ex);
-            }
+        try {
+            kafkaAdminClient.dropUser(kafkaDesc.username());
+        } catch (Exception ex) {
+            LOG.error("Cannot remove kafka user for execution {}: ", executionId, ex);
+        }
 
-            if (s3SinkClient.enabled()) {  // Completing job, it will delete topic
-                s3SinkClient.stub().stop(KafkaS3Sink.StopRequest.newBuilder()
-                    .setJobId(kafkaDesc.sinkTaskId())
-                    .build());
-            }
-
-        } else {
-            LOG.warn("Cannot find kafka description for execution {}", executionId);
+        if (s3SinkClient.enabled()) {  // Completing job, it will delete topic
+            s3SinkClient.stub().stop(KafkaS3Sink.StopRequest.newBuilder()
+                .setJobId(kafkaDesc.sinkTaskId())
+                .build());
         }
     }
 

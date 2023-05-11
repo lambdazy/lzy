@@ -1,7 +1,6 @@
 package ai.lzy.portal.config;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
-import jakarta.annotation.Nullable;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -16,11 +15,6 @@ public class PortalConfig {
     private String host;
     private int portalApiPort;
     private int slotsApiPort;
-
-    @Nullable
-    private String stdoutChannelId;
-    @Nullable
-    private String stderrChannelId;
 
     private String channelManagerAddress;
     private String whiteboardAddress;
@@ -49,8 +43,6 @@ public class PortalConfig {
             ", host: " + host +
             ", portalPort: " + portalApiPort +
             ", slotsPort: " + slotsApiPort +
-            ", stdoutChannelId: " + stdoutChannelId +
-            ", stderrChannelId: " + stderrChannelId +
             ", vmId: " + vmId +
             " }";
     }

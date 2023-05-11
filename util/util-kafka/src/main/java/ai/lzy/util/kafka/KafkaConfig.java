@@ -8,7 +8,6 @@ import java.util.List;
 @Getter
 @Setter
 public final class KafkaConfig {
-    private boolean enabled = false;
     private List<String> bootstrapServers;
 
     private boolean tlsEnabled = false;
@@ -26,7 +25,6 @@ public final class KafkaConfig {
 
     public static KafkaConfig of(String bootstrapServer) {
         var cfg = new KafkaConfig();
-        cfg.enabled = true;
         cfg.bootstrapServers = List.of(bootstrapServer);
         return cfg;
     }

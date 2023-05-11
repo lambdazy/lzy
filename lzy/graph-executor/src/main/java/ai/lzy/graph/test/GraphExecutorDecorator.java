@@ -11,7 +11,6 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.StreamObserver;
-import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -21,7 +20,6 @@ import java.util.function.Consumer;
 
 @Singleton
 @Requires(env = "graph-executor-decorator")
-@Primary
 @Setter
 public class GraphExecutorDecorator extends GraphExecutorApi {
     private volatile Consumer<GraphExecuteRequest> onExecute = (executeRequest) -> {};

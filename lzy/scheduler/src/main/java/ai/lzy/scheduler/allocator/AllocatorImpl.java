@@ -100,24 +100,21 @@ public class AllocatorImpl implements WorkersAllocator {
             "-i", config.getIam().getAddress()
         ));
 
-        if (config.getKafka().isEnabled()) {
-            args.add("--kafka-bootstrap");
-            args.add(String.join(",", config.getKafka().getBootstrapServers()));
+        args.add("--kafka-bootstrap");
+        args.add(String.join(",", config.getKafka().getBootstrapServers()));
 
-            if (config.getKafka().isTlsEnabled()) {
-                try (var file = new FileInputStream(config.getKafka().getTlsTruststorePath())) {
-                    var bytes = file.readAllBytes();
+        if (config.getKafka().isTlsEnabled()) {
+            try (var file = new FileInputStream(config.getKafka().getTlsTruststorePath())) {
+                var bytes = file.readAllBytes();
 
-                    args.add("--truststore-base64");
-                    args.add(Base64.getEncoder().encodeToString(bytes));
+                args.add("--truststore-base64");
+                args.add(Base64.getEncoder().encodeToString(bytes));
 
-                    args.add("--truststore-password");
-                    args.add(config.getKafka().getTlsTruststorePassword());
-                } catch (IOException e) {
-                    LOG.error("Cannot serialize kafka CA", e);
-                    throw new RuntimeException("Cannot serialize kafka CA", e);
-                }
-
+                args.add("--truststore-password");
+                args.add(config.getKafka().getTlsTruststorePassword());
+            } catch (IOException e) {
+                LOG.error("Cannot serialize kafka CA", e);
+                throw new RuntimeException("Cannot serialize kafka CA", e);
             }
         }
 

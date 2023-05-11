@@ -46,8 +46,6 @@ public class PortalService extends LzyPortalImplBase {
 
     public static final String APP = "LzyPortal";
     public static final String PORTAL_SLOT_PREFIX = "/portal_slot";
-    public static final String PORTAL_OUT_SLOT_NAME = "/portal_slot:stdout";
-    public static final String PORTAL_ERR_SLOT_NAME = "/portal_slot:stderr";
 
     private final ApplicationContext context;
 
@@ -89,24 +87,6 @@ public class PortalService extends LzyPortalImplBase {
             } catch (Exception e) {
                 LOG.error("Cannot close slot <{}>:", slot.name(), e);
             }
-        }
-
-        try {
-            var out = slotsService.getStdoutSlot();
-            if (out != null) {
-                out.close();
-            }
-        } catch (Exception e) {
-            LOG.error("Cannot finish stdout slot in portal with id <{}>: ", portalId, e);
-        }
-
-        try {
-            var err = slotsService.getStderrSlot();
-            if (err != null) {
-                err.close();
-            }
-        } catch (Exception e) {
-            LOG.error("Cannot finish stderr slot in portal with id <{}>: ", portalId, e);
         }
 
         responseObserver.onNext(Empty.getDefaultInstance());
@@ -249,21 +229,23 @@ public class PortalService extends LzyPortalImplBase {
                 throw new CreateSlotException("Invalid slot " + slot.name());
             }
 
-            final String taskId = switch (slotDesc.getKindCase()) {
-                case SNAPSHOT -> portalId;
-                case STDERR -> slotDesc.getStderr().getTaskId();
-                case STDOUT -> slotDesc.getStdout().getTaskId();
-                default -> throw new NotImplementedException(slotDesc.getKindCase().name());
-            };
+            String taskId;
+            if (slotDesc.getKindCase().equals(PortalSlotDesc.KindCase.SNAPSHOT)) {
+                taskId = portalId;
+            } else {
+                throw new NotImplementedException(slotDesc.getKindCase().name());
+            }
+
             final SlotInstance slotInstance = new SlotInstance(slot, taskId, slotDesc.getChannelId(),
                 slotsService.getSlotsManager().resolveSlotUri(taskId, slot.name()));
 
-            LzySlot newLzySlot = switch (slotDesc.getKindCase()) {
-                case SNAPSHOT -> slotsService.getSnapshots().createSlot(slotDesc.getSnapshot(), slotInstance);
-                case STDOUT -> slotsService.getStdoutSlot().attach(slotInstance);
-                case STDERR -> slotsService.getStderrSlot().attach(slotInstance);
-                default -> throw new NotImplementedException(slotDesc.getKindCase().name());
-            };
+            LzySlot newLzySlot;
+            if (slotDesc.getKindCase().equals(PortalSlotDesc.KindCase.SNAPSHOT)) {
+                newLzySlot = slotsService.getSnapshots().createSlot(slotDesc.getSnapshot(), slotInstance);
+            } else {
+                throw new NotImplementedException(slotDesc.getKindCase().name());
+            }
+
             try {
                 slotsService.getSlotsManager().registerSlot(newLzySlot);
             } catch (RuntimeException e) {
@@ -320,50 +302,6 @@ public class PortalService extends LzyPortalImplBase {
                 }
             }
 
-            try {
-                if (slotsService.getStdoutSlot() != null) {
-                    slotsService.getStdoutSlot().finish();
-                }
-            } catch (Exception e) {
-                if (errorMessage == null) {
-                    errorMessage = "Cannot finish stdout slot in portal";
-                }
-                LOG.error("Cannot finish stdout slot in portal with id <{}>: ", portalId, e);
-            }
-
-            try {
-                if (slotsService.getStderrSlot() != null) {
-                    slotsService.getStderrSlot().finish();
-                }
-            } catch (Exception e) {
-                if (errorMessage == null) {
-                    errorMessage = "Cannot finish stderr slot in portal";
-                }
-                LOG.error("Cannot finish stderr slot in portal with id <{}>: ", portalId, e);
-            }
-
-            try {
-                if (slotsService.getStdoutSlot() != null) {
-                    slotsService.getStdoutSlot().await();
-                }
-            } catch (Exception e) {
-                if (errorMessage == null) {
-                    errorMessage = "Cannot await finish stdout slot in portal";
-                }
-                LOG.error("Cannot await finish stdout slot in portal with id <{}>: ", portalId, e);
-            }
-
-            try {
-                if (slotsService.getStderrSlot() != null) {
-                    slotsService.getStderrSlot().await();
-                }
-            } catch (Exception e) {
-                if (errorMessage == null) {
-                    errorMessage = "Cannot await finish stderr slot in portal";
-                }
-                LOG.error("Cannot await finish stderr slot in portal with id <{}>: ", portalId, e);
-            }
-
             if (errorMessage != null) {
                 operationService.updateError(op.id(), Status.INTERNAL.withDescription(errorMessage));
             } else {
@@ -406,12 +344,11 @@ public class PortalService extends LzyPortalImplBase {
             .append("\"slot\": ").append(JsonUtils.printSingleLine(slotDesc))
             .append(", \"storage\": ");
 
-        switch (slotDesc.getKindCase()) {
-            case SNAPSHOT -> sb.append("\"snapshot/uri:").append(slotDesc.getSnapshot().getStorageConfig().getUri())
+        if (slotDesc.getKindCase().equals(PortalSlotDesc.KindCase.SNAPSHOT)) {
+            sb.append("\"snapshot/uri:").append(slotDesc.getSnapshot().getStorageConfig().getUri())
                 .append("\"");
-            case STDOUT -> sb.append("\"stdout\"");
-            case STDERR -> sb.append("\"stderr\"");
-            default -> sb.append("\"").append(slotDesc.getKindCase()).append("\"");
+        } else {
+            sb.append("\"").append(slotDesc.getKindCase()).append("\"");
         }
 
         return sb.append("}").toString();

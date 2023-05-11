@@ -9,7 +9,6 @@ import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.LocalOperationUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.grpc.ProtoConverter;
-import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotSlots;
@@ -30,7 +29,6 @@ import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
-import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -47,7 +45,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.StreamSupport;
 
-import static ai.lzy.portal.services.PortalService.PORTAL_SLOT_PREFIX;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
@@ -58,13 +55,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
     private final ApplicationContext ctx;
     private final String portalId;
-    private final PortalConfig config;
     private final Supplier<String> token;
-
-    @Nullable
-    private StdoutSlot stdoutSlot = null;
-    @Nullable
-    private StdoutSlot stderrSlot = null;
 
     private SnapshotSlots snapshots;
     private final SlotsManager slotsManager;
@@ -80,7 +71,6 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     {
         this.ctx = ctx;
         this.portalId = config.getPortalId();
-        this.config = config;
 
         final var channelManagerClient = newBlockingClient(
             LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel), "LzyPortal", tokenFactory);
@@ -98,39 +88,12 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     }
 
     public void start() {
-        LOG.info("Registering portal stdout/err slots with config: {}", config.toSafeString());
-
         this.snapshots = ctx.getBean(SnapshotSlots.class);
-
-        var stdoutSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDOUT_SUFFIX;
-        var stderrSlotName = PORTAL_SLOT_PREFIX + ":" + Slot.STDERR_SUFFIX;
-
-        if (config.getStdoutChannelId() != null) {
-            stdoutSlot = new StdoutSlot(stdoutSlotName, portalId, config.getStdoutChannelId(),
-                slotsManager.resolveSlotUri(portalId, stdoutSlotName));
-            slotsManager.registerSlot(stdoutSlot);
-        }
-
-        if (config.getStderrChannelId() != null) {
-            stderrSlot = new StdoutSlot(stderrSlotName, portalId, config.getStderrChannelId(),
-                slotsManager.resolveSlotUri(portalId, stderrSlotName));
-            slotsManager.registerSlot(stderrSlot);
-        }
-
-        LOG.info("Portal stdout/err slots successfully registered...");
     }
 
     @PreDestroy
     public void stop() throws InterruptedException {
-        if (stdoutSlot != null) {
-            stdoutSlot.destroy();
-        }
-        if (stderrSlot != null) {
-            stderrSlot.destroy();
-        }
-
         slotsManager.slots().forEach(LzySlot::destroy);
-
         slotsManager.stop();
     }
 
@@ -231,18 +194,6 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
                 return;
             }
 
-            var stdoutPeerSlot = findOutSlot(from.name());
-            if (stdoutPeerSlot != null) {
-                startConnect.accept(stdoutPeerSlot, op.id());
-                return;
-            }
-
-            var stderrPeerSlot = findErrSlot(from.name());
-            if (stderrPeerSlot != null) {
-                startConnect.accept(stderrPeerSlot, op.id());
-                return;
-            }
-
             var errorStatus = Status.INVALID_ARGUMENT.withDescription("Only snapshot is supported now");
 
             LOG.error("Only snapshot is supported now, got connect from `{}` to `{}`", from, to);
@@ -296,7 +247,6 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     }
 
     private void disconnectSlot(String slotName) throws StatusException {
-
         LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
         LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
         if (inputSlot != null) {
@@ -310,31 +260,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
             return;
         }
 
-        inputSlot = findOutSlot(slotName);
-        if (inputSlot != null) {
-            inputSlot.disconnect();
-            return;
-        }
-
-        inputSlot = findErrSlot(slotName);
-        if (inputSlot != null) {
-            inputSlot.disconnect();
-            return;
-        }
-
-        StdoutSlot out = getStdoutSlot();
-        if (out != null && out.name().equals(slotName)) {
-            out.suspend();
-            return;
-        }
-
-        StdoutSlot err = getStderrSlot();
-        if (err != null && err.name().equals(slotName)) {
-            err.suspend();
-            return;
-        }
-
-        LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotName);
+        LOG.error("Only snapshots are supported now, got {}", slotName);
         throw Status.NOT_FOUND.withDescription("Cannot find slot " + slotName).asException();
     }
 
@@ -429,34 +355,6 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
                 done = true;
             }
 
-            if (!done) {
-                inputSlot = findOutSlot(slotName);
-                if (inputSlot != null) {
-                    inputSlot.destroy();
-                    done = true;
-                }
-            }
-
-            if (!done) {
-                inputSlot = findErrSlot(slotName);
-                if (inputSlot != null) {
-                    inputSlot.destroy();
-                    done = true;
-                }
-            }
-
-            StdoutSlot out = getStdoutSlot();
-            if (!done && out != null && out.name().equals(slotName)) {
-                out.destroy();
-                done = true;
-            }
-
-            StdoutSlot err = getStderrSlot();
-            if (!done && err != null && err.name().equals(slotName)) {
-                err.destroy();
-                done = true;
-            }
-
             if (done) {
                 operationService.updateResponse(op.id(), LSA.DestroySlotResponse.getDefaultInstance());
                 response.onNext(LSA.DestroySlotResponse.getDefaultInstance());
@@ -464,7 +362,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
                 return;
             }
 
-            LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
+            LOG.error("Only snapshots are supported now, got {}", slotInstance);
             response.onError(Status.NOT_FOUND
                 .withDescription("Cannot find slot " + slotName).asRuntimeException());
         } else {
@@ -485,15 +383,6 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
         synchronized (this) {
             outputSlot = getSnapshots().getOutputSlot(slotName);
-            if (outputSlot == null) {
-                StdoutSlot out = getStdoutSlot();
-                StdoutSlot err = getStderrSlot();
-                if (out.name().equals(slotName)) {
-                    outputSlot = out;
-                } else if (err.name().equals(slotName)) {
-                    outputSlot = err;
-                }
-            }
         }
 
         if (outputSlot != null) {
@@ -501,9 +390,9 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
             return;
         }
 
-        LOG.error("Only snapshot or stdout/stderr are supported now, got {}", slotInstance);
+        LOG.error("Only snapshots are supported now, got {}", slotInstance);
         response.onError(Status.INVALID_ARGUMENT
-            .withDescription("Only snapshot or stdout/stderr are supported now").asException());
+            .withDescription("Only snapshots are supported now").asException());
     }
 
     private <T extends Message> boolean loadExistingOpResult(Operation.IdempotencyKey key, Class<T> respType,
@@ -526,36 +415,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         return slotsManager;
     }
 
-    @Nullable
-    public LzyInputSlot findOutSlot(String name) {
-        if (stdoutSlot == null) {
-            return null;
-        }
-        return stdoutSlot.find(name);
-    }
-
-    @Nullable
-    public LzyInputSlot findErrSlot(String name) {
-        if (stderrSlot == null) {
-            return null;
-        }
-        return stderrSlot.find(name);
-    }
-
-    @Nullable
-    public StdoutSlot getStdoutSlot() {
-        return stdoutSlot;
-    }
-
-    @Nullable
-    public StdoutSlot getStderrSlot() {
-        return stderrSlot;
-    }
-
     public List<StdoutSlot> getOutErrSlots() {
-        if (stdoutSlot != null && stderrSlot != null) {
-            return List.of(stdoutSlot, stderrSlot);
-        }
         return Collections.emptyList();
     }
 

@@ -23,24 +23,26 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class Job {
     private static final Logger LOG = LogManager.getLogger(Job.class);
     private static final int BUFFER_SIZE = 1024 * 1024 * 5; // S3 multipart chunk must be at least 5Mb
+    public static final AtomicInteger COMPLETE_TIMEOUT_MS = new AtomicInteger((int) Duration.ofSeconds(5).toMillis());
 
     private final String id;
     private final AtomicReference<State> state = new AtomicReference<>(State.Created);
     private final KafkaS3Sink.StartRequest request;
     private final S3SinkMetrics metrics;
-    private final AtomicBoolean completed = new AtomicBoolean(false);
+    private final AtomicReference<Instant> deadline = new AtomicReference<>(null);
     private final List<CompletedPart> completedParts = new ArrayList<>();
     private final ByteBuffer s3ChunkBuffer = ByteBuffer.allocate(BUFFER_SIZE);
     private final Consumer<String, byte[]> consumer;
@@ -112,11 +114,11 @@ public class Job {
         final CreateMultipartUploadResponse resp;
         try {
             resp = storageClient.createMultipartUpload(
-                CreateMultipartUploadRequest.builder()
-                    .bucket(bucket)
-                    .key(key)
-                    .contentType(MediaType.TEXT_PLAIN)
-                    .build())
+                    CreateMultipartUploadRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .build())
                 .get();
         } catch (InterruptedException | ExecutionException e) {
             LOG.error("{} Error while creating multipart upload", this, e);
@@ -124,11 +126,11 @@ public class Job {
 
             try {
                 storageClient.abortMultipartUpload(
-                    AbortMultipartUploadRequest.builder()
-                        .uploadId(multipartId)
-                        .bucket(bucket)
-                        .key(key)
-                        .build())
+                        AbortMultipartUploadRequest.builder()
+                            .uploadId(multipartId)
+                            .bucket(bucket)
+                            .key(key)
+                            .build())
                     .get();
             } catch (InterruptedException | ExecutionException ex) {
                 metrics.errors.inc();
@@ -165,7 +167,7 @@ public class Job {
                 var results = consumer.poll(Duration.ofMillis(100));
 
                 if (results.isEmpty()) {
-                    if (completed.get()) {
+                    if (deadline.get() != null && Instant.now().isAfter(deadline.get())) {
                         if (s3ChunkBuffer.position() > 0) {  // If some data remaining in chunk buffer, uploading it
                             s3ChunkBuffer.flip();
 
@@ -272,12 +274,12 @@ public class Job {
                         .build();
 
                     storageClient.completeMultipartUpload(
-                        CompleteMultipartUploadRequest.builder()
-                            .uploadId(multipartId)
-                            .bucket(bucket)
-                            .key(key)
-                            .multipartUpload(completedMultipartUpload)
-                            .build())
+                            CompleteMultipartUploadRequest.builder()
+                                .uploadId(multipartId)
+                                .bucket(bucket)
+                                .key(key)
+                                .multipartUpload(completedMultipartUpload)
+                                .build())
                         .get();
                 } catch (InterruptedException | ExecutionException e) {
                     LOG.error("{} Cannot complete multipart upload: ", this, e);
@@ -295,7 +297,7 @@ public class Job {
     }
 
     public void complete() {
-        completed.set(true);
+        deadline.set(Instant.now().plus(Duration.ofMillis(COMPLETE_TIMEOUT_MS.get())));
     }
 
     @Override
