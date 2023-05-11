@@ -44,8 +44,6 @@ public class LzyServiceConfig {
         private int portalApiPort;
         private int slotsApiPort;
         private String dockerImage;
-        private String stdoutChannelName;
-        private String stderrChannelName;
         private String poolLabel;
         private String poolZone;
         private int workersPoolSize = 10;

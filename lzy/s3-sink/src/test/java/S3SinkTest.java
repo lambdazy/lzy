@@ -131,6 +131,8 @@ public class S3SinkTest {
         metrics.activeSessions.clear();
         metrics.errors.clear();
         metrics.uploadedBytes.clear();
+
+        Job.COMPLETE_TIMEOUT_MS.set(50);
     }
 
     @After

@@ -9,8 +9,6 @@ public record PortalDescription(
     String vmId,
     HostAndPort vmAddress,
     HostAndPort fsAddress,
-    String stdoutChannelId,
-    String stderrChannelId,
     PortalStatus portalStatus
 ) {
     public enum PortalStatus {

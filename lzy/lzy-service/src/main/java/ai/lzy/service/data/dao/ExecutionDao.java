@@ -12,11 +12,6 @@ public interface ExecutionDao {
     void create(String userId, String executionId, String storageName, LMST.StorageConfig storageConfig,
                 @Nullable TransactionHandle transaction) throws SQLException;
 
-    void delete(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
-
-    void updateStdChannelIds(String executionId, String stdoutChannelId, String stderrChannelId,
-                             @Nullable TransactionHandle transaction) throws SQLException;
-
     void updatePortalVmAllocateSession(String executionId, String sessionId, String portalId,
                                        @Nullable TransactionHandle transaction)
         throws SQLException;
@@ -56,14 +51,10 @@ public interface ExecutionDao {
     PortalDescription getPortalDescription(String executionId) throws SQLException;
 
     @Nullable
-    String getAllocatorSession(String executionId) throws SQLException;
-
-    @Nullable
     String getExpiredExecution() throws SQLException;
 
     void setKafkaTopicDesc(String executionId, KafkaTopicDesc topicDesc,
                            @Nullable TransactionHandle transaction) throws SQLException;
 
-    @Nullable
     KafkaTopicDesc getKafkaTopicDesc(String executionId, @Nullable TransactionHandle transaction) throws SQLException;
 }

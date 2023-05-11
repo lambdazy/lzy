@@ -13,8 +13,6 @@ final class CreateExecutionState {
     private final String storageName;
 
     private String sessionId;
-    private String stdoutChannelId;
-    private String stderrChannelId;
     private String portalId;
     private String subjectId;
     private Status errorStatus;
@@ -59,22 +57,6 @@ final class CreateExecutionState {
 
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
-    }
-
-    public String getStdoutChannelId() {
-        return stdoutChannelId;
-    }
-
-    public void setStdoutChannelId(String stdoutChannelId) {
-        this.stdoutChannelId = stdoutChannelId;
-    }
-
-    public String getStderrChannelId() {
-        return stderrChannelId;
-    }
-
-    public void setStderrChannelId(String stderrChannelId) {
-        this.stderrChannelId = stderrChannelId;
     }
 
     public String getPortalId() {
