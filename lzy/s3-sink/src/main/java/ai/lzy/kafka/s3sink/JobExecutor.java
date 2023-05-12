@@ -19,7 +19,10 @@ public class JobExecutor {
     private static final Logger LOG = LogManager.getLogger(JobExecutor.class);
     private static final int THREAD_POOL_SIZE = 10;
 
-    private final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+    private static final ThreadGroup JobExecutorTG = new ThreadGroup("s3-sink-jobs");
+
+    private final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE,
+        r -> new Thread(JobExecutorTG, r, "s3-sink-worker"));
     private final BlockingQueue<JobHandle> queue = new DelayQueue<>();
     private final Map<String, JobHandle> handles = new ConcurrentHashMap<>();
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -116,5 +119,18 @@ public class JobExecutor {
         var fut = new CompletableFuture<Job.PollResult>();
         waiters.put(jobId, fut);
         return fut;
+    }
+
+    @VisibleForTesting
+    public void addActiveStream(String jobId, String stream) {
+        while (!handles.containsKey(jobId)) {
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                // ignored
+            }
+        }
+
+        handles.get(jobId).job.addActiveStream(stream);
     }
 }

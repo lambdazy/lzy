@@ -3,6 +3,7 @@ package ai.lzy.kafka.s3sink;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.kafka.KafkaS3Sink;
 import com.amazonaws.services.s3.AmazonS3URI;
+import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import io.micronaut.http.MediaType;
 import jakarta.annotation.Nullable;
@@ -22,13 +23,12 @@ import software.amazon.awssdk.services.s3.model.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,7 +36,9 @@ import java.util.concurrent.atomic.AtomicReference;
 public class Job {
     private static final Logger LOG = LogManager.getLogger(Job.class);
     private static final int BUFFER_SIZE = 1024 * 1024 * 5; // S3 multipart chunk must be at least 5Mb
-    public static final AtomicInteger COMPLETE_TIMEOUT_MS = new AtomicInteger((int) Duration.ofSeconds(5).toMillis());
+    public static final AtomicInteger COMPLETE_TIMEOUT_MS = new AtomicInteger(5000);
+    public static final AtomicInteger UPLOADING_TIMEOUT_MS = new AtomicInteger(100);
+    public static final AtomicInteger KAFKA_POLLING_TIMEOUT_MS = new AtomicInteger(500);
 
     private final String id;
     private final AtomicReference<State> state = new AtomicReference<>(State.Created);
@@ -47,6 +49,7 @@ public class Job {
     private final ByteBuffer s3ChunkBuffer = ByteBuffer.allocate(BUFFER_SIZE);
     private final Consumer<String, byte[]> consumer;
     private final S3AsyncClient storageClient;  // Support only s3 for now
+    private final Set<String> activeStreams = ConcurrentHashMap.newKeySet();
     @Nullable
     private String multipartId;
     private int partNumber = 1;
@@ -167,7 +170,7 @@ public class Job {
                 var results = consumer.poll(Duration.ofMillis(100));
 
                 if (results.isEmpty()) {
-                    if (deadline.get() != null && Instant.now().isAfter(deadline.get())) {
+                    if (deadline.get() != null && (activeStreams.isEmpty() || Instant.now().isAfter(deadline.get()))) {
                         if (s3ChunkBuffer.position() > 0) {  // If some data remaining in chunk buffer, uploading it
                             s3ChunkBuffer.flip();
 
@@ -184,7 +187,7 @@ public class Job {
                             s3ChunkBuffer.clear();
 
                             state.set(State.AwaitingUpload);
-                            yield new PollResult(false, null, Duration.ofMillis(100));
+                            yield new PollResult(false, null, Duration.ofMillis(UPLOADING_TIMEOUT_MS.get()));
                         }
 
                         // No more records available, completing job
@@ -193,7 +196,7 @@ public class Job {
                     }
 
                     // Sleeping for 0.5s to wait for records
-                    yield new PollResult(false, null, Duration.ofMillis(500));
+                    yield new PollResult(false, null, Duration.ofMillis(KAFKA_POLLING_TIMEOUT_MS.get()));
                 }
 
                 resultsStream = results.iterator();
@@ -206,6 +209,24 @@ public class Job {
                 while (true) {
                     try {
                         final var res = resultsStream.next();
+
+                        var taskId = res.key();
+                        var header = res.headers().lastHeader("stream");
+                        final String streamName;
+
+                        if (header == null) {
+                            LOG.warn("{} Cannot get stream name from header", this);
+                            streamName = "";
+                        } else {
+                            streamName = new String(header.value(), StandardCharsets.UTF_8);
+                        }
+
+                        if (res.headers().lastHeader("eos") != null) {
+                            activeStreams.remove(taskId + "-" + streamName);
+                            continue;
+                        }
+
+                        activeStreams.add(taskId + "-" + streamName);
 
                         if (res.value().length > BUFFER_SIZE) {
                             metrics.errors.inc();
@@ -233,7 +254,7 @@ public class Job {
                             s3ChunkBuffer.put(res.value(), sizeToCopy, res.value().length - sizeToCopy);
 
                             state.set(State.AwaitingUpload);
-                            yield new PollResult(false, null, Duration.ofMillis(100));
+                            yield new PollResult(false, null, Duration.ofMillis(UPLOADING_TIMEOUT_MS.get()));
                         }
 
                     } catch (NoSuchElementException e) {
@@ -274,12 +295,12 @@ public class Job {
                         .build();
 
                     storageClient.completeMultipartUpload(
-                            CompleteMultipartUploadRequest.builder()
-                                .uploadId(multipartId)
-                                .bucket(bucket)
-                                .key(key)
-                                .multipartUpload(completedMultipartUpload)
-                                .build())
+                        CompleteMultipartUploadRequest.builder()
+                            .uploadId(multipartId)
+                            .bucket(bucket)
+                            .key(key)
+                            .multipartUpload(completedMultipartUpload)
+                            .build())
                         .get();
                 } catch (InterruptedException | ExecutionException e) {
                     LOG.error("{} Cannot complete multipart upload: ", this, e);
@@ -298,6 +319,11 @@ public class Job {
 
     public void complete() {
         deadline.set(Instant.now().plus(Duration.ofMillis(COMPLETE_TIMEOUT_MS.get())));
+    }
+
+    @VisibleForTesting
+    public void addActiveStream(String streamName) {
+        activeStreams.add(streamName);
     }
 
     @Override
