@@ -6,36 +6,30 @@ import java.nio.file.Path;
 
 public class RsaUtils {
 
-    public record RsaKeysFiles(
-        Path publicKeyPath,
-        Path privateKeyPath
-    ) {}
-
-    public static RsaKeysFiles generateRsaKeysFiles() throws IOException, InterruptedException {
-        final Path tempDirectory = Files.createTempDirectory("test-rsa-keys");
-        final Path publicKeyPath = tempDirectory.resolve("public.pem");
-        final Path privateKeyPath = tempDirectory.resolve("private.pem");
-
-        final Process exec = Runtime.getRuntime()
-            .exec(String.format("openssl genrsa -out %s 2048", privateKeyPath));
-        exec.waitFor();
-        final Process exec1 = Runtime.getRuntime()
-            .exec(String.format("openssl rsa -in %s -outform PEM -pubout -out %s", privateKeyPath, publicKeyPath));
-        exec1.waitFor();
-        return new RsaKeysFiles(publicKeyPath, privateKeyPath);
-    }
-
     public record RsaKeys(
         String publicKey,
         String privateKey
     ) {}
 
     public static RsaKeys generateRsaKeys() throws IOException, InterruptedException {
-        var files = generateRsaKeysFiles();
+        final Path tempDirectory = Files.createTempDirectory("gen-rsa-keys");
+        final Path publicKeyPath = tempDirectory.resolve("public.pem");
+        final Path privateKeyPath = tempDirectory.resolve("private.pem");
 
-        var keys = new RsaKeys(Files.readString(files.publicKeyPath()), Files.readString(files.privateKeyPath()));
-        Files.delete(files.publicKeyPath());
-        Files.delete(files.privateKeyPath());
-        return keys;
+        try {
+            var exec = Runtime.getRuntime()
+                .exec("openssl genrsa -out %s 2048".formatted(privateKeyPath));
+            exec.waitFor();
+
+            var exec1 = Runtime.getRuntime()
+                .exec("openssl rsa -in %s -outform PEM -pubout -out %s".formatted(privateKeyPath, publicKeyPath));
+            exec1.waitFor();
+
+            return new RsaKeys(Files.readString(publicKeyPath), Files.readString(privateKeyPath));
+        } finally {
+            Files.delete(publicKeyPath);
+            Files.delete(privateKeyPath);
+            Files.delete(tempDirectory);
+        }
     }
 }
