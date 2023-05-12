@@ -30,11 +30,17 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
 
     private final Path storage;
     private final OutputStream outputStream;
+    private final boolean allowMultipleRead;
 
-    public InFileSlot(SlotInstance instance, Path storage) throws IOException {
+    public InFileSlot(SlotInstance instance, Path storage, boolean allowMultipleRead) throws IOException {
         super(instance);
         this.storage = storage;
         outputStream = Files.newOutputStream(storage);
+        this.allowMultipleRead = allowMultipleRead;
+    }
+
+    public InFileSlot(SlotInstance instance, Path storage) throws IOException {
+        this(instance, storage, false);
     }
 
     public InFileSlot(SlotInstance instance) throws IOException {
@@ -153,7 +159,9 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
                 LOG.info("Closing file {} for slot {}", storage.toString(), name());
                 channel.close();
                 trackers().forEach(ContentsTracker::onClose);
-                state(State.SUSPENDED);
+                if (!allowMultipleRead) {
+                    state(State.SUSPENDED);
+                }
             }
         };
     }
