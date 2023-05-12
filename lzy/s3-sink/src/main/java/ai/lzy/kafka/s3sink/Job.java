@@ -46,7 +46,6 @@ public class Job {
     private final KafkaS3Sink.StartRequest request;
     private final S3SinkMetrics metrics;
     private final AtomicReference<Instant> deadline = new AtomicReference<>(null);
-    private final AtomicBoolean completed = new AtomicBoolean(false);
     private final List<CompletedPart> completedParts = new ArrayList<>();
     private final ByteBuffer s3ChunkBuffer = ByteBuffer.allocate(BUFFER_SIZE);
     private final Consumer<String, byte[]> consumer;
@@ -172,7 +171,7 @@ public class Job {
                 var results = consumer.poll(Duration.ofMillis(100));
 
                 if (results.isEmpty()) {
-                    if (completed.get() && (activeStreams.isEmpty() || Instant.now().isAfter(deadline.get()))) {
+                    if (deadline.get() != null && (activeStreams.isEmpty() || Instant.now().isAfter(deadline.get()))) {
                         if (s3ChunkBuffer.position() > 0) {  // If some data remaining in chunk buffer, uploading it
                             s3ChunkBuffer.flip();
 
@@ -320,7 +319,6 @@ public class Job {
     }
 
     public void complete() {
-        completed.set(true);
         deadline.set(Instant.now().plus(Duration.ofMillis(COMPLETE_TIMEOUT_MS.get())));
     }
 
