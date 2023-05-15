@@ -1,4 +1,4 @@
-package ai.lzy.service.data.storage;
+package ai.lzy.service.dao.impl;
 
 import ai.lzy.model.db.StorageImpl;
 import ai.lzy.service.config.LzyServiceConfig;

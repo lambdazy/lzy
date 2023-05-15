@@ -1,9 +1,9 @@
-package ai.lzy.service.data.dao;
+package ai.lzy.service.dao.impl;
 
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.service.dao.GcDao;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 

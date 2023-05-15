@@ -1,5 +1,6 @@
 package ai.lzy.service.graph;
 
+import ai.lzy.service.dao.GraphExecutionState;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.workflow.LWF;

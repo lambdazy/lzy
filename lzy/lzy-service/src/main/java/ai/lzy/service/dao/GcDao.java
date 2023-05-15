@@ -1,4 +1,4 @@
-package ai.lzy.service.data.dao;
+package ai.lzy.service.dao;
 
 import ai.lzy.model.db.TransactionHandle;
 import jakarta.annotation.Nullable;

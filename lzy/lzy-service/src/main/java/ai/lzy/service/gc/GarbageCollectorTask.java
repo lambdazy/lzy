@@ -1,7 +1,7 @@
 package ai.lzy.service.gc;
 
 import ai.lzy.service.CleanExecutionCompanion;
-import ai.lzy.service.data.dao.ExecutionDao;
+import ai.lzy.service.dao.ExecutionDao;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 

@@ -1,6 +1,6 @@
 package ai.lzy.service;
 
-import ai.lzy.service.data.dao.ExecutionDao;
+import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.portal.LzyPortalGrpc;

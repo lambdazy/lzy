@@ -1,5 +1,6 @@
-package ai.lzy.service.graph;
+package ai.lzy.service.dao;
 
+import ai.lzy.service.graph.DataFlowGraph;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutor.TaskDesc;
 import ai.lzy.v1.workflow.LWF;

@@ -5,8 +5,9 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.PortalClientProvider;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.data.dao.ExecutionDao;
-import ai.lzy.service.data.dao.GraphDao;
+import ai.lzy.service.dao.ExecutionDao;
+import ai.lzy.service.dao.GraphDao;
+import ai.lzy.service.dao.GraphExecutionState;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -250,7 +251,7 @@ public class GraphExecutionService {
             InjectedFailures.fail7();
 
             try {
-                withRetries(LOG, () -> graphDao.save(new GraphDao.GraphDescription(
+                withRetries(LOG, () -> graphDao.put(new GraphDao.GraphDescription(
                     state.getGraphId(), executionId, state.getPortalInputSlots()), null));
             } catch (Exception e) {
                 LOG.error("Cannot save portal slots", e);
