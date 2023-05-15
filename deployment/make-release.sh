@@ -44,7 +44,7 @@ mvn versions:set-property -Dproperty=revision \
     -DgenerateBackupPoms=false -DprocessAllModules
 
 CHANGELIST=$(changelist)
-echo "$NEXT_REVISION" > ../pylzy/lzy/version/version
+echo "$NEXT_REVISION.0" > ../pylzy/lzy/version/version
 
 git add -u ..
 git commit -m "set version ${NEXT_REVISION}${CHANGELIST}"
@@ -60,7 +60,7 @@ mvn versions:set-property -Dproperty=revision \
       -DgenerateBackupPoms=false -DprocessAllModules
 
 RELEASE_VERSION=$(revision)
-echo "$RELEASE_VERSION.0" > ../pylzy/lzy/version/version
+echo "$RELEASE_VERSION" > ../pylzy/lzy/version/version
 git add -u ..
 git commit -m "set version $RELEASE_VERSION"
 git tag "R-$RELEASE_VERSION"
