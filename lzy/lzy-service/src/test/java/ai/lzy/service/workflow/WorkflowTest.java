@@ -3,6 +3,7 @@ package ai.lzy.service.workflow;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.service.BaseTest;
 import ai.lzy.service.debug.InjectedFailures;
+import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.common.LMST;
@@ -597,6 +598,8 @@ public class WorkflowTest extends BaseTest {
 
     @Test
     public void testClientVersion() {
+        ClientVersionInterceptor.ALLOW_WITHOUT_HEADER.set(false);
+
         var client = authorizedWorkflowClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.CLIENT_VERSION, () -> "pylzy=1.0.0")  // unsupported pylzy
         );
@@ -624,5 +627,7 @@ public class WorkflowTest extends BaseTest {
 
         assertThrows(StatusRuntimeException.class,
             () -> client3.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build()));
+
+        ClientVersionInterceptor.ALLOW_WITHOUT_HEADER.set(true);
     }
 }

@@ -12,7 +12,7 @@ public class ClientVersions {
     private static final Logger LOG = LogManager.getLogger(ClientVersions.class);
     private static final Map<String, ClientVersionsDescription> versions = Map.of(
         "pylzy", new ClientVersionsDescription(
-            /* minimal version */ new Version(1, 12, 0),
+            /* minimal version */ new SemanticVersion(1, 12, 0),
             Set.of()
         )
     );
@@ -28,7 +28,7 @@ public class ClientVersions {
         var clientName = res[0];
         var version = res[1];
 
-        var versionParts = version.split("\\.");  // Required format of version <maj>.<min>.<path>
+        var versionParts = version.split("\\.");  // Required format of version <major>.<minor>.<path>
 
         if (versionParts.length != 3) {
             LOG.error("Got client request with version {}, witch is in incorrect format", clientVersion);
@@ -51,13 +51,13 @@ public class ClientVersions {
                 .asException();
         }
 
-        var ver = new Version(maj, min, path);
+        var ver = new SemanticVersion(maj, min, path);
 
         var desc = versions.get(clientName);
 
         if (desc == null) {
             LOG.error("Client with version {} not found", clientVersion);
-            throw Status.UNIMPLEMENTED
+            throw Status.FAILED_PRECONDITION
                 .withDescription("Client with this name is unsupported")
                 .asException();
         }
@@ -76,25 +76,8 @@ public class ClientVersions {
         return true;
     }
 
-    private record Version(
-        int maj,
-        int min,
-        int path
-    ) {
-        public boolean smallerThen(Version other) {
-            return maj < other.maj
-                || maj == other.maj && min < other.min
-                || maj == other.maj && min == other.min && path < other.path;
-        }
-
-        @Override
-        public String toString() {
-            return "%s.%s.%s".formatted(maj, min, path);
-        }
-    }
-
     private record ClientVersionsDescription(
-        Version minimalVersion,
-        Set<Version> blacklist
+        SemanticVersion minimalVersion,
+        Set<SemanticVersion> blacklist
     ) { }
 }

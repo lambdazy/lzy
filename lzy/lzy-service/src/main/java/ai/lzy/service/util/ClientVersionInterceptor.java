@@ -8,12 +8,15 @@ import io.grpc.*;
 import jakarta.inject.Singleton;
 
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Singleton
 public class ClientVersionInterceptor implements ServerInterceptor {
     private static final Set<String> forbiddenMethods = Set.of(
         LzyWorkflowServiceGrpc.getStartWorkflowMethod().getFullMethodName()
     );
+
+    public static final AtomicBoolean ALLOW_WITHOUT_HEADER = new AtomicBoolean(false);
 
     private final LzyServiceMetrics metricReporter;
 
@@ -29,7 +32,17 @@ public class ClientVersionInterceptor implements ServerInterceptor {
         var version = headers.get(GrpcHeaders.CLIENT_VERSION);
 
         if (version == null) {
-            return next.startCall(call, headers);
+            if (ALLOW_WITHOUT_HEADER.get()) {
+                return next.startCall(call, headers);
+            } else {
+                var status = Status.FAILED_PRECONDITION.withDescription(
+                    "Unset version of client. Please specify X-Client-Version header with version of your client")
+                    .asException();
+
+                call.close(status.getStatus(), new Metadata());
+                return new ServerCall.Listener<>() {
+                };
+            }
         }
 
         final boolean supported;
@@ -49,7 +62,7 @@ public class ClientVersionInterceptor implements ServerInterceptor {
             metricReporter.unsupportedClientVersionCalls.inc();
 
             if (forbidIfUnsupported) {
-                var status = Status.UNIMPLEMENTED.withDescription(
+                var status = Status.FAILED_PRECONDITION.withDescription(
                     "Your client version is unsupported in this installation, please update it to more recent version")
                     .asException();
 

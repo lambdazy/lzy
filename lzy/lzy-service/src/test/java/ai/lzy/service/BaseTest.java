@@ -87,6 +87,7 @@ public class BaseTest {
 
     @Before
     public void setUp() throws IOException, InterruptedException {
+        ClientVersionInterceptor.ALLOW_WITHOUT_HEADER.set(true);
         var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
         var iamAddress = "localhost:" + iamTestContext.getPort();
