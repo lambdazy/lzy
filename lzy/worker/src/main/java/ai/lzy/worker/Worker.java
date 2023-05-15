@@ -240,7 +240,6 @@ public class Worker {
 
         properties.put("worker.enable-http-debug", true);
 
-        properties.put("worker.kafka.enabled", true);
         properties.put("worker.kafka.bootstrap-servers", String.join(",", kafka.getBootstrapServers()));
 
         if (kafka.isTlsEnabled()) {

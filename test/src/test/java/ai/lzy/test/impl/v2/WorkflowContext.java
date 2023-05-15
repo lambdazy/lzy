@@ -45,10 +45,7 @@ public class WorkflowContext {
         var opts = Utils.loadModuleTestProperties("lzy-service");
         opts.putAll(Utils.createModuleDatabase("lzy-service"));
 
-        opts.putAll(Map.of(
-            "lzy-service.kafka.bootstrap-servers", kafka.getBootstrapServers(),
-            "lzy-service.kafka.enabled", "true"
-        ));
+        opts.put("lzy-service.kafka.bootstrap-servers", kafka.getBootstrapServers());
         opts.putAll(Map.of(
             "lzy-service.whiteboard-address", whiteboard.privateAddress(),
             "lzy-service.allocator-address", allocator.address(),

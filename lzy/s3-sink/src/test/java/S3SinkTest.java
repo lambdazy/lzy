@@ -84,7 +84,6 @@ public class S3SinkTest {
         KafkaHelper.USE_AUTH.set(false);
 
         Map<String, Object> appConf = Map.of(
-            "s3-sink.kafka.enabled", "true",
             "s3-sink.kafka.bootstrap-servers", "localhost:8001",
             "s3-sink.iam.address", "localhost:" + iamContext.getPort()
         );
