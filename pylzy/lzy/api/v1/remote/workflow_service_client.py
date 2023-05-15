@@ -36,6 +36,7 @@ from lzy.api.v1.remote.model.converter.storage_creds import to
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials, AzureCredentials
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.utils.grpc import add_headers_interceptor, build_channel, build_token, retry, RetryConfig
+from lzy.version import __version__
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
 USER_ENV = "LZY_USER"
@@ -114,7 +115,10 @@ class WorkflowServiceClient:
 
         address = os.getenv(ENDPOINT_ENV, "api.lzy.ai:8899")
         token = build_token(user, key_path)
-        interceptors = add_headers_interceptor({"authorization": f"Bearer {token}"})
+        interceptors = add_headers_interceptor({
+            "authorization": f"Bearer {token}",
+            "X-Client-Version": f"pylzy={__version__}"
+        })
 
         global CHANNEL
         if not CHANNEL:

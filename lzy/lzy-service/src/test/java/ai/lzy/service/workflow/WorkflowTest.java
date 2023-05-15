@@ -594,4 +594,35 @@ public class WorkflowTest extends BaseTest {
 
         assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
     }
+
+    @Test
+    public void testClientVersion() {
+        var client = authorizedWorkflowClient.withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.CLIENT_VERSION, () -> "pylzy=1.0.0")  // unsupported pylzy
+        );
+
+        assertThrows(StatusRuntimeException.class,
+            () -> client.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build()));
+
+        var client1 = authorizedWorkflowClient.withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.CLIENT_VERSION, () -> "keklol=1.0.0")  // unsupported client
+        );
+
+        assertThrows(StatusRuntimeException.class,
+            () -> client1.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build()));
+
+        var client2 = authorizedWorkflowClient.withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.CLIENT_VERSION, () -> "pylzy=1.100")  // wrong version format
+        );
+
+        assertThrows(StatusRuntimeException.class,
+            () -> client2.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build()));
+
+        var client3 = authorizedWorkflowClient.withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.CLIENT_VERSION, () -> "askfj;o.a=kds.jv.of")  // wrong format
+        );
+
+        assertThrows(StatusRuntimeException.class,
+            () -> client3.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build()));
+    }
 }

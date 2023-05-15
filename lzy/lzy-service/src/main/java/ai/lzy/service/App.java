@@ -6,6 +6,7 @@ import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.util.grpc.RequestIdInterceptor;
@@ -37,7 +38,8 @@ public class App {
                @Named("IamServiceChannel") ManagedChannel iamChannel,
                @Named("LzyServiceMetricReporter") MetricReporter metricReporter,
                @Named("LzyServiceOperationDao") OperationDao operationDao,
-               @Named("LzyServiceServerExecutor") ExecutorService workersPool)
+               @Named("LzyServiceServerExecutor") ExecutorService workersPool,
+               ClientVersionInterceptor clientVersionInterceptor)
     {
         this.metricReporter = metricReporter;
         var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient("LzyService", iamChannel));
@@ -48,6 +50,7 @@ public class App {
 
         server = createServer(
             HostAndPort.fromString(config.getAddress()),
+            clientVersionInterceptor,
             authInterceptor,
             new ServerCallExecutorSupplier() {
                 @Override
@@ -81,10 +84,10 @@ public class App {
         workersPool.awaitTermination(10, TimeUnit.SECONDS);
     }
 
-    public static Server createServer(HostAndPort endpoint, AuthServerInterceptor authInterceptor,
-                                      BindableService... services)
+    public static Server createServer(HostAndPort endpoint, ClientVersionInterceptor versionInterceptor,
+                                      AuthServerInterceptor authInterceptor, BindableService... services)
     {
-        return createServer(endpoint, authInterceptor, new ServerCallExecutorSupplier() {
+        return createServer(endpoint, versionInterceptor, authInterceptor, new ServerCallExecutorSupplier() {
             @Nullable
             @Override
             public <ReqT, RespT> Executor getExecutor(ServerCall<ReqT, RespT> serverCall, Metadata metadata) {
@@ -93,7 +96,8 @@ public class App {
         }, services);
     }
 
-    public static Server createServer(HostAndPort endpoint, AuthServerInterceptor authInterceptor,
+    public static Server createServer(HostAndPort endpoint, ClientVersionInterceptor versionInterceptor,
+                                      AuthServerInterceptor authInterceptor,
                                       ServerCallExecutorSupplier executorSupplier, BindableService... services)
     {
         var serverBuilder = NettyServerBuilder
@@ -102,6 +106,7 @@ public class App {
             .permitKeepAliveTime(500, TimeUnit.MILLISECONDS)
             .keepAliveTime(1000, TimeUnit.MILLISECONDS)
             .keepAliveTimeout(500, TimeUnit.MILLISECONDS)
+            .intercept(versionInterceptor)
             .intercept(authInterceptor)
             .intercept(GrpcLogsInterceptor.server())
             .intercept(RequestIdInterceptor.server(true))

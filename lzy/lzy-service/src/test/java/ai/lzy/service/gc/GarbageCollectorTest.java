@@ -6,6 +6,7 @@ import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.App;
 import ai.lzy.service.BaseTest;
 import ai.lzy.service.LzyService;
+import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
@@ -205,7 +206,8 @@ public class GarbageCollectorTest extends BaseTest {
         var context2 = ApplicationContext.run(PropertySource.of(lzyDbConfig));
         var port = FreePortFinder.find(8000, 9000);
         var workflowAddress = HostAndPort.fromString("localhost:" + port);
-        var lzyServer = App.createServer(workflowAddress, authInterceptor, context2.getBean(LzyService.class));
+        var lzyServer = App.createServer(workflowAddress, context2.getBean(ClientVersionInterceptor.class),
+            authInterceptor, context2.getBean(LzyService.class));
 
         lzyServers.add(lzyServer);
         lzyContexts.add(context2);

@@ -18,4 +18,9 @@ public class LzyServiceMetrics {
         .subsystem(LZY_SERVICE)
         .labelNames("user")
         .register();
+
+    public final Gauge unsupportedClientVersionCalls = Gauge
+        .build("unsupported_client_version_calls", "Count of calls with unsupported client versions")
+        .subsystem(LZY_SERVICE)
+        .register();
 }
