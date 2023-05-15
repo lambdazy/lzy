@@ -24,6 +24,7 @@ from lzy.storage.api import StorageRegistry, AsyncStorageClient
 from lzy.utils.grpc import build_channel, add_headers_interceptor, build_token, RetryConfig, retry
 from lzy.whiteboards.api import WhiteboardIndexClient, WhiteboardManager
 from lzy.whiteboards.wrapper import WhiteboardWrapper
+from lzy.version import __version__
 
 WB_USER_ENV = "LZY_USER"
 WB_KEY_PATH_ENV = "LZY_KEY_PATH"
@@ -67,7 +68,10 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
         global CHANNEL
         if not CHANNEL:
             CHANNEL = build_channel(
-                endpoint, interceptors=add_headers_interceptor({"authorization": f"Bearer {token}"})
+                endpoint, interceptors=add_headers_interceptor({
+                    "authorization": f"Bearer {token}",
+                    "x-client-version": f"pylzy={__version__}"
+                })
             )
         self.__stub = LzyWhiteboardServiceStub(CHANNEL)
 

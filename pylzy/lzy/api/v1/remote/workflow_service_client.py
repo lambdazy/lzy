@@ -117,7 +117,7 @@ class WorkflowServiceClient:
         token = build_token(user, key_path)
         interceptors = add_headers_interceptor({
             "authorization": f"Bearer {token}",
-            "X-Client-Version": f"pylzy={__version__}"
+            "x-client-version": f"pylzy={__version__}"
         })
 
         global CHANNEL
