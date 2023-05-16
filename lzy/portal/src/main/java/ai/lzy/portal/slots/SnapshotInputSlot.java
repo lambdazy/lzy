@@ -115,7 +115,6 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
                         LOG.error("Error while storing slot '{}' content in s3 storage: {}", name(), e.getMessage(), e);
                         state = SnapshotSlotStatus.FAILED;
                     }
-
                 }
             });
 
