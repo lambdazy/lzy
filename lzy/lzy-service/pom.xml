@@ -73,6 +73,11 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>util-common</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>util-grpc</artifactId>
             <version>${project.version}</version>
         </dependency>

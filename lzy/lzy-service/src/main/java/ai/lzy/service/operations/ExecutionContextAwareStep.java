@@ -1,9 +1,12 @@
-package ai.lzy.service.workflow;
+package ai.lzy.service.operations;
 
 import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
+import ai.lzy.model.db.Storage;
 import ai.lzy.service.dao.ExecutionDao;
+import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.dao.WorkflowDao;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.Logger;
 
@@ -28,12 +31,24 @@ public interface ExecutionContextAwareStep extends FailContextAwareStep {
         return stepCtx().execId();
     }
 
+    default Storage storage() {
+        return stepCtx().storage();
+    }
+
     default WorkflowDao wfDao() {
         return stepCtx().wfDao();
     }
 
+    default GraphDao graphDao() {
+        return stepCtx().graphDao();
+    }
+
     default ExecutionDao execDao() {
         return stepCtx().execDao();
+    }
+
+    default RenewableJwt internalUserCredentials() {
+        return stepCtx().internalUserCredentials();
     }
 
     default String idempotencyKey() {

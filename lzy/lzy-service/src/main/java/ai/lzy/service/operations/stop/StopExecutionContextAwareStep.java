@@ -1,15 +1,16 @@
-package ai.lzy.service.workflow;
+package ai.lzy.service.operations.stop;
 
-import ai.lzy.service.dao.StartExecutionState;
+import ai.lzy.service.dao.ExecutionDao.KafkaTopicDesc;
+import ai.lzy.service.dao.StopExecutionState;
+import ai.lzy.service.operations.ExecutionContextAwareStep;
+import ai.lzy.service.operations.ExecutionStepContext;
 import jakarta.annotation.Nullable;
 
-import static ai.lzy.service.dao.ExecutionDao.KafkaTopicDesc;
-
-public abstract class StartExecutionContextAwareStep implements ExecutionContextAwareStep {
+public class StopExecutionContextAwareStep implements ExecutionContextAwareStep {
     private final ExecutionStepContext stepCtx;
-    private final StartExecutionState state;
+    private final StopExecutionState state;
 
-    public StartExecutionContextAwareStep(ExecutionStepContext stepCtx, StartExecutionState initial) {
+    public StopExecutionContextAwareStep(ExecutionStepContext stepCtx, StopExecutionState initial) {
         this.stepCtx = stepCtx;
         this.state = initial;
     }
@@ -19,8 +20,17 @@ public abstract class StartExecutionContextAwareStep implements ExecutionContext
         return stepCtx;
     }
 
-    protected StartExecutionState state() {
+    protected StopExecutionState state() {
         return state;
+    }
+
+    @Nullable
+    protected String finishPortalOpId() {
+        return state.finishPortalOpId;
+    }
+
+    protected void setFinishPortalOpId(String opId) {
+        state.finishPortalOpId = opId;
     }
 
     @Nullable
@@ -42,12 +52,12 @@ public abstract class StartExecutionContextAwareStep implements ExecutionContext
     }
 
     @Nullable
-    protected String portalId() {
-        return state.portalId;
+    protected String deleteAllocSessionOpId() {
+        return state.deleteAllocSessionOpId;
     }
 
-    protected void setPortalId(String portalId) {
-        state.portalId = portalId;
+    protected void setDeleteAllocSessionOpId(String opId) {
+        state.deleteAllocSessionOpId = opId;
     }
 
     @Nullable
@@ -60,12 +70,12 @@ public abstract class StartExecutionContextAwareStep implements ExecutionContext
     }
 
     @Nullable
-    protected String allocateVmOpId() {
-        return state.allocateVmOpId;
+    protected String destroyChannelsOpId() {
+        return state.destroyChannelsOpId;
     }
 
-    protected void setAllocateVmOpId(String allocateVmOpId) {
-        state.allocateVmOpId = allocateVmOpId;
+    protected void setDestroyChannelsOpId(String opId) {
+        state.destroyChannelsOpId = opId;
     }
 
     @Nullable
@@ -85,4 +95,5 @@ public abstract class StartExecutionContextAwareStep implements ExecutionContext
     protected void setPortalApiAddress(String portalApiAddress) {
         state.portalApiAddress = portalApiAddress;
     }
+
 }

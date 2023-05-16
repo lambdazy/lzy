@@ -63,6 +63,7 @@ public interface ExecutionDao {
         String username,
         String password,  // TODO: encrypt
         String topicName,
+        @Nullable
         String sinkJobId
     ) {}
 

@@ -1,11 +1,10 @@
-package ai.lzy.service.workflow.start;
+package ai.lzy.service.operations.start;
 
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
 import ai.lzy.model.Constants;
 import ai.lzy.service.dao.StartExecutionState;
-import ai.lzy.service.workflow.ExecutionStepContext;
-import ai.lzy.service.workflow.RetryableFailStep;
-import ai.lzy.service.workflow.StartExecutionContextAwareStep;
+import ai.lzy.service.operations.ExecutionStepContext;
+import ai.lzy.service.operations.RetryableFailStep;
 import ai.lzy.v1.AllocatorGrpc.AllocatorBlockingStub;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -101,6 +100,8 @@ final class WaitAllocationPortalVm extends StartExecutionContextAwareStep
                 return retryableFail(e, "Cannot save data about allocated portal VM", dropAllocVm.apply(e),
                     Status.INTERNAL.withDescription("Cannot allocate portal VM").asRuntimeException());
             }
+
+            setPortalApiAddress(allocateResponse.getMetadataOrDefault(Constants.PORTAL_ADDRESS_KEY, null));
 
             return StepResult.CONTINUE;
         }
