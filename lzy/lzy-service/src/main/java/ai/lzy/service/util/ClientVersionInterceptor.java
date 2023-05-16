@@ -1,5 +1,6 @@
 package ai.lzy.service.util;
 
+import ai.lzy.common.ClientErrorCode;
 import ai.lzy.service.LzyServiceMetrics;
 import ai.lzy.service.config.ClientVersions;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -31,15 +32,17 @@ public class ClientVersionInterceptor implements ServerInterceptor {
         var forbidIfUnsupported = forbiddenMethods.contains(call.getMethodDescriptor().getFullMethodName());
         var version = headers.get(GrpcHeaders.CLIENT_VERSION);
 
+        var meta = new Metadata();
+        meta.put(GrpcHeaders.LZY_ERROR_CODE, String.valueOf(ClientErrorCode.CLIENT_VERSION_NOT_SUPPORTED.code));
+
         if (version == null) {
             if (ALLOW_WITHOUT_HEADER.get()) {
                 return next.startCall(call, headers);
             } else {
                 var status = Status.FAILED_PRECONDITION.withDescription(
-                    "Unset version of client. Please specify X-Client-Version header with version of your client")
-                    .asException();
+                    "Please specify X-Client-Version header with version of your client");
 
-                call.close(status.getStatus(), new Metadata());
+                call.close(status, meta);
                 return new ServerCall.Listener<>() {
                 };
             }
@@ -50,7 +53,7 @@ public class ClientVersionInterceptor implements ServerInterceptor {
             supported = ClientVersions.isSupported(version);
         } catch (StatusException e) {
             if (forbidIfUnsupported) {
-                call.close(e.getStatus(), new Metadata());
+                call.close(e.getStatus(), meta);
                 return new ServerCall.Listener<>() {
                 };
             }
@@ -66,7 +69,7 @@ public class ClientVersionInterceptor implements ServerInterceptor {
                     "Your client version is unsupported in this installation, please update it to more recent version")
                     .asException();
 
-                call.close(status.getStatus(), new Metadata());
+                call.close(status.getStatus(), meta);
                 return new ServerCall.Listener<>() {
                 };
             }

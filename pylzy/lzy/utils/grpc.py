@@ -5,6 +5,7 @@ import json
 import time
 import warnings
 from dataclasses import dataclass
+from enum import Enum
 from typing import (
     Any,
     AsyncIterable,
@@ -249,3 +250,7 @@ def retry(config: RetryConfig, action_name: str):
         return inner
 
     return decorator
+
+
+class ClientErrorCodes(Enum):
+    CLIENT_VERSION_NOT_SUPPORTED = 1
