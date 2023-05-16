@@ -30,7 +30,9 @@ public interface ExecutionDao {
                                @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    void updatePortalIds(String execId, String portalId, String subjectId, @Nullable TransactionHandle transaction)
+    void updatePortalId(String execId, String portalId, @Nullable TransactionHandle transaction) throws SQLException;
+
+    void updatePortalSubjectId(String execId, String subjectId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
     void setFinishStatus(String execId, Status status, @Nullable TransactionHandle transaction) throws SQLException;
@@ -60,7 +62,8 @@ public interface ExecutionDao {
     record KafkaTopicDesc(
         String username,
         String password,  // TODO: encrypt
-        String topicName
+        String topicName,
+        String sinkJobId
     ) {}
 
     record PortalDescription(

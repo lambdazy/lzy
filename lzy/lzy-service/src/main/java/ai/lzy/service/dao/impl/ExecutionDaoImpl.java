@@ -52,10 +52,11 @@ public class ExecutionDaoImpl implements ExecutionDao {
         SET portal_vm_address = ?, portal_fs_address = ?
         WHERE execution_id = ?""";
 
-    private static final String QUERY_UPDATE_PORTAL_IDS = """
-        UPDATE workflow_executions
-        SET portal_id = ? AND portal_subject_id = ?
-        WHERE execution_id = ?""";
+    private static final String QUERY_UPDATE_PORTAL_ID = """
+        UPDATE workflow_executions SET portal_id = ? WHERE execution_id = ?""";
+
+    private static final String QUERY_UPDATE_PORTAL_SUBJECT_ID = """
+        UPDATE workflow_executions SET portal_subject_id = ? WHERE execution_id = ?""";
 
     private static final String QUERY_SELECT_FOR_UPDATE_FINISH_DATA = """
         SELECT execution_id, finished_at, finished_with_error, finished_error_code
@@ -212,18 +213,33 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updatePortalIds(String execId, String portalId, String subjectId,
-                                @Nullable TransactionHandle transaction) throws SQLException
+    public void updatePortalId(String execId, String portalId, @Nullable TransactionHandle transaction)
+        throws SQLException
     {
-        LOG.debug("Update execution data: { execId: {}, newPortalId: {}, newIamSubjectId: {} }", execId, portalId,
-            subjectId);
+        LOG.debug("Update execution data: { execId: {}, newPortalId: {} }", execId, portalId);
         DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_UPDATE_PORTAL_IDS)) {
+            try (var st = connection.prepareStatement(QUERY_UPDATE_PORTAL_SUBJECT_ID)) {
                 st.setString(1, portalId);
-                st.setString(2, subjectId);
-                st.setString(3, execId);
+                st.setString(2, execId);
                 if (st.executeUpdate() < 1) {
-                    LOG.error("Cannot update portal ids for unknown execution: { execId: {} }", execId);
+                    LOG.error("Cannot update portal iam subject id for unknown execution: { execId: {} }", execId);
+                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
+                }
+            }
+        });
+    }
+
+    @Override
+    public void updatePortalSubjectId(String execId, String subjectId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        LOG.debug("Update execution data: { execId: {}, newIamSubjectId: {} }", execId, subjectId);
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_UPDATE_PORTAL_SUBJECT_ID)) {
+                st.setString(1, subjectId);
+                st.setString(2, execId);
+                if (st.executeUpdate() < 1) {
+                    LOG.error("Cannot update portal iam subject id for unknown execution: { execId: {} }", execId);
                     throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
                 }
             }
