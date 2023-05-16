@@ -2,6 +2,8 @@ package ai.lzy.portal;
 
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.test.GrpcUtils;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import io.findify.s3mock.provider.InMemoryProvider;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -12,8 +14,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.net.URI;
 import java.nio.file.Files;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -87,6 +91,61 @@ public class PortalCommonTest extends PortalTestBase {
 
             assertStdLogs(stdlogs, List.of(StdlogMessage.out(firstTaskId, "hello")), List.of());
             waitPortalCompleted();
+            finishPortal();
+            finishStdlogsReader.finish();
+
+            var storageConfig = GrpcUtils.makeAmazonSnapshot(snapshotId, BUCKET_NAME, S3_ADDRESS).getStorageConfig();
+            var s3client = storageClientFactory.provider(storageConfig).get();
+            var tempfile = File.createTempFile("portal_", "_test");
+            tempfile.deleteOnExit();
+            s3client.read(URI.create(storageConfig.getUri()), tempfile.toPath());
+            String[] content = {null};
+            try (var reader = new BufferedReader(new FileReader(tempfile))) {
+                content[0] = reader.readLine();
+            }
+            Assert.assertEquals("i-am-a-hacker", content[0]);
+        }
+
+        // task_1 clean up
+        System.out.println("-- cleanup task1 scenario --");
+        destroyChannel("channel_1");
+    }
+
+    @Test
+    public void testSnapshotStoredToS3TooLong() throws Exception {
+        var latch = new CountDownLatch(1);
+
+        stopS3();
+        startS3(new InMemoryProvider() {
+            @Override
+            public void putObject(String bucket, String key, byte[] data, ObjectMetadata objectMetadata) {
+                try {
+                    latch.await();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                super.putObject(bucket, key, data, objectMetadata);
+            }
+        });
+
+        try (var worker = startWorker()) {
+            System.out.println("\n----- RUN TASK 1 -----------------------------------------\n");
+
+            var taskOutputSlot = "/" + idGenerator.generate();
+            var snapshotId = idGenerator.generate("snapshot-");
+
+            String firstTaskId = startTask(
+                "echo 'i-am-a-hacker' > $LZY_MOUNT/%s && echo 'hello'".formatted(taskOutputSlot),
+                taskOutputSlot, worker, true, snapshotId, stdlogsTopic);
+
+            assertStdLogs(stdlogs, List.of(StdlogMessage.out(firstTaskId, "hello")), List.of());
+
+            var portalCompleted = waitPortalCompleted(Duration.ofSeconds(3));
+            Assert.assertFalse(portalCompleted);
+
+            latch.countDown();
+            waitPortalCompleted();
+
             finishPortal();
             finishStdlogsReader.finish();
 

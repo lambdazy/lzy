@@ -9,7 +9,6 @@ import java.util.stream.Stream;
 public interface LzyInputSlot extends LzySlot {
     void connect(URI slotUri, Stream<ByteString> dataProvider);
     void disconnect();
-    void destroy();
 
     @Nullable
     URI connectedTo();

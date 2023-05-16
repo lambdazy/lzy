@@ -4,6 +4,7 @@ import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
+import jakarta.annotation.Nullable;
 
 import java.util.Set;
 import java.util.function.Consumer;
@@ -19,7 +20,7 @@ public interface LzySlot {
     SlotInstance instance();
 
     void suspend();
-    void destroy();
+    void destroy(@Nullable String error);
     void close();
 
     LMS.SlotStatus status();

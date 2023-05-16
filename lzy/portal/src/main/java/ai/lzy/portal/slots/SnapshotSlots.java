@@ -11,6 +11,7 @@ import ai.lzy.portal.services.PortalService;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.portal.LzyPortal;
 import jakarta.annotation.Nullable;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -22,6 +23,8 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 @Singleton
 public class SnapshotSlots {
@@ -32,12 +35,22 @@ public class SnapshotSlots {
 
     private final StorageClientFactory storageClientFactory;
     private final PortalService portalService;
+    private final ExecutorService s3UploadPool;
 
     public SnapshotSlots(@Named("PortalStorageClientFactory") StorageClientFactory storageClientFactory,
-                         PortalService portalService)
+                         PortalService portalService, @Named("PortalS3UploadPool") ExecutorService s3UploadPool)
     {
         this.storageClientFactory = storageClientFactory;
         this.portalService = portalService;
+        this.s3UploadPool = s3UploadPool;
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        var uploads = s3UploadPool.shutdownNow();
+        LOG.error("Terminate {} active s3 uploads: {}",
+            uploads.size(),
+            uploads.stream().map(Objects::toString).collect(Collectors.joining(", ")));
     }
 
     public synchronized LzySlot createSlot(LzyPortal.PortalSlotDesc.Snapshot snapshotData, SlotInstance slotData)
@@ -71,7 +84,7 @@ public class SnapshotSlots {
                 SnapshotInputSlot inputSlot;
                 try {
                     inputSlot = new SnapshotInputSlot(portalService, snapshotData, slotData, snapshot, storageClient,
-                        null);
+                        s3UploadPool, null);
                 } catch (IOException e) {
                     throw new CreateSlotException(e);
                 }

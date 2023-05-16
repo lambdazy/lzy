@@ -138,4 +138,13 @@ public class BeanFactory {
         return new StorageClientFactory(config.getConcurrency().getDownloadsPoolSize(),
             config.getConcurrency().getChunksPoolSize());
     }
+
+    @Bean(preDestroy = "shutdown")
+    @Singleton
+    @Named("PortalS3UploadPool")
+    public ExecutorService s3UploadPool() {
+        var counter = new AtomicInteger(1);
+        return new ThreadPoolExecutor(1, 10, 10L, TimeUnit.SECONDS, new LinkedBlockingQueue<>(),
+            r -> new Thread(r, "s3-uploader-" + counter.getAndIncrement()));
+    }
 }

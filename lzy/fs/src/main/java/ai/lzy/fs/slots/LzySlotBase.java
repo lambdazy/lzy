@@ -5,6 +5,7 @@ import ai.lzy.model.slot.Slot;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.v1.common.LMS;
 import com.google.protobuf.ByteString;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -158,7 +159,7 @@ public class LzySlotBase implements LzySlot {
     }
 
     @Override
-    public synchronized void destroy() {
+    public synchronized void destroy(@Nullable String error) {
         if (Set.of(CLOSED, DESTROYED).contains(state.get())) {
             close();
         }

@@ -20,6 +20,8 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.Files;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.stream.Stream;
 
 public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot {
@@ -32,12 +34,14 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     private final StorageClient storageClient;
     private final OutputStream outputStream;
 
+    private final ExecutorService s3UploadPool;
     private final Runnable slotSyncHandler;
-    private SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
+    private volatile SnapshotSlotStatus state = SnapshotSlotStatus.INITIALIZING;
+    private volatile Future<?> s3UploadFuture;
 
     public SnapshotInputSlot(PortalService portalService, LzyPortal.PortalSlotDesc.Snapshot snapshotData,
                              SlotInstance slotData, SnapshotEntry snapshot, StorageClient storageClient,
-                             @Nullable Runnable syncHandler)
+                             ExecutorService s3UploadPool, @Nullable Runnable syncHandler)
         throws IOException
     {
         super(slotData);
@@ -46,6 +50,7 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
         this.snapshot = snapshot;
         this.storageClient = storageClient;
         this.outputStream = Files.newOutputStream(snapshot.getTempfile());
+        this.s3UploadPool = s3UploadPool;
         this.slotSyncHandler = syncHandler;
     }
 
@@ -87,22 +92,35 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
         var t = new Thread(READER_TG, () -> {
             // read all data to local storage (file), then OPEN the slot
             readAll();
-            suspend();
             snapshot.getState().set(SnapshotEntry.State.DONE);
+
+            // store local snapshot to S3
+            s3UploadFuture = s3UploadPool.submit(new Runnable() {
+                @Override
+                public String toString() {
+                    return SnapshotInputSlot.this.toString();
+                }
+
+                @Override
+                public void run() {
+                    try {
+                        state = SnapshotSlotStatus.SYNCING;
+                        storageClient.write(snapshot.getStorageUri(), snapshot.getTempfile());
+                        state = SnapshotSlotStatus.SYNCED;
+                        if (slotSyncHandler != null) {
+                            slotSyncHandler.run();
+                        }
+                    } catch (Exception e) {
+                        LOG.error("Error while storing slot '{}' content in s3 storage: {}", name(), e.getMessage(), e);
+                        state = SnapshotSlotStatus.FAILED;
+                    }
+
+                }
+            });
+
+            suspend();
             synchronized (snapshot) {
                 snapshot.notifyAll();
-            }
-            // store local snapshot to S3
-            try {
-                state = SnapshotSlotStatus.SYNCING;
-                storageClient.write(snapshot.getStorageUri(), snapshot.getTempfile());
-                state = SnapshotSlotStatus.SYNCED;
-                if (slotSyncHandler != null) {
-                    slotSyncHandler.run();
-                }
-            } catch (Exception e) {
-                LOG.error("Error while storing slot '{}' content in s3 storage: {}", name(), e.getMessage(), e);
-                state = SnapshotSlotStatus.FAILED;
             }
         }, "reader-from-" + slotUri + "-to-" + definition().name());
         t.start();
@@ -117,8 +135,13 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
     }
 
     @Override
-    public synchronized void destroy() {
-        super.destroy();
+    public void destroy(@Nullable String error) {
+        if (error != null && s3UploadFuture != null) {
+            LOG.warn("Terminate S3 upload for slot `{}` by reason: {}", this, error);
+            s3UploadFuture.cancel(true);
+        }
+
+        super.destroy(error);
         try {
             outputStream.flush();
             outputStream.close();
