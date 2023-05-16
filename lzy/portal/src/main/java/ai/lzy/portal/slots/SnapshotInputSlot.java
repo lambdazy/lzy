@@ -94,6 +94,8 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
             readAll();
             snapshot.getState().set(SnapshotEntry.State.DONE);
 
+            state = SnapshotSlotStatus.SYNCING;
+
             // store local snapshot to S3
             s3UploadFuture = s3UploadPool.submit(new Runnable() {
                 @Override
@@ -104,7 +106,6 @@ public class SnapshotInputSlot extends LzyInputSlotBase implements SnapshotSlot 
                 @Override
                 public void run() {
                     try {
-                        state = SnapshotSlotStatus.SYNCING;
                         storageClient.write(snapshot.getStorageUri(), snapshot.getTempfile());
                         state = SnapshotSlotStatus.SYNCED;
                         if (slotSyncHandler != null) {
