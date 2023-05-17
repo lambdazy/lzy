@@ -1,4 +1,6 @@
 # noinspection PyPackageRequirements
+import json
+
 import grpc
 import sys
 import uuid
@@ -124,6 +126,8 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         self.fail_on_get_pools = False
         self.fail_on_get_storage = False
 
+        self.fail_with_unsupported_client_version = False
+
         self.return_empty_pools = False
 
         self.started = False
@@ -136,6 +140,18 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         self, request: StartWorkflowRequest, context: grpc.ServicerContext
     ) -> StartWorkflowResponse:
         _LOG.info(f"Creating wf {request}")
+
+        if self.fail_with_unsupported_client_version:
+            self.fail_with_unsupported_client_version = False
+            context.send_initial_metadata((("x-supported-client-versions", ""),))
+            context.set_trailing_metadata(((
+                "x-supported-client-versions",
+                json.dumps({
+                    "minimal_supported_version": "1.100.0",
+                    "blacklisted_versions": []
+                })
+            ),))
+            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Unsupported version")
 
         if self.fail_on_start:
             self.fail_on_start = False

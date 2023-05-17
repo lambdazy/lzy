@@ -628,6 +628,15 @@ public class WorkflowTest extends BaseTest {
         assertThrows(StatusRuntimeException.class,
             () -> client3.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build()));
 
+        try {
+            client.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build());
+            fail();
+        } catch (StatusRuntimeException e) {
+            assert e.getTrailers() != null;
+            var version = e.getTrailers().get(ClientVersionInterceptor.UNSUPPORTED_CLIENT_VERSION);
+            assertNotNull(version);
+        }
+
         ClientVersionInterceptor.ALLOW_WITHOUT_HEADER.set(true);
     }
 }

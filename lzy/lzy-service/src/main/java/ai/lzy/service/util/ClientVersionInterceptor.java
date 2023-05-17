@@ -1,10 +1,12 @@
 package ai.lzy.service.util;
 
-import ai.lzy.common.ClientErrorCode;
 import ai.lzy.service.LzyServiceMetrics;
 import ai.lzy.service.config.ClientVersions;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonPrimitive;
 import io.grpc.*;
 import jakarta.inject.Singleton;
 
@@ -18,6 +20,9 @@ public class ClientVersionInterceptor implements ServerInterceptor {
     );
 
     public static final AtomicBoolean ALLOW_WITHOUT_HEADER = new AtomicBoolean(false);
+
+    public static final Metadata.Key<String> UNSUPPORTED_CLIENT_VERSION = Metadata.Key.of(
+        "X-Supported-Client-Versions", Metadata.ASCII_STRING_MARSHALLER);
 
     private final LzyServiceMetrics metricReporter;
 
@@ -33,7 +38,21 @@ public class ClientVersionInterceptor implements ServerInterceptor {
         var version = headers.get(GrpcHeaders.CLIENT_VERSION);
 
         var meta = new Metadata();
-        meta.put(GrpcHeaders.LZY_ERROR_CODE, String.valueOf(ClientErrorCode.CLIENT_VERSION_NOT_SUPPORTED.code));
+
+        var supportedVersions = ClientVersions.supportedVersions(version);
+        if (supportedVersions != null) {
+            var desc = new JsonObject();
+            var blacklistedVersions = new JsonArray();
+
+            for (var ver: supportedVersions.blacklist()) {
+                blacklistedVersions.add(ver.toString());
+            }
+
+            desc.add("minimal_supported_version", new JsonPrimitive(supportedVersions.minimalVersion().toString()));
+            desc.add("blacklisted_versions", blacklistedVersions);
+
+            meta.put(UNSUPPORTED_CLIENT_VERSION, desc.toString());
+        }
 
         if (version == null) {
             if (ALLOW_WITHOUT_HEADER.get()) {

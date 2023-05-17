@@ -1,11 +1,14 @@
 import asyncio
 import atexit
+import json
 import os
 from abc import ABC
 from dataclasses import dataclass
 # noinspection PyPackageRequirements
-from grpc.aio import Channel
+from grpc.aio import Channel, AioRpcError
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
+
+from lzy.logs.config import get_logger
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
 from ai.lzy.v1.long_running.operation_pb2 import GetOperationRequest
@@ -33,6 +36,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
+from lzy.exceptions import BadClientVersion
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials, AzureCredentials
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.utils.grpc import add_headers_interceptor, build_channel, build_token, retry, RetryConfig
@@ -41,6 +45,8 @@ from lzy.version import __version__
 KEY_PATH_ENV = "LZY_KEY_PATH"
 USER_ENV = "LZY_USER"
 ENDPOINT_ENV = "LZY_ENDPOINT"
+
+_LOG = get_logger(__name__)
 
 
 @dataclass
@@ -142,9 +148,29 @@ class WorkflowServiceClient:
         else:
             raise ValueError(f"Invalid storage credentials type {type(storage.credentials)}")
 
-        res: StartWorkflowResponse = await self.__stub.StartWorkflow(
-            StartWorkflowRequest(workflowName=name, snapshotStorage=s, storageName=storage_name)
-        )
+        try:
+            res: StartWorkflowResponse = await self.__stub.StartWorkflow(
+                StartWorkflowRequest(workflowName=name, snapshotStorage=s, storageName=storage_name)
+            )
+        except AioRpcError as e:
+            data = e.trailing_metadata().get_all("x-supported-client-versions")
+            if data and len(data) > 0:
+                try:
+                    supported_versions = json.loads(data[0])
+                except Exception as ex:
+                    _LOG.warning("Cannot parse supported versions from server metadata: %s", ex)
+                    raise e
+
+                minimal_version = supported_versions.get("minimal_supported_version")
+
+                if minimal_version is None:
+                    raise
+
+                raise BadClientVersion(
+                    f"This version of pylzy is unsupported."
+                    f" Please run 'pip install pylzy=={minimal_version}' to update pylzy")
+            raise
+
         exec_id = res.executionId
         return exec_id
 

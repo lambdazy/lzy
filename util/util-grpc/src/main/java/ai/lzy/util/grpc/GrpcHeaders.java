@@ -19,10 +19,6 @@ public class GrpcHeaders {
     public static final Metadata.Key<String> IDEMPOTENCY_KEY = createMetadataKey("Idempotency-Key");
     public static final Metadata.Key<String> CLIENT_VERSION = createMetadataKey("X-Client-Version");
 
-
-    // Used in status response metadata to pass custom exceptions to client
-    public static final Metadata.Key<String> LZY_ERROR_CODE = createMetadataKey("X-Lzy-Error-Code");
-
     public static Metadata getHeaders() {
         return HEADERS.get();
     }

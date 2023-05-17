@@ -2,6 +2,7 @@ package ai.lzy.service.config;
 
 import io.grpc.Status;
 import io.grpc.StatusException;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,7 +29,7 @@ public class ClientVersions {
         var clientName = res[0];
         var version = res[1];
 
-        var versionParts = version.split("\\.");  // Required format of version <major>.<minor>.<path>
+        var versionParts = version.split("\\.");  // Required format of version <major>.<minor>.<patch>
 
         if (versionParts.length != 3) {
             LOG.error("Got client request with version {}, witch is in incorrect format", clientVersion);
@@ -38,12 +39,12 @@ public class ClientVersions {
         }
         final int maj;
         final int min;
-        final int path;
+        final int patch;
 
         try {
             maj = Integer.parseInt(versionParts[0]);
             min = Integer.parseInt(versionParts[1]);
-            path = Integer.parseInt(versionParts[2]);
+            patch = Integer.parseInt(versionParts[2]);
         } catch (NumberFormatException e) {
             LOG.error("Version {} contains not integer parts: ", clientVersion, e);
             throw Status.INVALID_ARGUMENT
@@ -51,7 +52,7 @@ public class ClientVersions {
                 .asException();
         }
 
-        var ver = new SemanticVersion(maj, min, path);
+        var ver = new SemanticVersion(maj, min, patch);
 
         var desc = versions.get(clientName);
 
@@ -76,7 +77,21 @@ public class ClientVersions {
         return true;
     }
 
-    private record ClientVersionsDescription(
+    @Nullable
+    public static ClientVersionsDescription supportedVersions(@Nullable String version) {
+        if (version == null) {
+            return null;
+        }
+
+        var parts = version.split("=");
+        if (parts.length < 2) {
+            return null;
+        }
+
+        return versions.get(parts[0]);
+    }
+
+    public record ClientVersionsDescription(
         SemanticVersion minimalVersion,
         Set<SemanticVersion> blacklist
     ) { }

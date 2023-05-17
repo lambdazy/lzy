@@ -1,18 +1,18 @@
 package ai.lzy.service.config;
 
-record SemanticVersion(
+public record SemanticVersion(
     int major,
     int minor,
-    int path
+    int patch
 ) {
     public boolean smallerThen(SemanticVersion other) {
         return major < other.major
             || major == other.major && minor < other.minor
-            || major == other.major && minor == other.minor && path < other.path;
+            || major == other.major && minor == other.minor && patch < other.patch;
     }
 
     @Override
     public String toString() {
-        return "%s.%s.%s".formatted(major, minor, path);
+        return "%s.%s.%s".formatted(major, minor, patch);
     }
 }

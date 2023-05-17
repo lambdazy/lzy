@@ -20,7 +20,7 @@ from ai.lzy.v1.long_running.operation_pb2_grpc import (
 )
 from tests.api.v1.mocks import WorkflowServiceMock, OperationsServiceMock, EnvProviderMock
 from lzy.api.v1 import Lzy, op
-from lzy.exceptions import BadProvisioning
+from lzy.exceptions import BadProvisioning, BadClientVersion
 from lzy.whiteboards.index import DummyWhiteboardIndexClient
 from lzy.logs.config import get_logger
 from lzy.storage.api import Storage
@@ -121,3 +121,12 @@ class RemoteRuntimeTests(TestCase):
         with self.assertRaises(ValueError):
             with self.lzy.workflow("some_name", interactive=False):
                 pass
+
+    def test_unsupported_client_version(self):
+        self.mock.fail_with_unsupported_client_version = True
+
+        with self.assertRaises(BadClientVersion):
+            with self.lzy.workflow("some_name", interactive=False):
+                pass
+
+        self.assertFalse(self.mock.started)
