@@ -10,6 +10,15 @@
 
     <artifactId>allocator-api</artifactId>
 
+    <!-- Why doesn't it inherits parent? -->
+    <distributionManagement>
+        <repository>
+            <id>yandex_cloud_lzy</id> <!-- If you change this name, don't forget to add credentials to settings.xml servers list -->
+            <name>Releases</name>
+            <url>https://bucket.yandex-team.ru/v1/maven/yandex_cloud</url>
+        </repository>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
