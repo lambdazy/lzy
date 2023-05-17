@@ -23,7 +23,7 @@ public class ClientVersions {
         if (res.length != 2) {
             LOG.error("Got client request with version {}, witch is in incorrect format", clientVersion);
             throw Status.INVALID_ARGUMENT
-                .withDescription("Got client request incorrect version format")
+                .withDescription("Invalid client version format")
                 .asException();
         }
         var clientName = res[0];
@@ -34,7 +34,7 @@ public class ClientVersions {
         if (versionParts.length != 3) {
             LOG.error("Got client request with version {}, witch is in incorrect format", clientVersion);
             throw Status.INVALID_ARGUMENT
-                .withDescription("Got client request incorrect version format")
+                .withDescription("Invalid client version format")
                 .asException();
         }
         final int maj;
@@ -48,7 +48,7 @@ public class ClientVersions {
         } catch (NumberFormatException e) {
             LOG.error("Version {} contains not integer parts: ", clientVersion, e);
             throw Status.INVALID_ARGUMENT
-                .withDescription("Got client request incorrect version format")
+                .withDescription("Invalid client version format")
                 .asException();
         }
 
@@ -59,11 +59,11 @@ public class ClientVersions {
         if (desc == null) {
             LOG.error("Client with version {} not found", clientVersion);
             throw Status.FAILED_PRECONDITION
-                .withDescription("Client with this name is unsupported")
+                .withDescription("Unsupported client")
                 .asException();
         }
 
-        if (ver.smallerThen(desc.minimalVersion)) {
+        if (ver.lessThen(desc.minimalVersion)) {
             LOG.warn("Got client request with unsupported version {}, minimal supported version is {}",
                 clientVersion, desc.minimalVersion);
             return false;

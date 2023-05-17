@@ -633,7 +633,7 @@ public class WorkflowTest extends BaseTest {
             fail();
         } catch (StatusRuntimeException e) {
             assert e.getTrailers() != null;
-            var version = e.getTrailers().get(ClientVersionInterceptor.UNSUPPORTED_CLIENT_VERSION);
+            var version = e.getTrailers().get(ClientVersionInterceptor.SUPPORTED_CLIENT_VERSIONS);
             assertNotNull(version);
         }
 

@@ -21,7 +21,7 @@ public class ClientVersionInterceptor implements ServerInterceptor {
 
     public static final AtomicBoolean ALLOW_WITHOUT_HEADER = new AtomicBoolean(false);
 
-    public static final Metadata.Key<String> UNSUPPORTED_CLIENT_VERSION = Metadata.Key.of(
+    public static final Metadata.Key<String> SUPPORTED_CLIENT_VERSIONS = Metadata.Key.of(
         "X-Supported-Client-Versions", Metadata.ASCII_STRING_MARSHALLER);
 
     private final LzyServiceMetrics metricReporter;
@@ -51,20 +51,20 @@ public class ClientVersionInterceptor implements ServerInterceptor {
             desc.add("minimal_supported_version", new JsonPrimitive(supportedVersions.minimalVersion().toString()));
             desc.add("blacklisted_versions", blacklistedVersions);
 
-            meta.put(UNSUPPORTED_CLIENT_VERSION, desc.toString());
+            meta.put(SUPPORTED_CLIENT_VERSIONS, desc.toString());
         }
 
         if (version == null) {
             if (ALLOW_WITHOUT_HEADER.get()) {
                 return next.startCall(call, headers);
-            } else {
-                var status = Status.FAILED_PRECONDITION.withDescription(
-                    "Please specify X-Client-Version header with version of your client");
-
-                call.close(status, meta);
-                return new ServerCall.Listener<>() {
-                };
             }
+            
+            var status = Status.FAILED_PRECONDITION.withDescription(
+                "Please specify X-Client-Version header with version of your client");
+
+            call.close(status, meta);
+            return new ServerCall.Listener<>() {
+            };
         }
 
         final boolean supported;
@@ -85,7 +85,7 @@ public class ClientVersionInterceptor implements ServerInterceptor {
 
             if (forbidIfUnsupported) {
                 var status = Status.FAILED_PRECONDITION.withDescription(
-                    "Your client version is unsupported in this installation, please update it to more recent version")
+                    "Unsupported client version. See 'X-Supported-Client-Versions' header for more details.")
                     .asException();
 
                 call.close(status.getStatus(), meta);

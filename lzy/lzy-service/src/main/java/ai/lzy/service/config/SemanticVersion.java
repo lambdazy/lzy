@@ -5,7 +5,7 @@ public record SemanticVersion(
     int minor,
     int patch
 ) {
-    public boolean smallerThen(SemanticVersion other) {
+    public boolean lessThen(SemanticVersion other) {
         return major < other.major
             || major == other.major && minor < other.minor
             || major == other.major && minor == other.minor && patch < other.patch;
