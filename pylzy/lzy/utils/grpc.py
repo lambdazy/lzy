@@ -260,12 +260,12 @@ def build_headers(token: str) -> List[ClientInterceptor]:
     })
 
 
-def redefine_errors(f: Callable) -> Callable:
+def redefine_errors(f: Callable[..., Awaitable]) -> Callable[..., Awaitable]:
 
     @functools.wraps(f)
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         try:
-            return f(*args, **kwargs)
+            return await f(*args, **kwargs)
         except AioRpcError as e:
             data = e.trailing_metadata().get_all("x-supported-client-versions")
             if data and len(data) > 0:
