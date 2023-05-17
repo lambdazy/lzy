@@ -148,7 +148,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
                 "x-supported-client-versions",
                 json.dumps({
                     "minimal_supported_version": "1.100.0",
-                    "blacklisted_versions": []
+                    "blacklisted_versions": ["1.100.1", "1.100.2", "1.100.100"]
                 })
             ),))
             context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Unsupported version")

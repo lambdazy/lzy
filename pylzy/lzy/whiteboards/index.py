@@ -21,7 +21,7 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import GetRequest, GetResponse,
     RegisterWhiteboardRequest, UpdateWhiteboardRequest
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceStub
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
-from lzy.utils.grpc import build_channel, add_headers_interceptor, build_token, RetryConfig, retry
+from lzy.utils.grpc import build_channel, add_headers_interceptor, build_token, RetryConfig, retry, build_headers
 from lzy.whiteboards.api import WhiteboardIndexClient, WhiteboardManager
 from lzy.whiteboards.wrapper import WhiteboardWrapper
 from lzy.version import __version__
@@ -68,10 +68,7 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
         global CHANNEL
         if not CHANNEL:
             CHANNEL = build_channel(
-                endpoint, interceptors=add_headers_interceptor({
-                    "authorization": f"Bearer {token}",
-                    "x-client-version": f"pylzy={__version__}"
-                })
+                endpoint, interceptors=build_headers(token)
             )
         self.__stub = LzyWhiteboardServiceStub(CHANNEL)
 
