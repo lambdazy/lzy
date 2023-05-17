@@ -64,7 +64,7 @@ public class LineReaderSlot extends LzyOutputSlotBase {
                 try {
                     String line = reader.get().readLine();
                     if (line == null) {
-                        LineReaderSlot.this.destroy();
+                        LineReaderSlot.this.destroy(null);
                         return false;
                     }
                     this.line = ByteString.copyFromUtf8(line + "\n");

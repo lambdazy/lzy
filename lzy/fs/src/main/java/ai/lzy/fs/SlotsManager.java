@@ -90,7 +90,7 @@ public class SlotsManager implements AutoCloseable {
             return;
         }
         LOG.info("Stop SlotsManager...");
-        slots().forEach(LzySlot::destroy);
+        slots().forEach(slot -> slot.destroy("stop service"));
         closed = true;
     }
 
@@ -172,7 +172,7 @@ public class SlotsManager implements AutoCloseable {
                         throw new RuntimeException("Unbind operation " + unbindSlotOp.getId() + " failed with code "
                             + unbindSlotOp.getError().getCode() + ": " + unbindSlotOp.getError().getMessage());
                     }
-                    LOG.info("Slot `{}` configured.", slotUri);
+                    LOG.info("Slot `{}` unbound.", slotUri);
                 } catch (StatusRuntimeException e) {
                     LOG.warn("Got exception while unbind slot {} from channel {}: {}",
                         spec.name(), channelId, e.getMessage());

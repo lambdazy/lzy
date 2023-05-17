@@ -65,6 +65,7 @@ message StatusSlotResponse {
 
 message DestroySlotRequest {
   ai.lzy.v1.common.SlotInstance slotInstance = 1;
+  string reason = 2;
 }
 
 message DestroySlotResponse {

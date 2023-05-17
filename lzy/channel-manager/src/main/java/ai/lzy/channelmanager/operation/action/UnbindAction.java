@@ -67,8 +67,8 @@ public class UnbindAction extends ChannelAction {
             }
 
             switch (unbindingEndpoint.getSlotDirection()) {
-                case OUTPUT /* SENDER */ -> this.unbindSender(unbindingEndpoint);
-                case INPUT /* RECEIVER */ -> this.unbindReceiver(unbindingEndpoint);
+                case OUTPUT /* SENDER */ -> this.unbindSender(unbindingEndpoint, false);
+                case INPUT /* RECEIVER */ -> this.unbindReceiver(unbindingEndpoint, false);
             }
             if (operationStopped) {
                 return;
