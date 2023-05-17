@@ -210,7 +210,9 @@ public class BeanFactory {
 
         @PreDestroy
         public void close() {
-            channel.shutdownNow();
+            if (channel != null) {
+                channel.shutdownNow();
+            }
         }
     }
 }

@@ -22,6 +22,7 @@ import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.mocks.MocksServer;
+import ai.lzy.portal.slots.SnapshotSlots;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
@@ -55,6 +56,9 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import io.findify.s3mock.S3Mock;
+import io.findify.s3mock.S3Mock$;
+import io.findify.s3mock.provider.InMemoryProvider;
+import io.findify.s3mock.provider.Provider;
 import io.github.embeddedkafka.EmbeddedK;
 import io.github.embeddedkafka.EmbeddedKafka;
 import io.github.embeddedkafka.EmbeddedKafkaConfig$;
@@ -247,8 +251,17 @@ public class PortalTestBase {
         dropKafkaTopicSafe(stdlogsTopic.getTopic());
     }
 
+    protected SnapshotSlots getSnapshotSlots() {
+        return context.getBean(SnapshotSlots.class);
+    }
+
     private static void startS3() {
-        s3 = new S3Mock.Builder().withPort(S3_PORT).withInMemoryBackend().build();
+        startS3(new InMemoryProvider());
+    }
+
+    protected static void startS3(Provider provider) {
+        var as = S3Mock$.MODULE$.$lessinit$greater$default$3(S3_PORT, provider);
+        s3 = new S3Mock(S3_PORT, provider, as);
         s3.start();
         AmazonS3 s3Client = AmazonS3ClientBuilder.standard()
             .withPathStyleAccessEnabled(true)
@@ -415,16 +428,33 @@ public class PortalTestBase {
         return new WorkerDesc(worker, workerChannel, stub, opStub);
     }
 
-    protected void waitPortalCompleted() {
+    protected boolean waitPortalCompleted() {
+        return waitPortalCompleted(Duration.ofDays(365));
+    }
+
+    protected boolean waitPortalCompleted(Duration timeout) {
+        var deadline = Instant.now().plus(timeout);
         boolean done = false;
-        while (!done) {
+        while (!done && Instant.now().isBefore(deadline)) {
             var status = authorizedPortalClient.status(PortalStatusRequest.newBuilder().build());
             done = status.getSlotsList().stream().allMatch(
                 slot -> {
                     System.out.println("[portal slot] " + JsonUtils.printSingleLine(slot));
                     return switch (slot.getSlot().getDirection()) {
-                        case INPUT -> Set.of(LMS.SlotStatus.State.UNBOUND, LMS.SlotStatus.State.OPEN,
-                            LMS.SlotStatus.State.DESTROYED).contains(slot.getState());
+                        case INPUT -> {
+                            if (LMS.SlotStatus.State.UNBOUND.equals(slot.getState())) {
+                                yield true;
+                            }
+
+                            if (!LMS.SlotStatus.State.DESTROYED.equals(slot.getState())) {
+                                yield false;
+                            }
+
+                            var syncState = slot.getSnapshotStatus();
+
+                            yield LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.FAILED.equals(syncState) ||
+                                LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.SYNCED.equals(syncState);
+                        }
                         case OUTPUT -> true;
                         case UNKNOWN, UNRECOGNIZED -> throw new RuntimeException("Unexpected state");
                     };
@@ -433,6 +463,7 @@ public class PortalTestBase {
                 LockSupport.parkNanos(Duration.ofMillis(300).toNanos());
             }
         }
+        return done;
     }
 
     protected static String createChannel(String name) {

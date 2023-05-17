@@ -99,7 +99,7 @@ public class LzySlotBaseTest {
             public void onError(Throwable th) {
                 assertTrue(th instanceof RuntimeException);
                 assertEquals("Hi there!", th.getMessage());
-                lzySlot.destroy();
+                lzySlot.destroy("fail");
                 latch.countDown();
             }
 
