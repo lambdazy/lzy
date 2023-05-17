@@ -195,7 +195,6 @@ class WorkflowServiceClient:
             AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
         )
 
-    @redefine_errors
     async def read_std_slots(self, execution_id: str, logs_offset: int) -> AsyncIterator[StdlogMessage]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
             ReadStdSlotsRequest(executionId=execution_id, offset=logs_offset)
