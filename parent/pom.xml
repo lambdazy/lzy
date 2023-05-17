@@ -10,7 +10,7 @@
     <!-- Artifact upload settings -->
     <distributionManagement>
         <repository>
-            <id>bucket</id> <!-- If you change this name, don't forget to add credentials to settings.xml servers list -->
+            <id>yandex_cloud_lzy</id> <!-- If you change this name, don't forget to add credentials to settings.xml servers list -->
             <name>Releases</name>
             <url>https://bucket.yandex-team.ru/v1/maven/yandex_cloud</url>
         </repository>
