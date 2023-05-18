@@ -598,7 +598,7 @@ public class WorkflowTest extends BaseTest {
 
     @Test
     public void testClientVersion() {
-        ClientVersionInterceptor.ALLOW_WITHOUT_HEADER.set(false);
+        ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(false);
 
         var client = authorizedWorkflowClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.CLIENT_VERSION, () -> "pylzy=1.0.0")  // unsupported pylzy
@@ -637,6 +637,6 @@ public class WorkflowTest extends BaseTest {
             assertNotNull(version);
         }
 
-        ClientVersionInterceptor.ALLOW_WITHOUT_HEADER.set(true);
+        ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(true);
     }
 }

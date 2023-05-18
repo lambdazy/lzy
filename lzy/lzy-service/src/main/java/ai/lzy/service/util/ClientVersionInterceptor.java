@@ -19,7 +19,7 @@ public class ClientVersionInterceptor implements ServerInterceptor {
         LzyWorkflowServiceGrpc.getStartWorkflowMethod().getFullMethodName()
     );
 
-    public static final AtomicBoolean ALLOW_WITHOUT_HEADER = new AtomicBoolean(false);
+    public static final AtomicBoolean DISABLE_VERSION_CHECK = new AtomicBoolean(false);
 
     public static final Metadata.Key<String> SUPPORTED_CLIENT_VERSIONS = Metadata.Key.of(
         "X-Supported-Client-Versions", Metadata.ASCII_STRING_MARSHALLER);
@@ -55,7 +55,7 @@ public class ClientVersionInterceptor implements ServerInterceptor {
         }
 
         if (version == null) {
-            if (ALLOW_WITHOUT_HEADER.get()) {
+            if (DISABLE_VERSION_CHECK.get()) {
                 return next.startCall(call, headers);
             }
             

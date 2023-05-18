@@ -60,7 +60,7 @@ public class WorkflowContext {
             "lzy-service.storage.address", storage.address()
         ));
 
-        ClientVersionInterceptor.ALLOW_WITHOUT_HEADER.set(true);
+        ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(true);
 
         ctx = ApplicationContext.run(opts);
         main = ctx.getBean(App.class);
