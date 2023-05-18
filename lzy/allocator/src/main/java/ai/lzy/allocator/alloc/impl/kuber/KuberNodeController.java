@@ -35,6 +35,26 @@ public class KuberNodeController implements NodeController {
     }
 
     @Override
+    public Node getNode(String clusterId, String nodeName) {
+        final ClusterRegistry.ClusterDescription cluster;
+        try {
+            cluster = clusterRegistry.getCluster(clusterId);
+        } catch (NoSuchElementException e) {
+            throw new IllegalArgumentException("Cluster not found");
+        }
+
+        final Node node;
+        try (final var client = factory.build(cluster)) {
+            node = client.nodes().withName(nodeName).get();
+        }
+        if (node == null) {
+            throw new IllegalArgumentException("Node not found");
+        }
+
+        return node;
+    }
+
+    @Override
     public void addLabels(String clusterId, String nodeName, Map<String, String> labels) {
         LOG.debug("Adding labels; clusterId: {}, nodeName: {}, labels: {}", clusterId, nodeName, labels);
         final ClusterRegistry.ClusterDescription cluster;
@@ -55,4 +75,6 @@ public class KuberNodeController implements NodeController {
 
         LOG.debug("Adding labels done; clusterId: {}, nodeName: {}, labels: {}", clusterId, nodeName, labels);
     }
+
+
 }
