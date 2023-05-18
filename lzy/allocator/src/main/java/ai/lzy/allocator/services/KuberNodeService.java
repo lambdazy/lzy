@@ -14,6 +14,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
 
+import static ai.lzy.allocator.alloc.impl.kuber.KuberLabels.NODE_READINESS_LABEL;
+
 @Controller("/kuber_node")
 public class KuberNodeService {
     private static final Logger LOG = LogManager.getLogger(KuberNodeService.class);
@@ -36,7 +38,7 @@ public class KuberNodeService {
         }
 
         try {
-            nodeController.addLabels(clusterId, nodeName, Map.of("lzy.ai/node-ready-to-use", "true"));
+            nodeController.addLabels(clusterId, nodeName, Map.of(NODE_READINESS_LABEL, "true"));
         } catch (IllegalArgumentException e) {
             handleError(clusterId, nodeName, e.getMessage());
             return HttpResponse.status(HttpStatus.BAD_REQUEST);

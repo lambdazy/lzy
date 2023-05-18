@@ -9,12 +9,16 @@ import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
 import java.util.NoSuchElementException;
 
 @Singleton
 public class KuberNodeController implements NodeController {
+    private static final Logger LOG = LogManager.getLogger(KuberNodeController.class);
+
     private final ClusterRegistry clusterRegistry;
     private final KuberClientFactory factory;
     private final Retry retry;
@@ -32,6 +36,7 @@ public class KuberNodeController implements NodeController {
 
     @Override
     public void addLabels(String clusterId, String nodeName, Map<String, String> labels) {
+        LOG.debug("Adding labels; clusterId: {}, nodeName: {}, labels: {}", clusterId, nodeName, labels);
         final ClusterRegistry.ClusterDescription cluster;
         try {
             cluster = clusterRegistry.getCluster(clusterId);
@@ -45,8 +50,9 @@ public class KuberNodeController implements NodeController {
                 throw new IllegalArgumentException("Node not found");
             }
             retry.executeSupplier(() -> client.nodes().withName(nodeName).edit(n ->
-                new NodeBuilder(n).editMetadata().addToLabels(labels).endMetadata().build()
-            ));
+                new NodeBuilder(n).editMetadata().addToLabels(labels).endMetadata().build()));
         }
+
+        LOG.debug("Adding labels done; clusterId: {}, nodeName: {}, labels: {}", clusterId, nodeName, labels);
     }
 }
