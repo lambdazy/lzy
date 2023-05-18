@@ -134,7 +134,7 @@ public class KuberNodeService {
             LOG.error("Failed to send request ({}): interrupted", requestUrl, e);
             return false;
         }
-        return response.statusCode() == HttpStatus.OK.getCode() && response.body().equals("true");
+        return response.statusCode() == HttpStatus.OK.getCode() && response.body().trim().equals("true");
     }
 
     private void handleError(String clientAddress, String clusterId, String nodeName, String errorMessage) {

@@ -1,4 +1,4 @@
-FROM alpine:3.17
+FROM jonashaag/webfsd:1.21
 
 RUN apk update && apk add nano curl
 
