@@ -2,6 +2,7 @@ package ai.lzy.allocator.configs;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
+import ai.lzy.tunnel.service.ValidationUtils;
 import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
@@ -28,8 +29,8 @@ public class ServiceConfig {
     private List<String> userClusters = new ArrayList<>();
 
     public String getAddress() {
-        String ipv6Host = hosts.stream().filter(host -> host.contains(":")).findFirst().orElse(null);
-        String ipv4Host = hosts.stream().filter(host -> host.contains(".")).findFirst().orElse(null);
+        String ipv6Host = hosts.stream().filter(ValidationUtils::validateIpV6).findFirst().orElse(null);
+        String ipv4Host = hosts.stream().filter(ValidationUtils::validateIpV4).findFirst().orElse(null);
 
         // ipv6 has a higher priority than ipv4
         if (ipv6Host != null) {
