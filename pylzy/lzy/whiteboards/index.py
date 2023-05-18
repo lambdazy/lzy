@@ -21,10 +21,9 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import GetRequest, GetResponse,
     RegisterWhiteboardRequest, UpdateWhiteboardRequest
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceStub
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
-from lzy.utils.grpc import build_channel, add_headers_interceptor, build_token, RetryConfig, retry, build_headers
+from lzy.utils.grpc import build_channel, build_token, RetryConfig, retry, build_headers
 from lzy.whiteboards.api import WhiteboardIndexClient, WhiteboardManager
 from lzy.whiteboards.wrapper import WhiteboardWrapper
-from lzy.version import __version__
 
 WB_USER_ENV = "LZY_USER"
 WB_KEY_PATH_ENV = "LZY_KEY_PATH"

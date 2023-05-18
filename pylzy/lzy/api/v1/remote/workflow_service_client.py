@@ -1,11 +1,10 @@
 import asyncio
 import atexit
-import json
 import os
 from abc import ABC
 from dataclasses import dataclass
 # noinspection PyPackageRequirements
-from grpc.aio import Channel, AioRpcError
+from grpc.aio import Channel
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
 
 from lzy.logs.config import get_logger
@@ -36,12 +35,9 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
-from lzy.exceptions import BadClientVersion
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials, AzureCredentials
 from lzy.utils.event_loop import LzyEventLoop
-from lzy.utils.grpc import add_headers_interceptor, build_channel, build_token, retry, RetryConfig, build_headers, \
-    redefine_errors
-from lzy.version import __version__
+from lzy.utils.grpc import build_channel, build_token, retry, RetryConfig, build_headers, redefine_errors
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
 USER_ENV = "LZY_USER"

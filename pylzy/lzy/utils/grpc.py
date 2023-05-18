@@ -268,24 +268,26 @@ def redefine_errors(f: Callable[..., Awaitable]) -> Callable[..., Awaitable]:
             return await f(*args, **kwargs)
         except AioRpcError as e:
             data = e.trailing_metadata().get_all("x-supported-client-versions")
-            if data and len(data) > 0:
-                try:
-                    supported_versions = json.loads(data[0])
-                except Exception as ex:
-                    _LOG.warning("Cannot parse supported versions from server metadata: %s", ex, exc_info=True)
-                    raise ex from e
 
-                minimal_version = supported_versions.get("minimal_supported_version")
-                banned_versions = supported_versions.get("blacklisted_versions", [])
+            if not data or len(data) == 0:
+                raise
 
-                if minimal_version is None:
-                    raise
+            try:
+                supported_versions = json.loads(data[0])
+            except Exception as ex:
+                _LOG.warning("Cannot parse supported versions from server metadata: %s", data[0], exc_info=True)
+                raise ex from e
 
-                pip_request = ",".join((">=" + minimal_version, *("!=" + ver for ver in banned_versions)))
+            minimal_version = supported_versions.get("minimal_supported_version")
+            banned_versions = supported_versions.get("blacklisted_versions", [])
 
-                raise BadClientVersion(
-                    f"This version of pylzy is unsupported."
-                    f" Please run 'pip install pylzy{pip_request}' to update pylzy")
-            raise
+            if minimal_version is None:
+                raise
+
+            pip_request = ",".join((">=" + minimal_version, *("!=" + ver for ver in banned_versions)))
+
+            raise BadClientVersion(
+                f"This version of pylzy is unsupported."
+                f" Please run `pip install 'pylzy{pip_request}'` to update pylzy")
 
     return wrapper
