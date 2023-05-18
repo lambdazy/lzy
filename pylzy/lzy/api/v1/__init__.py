@@ -17,7 +17,6 @@ from lzy.api.v1.remote.runtime import RemoteRuntime
 from lzy.api.v1.remote.workflow_service_client import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV, WorkflowServiceClient
 from lzy.api.v1.runtime import Runtime
 from lzy.api.v1.snapshot import DefaultSnapshot
-from lzy.api.v1.utils.conda import generate_conda_yaml
 from lzy.api.v1.utils.packages import to_str_version
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize
 from lzy.api.v1.utils.types import infer_return_type
@@ -65,7 +64,7 @@ def op(
     gpu_type: StringRequirement = None,
     gpu_count: IntegerRequirement = None,
     ram_size_gb: IntegerRequirement = None,
-    env: Env = Env(),
+    env: Optional[Env] = None,
     description: str = "",
     version: str = "0.0",
     cache: bool = False,
@@ -73,8 +72,6 @@ def op(
     env_variables: Optional[Mapping[str, str]] = None,
     docker_credentials: Optional[DockerCredentials] = None
 ):
-    libraries = libraries or {}
-    env_variables = env_variables or {}
     provisioning = provisioning or Provisioning()
     provisioning = provisioning.override(
         cpu_type=cpu_type,
@@ -82,6 +79,18 @@ def op(
         gpu_type=gpu_type,
         gpu_count=gpu_count,
         ram_size_gb=ram_size_gb
+    )
+
+    env = env or Env()
+    env = env.override(
+        env_variables=env_variables,
+        python_version=python_version,
+        libraries=libraries,
+        local_modules_path=local_modules_path,
+        conda_yaml_path=conda_yaml_path,
+        docker_image=docker_image,
+        docker_pull_policy=docker_pull_policy,
+        docker_credentials=docker_credentials,
     )
 
     def deco(f):
@@ -102,17 +111,18 @@ def op(
             else:
                 output_types = infer_result.value  # expecting multiple return types
 
-        nonlocal provisioning
-        nonlocal libraries
-        nonlocal env
-        env = env.override(
-            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
-                env_variables=env_variables, docker_credentials=docker_credentials)
-        )
-
         # yep, create lazy constructor and return it
         # instead of function
-        return wrap_call(f, output_types, provisioning, env, description, version, cache, lazy_arguments)
+        return wrap_call(
+            f,
+            output_types=output_types,
+            provisioning=provisioning,
+            env=env,
+            description=description,
+            version=version,
+            cache=cache,
+            lazy_arguments=lazy_arguments
+        )
 
     if func is None:
         return deco
@@ -154,8 +164,8 @@ class Lzy:
         self.__runtime = RemoteRuntime() if runtime is None else runtime
         self.__storage_registry = DefaultStorageRegistry() if storage_registry is None else storage_registry
         self.__registered_runtime_storage: bool = False
+        self.__env_provider = py_env_provider or AutomaticPyEnvProvider()
 
-        self.__env_provider = AutomaticPyEnvProvider() if py_env_provider is None else py_env_provider
         self.__serializer_registry = LzySerializerRegistry() if serializer_registry is None else serializer_registry
         self.__whiteboard_manager = WhiteboardIndexedManager(whiteboard_index_client, self.__storage_registry,
                                                              self.__serializer_registry)
@@ -233,10 +243,11 @@ class Lzy:
         eager: bool = False,
         python_version: Optional[str] = None,
         libraries: Optional[Dict[str, str]] = None,
+        local_modules_path: Optional[Sequence[str]] = None,
+        exclude_packages: Iterable[str] = (),
         conda_yaml_path: Optional[str] = None,
         docker_image: Optional[str] = None,
         docker_pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
-        local_modules_path: Optional[Sequence[str]] = None,
         interactive: bool = True,
         provisioning: Optional[Provisioning] = None,
         cpu_type: StringRequirement = None,
@@ -246,13 +257,9 @@ class Lzy:
         ram_size_gb: IntegerRequirement = None,
         env_variables: Optional[Mapping[str, str]] = None,
         docker_credentials: Optional[DockerCredentials] = None,
-        env: Env = Env(),
-        exclude_packages: Iterable[str] = tuple()
+        env: Optional[Env] = None,
     ) -> LzyWorkflow:
         self.__register_default_runtime_storage()
-
-        env_variables = env_variables or {}
-        libraries = libraries or {}
 
         provisioning = provisioning or Provisioning()
         provisioning = provisioning.override(
@@ -268,11 +275,17 @@ class Lzy:
         namespace = {**frame.f_globals, **frame.f_locals}
 
         auto_py_env = self.__env_provider.provide(namespace, exclude_packages)
-        local_modules_path = auto_py_env.local_modules_path if not local_modules_path else local_modules_path
 
+        env = env or Env()
         env = env.override(
-            Env(python_version, libraries, conda_yaml_path, docker_image, docker_pull_policy, local_modules_path,
-                env_variables=env_variables, docker_credentials=docker_credentials)
+            env_variables=env_variables,
+            python_version=python_version,
+            libraries=libraries,
+            local_modules_path=local_modules_path,
+            conda_yaml_path=conda_yaml_path,
+            docker_image=docker_image,
+            docker_pull_policy=docker_pull_policy,
+            docker_credentials=docker_credentials,
         )
         env.validate()
 
@@ -280,8 +293,8 @@ class Lzy:
             name,
             self,
             env=env,
-            provisioning=provisioning,
             auto_py_env=auto_py_env,
+            provisioning=provisioning,
             eager=eager,
             interactive=interactive
         )

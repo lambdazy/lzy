@@ -45,7 +45,6 @@ from lzy.api.v1.runtime import (
     Runtime,
 )
 from lzy.api.v1.startup import ProcessingRequest
-from lzy.api.v1.utils.conda import generate_conda_yaml
 from lzy.api.v1.utils.files import fileobj_hash, zip_module
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
@@ -327,20 +326,7 @@ class RemoteRuntime(Runtime):
             pool = call.provisioning.resolve_pool(pools)
             pool_to_call.append((pool, call))
 
-            docker_image: Optional[str]
-            if call.env.docker_image:
-                docker_image = call.env.docker_image
-            else:
-                docker_image = None
-
-            python_env: Optional[Operation.PythonEnvSpec]
-
-            if call.env.conda_yaml_path:
-                with open(call.env.conda_yaml_path, "r") as file:
-                    conda_yaml = file.read()
-            else:
-                conda_yaml = generate_conda_yaml(cast(str, call.env.python_version),
-                                                 cast(Dict[str, str], call.env.libraries))
+            conda_yaml = call.env.get_conda_yaml()
 
             python_env = Operation.PythonEnvSpec(
                 yaml=conda_yaml,
@@ -360,15 +346,26 @@ class RemoteRuntime(Runtime):
                 exception_path=exc_description,
                 lazy_arguments=call.lazy_arguments
             )
+            pickled_request = pickle(request)
 
-            _com = "".join(
-                [
-                    "python -u ",  # -u makes stdout/stderr unbuffered. Maybe it should be a parameter
-                    "$(python -c 'import lzy.api.v1.startup as startup; print(startup.__file__)')"
-                ]
-            )
+            command = " ".join([
+                "python -u",  # -u makes stdout/stderr unbuffered. Maybe it should be a parameter
+                "$(python -c 'import lzy.api.v1.startup as startup; print(startup.__file__)')",
+                pickled_request,
+            ])
 
-            command = _com + " " + pickle(request)
+            docker_credentials: Optional[Operation.DockerCredentials] = None
+            if call.env.docker_credentials:
+                raw = call.env.docker_credentials
+                docker_credentials = Operation.DockerCredentials(
+                    registryName=raw.registry,
+                    username=raw.username,
+                    password=raw.password,
+                )
+
+            docker_image: Optional[str] = None
+            if call.env.docker_image:
+                docker_image = call.env.docker_image
 
             operations.append(
                 Operation(
@@ -378,14 +375,13 @@ class RemoteRuntime(Runtime):
                     outputSlots=output_slots,
                     command=command,
                     env=call.env.env_variables,
-                    dockerImage=docker_image if docker_image is not None else "",
-                    dockerCredentials=Operation.DockerCredentials(
-                        registryName=call.env.docker_credentials.registry,
-                        username=call.env.docker_credentials.username,
-                        password=call.env.docker_credentials.password
-                    ) if call.env.docker_credentials else None,
-                    dockerPullPolicy=Operation.ALWAYS if call.env.docker_pull_policy == DockerPullPolicy.ALWAYS
-                    else Operation.IF_NOT_EXISTS,
+                    dockerImage=docker_image or "",
+                    dockerCredentials=docker_credentials,
+                    dockerPullPolicy=(
+                        Operation.ALWAYS
+                        if call.env.docker_pull_policy == DockerPullPolicy.ALWAYS else
+                        Operation.IF_NOT_EXISTS
+                    ),
                     python=python_env,
                     poolSpecName=pool.poolSpecName,
                 )
