@@ -4,41 +4,29 @@ package ai.lzy.v1.channel;
 
 import "ai/lzy/v1/common/data-scheme.proto";
 import "ai/lzy/v1/common/slot.proto";
-import "ai/lzy/v1/common/storage.proto";
 
 option java_outer_classname = "LCM";
 option java_package = "ai.lzy.v1.channel";
 
 message Channel {
-  string channel_id = 1;
+  string channelId = 1;
   ChannelSpec spec = 2;
-  string execution_id = 3;
-  repeated PeerDescription senders  = 4;
-  repeated PeerDescription receivers = 5;
+  string executionId = 3;
+  ChannelSenders senders  = 4;
+  ChannelReceivers receivers = 5;
 }
 
 message ChannelSpec {
-  string channel_name = 1;
+  string channelName = 1;
   ai.lzy.v1.common.DataScheme scheme = 2;
 }
 
-message PeerDescription {
-  oneof peer {
-    SlotPeer slot_peer = 1;
-    StoragePeer storage_peer = 2;
-  }
+message ChannelSenders {
+  /* optional */ ai.lzy.v1.common.SlotInstance workerSlot = 1;
+  /* optional */ ai.lzy.v1.common.SlotInstance portalSlot = 2;
+}
 
-  message SlotPeer {
-    string slot_id  = 1;
-    string peer_url = 2;
-  }
-
-  message StoragePeer {
-    string storage_uri = 1;  // Uri of bucket and key to get data from
-
-    oneof credentials {
-      common.S3Credentials s3 = 2;
-      common.AzureBlobStorageCredentials azure = 3;
-    }
-  }
+message ChannelReceivers {
+  repeated ai.lzy.v1.common.SlotInstance workerSlots = 1;
+  /* optional */ ai.lzy.v1.common.SlotInstance portalSlot = 2;
 }

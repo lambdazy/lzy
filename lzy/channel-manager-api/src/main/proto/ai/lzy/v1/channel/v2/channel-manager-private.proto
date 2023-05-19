@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package ai.lzy.v1.channel.v2;
+
+import "ai/lzy/v1/channel/v2/channel.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
+
+option java_outer_classname = "LCMPS2";
+option java_package = "ai.lzy.v1.channel";
+
+service LzyChannelManagerPrivate {
+  rpc Create (CreateRequest) returns (CreateResponse);
+
+  rpc Destroy (DestroyRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      response: "DestroyResponse"
+      metadata: "DestroyMetadata"
+    };
+  }
+
+  rpc DestroyAll (DestroyAllRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      response: "DestroyAllResponse"
+      metadata: "DestroyAllMetadata"
+    };
+  }
+
+  rpc Status (StatusRequest) returns (StatusResponse);
+
+  rpc List (ListRequest) returns (ListResponse);
+}
+
+// ============== Create ==================
+
+message CreateRequest {
+  ChannelSpec channel_spec                                    = 1;
+  string execution_id                                         = 2;
+  string workflow_name                                        = 3;
+  string user_id                                              = 4;
+
+  // Initial storage peers
+  /* optional */ PeerDescription.StoragePeer initial_sender   = 5;
+  /* optional */ PeerDescription.StoragePeer initial_receiver = 6;
+}
+
+message CreateResponse {
+  string channel_id = 1;
+}
+
+// ============== Destroy ==================
+
+message DestroyRequest {
+  string channel_id = 1;
+  string cause      = 2;
+  bool force        = 3;  // If not set, channel manager will wait for unbinding of all receivers
+}
+
+message DestroyResponse {}
+
+message DestroyMetadata {}
+
+// ============== DestroyAll ==================
+
+message DestroyAllRequest {
+  string execution_id = 1;
+  string cause        = 2;
+  bool force          = 3;  // If not set, channel manager will wait for unbinding of all receivers
+}
+
+message DestroyAllResponse {}
+
+message DestroyAllMetadata {}
+
+// ============== Status ==================
+
+message StatusRequest {
+  string channel_id = 1;
+}
+
+message StatusResponse {
+  ChannelStatus channel = 1;
+}
+
+// ============== List ==================
+
+message ListRequest {
+  string execution_id = 1;
+}
+
+message ListResponse {
+  repeated ChannelStatus statuses = 1;
+}
