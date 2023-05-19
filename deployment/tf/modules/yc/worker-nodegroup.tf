@@ -55,12 +55,37 @@ resource "kubernetes_daemonset" "worker_cpu_fictive_containers" {
         }
       }
       spec {
-        container {
+        init_container {
           image             = var.servant-image
           image_pull_policy = "Always"
           name              = "fictive-worker"
-          command           = ["tail", "-f", "/entrypoint.sh"]
+          command           = ["sh", "-c", "exit 0"]
         }
+        # Container for notifying allocator about node readiness
+        container {
+          image             = var.node-sync-image
+          image_pull_policy = "Always"
+          name              = "node-allocator-sync"
+          command           = ["sh", "-c", "/entrypoint.sh $ALLOCATOR_IP; tail -f /dev/null"]
+
+          env {
+            name  = "CLUSTER_ID"
+            value = yandex_kubernetes_cluster.allocator_cluster.id
+          }
+          env {
+            name  = "NODE_NAME"
+            value_from {
+              field_ref {
+                field_path = "spec.nodeName"
+              }
+            }
+          }
+          env {
+            name  = "ALLOCATOR_IP"
+            value = kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]
+          }
+        }
+        host_network = true
         node_selector = {
           "lzy.ai/node-pool-kind" = "CPU"
         }
@@ -89,12 +114,37 @@ resource "kubernetes_daemonset" "worker_gpu_fictive_containers" {
         }
       }
       spec {
-        container {
+        init_container {
           image             = var.servant-image
           image_pull_policy = "Always"
           name              = "fictive-worker"
-          command           = ["tail", "-f", "/entrypoint.sh"]
+          command           = ["sh", "-c", "exit 0"]
         }
+        # Container for notifying allocator about node readiness
+        container {
+          image             = var.node-sync-image
+          image_pull_policy = "Always"
+          name              = "node-allocator-sync"
+          command           = ["sh", "-c", "/entrypoint.sh $ALLOCATOR_IP; tail -f /dev/null"]
+
+          env {
+            name  = "CLUSTER_ID"
+            value = yandex_kubernetes_cluster.allocator_cluster.id
+          }
+          env {
+            name  = "NODE_NAME"
+            value_from {
+              field_ref {
+                field_path = "spec.nodeName"
+              }
+            }
+          }
+          env {
+            name  = "ALLOCATOR_IP"
+            value = kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]
+          }
+        }
+        host_network = true
         node_selector = {
           "lzy.ai/node-pool-kind" = "GPU"
         }

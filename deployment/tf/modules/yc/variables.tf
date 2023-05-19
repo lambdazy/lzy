@@ -129,3 +129,8 @@ variable "s3_sink_enabled" {
 variable "s3-sink-image" {
   type = string
 }
+
+variable "node-sync-image" {
+  type = string
+  default = "lzydock/kuber-node-sync:1.0"
+}
