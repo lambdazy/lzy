@@ -40,11 +40,11 @@ final class VmOttAuthInterceptor implements ServerInterceptor {
 
         var token = TokenParser.parse(authorizationHeader);
         var credentials = switch (token.kind()) {
-            case JWT -> {
-                LOG.error("Unexpected JWT auth for the `register` call");
-                throw new IllegalArgumentException("OTT auth expected, got JWT");
-            }
             case OTT -> new OttCredentials(token.token());
+            case JWT, YC_IAM -> {
+                LOG.error("Unexpected {} auth for the `register` call", token.kind());
+                throw new IllegalArgumentException("OTT auth expected, got " + token.kind());
+            }
         };
 
         var decodedOtt = OttHelper.decodeOtt(credentials);
