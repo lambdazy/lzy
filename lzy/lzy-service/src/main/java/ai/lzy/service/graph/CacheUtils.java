@@ -1,7 +1,7 @@
 package ai.lzy.service.graph;
 
 
-import ai.lzy.service.dao.GraphExecutionState;
+import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.storage.StorageClient;
 import ai.lzy.v1.workflow.LWF.Operation;
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
@@ -15,15 +15,15 @@ import java.util.ArrayList;
 import static ai.lzy.util.grpc.ProtoPrinter.safePrinter;
 
 class CacheUtils {
-    public static void removeCachedOps(GraphExecutionState state, StorageClient storageClient, Logger log) {
-        if (state.getOperations().isEmpty()) {
+    public static void removeCachedOps(ExecuteGraphState state, StorageClient storageClient, Logger log) {
+        if (state.getCacheProcessedOperations().isEmpty()) {
             state.fail(Status.INVALID_ARGUMENT, "Empty graph");
             return;
         }
 
         var filteredOperations = new ArrayList<Operation>();
 
-        for (var operation : state.getOperations()) {
+        for (var operation : state.getCacheProcessedOperations()) {
             var cached = !operation.getOutputSlotsList().isEmpty() && operation.getOutputSlotsList().stream()
                 .map(SlotDescription::getStorageUri)
                 .filter(uri -> !uri.endsWith("exception"))
@@ -45,6 +45,6 @@ class CacheUtils {
             filteredOperations.add(operation);
         }
 
-        state.setOperations(filteredOperations);
+        state.setCacheProcessedOperations(filteredOperations);
     }
 }

@@ -4,9 +4,10 @@ import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.dao.ExecutionDao;
+import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.dao.WorkflowDao;
-import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.grpc.ProtoPrinter;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.Logger;
 
@@ -39,16 +40,16 @@ public interface ExecutionContextAwareStep extends FailContextAwareStep {
         return stepCtx().wfDao();
     }
 
-    default GraphDao graphDao() {
-        return stepCtx().graphDao();
-    }
-
     default ExecutionDao execDao() {
         return stepCtx().execDao();
     }
 
-    default RenewableJwt internalUserCredentials() {
-        return stepCtx().internalUserCredentials();
+    default GraphDao graphDao() {
+        return stepCtx().graphDao();
+    }
+
+    default ExecutionOperationsDao execOpsDao() {
+        return stepCtx().execOpsDao();
     }
 
     default String idempotencyKey() {
@@ -72,5 +73,15 @@ public interface ExecutionContextAwareStep extends FailContextAwareStep {
     @Override
     default String logPrefix() {
         return stepCtx().logPrefix();
+    }
+
+    @Override
+    default ProtoPrinter.Printer safePrinter() {
+        return ProtoPrinter.safePrinter();
+    }
+
+    @Override
+    default ProtoPrinter.Printer printer() {
+        return ProtoPrinter.printer();
     }
 }

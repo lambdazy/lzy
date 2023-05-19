@@ -3,7 +3,7 @@ package ai.lzy.service.dao;
 import ai.lzy.service.dao.ExecutionDao.KafkaTopicDesc;
 import jakarta.annotation.Nullable;
 
-public class StopExecutionState {
+public final class StopExecutionState {
     @Nullable
     public String finishPortalOpId;
     @Nullable

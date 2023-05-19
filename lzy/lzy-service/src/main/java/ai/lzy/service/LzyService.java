@@ -14,7 +14,7 @@ import ai.lzy.service.dao.WorkflowDao;
 import ai.lzy.service.data.storage.LzyServiceStorage;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.service.graph.GraphExecutionService;
-import ai.lzy.service.dao.GraphExecutionState;
+import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.service.util.StorageUtils;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -267,7 +267,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var op = Operation.create(userId, "Execute graph in execution: executionId='%s'".formatted(executionId),
             null, idempotencyKey, null);
 
-        var state = new GraphExecutionState(userId, workflowName, executionId, op.id(), request.getGraph());
+        var state = new ExecuteGraphState(userId, workflowName, executionId, op.id(), request.getGraph());
 
         try (var tx = TransactionHandle.create(storage)) {
             operationDao.create(op, tx);

@@ -1,7 +1,7 @@
 package ai.lzy.service.graph;
 
 import ai.lzy.model.db.DbHelper;
-import ai.lzy.service.dao.GraphExecutionState;
+import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.util.kafka.KafkaConfig;
@@ -51,7 +51,7 @@ class GraphBuilder {
         this.kafkaConfig = kafkaConfig;
     }
 
-    public void build(GraphExecutionState state, LzyPortalGrpc.LzyPortalBlockingStub portalClient) {
+    public void build(ExecuteGraphState state, LzyPortalGrpc.LzyPortalBlockingStub portalClient) {
         var workflowName = state.getWorkflowName();
         var executionId = state.getExecutionId();
         var slot2description = state.getDescriptions().stream()
@@ -126,7 +126,7 @@ class GraphBuilder {
 
     private Map<String, String> createChannelsForDataFlow(Map<String, LWF.DataDescription> slot2dataDescription,
                                                           LzyPortalGrpc.LzyPortalBlockingStub portalClient,
-                                                          GraphExecutionState state)
+                                                          ExecuteGraphState state)
     {
         var slotName2channelId = new HashMap<String, String>();
         var partitionBySupplier = state.getDataFlowGraph().getDataflow().stream().collect(
@@ -191,11 +191,11 @@ class GraphBuilder {
         return slotName2channelId;
     }
 
-    private List<TaskDesc> buildTasksWithZone(GraphExecutionState state, Map<String, String> slot2Channel,
+    private List<TaskDesc> buildTasksWithZone(ExecuteGraphState state, Map<String, String> slot2Channel,
                                               Map<String, LWF.DataDescription> slot2description,
                                               @Nullable LMO.KafkaTopicDescription kafkaTopic)
     {
-        int count = state.getOperations().size();
+        int count = state.getCacheProcessedOperations().size();
         var taskBuilders = new ArrayList<TaskDesc.Builder>(count);
 
         LOG.debug("Build tasks: " + state);
@@ -204,8 +204,8 @@ class GraphBuilder {
             taskBuilders.add(taskBuilder);
             buildTaskWithZone(
                 taskBuilder,
-                state.getOperations().get(i),
-                state.getZone(),
+                state.getCacheProcessedOperations().get(i),
+                state.getVmPoolZone(),
                 slot2Channel,
                 slot2description,
                 kafkaTopic);

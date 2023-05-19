@@ -7,7 +7,7 @@ import ai.lzy.service.PortalClientProvider;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.GraphDao;
-import ai.lzy.service.dao.GraphExecutionState;
+import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -95,7 +95,7 @@ public class GraphExecutionService {
     }
 
     @Nullable
-    public Operation executeGraph(GraphExecutionState state) {
+    public Operation executeGraph(ExecuteGraphState state) {
         LOG.info("Start processing execute graph operation: { operationId: {} }", state.getOpId());
 
         String userId = state.getUserId();
@@ -131,7 +131,7 @@ public class GraphExecutionService {
                 return operationDao.failOperation(state.getOpId(), toProto(state.getErrorStatus()), null, LOG);
             }
 
-            if (state.getOperations().isEmpty()) {
+            if (state.getCacheProcessedOperations().isEmpty()) {
                 LOG.info("All graph operations results already presented in cache, nothing to execute: " + state);
                 var packed = Any.pack(ExecuteGraphResponse.getDefaultInstance());
 
@@ -148,7 +148,7 @@ public class GraphExecutionService {
                 }
             }
 
-            if (state.getDataFlowGraph() == null || state.getZone() == null) {
+            if (state.getDataFlowGraph() == null || state.getVmPoolZone() == null) {
                 LOG.debug("Validate dataflow graph, current state: " + state);
 
                 validator.validate(state);

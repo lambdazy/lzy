@@ -4,7 +4,7 @@ import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.dao.ExecutionOperationsDao;
-import ai.lzy.service.dao.GraphExecutionState;
+import ai.lzy.service.dao.ExecuteGraphState;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nullable;
@@ -87,7 +87,7 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
     }
 
     @Override
-    public void putState(String opId, GraphExecutionState state, @Nullable TransactionHandle transaction)
+    public void putState(String opId, ExecuteGraphState state, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         LOG.debug("Update execute graph operation state: { opId: {}, state: {} }", opId, state.toString());

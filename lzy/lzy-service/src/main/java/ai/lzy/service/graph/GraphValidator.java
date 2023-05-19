@@ -1,6 +1,6 @@
 package ai.lzy.service.graph;
 
-import ai.lzy.service.dao.GraphExecutionState;
+import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.VmPoolServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
@@ -19,21 +19,21 @@ class GraphValidator {
         this.vmPoolClient = vmPoolClient;
     }
 
-    public void validate(GraphExecutionState state) {
+    public void validate(ExecuteGraphState state) {
         if (!validateZone(state)) {
             return;
         }
 
-        state.setDataFlowGraph(new DataFlowGraph(state.getOperations()));
-        state.setOperations(state.getDataFlowGraph().getOperations());
+        state.setDataFlowGraph(new DataFlowGraph(state.getCacheProcessedOperations()));
+        state.setCacheProcessedOperations(state.getDataFlowGraph().getOperations());
 
         if (state.getDataFlowGraph().hasCycle()) {
             state.fail(Status.INVALID_ARGUMENT, "Cycle detected: " + state.getDataFlowGraph().printCycle());
         }
     }
 
-    private boolean validateZone(GraphExecutionState state) {
-        var requiredPoolLabels = state.getOperations().stream().map(LWF.Operation::getPoolSpecName).toList();
+    private boolean validateZone(ExecuteGraphState state) {
+        var requiredPoolLabels = state.getCacheProcessedOperations().stream().map(LWF.Operation::getPoolSpecName).toList();
         Set<String> suitableZones;
         try {
             suitableZones = findZones(requiredPoolLabels, vmPoolClient);
@@ -43,15 +43,15 @@ class GraphValidator {
             return false;
         }
 
-        var requestedZone = state.getZone();
+        var requestedZone = state.getVmPoolZone();
         if (Strings.isBlank(requestedZone)) {
-            suitableZones.stream().findAny().ifPresentOrElse(state::setZone, () -> state.fail(Status.INVALID_ARGUMENT,
+            suitableZones.stream().findAny().ifPresentOrElse(state::setVmPoolZone, () -> state.fail(Status.INVALID_ARGUMENT,
                 "Cannot find zone which has all required pools: " + JsonUtils.printAsArray(requiredPoolLabels)));
         } else if (!suitableZones.contains(requestedZone)) {
-            state.setZone(null);
+            state.setVmPoolZone(null);
             state.fail(Status.INVALID_ARGUMENT, "Passed zone'" + requestedZone + "' doesn't contain required pools");
         }
 
-        return state.getZone() != null;
+        return state.getVmPoolZone() != null;
     }
 }

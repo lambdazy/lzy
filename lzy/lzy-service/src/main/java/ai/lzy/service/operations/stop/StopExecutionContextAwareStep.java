@@ -6,7 +6,7 @@ import ai.lzy.service.operations.ExecutionContextAwareStep;
 import ai.lzy.service.operations.ExecutionStepContext;
 import jakarta.annotation.Nullable;
 
-public class StopExecutionContextAwareStep implements ExecutionContextAwareStep {
+public abstract class StopExecutionContextAwareStep implements ExecutionContextAwareStep {
     private final ExecutionStepContext stepCtx;
     private final StopExecutionState state;
 

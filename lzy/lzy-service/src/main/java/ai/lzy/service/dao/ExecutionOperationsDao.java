@@ -16,7 +16,7 @@ public interface ExecutionOperationsDao {
     void createExecGraphOp(String opId, String instanceId, String execId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    void putState(String opId, GraphExecutionState state, @Nullable TransactionHandle transaction) throws SQLException;
+    void putState(String opId, ExecuteGraphState state, @Nullable TransactionHandle transaction) throws SQLException;
 
     List<OpInfo> listOpsInfo(String execId, @Nullable TransactionHandle transaction) throws SQLException;
 
