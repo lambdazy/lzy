@@ -2,10 +2,10 @@ syntax = "proto3";
 
 package ai.lzy.v1.channel;
 
-import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/long-running/operation.proto";
 import "ai/lzy/v1/long-running/option.proto";
 import "ai/lzy/v1/channel/channel.proto";
+import "ai/lzy/v1/common/data-scheme.proto";
 
 option java_outer_classname = "LCMS";
 option java_package = "ai.lzy.v1.channel";
@@ -31,23 +31,32 @@ service LzyChannelManager {
 }
 
 message BindRequest {
-  ai.lzy.v1.common.SlotInstance slotInstance = 1;
-  SlotOwner slotOwner = 2;
+  string execution_id = 1;
+  string channel_id   = 2;   // Id of channel to bind to
 
-  enum SlotOwner {
-    UNSPECIFIED = 0;
-    WORKER = 1;
-    PORTAL = 2;
+  string peer_url     = 3;   // URL of slots api to connect to
+  string slot_id      = 4;
+  Direction direction = 5;
+
+  enum Direction {
+    UNKNOWN = 0;
+    INPUT = 1;
+    OUTPUT = 2;
   }
-
 }
 
-message BindResponse {}
+message BindResponse {
+  common.DataScheme data_scheme = 1;  // Data scheme of channel. Data of slot can be validated with this scheme
+
+  // Optional peer description to connect input slot to.
+  // If not set, input slot must wait for connect call to get peer
+  /* optional */ PeerDescription peer_description = 2;
+}
 
 message BindMetadata {}
 
 message UnbindRequest {
-  string slotUri = 1;
+  string slot_uri = 1;
 }
 
 message UnbindResponse {}
@@ -55,8 +64,8 @@ message UnbindResponse {}
 message UnbindMetadata {}
 
 message GetChannelsStatusRequest {
-  string executionId = 1;
-  repeated string channelIds = 2;
+  string execution_id = 1;
+  repeated string channel_ids = 2;
 }
 
 message GetChannelsStatusResponse {

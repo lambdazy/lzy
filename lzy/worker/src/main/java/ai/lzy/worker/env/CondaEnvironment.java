@@ -1,5 +1,6 @@
 package ai.lzy.worker.env;
 
+import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.common.LME;
 import ai.lzy.worker.StreamQueue;
 import com.google.common.annotations.VisibleForTesting;
@@ -123,7 +124,7 @@ public class CondaEnvironment implements AuxEnvironment {
                 this.localModulesAbsolutePath = installLocalModules(pythonEnv, localModulesPathPrefix, LOG);
             } catch (IOException e) {
                 String errorMessage = "Failed to install local modules";
-                LOG.error(errorMessage);
+                LOG.error("Fail to install local modules. Python env: \n{}\n", JsonUtils.printRequest(pythonEnv), e);
                 throw new EnvironmentInstallationException(errorMessage);
             }
         } catch (IOException | InterruptedException | ExecutionException e) {
