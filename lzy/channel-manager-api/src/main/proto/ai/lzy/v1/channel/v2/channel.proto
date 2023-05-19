@@ -6,8 +6,8 @@ import "ai/lzy/v1/common/data-scheme.proto";
 import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/common/storage.proto";
 
-option java_outer_classname = "LCM2";
-option java_package = "ai.lzy.v1.channel";
+option java_outer_classname = "LCM";
+option java_package = "ai.lzy.v1.channel.v2";
 
 message ChannelStatus {
   string channel_id                  = 1;

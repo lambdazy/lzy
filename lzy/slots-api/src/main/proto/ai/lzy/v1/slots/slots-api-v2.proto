@@ -8,7 +8,7 @@ import "ai/lzy/v1/long-running/option.proto";
 import "ai/lzy/v1/channel/v2/channel.proto";
 
 option java_outer_classname = "LSA";
-option java_package = "ai.lzy.v1.slots";
+option java_package = "ai.lzy.v1.slots.v2";
 
 service LzySlotsApi {
 

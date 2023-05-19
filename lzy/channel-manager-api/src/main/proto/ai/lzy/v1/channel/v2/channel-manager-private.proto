@@ -6,8 +6,8 @@ import "ai/lzy/v1/channel/v2/channel.proto";
 import "ai/lzy/v1/long-running/operation.proto";
 import "ai/lzy/v1/long-running/option.proto";
 
-option java_outer_classname = "LCMPS2";
-option java_package = "ai.lzy.v1.channel";
+option java_outer_classname = "LCMPS";
+option java_package = "ai.lzy.v1.channel.v2";
 
 service LzyChannelManagerPrivate {
   rpc Create (CreateRequest) returns (CreateResponse);

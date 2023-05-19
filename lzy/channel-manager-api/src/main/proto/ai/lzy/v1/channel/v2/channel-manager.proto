@@ -7,8 +7,8 @@ import "ai/lzy/v1/long-running/option.proto";
 import "ai/lzy/v1/channel/v2/channel.proto";
 import "ai/lzy/v1/common/data-scheme.proto";
 
-option java_outer_classname = "LCMS2";
-option java_package = "ai.lzy.v1.channel";
+option java_outer_classname = "LCMS";
+option java_package = "ai.lzy.v1.channel.v2";
 
 service LzyChannelManager {
 
