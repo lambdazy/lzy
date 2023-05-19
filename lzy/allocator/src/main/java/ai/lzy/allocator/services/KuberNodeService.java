@@ -32,6 +32,7 @@ public class KuberNodeService {
     private static final Logger LOG = LogManager.getLogger(KuberNodeService.class);
 
     private static final int NODE_DAEMONSET_PORT = 8042;
+    private static final String CHECK_NODE_READINESS_TEMPLATE = "http://%s/isReady";
 
     @Inject
     NodeController nodeController;
@@ -42,12 +43,12 @@ public class KuberNodeService {
     @Inject
     HttpClientAddressResolver clientAddressResolver;
 
-    Set<String> readyNodes = new HashSet<>();
+    private final Set<String> readyNodes = new HashSet<>();
 
-    HttpClient httpClient = HttpClient.newBuilder()
+    private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofMillis(1000))
         .followRedirects(HttpClient.Redirect.NEVER)
-            .build();
+        .build();
 
     @Post(value = "/set_ready", consumes = MediaType.APPLICATION_JSON)
     public HttpResponse<String> status(HttpRequest<Map<String, String>> request) {
@@ -118,7 +119,7 @@ public class KuberNodeService {
     }
 
     private boolean ensureNodeIsReady(String host) {
-        final var requestUrl = "http://" + HostAndPort.fromParts(host, NODE_DAEMONSET_PORT) + "/isReady";
+        String requestUrl = CHECK_NODE_READINESS_TEMPLATE.formatted(HostAndPort.fromParts(host, NODE_DAEMONSET_PORT));
         final var request = java.net.http.HttpRequest.newBuilder()
             .GET()
             .uri(URI.create(requestUrl))
