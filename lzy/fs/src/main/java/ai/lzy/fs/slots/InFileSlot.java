@@ -22,6 +22,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.FileTime;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
@@ -31,14 +32,14 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
     private final Path storage;
     private final OutputStream outputStream;
     private final boolean allowMultipleRead;
-    private int readCount;
+    private final AtomicInteger readCount;
 
     public InFileSlot(SlotInstance instance, Path storage, boolean allowMultipleRead) throws IOException {
         super(instance);
         this.storage = storage;
         outputStream = Files.newOutputStream(storage);
         this.allowMultipleRead = allowMultipleRead;
-        this.readCount = 0;
+        this.readCount = new AtomicInteger();
     }
 
     public InFileSlot(SlotInstance instance, Path storage) throws IOException {
@@ -143,7 +144,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
                 final ByteBuffer bb = ByteBuffer.wrap(bytes);
                 trackers().forEach(tracker -> tracker.onRead(offset, ByteBuffer.wrap(bytes)));
                 int read = channel.read(bb);
-                readCount++;
+                readCount.incrementAndGet();
                 LOG.info("Read slot {} from file {}: {}", name(), storage.toString(), read);
                 if (read < 0) {
                     return 0;
@@ -165,7 +166,7 @@ public class InFileSlot extends LzyInputSlotBase implements LzyFileSlot {
                 if (!allowMultipleRead) {
                     state(State.SUSPENDED);
                 } else {
-                    if (readCount > 1) {
+                    if (readCount.get() > 1) {
                         LOG.debug("Repeated reading for slot {}", name());
                     }
                 }
