@@ -312,9 +312,9 @@ resource "kubernetes_service" "allocator_service" {
       target_port = local.allocator-port
     }
     port {
-      name        = "micronaut-http"
-      port        = local.allocator-micronaut-port
-      target_port = local.allocator-micronaut-port
+      name        = "http"
+      port        = local.allocator-http-port
+      target_port = local.allocator-http-port
     }
     external_traffic_policy = "Local"
     type = "LoadBalancer"
