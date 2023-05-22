@@ -10,7 +10,7 @@ Configuration:
 
   Loggers:
     Root:
-      level: warn
+      level: info
       AppenderRef:
         ref: Console
     Logger:
@@ -22,4 +22,10 @@ Configuration:
         level: error
 
       - name: "io.zonky.test"
+        level: warn
+
+      - name: "ai.lzy.iam"
+        level: warn
+
+      - name: "ai.lzy.allocator.gc"
         level: warn
