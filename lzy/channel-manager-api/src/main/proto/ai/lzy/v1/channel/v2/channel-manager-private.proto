@@ -11,7 +11,7 @@ option java_outer_classname = "LCMPS";
 option java_package = "ai.lzy.v1.channel.v2";
 
 service LzyChannelManagerPrivate {
-  rpc Create (CreateRequest) returns (CreateResponse);
+  rpc GetOrCreate (GetOrCreateRequest) returns (GetOrCreateResponse);
 
   rpc Destroy (DestroyRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
@@ -34,7 +34,7 @@ service LzyChannelManagerPrivate {
 
 // ============== Create ==================
 
-message CreateRequest {
+message GetOrCreateRequest {
   string execution_id                                     = 1;
   string workflow_name                                    = 2;
   string user_id                                          = 3;
@@ -42,13 +42,13 @@ message CreateRequest {
   /* optional */ai.lzy.v1.common.DataScheme scheme        = 4;  // If not set, using plain DataScheme
 
   // Initial storage peer
-  oneof storage_peer {
-    common.PeerDescription.StoragePeer initial_producer   = 5;
-    common.PeerDescription.StoragePeer initial_consumer   = 6;
+  oneof initial_storage_peer {
+    common.PeerDescription.StoragePeer producer   = 5;
+    common.PeerDescription.StoragePeer consumer   = 6;
   }
 }
 
-message CreateResponse {
+message GetOrCreateResponse {
   string channel_id = 1;
 }
 
@@ -56,7 +56,7 @@ message CreateResponse {
 
 message DestroyRequest {
   string channel_id = 1;
-  string cause      = 2;
+  string reason     = 2;
   bool force        = 3;  // If not set, channel manager will wait for unbinding of all receivers
 }
 
@@ -68,7 +68,7 @@ message DestroyMetadata {}
 
 message DestroyAllRequest {
   string execution_id = 1;
-  string cause        = 2;
+  string reason       = 2;
   bool force          = 3;  // If not set, channel manager will wait for unbinding of all receivers
 }
 
