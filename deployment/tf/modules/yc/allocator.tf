@@ -316,6 +316,7 @@ resource "kubernetes_service" "allocator_service" {
       port        = local.allocator-micronaut-port
       target_port = local.allocator-micronaut-port
     }
+    external_traffic_policy = "Local"
     type = "LoadBalancer"
   }
 }
