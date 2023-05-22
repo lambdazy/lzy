@@ -2,9 +2,10 @@ syntax = "proto3";
 
 package ai.lzy.v1.channel.v2;
 
-import "ai/lzy/v1/channel/v2/channel.proto";
+import "ai/lzy/v1/common/channel.proto";
 import "ai/lzy/v1/long-running/operation.proto";
 import "ai/lzy/v1/long-running/option.proto";
+import "ai/lzy/v1/common/data-scheme.proto";
 
 option java_outer_classname = "LCMPS";
 option java_package = "ai.lzy.v1.channel.v2";
@@ -34,14 +35,17 @@ service LzyChannelManagerPrivate {
 // ============== Create ==================
 
 message CreateRequest {
-  ChannelSpec channel_spec                                    = 1;
-  string execution_id                                         = 2;
-  string workflow_name                                        = 3;
-  string user_id                                              = 4;
+  string execution_id                                     = 1;
+  string workflow_name                                    = 2;
+  string user_id                                          = 3;
 
-  // Initial storage peers
-  /* optional */ PeerDescription.StoragePeer initial_sender   = 5;
-  /* optional */ PeerDescription.StoragePeer initial_receiver = 6;
+  /* optional */ai.lzy.v1.common.DataScheme scheme        = 4;  // If not set, using plain DataScheme
+
+  // Initial storage peer
+  oneof storage_peer {
+    common.PeerDescription.StoragePeer initial_producer   = 5;
+    common.PeerDescription.StoragePeer initial_consumer   = 6;
+  }
 }
 
 message CreateResponse {
@@ -79,7 +83,7 @@ message StatusRequest {
 }
 
 message StatusResponse {
-  ChannelStatus channel = 1;
+  common.ChannelStatus channel = 1;
 }
 
 // ============== List ==================
@@ -89,5 +93,5 @@ message ListRequest {
 }
 
 message ListResponse {
-  repeated ChannelStatus statuses = 1;
+  repeated common.ChannelStatus statuses = 1;
 }

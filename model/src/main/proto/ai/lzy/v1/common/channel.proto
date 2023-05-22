@@ -1,25 +1,20 @@
 syntax = "proto3";
 
-package ai.lzy.v1.channel.v2;
+package ai.lzy.v1.common;
 
 import "ai/lzy/v1/common/data-scheme.proto";
 import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/common/storage.proto";
 
-option java_outer_classname = "LCM";
-option java_package = "ai.lzy.v1.channel.v2";
+option java_outer_classname = "LC";
+option java_package = "ai.lzy.v1.common";
 
 message ChannelStatus {
   string channel_id                  = 1;
-  ChannelSpec spec                   = 2;
-  string execution_id                = 3;
-  repeated PeerDescription senders   = 4;
-  repeated PeerDescription receivers = 5;
-}
-
-message ChannelSpec {
-  string channel_name                = 1;
   ai.lzy.v1.common.DataScheme scheme = 2;
+  string execution_id                = 3;
+  repeated PeerDescription consumers = 4;
+  repeated PeerDescription producers = 5;
 }
 
 message PeerDescription {

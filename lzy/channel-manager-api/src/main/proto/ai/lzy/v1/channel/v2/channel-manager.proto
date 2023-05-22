@@ -4,7 +4,7 @@ package ai.lzy.v1.channel.v2;
 
 import "ai/lzy/v1/long-running/operation.proto";
 import "ai/lzy/v1/long-running/option.proto";
-import "ai/lzy/v1/channel/v2/channel.proto";
+import "ai/lzy/v1/common/channel.proto";
 import "ai/lzy/v1/common/data-scheme.proto";
 
 option java_outer_classname = "LCMS";
@@ -41,9 +41,9 @@ message BindRequest {
   Role role           = 5;
 
   enum Role {
-    UNKNOWN = 0;
-    SENDER = 1;
-    RECEIVER = 2;
+    UNSPECIFIED = 0;
+    CONSUMER = 1;
+    PRODUCER = 2;
   }
 }
 
@@ -71,7 +71,7 @@ message GetChannelsStatusRequest {
 }
 
 message GetChannelsStatusResponse {
-  repeated ChannelStatus channels = 1;
+  repeated common.ChannelStatus channels = 1;
 }
 
 
