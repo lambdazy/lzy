@@ -77,8 +77,7 @@ public final class CheckCache extends ExecuteGraphContextAwareStep implements Su
         }
 
         log().debug("{} Cache was scanned: { foundTasksResults: {}, notFound: {} }", logPrefix(),
-            ProtoPrinter.printer().shortDebugString(operationsToExecute),
-            ProtoPrinter.printer().shortDebugString(cachedOps));
+            printer().shortDebugString(operationsToExecute), printer().shortDebugString(cachedOps));
 
         log().debug("{} Save data about cached tasks results in dao...", logPrefix());
         setOperationsToExecute(operationsToExecute);

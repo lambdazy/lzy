@@ -2,6 +2,7 @@ package ai.lzy.service.operations.start;
 
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
 import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.service.config.PortalVmSpec;
 import ai.lzy.service.dao.StartExecutionState;
 import ai.lzy.service.operations.ExecutionStepContext;
 import ai.lzy.service.operations.RetryableFailStep;
@@ -24,17 +25,17 @@ import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 final class StartAllocationPortalVm extends StartExecutionContextAwareStep
     implements Supplier<StepResult>, RetryableFailStep
 {
+    private final PortalVmSpec spec;
     private final AllocatorBlockingStub allocClient;
     private final LongRunningServiceBlockingStub allocOpClient;
-    private final AllocPortalVmSpec spec;
 
-    public StartAllocationPortalVm(ExecutionStepContext stepCtx, StartExecutionState state, AllocPortalVmSpec spec,
+    public StartAllocationPortalVm(ExecutionStepContext stepCtx, StartExecutionState state, PortalVmSpec spec,
                                    AllocatorBlockingStub allocClient, LongRunningServiceBlockingStub allocOpClient)
     {
         super(stepCtx, state);
+        this.spec = spec;
         this.allocClient = allocClient;
         this.allocOpClient = allocOpClient;
-        this.spec = spec;
     }
 
     @Override
@@ -62,15 +63,15 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
         try {
             op = allocateVmClient.allocate(
                 VmAllocatorApi.AllocateRequest.newBuilder()
-                    .setSessionId(spec.sessionId)
-                    .setPoolLabel(spec.poolLabel)
-                    .setZone(spec.poolLabel)
+                    .setSessionId(allocatorSessionId())
+                    .setPoolLabel(spec.poolLabel())
+                    .setZone(spec.poolZone())
                     .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.SYSTEM)
                     .addWorkload(VmAllocatorApi.AllocateRequest.Workload.newBuilder()
                         .setName("portal")
-                        .setImage(spec.dockerImage)
+                        .setImage(spec.dockerImage())
                         .addAllArgs(args)
-                        .putEnv(portalEnvPKEY, spec.privateKey)
+                        .putEnv(portalEnvPKEY, spec.privateKey())
                         .putAllPortBindings(ports)
                         .build())
                     .build());
@@ -124,29 +125,24 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
     }
 
     private Map<String, Object> prepareConfig() {
-        var actualPortalPort = (spec.portalPort == -1) ? FreePortFinder.find(10000, 11000)
-            : spec.portalPort;
-        var actualSlotsApiPort = (spec.slotsApiPort == -1) ? FreePortFinder.find(11000, 12000)
-            : spec.slotsApiPort;
+        var actualPortalPort = (spec.portalPort() == -1) ? FreePortFinder.find(10000, 11000)
+            : spec.portalPort();
+        var actualSlotsApiPort = (spec.slotsApiPort() == -1) ? FreePortFinder.find(11000, 12000)
+            : spec.slotsApiPort();
 
         return new HashMap<>(Map.of(
-            "portal.portal-id", spec.portalId(),
+            "portal.portal-id", portalId(),
             "portal.portal-api-port", actualPortalPort,
             "portal.slots-api-port", actualSlotsApiPort,
-            "portal.channel-manager-address" + spec.channelManagerAddress,
-            "portal.iam-address" + spec.iamAddress,
-            "portal.whiteboard-address" + spec.whiteboardAddress,
-            "portal.concurrency.workers-pool-size" + spec.workersPoolSize,
+            "portal.channel-manager-address" + spec.channelManagerAddress(),
+            "portal.iam-address" + spec.iamAddress(),
+            "portal.whiteboard-address" + spec.whiteboardAddress(),
+            "portal.concurrency.workers-pool-size" + spec.workersPoolSize(),
             "portal.concurrency.downloads-pool-size" + spec.downloadPoolSize(),
-            "portal.concurrency.chunks-pool-size" + spec.chunksPoolSize));
+            "portal.concurrency.chunks-pool-size" + spec.chunksPoolSize()));
     }
 
     private static List<String> formatToArgs(Map<String, Object> cfg) {
         return cfg.entrySet().stream().map(entry -> "-" + entry.getKey() + "=" + entry.getValue()).toList();
     }
-
-    public record AllocPortalVmSpec(String portalId, String sessionId, String poolZone, String poolLabel,
-                                    String dockerImage, String privateKey, int portalPort, int slotsApiPort,
-                                    int workersPoolSize, int downloadPoolSize, int chunksPoolSize,
-                                    String channelManagerAddress, String iamAddress, String whiteboardAddress) {}
 }

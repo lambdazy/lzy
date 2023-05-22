@@ -7,18 +7,12 @@ import jakarta.annotation.Nullable;
 
 import static ai.lzy.service.dao.ExecutionDao.KafkaTopicDesc;
 
-public abstract class StartExecutionContextAwareStep implements ExecutionContextAwareStep {
-    private final ExecutionStepContext stepCtx;
+public abstract class StartExecutionContextAwareStep extends ExecutionContextAwareStep {
     private final StartExecutionState state;
 
-    public StartExecutionContextAwareStep(ExecutionStepContext stepCtx, StartExecutionState initial) {
-        this.stepCtx = stepCtx;
-        this.state = initial;
-    }
-
-    @Override
-    public ExecutionStepContext stepCtx() {
-        return stepCtx;
+    public StartExecutionContextAwareStep(ExecutionStepContext stepCtx, StartExecutionState state) {
+        super(stepCtx);
+        this.state = state;
     }
 
     protected StartExecutionState state() {

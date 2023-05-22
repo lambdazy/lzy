@@ -40,18 +40,20 @@ public interface ExecutionDao {
     @Nullable
     KafkaTopicDesc getKafkaTopicDesc(String execId, @Nullable TransactionHandle transaction) throws SQLException;
 
-    LMST.StorageConfig getStorageConfig(String execId) throws SQLException;
+    LMST.StorageConfig getStorageConfig(String execId, @Nullable TransactionHandle transaction) throws SQLException;
 
-    PortalDescription getPortalDescription(String execId) throws SQLException;
+    PortalDescription getPortalDescription(String execId, @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable
-    default String getPortalVmAddress(String execId) throws SQLException {
-        var desc = getPortalDescription(execId);
+    default String getPortalVmAddress(String execId, @Nullable TransactionHandle transaction) throws SQLException {
+        var desc = getPortalDescription(execId, transaction);
         if (desc != null) {
             return desc.vmAddress().toString();
         }
         return null;
     }
+
+    StopExecutionState loadStopExecState(String execId, @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable
     String getExpiredExecution() throws SQLException;
@@ -63,16 +65,15 @@ public interface ExecutionDao {
         String username,
         String password,  // TODO: encrypt
         String topicName,
-        @Nullable
-        String sinkJobId
+        @Nullable String sinkJobId
     ) {}
 
     record PortalDescription(
-        String portalId,
-        String subjectId,
-        String allocatorSessionId,
-        String vmId,
-        HostAndPort vmAddress,
-        HostAndPort fsAddress
+        @Nullable String portalId,
+        @Nullable String subjectId,
+        @Nullable String allocatorSessionId,
+        @Nullable String vmId,
+        @Nullable HostAndPort vmAddress,
+        @Nullable HostAndPort fsAddress
     ) {}
 }

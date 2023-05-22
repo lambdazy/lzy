@@ -1,6 +1,7 @@
 package ai.lzy.service.operations.start;
 
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
+import ai.lzy.service.config.AllocatorSessionSpec;
 import ai.lzy.service.dao.StartExecutionState;
 import ai.lzy.service.operations.ExecutionStepContext;
 import ai.lzy.service.operations.RetryableFailStep;
@@ -9,12 +10,10 @@ import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.CreateSessionResponse;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.Durations;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.protobuf.StatusProto;
 
-import java.time.Duration;
 import java.util.function.Supplier;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -23,14 +22,14 @@ import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 final class CreateAllocatorSession extends StartExecutionContextAwareStep
     implements Supplier<StepResult>, RetryableFailStep
 {
-    private final Duration allocatorVmCacheTimeout;
+    private final AllocatorSessionSpec spec;
     private final AllocatorBlockingStub allocClient;
 
     public CreateAllocatorSession(ExecutionStepContext stepCtx, StartExecutionState state,
-                                  Duration allocatorVmCacheTimeout, AllocatorBlockingStub allocClient)
+                                  AllocatorSessionSpec spec, AllocatorBlockingStub allocClient)
     {
         super(stepCtx, state);
-        this.allocatorVmCacheTimeout = allocatorVmCacheTimeout;
+        this.spec = spec;
         this.allocClient = allocClient;
     }
 
@@ -51,11 +50,9 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
         try {
             createSessionOp = createSessionAllocClient.createSession(
                 VmAllocatorApi.CreateSessionRequest.newBuilder()
-                    .setOwner(userId())
-                    .setDescription("session for exec with id=" + execId())
-                    .setCachePolicy(VmAllocatorApi.CachePolicy.newBuilder()
-                        .setIdleTimeout(Durations.fromSeconds(allocatorVmCacheTimeout.getSeconds()))
-                        .build())
+                    .setOwner(spec.userId())
+                    .setDescription(spec.description())
+                    .setCachePolicy(spec.cachePolicy())
                     .build());
         } catch (StatusRuntimeException sre) {
             return retryableFail(sre, "Error in Allocator:createSession call for execution with id='%s'"

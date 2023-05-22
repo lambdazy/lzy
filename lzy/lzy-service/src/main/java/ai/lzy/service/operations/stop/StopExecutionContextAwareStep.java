@@ -6,18 +6,12 @@ import ai.lzy.service.operations.ExecutionContextAwareStep;
 import ai.lzy.service.operations.ExecutionStepContext;
 import jakarta.annotation.Nullable;
 
-public abstract class StopExecutionContextAwareStep implements ExecutionContextAwareStep {
-    private final ExecutionStepContext stepCtx;
+public abstract class StopExecutionContextAwareStep extends ExecutionContextAwareStep {
     private final StopExecutionState state;
 
-    public StopExecutionContextAwareStep(ExecutionStepContext stepCtx, StopExecutionState initial) {
-        this.stepCtx = stepCtx;
-        this.state = initial;
-    }
-
-    @Override
-    public ExecutionStepContext stepCtx() {
-        return stepCtx;
+    public StopExecutionContextAwareStep(ExecutionStepContext stepCtx, StopExecutionState state) {
+        super(stepCtx);
+        this.state = state;
     }
 
     protected StopExecutionState state() {

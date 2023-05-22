@@ -1,65 +1,183 @@
 package ai.lzy.service.operations.graph;
 
-import ai.lzy.longrunning.OperationRunnerBase.StepResult;
+import ai.lzy.longrunning.Operation;
+import ai.lzy.longrunning.dao.OperationCompletedException;
+import ai.lzy.model.db.TransactionHandle;
+import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.dao.ExecuteGraphState;
-import ai.lzy.service.operations.ExecutionStepContext;
-import ai.lzy.service.operations.RetryableFailStep;
-import ai.lzy.v1.graph.GraphExecutor;
-import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
+import ai.lzy.service.dao.ExecutionDao;
+import ai.lzy.service.operations.ExecutionOperationRunner;
+import ai.lzy.storage.StorageClient;
+import ai.lzy.util.kafka.KafkaConfig;
+import ai.lzy.v1.VmPoolServiceGrpc.VmPoolServiceBlockingStub;
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
+import ai.lzy.v1.workflow.LWFS;
+import com.google.protobuf.Any;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 
+import java.sql.SQLException;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Supplier;
 
-public final class ExecuteGraph extends ExecuteGraphContextAwareStep
-    implements Supplier<StepResult>, RetryableFailStep
-{
-    private final GraphExecutorBlockingStub graphExecutorClient;
+import static ai.lzy.model.db.DbHelper.withRetries;
 
-    public ExecuteGraph(ExecutionStepContext stepCtx, ExecuteGraphState state,
-                        GraphExecutorBlockingStub graphExecutorClient)
-    {
-        super(stepCtx, state);
-        this.graphExecutorClient = graphExecutorClient;
+public final class ExecuteGraph extends ExecutionOperationRunner {
+    private final KafkaConfig kafkaConfig;
+    private final ExecutionDao.KafkaTopicDesc kafkaTopicDesc;
+    private final VmPoolServiceBlockingStub vmPoolClient;
+    private final GraphExecutorBlockingStub graphsClient;
+    private final StorageClient storageClient;
+    private final ExecuteGraphState state;
+
+    private ExecuteGraph(ExecuteGraphBuilder builder) {
+        super(builder);
+        this.kafkaConfig = builder.kafkaConfig;
+        this.kafkaTopicDesc = builder.kafkaTopicDesc;
+        this.vmPoolClient = builder.vmPoolClient;
+        this.graphsClient = builder.graphsClient;
+        this.storageClient = builder.storageClient;
+        this.state = builder.state;
     }
 
     @Override
-    public StepResult get() {
-        if (graphId() != null) {
-            log().debug("{} Graph already executed, skip step...", logPrefix());
-            return StepResult.ALREADY_DONE;
-        }
+    protected List<Supplier<StepResult>> steps() {
+        return List.of(checkCache(), findZone(), buildDataflowGraph(), buildGraph(), executeGraph(), this::complete);
+    }
 
-        GraphExecuteRequest.Builder builder = GraphExecuteRequest.newBuilder().setUserId(userId())
-            .setWorkflowId(execId()).setWorkflowName(wfName())
-            .setParentGraphId(request().getParentGraphId())
-            .addAllTasks(tasks())
-            .addAllChannels(channels().values().stream().map(channelId -> GraphExecutor.ChannelDesc.newBuilder()
-                .setId(channelId)
-                .setDirect(GraphExecutor.ChannelDesc.DirectChannel.getDefaultInstance())
-                .build()
-            ).toList());
+    private Supplier<StepResult> checkCache() {
+        return new CheckCache(stepCtx(), state, storageClient, this::complete);
+    }
 
-        log().info("{} Send execute graph request to service", logPrefix());
+    private Supplier<StepResult> findZone() {
+        return new FindVmPoolZone(stepCtx(), state, vmPoolClient);
+    }
 
-        final String graphId;
+    private Supplier<StepResult> buildDataflowGraph() {
+        return new BuildDataFlowGraph(stepCtx(), state);
+    }
+
+    private Supplier<StepResult> buildGraph() {
+        return new BuildTasks(stepCtx(), state, kafkaConfig, kafkaTopicDesc);
+    }
+
+    private Supplier<StepResult> executeGraph() {
+        return new StartGraphExecution(stepCtx(), state, graphsClient);
+    }
+
+    private StepResult complete() {
+        var response = Any.pack(state.graphId != null ?
+            LWFS.ExecuteGraphResponse.newBuilder().setGraphId(state.graphId).build() :
+            LWFS.ExecuteGraphResponse.getDefaultInstance());
         try {
-            graphId = graphExecutorClient.execute(builder.build()).getStatus().getGraphId();
-        } catch (StatusRuntimeException sre) {
-            return retryableFail(sre, "Error while GraphExecutor::execute call", sre);
-        }
-
-        log().debug("{} Save id of executed graph in dao...", logPrefix());
-        setGraphId(graphId);
-
-        try {
-            saveState();
+            withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(storage())) {
+                    execOpsDao().putState(id(), state, tx);
+                    completeOperation(null, response, tx);
+                }
+            });
         } catch (Exception e) {
-            return retryableFail(e, "Cannot save id of executed graph in dao", Status.INTERNAL
-                .withDescription("Cannot execute graph").asRuntimeException());
+            var sqlError = e instanceof SQLException;
+
+            log().error("{} Cannot complete successful ExecuteGraph op: {}.{}", logPrefix(), e.getMessage(),
+                (sqlError ? " Reschedule..." : ""));
+
+            return sqlError ? StepResult.RESTART : StepResult.FINISH;
         }
 
-        return StepResult.CONTINUE;
+        return StepResult.FINISH;
+    }
+
+    @Override
+    protected boolean fail(Status status) {
+        log().error("{} Fail ExecuteGraph operation: {}", logPrefix(), status.getDescription());
+
+        boolean[] success = {false};
+        var stopOp = Operation.create(userId(), "Stop execution: execId='%s'".formatted(execId()), null, null, null);
+        try {
+            withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(storage())) {
+                    success[0] = Objects.equals(wfDao().getExecutionId(userId(), wfName(), tx), execId());
+                    if (success[0]) {
+                        wfDao().setActiveExecutionId(userId(), wfName(), null, tx);
+                        operationsDao().create(stopOp, tx);
+                    }
+                    failOperation(status, tx);
+                    tx.commit();
+                }
+            });
+        } catch (OperationCompletedException ex) {
+            log().error("{} Cannot fail operation: already completed", logPrefix());
+            return true;
+        } catch (NotFoundException ex) {
+            log().error("{} Cannot fail operation: not found", logPrefix());
+            return true;
+        } catch (Exception ex) {
+            log().error("{} Cannot fail operation: {}. Retry later...", logPrefix(), ex.getMessage());
+            return false;
+        }
+
+        if (success[0]) {
+            try {
+                log().debug("{} Schedule action to abort execution that has graph not executed properly: " +
+                    "{ execId: {} }", logPrefix(), execId());
+                var opRunner = opRunnersFactory().createAbortExecOpRunner(stopOp.id(), stopOp.description(), null,
+                    userId(), wfName(), execId(), Status.INTERNAL.withDescription("error on execute graph"));
+                opsExecutor().startNew(opRunner);
+            } catch (Exception e) {
+                log().warn("{} Cannot schedule action to abort execution that has graph not executed properly: " +
+                    "{ execId: {}, error: {} }", logPrefix(), execId(), e.getMessage(), e);
+            }
+        }
+
+        return true;
+    }
+
+    public static ExecuteGraphBuilder builder() {
+        return new ExecuteGraphBuilder();
+    }
+
+    public static final class ExecuteGraphBuilder extends ExecutionOperationRunnerBuilder<ExecuteGraphBuilder> {
+        private KafkaConfig kafkaConfig;
+        private ExecutionDao.KafkaTopicDesc kafkaTopicDesc;
+        private VmPoolServiceBlockingStub vmPoolClient;
+        private GraphExecutorBlockingStub graphsClient;
+        private StorageClient storageClient;
+        private ExecuteGraphState state;
+
+        public ExecuteGraphBuilder setKafkaConfig(KafkaConfig kafkaConfig) {
+            this.kafkaConfig = kafkaConfig;
+            return this;
+        }
+
+        public ExecuteGraphBuilder setKafkaTopicDesc(ExecutionDao.KafkaTopicDesc kafkaTopicDesc) {
+            this.kafkaTopicDesc = kafkaTopicDesc;
+            return this;
+        }
+
+        public ExecuteGraphBuilder setVmPoolClient(VmPoolServiceBlockingStub vmPoolClient) {
+            this.vmPoolClient = vmPoolClient;
+            return this;
+        }
+
+        public ExecuteGraphBuilder setGraphsClient(GraphExecutorBlockingStub graphsClient) {
+            this.graphsClient = graphsClient;
+            return this;
+        }
+
+        public ExecuteGraphBuilder setStorageClient(StorageClient storageClient) {
+            this.storageClient = storageClient;
+            return this;
+        }
+
+        public ExecuteGraphBuilder setState(ExecuteGraphState state) {
+            this.state = state;
+            return this;
+        }
+
+        @Override
+        public ExecuteGraph build() {
+            return new ExecuteGraph(this);
+        }
     }
 }

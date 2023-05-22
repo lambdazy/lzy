@@ -6,6 +6,7 @@ import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 public final class ExecuteGraphState {
     // from ExecuteGraphRequest
@@ -26,4 +27,8 @@ public final class ExecuteGraphState {
     public List<TaskDesc> tasks;
     @Nullable
     public String graphId;
+
+    public ExecuteGraphState(LWF.Graph request) {
+        this.request = request;
+    }
 }

@@ -1,10 +1,9 @@
 package ai.lzy.service.operations.graph;
 
-import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.dao.DataFlowGraph;
 import ai.lzy.service.dao.ExecuteGraphState;
-import ai.lzy.service.operations.ExecutionContextAwareStep;
 import ai.lzy.service.operations.ExecutionStepContext;
+import ai.lzy.service.operations.ExecutionContextAwareStep;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.workflow.LWF;
 import jakarta.annotation.Nullable;
@@ -14,30 +13,20 @@ import java.util.Map;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
-public abstract class ExecuteGraphContextAwareStep implements ExecutionContextAwareStep {
-    private final ExecutionStepContext stepCtx;
+public abstract class ExecuteGraphContextAwareStep extends ExecutionContextAwareStep {
     private final ExecuteGraphState state;
 
-    public ExecuteGraphContextAwareStep(ExecutionStepContext stepCtx, ExecuteGraphState initial) {
-        this.stepCtx = stepCtx;
-        this.state = initial;
+    public ExecuteGraphContextAwareStep(ExecutionStepContext stepCtx, ExecuteGraphState state) {
+        super(stepCtx);
+        this.state = state;
     }
 
     protected ExecuteGraphState state() {
         return state;
     }
 
-    protected void saveState(@Nullable TransactionHandle transaction) throws Exception {
-        withRetries(log(), () -> execOpsDao().putState(opId(), state(), transaction));
-    }
-
     protected void saveState() throws Exception {
-        saveState(null);
-    }
-
-    @Override
-    public ExecutionStepContext stepCtx() {
-        return stepCtx;
+        withRetries(log(), () -> execOpsDao().putState(opId(), state(), null));
     }
 
     protected LWF.Graph request() {

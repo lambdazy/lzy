@@ -13,75 +13,83 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.function.Function;
 
-public interface ExecutionContextAwareStep extends FailContextAwareStep {
-    ExecutionStepContext stepCtx();
+public abstract class ExecutionContextAwareStep implements FailContextAwareStep {
+    private final ExecutionStepContext stepCtx;
 
-    default String opId() {
-        return stepCtx().opId();
+    public ExecutionContextAwareStep(ExecutionStepContext stepCtx) {
+        this.stepCtx = stepCtx;
     }
 
-    default String userId() {
-        return stepCtx().userId();
+    protected ExecutionStepContext stepCtx() {
+        return stepCtx;
     }
 
-    default String wfName() {
-        return stepCtx().wfName();
+    protected String opId() {
+        return stepCtx.opId();
     }
 
-    default String execId() {
-        return stepCtx().execId();
+    protected String userId() {
+        return stepCtx.userId();
     }
 
-    default Storage storage() {
-        return stepCtx().storage();
+    protected String wfName() {
+        return stepCtx.wfName();
     }
 
-    default WorkflowDao wfDao() {
-        return stepCtx().wfDao();
+    protected String execId() {
+        return stepCtx.execId();
     }
 
-    default ExecutionDao execDao() {
-        return stepCtx().execDao();
+    protected Storage storage() {
+        return stepCtx.storage();
     }
 
-    default GraphDao graphDao() {
-        return stepCtx().graphDao();
+    protected WorkflowDao wfDao() {
+        return stepCtx.wfDao();
     }
 
-    default ExecutionOperationsDao execOpsDao() {
-        return stepCtx().execOpsDao();
+    protected ExecutionDao execDao() {
+        return stepCtx.execDao();
     }
 
-    default String idempotencyKey() {
-        return stepCtx().idempotencyKey();
+    protected GraphDao graphDao() {
+        return stepCtx.graphDao();
     }
 
-    default IdGenerator idGenerator() {
-        return stepCtx().idGenerator();
+    protected ExecutionOperationsDao execOpsDao() {
+        return stepCtx.execOpsDao();
     }
 
-    @Override
-    default Function<StatusRuntimeException, StepResult> failAction() {
-        return stepCtx().failAction();
+    protected String idempotencyKey() {
+        return stepCtx.idempotencyKey();
     }
 
-    @Override
-    default Logger log() {
-        return stepCtx().log();
-    }
-
-    @Override
-    default String logPrefix() {
-        return stepCtx().logPrefix();
+    protected IdGenerator idGenerator() {
+        return stepCtx.idGenerator();
     }
 
     @Override
-    default ProtoPrinter.Printer safePrinter() {
+    public Function<StatusRuntimeException, StepResult> failAction() {
+        return stepCtx.failAction();
+    }
+
+    @Override
+    public Logger log() {
+        return stepCtx.log();
+    }
+
+    @Override
+    public String logPrefix() {
+        return stepCtx.logPrefix();
+    }
+
+    @Override
+    public ProtoPrinter.Printer safePrinter() {
         return ProtoPrinter.safePrinter();
     }
 
     @Override
-    default ProtoPrinter.Printer printer() {
+    public ProtoPrinter.Printer printer() {
         return ProtoPrinter.printer();
     }
 }

@@ -3,6 +3,7 @@ package ai.lzy.service.dao.impl;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.dao.ExecutionDao;
+import ai.lzy.service.dao.StopExecutionState;
 import ai.lzy.v1.common.LMST;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -341,8 +342,10 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public PortalDescription getPortalDescription(String execId) throws SQLException {
-        return DbOperation.execute(null, storage, con -> {
+    public PortalDescription getPortalDescription(String execId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        return DbOperation.execute(transaction, storage, con -> {
             try (var st = con.prepareStatement(QUERY_SELECT_PORTAL_METADATA)) {
                 st.setString(1, execId);
                 var rs = st.executeQuery();
@@ -365,6 +368,11 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 }
             }
         });
+    }
+
+    @Override
+    public StopExecutionState loadStopExecState(String execId, TransactionHandle transaction) throws SQLException {
+        return null;
     }
 
     @Override

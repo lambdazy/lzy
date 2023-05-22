@@ -20,4 +20,18 @@ public final class StopExecutionState {
     public String portalVmId;
     @Nullable
     public String portalApiAddress;
+
+    public StopExecutionState(String finishPortalOpId, KafkaTopicDesc kafkaTopicDesc, String allocatorSessionId,
+                              String deleteAllocSessionOpId, String portalSubjectId, String destroyChannelsOpId,
+                              String portalVmId, String portalApiAddress)
+    {
+        this.finishPortalOpId = finishPortalOpId;
+        this.kafkaTopicDesc = kafkaTopicDesc;
+        this.allocatorSessionId = allocatorSessionId;
+        this.deleteAllocSessionOpId = deleteAllocSessionOpId;
+        this.portalSubjectId = portalSubjectId;
+        this.destroyChannelsOpId = destroyChannelsOpId;
+        this.portalVmId = portalVmId;
+        this.portalApiAddress = portalApiAddress;
+    }
 }
