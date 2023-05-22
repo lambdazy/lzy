@@ -8,6 +8,10 @@ import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
+import ai.lzy.iam.clients.AccessClient;
+import ai.lzy.iam.clients.AuthenticateService;
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
+import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.OperationsService;
@@ -17,6 +21,7 @@ import ai.lzy.metrics.DummyMetricReporter;
 import ai.lzy.metrics.LogMetricReporter;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.PrometheusMetricReporter;
+import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
@@ -81,6 +86,18 @@ public class BeanFactory {
     @Named("AllocatorIamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
         return GrpcUtils.newGrpcChannel(config.getIam().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+    }
+
+    @Singleton
+    @Named("AllocatorAuthClient")
+    public AuthenticateService authClient(@Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel) {
+        return new AuthenticateServiceGrpcClient(AllocatorMain.APP, iamChannel);
+    }
+
+    @Singleton
+    @Named("AllocatorAccessClient")
+    public AccessClient accessClient(@Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel) {
+        return new AccessServiceGrpcClient(AllocatorMain.APP, iamChannel, () -> new JwtCredentials("i-am-a-hacker"));
     }
 
     @Singleton

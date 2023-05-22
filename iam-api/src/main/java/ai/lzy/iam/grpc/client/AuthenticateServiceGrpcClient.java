@@ -12,19 +12,19 @@ import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
 
 public class AuthenticateServiceGrpcClient implements AuthenticateService {
+
     private final String clientName;
-    private final Channel channel;
+    private final LzyAuthenticateServiceGrpc.LzyAuthenticateServiceBlockingStub stub;
 
     public AuthenticateServiceGrpcClient(String clientName, Channel channel) {
         this.clientName = clientName;
-        this.channel = channel;
+        this.stub = LzyAuthenticateServiceGrpc.newBlockingStub(channel);
     }
 
     @Override
     public Subject authenticate(Credentials credentials) throws AuthException {
         try {
-            var authenticateService = GrpcUtils.newBlockingClient(
-                LzyAuthenticateServiceGrpc.newBlockingStub(channel), clientName, credentials::token);
+            var authenticateService = GrpcUtils.newBlockingClient(stub, clientName, credentials::token);
 
             var subject = authenticateService.authenticate(LAS.AuthenticateRequest.getDefaultInstance());
             return ProtoConverter.to(subject);
@@ -32,5 +32,4 @@ public class AuthenticateServiceGrpcClient implements AuthenticateService {
             throw AuthException.fromStatusRuntimeException(e);
         }
     }
-
 }
