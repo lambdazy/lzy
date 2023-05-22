@@ -305,6 +305,10 @@ resource "kubernetes_service" "allocator_service" {
       port        = local.allocator-port
       target_port = local.allocator-port
     }
+    port {
+      port        = local.allocator-micronaut-port
+      target_port = local.allocator-micronaut-port
+    }
     type = "LoadBalancer"
   }
 }
