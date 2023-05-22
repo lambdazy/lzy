@@ -302,10 +302,12 @@ resource "kubernetes_service" "allocator_service" {
   spec {
     selector = local.allocator-labels
     port {
+      name        = "main-grpc"
       port        = local.allocator-port
       target_port = local.allocator-port
     }
     port {
+      name        = "micronaut-http"
       port        = local.allocator-micronaut-port
       target_port = local.allocator-micronaut-port
     }
