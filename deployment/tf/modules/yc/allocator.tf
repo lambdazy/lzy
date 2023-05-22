@@ -61,6 +61,11 @@ resource "kubernetes_stateful_set" "allocator" {
           }
 
           env {
+            name = "MICRONAUT_SERVER_HOST"
+            value = "0.0.0.0"
+          }
+
+          env {
             name  = "ALLOCATOR_METRICS_PORT"
             value = local.allocator-metrics-port
           }
