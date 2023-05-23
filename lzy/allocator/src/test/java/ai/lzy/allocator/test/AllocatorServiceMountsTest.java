@@ -5,6 +5,7 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.impl.kuber.KuberMountHolderManager;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.*;
+import ai.lzy.allocator.model.Volume.AccessMode;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.v1.VmAllocatorApi;
@@ -17,6 +18,7 @@ import io.fabric8.kubernetes.api.model.PodStatusBuilder;
 import io.fabric8.kubernetes.client.server.mock.OutputStreamMessage;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import jakarta.annotation.Nullable;
 import jakarta.validation.constraints.NotNull;
 import org.junit.After;
 import org.junit.Assert;
@@ -103,7 +105,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var vm = allocateWithMountPod(sessionId);
         var dynamicMount = DynamicMount.createNew(vm.vmId(), "foo", "disk-disk-42",
             WORKER_MOUNT_POINT + "/foo", new VolumeRequest(UUID.randomUUID().toString(),
-                new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42)), vm.allocationOpId(),
+                new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
+                    AccessMode.READ_WRITE_ONCE)), vm.allocationOpId(),
             "allocator");
         dynamicMountDao.create(dynamicMount, null);
         var exception = Assert.assertThrows(StatusRuntimeException.class,
@@ -127,10 +130,12 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var sessionId = createSession(Durations.ZERO);
         var vm = allocateWithMountPod(sessionId);
         var mount1 = DynamicMount.createNew(vm.vmId(), "foo", "bar", "baz",
-            new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42)),
+            new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42,
+                AccessMode.READ_WRITE_ONCE)),
             vm.allocationOpId(), "allocator");
         var mount2 = DynamicMount.createNew(vm.vmId(), "foo", "qux", "quux",
-            new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42)),
+            new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42,
+                AccessMode.READ_ONLY_MANY)),
             vm.allocationOpId(), "allocator");
         dynamicMountDao.create(mount1, null);
         dynamicMountDao.create(mount2, null);
@@ -156,6 +161,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             .getDiskId());
         Assert.assertEquals(diskVolumeDescription.sizeGb(), fetchedMount1.getVolumeRequest().getDiskVolume()
             .getSizeGb());
+        Assert.assertEquals(diskVolumeDescription.accessMode().toString(),
+            fetchedMount1.getVolumeRequest().getDiskVolume().getAccessMode().toString());
 
         var fetchedMount2 = fetchedMountsById.get(mount2.id());
         Assert.assertNotNull(fetchedMount2);
@@ -172,6 +179,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             .getDiskId());
         Assert.assertEquals(diskVolumeDescription.sizeGb(), fetchedMount2.getVolumeRequest().getDiskVolume()
             .getSizeGb());
+        Assert.assertEquals(diskVolumeDescription.accessMode().toString(),
+            fetchedMount2.getVolumeRequest().getDiskVolume().getAccessMode().toString());
     }
 
     @Test
@@ -205,6 +214,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertEquals(WORKER_MOUNT_POINT + "/foo", dynamicMount.getMountPath());
         Assert.assertEquals("disk-42", dynamicMount.getVolumeRequest().getDiskVolume().getDiskId());
         Assert.assertEquals(1, dynamicMount.getVolumeRequest().getDiskVolume().getSizeGb());
+        Assert.assertEquals(VolumeApi.DiskVolumeType.AccessMode.READ_WRITE_ONCE,
+            dynamicMount.getVolumeRequest().getDiskVolume().getAccessMode());
         Assert.assertEquals(mountOp.getId(), dynamicMount.getMountOperationId());
         Assert.assertEquals("PENDING", dynamicMount.getState());
         Assert.assertFalse(dynamicMount.hasUnmountOperationId());
@@ -234,6 +245,47 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
 
         Assert.assertEquals(3, mountPod.getSpec().getVolumes().size());
         Assert.assertEquals(3, mountPod.getSpec().getContainers().get(0).getVolumeMounts().size());
+    }
+
+    @Test
+    public void mountReadOnlyDiskTest() throws Exception {
+        var sessionId = createSession(Durations.fromDays(10));
+        var allocatedVm = allocateWithMountPod(sessionId);
+        var vm = vmDao.get(allocatedVm.vmId(), null);
+        Assert.assertNotNull(vm);
+        var mountPodName = vm.instanceProperties().mountPodName();
+        Assert.assertNotNull(mountPodName);
+
+        var pv = awaitResourceCreate(PersistentVolume.class, PERSISTENT_VOLUME_PATH);
+        var pvc = awaitResourceCreate(PersistentVolumeClaim.class, PERSISTENT_VOLUME_CLAIM_PATH);
+        mockDeletePodByName(mountPodName, 200);
+        var updatedMountPod = mockCreatePod();
+        updatedMountPod.thenAccept(pod -> {
+            pod.setStatus(new PodStatusBuilder()
+                .withPhase(PodPhase.RUNNING.getPhase())
+                .build());
+            mockGetPod(pod);
+        });
+        var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1,
+            VolumeApi.DiskVolumeType.AccessMode.READ_ONLY_MANY);
+
+        waitOpSuccess(mountOp);
+        var mountMetadata = mountOp.getMetadata().unpack(VmAllocatorApi.MountMetadata.class);
+        Assert.assertTrue(mountMetadata.hasMount());
+        var dynamicMount = mountMetadata.getMount();
+        Assert.assertEquals(VolumeApi.DiskVolumeType.AccessMode.READ_ONLY_MANY,
+            dynamicMount.getVolumeRequest().getDiskVolume().getAccessMode());
+
+        var persistentVolume = pv.get();
+        Assert.assertTrue(persistentVolume.getSpec().getCsi().getReadOnly());
+        Assert.assertEquals(1, persistentVolume.getSpec().getAccessModes().size());
+        Assert.assertEquals(AccessMode.READ_ONLY_MANY.asString(), persistentVolume.getSpec().getAccessModes().get(0));
+
+        var persistentVolumeClaim = pvc.get();
+        Assert.assertEquals(1, persistentVolumeClaim.getSpec().getAccessModes().size());
+        Assert.assertEquals(AccessMode.READ_ONLY_MANY.asString(),
+            persistentVolumeClaim.getSpec().getAccessModes().get(0));
+        Assert.assertEquals(getName(persistentVolume), persistentVolumeClaim.getSpec().getVolumeName());
     }
 
     @Test
@@ -274,7 +326,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var mountPath = WORKER_MOUNT_POINT + "/foo";
         var dynamicMount = DynamicMount.createNew(null, "foo", "disk-42",
             mountPath, new VolumeRequest(UUID.randomUUID().toString(),
-                new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42)),
+                new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
+                    AccessMode.READ_WRITE_ONCE)),
             operation.id(), "allocator-0");
         dynamicMountDao.create(dynamicMount, null);
         var volumeClaimName = "claim-42";
@@ -308,7 +361,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var mountPath = WORKER_MOUNT_POINT + "/foo";
         var dynamicMount = DynamicMount.createNew(allocatedVm.vmId(), getClusterId(vm), "disk-42",
             mountPath, new VolumeRequest(UUID.randomUUID().toString(),
-                new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42)),
+                new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
+                    AccessMode.READ_WRITE_ONCE)),
             allocatedVm.allocationOpId(), "allocator-0");
         dynamicMountDao.create(dynamicMount, null);
         var volumeClaimName = "claim-42";
@@ -357,7 +411,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var mountPath = WORKER_MOUNT_POINT + "/foo";
         var dynamicMount = DynamicMount.createNew(allocatedVm.vmId(), getClusterId(vm), "disk-42",
             mountPath, new VolumeRequest(UUID.randomUUID().toString(),
-                new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42)),
+                new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
+                    AccessMode.READ_WRITE_ONCE)),
             allocatedVm.allocationOpId(), "allocator-0");
         var anotherMount = createReadyMount(vm, allocatedVm.allocationOpId());
 
@@ -400,10 +455,17 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
 
     @NotNull
     private DynamicMount createReadyMount(Vm vm, String operationId) throws SQLException {
+        return createReadyMount(vm, operationId, null);
+    }
+
+    @NotNull
+    private DynamicMount createReadyMount(Vm vm, String operationId, @Nullable AccessMode readWriteOnce)
+        throws SQLException
+    {
         var id = UUID.randomUUID().toString();
         var anotherMount = DynamicMount.createNew(vm.vmId(), getClusterId(vm), id,
             WORKER_MOUNT_POINT + "/" + id, new VolumeRequest(id,
-                new DiskVolumeDescription(id, "disk-" + id, 42)), operationId,
+                new DiskVolumeDescription(id, "disk-" + id, 42, readWriteOnce)), operationId,
             "allocator");
         dynamicMountDao.create(anotherMount, null);
         var update = DynamicMount.Update.builder()
@@ -434,6 +496,19 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             .setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
                 .setDiskId(diskId)
                 .setSizeGb(sizeGb)
+                .build())
+            .build());
+    }
+
+    private LongRunning.Operation mountDisk(String vmId, String mountPath, String diskId, int sizeGb,
+                                            VolumeApi.DiskVolumeType.AccessMode accessMode) {
+        return authorizedAllocatorBlockingStub.mount(VmAllocatorApi.MountRequest.newBuilder()
+            .setVmId(vmId)
+            .setMountPath(mountPath)
+            .setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
+                .setDiskId(diskId)
+                .setSizeGb(sizeGb)
+                .setAccessMode(accessMode)
                 .build())
             .build());
     }

@@ -13,11 +13,7 @@ import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import jakarta.annotation.Nonnull;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.sql.SQLException;
 import java.time.Duration;
@@ -227,7 +223,8 @@ public class DynamicDaoImplTest {
     private static DynamicMount dynamicMountModel(String vmId, String workerId, String operationId, String clusterId) {
         var random = UUID.randomUUID().toString();
         return DynamicMount.createNew(vmId, clusterId, "disk" + random,
-            "disk" + random, new VolumeRequest("42", new DiskVolumeDescription("disk", "disk-42", 42)),
+            "disk" + random, new VolumeRequest("42", new DiskVolumeDescription("disk", "disk-42", 42,
+                Volume.AccessMode.READ_WRITE_ONCE)),
             operationId, workerId);
     }
 }
