@@ -59,6 +59,12 @@
             <groupId>org.bouncycastle</groupId>
             <artifactId>bcprov-jdk18on</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>yandex.cloud.iam</groupId>
+            <artifactId>access-service-client-impl</artifactId>
+        </dependency>
+
     </dependencies>
 
     <build>

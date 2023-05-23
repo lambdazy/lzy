@@ -475,6 +475,7 @@ public class DbSubjectService {
         return switch (type) {
             case USER -> new User(id);
             case WORKER -> new Worker(id);
+            case EXTERNAL_YC -> throw new RuntimeException("Unsupported subject type " + type);
         };
     }
 

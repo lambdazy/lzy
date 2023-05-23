@@ -7,12 +7,14 @@ import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
-import ai.lzy.iam.resources.subjects.CredentialsType;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.resources.subjects.User;
-import ai.lzy.iam.resources.subjects.Worker;
+import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.v1.iam.IAM;
+import com.google.protobuf.Any;
+import com.google.protobuf.InvalidProtocolBufferException;
+import jakarta.annotation.Nullable;
+import yandex.cloud.priv.accessservice.v2.PAS;
+
+import static com.google.common.base.Strings.emptyToNull;
 
 public class ProtoConverter {
 
@@ -40,7 +42,29 @@ public class ProtoConverter {
         return switch (subjectType) {
             case USER -> new User(subject.getId());
             case WORKER -> new Worker(subject.getId());
+            case EXTERNAL_YC -> {
+                try {
+                    yield new YcSubject(to(subject.getExternal().unpack(PAS.Subject.class)));
+                } catch (InvalidProtocolBufferException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         };
+    }
+
+    public static yandex.cloud.auth.api.Subject to(PAS.Subject subject) {
+        if (subject.hasServiceAccount()) {
+            var serviceAccount = subject.getServiceAccount();
+            return new YcServiceAccountImpl(serviceAccount.getId(), serviceAccount.getFolderId());
+        }
+
+        if (subject.hasUserAccount()) {
+            var userAccount = subject.getUserAccount();
+            return new YcUserAccountImpl(userAccount.getId(), emptyToNull(userAccount.getFederationId()));
+        }
+
+        throw new UnsupportedOperationException(
+            "The subject must have either YcServiceAccount or YcUserAccount");
     }
 
     public static SubjectCredentials to(IAM.Credentials credentials) {
@@ -76,17 +100,45 @@ public class ProtoConverter {
 
     public static IAM.Subject from(Subject subject) {
         SubjectType subjectType;
+        Any external = null;
         if (subject instanceof User) {
             subjectType = SubjectType.USER;
         } else if (subject instanceof Worker) {
             subjectType = SubjectType.WORKER;
+        } else if (subject instanceof YcSubject ycSubject) {
+            subjectType = SubjectType.EXTERNAL_YC;
+            external = Any.pack(from(ycSubject.provided()));
         } else {
             throw new RuntimeException("Unknown subject type " + subject.getClass());
         }
-        return IAM.Subject.newBuilder()
+        var builder = IAM.Subject.newBuilder()
                 .setId(subject.id())
-                .setType(subjectType.name())
+                .setType(subjectType.name());
+        if (external != null) {
+            builder.setExternal(external);
+        }
+        return builder.build();
+    }
+
+    public static PAS.Subject from(yandex.cloud.auth.api.Subject subject) {
+        if (subject.toId() instanceof yandex.cloud.auth.api.Subject.ServiceAccount.Id serviceAccount) {
+            return PAS.Subject.newBuilder()
+                .setServiceAccount(
+                    PAS.Subject.ServiceAccount.newBuilder()
+                        .setId(serviceAccount.getId())
+                        .build())
                 .build();
+        } else if (subject.toId() instanceof yandex.cloud.auth.api.Subject.UserAccount.Id userAccount) {
+            return PAS.Subject.newBuilder()
+                .setUserAccount(
+                    PAS.Subject.UserAccount.newBuilder()
+                        .setId(userAccount.getId())
+                        .build())
+                .build();
+        } else {
+            throw new UnsupportedOperationException(
+                "Unsupported subjectId type " + subject.toId().getClass());
+        }
     }
 
     public static IAM.Credentials from(SubjectCredentials credentials) {
@@ -100,5 +152,69 @@ public class ProtoConverter {
         }
 
         return builder.build();
+    }
+
+
+    private static final class YcServiceAccountImpl extends yandex.cloud.auth.api.Subject.ServiceAccount.Id
+        implements yandex.cloud.auth.api.Subject.ServiceAccount
+    {
+        private final String folderId;
+
+        private YcServiceAccountImpl(String id, String folderId) {
+            super(id);
+            this.folderId = folderId;
+        }
+
+        public String getFolderId() {
+            return folderId;
+        }
+
+        @Override
+        public Id toId() {
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return "YcServiceAccount{id=" + getId() + ", folderId=" + getFolderId() + "}";
+        }
+    }
+
+    private static final class YcUserAccountImpl extends yandex.cloud.auth.api.Subject.UserAccount.Id
+        implements yandex.cloud.auth.api.Subject.UserAccount
+    {
+        @Nullable
+        private final String federationId;
+
+        private YcUserAccountImpl(String id, @Nullable String federationId) {
+            super(id);
+            this.federationId = federationId;
+        }
+
+        @Override
+        public Id toId() {
+            return this;
+        }
+
+        @Nullable
+        @Override
+        public String getFederationId() {
+            return federationId;
+        }
+
+        @Override
+        public String toString() {
+            return "YcUserAccount{id=" + getId() +
+                (getFederationId() != null ? ", federationId=" + getFederationId() : "") +
+                "}";
+        }
+    }
+
+    public static yandex.cloud.auth.api.Subject newYcServiceAccount(String id, String folderId) {
+        return new YcServiceAccountImpl(id, folderId);
+    }
+
+    public static yandex.cloud.auth.api.Subject newYcUserAccount(String id, @Nullable String federationId) {
+        return new YcUserAccountImpl(id, federationId);
     }
 }
