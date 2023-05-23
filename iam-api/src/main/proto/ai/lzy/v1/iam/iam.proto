@@ -16,6 +16,7 @@ message Resource {
 message Subject {
   string id = 1;
   string type = 2;
+  string external_details = 3;
 }
 
 message Credentials {
