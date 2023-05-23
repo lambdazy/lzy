@@ -17,7 +17,7 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.longrunning.OperationUtils;
+import ai.lzy.longrunning.OperationGrpcServiceUtils;
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
@@ -272,7 +272,7 @@ public class ChannelManagerBaseApiTest {
     }
 
     protected LongRunning.Operation awaitOperationResponse(String operationId) {
-        LongRunning.Operation operation = OperationUtils.awaitOperationDone(
+        LongRunning.Operation operation = OperationGrpcServiceUtils.awaitOperationDone(
             operationApiClient, operationId, Duration.ofSeconds(10));
         assertTrue(operation.hasResponse());
         return operation;

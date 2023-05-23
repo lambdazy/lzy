@@ -1,6 +1,7 @@
 package ai.lzy.service;
 
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.metrics.DummyMetricReporter;
@@ -8,9 +9,12 @@ import ai.lzy.metrics.LogMetricReporter;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.PrometheusMetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.data.storage.LzyServiceStorage;
+import ai.lzy.service.config.PortalVmSpec;
+import ai.lzy.service.dao.impl.LzyServiceStorage;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.util.kafka.NoopKafkaAdminClient;
 import ai.lzy.util.kafka.ScramKafkaAdminClient;
@@ -32,18 +36,13 @@ import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.CollectorRegistry;
-import jakarta.annotation.Nonnull;
+import io.prometheus.client.Counter;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.io.IOException;
 
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -51,24 +50,16 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Factory
 public class BeanFactory {
-
     @Singleton
-    @Named("LzyServiceServerExecutor")
-    public ExecutorService workersPool() {
-        return Executors.newFixedThreadPool(16,
-            new ThreadFactory() {
-                private static final Logger LOG = LogManager.getLogger(LzyService.class);
-
-                private final AtomicInteger counter = new AtomicInteger(1);
-
-                @Override
-                public Thread newThread(@Nonnull Runnable r) {
-                    var th = new Thread(r, "lzy-service-worker-" + counter.getAndIncrement());
-                    th.setUncaughtExceptionHandler(
-                        (t, e) -> LOG.error("Unexpected exception in thread {}: {}", t.getName(), e.getMessage(), e));
-                    return th;
-                }
-            });
+    public PortalVmSpec portalVmSpec(LzyServiceConfig serviceCfg) throws IOException, InterruptedException {
+        // var portalPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : serviceCfg.getPortal().getPortalApiPort();
+        // var slotsApiPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : serviceCfg.getPortal().getSlotsApiPort();
+        return new PortalVmSpec(serviceCfg.getPortal().getPoolZone(), serviceCfg.getPortal().getPoolLabel(),
+            serviceCfg.getPortal().getDockerImage(), RsaUtils.generateRsaKeys().privateKey(),
+            serviceCfg.getPortal().getPortalApiPort(), serviceCfg.getPortal().getSlotsApiPort(),
+            serviceCfg.getPortal().getWorkersPoolSize(), serviceCfg.getPortal().getDownloadsPoolSize(),
+            serviceCfg.getPortal().getChunksPoolSize(), serviceCfg.getChannelManagerAddress(),
+            serviceCfg.getIam().getAddress(), serviceCfg.getWhiteboardAddress());
     }
 
     @Bean(preDestroy = "shutdown")
@@ -91,7 +82,8 @@ public class BeanFactory {
     @Singleton
     @Named("ChannelManagerServiceChannel")
     public ManagedChannel channelManagerChannel(LzyServiceConfig config) {
-        return newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerPrivateGrpc.SERVICE_NAME);
+        return newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerPrivateGrpc.SERVICE_NAME,
+            LongRunningServiceGrpc.SERVICE_NAME);
     }
 
     @Bean(preDestroy = "shutdown")
@@ -124,7 +116,7 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Named("GraphDaoObjectMapper")
+    @Named("LzyServiceObjectMapper")
     public ObjectMapper mapper() {
         return new ObjectMapper().registerModule(new ProtobufModule());
     }
@@ -170,6 +162,18 @@ public class BeanFactory {
                                                              @Named("LzyServiceIamToken") RenewableJwt userCreds)
     {
         return new SubjectServiceGrpcClient(APP, iamChannel, userCreds::get);
+    }
+
+    @Singleton
+    @Bean(preDestroy = "shutdown")
+    @Named("LzyServiceOperationsExecutor")
+    public OperationsExecutor operationsExecutor(@Named("LzyServiceMetricReporter") MetricReporter mr) {
+        final Counter errors = Counter
+            .build("executor_errors", "Executor unexpected errors")
+            .subsystem("allocator")
+            .register();
+
+        return new OperationsExecutor(5, 20, errors::inc, e -> e instanceof InjectedFailures.TerminateException);
     }
 
     @Singleton

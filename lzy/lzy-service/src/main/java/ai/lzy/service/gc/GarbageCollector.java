@@ -1,7 +1,6 @@
 package ai.lzy.service.gc;
 
 import ai.lzy.model.db.DbHelper;
-import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.GcDao;

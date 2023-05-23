@@ -31,6 +31,10 @@ public class WorkflowDaoImpl implements WorkflowDao {
         UPDATE workflows SET active_execution_id = ?, modified_at = ?
         WHERE user_id = ? AND workflow_name = ?""";
 
+    private static final String QUERY_UPDATE_ACTIVE_EXECUTION_TO_NULL = """
+        UPDATE workflows SET active_execution_id = NULL, modified_at = ?
+        WHERE active_execution_id = ?""";
+
     private final LzyServiceStorage storage;
 
     public WorkflowDaoImpl(LzyServiceStorage storage) {
@@ -97,6 +101,22 @@ public class WorkflowDaoImpl implements WorkflowDao {
             }
         });
         return activeExecId[0];
+    }
+
+    @Override
+    public boolean setActiveExecutionIdToNull(String brokenExecId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        LOG.debug("Try to deactivate workflow with broken execution: { brokenExecId: {} }", brokenExecId);
+        boolean[] result = {false};
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION_TO_NULL)) {
+                st.setTimestamp(1, Timestamp.from(Instant.now()));
+                st.setString(2, brokenExecId);
+                result[0] = st.executeUpdate() > 0;
+            }
+        });
+        return result[0];
     }
 
     @Override

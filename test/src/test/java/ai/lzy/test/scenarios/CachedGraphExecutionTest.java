@@ -20,7 +20,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static org.junit.Assert.*;
 
 public class CachedGraphExecutionTest {

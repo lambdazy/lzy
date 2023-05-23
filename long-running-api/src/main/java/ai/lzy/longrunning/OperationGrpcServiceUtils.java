@@ -6,7 +6,7 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingSt
 import java.time.Duration;
 import java.util.concurrent.locks.LockSupport;
 
-public enum OperationUtils {
+public enum OperationGrpcServiceUtils {
     ;
 
     public static LongRunning.Operation awaitOperationDone(LongRunningServiceBlockingStub grpcClient,

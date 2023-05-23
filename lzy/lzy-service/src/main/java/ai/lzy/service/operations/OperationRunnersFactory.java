@@ -117,11 +117,8 @@ public class OperationRunnersFactory {
 
     public StartExecution createStartExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
                                                   String userId, String wfName, String execId,
-                                                  Duration allocateVmCacheTimeout, String poolZone, String poolLabel,
-                                                  String dockerImage, String privateKey, int portalPort,
-                                                  int slotsApiPort, int workersPoolSize, int downloadPoolSize,
-                                                  int chunksPoolSize, String channelManagerAddress,
-                                                  String iamAddress, String whiteboardAddress) throws Exception
+                                                  Duration allocateVmCacheTimeout, PortalVmSpec portalVmSpec)
+        throws Exception
     {
         LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
 
@@ -129,10 +126,6 @@ public class OperationRunnersFactory {
             VmAllocatorApi.CachePolicy.newBuilder()
                 .setIdleTimeout(Durations.fromSeconds(allocateVmCacheTimeout.getSeconds()))
                 .build());
-
-        var portalVmSpec = new PortalVmSpec(poolZone, poolLabel, dockerImage, privateKey, portalPort,
-            slotsApiPort, workersPoolSize, downloadPoolSize, chunksPoolSize, channelManagerAddress, iamAddress,
-            whiteboardAddress);
 
         return StartExecution.builder()
             .setId(opId)
@@ -216,7 +209,8 @@ public class OperationRunnersFactory {
     }
 
     public AbortExecution createAbortExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                  String userId, String wfName, String execId, Status finishStatus)
+                                                  @Nullable String userId, @Nullable String wfName,
+                                                  String execId, Status finishStatus)
         throws Exception
     {
         final StopExecutionState[] state = {null};

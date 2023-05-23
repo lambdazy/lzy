@@ -8,7 +8,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 
-public enum LocalOperationUtils {
+public enum LocalOperationServiceUtils {
     ;
 
     public static <T extends Message> void awaitOpAndReply(LocalOperationService operationService, String opId,

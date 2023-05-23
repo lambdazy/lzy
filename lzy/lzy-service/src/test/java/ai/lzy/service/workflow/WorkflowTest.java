@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static org.junit.Assert.*;
 

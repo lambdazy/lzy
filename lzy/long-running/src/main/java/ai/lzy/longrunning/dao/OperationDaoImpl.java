@@ -16,6 +16,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -129,6 +130,11 @@ public class OperationDaoImpl implements OperationDao {
         DELETE FROM operation
         WHERE done = TRUE
           AND modified_at + INTERVAL '%d hours' < NOW()""";
+
+    private static final String QUERY_FAIL_OPERATIONS = """
+        UPDATE operation
+        SET error = ?, done = TRUE, modified_at = NOW()
+        WHERE id IN ? AND done = FALSE""";
 
     private final Storage storage;
 
@@ -335,6 +341,20 @@ public class OperationDaoImpl implements OperationDao {
                 var op = processResult(id, rs, "failed");
                 op.completeWith(io.grpc.Status.fromCodeValue(error.getCode()).withDescription(error.getMessage()));
                 return op;
+            }
+        });
+    }
+
+    @Override
+    public void fail(Collection<String> ids, Status error, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        LOG.info("Cancel operations {}", String.join(", ", ids));
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement(QUERY_FAIL_OPERATIONS)) {
+                statement.setBytes(1, error.toByteArray());
+                statement.setString(2, "(" + String.join(", ", ids) + ")");
+                statement.executeUpdate();
             }
         });
     }

@@ -44,7 +44,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -140,7 +140,7 @@ public class BaseTest {
         var opService = new OperationsService(lzyServiceOpDao);
 
         lzyServer = App.createServer(workflowAddress, authInterceptor, context.getBean(LzyService.class),
-            context.getBean(LzyServicePrivateApi.class), opService);
+            context.getBean(LzyPrivateService.class), opService);
         lzyServer.start();
 
         lzyServiceChannel = newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);
