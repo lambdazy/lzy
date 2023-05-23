@@ -13,11 +13,12 @@ from typing import Any, Dict, Iterable, List, cast, Set, FrozenSet, Optional
 import requests
 import importlib_metadata
 
-from pypi_simple import PYPI_SIMPLE_ENDPOINT, PyPISimple  # type: ignore
+from pypi_simple import PYPI_SIMPLE_ENDPOINT, PyPISimple
 
 from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnv, PyEnvProvider
 from lzy.utils.paths import get_cache_path
+from lzy.utils.pypi import check_package_version_exists
 
 
 try:
@@ -59,12 +60,17 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         if not drop_cache:
             self._load_pypi_cache()
 
+    @property
+    def pypi_index_url(self):
+        return self._pypi_index_url
+
     def provide(self, namespace: Dict[str, Any], exclude_packages: Iterable[str] = tuple()) -> PyEnv:
         exclude = set(exclude_packages)
 
         distributions = importlib_metadata.packages_distributions()
 
         remote_packages = {}
+        local_packages: Set[str] = set()
 
         remote_packages_files: Set[str] = set()
         local_modules: List[ModuleType] = []
@@ -105,6 +111,19 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                 all_from_pypi = bool(packages)
 
                 for package_name in packages:
+
+                    # XXX: At the moment I'm not fully realizing in which cases one package
+                    # could get into this cycle several times.
+                    # Probably while parents bypass for local packages.
+                    # But i'm placing this stub here until next refactoring
+                    # to prevent self._exists_in_pypi calling several times for the
+                    # same package.
+                    if package_name in remote_packages:
+                        continue
+                    if package_name in local_packages:
+                        all_from_pypi = False
+                        continue
+
                     distribution = importlib_metadata.distribution(package_name)
 
                     # NB: here we checking if package installed as editable installation
@@ -125,6 +144,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                         files = [str(distribution.locate_file(f)) for f in distribution.files]
                         remote_packages_files.update(files)
                     else:
+                        local_packages.add(package_name)
                         all_from_pypi = False
 
             # Namespace package doesn't have a __file__;
@@ -184,7 +204,8 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         return PyEnv(
             python_version=python_version,
             libraries=remote_packages,
-            local_modules_path=module_paths
+            local_modules_path=module_paths,
+            pypi_index_url=self._pypi_index_url,
         )
 
     def _load_cache_file(self, path: Path, cache: CACHE_TYPE) -> None:
@@ -243,18 +264,24 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         self._index_file_path.write_text(self._pypi_index_url, encoding='utf-8')
 
     def _exists_in_pypi(self, name: str, version: str) -> bool:
+        req_str = f"{name}=={version}"
+        pypi_str = f"pypi index {self.pypi_index_url}"
+
         if version in self._existing_cache[name]:
+            _LOG.debug("%s exists in local cache of existing packages of %s", req_str, pypi_str)
             return True
         if version in self._nonexisting_cache[name]:
+            _LOG.debug("%s exists in local cache of nonexisting packages of %s", req_str, pypi_str)
             return False
 
-        _LOG.info("checking %s==%s exists in pypi index %s", name, version, self._pypi_index_url)
-        with requests.Session() as session:
-            session.max_redirects = (
-                5  # limit redirects to handle possible pypi incidents with redirect cycles
-            )
-            response = session.get(f"https://pypi.python.org/pypi/{name}/{version}/json")
-        result: bool = 200 <= response.status_code < 300
+        result = check_package_version_exists(
+            pypi_index_url=self.pypi_index_url,
+            name=name,
+            version=version
+        )
+
+        _LOG.debug("%s does%s exists at %s", req_str, "" if result else "n't", pypi_str)
+
         if result:
             self._existing_cache[name].add(version)
         else:

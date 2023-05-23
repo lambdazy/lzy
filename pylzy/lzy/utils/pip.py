@@ -31,7 +31,7 @@ class Pip:
                 f'and you have {self.version}, please upgrade it'
             )
 
-    def call(self, *args: Sequence[str], cwd=None) -> Optional[str]:
+    def call(self, *args: str, cwd=None) -> str:
         command = [sys.executable, "-m", "pip"] + list(args)
 
         env = {**os.environ, **{"PIP_YES": "true", "PIP_DISABLE_PIP_VERSION_CHECK": "true"}}
@@ -66,7 +66,7 @@ class Pip:
     @cached_property
     def config(self) -> Dict[str, str]:
         raw_config = self.call('config', 'list').strip()
-        config = {}
+        config: Dict[str, str] = {}
 
         for line in raw_config.splitlines():
             # line format example: global.index-url='https://pypi.yandex-team.ru/simple'
@@ -87,8 +87,8 @@ class Pip:
         return config
 
     @cached_property
-    def index_urls(self) -> List[str]:
-        index_url = None
+    def index_url(self) -> Optional[str]:
+        index_url: Optional[str] = None
 
         # env var PIP_INDEX_URL is most valuable here;
         # at outer code you should value the more only explicit
@@ -101,6 +101,6 @@ class Pip:
 
         # TODO: support additional_index_url config option
         if index_url:
-            return [index_url]
+            return index_url
 
-        return []
+        return None
