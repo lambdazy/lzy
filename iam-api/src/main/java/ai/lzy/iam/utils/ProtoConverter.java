@@ -7,11 +7,7 @@ import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
-import ai.lzy.iam.resources.subjects.CredentialsType;
-import ai.lzy.iam.resources.subjects.Subject;
-import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.resources.subjects.User;
-import ai.lzy.iam.resources.subjects.Worker;
+import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.v1.iam.IAM;
 
 public class ProtoConverter {
@@ -40,6 +36,7 @@ public class ProtoConverter {
         return switch (subjectType) {
             case USER -> new User(subject.getId());
             case WORKER -> new Worker(subject.getId());
+            case EXTERNAL -> new External(subject.getId(), subject.getExternalDetails());
         };
     }
 
@@ -75,18 +72,20 @@ public class ProtoConverter {
     }
 
     public static IAM.Subject from(Subject subject) {
-        SubjectType subjectType;
+        var builder = IAM.Subject.newBuilder()
+            .setId(subject.id());
+
         if (subject instanceof User) {
-            subjectType = SubjectType.USER;
+            builder.setType(SubjectType.USER.name());
         } else if (subject instanceof Worker) {
-            subjectType = SubjectType.WORKER;
+            builder.setType(SubjectType.WORKER.name());
+        } else if (subject instanceof External external) {
+            builder.setType(SubjectType.EXTERNAL.name());
+            builder.setExternalDetails(external.details());
         } else {
             throw new RuntimeException("Unknown subject type " + subject.getClass());
         }
-        return IAM.Subject.newBuilder()
-                .setId(subject.id())
-                .setType(subjectType.name())
-                .build();
+        return builder.build();
     }
 
     public static IAM.Credentials from(SubjectCredentials credentials) {
