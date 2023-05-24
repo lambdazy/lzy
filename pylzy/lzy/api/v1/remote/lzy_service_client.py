@@ -1,4 +1,3 @@
-import asyncio
 import atexit
 import os
 from abc import ABC
@@ -10,8 +9,6 @@ from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
 from lzy.logs.config import get_logger
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
-from ai.lzy.v1.long_running.operation_pb2 import GetOperationRequest
-from ai.lzy.v1.long_running.operation_pb2 import Operation
 from ai.lzy.v1.long_running.operation_pb2_grpc import LongRunningServiceStub
 from ai.lzy.v1.workflow.workflow_pb2 import Graph, VmPoolSpec
 from ai.lzy.v1.workflow.workflow_service_pb2 import (
@@ -23,7 +20,6 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
     GraphStatusResponse,
     StopGraphRequest,
     FinishWorkflowRequest,
-    FinishWorkflowResponse,
     AbortWorkflowRequest,
     GetAvailablePoolsRequest,
     GetAvailablePoolsResponse,
@@ -100,7 +96,7 @@ def __channel_cleanup():
         LzyEventLoop.run_async(CHANNEL.close())
 
 
-class WorkflowServiceClient:
+class LzyServiceClient:
     def __init__(self):
         self.__stub = None
         self.__ops_stub = None
@@ -131,8 +127,14 @@ class WorkflowServiceClient:
         self.__ops_stub = LongRunningServiceStub(CHANNEL)
 
     @redefine_errors
-    @retry(config=RETRY_CONFIG, action_name="starting workflow")
-    async def start_workflow(self, name: str, storage: Storage, storage_name: str) -> str:
+    @retry(config=RETRY_CONFIG, action_name="start workflow")
+    async def start_workflow(
+            self,
+            name: str,
+            storage: Storage,
+            storage_name: str,
+            idempotency_key: Union[str, None] = None
+    ) -> str:
         await self.__start()
 
         s: StorageConfig
@@ -144,51 +146,39 @@ class WorkflowServiceClient:
             raise ValueError(f"Invalid storage credentials type {type(storage.credentials)}")
 
         res: StartWorkflowResponse = await self.__stub.StartWorkflow(
-            StartWorkflowRequest(workflowName=name, snapshotStorage=s, storageName=storage_name)
+            request=StartWorkflowRequest(workflowName=name, snapshotStorage=s, storageName=storage_name),
+            metadata=[("Idempotency-Key", idempotency_key)]
         )
-
-        exec_id = res.executionId
-        return exec_id
-
-    async def _await_op_done(self, op_id: str) -> FinishWorkflowResponse:
-        while True:
-            op: Operation = await self.__ops_stub.Get(GetOperationRequest(operation_id=op_id))
-            if op is None:
-                raise RuntimeError('Cannot wait finish portal operation: operation not found')
-            if op.done:
-                result = FinishWorkflowResponse()
-                op.response.Unpack(result)
-                return result
-            # sleep 300 ms
-            await asyncio.sleep(0.3)
+        return res.executionId
 
     @redefine_errors
-    @retry(config=RETRY_CONFIG, action_name="finishing workflow")
+    @retry(config=RETRY_CONFIG, action_name="finish workflow")
     async def finish_workflow(
         self,
         workflow_name: str,
         execution_id: str,
         reason: str,
+        idempotency_key: Union[str, None] = None
     ) -> None:
         await self.__start()
-        request = FinishWorkflowRequest(
-            workflowName=workflow_name,
-            executionId=execution_id,
-            reason=reason,
+        await self.__stub.FinishWorkflow(
+            request=FinishWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason),
+            metadata=[("Idempotency-Key", idempotency_key)]
         )
-        finish_op: Operation = await self.__stub.FinishWorkflow(request)
-        await self._await_op_done(finish_op.id)
 
     @redefine_errors
-    @retry(config=RETRY_CONFIG, action_name="aborting workflow")
+    @retry(config=RETRY_CONFIG, action_name="abort workflow")
     async def abort_workflow(
         self,
         workflow_name: str,
         execution_id: str,
         reason: str,
+        idempotency_key: Union[str, None] = None
     ) -> None:
+        await self.__start()
         await self.__stub.AbortWorkflow(
-            AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
+            request=AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason),
+            metadata=[("Idempotency-Key", idempotency_key)]
         )
 
     async def read_std_slots(self, execution_id: str, logs_offset: int) -> AsyncIterator[StdlogMessage]:
@@ -207,14 +197,19 @@ class WorkflowServiceClient:
                         yield StdoutMessage(task_lines.taskId, line, msg.offset)
 
     @redefine_errors
-    @retry(config=RETRY_CONFIG, action_name="starting to execute graph")
-    async def execute_graph(self, workflow_name: str, execution_id: str, graph: Graph) -> str:
+    @retry(config=RETRY_CONFIG, action_name="execute graph")
+    async def execute_graph(
+            self,
+            workflow_name: str,
+            execution_id: str,
+            graph: Graph,
+            idempotency_key: Union[str, None] = None
+    ) -> str:
         await self.__start()
-
         res: ExecuteGraphResponse = await self.__stub.ExecuteGraph(
-            ExecuteGraphRequest(workflowName=workflow_name, executionId=execution_id, graph=graph)
+            request=ExecuteGraphRequest(workflowName=workflow_name, executionId=execution_id, graph=graph),
+            metadata=[("Idempotency-Key", idempotency_key)]
         )
-
         return res.graphId
 
     @redefine_errors
@@ -244,10 +239,11 @@ class WorkflowServiceClient:
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="stopping graph")
-    async def graph_stop(self, execution_id: str, graph_id: str):
+    async def graph_stop(self, execution_id: str, graph_id: str, idempotency_key: Union[str, None] = None) -> None:
         await self.__start()
         await self.__stub.StopGraph(
-            StopGraphRequest(executionId=execution_id, graphId=graph_id)
+            request=StopGraphRequest(executionId=execution_id, graphId=graph_id),
+            metadata=[("Idempotency-Key", idempotency_key)]
         )
 
     @redefine_errors

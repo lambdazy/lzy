@@ -14,7 +14,7 @@ from lzy.api.v1.provisioning import (
     StringRequirement
 )
 from lzy.api.v1.remote.runtime import RemoteRuntime
-from lzy.api.v1.remote.workflow_service_client import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV, WorkflowServiceClient
+from lzy.api.v1.remote.lzy_service_client import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV, LzyServiceClient
 from lzy.api.v1.runtime import Runtime
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.api.v1.utils.packages import to_str_version

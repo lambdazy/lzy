@@ -3,6 +3,7 @@ import functools
 import os
 import sys
 import tempfile
+import uuid
 import zipfile
 from asyncio import Task
 from io import BytesIO
@@ -33,12 +34,12 @@ from lzy.api.v1 import DockerPullPolicy
 from lzy.api.v1.call import LzyCall
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.provisioning import Provisioning
-from lzy.api.v1.remote.workflow_service_client import (
+from lzy.api.v1.remote.lzy_service_client import (
     Completed,
     Executing,
     Failed,
     StderrMessage,
-    WorkflowServiceClient,
+    LzyServiceClient,
 )
 from lzy.api.v1.runtime import (
     ProgressStep,
@@ -92,7 +93,7 @@ def data_description_by_entry(entry: SnapshotEntry) -> DataDescription:
 
 class RemoteRuntime(Runtime):
     def __init__(self):
-        self.__workflow_client: WorkflowServiceClient = WorkflowServiceClient()
+        self.__lzy_client: LzyServiceClient = LzyServiceClient()
         self.__storage: Optional[Storage] = None
 
         self.__workflow: Optional[LzyWorkflow] = None
@@ -105,7 +106,7 @@ class RemoteRuntime(Runtime):
 
     async def storage(self) -> Optional[Storage]:
         if not self.__storage:
-            self.__storage = await self.__workflow_client.get_or_create_storage()
+            self.__storage = await self.__lzy_client.get_or_create_storage()
         return self.__storage
 
     async def start(self, workflow: LzyWorkflow) -> str:
@@ -116,7 +117,8 @@ class RemoteRuntime(Runtime):
         if isinstance(storage.credentials, FSCredentials):
             raise ValueError("Local FS storage cannot be default for remote runtime")
 
-        exec_id = await self.__workflow_client.start_workflow(workflow.name, storage, storage_name)
+        exec_id = await self.__lzy_client.start_workflow(workflow.name, storage, storage_name,
+                                                         idempotency_key=uuid.uuid4())
         self.__running = True
         self.__workflow = workflow
         self.__execution_id = exec_id
@@ -132,7 +134,7 @@ class RemoteRuntime(Runtime):
         if not self.__running:
             raise ValueError("Runtime is not running")
 
-        client = self.__workflow_client
+        client = self.__lzy_client
         pools = await client.get_pool_specs(self.__execution_id)
 
         modules: Set[str] = set()
@@ -148,7 +150,8 @@ class RemoteRuntime(Runtime):
         )  # Running long op in threadpool
         _LOG.debug(f"Starting executing graph {graph}")
 
-        graph_id = await client.execute_graph(cast(LzyWorkflow, self.__workflow).name, self.__execution_id, graph)
+        graph_id = await client.execute_graph(cast(LzyWorkflow, self.__workflow).name, self.__execution_id, graph,
+                                              idempotency_key=uuid.uuid4())
         if not graph_id:
             _LOG.debug("Results of all graph operations are cached. Execution graph is not started")
             return
@@ -186,12 +189,12 @@ class RemoteRuntime(Runtime):
                 )
 
     async def abort(self) -> None:
-        client = self.__workflow_client
+        client = self.__lzy_client
         if not self.__running:
             return
         try:
             await client.abort_workflow(cast(LzyWorkflow, self.__workflow).name, self.__execution_id,
-                                        "Workflow execution aborted")
+                                        "Workflow execution aborted", idempotency_key=uuid.uuid4())
             try:
                 if self.__std_slots_listener is not None:
                     await asyncio.wait_for(self.__std_slots_listener, timeout=1)
@@ -204,11 +207,12 @@ class RemoteRuntime(Runtime):
             self.__std_slots_listener = None
 
     async def finish(self):
-        client = self.__workflow_client
+        client = self.__lzy_client
         if not self.__running:
             return
         try:
-            await client.finish_workflow(self.__workflow.name, self.__execution_id, "Workflow completed")
+            await client.finish_workflow(self.__workflow.name, self.__execution_id, "Workflow completed",
+                                         idempotency_key=uuid.uuid4())
             try:
                 if self.__std_slots_listener is not None:
                     await asyncio.wait_for(self.__std_slots_listener, timeout=1)
@@ -258,7 +262,7 @@ class RemoteRuntime(Runtime):
 
     @retry(action_name="listening to std slots", config=RetryConfig(max_retry=12000, backoff_multiplier=1.2))
     async def __listen_to_std_slots(self, execution_id: str):
-        client = self.__workflow_client
+        client = self.__lzy_client
         async for msg in client.read_std_slots(execution_id, self.__logs_offset):
             task_id_prefix = COLOURS["WHITE"] + "[LZY-REMOTE-" + msg.task_id + "] " + RESET_COLOR
             if isinstance(msg, StderrMessage):
