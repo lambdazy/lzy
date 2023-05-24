@@ -1,6 +1,13 @@
 package ai.lzy.iam.resources.subjects;
 
-public record External(String id, String details) implements Subject {
+import com.google.protobuf.Any;
+import com.google.protobuf.TextFormat;
+
+public record External(
+    String id,
+    Any details
+) implements Subject {
+
     @Override
     public SubjectType type() {
         return SubjectType.EXTERNAL;
@@ -8,6 +15,6 @@ public record External(String id, String details) implements Subject {
 
     @Override
     public String str() {
-        return "External(" + id() + ", " + details + ')';
+        return "External(" + id() + ", " + TextFormat.printer().shortDebugString(details) + ')';
     }
 }
