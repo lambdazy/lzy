@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package ai.lzy.v1.common;
+
+import "ai/lzy/v1/common/data-scheme.proto";
+import "ai/lzy/v1/common/slot.proto";
+import "ai/lzy/v1/common/storage.proto";
+
+option java_outer_classname = "LC";
+option java_package = "ai.lzy.v1.common";
+
+message ChannelStatus {
+  string channel_id                  = 1;
+  ai.lzy.v1.common.DataScheme scheme = 2;
+  string execution_id                = 3;
+  repeated PeerDescription consumers = 4;
+  repeated PeerDescription producers = 5;
+}
+
+message PeerDescription {
+  string peer_id             = 1;
+
+  oneof peer {
+    SlotPeer slot_peer       = 2;
+    StoragePeer storage_peer = 3;
+  }
+
+  message SlotPeer {
+    string peer_url = 2;
+  }
+
+  message StoragePeer {
+    string storage_uri = 1;  // Uri of bucket and key to get data from
+
+    oneof credentials {
+      common.S3Credentials s3 = 2;
+      common.AzureBlobStorageCredentials azure = 3;
+    }
+  }
+}

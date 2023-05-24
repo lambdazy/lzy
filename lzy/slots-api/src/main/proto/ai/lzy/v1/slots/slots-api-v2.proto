@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+package ai.lzy.v1.slots;
+
+import "ai/lzy/v1/common/slot.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
+import "ai/lzy/v1/common/channel.proto";
+
+option java_outer_classname = "LSA";
+option java_package = "ai.lzy.v1.slots.v2";
+
+service LzySlotsApi {
+
+  // Connect slot to remote peer (call from channel manager)
+  // This operation will continue until all the data has been sent/received.
+  // If error occurs, operation must fail with some reasonable description
+  // Cancel must be implemented.
+  rpc ConnectPeer (ConnectPeerRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      metadata: "ConnectPeerMetadata"
+      response: "ConnectPeerResponse"
+    };
+  }
+
+  // Read data from slot (call from peer)
+  rpc Read (ReadDataRequest) returns (stream ReadDataChunk);
+}
+
+// ============ Connect ==============
+
+message ConnectPeerRequest {
+  string peer_id = 1;
+
+  common.PeerDescription target = 2;
+}
+
+message ConnectPeerResponse {
+}
+
+message ConnectPeerMetadata {
+  string peer_id                = 1;
+  Role role                     = 2;
+  Progress progress             = 3;  // Progress of data processing
+
+  enum Role {
+    UNSPECIFIED                 = 0;
+    CONSUMER                    = 1;
+    PRODUCER                    = 2;
+  }
+
+  message Progress {
+    uint64 data_processed_bytes = 1;
+    uint64 data_total_bytes     = 2;
+  }
+}
+
+// ============ OpenOutputSlot ==============
+
+message ReadDataRequest {
+  string peer_id = 1;
+  int64 offset   = 2;
+}
+
+message ReadDataChunk {
+  enum Control {
+    EOS = 0;
+  }
+
+  oneof kind {
+    Control control = 1;
+    bytes chunk = 2;
+  }
+}

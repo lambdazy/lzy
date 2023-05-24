@@ -10,6 +10,7 @@ locals {
   whiteboard-metrics-port      = 17080
 
   allocator-port               = 10239
+  allocator-http-port          = 8082
   whiteboard-port              = 8122
   storage-port                 = 8122
   backoffice-frontend-port     = 80

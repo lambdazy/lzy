@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from grpc.aio import Channel
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
 
+from lzy.logs.config import get_logger
+
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
 from ai.lzy.v1.long_running.operation_pb2 import GetOperationRequest
 from ai.lzy.v1.long_running.operation_pb2 import Operation
@@ -35,11 +37,13 @@ from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials, AzureCredentials
 from lzy.utils.event_loop import LzyEventLoop
-from lzy.utils.grpc import add_headers_interceptor, build_channel, build_token, retry, RetryConfig
+from lzy.utils.grpc import build_channel, build_token, retry, RetryConfig, build_headers, redefine_errors
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
 USER_ENV = "LZY_USER"
 ENDPOINT_ENV = "LZY_ENDPOINT"
+
+_LOG = get_logger(__name__)
 
 
 @dataclass
@@ -114,7 +118,7 @@ class WorkflowServiceClient:
 
         address = os.getenv(ENDPOINT_ENV, "api.lzy.ai:8899")
         token = build_token(user, key_path)
-        interceptors = add_headers_interceptor({"authorization": f"Bearer {token}"})
+        interceptors = build_headers(token)
 
         global CHANNEL
         if not CHANNEL:
@@ -126,6 +130,7 @@ class WorkflowServiceClient:
         self.__stub = LzyWorkflowServiceStub(CHANNEL)
         self.__ops_stub = LongRunningServiceStub(CHANNEL)
 
+    @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="starting workflow")
     async def start_workflow(self, name: str, storage: Storage, storage_name: str) -> str:
         await self.__start()
@@ -141,6 +146,7 @@ class WorkflowServiceClient:
         res: StartWorkflowResponse = await self.__stub.StartWorkflow(
             StartWorkflowRequest(workflowName=name, snapshotStorage=s, storageName=storage_name)
         )
+
         exec_id = res.executionId
         return exec_id
 
@@ -156,6 +162,7 @@ class WorkflowServiceClient:
             # sleep 300 ms
             await asyncio.sleep(0.3)
 
+    @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="finishing workflow")
     async def finish_workflow(
         self,
@@ -172,6 +179,7 @@ class WorkflowServiceClient:
         finish_op: Operation = await self.__stub.FinishWorkflow(request)
         await self._await_op_done(finish_op.id)
 
+    @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="aborting workflow")
     async def abort_workflow(
         self,
@@ -198,6 +206,7 @@ class WorkflowServiceClient:
                     for line in task_lines.lines.splitlines():
                         yield StdoutMessage(task_lines.taskId, line, msg.offset)
 
+    @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="starting to execute graph")
     async def execute_graph(self, workflow_name: str, execution_id: str, graph: Graph) -> str:
         await self.__start()
@@ -208,6 +217,7 @@ class WorkflowServiceClient:
 
         return res.graphId
 
+    @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="getting graph status")
     async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
         await self.__start()
@@ -232,6 +242,7 @@ class WorkflowServiceClient:
             res.executing.message,
         )
 
+    @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="stopping graph")
     async def graph_stop(self, execution_id: str, graph_id: str):
         await self.__start()
@@ -239,6 +250,7 @@ class WorkflowServiceClient:
             StopGraphRequest(executionId=execution_id, graphId=graph_id)
         )
 
+    @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="getting vm pools specs")
     async def get_pool_specs(self, execution_id: str) -> Sequence[VmPoolSpec]:
         await self.__start()
@@ -249,6 +261,7 @@ class WorkflowServiceClient:
 
         return pools.poolSpecs  # type: ignore
 
+    @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="getting default storage")
     async def get_or_create_storage(self) -> Optional[Storage]:
         await self.__start()

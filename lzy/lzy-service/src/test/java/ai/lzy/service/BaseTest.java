@@ -13,6 +13,7 @@ import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.service.workflow.WorkflowService;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.util.auth.credentials.JwtUtils;
@@ -44,7 +45,7 @@ import java.time.Duration;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
+import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -86,6 +87,7 @@ public class BaseTest {
 
     @Before
     public void setUp() throws IOException, InterruptedException {
+        ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(true);
         var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
         var iamAddress = "localhost:" + iamTestContext.getPort();
@@ -137,10 +139,12 @@ public class BaseTest {
         var workflowAddress = HostAndPort.fromString(config.getAddress());
 
         var lzyServiceOpDao = context.getBean(OperationDao.class, Qualifiers.byName("LzyServiceOperationDao"));
+        var versionInterceptor = context.getBean(ClientVersionInterceptor.class);
+
         var opService = new OperationsService(lzyServiceOpDao);
 
-        lzyServer = App.createServer(workflowAddress, authInterceptor, context.getBean(LzyService.class),
-            context.getBean(LzyPrivateService.class), opService);
+        lzyServer = App.createServer(workflowAddress, versionInterceptor, authInterceptor,
+            context.getBean(LzyService.class), context.getBean(LzyServicePrivateApi.class), opService);
         lzyServer.start();
 
         lzyServiceChannel = newGrpcChannel(workflowAddress, LzyWorkflowServiceGrpc.SERVICE_NAME);

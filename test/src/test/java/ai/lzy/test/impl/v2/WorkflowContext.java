@@ -2,6 +2,7 @@ package ai.lzy.test.impl.v2;
 
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.service.App;
+import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.test.impl.v2.AllocatorContext.PortalAllocatorContext;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -45,10 +46,7 @@ public class WorkflowContext {
         var opts = Utils.loadModuleTestProperties("lzy-service");
         opts.putAll(Utils.createModuleDatabase("lzy-service"));
 
-        opts.putAll(Map.of(
-            "lzy-service.kafka.bootstrap-servers", kafka.getBootstrapServers(),
-            "lzy-service.kafka.enabled", "true"
-        ));
+        opts.put("lzy-service.kafka.bootstrap-servers", kafka.getBootstrapServers());
         opts.putAll(Map.of(
             "lzy-service.whiteboard-address", whiteboard.privateAddress(),
             "lzy-service.allocator-address", allocator.address(),
@@ -58,6 +56,8 @@ public class WorkflowContext {
             "lzy-service.iam.address", iam.address(),
             "lzy-service.storage.address", storage.address()
         ));
+
+        ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(true);
 
         ctx = ApplicationContext.run(opts);
         main = ctx.getBean(App.class);

@@ -106,6 +106,7 @@ public class DbAuthService implements AuthenticateService {
                         var subject = switch (subjectType) {
                             case USER -> new User(subjectId);
                             case WORKER -> new Worker(subjectId);
+                            case EXTERNAL -> throw new RuntimeException("Unexpected subject type " + subjectType);
                         };
 
                         LOG.info("Successfully checked {}::{} token with key name {}",

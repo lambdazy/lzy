@@ -3,6 +3,7 @@ package ai.lzy.service.workflow;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.service.BaseTest;
 import ai.lzy.service.debug.InjectedFailures;
+import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.common.LMST;
@@ -593,5 +594,49 @@ public class WorkflowTest extends BaseTest {
         awaitOperationDone(operationServiceClient, op.getId(), Duration.ofMinutes(1));
 
         assertEquals(0, (int) metrics.activeExecutions.labels("lzy-internal-user").get());
+    }
+
+    @Test
+    public void testClientVersion() {
+        ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(false);
+
+        var client = authorizedWorkflowClient.withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.CLIENT_VERSION, () -> "pylzy=1.0.0")  // unsupported pylzy
+        );
+
+        assertThrows(StatusRuntimeException.class,
+            () -> client.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build()));
+
+        var client1 = authorizedWorkflowClient.withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.CLIENT_VERSION, () -> "keklol=1.0.0")  // unsupported client
+        );
+
+        assertThrows(StatusRuntimeException.class,
+            () -> client1.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build()));
+
+        var client2 = authorizedWorkflowClient.withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.CLIENT_VERSION, () -> "pylzy=1.100")  // wrong version format
+        );
+
+        assertThrows(StatusRuntimeException.class,
+            () -> client2.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build()));
+
+        var client3 = authorizedWorkflowClient.withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.CLIENT_VERSION, () -> "askfj;o.a=kds.jv.of")  // wrong format
+        );
+
+        assertThrows(StatusRuntimeException.class,
+            () -> client3.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build()));
+
+        try {
+            client.startWorkflow(LWFS.StartWorkflowRequest.newBuilder().build());
+            fail();
+        } catch (StatusRuntimeException e) {
+            assert e.getTrailers() != null;
+            var version = e.getTrailers().get(ClientVersionInterceptor.SUPPORTED_CLIENT_VERSIONS);
+            assertNotNull(version);
+        }
+
+        ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(true);
     }
 }

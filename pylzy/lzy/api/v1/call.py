@@ -17,7 +17,10 @@ from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize, is_lzy_proxy, get_proxy_entry_id, materialized
 from lzy.api.v1.utils.types import infer_real_types, get_default_args, check_types_serialization_compatible, is_subtype
 from lzy.api.v1.workflow import LzyWorkflow
+from lzy.logs.config import get_logger
 from lzy.utils.event_loop import LzyEventLoop
+
+_LOG = get_logger(__name__)
 
 T = TypeVar("T")  # pylint: disable=invalid-name
 
@@ -25,6 +28,7 @@ T = TypeVar("T")  # pylint: disable=invalid-name
 class LzyCall:
     def __init__(
         self,
+        *,
         workflow: LzyWorkflow,
         sign: CallSignature,
         provisioning: Provisioning,
@@ -143,6 +147,7 @@ class LzyCall:
 
 def wrap_call(
     f: Callable[..., Any],
+    *,
     output_types: Sequence[type],
     provisioning: Provisioning,
     env: Env,
@@ -153,28 +158,37 @@ def wrap_call(
 ) -> Callable[..., Any]:
     @functools.wraps(f)
     def lazy(*args, **kwargs):
-
         active_workflow: Optional[LzyWorkflow] = LzyWorkflow.get_active()
         if active_workflow is None:
             return f(*args, **kwargs)
 
-        prov = active_workflow.provisioning.override(provisioning)
+        provisioning_merged = active_workflow.provisioning.override(provisioning)
 
-        env_updated = active_workflow.env.override(env)
-        if env_updated.conda_yaml_path is None:
+        env_finalized = active_workflow.env.finalize(
+            op_env=env,
+            py_env=active_workflow.auto_py_env,
+        )
 
-            py_env = active_workflow.auto_py_env
+        _LOG.debug('final env for op %r is %r', f, env_finalized)
 
-            env_updated = active_workflow.env.override(Env(
-                py_env.python_version if not active_workflow.env.python_version else None,
-                py_env.libraries, None, None, None, py_env.local_modules_path
-            )).override(env)
-
-        env_updated.validate()
-
-        signature = infer_and_validate_call_signature(f, output_types, active_workflow.snapshot,
-                                                      active_workflow.owner.serializer_registry, *args, **kwargs)
-        lzy_call = LzyCall(active_workflow, signature, prov, env_updated, description, version, cache, lazy_arguments)
+        signature = infer_and_validate_call_signature(
+            f,
+            *args,
+            output_type=output_types,
+            snapshot=active_workflow.snapshot,
+            serializer_registry=active_workflow.owner.serializer_registry,
+            **kwargs
+        )
+        lzy_call = LzyCall(
+            workflow=active_workflow,
+            sign=signature,
+            provisioning=provisioning_merged,
+            env=env_finalized,
+            description=description,
+            version=version,
+            cache=cache,
+            lazy_arguments=lazy_arguments,
+        )
         active_workflow.register_call(lzy_call)
 
         # Special case for NoneType, just leave op registered and return
@@ -215,10 +229,12 @@ def wrap_call(
 
 
 def infer_and_validate_call_signature(
-    f: Callable, output_type: Sequence[type],
+    f: Callable,
+    *args,
+    output_type: Sequence[type],
     snapshot: Snapshot,
     serializer_registry: SerializerRegistry,
-    *args, **kwargs
+    **kwargs
 ) -> CallSignature:
     types_mapping = {}
     argspec = getfullargspec(f)

@@ -68,7 +68,7 @@ public class PodSpecBuilder {
     }
 
     public PodSpecBuilder withNodeSelector(Map<String, String> nodeSelector) {
-        pod.getSpec().setNodeSelector(nodeSelector);
+        pod.getSpec().getNodeSelector().putAll(nodeSelector);
         return this;
     }
 

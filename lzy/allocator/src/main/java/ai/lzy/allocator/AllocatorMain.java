@@ -8,7 +8,8 @@ import ai.lzy.allocator.services.AllocatorPrivateService;
 import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.allocator.services.DiskService;
 import ai.lzy.allocator.services.VmPoolService;
-import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.clients.AccessClient;
+import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationsService;
@@ -16,7 +17,6 @@ import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import com.google.common.net.HostAndPort;
-import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.runtime.Micronaut;
@@ -54,7 +54,8 @@ public class AllocatorMain {
                          AllocatorPrivateService allocatorPrivate, DiskService diskService,
                          ServiceConfig config, GarbageCollector gc, VmPoolService vmPool, VmDao vmDao,
                          @Named("AllocatorOperationsService") OperationsService operationsService,
-                         @Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
+                         @Named("AllocatorAuthClient") AuthenticateService authClient,
+                         @Named("AllocatorAccessClient") AccessClient accessClient,
                          AllocationContext allocationContext)
     {
         this.config = config;
@@ -75,7 +76,7 @@ public class AllocatorMain {
 
         final HostAndPort address = HostAndPort.fromString(config.getAddress());
 
-        var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel))
+        var auth = new AuthServerInterceptor(authClient)
             .withUnauthenticated(
                 AllocatorPrivateGrpc.getHeartbeatMethod(),
                 AllocatorPrivateGrpc.getRegisterMethod());
@@ -83,7 +84,7 @@ public class AllocatorMain {
         var builder = newGrpcServer("0.0.0.0", address.getPort(), auth)
             .intercept(MetricsGrpcInterceptor.server(APP));
 
-        var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
+        var internalOnly = new AllowInternalUserOnlyInterceptor(accessClient);
         var vmOttAuth = new VmOttAuthInterceptor(vmDao, AllocatorPrivateGrpc.getRegisterMethod());
 
         builder.addService(ServerInterceptors.intercept(allocator, internalOnly));

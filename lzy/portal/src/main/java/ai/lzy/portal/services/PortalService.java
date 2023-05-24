@@ -142,11 +142,6 @@ public class PortalService extends LzyPortalImplBase {
                 })
                 .forEach(slot -> resp.addSlots(buildOutputSlotStatus(slot)));
 
-            for (var stdSlot : slotsService.getOutErrSlots()) {
-                resp.addSlots(buildOutputSlotStatus(stdSlot));
-                stdSlot.forEachSlot(slot -> resp.addSlots(buildInputSlotStatus(slot)));
-            }
-
             operationService.updateResponse(op.id(), resp.build());
             response.onNext(resp.build());
             response.onCompleted();

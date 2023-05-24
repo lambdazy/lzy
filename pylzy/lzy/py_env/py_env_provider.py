@@ -42,10 +42,10 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         self,
         *,
         drop_cache: bool = False,
-        cache_invalidation_time: int = 24 * 60 * 60,
+        nonexisting_cache_invalidation_time: int = 24 * 60 * 60,
         pypi_index_url: str = PYPI_SIMPLE_ENDPOINT,
     ):
-        self._cache_invalidation_time: int = cache_invalidation_time
+        self._nonexisting_cache_invalidation_time: int = nonexisting_cache_invalidation_time
         self._pypi_index_url: str = pypi_index_url
         pypi_index_url_md5 = md5(pypi_index_url.encode()).hexdigest()
 
@@ -118,6 +118,8 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                         package_version and
                         self._exists_in_pypi(package_name, package_version)
                     ):
+                        # TODO: If top_level is a namespace package, we can add here package which
+                        # a really unused
                         remote_packages[package_name] = package_version
 
                         files = [str(distribution.locate_file(f)) for f in distribution.files]
@@ -186,7 +188,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         )
 
     def _load_cache_file(self, path: Path, cache: CACHE_TYPE) -> None:
-        if not self._existing_cache_file_path.exists():
+        if not path.exists():
             return
 
         try:
@@ -209,7 +211,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
         modification_time = self._nonexisting_cache_file_path.stat().st_mtime
         modification_seconds_diff = time.time() - modification_time
 
-        if modification_seconds_diff < self._cache_invalidation_time:
+        if modification_seconds_diff > self._nonexisting_cache_invalidation_time:
             return
 
         self._load_cache_file(

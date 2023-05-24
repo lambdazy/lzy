@@ -1,5 +1,6 @@
 package ai.lzy.iam.grpc.interceptors;
 
+import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.AuthPermission;
@@ -16,11 +17,14 @@ import java.util.Objects;
 public class AllowInternalUserOnlyInterceptor implements ServerInterceptor {
     private static final Logger LOG = LogManager.getLogger(AllowInternalUserOnlyInterceptor.class);
 
-    private final AccessServiceGrpcClient accessServiceClient;
+    private final AccessClient accessServiceClient;
 
     public AllowInternalUserOnlyInterceptor(String clientName, Channel iamChannel) {
-        this.accessServiceClient = new AccessServiceGrpcClient(clientName, iamChannel,
-            () -> new JwtCredentials("i-am-a-hacker"));
+        this(new AccessServiceGrpcClient(clientName, iamChannel, () -> new JwtCredentials("i-am-a-hacker")));
+    }
+
+    public AllowInternalUserOnlyInterceptor(AccessClient accessServiceClient) {
+        this.accessServiceClient = accessServiceClient;
     }
 
     @Override

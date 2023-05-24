@@ -75,6 +75,11 @@ public class AllocatorMetrics {
         .subsystem(ALLOCATOR)
         .register();
 
+    public final Counter nodeReadinessError = Counter
+        .build("node_readiness_errors", "Set node ready errors")
+        .subsystem(ALLOCATOR)
+        .register();
+
     // allocator private API
 
     public final Counter registerSuccess = Counter

@@ -333,8 +333,9 @@ public class SlotsService {
                 longrunningExecutor.submit(new ContextAwareTask() {
                     @Override
                     protected void execute() {
-                        LOG.info("Explicitly closing slot {}", slotInstance.shortDesc());
-                        slot.destroy();
+                        LOG.info("Explicitly closing slot `{}` by reason: {}",
+                            slotInstance.shortDesc(), request.getReason());
+                        slot.destroy(request.getReason().isEmpty() ? null : request.getReason());
                         if (fsManager != null) {
                             fsManager.removeSlot(slot.name());
                         }
