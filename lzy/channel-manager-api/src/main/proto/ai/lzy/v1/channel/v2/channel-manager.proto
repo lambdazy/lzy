@@ -26,6 +26,8 @@ service LzyChannelManager {
     };
   }
 
+  rpc ConnectionCompleted (ConnectionCompletedRequest) returns (ConnectionCompletedResponse);
+
   rpc GetChannelsStatus (GetChannelsStatusRequest) returns (GetChannelsStatusResponse);
 
 }
@@ -48,7 +50,10 @@ message BindRequest {
 }
 
 message BindResponse {
-  common.DataScheme data_scheme = 1;  // Data scheme of channel. Data of slot can be validated with this scheme
+  // Data scheme of channel. Data of slot can be validated with this scheme
+  common.DataScheme data_scheme                   = 1;
+
+  /* optional */common.PeerDescription connect_to = 2;  // If not set, peer must wait for connect call
 }
 
 message BindMetadata {}
@@ -72,6 +77,30 @@ message GetChannelsStatusRequest {
 
 message GetChannelsStatusResponse {
   repeated common.ChannelStatus channels = 1;
+}
+
+// =========== ConnectionCompleted ==============
+
+message ConnectionCompletedRequest {
+  string peer_id        = 1;
+  string target_peer_id = 2;
+
+  oneof status {
+    Succeeded succeeded = 3;
+    Failed failed       = 4;
+  }
+
+  message Failed {
+    string description = 1;  // Error description for logging
+  }
+
+  message Succeeded {}
+}
+
+message ConnectionCompletedResponse {
+
+  // Set if previous connection was in failed state and there are other available peers
+  /* optional */ common.PeerDescription connect_to = 1;
 }
 
 
