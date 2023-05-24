@@ -115,7 +115,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                     # XXX: At the moment I'm not fully realizing in which cases one package
                     # could get into this cycle several times.
                     # Probably while parents bypass for local packages.
-                    # But i'm placing this stub here until next refactoring
+                    # But I place this stub here until next refactoring
                     # to prevent self._exists_in_pypi calling several times for the
                     # same package.
                     if package_name in remote_packages:
@@ -280,7 +280,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
             version=version
         )
 
-        _LOG.debug("%s does%s exists at %s", req_str, "" if result else "n't", pypi_str)
+        _LOG.debug("%s%s exists at %s", req_str, "" if result else " doesn't", pypi_str)
 
         if result:
             self._existing_cache[name].add(version)

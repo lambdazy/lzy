@@ -293,7 +293,7 @@ class Lzy:
         # 1) pypi_index_url from .workflow(pypi_index_url=...)
         # 2) pypi_index_url from .workflow(env=Env(...))
         # 3) pypi_index_url from Pip().index_url
-        # 4) Absense of any setted pypi_index_url, PYPI_SIMPLE_ENDPOINT in this case
+        # 4) Absense of any set pypi_index_url, PYPI_SIMPLE_ENDPOINT in this case
         # TODO: inсapsulate this logic into Env() (after moving logic of EnvProvider into Env)
         env.pypi_index_url = env.pypi_index_url or Pip().index_url or PYPI_SIMPLE_ENDPOINT
         env.validate()
@@ -309,7 +309,7 @@ class Lzy:
             env_provider.pypi_index_url and
             env.pypi_index_url != env_provider.pypi_index_url
         ):
-            # NB: if user passed his own py_env_provider, pypi_index_url could
+            # NB: if user passes his own py_env_provider, pypi_index_url could
             # differ from pypi_index_url obtained via env.
             # This mess should go away after incapsulating PyEnvProvider into Env
             raise RuntimeError(
