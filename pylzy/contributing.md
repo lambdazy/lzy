@@ -23,3 +23,5 @@
 * mypy and doctest file filtering is managed by `conftest.py`, not by `tox.ini`/`mypy.ini`
 
 * `tests/scenarios` - are executables for java integrational tests, so it is skipping part of tox/pytest checks; however, they are imported by doctest and this is the reason why all executables must contain `if __name__ == '__main__'`
+
+* `tox -e vcr -- tests/utils/test_pypi.py` to generate vcr's cassetes
