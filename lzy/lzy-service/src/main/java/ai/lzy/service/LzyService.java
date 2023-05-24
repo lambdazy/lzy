@@ -33,7 +33,8 @@ import java.util.List;
 import java.util.Objects;
 
 import static ai.lzy.iam.grpc.context.AuthenticationContext.currentSubject;
-import static ai.lzy.longrunning.IdempotencyUtils.*;
+import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
+import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
 import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -86,7 +87,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void startWorkflow(StartWorkflowRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+    public void startWorkflow(StartWorkflowRequest request, StreamObserver<StartWorkflowResponse> responseObserver) {
         var userId = currentSubject().id();
         var wfName = request.getWorkflowName();
         var storageName = request.getStorageName();
@@ -99,12 +100,14 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
+        var checkOpResultDelay = Duration.ofMillis(300);
+        var startOpTimeout = serviceCfg().getWaitAllocationTimeout().plus(Duration.ofSeconds(10));
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOp(opsDao(), idempotencyKey, responseObserver, LOG)) {
+        if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
+            StartWorkflowResponse.class, checkOpResultDelay, startOpTimeout, LOG))
+        {
             return;
         }
-
-        var startOpTimeout = serviceCfg().getWaitAllocationTimeout().plus(Duration.ofSeconds(15));
 
         Operation startOp = Operation.create(userId, String.format("Start workflow execution: wfName='%s', " +
             "newActiveExecId=%s", wfName, newExecId), startOpTimeout, idempotencyKey, null);
@@ -127,7 +130,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             tx.commit();
         } catch (Exception e) {
             if (idempotencyKey != null &&
-                handleIdempotencyKeyConflict(idempotencyKey, e, opsDao(), responseObserver, LOG))
+                handleIdempotencyKeyConflict(idempotencyKey, e, opsDao(), responseObserver,
+                    StartWorkflowResponse.class, checkOpResultDelay, startOpTimeout, LOG))
             {
                 return;
             }
@@ -165,8 +169,23 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        responseObserver.onNext(startOp.toProto());
-        responseObserver.onCompleted();
+        Operation operation = awaitOperationDone(opsDao(), startOp.id(), checkOpResultDelay, startOpTimeout, LOG);
+        if (operation == null) {
+            LOG.error("Unexpected operation dao state: start workflow operation with id='{}' not found", startOp.id());
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot start workflow").asRuntimeException());
+        } else if (!operation.done()) {
+            LOG.error("Start workflow operation with id='{}' not completed in time", startOp.id());
+            responseObserver.onError(Status.DEADLINE_EXCEEDED.withDescription("Cannot start workflow")
+                .asRuntimeException());
+        } else {
+            try {
+                responseObserver.onNext(operation.response().unpack(StartWorkflowResponse.class));
+                responseObserver.onCompleted();
+            } catch (InvalidProtocolBufferException e) {
+                LOG.error("Unexpected result of start workflow operation: {}", e.getMessage(), e);
+                responseObserver.onError(Status.INTERNAL.withDescription("Cannot start workflow").asRuntimeException());
+            }
+        }
     }
 
     @Override
@@ -371,7 +390,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     }
 
     @Override
-    public void executeGraph(ExecuteGraphRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+    public void executeGraph(ExecuteGraphRequest request, StreamObserver<ExecuteGraphResponse> responseObserver) {
         var userId = currentSubject().id();
         var wfName = request.getWorkflowName();
         var execId = request.getExecutionId();
@@ -382,8 +401,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
+        var checkOpResultDelay = Duration.ofMillis(300);
+        var opTimeout = Duration.ofSeconds(10);
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOp(opsDao(), idempotencyKey, responseObserver, LOG)) {
+        if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
+            ExecuteGraphResponse.class, checkOpResultDelay, opTimeout, LOG))
+        {
             return;
         }
 
@@ -417,7 +440,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         } catch (Exception e) {
             if (idempotencyKey != null &&
-                handleIdempotencyKeyConflict(idempotencyKey, e, opsDao(), responseObserver, LOG))
+                handleIdempotencyKeyConflict(idempotencyKey, e, opsDao(), responseObserver,
+                    ExecuteGraphResponse.class, checkOpResultDelay, opTimeout, LOG))
             {
                 return;
             }
@@ -439,8 +463,23 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        responseObserver.onNext(op.toProto());
-        responseObserver.onCompleted();
+        Operation operation = awaitOperationDone(opsDao(), op.id(), checkOpResultDelay, opTimeout, LOG);
+        if (operation == null) {
+            LOG.error("Unexpected operation dao state: execute graph operation with id='{}' not found", op.id());
+            responseObserver.onError(Status.INTERNAL.withDescription("Cannot execute graph").asRuntimeException());
+        } else if (!operation.done()) {
+            LOG.error("Execute graph operation with id='{}' not completed in time", op.id());
+            responseObserver.onError(Status.DEADLINE_EXCEEDED.withDescription("Cannot execute graph")
+                .asRuntimeException());
+        } else {
+            try {
+                responseObserver.onNext(operation.response().unpack(ExecuteGraphResponse.class));
+                responseObserver.onCompleted();
+            } catch (InvalidProtocolBufferException e) {
+                LOG.error("Unexpected result of execute graph operation: {}", e.getMessage(), e);
+                responseObserver.onError(Status.INTERNAL.withDescription("Cannot execute graph").asRuntimeException());
+            }
+        }
     }
 
     @Override
