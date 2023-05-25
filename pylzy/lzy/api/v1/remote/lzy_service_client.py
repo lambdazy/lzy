@@ -145,11 +145,11 @@ class LzyServiceClient:
         else:
             raise ValueError(f"Invalid storage credentials type {type(storage.credentials)}")
 
-        res: StartWorkflowResponse = await self.__stub.StartWorkflow(
-            request=StartWorkflowRequest(workflowName=workflow_name, snapshotStorage=s, storageName=storage_name),
-            metadata=[("Idempotency-Key", idempotency_key)]
-        )
-        return res.executionId
+        request = StartWorkflowRequest(workflowName=workflow_name, snapshotStorage=s, storageName=storage_name)
+        response: StartWorkflowResponse = await self.__stub.StartWorkflow(request=request) if idempotency_key is None \
+            else await self.__stub.StartWorkflow(request=request, metadata=[("Idempotency-Key", idempotency_key)])
+
+        return response.executionId
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="finish workflow")
@@ -161,10 +161,11 @@ class LzyServiceClient:
         idempotency_key: Optional[str] = None
     ) -> None:
         await self.__start()
-        await self.__stub.FinishWorkflow(
-            request=FinishWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason),
-            metadata=[("Idempotency-Key", idempotency_key)]
-        )
+        request = FinishWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
+        if idempotency_key is None:
+            await self.__stub.FinishWorkflow(request=request)
+        else:
+            await self.__stub.FinishWorkflow(request=request, metadata=[("Idempotency-Key", idempotency_key)])
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="abort workflow")
@@ -176,10 +177,11 @@ class LzyServiceClient:
         idempotency_key: Optional[str] = None
     ) -> None:
         await self.__start()
-        await self.__stub.AbortWorkflow(
-            request=AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason),
-            metadata=[("Idempotency-Key", idempotency_key)]
-        )
+        request = AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
+        if idempotency_key is None:
+            await self.__stub.AbortWorkflow(request=request)
+        else:
+            await self.__stub.AbortWorkflow(request=request, metadata=[("Idempotency-Key", idempotency_key)])
 
     async def read_std_slots(self, execution_id: str, logs_offset: int) -> AsyncIterator[StdlogMessage]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
@@ -206,11 +208,10 @@ class LzyServiceClient:
         idempotency_key: Optional[str] = None
     ) -> str:
         await self.__start()
-        res: ExecuteGraphResponse = await self.__stub.ExecuteGraph(
-            request=ExecuteGraphRequest(workflowName=workflow_name, executionId=execution_id, graph=graph),
-            metadata=[("Idempotency-Key", idempotency_key)]
-        )
-        return res.graphId
+        request = ExecuteGraphRequest(workflowName=workflow_name, executionId=execution_id, graph=graph)
+        response: ExecuteGraphResponse = await self.__stub.ExecuteGraph(request=request) if idempotency_key is None \
+            else await self.__stub.ExecuteGraph(request=request, metadata=[("Idempotency-Key", idempotency_key)])
+        return response.graphId
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="get graph status")
@@ -241,10 +242,11 @@ class LzyServiceClient:
     @retry(config=RETRY_CONFIG, action_name="stop graph")
     async def graph_stop(self, *, execution_id: str, graph_id: str, idempotency_key: Optional[str] = None) -> None:
         await self.__start()
-        await self.__stub.StopGraph(
-            request=StopGraphRequest(executionId=execution_id, graphId=graph_id),
-            metadata=[("Idempotency-Key", idempotency_key)]
-        )
+        request = StopGraphRequest(executionId=execution_id, graphId=graph_id)
+        if idempotency_key is None:
+            await self.__stub.StopGraph(request=request)
+        else:
+            await self.__stub.StopGraph(request=request, metadata=[("Idempotency-Key", idempotency_key)])
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="get vm pools specs")
