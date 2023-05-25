@@ -13,8 +13,19 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.function.Function;
 
-public record ExecutionStepContext(String opId, String userId, String wfName, String execId, Storage storage,
-                                   WorkflowDao wfDao, ExecutionDao execDao, GraphDao graphDao,
-                                   ExecutionOperationsDao execOpsDao, @Nullable String idempotencyKey,
-                                   Function<StatusRuntimeException, StepResult> failAction,
-                                   Logger log, String logPrefix, IdGenerator idGenerator) {}
+public record ExecutionStepContext(
+    String opId,
+    String userId,
+    String wfName,
+    String execId,
+    Storage storage,
+    WorkflowDao wfDao,
+    ExecutionDao execDao,
+    GraphDao graphDao,
+    ExecutionOperationsDao execOpsDao,
+    @Nullable String idempotencyKey,
+    Function<StatusRuntimeException, StepResult> failAction,
+    Logger log,
+    String logPrefix,
+    IdGenerator idGenerator
+) {}

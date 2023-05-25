@@ -168,6 +168,7 @@ public class OperationRunnersFactory {
             try (var tx = TransactionHandle.create(storage)) {
                 state[0] = execDao.loadStopExecState(execId, tx);
                 portalVmAddress[0] = execDao.getPortalVmAddress(execId, tx);
+                tx.commit();
             }
         });
 
@@ -220,6 +221,7 @@ public class OperationRunnersFactory {
             try (var tx = TransactionHandle.create(storage)) {
                 state[0] = execDao.loadStopExecState(execId, tx);
                 portalVmAddress[0] = execDao.getPortalVmAddress(execId, tx);
+                tx.commit();
             }
         });
 
@@ -270,6 +272,7 @@ public class OperationRunnersFactory {
             try (var tx = TransactionHandle.create(storage)) {
                 storageConfig[0] = execDao.getStorageConfig(execId, tx);
                 kafkaTopicDesc[0] = execDao.getKafkaTopicDesc(execId, tx);
+                tx.commit();
             }
         });
 
