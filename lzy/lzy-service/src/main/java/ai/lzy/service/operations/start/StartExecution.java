@@ -6,7 +6,7 @@ import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.config.AllocatorSessionSpec;
-import ai.lzy.service.config.PortalVmSpec;
+import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.StartExecutionState;
 import ai.lzy.service.operations.ExecutionOperationRunner;
 import ai.lzy.v1.common.LMST;
@@ -27,7 +27,7 @@ public final class StartExecution extends ExecutionOperationRunner {
     private final LongRunningServiceBlockingStub allocOpClient;
     private final LMST.StorageConfig storageConfig;
     private final AllocatorSessionSpec allocatorSessionSpec;
-    private final PortalVmSpec portalVmSpec;
+    private final PortalServiceSpec portalServiceSpec;
     private final StartExecutionState state;
 
     private final List<Supplier<StepResult>> steps;
@@ -37,7 +37,7 @@ public final class StartExecution extends ExecutionOperationRunner {
         this.storageConfig = builder.storageConfig;
         this.state = builder.state;
         this.allocatorSessionSpec = builder.allocatorSessionSpec;
-        this.portalVmSpec = builder.portalVmSpec;
+        this.portalServiceSpec = builder.portalServiceSpec;
         this.abClient = builder.abClient;
         this.allocOpClient = builder.allocOpClient;
         this.steps = List.of(createKafkaTopic(), createAllocatorSession(), createPortalSubject(),
@@ -58,11 +58,11 @@ public final class StartExecution extends ExecutionOperationRunner {
     }
 
     private Supplier<StepResult> createPortalSubject() {
-        return new CreatePortalSubject(stepCtx(), state, subjClient(), abClient);
+        return new CreatePortalSubject(stepCtx(), state, portalServiceSpec, subjClient(), abClient);
     }
 
     private Supplier<StepResult> startAllocationPortalVm() {
-        return new StartAllocationPortalVm(stepCtx(), state, portalVmSpec, allocClient(), allocOpClient);
+        return new StartAllocationPortalVm(stepCtx(), state, portalServiceSpec, allocClient(), allocOpClient);
     }
 
     private Supplier<StepResult> waitAllocationPortalVm() {
@@ -138,7 +138,7 @@ public final class StartExecution extends ExecutionOperationRunner {
     public static final class StartExecutionBuilder extends ExecutionOperationRunnerBuilder<StartExecutionBuilder> {
         private LMST.StorageConfig storageConfig;
         private AllocatorSessionSpec allocatorSessionSpec;
-        private PortalVmSpec portalVmSpec;
+        private PortalServiceSpec portalServiceSpec;
         private StartExecutionState state;
         private AccessBindingServiceGrpcClient abClient;
         private LongRunningServiceBlockingStub allocOpClient;
@@ -158,8 +158,8 @@ public final class StartExecution extends ExecutionOperationRunner {
             return this;
         }
 
-        public StartExecutionBuilder setPortalVmSpec(PortalVmSpec portalVmSpec) {
-            this.portalVmSpec = portalVmSpec;
+        public StartExecutionBuilder setPortalVmSpec(PortalServiceSpec portalServiceSpec) {
+            this.portalServiceSpec = portalServiceSpec;
             return this;
         }
 

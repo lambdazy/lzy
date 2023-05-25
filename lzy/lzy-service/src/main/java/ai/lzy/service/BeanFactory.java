@@ -9,7 +9,7 @@ import ai.lzy.metrics.LogMetricReporter;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.PrometheusMetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.config.PortalVmSpec;
+import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.impl.LzyServiceStorage;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.storage.StorageClientFactory;
@@ -51,11 +51,11 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 @Factory
 public class BeanFactory {
     @Singleton
-    public PortalVmSpec portalVmSpec(LzyServiceConfig serviceCfg) throws IOException, InterruptedException {
+    public PortalServiceSpec portalVmSpec(LzyServiceConfig serviceCfg) throws IOException, InterruptedException {
         // var portalPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : serviceCfg.getPortal().getPortalApiPort();
         // var slotsApiPort = PEEK_RANDOM_PORTAL_PORTS ? -1 : serviceCfg.getPortal().getSlotsApiPort();
-        return new PortalVmSpec(serviceCfg.getPortal().getPoolZone(), serviceCfg.getPortal().getPoolLabel(),
-            serviceCfg.getPortal().getDockerImage(), RsaUtils.generateRsaKeys().privateKey(),
+        return new PortalServiceSpec(serviceCfg.getPortal().getPoolZone(), serviceCfg.getPortal().getPoolLabel(),
+            serviceCfg.getPortal().getDockerImage(), RsaUtils.generateRsaKeys(),
             serviceCfg.getPortal().getPortalApiPort(), serviceCfg.getPortal().getSlotsApiPort(),
             serviceCfg.getPortal().getWorkersPoolSize(), serviceCfg.getPortal().getDownloadsPoolSize(),
             serviceCfg.getPortal().getChunksPoolSize(), serviceCfg.getChannelManagerAddress(),

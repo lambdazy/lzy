@@ -10,7 +10,7 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.BeanFactory;
 import ai.lzy.service.LzyServiceMetrics;
 import ai.lzy.service.config.AllocatorSessionSpec;
-import ai.lzy.service.config.PortalVmSpec;
+import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.*;
 import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.service.operations.graph.ExecuteGraph;
@@ -117,7 +117,7 @@ public class OperationRunnersFactory {
 
     public StartExecution createStartExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
                                                   String userId, String wfName, String execId,
-                                                  Duration allocateVmCacheTimeout, PortalVmSpec portalVmSpec)
+                                                  Duration allocateVmCacheTimeout, PortalServiceSpec portalServiceSpec)
         throws Exception
     {
         LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
@@ -142,7 +142,7 @@ public class OperationRunnersFactory {
             .setExecutor(executor)
             .setState(StartExecutionState.initial())
             .setAllocatorSessionSpec(allocatorSessionSpec)
-            .setPortalVmSpec(portalVmSpec)
+            .setPortalVmSpec(portalServiceSpec)
             .setStorageCfg(storageConfig)
             .setIdempotencyKey(idempotencyKey)
             .setAbClient(abClient)

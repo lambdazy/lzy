@@ -11,10 +11,10 @@ import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
+import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.StartExecutionState;
 import ai.lzy.service.operations.ExecutionStepContext;
 import ai.lzy.service.operations.RetryableFailStep;
-import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.auth.exceptions.AuthException;
 import io.grpc.Status;
 
@@ -27,13 +27,15 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 final class CreatePortalSubject extends StartExecutionContextAwareStep
     implements Supplier<StepResult>, RetryableFailStep
 {
+    private final PortalServiceSpec spec;
     private final SubjectServiceGrpcClient subjClient;
     private final AccessBindingServiceGrpcClient abClient;
 
-    public CreatePortalSubject(ExecutionStepContext stepCtx, StartExecutionState state,
+    public CreatePortalSubject(ExecutionStepContext stepCtx, StartExecutionState state, PortalServiceSpec spec,
                                SubjectServiceGrpcClient subjClient, AccessBindingServiceGrpcClient abClient)
     {
         super(stepCtx, state);
+        this.spec = spec;
         this.subjClient = subjClient;
         this.abClient = abClient;
     }
@@ -62,9 +64,8 @@ final class CreatePortalSubject extends StartExecutionContextAwareStep
         final Subject subject;
 
         try {
-            var workerKeys = RsaUtils.generateRsaKeys();
             subject = subjClient.createSubject(AuthProvider.INTERNAL, portalId(), SubjectType.WORKER,
-                new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
+                new SubjectCredentials("main", spec.rsaKeys().publicKey(), CredentialsType.PUBLIC_KEY));
         } catch (Exception e) {
             return retryableFail(e, "Error in SubjectClient::create call for portal", () -> {}, Status.INTERNAL
                 .withDescription("Cannot create portal subject").asRuntimeException());

@@ -5,7 +5,7 @@ import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.config.PortalVmSpec;
+import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
@@ -29,8 +29,8 @@ public interface ContextAwareService {
         return lzyServiceCtx().serviceConfig();
     }
 
-    default PortalVmSpec portalVmSpec() {
-        return lzyServiceCtx().portalVmSpec();
+    default PortalServiceSpec portalVmSpec() {
+        return lzyServiceCtx().portalServiceSpec();
     }
 
     default Storage storage() {
