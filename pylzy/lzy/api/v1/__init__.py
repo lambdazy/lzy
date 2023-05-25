@@ -14,7 +14,7 @@ from lzy.api.v1.provisioning import (
     StringRequirement
 )
 from lzy.api.v1.remote.runtime import RemoteRuntime
-from lzy.api.v1.remote.lzy_service_client import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV, LzyServiceClient
+from lzy.api.v1.remote.lzy_service_client import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV
 from lzy.api.v1.runtime import Runtime
 from lzy.api.v1.snapshot import DefaultSnapshot
 from lzy.api.v1.utils.packages import to_str_version
@@ -24,7 +24,7 @@ from lzy.api.v1.whiteboards import whiteboard_
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import configure_logging
 from lzy.proxy.result import Absence
-from lzy.py_env.api import PyEnvProvider, PyEnv
+from lzy.py_env.api import PyEnvProvider
 from lzy.py_env.py_env_provider import AutomaticPyEnvProvider
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, AsyncStorageClient

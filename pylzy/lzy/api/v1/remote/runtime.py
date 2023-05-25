@@ -33,7 +33,6 @@ from ai.lzy.v1.workflow.workflow_pb2 import (
 from lzy.api.v1 import DockerPullPolicy
 from lzy.api.v1.call import LzyCall
 from lzy.api.v1.exceptions import LzyExecutionException
-from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.remote.lzy_service_client import (
     Completed,
     Executing,
@@ -117,8 +116,8 @@ class RemoteRuntime(Runtime):
         if isinstance(storage.credentials, FSCredentials):
             raise ValueError("Local FS storage cannot be default for remote runtime")
 
-        exec_id = await self.__lzy_client.start_workflow(workflow.name, storage, storage_name,
-                                                         idempotency_key=uuid.uuid4())
+        exec_id = await self.__lzy_client.start_workflow(workflow_name=workflow.name, storage=storage,
+                                                         storage_name=storage_name, idempotency_key=uuid.uuid4())
         self.__running = True
         self.__workflow = workflow
         self.__execution_id = exec_id
@@ -135,6 +134,7 @@ class RemoteRuntime(Runtime):
             raise ValueError("Runtime is not running")
 
         client = self.__lzy_client
+        workflow = cast(LzyWorkflow, self.__workflow)
         pools = await client.get_pool_specs(self.__execution_id)
 
         modules: Set[str] = set()
@@ -150,8 +150,8 @@ class RemoteRuntime(Runtime):
         )  # Running long op in threadpool
         _LOG.debug(f"Starting executing graph {graph}")
 
-        graph_id = await client.execute_graph(cast(LzyWorkflow, self.__workflow).name, self.__execution_id, graph,
-                                              idempotency_key=uuid.uuid4())
+        graph_id = await client.execute_graph(workflow_name=workflow.name, execution_id=self.__execution_id,
+                                              graph=graph, idempotency_key=uuid.uuid4())
         if not graph_id:
             _LOG.debug("Results of all graph operations are cached. Execution graph is not started")
             return
@@ -192,9 +192,11 @@ class RemoteRuntime(Runtime):
         client = self.__lzy_client
         if not self.__running:
             return
+
+        workflow = cast(LzyWorkflow, self.__workflow)
         try:
-            await client.abort_workflow(cast(LzyWorkflow, self.__workflow).name, self.__execution_id,
-                                        "Workflow execution aborted", idempotency_key=uuid.uuid4())
+            await client.abort_workflow(workflow_name=workflow.name, execution_id=self.__execution_id,
+                                        reason="Workflow execution aborted", idempotency_key=uuid.uuid4())
             try:
                 if self.__std_slots_listener is not None:
                     await asyncio.wait_for(self.__std_slots_listener, timeout=1)
@@ -211,8 +213,8 @@ class RemoteRuntime(Runtime):
         if not self.__running:
             return
         try:
-            await client.finish_workflow(self.__workflow.name, self.__execution_id, "Workflow completed",
-                                         idempotency_key=uuid.uuid4())
+            await client.finish_workflow(workflow_name=self.__workflow.name, execution_id=self.__execution_id,
+                                         reason="Workflow completed", idempotency_key=uuid.uuid4())
             try:
                 if self.__std_slots_listener is not None:
                     await asyncio.wait_for(self.__std_slots_listener, timeout=1)

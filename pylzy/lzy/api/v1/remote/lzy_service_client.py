@@ -129,11 +129,11 @@ class LzyServiceClient:
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="start workflow")
     async def start_workflow(
-            self,
-            name: str,
-            storage: Storage,
-            storage_name: str,
-            idempotency_key: Union[str, None] = None
+        self, *,
+        workflow_name: str,
+        storage: Storage,
+        storage_name: str,
+        idempotency_key: Optional[str] = None
     ) -> str:
         await self.__start()
 
@@ -146,7 +146,7 @@ class LzyServiceClient:
             raise ValueError(f"Invalid storage credentials type {type(storage.credentials)}")
 
         res: StartWorkflowResponse = await self.__stub.StartWorkflow(
-            request=StartWorkflowRequest(workflowName=name, snapshotStorage=s, storageName=storage_name),
+            request=StartWorkflowRequest(workflowName=workflow_name, snapshotStorage=s, storageName=storage_name),
             metadata=[("Idempotency-Key", idempotency_key)]
         )
         return res.executionId
@@ -154,11 +154,11 @@ class LzyServiceClient:
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="finish workflow")
     async def finish_workflow(
-        self,
+        self, *,
         workflow_name: str,
         execution_id: str,
         reason: str,
-        idempotency_key: Union[str, None] = None
+        idempotency_key: Optional[str] = None
     ) -> None:
         await self.__start()
         await self.__stub.FinishWorkflow(
@@ -169,11 +169,11 @@ class LzyServiceClient:
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="abort workflow")
     async def abort_workflow(
-        self,
+        self, *,
         workflow_name: str,
         execution_id: str,
         reason: str,
-        idempotency_key: Union[str, None] = None
+        idempotency_key: Optional[str] = None
     ) -> None:
         await self.__start()
         await self.__stub.AbortWorkflow(
@@ -199,11 +199,11 @@ class LzyServiceClient:
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="execute graph")
     async def execute_graph(
-            self,
+            self, *,
             workflow_name: str,
             execution_id: str,
             graph: Graph,
-            idempotency_key: Union[str, None] = None
+            idempotency_key: Optional[str] = None
     ) -> str:
         await self.__start()
         res: ExecuteGraphResponse = await self.__stub.ExecuteGraph(
@@ -213,7 +213,7 @@ class LzyServiceClient:
         return res.graphId
 
     @redefine_errors
-    @retry(config=RETRY_CONFIG, action_name="getting graph status")
+    @retry(config=RETRY_CONFIG, action_name="get graph status")
     async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
         await self.__start()
 
@@ -238,8 +238,8 @@ class LzyServiceClient:
         )
 
     @redefine_errors
-    @retry(config=RETRY_CONFIG, action_name="stopping graph")
-    async def graph_stop(self, execution_id: str, graph_id: str, idempotency_key: Union[str, None] = None) -> None:
+    @retry(config=RETRY_CONFIG, action_name="stop graph")
+    async def graph_stop(self, *, execution_id: str, graph_id: str, idempotency_key: Optional[str] = None) -> None:
         await self.__start()
         await self.__stub.StopGraph(
             request=StopGraphRequest(executionId=execution_id, graphId=graph_id),
@@ -247,7 +247,7 @@ class LzyServiceClient:
         )
 
     @redefine_errors
-    @retry(config=RETRY_CONFIG, action_name="getting vm pools specs")
+    @retry(config=RETRY_CONFIG, action_name="get vm pools specs")
     async def get_pool_specs(self, execution_id: str) -> Sequence[VmPoolSpec]:
         await self.__start()
 
@@ -258,7 +258,7 @@ class LzyServiceClient:
         return pools.poolSpecs  # type: ignore
 
     @redefine_errors
-    @retry(config=RETRY_CONFIG, action_name="getting default storage")
+    @retry(config=RETRY_CONFIG, action_name="get default storage")
     async def get_or_create_storage(self) -> Optional[Storage]:
         await self.__start()
         resp: GetOrCreateDefaultStorageResponse = await self.__stub.GetOrCreateDefaultStorage(
