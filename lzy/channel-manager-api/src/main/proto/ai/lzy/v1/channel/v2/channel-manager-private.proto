@@ -16,6 +16,8 @@ service LzyChannelManagerPrivate {
   // Does nothing, just drops channel and all the peers from db
   // All failed vms and other resources must be released by other services
   rpc Destroy (DestroyRequest) returns (DestroyResponse) {}
+
+  // Like Destroy, but for all channels of this wf
   rpc DestroyAll (DestroyAllRequest) returns (DestroyAllResponse) {}
 
   rpc Status (StatusRequest) returns (StatusResponse);
@@ -52,8 +54,6 @@ message DestroyRequest {
 
 message DestroyResponse {}
 
-message DestroyMetadata {}
-
 // ============== DestroyAll ==================
 
 message DestroyAllRequest {
@@ -62,8 +62,6 @@ message DestroyAllRequest {
 }
 
 message DestroyAllResponse {}
-
-message DestroyAllMetadata {}
 
 // ============== Status ==================
 
