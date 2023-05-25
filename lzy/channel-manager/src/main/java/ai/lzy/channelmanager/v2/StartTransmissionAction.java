@@ -12,16 +12,16 @@ import java.net.URI;
 import java.util.concurrent.TimeUnit;
 
 @Singleton
-public class ConnectAction {
-    private static final Logger LOG = LogManager.getLogger(ConnectAction.class);
+public class StartTransmissionAction {
+    private static final Logger LOG = LogManager.getLogger(StartTransmissionAction.class);
 
-    private final ConnectionsDao connections;
+    private final TransmissionsDao connections;
 
     private final SlotConnectionManager connectionManager;
     private final ChannelOperationExecutor operationExecutor;
 
-    public ConnectAction(ConnectionsDao connections, SlotConnectionManager connectionManager,
-                         ChannelOperationExecutor operationExecutor)
+    public StartTransmissionAction(TransmissionsDao connections, SlotConnectionManager connectionManager,
+                                   ChannelOperationExecutor operationExecutor)
     {
         this.connections = connections;
         this.connectionManager = connectionManager;

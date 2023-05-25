@@ -27,15 +27,15 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
     private static final Logger LOG = LogManager.getLogger(SlotsService.class);
     private final PeerDao peerDao;
     private final ChannelManagerDataSource storage;
-    private final ConnectionsDao connectionsDao;
-    private final ConnectAction action;
+    private final TransmissionsDao transmissionsDao;
+    private final StartTransmissionAction action;
 
-    public SlotsService(PeerDao peerDao, ChannelManagerDataSource storage, ConnectionsDao connectionsDao,
-                        ConnectAction action)
+    public SlotsService(PeerDao peerDao, ChannelManagerDataSource storage, TransmissionsDao transmissionsDao,
+                        StartTransmissionAction action)
     {
         this.peerDao = peerDao;
         this.storage = storage;
-        this.connectionsDao = connectionsDao;
+        this.transmissionsDao = transmissionsDao;
         this.action = action;
     }
 
@@ -111,7 +111,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                     final var consumers = peerDao.markConsumersAsConnected(channelId, tx);
 
                     for (var consumer : consumers) {
-                        connectionsDao.createPendingConnection(peerId, consumer.id(), tx);
+                        transmissionsDao.createNotStartedTransmission(peerId, consumer.id(), tx);
                     }
 
                     tx.commit();
@@ -200,7 +200,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
 
                     // Retrying to load data to s3 with other peer
                     if (target.role().equals(CONSUMER) && target.peerDescription().hasStoragePeer()) {
-                        connectionsDao.createPendingConnection(prod.id(), target.id(), tx);
+                        transmissionsDao.createNotStartedTransmission(prod.id(), target.id(), tx);
                         tx.commit();
                         action.schedule(prod, target);
                         return null;

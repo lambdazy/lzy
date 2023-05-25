@@ -43,9 +43,9 @@ message BindResponse {
   // Data scheme of channel. Data of slot can be validated with this scheme
   common.DataScheme data_scheme                   = 1;
 
-  // Target like in StartTransmission call in slots api
-  // If set, bound slot must start this new transmission
-  /* optional */ common.PeerDescription target = 2;
+  // Targets of Transmissions on bound slot
+  // This list may include already completed transmissions
+  repeated common.PeerDescription targets = 2;
 }
 
 // =========== Unbind ==============
