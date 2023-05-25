@@ -12,19 +12,9 @@ option java_package = "ai.lzy.v1.channel.v2";
 
 service LzyChannelManager {
 
-  rpc Bind (BindRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      response: "BindResponse"
-      metadata: "BindMetadata"
-    };
-  }
+  rpc Bind (BindRequest) returns (BindResponse) {}
 
-  rpc Unbind (UnbindRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      response: "UnbindResponse"
-      metadata: "UnbindMetadata"
-    };
-  }
+  rpc Unbind (UnbindRequest) returns (UnbindResponse) {}
 
   rpc ConnectionCompleted (ConnectionCompletedRequest) returns (ConnectionCompletedResponse);
 
@@ -53,10 +43,9 @@ message BindResponse {
   // Data scheme of channel. Data of slot can be validated with this scheme
   common.DataScheme data_scheme                   = 1;
 
-  /* optional */common.PeerDescription connect_to = 2;  // If not set, peer must wait for connect call
+  // If not set, peer must wait for connect call
+  repeated common.PeerDescription connect_to = 2;
 }
-
-message BindMetadata {}
 
 // =========== Unbind ==============
 
@@ -65,8 +54,6 @@ message UnbindRequest {
 }
 
 message UnbindResponse {}
-
-message UnbindMetadata {}
 
 // =========== GetChannelsStatus ==============
 
