@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package ai.lzy.graph;
+
+option java_outer_classname = "GraphExecutor2";
+option java_package = "ai.lzy.graph";
+
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/common/operation.proto";
+
+service GraphExecutor {
+  rpc Execute (GraphExecuteRequest) returns (ai.lzy.v1.longrunning.Operation);
+}
+
+message GraphExecuteRequest {
+  message ChannelDesc {
+    string id = 1;
+    message DirectChannel {}
+    oneof type {
+      DirectChannel direct = 2;
+    }
+  }
+  message TaskDesc {
+    message SlotToChannelAssignment {
+      string slotName = 1;
+      string channelId = 2;
+    }
+
+    string id = 1;
+    ai.lzy.v1.common.Operation operation = 2;
+    repeated SlotToChannelAssignment slotAssignments = 3;
+  }
+
+  string workflowId = 1;
+  string workflowName = 2;
+  string userId = 3;
+  repeated TaskDesc tasks = 4;
+  string parentGraphId = 5;
+  repeated ChannelDesc channels = 6;
+}
+
+message GraphExecuteResponse {
+  string workflowId = 1;
+  string graphId = 2;
+
+  oneof status {
+    Waiting waiting = 3;
+    Executing executing = 4;
+    Completed completed = 5;
+    Failed failed = 6;
+  }
+  message Waiting {}
+  message Executing {
+    repeated TaskExecutionStatus executingTasks = 1;
+  }
+  message Completed {}
+  message Failed {
+    string description = 1;
+    string failedTaskId = 2;
+    string failedTaskName = 3;
+  }
+}
+
+message TaskExecutionStatus {
+  string taskDescriptionId = 1;
+  string workflowId = 2;
+  string taskId = 3;
+  string operationName = 4;
+
+  oneof status {
+    Executing executing = 5;
+    Success success = 6;
+    Error error = 7;
+  }
+  message Executing {}
+  message Success {
+    int32 rc = 1;
+    string description = 2;
+  }
+  message Error {
+    int32 rc = 1;
+    string description = 2;
+  }
+}
