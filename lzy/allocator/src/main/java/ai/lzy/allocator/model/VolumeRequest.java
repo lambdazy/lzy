@@ -1,11 +1,7 @@
 package ai.lzy.allocator.model;
 
 import ai.lzy.v1.VolumeApi;
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.*;
 
 import java.util.Objects;
 
@@ -74,10 +70,14 @@ public class VolumeRequest {
             .setId(volumeId)
             .setName(volumeDescription.name());
         if (volumeDescription instanceof DiskVolumeDescription diskVolumeDescription) {
-            builder.setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
+            var diskVolumeBuilder = VolumeApi.DiskVolumeType.newBuilder()
                 .setDiskId(diskVolumeDescription.diskId())
-                .setSizeGb(diskVolumeDescription.sizeGb())
-                .build());
+                .setSizeGb(diskVolumeDescription.sizeGb());
+            var accessMode = diskVolumeDescription.accessMode();
+            if (accessMode != null) {
+                diskVolumeBuilder.setAccessMode(accessMode.toProto());
+            }
+            builder.setDiskVolume(diskVolumeBuilder.build());
         } else if (volumeDescription instanceof HostPathVolumeDescription hostPathVolumeDescription) {
             builder.setHostPathVolume(VolumeApi.HostPathVolumeType.newBuilder()
                 .setPath(hostPathVolumeDescription.path())

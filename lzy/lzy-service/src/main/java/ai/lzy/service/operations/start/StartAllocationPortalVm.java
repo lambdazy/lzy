@@ -2,7 +2,7 @@ package ai.lzy.service.operations.start;
 
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.service.config.PortalVmSpec;
+import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.StartExecutionState;
 import ai.lzy.service.operations.ExecutionStepContext;
 import ai.lzy.service.operations.RetryableFailStep;
@@ -25,11 +25,11 @@ import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 final class StartAllocationPortalVm extends StartExecutionContextAwareStep
     implements Supplier<StepResult>, RetryableFailStep
 {
-    private final PortalVmSpec spec;
+    private final PortalServiceSpec spec;
     private final AllocatorBlockingStub allocClient;
     private final LongRunningServiceBlockingStub allocOpClient;
 
-    public StartAllocationPortalVm(ExecutionStepContext stepCtx, StartExecutionState state, PortalVmSpec spec,
+    public StartAllocationPortalVm(ExecutionStepContext stepCtx, StartExecutionState state, PortalServiceSpec spec,
                                    AllocatorBlockingStub allocClient, LongRunningServiceBlockingStub allocOpClient)
     {
         super(stepCtx, state);
@@ -71,7 +71,7 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
                         .setName("portal")
                         .setImage(spec.dockerImage())
                         .addAllArgs(args)
-                        .putEnv(portalEnvPKEY, spec.privateKey())
+                        .putEnv(portalEnvPKEY, spec.rsaKeys().privateKey())
                         .putAllPortBindings(ports)
                         .build())
                     .build());

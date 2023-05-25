@@ -55,6 +55,8 @@ public interface ExecutionDao {
 
     StopExecutionState loadStopExecState(String execId, @Nullable TransactionHandle transaction) throws SQLException;
 
+    ExecuteGraphData loadExecGraphData(String execId, @Nullable TransactionHandle transaction) throws SQLException;
+
     @Nullable
     String getExpiredExecution() throws SQLException;
 
@@ -75,5 +77,10 @@ public interface ExecutionDao {
         @Nullable String vmId,
         @Nullable HostAndPort vmAddress,
         @Nullable HostAndPort fsAddress
+    ) {}
+
+    record ExecuteGraphData(
+        LMST.StorageConfig storageConfig,
+        ExecutionDao.KafkaTopicDesc kafkaTopicDesc
     ) {}
 }

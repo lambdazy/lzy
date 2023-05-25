@@ -109,7 +109,6 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
 
     @Override
     public List<OpInfo> listOpsInfo(String execId, @Nullable TransactionHandle transaction) throws SQLException {
-        LOG.debug("Get list execution operations: { execId: {} }", execId);
         final var result = new ArrayList<OpInfo>();
         DbOperation.execute(transaction, storage, connection -> {
             try (var st = connection.prepareStatement(QUERY_SELECT_EXEC_OPERATIONS)) {
@@ -117,6 +116,23 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
                 var rs = st.executeQuery();
                 while (rs.next()) {
                     result.add(new OpInfo(rs.getString("op_id"), OpType.valueOf(rs.getString("op_type"))));
+                }
+            }
+        });
+        return result;
+    }
+
+    @Override
+    public List<String> listOpsIdsToCancel(String execId, TransactionHandle transaction) throws SQLException {
+        final var result = new ArrayList<String>();
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_SELECT_EXEC_OPERATIONS)) {
+                st.setString(1, execId);
+                var rs = st.executeQuery();
+                while (rs.next()) {
+                    if (OpType.valueOf(rs.getString("op_type")) != OpType.STOP_EXECUTION) {
+                        result.add(rs.getString("op_id"));
+                    }
                 }
             }
         });

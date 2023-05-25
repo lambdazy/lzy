@@ -10,15 +10,18 @@ import java.util.function.Supplier;
 public final class AbortExecution extends StopExecution {
     private final GraphExecutorBlockingStub graphClient;
 
+    private final List<Supplier<StepResult>> steps;
+
     private AbortExecution(AbortExecutionBuilder builder) {
         super(builder);
         this.graphClient = builder.graphClient;
+        this.steps = List.of(stopGraphs(), finishPortal(), waitFinishPortal(), freePortalVm(), deleteAllocSession(),
+            deletePortalSubject(), destroyChannels(), deleteKafkaTopic(), this::complete);
     }
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(stopGraphs(), finishPortal(), waitFinishPortal(), freePortalVm(),
-            deleteAllocSession(), deletePortalSubject(), destroyChannels(), deleteKafkaTopic(), this::complete);
+        return steps;
     }
 
     private Supplier<StepResult> stopGraphs() {

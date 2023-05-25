@@ -6,11 +6,10 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
-import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.BeanFactory;
 import ai.lzy.service.LzyServiceMetrics;
 import ai.lzy.service.config.AllocatorSessionSpec;
-import ai.lzy.service.config.PortalVmSpec;
+import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.*;
 import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.service.operations.graph.ExecuteGraph;
@@ -117,7 +116,7 @@ public class OperationRunnersFactory {
 
     public StartExecution createStartExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
                                                   String userId, String wfName, String execId,
-                                                  Duration allocateVmCacheTimeout, PortalVmSpec portalVmSpec)
+                                                  Duration allocateVmCacheTimeout, PortalServiceSpec portalServiceSpec)
         throws Exception
     {
         LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
@@ -142,7 +141,7 @@ public class OperationRunnersFactory {
             .setExecutor(executor)
             .setState(StartExecutionState.initial())
             .setAllocatorSessionSpec(allocatorSessionSpec)
-            .setPortalVmSpec(portalVmSpec)
+            .setPortalVmSpec(portalServiceSpec)
             .setStorageCfg(storageConfig)
             .setIdempotencyKey(idempotencyKey)
             .setAbClient(abClient)
@@ -161,20 +160,13 @@ public class OperationRunnersFactory {
                                                     String userId, String wfName, String execId, Status finishStatus)
         throws Exception
     {
-        final StopExecutionState[] state = {null};
-        final String[] portalVmAddress = {null};
+        StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
 
-        withRetries(LOG, () -> {
-            try (var tx = TransactionHandle.create(storage)) {
-                state[0] = execDao.loadStopExecState(execId, tx);
-                portalVmAddress[0] = execDao.getPortalVmAddress(execId, tx);
-            }
-        });
-
-        var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(newGrpcChannel(portalVmAddress[0],
+        var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(newGrpcChannel(state.portalApiAddress,
             LzyPortalGrpc.SERVICE_NAME)), APP, () -> internalUserCredentials.get().token());
-        var portalOpClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(newGrpcChannel(portalVmAddress[0],
-            LongRunningServiceGrpc.SERVICE_NAME)), APP, () -> internalUserCredentials.get().token());
+        var portalOpClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(newGrpcChannel(
+                state.portalApiAddress, LongRunningServiceGrpc.SERVICE_NAME)), APP,
+            () -> internalUserCredentials.get().token());
 
         return FinishExecution.builder()
             .setId(opId)
@@ -189,7 +181,7 @@ public class OperationRunnersFactory {
             .setOperationsDao(opDao)
             .setExecOpsDao(execOpsDao)
             .setExecutor(executor)
-            .setState(state[0])
+            .setState(state)
             .setFinishStatus(finishStatus)
             .setIdempotencyKey(idempotencyKey)
             .setPortalClient(portalClient)
@@ -213,20 +205,13 @@ public class OperationRunnersFactory {
                                                   String execId, Status finishStatus)
         throws Exception
     {
-        final StopExecutionState[] state = {null};
-        final String[] portalVmAddress = {null};
+        StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
 
-        withRetries(LOG, () -> {
-            try (var tx = TransactionHandle.create(storage)) {
-                state[0] = execDao.loadStopExecState(execId, tx);
-                portalVmAddress[0] = execDao.getPortalVmAddress(execId, tx);
-            }
-        });
-
-        var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(newGrpcChannel(portalVmAddress[0],
+        var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(newGrpcChannel(state.portalApiAddress,
             LzyPortalGrpc.SERVICE_NAME)), APP, () -> internalUserCredentials.get().token());
-        var portalOpClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(newGrpcChannel(portalVmAddress[0],
-            LongRunningServiceGrpc.SERVICE_NAME)), APP, () -> internalUserCredentials.get().token());
+        var portalOpClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(newGrpcChannel(
+                state.portalApiAddress, LongRunningServiceGrpc.SERVICE_NAME)), APP,
+            () -> internalUserCredentials.get().token());
 
         return AbortExecution.builder()
             .setId(opId)
@@ -241,7 +226,7 @@ public class OperationRunnersFactory {
             .setOperationsDao(opDao)
             .setExecOpsDao(execOpsDao)
             .setExecutor(executor)
-            .setState(state[0])
+            .setState(state)
             .setFinishStatus(finishStatus)
             .setIdempotencyKey(idempotencyKey)
             .setPortalClient(portalClient)
@@ -263,18 +248,10 @@ public class OperationRunnersFactory {
                                                    String userId, String wfName, String execId,
                                                    LWFS.ExecuteGraphRequest request) throws Exception
     {
-        final LMST.StorageConfig[] storageConfig = {null};
-        final ExecutionDao.KafkaTopicDesc[] kafkaTopicDesc = {null};
-
-        withRetries(LOG, () -> {
-            try (var tx = TransactionHandle.create(storage)) {
-                storageConfig[0] = execDao.getStorageConfig(execId, tx);
-                kafkaTopicDesc[0] = execDao.getKafkaTopicDesc(execId, tx);
-            }
-        });
+        ExecutionDao.ExecuteGraphData execGraphData = withRetries(LOG, () -> execDao.loadExecGraphData(execId, null));
 
         ExecuteGraphState state = new ExecuteGraphState(request.getGraph());
-        StorageClient storageClient = storageClientFactory.provider(storageConfig[0]).get();
+        StorageClient storageClient = storageClientFactory.provider(execGraphData.storageConfig()).get();
 
         return ExecuteGraph.builder()
             .setId(opId)
@@ -290,7 +267,7 @@ public class OperationRunnersFactory {
             .setExecOpsDao(execOpsDao)
             .setExecutor(executor)
             .setState(state)
-            .setKafkaTopicDesc(kafkaTopicDesc[0])
+            .setKafkaTopicDesc(execGraphData.kafkaTopicDesc())
             .setKafkaConfig(kafkaConfig)
             .setIdempotencyKey(idempotencyKey)
             .setSubjClient(subjectClient)
