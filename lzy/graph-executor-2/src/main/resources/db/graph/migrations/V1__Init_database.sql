@@ -33,7 +33,7 @@ CREATE TABLE graph
     workflow_id           TEXT                           NOT NULL,
     workflow_name         TEXT                           NOT NULL,
     user_id               TEXT                           NOT NULL,
-    graph_description     TEXT                           NOT NULL,
+    graph_description     TEXT                           NULL,
     error_description     TEXT                           NULL,
     failed_task_id        TEXT                           NULL,
     failed_task_name      TEXT                           NULL,
@@ -43,12 +43,14 @@ CREATE TABLE graph
 
 CREATE TABLE task (
     id                    TEXT                          NOT NULL PRIMARY KEY,
+    task_name             TEXT                          NOT NULL,
     graph_id              TEXT                          NOT NULL REFERENCES graph (id),
     status                status default 'WAITING'      NOT NULL,
     workflow_id           TEXT                          NOT NULL,
     workflow_name         TEXT                          NOT NULL,
     user_id               TEXT                          NOT NULL,
-    task_description      TEXT                          NOT NULL,
+    task_description      TEXT                          NULL,
+    error_description     TEXT                          NULL,
     owner_instance_id     TEXT                          NOT NULL
 );
 
@@ -65,9 +67,8 @@ CREATE TABLE task_operation
     id                    TEXT                             NOT NULL PRIMARY KEY,
     task_id               TEXT                             NOT NULL REFERENCES task (id),
     started_at            TIMESTAMP                        NOT NULL,
-    deadline              TIMESTAMP                        NOT NULL,
     owner_instance_id     TEXT                             NOT NULL,
     status                task_op_status default 'WAITING' NOT NULL,
-    task_state            TEXT                             NOT NULL,
+    task_state            TEXT                             NULL,
     error_description     TEXT                             NULL
 );

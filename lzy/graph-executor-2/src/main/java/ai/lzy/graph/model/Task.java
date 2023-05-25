@@ -15,11 +15,13 @@ import java.util.Map;
 @JsonDeserialize
 public record Task(
     String id,
+    String name,
     String graphId,
     Status status,
     String workflowId,
     String workflowName,
     String userId,
+    String errorDescription,
     LMO.Operation operation,
     Map<String, String> slotsToChannelsAssignments,
     List<String> tasksDependedOn,
@@ -29,5 +31,9 @@ public record Task(
 
     public enum Status {
         WAITING, EXECUTING, COMPLETED, FAILED
+    }
+
+    public String getDescription() {
+        return null;
     }
 }

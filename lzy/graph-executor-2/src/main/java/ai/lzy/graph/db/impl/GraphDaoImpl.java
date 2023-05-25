@@ -5,7 +5,7 @@ import ai.lzy.graph.db.GraphDao;
 import ai.lzy.graph.model.Graph;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -34,18 +34,16 @@ public class GraphDaoImpl implements GraphDao {
         error_description, failed_task_id, failed_task_name, last_updated, owner_instance_id""";
 
     private final GraphExecutorDataSource storage;
-    private final ObjectMapper objectMapper;
     private final ServiceConfig config;
 
     @Inject
     public GraphDaoImpl(GraphExecutorDataSource storage, ServiceConfig config) {
         this.storage = storage;
         this.config = config;
-        this.objectMapper = new ObjectMapper().findAndRegisterModules();
     }
 
     @Override
-    public void createOrUpdate(Graph graph, TransactionHandle transaction) throws SQLException {
+    public void create(Graph graph, TransactionHandle transaction) throws SQLException {
         LOG.info("Saving graph: {}", graph);
 
         DbOperation.execute(transaction, storage, connection -> {
@@ -68,6 +66,32 @@ public class GraphDaoImpl implements GraphDao {
                 st.setString(++count, config.getInstanceId());
 
                 st.execute();
+            }
+        });
+    }
+
+    @Override
+    public void update(Graph graph, @Nullable TransactionHandle transaction) throws SQLException {
+        DbOperation.execute(transaction, storage, connection -> {
+            try (final Connection con = storage.connect();
+                 final PreparedStatement st = con.prepareStatement("""
+                 UPDATE graph
+                 SET error_description = ?,
+                     failed_task_id = ?,
+                     failed_task_name = ?,
+                     status = ?::status,
+                     last_updated = ?
+                 WHERE id = ?"""))
+            {
+                int count = 0;
+                st.setString(++count, graph.errorDescription());
+                st.setString(++count, graph.failedTaskId());
+                st.setString(++count, graph.failedTaskName());
+                st.setString(++count, graph.status().name());
+                st.setTimestamp(++count, Timestamp.valueOf(LocalDateTime.now()));
+
+                st.setString(++count, graph.id());
+                st.executeUpdate();
             }
         });
     }

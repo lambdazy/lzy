@@ -6,9 +6,6 @@ public record TaskOperation(
     String id,
     String taskId,
     Instant startedAt,
-    Instant deadline,
-    String ownerInstanceId,
-
     Status status,
     String errorDescription,
     Runnable deferredAction
@@ -18,7 +15,7 @@ public record TaskOperation(
     }
 
     public TaskOperation withDeferredAction(Runnable deferredAction) {
-        return new TaskOperation(id, taskId, startedAt, deadline, ownerInstanceId, status,
+        return new TaskOperation(id, taskId, startedAt, status,
             errorDescription, deferredAction);
     }
 }

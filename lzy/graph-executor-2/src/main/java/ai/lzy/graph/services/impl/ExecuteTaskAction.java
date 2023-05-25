@@ -10,9 +10,9 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public class ExecuteTaskAction extends OperationRunnerBase {
-    protected ExecuteTaskAction(String id, String descr, Storage storage,
-                                OperationDao operationsDao,
-                                OperationsExecutor executor)
+    public ExecuteTaskAction(String id, String descr, Storage storage,
+                             OperationDao operationsDao,
+                             OperationsExecutor executor)
     {
         super(id, descr, storage, operationsDao, executor);
     }

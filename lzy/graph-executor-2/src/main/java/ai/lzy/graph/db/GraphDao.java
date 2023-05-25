@@ -8,7 +8,8 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface GraphDao {
-    void createOrUpdate(Graph graph, @Nullable TransactionHandle transaction) throws SQLException;
+    void create(Graph graph, @Nullable TransactionHandle transaction) throws SQLException;
+    void update(Graph graph, @Nullable TransactionHandle transaction) throws SQLException;
     Graph getById(String graphId) throws SQLException;
     List<Graph> getByInstance(String instanceId) throws SQLException;
 }
