@@ -12,6 +12,7 @@ from pypi_simple import (
     NoSuchProjectError
 )
 
+from lzy import config
 from lzy.exceptions import BadPypiIndex
 from lzy.version import __user_agent__
 
@@ -43,6 +44,9 @@ def check_version_exists(package: ProjectPage, version: str) -> bool:
 
 
 def validate_pypi_index_url(pypi_index_url: str) -> None:
+    if config.skip_pypi_validation:
+        return
+
     exception: Optional[Exception] = None
     client = get_pypi_client(pypi_index_url)
 

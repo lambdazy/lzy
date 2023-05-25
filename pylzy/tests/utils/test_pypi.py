@@ -4,32 +4,47 @@ from pypi_simple import PYPI_SIMPLE_ENDPOINT
 
 import lzy.exceptions
 import lzy.utils.pypi
+from lzy import config
 
 TEST_PYPI = 'https://test.pypi.org/simple'
 
 
 @pytest.mark.vcr
 def test_valid_pypi_index_url():
+    assert not config.skip_pypi_validation
+
     lzy.utils.pypi.validate_pypi_index_url(PYPI_SIMPLE_ENDPOINT)
     lzy.utils.pypi.validate_pypi_index_url(TEST_PYPI)
 
 
 @pytest.mark.vcr
-def test_non_pypi_index_url():
+def test_non_pypi_index_url(monkeypatch):
+    assert not config.skip_pypi_validation
+
     with pytest.raises(lzy.exceptions.BadPypiIndex):
         lzy.utils.pypi.validate_pypi_index_url('https://example.com')
 
+    monkeypatch.setattr(config, 'skip_pypi_validation', True)
+    lzy.utils.pypi.validate_pypi_index_url('https://example.com')
+
 
 @pytest.mark.block_network
-def test_pypi_index_url_without_a_scheme():
+def test_pypi_index_url_without_a_scheme(monkeypatch):
+    assert not config.skip_pypi_validation
+
     # here will be no net interactions
     with pytest.raises(lzy.exceptions.BadPypiIndex):
         lzy.utils.pypi.validate_pypi_index_url('test.pypi.org/simple')
+
+    monkeypatch.setattr(config, 'skip_pypi_validation', True)
+    lzy.utils.pypi.validate_pypi_index_url('test.pypi.org/simple')
 
 
 @pytest.mark.skip(reason="vcr can't record ConnectionError and we don't wanna to do DNS requests")
 @pytest.mark.vcr
 def test_nonexisting_pypi_index_url():
+    assert not config.skip_pypi_validation
+
     with pytest.raises(lzy.exceptions.BadPypiIndex):
         lzy.utils.pypi.validate_pypi_index_url('https://foo.bar.example.com')
 
