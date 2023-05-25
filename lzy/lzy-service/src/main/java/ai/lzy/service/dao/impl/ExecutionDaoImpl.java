@@ -80,6 +80,16 @@ public class ExecutionDaoImpl implements ExecutionDao {
         FROM workflow_executions
         WHERE execution_id = ?""";
 
+    private static final String QUERY_SELECT_STOP_EXECUTION_DATA = """
+        SELECT
+            kafka_topic_json,
+            allocator_session_id,
+            portal_subject_id,
+            portal_vm_id,
+            portal_vm_address,
+        FROM workflow_executions
+        WHERE execution_id = ?""";
+
     private static final String QUERY_SELECT_ONE_EXPIRED_EXECUTION = """
         SELECT execution_id
         FROM workflow_executions
@@ -88,6 +98,11 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     private static final String QUERY_SELECT_KAFKA_TOPIC = """
         SELECT kafka_topic_json
+        FROM workflow_executions
+        WHERE execution_id = ?""";
+
+    private static final String QUERY_SELECT_EXEC_GRAPH_DATA = """
+        SELECT kafka_topic_json, storage_credentials
         FROM workflow_executions
         WHERE execution_id = ?""";
 
@@ -219,11 +234,11 @@ public class ExecutionDaoImpl implements ExecutionDao {
     {
         LOG.debug("Update execution data: { execId: {}, newPortalId: {} }", execId, portalId);
         DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_UPDATE_PORTAL_SUBJECT_ID)) {
+            try (var st = connection.prepareStatement(QUERY_UPDATE_PORTAL_ID)) {
                 st.setString(1, portalId);
                 st.setString(2, execId);
                 if (st.executeUpdate() < 1) {
-                    LOG.error("Cannot update portal iam subject id for unknown execution: { execId: {} }", execId);
+                    LOG.error("Cannot update portal id for unknown execution: { execId: {} }", execId);
                     throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
                 }
             }
@@ -311,10 +326,12 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public LMST.StorageConfig getStorageConfig(String execId) throws SQLException {
+    public LMST.StorageConfig getStorageConfig(String execId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
         LMST.StorageConfig[] credentials = {null};
 
-        DbOperation.execute(null, storage, connection -> {
+        DbOperation.execute(transaction, storage, connection -> {
             try (var st = connection.prepareStatement(QUERY_SELECT_STORAGE_CREDENTIALS)) {
                 st.setString(1, execId);
                 var rs = st.executeQuery();
@@ -371,8 +388,74 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public StopExecutionState loadStopExecState(String execId, TransactionHandle transaction) throws SQLException {
-        return null;
+    public StopExecutionState loadStopExecState(String execId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        StopExecutionState result = new StopExecutionState();
+
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_SELECT_STOP_EXECUTION_DATA)) {
+                st.setString(1, execId);
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    var kafkaJson = rs.getString(1);
+                    if (kafkaJson != null) {
+                        result.kafkaTopicDesc = objectMapper.readValue(kafkaJson, KafkaTopicDesc.class);
+                    }
+                    result.allocatorSessionId = rs.getString(2);
+                    result.portalSubjectId = rs.getString(3);
+                    result.portalVmId = rs.getString(4);
+                    result.portalApiAddress = rs.getString(5);
+                } else {
+                    LOG.error("Cannot get stop execution data for unknown execution: { execId : {} }", execId);
+                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
+                }
+            } catch (JsonProcessingException jpe) {
+                var mes = "Cannot deserialize value of kafka topic";
+                LOG.error(mes + ": {}", jpe.getMessage());
+                throw new RuntimeException(mes, jpe);
+            }
+        });
+        return result;
+    }
+
+    @Override
+    public ExecuteGraphData loadExecGraphData(String execId, TransactionHandle transaction) throws SQLException {
+        ExecuteGraphData[] result = {null};
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_SELECT_EXEC_GRAPH_DATA)) {
+                st.setString(1, execId);
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    var kafkaJson = rs.getString(1);
+                    if (kafkaJson == null) {
+                        LOG.error("Null kafka description for execution: { execId : {} }", execId);
+                        throw new RuntimeException("Null kafka description for execution with id='%s'".formatted(
+                            execId));
+                    }
+
+                    var storageCfgJson = rs.getString("storage_credentials");
+                    if (storageCfgJson == null) {
+                        LOG.error("Null storage credentials for execution: { execId : {} }", execId);
+                        throw new RuntimeException("Null storage credentials for execution with id='%s'".formatted(
+                            execId));
+                    }
+
+                    result[0] = new ExecuteGraphData(
+                        objectMapper.readValue(storageCfgJson, LMST.StorageConfig.class),
+                        objectMapper.readValue(kafkaJson, KafkaTopicDesc.class)
+                    );
+                } else {
+                    LOG.error("Cannot get exec graph data for unknown execution: { execId : {} }", execId);
+                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
+                }
+            } catch (JsonProcessingException jpe) {
+                var mes = "Cannot deserialize value of kafka topic or storage credentials";
+                LOG.error(mes + ": {}", jpe.getMessage());
+                throw new RuntimeException(mes, jpe);
+            }
+        });
+        return result[0];
     }
 
     @Override

@@ -21,6 +21,8 @@ public final class StopExecutionState {
     @Nullable
     public String portalApiAddress;
 
+    public StopExecutionState() {}
+
     public StopExecutionState(String finishPortalOpId, KafkaTopicDesc kafkaTopicDesc, String allocatorSessionId,
                               String deleteAllocSessionOpId, String portalSubjectId, String destroyChannelsOpId,
                               String portalVmId, String portalApiAddress)

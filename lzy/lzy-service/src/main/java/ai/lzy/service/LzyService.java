@@ -660,10 +660,13 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         try {
             var topicDesc = withRetries(LOG, () -> execDao().getKafkaTopicDesc(execId, null));
-
-            if (topicDesc != null) {
-                kafkaLogsListeners().listen(request, responseObserver, topicDesc);
+            if (topicDesc == null) {
+                LOG.error("Null kafka topic description of execution: { execId: {} }", execId);
+                responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(
+                    "Cannot obtain kafka source for stdout/stderr of execution").asRuntimeException());
+                return;
             }
+            kafkaLogsListeners().listen(request, responseObserver, topicDesc);
         } catch (Exception e) {
             LOG.error("Error while reading std slots for execution: { execId: {}, error: {} }", execId,
                 e.getMessage(), e);
