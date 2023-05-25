@@ -33,7 +33,7 @@ from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials, AzureCredentials
 from lzy.utils.event_loop import LzyEventLoop
-from lzy.utils.grpc import build_channel, build_token, retry, RetryConfig, build_headers, redefine_errors
+from lzy.utils.grpc import build_channel, build_token, retry, RetryConfig, build_headers, redefine_errors, metadata_with
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
 USER_ENV = "LZY_USER"
@@ -146,8 +146,8 @@ class LzyServiceClient:
             raise ValueError(f"Invalid storage credentials type {type(storage.credentials)}")
 
         request = StartWorkflowRequest(workflowName=workflow_name, snapshotStorage=s, storageName=storage_name)
-        response: StartWorkflowResponse = await self.__stub.StartWorkflow(request=request) if idempotency_key is None \
-            else await self.__stub.StartWorkflow(request=request, metadata=[("Idempotency-Key", idempotency_key)])
+        metadata = metadata_with(idempotency_key) if idempotency_key else None
+        response: StartWorkflowResponse = await self.__stub.StartWorkflow(request=request, metadata=metadata)
 
         return response.executionId
 
@@ -162,10 +162,8 @@ class LzyServiceClient:
     ) -> None:
         await self.__start()
         request = FinishWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
-        if idempotency_key is None:
-            await self.__stub.FinishWorkflow(request=request)
-        else:
-            await self.__stub.FinishWorkflow(request=request, metadata=[("Idempotency-Key", idempotency_key)])
+        metadata = metadata_with(idempotency_key) if idempotency_key else None
+        await self.__stub.FinishWorkflow(request=request, metadata=metadata)
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="abort workflow")
@@ -178,10 +176,8 @@ class LzyServiceClient:
     ) -> None:
         await self.__start()
         request = AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
-        if idempotency_key is None:
-            await self.__stub.AbortWorkflow(request=request)
-        else:
-            await self.__stub.AbortWorkflow(request=request, metadata=[("Idempotency-Key", idempotency_key)])
+        metadata = metadata_with(idempotency_key) if idempotency_key else None
+        await self.__stub.AbortWorkflow(request=request, metadata=metadata)
 
     async def read_std_slots(self, execution_id: str, logs_offset: int) -> AsyncIterator[StdlogMessage]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
@@ -209,8 +205,8 @@ class LzyServiceClient:
     ) -> str:
         await self.__start()
         request = ExecuteGraphRequest(workflowName=workflow_name, executionId=execution_id, graph=graph)
-        response: ExecuteGraphResponse = await self.__stub.ExecuteGraph(request=request) if idempotency_key is None \
-            else await self.__stub.ExecuteGraph(request=request, metadata=[("Idempotency-Key", idempotency_key)])
+        metadata = metadata_with(idempotency_key) if idempotency_key else None
+        response: ExecuteGraphResponse = await self.__stub.ExecuteGraph(request=request, metadata=metadata)
         return response.graphId
 
     @redefine_errors
@@ -243,10 +239,8 @@ class LzyServiceClient:
     async def graph_stop(self, *, execution_id: str, graph_id: str, idempotency_key: Optional[str] = None) -> None:
         await self.__start()
         request = StopGraphRequest(executionId=execution_id, graphId=graph_id)
-        if idempotency_key is None:
-            await self.__stub.StopGraph(request=request)
-        else:
-            await self.__stub.StopGraph(request=request, metadata=[("Idempotency-Key", idempotency_key)])
+        metadata = metadata_with(idempotency_key) if idempotency_key else None
+        await self.__stub.StopGraph(request=request, metadata=metadata)
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="get vm pools specs")

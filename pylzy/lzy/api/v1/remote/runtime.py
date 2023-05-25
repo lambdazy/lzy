@@ -108,6 +108,10 @@ class RemoteRuntime(Runtime):
             self.__storage = await self.__lzy_client.get_or_create_storage()
         return self.__storage
 
+    @staticmethod
+    def __gen_rand_idempt_key():
+        return str(uuid.uuid4())
+
     async def start(self, workflow: LzyWorkflow) -> str:
         storage = workflow.owner.storage_registry.default_config()
         storage_name = workflow.owner.storage_registry.default_storage_name()
@@ -117,7 +121,8 @@ class RemoteRuntime(Runtime):
             raise ValueError("Local FS storage cannot be default for remote runtime")
 
         exec_id = await self.__lzy_client.start_workflow(workflow_name=workflow.name, storage=storage,
-                                                         storage_name=storage_name, idempotency_key=str(uuid.uuid4()))
+                                                         storage_name=storage_name,
+                                                         idempotency_key=self.__gen_rand_idempt_key())
         self.__running = True
         self.__workflow = workflow
         self.__execution_id = exec_id
@@ -151,7 +156,7 @@ class RemoteRuntime(Runtime):
         _LOG.debug(f"Starting executing graph {graph}")
 
         graph_id = await client.execute_graph(workflow_name=workflow.name, execution_id=self.__execution_id,
-                                              graph=graph, idempotency_key=str(uuid.uuid4()))
+                                              graph=graph, idempotency_key=self.__gen_rand_idempt_key())
         if not graph_id:
             _LOG.debug("Results of all graph operations are cached. Execution graph is not started")
             return
@@ -196,7 +201,8 @@ class RemoteRuntime(Runtime):
         workflow = cast(LzyWorkflow, self.__workflow)
         try:
             await client.abort_workflow(workflow_name=workflow.name, execution_id=self.__execution_id,
-                                        reason="Workflow execution aborted", idempotency_key=str(uuid.uuid4()))
+                                        reason="Workflow execution aborted",
+                                        idempotency_key=self.__gen_rand_idempt_key())
             try:
                 if self.__std_slots_listener is not None:
                     await asyncio.wait_for(self.__std_slots_listener, timeout=1)
@@ -214,7 +220,7 @@ class RemoteRuntime(Runtime):
             return
         try:
             await client.finish_workflow(workflow_name=self.__workflow.name, execution_id=self.__execution_id,
-                                         reason="Workflow completed", idempotency_key=str(uuid.uuid4()))
+                                         reason="Workflow completed", idempotency_key=self.__gen_rand_idempt_key())
             try:
                 if self.__std_slots_listener is not None:
                     await asyncio.wait_for(self.__std_slots_listener, timeout=1)
