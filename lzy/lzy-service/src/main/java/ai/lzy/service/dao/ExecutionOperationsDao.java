@@ -20,6 +20,8 @@ public interface ExecutionOperationsDao {
 
     List<OpInfo> listOpsInfo(String execId, @Nullable TransactionHandle transaction) throws SQLException;
 
+    List<String> listOpsIdsToCancel(String execId, @Nullable TransactionHandle transaction) throws SQLException;
+
     record OpInfo(String opId, OpType type) {}
 
     enum OpType {

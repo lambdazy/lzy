@@ -67,10 +67,7 @@ public class LzyPrivateService extends LzyWorkflowPrivateServiceImplBase impleme
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage())) {
                     if (wfDao().setActiveExecutionIdToNull(execId, tx)) {
-                        var opsToCancel = execOpsDao().listOpsInfo(execId, tx).stream()
-                            .filter(opInfo -> opInfo.type() != ExecutionOperationsDao.OpType.STOP_EXECUTION)
-                            .map(ExecutionOperationsDao.OpInfo::opId)
-                            .toList();
+                        var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                         if (!opsToCancel.isEmpty()) {
                             opsDao().fail(opsToCancel, toProto(Status.CANCELLED.withDescription(
                                 "Execution was broke and aborted")), tx);

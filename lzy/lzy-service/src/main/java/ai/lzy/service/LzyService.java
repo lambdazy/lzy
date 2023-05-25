@@ -221,10 +221,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     }
                     wfDao().setActiveExecutionId(userId, wfName, null, tx);
 
-                    var opsToCancel = execOpsDao().listOpsInfo(execId, tx).stream()
-                        .filter(opInfo -> opInfo.type() != ExecutionOperationsDao.OpType.STOP_EXECUTION)
-                        .map(ExecutionOperationsDao.OpInfo::opId)
-                        .toList();
+                    var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                     if (!opsToCancel.isEmpty()) {
                         opsDao().fail(opsToCancel, toProto(Status.CANCELLED.withDescription("Execution was finished")),
                             tx);
@@ -322,10 +319,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     }
                     wfDao().setActiveExecutionId(userId, wfName, null, tx);
 
-                    var opsToCancel = execOpsDao().listOpsInfo(execId, tx).stream()
-                        .filter(opInfo -> opInfo.type() != ExecutionOperationsDao.OpType.STOP_EXECUTION)
-                        .map(ExecutionOperationsDao.OpInfo::opId)
-                        .toList();
+                    var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                     if (!opsToCancel.isEmpty()) {
                         opsDao().fail(opsToCancel, toProto(Status.CANCELLED.withDescription("Execution was aborted")),
                             tx);
