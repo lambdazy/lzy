@@ -11,17 +11,20 @@ public final class FinishExecution extends StopExecution {
     private final LongRunningServiceBlockingStub allocOpClient;
     private final LongRunningServiceBlockingStub channelsOpService;
 
+    private final List<Supplier<StepResult>> steps;
+
     private FinishExecution(FinishExecutionBuilder builder) {
         super(builder);
         this.allocOpClient = builder.allocOpClient;
         this.channelsOpService = builder.channelsOpClient;
+        this.steps = List.of(finishPortal(), waitFinishPortal(), freePortalVm(), deleteAllocSession(),
+            waitDeleteAllocSession(), deletePortalSubject(), destroyChannels(),
+            waitDestroyChannels(), deleteKafkaTopic(), this::complete);
     }
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(finishPortal(), waitFinishPortal(), freePortalVm(),
-            deleteAllocSession(), waitDeleteAllocSession(), deletePortalSubject(), destroyChannels(),
-            waitDestroyChannels(), deleteKafkaTopic(), this::complete);
+        return steps;
     }
 
     private Supplier<StepResult> finishPortal() {

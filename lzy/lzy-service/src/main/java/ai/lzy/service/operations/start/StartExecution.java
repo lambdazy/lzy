@@ -30,6 +30,8 @@ public final class StartExecution extends ExecutionOperationRunner {
     private final PortalVmSpec portalVmSpec;
     private final StartExecutionState state;
 
+    private final List<Supplier<StepResult>> steps;
+
     private StartExecution(StartExecutionBuilder builder) {
         super(builder);
         this.storageConfig = builder.storageConfig;
@@ -38,12 +40,13 @@ public final class StartExecution extends ExecutionOperationRunner {
         this.portalVmSpec = builder.portalVmSpec;
         this.abClient = builder.abClient;
         this.allocOpClient = builder.allocOpClient;
+        this.steps = List.of(createKafkaTopic(), createAllocatorSession(), createPortalSubject(),
+            startAllocationPortalVm(), waitAllocationPortalVm(), StartExecution.this::complete);
     }
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(createKafkaTopic(), createAllocatorSession(), createPortalSubject(), startAllocationPortalVm(),
-            waitAllocationPortalVm(), StartExecution.this::complete);
+        return steps;
     }
 
     private Supplier<StepResult> createKafkaTopic() {

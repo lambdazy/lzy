@@ -30,6 +30,8 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
     private final StorageClient storageClient;
     private final ExecuteGraphState state;
 
+    private final List<Supplier<StepResult>> steps;
+
     private ExecuteGraph(ExecuteGraphBuilder builder) {
         super(builder);
         this.kafkaConfig = builder.kafkaConfig;
@@ -38,11 +40,13 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
         this.graphsClient = builder.graphsClient;
         this.storageClient = builder.storageClient;
         this.state = builder.state;
+        this.steps = List.of(checkCache(), findZone(), buildDataflowGraph(), buildGraph(), executeGraph(),
+            this::complete);
     }
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(checkCache(), findZone(), buildDataflowGraph(), buildGraph(), executeGraph(), this::complete);
+        return steps;
     }
 
     private Supplier<StepResult> checkCache() {
