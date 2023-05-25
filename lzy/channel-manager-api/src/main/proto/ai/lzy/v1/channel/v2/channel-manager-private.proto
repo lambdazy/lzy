@@ -13,19 +13,10 @@ option java_package = "ai.lzy.v1.channel.v2";
 service LzyChannelManagerPrivate {
   rpc GetOrCreate (GetOrCreateRequest) returns (GetOrCreateResponse);
 
-  rpc Destroy (DestroyRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      response: "DestroyResponse"
-      metadata: "DestroyMetadata"
-    };
-  }
-
-  rpc DestroyAll (DestroyAllRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      response: "DestroyAllResponse"
-      metadata: "DestroyAllMetadata"
-    };
-  }
+  // Does nothing, just drops channel and all the peers from db
+  // All failed vms and other resources must be released by other services
+  rpc Destroy (DestroyRequest) returns (DestroyResponse) {}
+  rpc DestroyAll (DestroyAllRequest) returns (DestroyAllResponse) {}
 
   rpc Status (StatusRequest) returns (StatusResponse);
 
@@ -57,7 +48,6 @@ message GetOrCreateResponse {
 message DestroyRequest {
   string channel_id = 1;
   string reason     = 2;
-  bool force        = 3;  // If not set, channel manager will wait for unbinding of all receivers
 }
 
 message DestroyResponse {}
@@ -69,7 +59,6 @@ message DestroyMetadata {}
 message DestroyAllRequest {
   string execution_id = 1;
   string reason       = 2;
-  bool force          = 3;  // If not set, channel manager will wait for unbinding of all receivers
 }
 
 message DestroyAllResponse {}

@@ -12,21 +12,11 @@ option java_package = "ai.lzy.v1.channel.v2";
 
 service LzyChannelManager {
 
-  rpc Bind (BindRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      response: "BindResponse"
-      metadata: "BindMetadata"
-    };
-  }
+  rpc Bind (BindRequest) returns (BindResponse) {}
 
-  rpc Unbind (UnbindRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      response: "UnbindResponse"
-      metadata: "UnbindMetadata"
-    };
-  }
+  rpc Unbind (UnbindRequest) returns (UnbindResponse) {}
 
-  rpc ConnectionCompleted (ConnectionCompletedRequest) returns (ConnectionCompletedResponse);
+  rpc TransmissionCompleted (TransmissionCompletedRequest) returns (TransmissionCompletedResponse);
 
   rpc GetChannelsStatus (GetChannelsStatusRequest) returns (GetChannelsStatusResponse);
 
@@ -53,10 +43,10 @@ message BindResponse {
   // Data scheme of channel. Data of slot can be validated with this scheme
   common.DataScheme data_scheme                   = 1;
 
-  /* optional */common.PeerDescription connect_to = 2;  // If not set, peer must wait for connect call
+  // Target like in StartTransmission call in slots api
+  // If set, bound slot must start this new transmission
+  /* optional */ common.PeerDescription target = 2;
 }
-
-message BindMetadata {}
 
 // =========== Unbind ==============
 
@@ -65,8 +55,6 @@ message UnbindRequest {
 }
 
 message UnbindResponse {}
-
-message UnbindMetadata {}
 
 // =========== GetChannelsStatus ==============
 
@@ -79,10 +67,10 @@ message GetChannelsStatusResponse {
   repeated common.ChannelStatus channels = 1;
 }
 
-// =========== ConnectionCompleted ==============
+// =========== TransmissionCompleted ==============
 
-message ConnectionCompletedRequest {
-  string peer_id        = 1;
+message TransmissionCompletedRequest {
+  string loader_peer_id = 1;
   string target_peer_id = 2;
 
   oneof status {
@@ -97,10 +85,10 @@ message ConnectionCompletedRequest {
   message Succeeded {}
 }
 
-message ConnectionCompletedResponse {
+message TransmissionCompletedResponse {
 
-  // Set if previous connection was in failed state and there are other available peers
-  /* optional */ common.PeerDescription connect_to = 1;
+  // If set, loader must start new transmission to this new target
+  /* optional */ common.PeerDescription new_target = 1;
 }
 
 
