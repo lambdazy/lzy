@@ -1,11 +1,8 @@
 package ai.lzy.allocator.volume;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
-import ai.lzy.allocator.model.DiskVolumeDescription;
-import ai.lzy.allocator.model.NFSVolumeDescription;
 import ai.lzy.allocator.model.Volume;
-import ai.lzy.allocator.model.VolumeClaim;
-import ai.lzy.allocator.model.VolumeRequest;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import io.fabric8.kubernetes.api.model.*;
@@ -19,6 +16,7 @@ import org.apache.logging.log4j.Logger;
 import java.net.HttpURLConnection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Singleton
 public class KuberVolumeManager implements VolumeManager {
@@ -60,9 +58,11 @@ public class KuberVolumeManager implements VolumeManager {
 
             LOG.info("Creating persistent volume '{}' for disk {} of size {}Gi", volumeName, diskId, diskSize);
 
-            accessMode = Volume.AccessMode.READ_WRITE_ONCE;
+            accessMode = Objects.requireNonNullElse(diskVolumeDescription.accessMode(),
+                Volume.AccessMode.READ_WRITE_ONCE);
             resourceName = diskVolumeDescription.name();
             storageClass = EMPTY_STORAGE_CLASS_NAME;
+            var readOnly = accessMode == Volume.AccessMode.READ_ONLY_MANY;
             volume = new PersistentVolumeBuilder()
                 .withNewMetadata()
                     .withName(volumeName)
@@ -77,6 +77,7 @@ public class KuberVolumeManager implements VolumeManager {
                         .withDriver(YCLOUD_DISK_DRIVER)
                         .withFsType("ext4")
                         .withVolumeHandle(diskId)
+                        .withReadOnly(readOnly)
                         .build())
                 .endSpec()
                 .build();

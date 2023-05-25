@@ -11,6 +11,7 @@ import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.Any;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
@@ -475,7 +476,7 @@ public class DbSubjectService {
         return switch (type) {
             case USER -> new User(id);
             case WORKER -> new Worker(id);
-            case EXTERNAL -> new External(id, "");
+            case EXTERNAL -> new External(id, Any.getDefaultInstance());
         };
     }
 

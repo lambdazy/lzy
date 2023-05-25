@@ -36,7 +36,7 @@ public class ProtoConverter {
         return switch (subjectType) {
             case USER -> new User(subject.getId());
             case WORKER -> new Worker(subject.getId());
-            case EXTERNAL -> new External(subject.getId(), subject.getExternalDetails());
+            case EXTERNAL -> new External(subject.getId(), subject.getDetails());
         };
     }
 
@@ -81,7 +81,7 @@ public class ProtoConverter {
             builder.setType(SubjectType.WORKER.name());
         } else if (subject instanceof External external) {
             builder.setType(SubjectType.EXTERNAL.name());
-            builder.setExternalDetails(external.details());
+            builder.setDetails(external.details());
         } else {
             throw new RuntimeException("Unknown subject type " + subject.getClass());
         }

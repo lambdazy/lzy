@@ -1,5 +1,6 @@
 package ai.lzy.allocator.model;
 
+import ai.lzy.v1.VolumeApi;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -38,6 +39,15 @@ public record Volume(
                 case "ReadWriteMany" -> READ_WRITE_MANY;
                 case "ReadWriteOncePod" -> READ_WRITE_ONCE_POD;
                 default -> throw new IllegalArgumentException("Unknown volume access mode " + s);
+            };
+        }
+
+        public VolumeApi.DiskVolumeType.AccessMode toProto() {
+            return switch (this) {
+                case READ_WRITE_ONCE -> VolumeApi.DiskVolumeType.AccessMode.READ_WRITE_ONCE;
+                case READ_ONLY_MANY -> VolumeApi.DiskVolumeType.AccessMode.READ_ONLY_MANY;
+                case READ_WRITE_MANY -> VolumeApi.DiskVolumeType.AccessMode.READ_WRITE_MANY;
+                case READ_WRITE_ONCE_POD -> VolumeApi.DiskVolumeType.AccessMode.READ_WRITE_ONCE_POD;
             };
         }
     }

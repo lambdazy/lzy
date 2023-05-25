@@ -5,6 +5,7 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.*;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.exceptions.AuthException;
+import com.google.protobuf.Any;
 import jakarta.annotation.Nullable;
 
 import java.util.List;
@@ -30,7 +31,7 @@ public class SubjectServiceClientStub implements SubjectServiceClient {
         return switch (type) {
             case USER -> new User(id);
             case WORKER -> new Worker(id);
-            case EXTERNAL -> new External(id, "");
+            case EXTERNAL -> new External(id, Any.getDefaultInstance());
         };
     }
 
