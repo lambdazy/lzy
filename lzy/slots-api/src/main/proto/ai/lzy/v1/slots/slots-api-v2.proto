@@ -13,21 +13,23 @@ option java_package = "ai.lzy.v1.slots.v2";
 service LzySlotsApi {
 
   // Connect slot to remote peer (call from channel manager)
-  rpc ConnectPeer (ConnectPeerRequest) returns (ConnectPeerResponse) {}
+  // Transmission:
+  //     loader - active peer that connects to the target and then transmits data to/from it
+  //     target - passive peer that waits for connection from loader and then transmits data to/from it
+  rpc StartTransmission (StartTransmissionRequest) returns (StartTransmissionResponse) {}
 
   // Read data from slot (call from peer)
   rpc Read (ReadDataRequest) returns (stream ReadDataChunk);
 }
 
-// ============ Connect ==============
+// ============ StartTransmission ==============
 
-message ConnectPeerRequest {
-  string peer_id = 1;
-
+message StartTransmissionRequest {
+  string loader_peer_id = 1;
   common.PeerDescription target = 2;
 }
 
-message ConnectPeerResponse {}
+message StartTransmissionResponse {}
 
 // ============ OpenOutputSlot ==============
 
