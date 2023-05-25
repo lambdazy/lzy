@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.graph;
 
-option java_outer_classname = "GraphExecutor2";
+option java_outer_classname = "GraphExecutorApi2";
 option java_package = "ai.lzy.graph";
 
 import "ai/lzy/v1/long-running/operation.proto";

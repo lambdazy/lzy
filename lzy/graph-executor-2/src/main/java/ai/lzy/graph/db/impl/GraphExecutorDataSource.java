@@ -1,11 +1,11 @@
 package ai.lzy.graph.db.impl;
 
-import java.sql.Connection;
-
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.model.db.StorageImpl;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
+
+import java.sql.Connection;
 
 @Singleton
 @Requires(property = "graph-executor-2.database.enabled", value = "true")

@@ -15,6 +15,7 @@ public class DirectedGraph {
             this.output = output;
         }
     }
+
     private final Map<String, Set<Edge>> graph = new HashMap<>();  // Map from vertexId to set of edges
     private final Map<String, Set<Edge>> reversedGraph = new HashMap<>();  // Map from vertexId to set of reversed edges
     private final Set<Task> vertexes = new HashSet<>();

@@ -1,11 +1,11 @@
 package ai.lzy.graph.model;
 
-import java.util.List;
-
 import ai.lzy.graph.GraphExecutorApi2;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
+import java.util.List;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize

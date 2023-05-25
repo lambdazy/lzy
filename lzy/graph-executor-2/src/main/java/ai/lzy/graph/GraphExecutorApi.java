@@ -20,7 +20,8 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     @Inject
     public GraphExecutorApi(GraphService graphService,
-                            @Named("GraphExecutorOperationDao") OperationDao operationDao) {
+                            @Named("GraphExecutorOperationDao") OperationDao operationDao)
+    {
         this.graphService = graphService;
         this.operationDao = operationDao;
     }

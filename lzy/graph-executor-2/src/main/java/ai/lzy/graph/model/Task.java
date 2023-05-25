@@ -1,14 +1,14 @@
 package ai.lzy.graph.model;
 
-import java.util.List;
-import java.util.Map;
-
 import ai.lzy.v1.common.LMO;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.List;
+import java.util.Map;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize
@@ -26,6 +26,7 @@ public record Task(
     List<String> tasksDependedFrom
 ) {
     private static final Logger LOG = LogManager.getLogger(Task.class);
+
     public enum Status {
         WAITING, EXECUTING, COMPLETED, FAILED
     }

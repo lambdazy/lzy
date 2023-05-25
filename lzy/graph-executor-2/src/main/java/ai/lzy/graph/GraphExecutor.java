@@ -1,9 +1,5 @@
 package ai.lzy.graph;
 
-import java.io.IOException;
-
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
-
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
@@ -17,6 +13,10 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.io.IOException;
+
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 @Singleton
 public class GraphExecutor {

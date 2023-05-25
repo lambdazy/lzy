@@ -1,8 +1,5 @@
 package ai.lzy.graph.services.impl;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
 import ai.lzy.graph.GraphExecutorApi2;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.GraphDao;
@@ -16,6 +13,9 @@ import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Singleton
 public class GraphServiceImpl implements GraphService {
     private final TaskService taskService;
@@ -25,7 +25,8 @@ public class GraphServiceImpl implements GraphService {
 
     @Inject
     public GraphServiceImpl(ServiceConfig config, TaskService taskService, GraphDao graphDao,
-                            @Named("GraphExecutorOperationDao") OperationDao operationDao) {
+                            @Named("GraphExecutorOperationDao") OperationDao operationDao)
+    {
         this.taskService = taskService;
         this.graphDao = graphDao;
         this.operationDao = operationDao;

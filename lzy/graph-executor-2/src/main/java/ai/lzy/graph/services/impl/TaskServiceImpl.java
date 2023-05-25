@@ -1,14 +1,5 @@
 package ai.lzy.graph.services.impl;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.PriorityQueue;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.function.Consumer;
-
 import ai.lzy.graph.GraphExecutorApi2;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.TaskDao;
@@ -21,6 +12,15 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.HashSet;
+import java.util.Map;
+import java.util.PriorityQueue;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.function.Consumer;
 
 @Singleton
 public class TaskServiceImpl implements TaskService {
@@ -38,7 +38,8 @@ public class TaskServiceImpl implements TaskService {
 
     @Inject
     public TaskServiceImpl(ServiceConfig config, TaskDao taskDao,
-                           @Named("GraphExecutorOperationsExecutor") OperationsExecutor operationsExecutor) {
+                           @Named("GraphExecutorOperationsExecutor") OperationsExecutor operationsExecutor)
+    {
         this.taskDao = taskDao;
         this.operationsExecutor = operationsExecutor;
         this.config = config;
@@ -70,7 +71,8 @@ public class TaskServiceImpl implements TaskService {
         while (true) {
             Task task = readyTasks.peek();
             if (limitByUser.get(task.userId()) < config.getUserLimit() &&
-                limitByWorkflow.get(task.workflowId()) < config.getWorkflowLimit()) {
+                limitByWorkflow.get(task.workflowId()) < config.getWorkflowLimit())
+            {
                 //create and execute task operation
             }
         }

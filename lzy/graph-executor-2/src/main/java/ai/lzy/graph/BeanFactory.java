@@ -43,8 +43,7 @@ public class BeanFactory {
     @Singleton
     @Bean(preDestroy = "shutdown")
     @Named("GraphExecutorOperationsExecutor")
-    public OperationsExecutor operationsExecutor()
-    {
+    public OperationsExecutor operationsExecutor() {
         final Counter errors = Counter
             .build("executor_errors", "Executor unexpected errors")
             .subsystem("graphexecutor")
