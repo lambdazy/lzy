@@ -91,3 +91,15 @@ def vm_pool_spec_small(request, vm_pool_specs):
             break
 
     return set_unittest_fixture(request, result)
+
+
+@pytest.fixture(scope='session')
+def pypi_index_url():
+    from pypi_simple import PYPI_SIMPLE_ENDPOINT
+
+    return PYPI_SIMPLE_ENDPOINT
+
+
+@pytest.fixture(scope='session')
+def pypi_index_url_testing():
+    return 'https://test.pypi.org/simple'

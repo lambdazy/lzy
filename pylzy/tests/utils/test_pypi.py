@@ -1,20 +1,16 @@
 import pytest
 
-from pypi_simple import PYPI_SIMPLE_ENDPOINT
-
 import lzy.exceptions
 import lzy.utils.pypi
 from lzy import config
 
-TEST_PYPI = 'https://test.pypi.org/simple'
-
 
 @pytest.mark.vcr
-def test_valid_pypi_index_url():
+def test_valid_pypi_index_url(pypi_index_url, pypi_index_url_testing):
     assert not config.skip_pypi_validation
 
-    lzy.utils.pypi.validate_pypi_index_url(PYPI_SIMPLE_ENDPOINT)
-    lzy.utils.pypi.validate_pypi_index_url(TEST_PYPI)
+    lzy.utils.pypi.validate_pypi_index_url(pypi_index_url)
+    lzy.utils.pypi.validate_pypi_index_url(pypi_index_url_testing)
 
 
 @pytest.mark.vcr
@@ -29,15 +25,17 @@ def test_non_pypi_index_url(monkeypatch):
 
 
 @pytest.mark.block_network
-def test_pypi_index_url_without_a_scheme(monkeypatch):
+def test_pypi_index_url_without_a_scheme(monkeypatch, pypi_index_url_testing):
     assert not config.skip_pypi_validation
+
+    bad_pypi_index_url = pypi_index_url_testing.split('//')[1]
 
     # here will be no net interactions
     with pytest.raises(lzy.exceptions.BadPypiIndex):
-        lzy.utils.pypi.validate_pypi_index_url('test.pypi.org/simple')
+        lzy.utils.pypi.validate_pypi_index_url(bad_pypi_index_url)
 
     monkeypatch.setattr(config, 'skip_pypi_validation', True)
-    lzy.utils.pypi.validate_pypi_index_url('test.pypi.org/simple')
+    lzy.utils.pypi.validate_pypi_index_url(bad_pypi_index_url)
 
 
 @pytest.mark.skip(reason="vcr can't record ConnectionError and we don't wanna to do DNS requests")
@@ -50,21 +48,21 @@ def test_nonexisting_pypi_index_url():
 
 
 @pytest.mark.vcr
-def test_check_package_version_exists():
+def test_check_package_version_exists(pypi_index_url_testing):
     assert lzy.utils.pypi.check_package_version_exists(
-        pypi_index_url=TEST_PYPI,
+        pypi_index_url=pypi_index_url_testing,
         name='pip',
         version='10.0.0',
     )
 
     assert not lzy.utils.pypi.check_package_version_exists(
-        pypi_index_url=TEST_PYPI,
+        pypi_index_url=pypi_index_url_testing,
         name='pip',
         version='9999.9999.9999',
     )
 
     assert not lzy.utils.pypi.check_package_version_exists(
-        pypi_index_url=TEST_PYPI,
+        pypi_index_url=pypi_index_url_testing,
         name='my-awesome-non-existing-package',
         version='10.0.0',
     )
