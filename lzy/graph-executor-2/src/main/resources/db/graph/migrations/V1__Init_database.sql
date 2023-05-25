@@ -35,6 +35,8 @@ CREATE TABLE graph
     user_id               TEXT                           NOT NULL,
     graph_description     TEXT                           NOT NULL,
     error_description     TEXT                           NULL,
+    failed_task_id        TEXT                           NULL,
+    failed_task_name      TEXT                           NULL,
     last_updated          TIMESTAMP                      NOT NULL,
     owner_instance_id     TEXT                           NOT NULL
 );

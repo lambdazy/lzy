@@ -6,13 +6,13 @@ import ai.lzy.graph.db.TaskDao;
 import ai.lzy.graph.model.Task;
 import ai.lzy.graph.services.TaskService;
 import ai.lzy.longrunning.OperationsExecutor;
-import ai.lzy.model.db.exceptions.DaoException;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.SQLException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.PriorityQueue;
@@ -62,7 +62,7 @@ public class TaskServiceImpl implements TaskService {
         try {
             taskDao.getTasksByInstance(instanceId);
             taskDao.getTasksOperationsByInstance(instanceId);
-        } catch (DaoException e) {
+        } catch (SQLException e) {
             LOG.error(e);
         }
     }
