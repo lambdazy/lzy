@@ -199,11 +199,11 @@ class LzyServiceClient:
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="execute graph")
     async def execute_graph(
-            self, *,
-            workflow_name: str,
-            execution_id: str,
-            graph: Graph,
-            idempotency_key: Optional[str] = None
+        self, *,
+        workflow_name: str,
+        execution_id: str,
+        graph: Graph,
+        idempotency_key: Optional[str] = None
     ) -> str:
         await self.__start()
         res: ExecuteGraphResponse = await self.__stub.ExecuteGraph(
