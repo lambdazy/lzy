@@ -25,10 +25,15 @@ public interface PeerDao {
 
     /**
      * Marks peer as less prior
+     * @return new priority
      */
-    void decrementPriority(String peerId, TransactionHandle tx) throws SQLException;
+    int decrementPriority(String peerId, TransactionHandle tx) throws SQLException;
 
+    @Nullable
     Peer drop(String peerId, TransactionHandle tx) throws SQLException;
+
+    @Nullable
+    Peer get(String peerId, TransactionHandle tx) throws SQLException;
 
     enum Priority {
         PRIMARY(10),

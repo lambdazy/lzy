@@ -44,7 +44,7 @@ message BindResponse {
   common.DataScheme data_scheme                   = 1;
 
   // If not set, peer must wait for connect call
-  repeated common.PeerDescription connect_to = 2;
+  common.PeerDescription connect_to = 2;
 }
 
 // =========== Unbind ==============
