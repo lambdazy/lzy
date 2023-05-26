@@ -33,6 +33,7 @@ import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.util.kafka.ScramKafkaAdminClient;
+import ai.lzy.util.kafka.test.KafkaTestUtils;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
@@ -68,8 +69,6 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.TopicPartition;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.*;
@@ -77,18 +76,15 @@ import org.junit.rules.Timeout;
 import scala.collection.immutable.Map$;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.LockSupport;
-import java.util.stream.Collectors;
 
 import static ai.lzy.channelmanager.ProtoConverter.makeChannelStatusCommand;
 import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
@@ -98,6 +94,7 @@ import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.kafka.test.KafkaTestUtils.readKafkaTopic;
 import static org.junit.Assert.assertTrue;
 
 public class PortalTestBase {
@@ -106,7 +103,7 @@ public class PortalTestBase {
     @Rule
     public Timeout globalTimeout = Timeout.seconds(60);
 
-    protected static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
+    private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
 
     private static final int S3_PORT = 8001;
@@ -146,7 +143,7 @@ public class PortalTestBase {
 
     protected static final IdGenerator idGenerator = new RandomIdGenerator();
 
-    protected ReadKafkaTopicFinisher finishStdlogsReader;
+    protected KafkaTestUtils.ReadKafkaTopicFinisher finishStdlogsReader;
     protected LMO.KafkaTopicDescription stdlogsTopic;
     protected ArrayBlockingQueue<Object> stdlogs;
 
@@ -233,9 +230,9 @@ public class PortalTestBase {
         startPortal();
         startS3();
 
-        finishStdlogsReader = new ReadKafkaTopicFinisher();
+        finishStdlogsReader = new KafkaTestUtils.ReadKafkaTopicFinisher();
         stdlogsTopic = prepareKafkaTopic("kafkauser", "password", idGenerator.generate("stdlogs-", 5));
-        stdlogs = readKafkaTopic(stdlogsTopic.getTopic(), finishStdlogsReader);
+        stdlogs = readKafkaTopic(kafkaBootstrapServer, stdlogsTopic.getTopic(), finishStdlogsReader);
     }
 
     @After
@@ -390,11 +387,7 @@ public class PortalTestBase {
     }
 
     protected synchronized WorkerDesc startWorker() {
-        return startWorker(false);
-    }
-
-    protected synchronized WorkerDesc startWorker(boolean force) {
-        if (!force && worker.get() != null) {
+        if (worker.get() != null) {
             var ref = worker.get();
             worker.set(null);
             return ref;
@@ -423,26 +416,16 @@ public class PortalTestBase {
         var workerChannel = ai.lzy.util.grpc.GrpcUtils.newGrpcChannel("localhost:" + config.getApiPort(),
             WorkerApiGrpc.SERVICE_NAME);
 
-        var workerStub = WorkerApiGrpc.newBlockingStub(workerChannel);
-        workerStub = newBlockingClient(workerStub, "worker",
-            () -> iamTestContext.getClientConfig().createRenewableToken().get().token());
+        var stub = WorkerApiGrpc.newBlockingStub(workerChannel);
+
+        stub = ai.lzy.util.grpc.GrpcUtils.newBlockingClient(stub, "worker", () -> iamTestContext.getClientConfig()
+            .createRenewableToken().get().token());
 
         var opStub = LongRunningServiceGrpc.newBlockingStub(workerChannel);
-        opStub = newBlockingClient(opStub, "worker",
-            () -> iamTestContext.getClientConfig().createRenewableToken().get().token());
+        opStub = ai.lzy.util.grpc.GrpcUtils.newBlockingClient(opStub, "worker", () -> iamTestContext.getClientConfig()
+            .createRenewableToken().get().token());
 
-        var slotsChannel = ai.lzy.util.grpc.GrpcUtils.newGrpcChannel("localhost:" + config.getFsPort(),
-            LzySlotsApiGrpc.SERVICE_NAME);
-
-        var slotsStub = LzySlotsApiGrpc.newBlockingStub(slotsChannel);
-        slotsStub = newBlockingClient(slotsStub, "worker",
-            () -> iamTestContext.getClientConfig().createRenewableToken().get().token());
-
-        var slotsOpStub = LongRunningServiceGrpc.newBlockingStub(slotsChannel);
-        slotsOpStub = newBlockingClient(slotsOpStub, "worker",
-            () -> iamTestContext.getClientConfig().createRenewableToken().get().token());
-
-        return new WorkerDesc(worker, workerChannel, workerStub, opStub, slotsChannel, slotsStub, slotsOpStub);
+        return new WorkerDesc(worker, workerChannel, stub, opStub);
     }
 
     protected boolean waitPortalCompleted() {
@@ -574,164 +557,6 @@ public class PortalTestBase {
         return values;
     }
 
-    public record EosMessage(String taskId, String stream) {}
-
-    public record StdlogMessage(String taskId, String stream, String line) {
-        public static StdlogMessage out(String taskId, String line) {
-            return new StdlogMessage(taskId, "out", line);
-        }
-        public static StdlogMessage err(String taskId, String line) {
-            return new StdlogMessage(taskId, "err", line);
-        }
-    }
-
-    public static final class ReadKafkaTopicFinisher {
-        private volatile boolean finish = false;
-        private volatile boolean consumerFinished = false;
-
-        public boolean shouldFinish() {
-            return finish;
-        }
-
-        public synchronized void finish() {
-            System.out.println(" --> finish kafka topic reader...");
-            if (finish) {
-                return;
-            }
-            finish = true;
-            while (!consumerFinished) {
-                LockSupport.parkNanos(Duration.ofMillis(10).toNanos());
-            }
-        }
-
-        void consumerFinished() {
-            consumerFinished = true;
-        }
-    }
-
-    /**
-     * @return Exception on error
-     *         EosMessage on EOS
-     *         StdlogMessage for each output line
-     */
-    protected static ArrayBlockingQueue<Object> readKafkaTopic(String topicName, ReadKafkaTopicFinisher finisher) {
-        var values = new ArrayBlockingQueue<>(100);
-
-        var props = new KafkaHelper(KafkaConfig.of(kafkaBootstrapServer)).toProperties();
-        props.put("group.id", idGenerator.generate("portal-test-"));
-
-        var thread = new Thread(() -> {
-            try (var consumer = new KafkaConsumer<String, byte[]>(props)) {
-                var partition = new TopicPartition(topicName, /* partition */ 0);
-
-                consumer.assign(List.of(partition));
-                consumer.seek(partition, 0);
-
-                var ts = System.currentTimeMillis();
-
-                while (!finisher.shouldFinish()) {
-                    var records = consumer.poll(Duration.ofMillis(100));
-                    if (records.count() <= 0) {
-                        var now = System.currentTimeMillis();
-                        if (ts - now > 5000) {
-                            System.out.println("... waiting for data at topic " + topicName);
-                            ts = now;
-                        }
-                        continue;
-                    }
-
-                    ts = System.currentTimeMillis();
-
-                    // consumer.commitSync();
-
-                    for (var record : records) {
-                        var taskId = record.key();
-                        var stream = new String(record.headers().lastHeader("stream").value(), StandardCharsets.UTF_8);
-
-                        var eos = record.headers().lastHeader("eos") != null;
-                        if (eos) {
-                            var msg = new EosMessage(taskId, stream);
-                            System.out.println(" ::: got " + msg);
-                            values.offer(msg);
-                            continue;
-                        }
-
-                        var lines = new String(record.value(), StandardCharsets.UTF_8);
-                        for (var line : lines.split("\n")) {
-                            var msg = new StdlogMessage(taskId, stream, line);
-                            System.out.println(" ::: got " + msg);
-                            values.offer(msg);
-                        }
-                    }
-                }
-            } catch (Exception e) {
-                LOG.error("Cannot read from topic {}: {}", topicName, e.getMessage());
-                values.offer(e);
-            } finally {
-                finisher.consumerFinished();
-            }
-        });
-        thread.start();
-
-        return values;
-    }
-
-    protected void assertStdLogs(BlockingQueue<Object> logs, List<StdlogMessage> stdout, List<StdlogMessage> stderr)
-        throws InterruptedException
-    {
-        var expectedStdout = new HashMap<String, Queue<StdlogMessage>>();
-        var expectedStderr = new HashMap<String, Queue<StdlogMessage>>();
-        var eosStdout = new HashSet<String>();
-        var eosStderr = new HashSet<String>();
-
-        record TaskStream(String taskId, String stream) {}
-
-        var notFinishedStreams = new HashSet<TaskStream>();
-
-        for (var out : stdout) {
-            expectedStdout.computeIfAbsent(out.taskId, __ -> new ArrayDeque<>()).add(out);
-            notFinishedStreams.add(new TaskStream(out.taskId, "out"));
-            notFinishedStreams.add(new TaskStream(out.taskId, "err"));
-        }
-
-        for (var err : stderr) {
-            expectedStderr.computeIfAbsent(err.taskId, __ -> new ArrayDeque<>()).add(err);
-            notFinishedStreams.add(new TaskStream(err.taskId, "out"));
-            notFinishedStreams.add(new TaskStream(err.taskId, "err"));
-        }
-
-        System.out.println(" --> waiting for streams: " +
-            notFinishedStreams.stream().map(Objects::toString).collect(Collectors.joining(",")));
-
-        while (!notFinishedStreams.isEmpty()) {
-            var log = logs.take();
-            if (log instanceof StdlogMessage msg) {
-                var remains = "out".equals(msg.stream)
-                    ? expectedStdout.get(msg.taskId)
-                    : expectedStderr.get(msg.taskId);
-
-                Assert.assertNotNull(remains);
-                Assert.assertFalse(remains.isEmpty());
-                Assert.assertEquals(remains.remove(), msg);
-            } else if (log instanceof EosMessage msg) {
-                var set = "out".equals(msg.stream) ? eosStdout : eosStderr;
-                Assert.assertTrue(set.add(msg.taskId));
-
-                var remains = "out".equals(msg.stream)
-                    ? expectedStdout.get(msg.taskId)
-                    : expectedStderr.get(msg.taskId);
-
-                Assert.assertTrue(remains == null || remains.isEmpty());
-                notFinishedStreams.remove(new TaskStream(msg.taskId, msg.stream));
-
-                System.out.println(" --> waiting for streams: " +
-                    notFinishedStreams.stream().map(Objects::toString).collect(Collectors.joining(",")));
-            } else {
-                Assert.fail(log.toString());
-            }
-        }
-    }
-
     public record User(
         String id,
         IamClient.GeneratedCredentials credentials
@@ -804,10 +629,7 @@ public class PortalTestBase {
         Worker worker,
         ManagedChannel channel,
         WorkerApiGrpc.WorkerApiBlockingStub workerStub,
-        LongRunningServiceGrpc.LongRunningServiceBlockingStub opStub,
-        ManagedChannel slotsChannel,
-        LzySlotsApiGrpc.LzySlotsApiBlockingStub slotsStub,
-        LongRunningServiceGrpc.LongRunningServiceBlockingStub slotsOpStub
+        LongRunningServiceGrpc.LongRunningServiceBlockingStub opStub
     ) implements AutoCloseable
     {
 
