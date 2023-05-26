@@ -390,7 +390,11 @@ public class PortalTestBase {
     }
 
     protected synchronized WorkerDesc startWorker() {
-        if (worker.get() != null) {
+        return startWorker(false);
+    }
+
+    protected synchronized WorkerDesc startWorker(boolean force) {
+        if (!force && worker.get() != null) {
             var ref = worker.get();
             worker.set(null);
             return ref;

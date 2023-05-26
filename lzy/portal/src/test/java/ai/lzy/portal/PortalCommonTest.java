@@ -386,7 +386,7 @@ public class PortalCommonTest extends PortalTestBase {
     // TODO: move to the Worker tests
     @Test
     public void slotsApiUnavailableUntilExecution() throws InterruptedException {
-        try (var worker = startWorker()) {
+        try (var worker = startWorker(true)) {
             // SlotsApi Ops unavailable
             var e1 = assertThrows(StatusRuntimeException.class, () ->
                 worker.slotsOpStub().get(LongRunning.GetOperationRequest.getDefaultInstance()));
@@ -431,7 +431,7 @@ public class PortalCommonTest extends PortalTestBase {
         }
         var hackerToken = hackerWorker.credentials().credentials().token();
 
-        try (var worker = startWorker()) {
+        try (var worker = startWorker(true)) {
             var snapshotId = idGenerator.generate("snapshot-");
             var taskOutputSlot = idGenerator.generate("/");
             var taskId = startTask(
