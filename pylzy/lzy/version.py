@@ -5,3 +5,7 @@ __version__ = (
     .read()
     .rstrip()
 )
+
+__homepage__ = 'https://lzy.ai'
+
+__user_agent__ = f'pylzy {__version__} ({__homepage__})'
