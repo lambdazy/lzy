@@ -60,9 +60,10 @@ public class CheckAccessInterceptor implements ServerInterceptor {
         var subject = auth.getSubject();
         var credentials = auth.getCredentials();
 
+        LOG.debug("Check access for {} to {}", subject, authConf);
+
         boolean ok;
         try {
-            LOG.info("!!! Check access for {} to {}", subject, authConf);
             ok = accessServiceClient.withToken(() -> credentials)
                 .hasResourcePermission(subject, authConf.resource(), authConf.permission());
         } catch (AuthException e) {
