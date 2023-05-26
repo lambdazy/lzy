@@ -45,7 +45,8 @@ public class AllowSubjectOnlyInterceptor implements ServerInterceptor {
         if (allow) {
             return next.startCall(call, headers);
         } else {
-            LOG.warn("Subject '{}' is not allowed by the policy {}.", subject.str(), subjectFilter);
+            LOG.warn("Subject '{}' is not allowed to call {} by the policy {}.",
+                subject.str(), call.getMethodDescriptor().getFullMethodName(), subjectFilter);
 
             call.close(Status.PERMISSION_DENIED, new Metadata());
             return new ServerCall.Listener<>() {};

@@ -376,6 +376,8 @@ public class PortalTestBase {
                 .build())
             .setTaskId(uniqId)
             .setExecutionId(executionId)
+            .setWorkflowName(workflowName)
+            .setUserId(userId)
             .build());
 
         while (!op.getDone()) {
