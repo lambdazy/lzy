@@ -5,6 +5,7 @@ import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.*;
@@ -16,6 +17,7 @@ public class ProtoConverter {
         return switch (resource.getType()) {
             case Workflow.TYPE -> new Workflow(resource.getId());
             case Whiteboard.TYPE -> new Whiteboard(resource.getId());
+            case Root.TYPE -> Root.INSTANCE;
             default -> throw new RuntimeException("Unknown Resource type::" + resource.getType());
         };
     }
