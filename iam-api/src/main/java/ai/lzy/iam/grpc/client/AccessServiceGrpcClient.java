@@ -6,7 +6,6 @@ import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.utils.ProtoConverter;
 import ai.lzy.util.auth.credentials.Credentials;
-import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LACS;
@@ -26,10 +25,6 @@ public class AccessServiceGrpcClient implements AccessClient {
         this.channel = channel;
         this.accessService = GrpcUtils.newBlockingClient(
             LzyAccessServiceGrpc.newBlockingStub(channel), clientName, () -> tokenSupplier.get().token());
-    }
-
-    public AccessServiceGrpcClient(String clientName, Channel channel) {
-        this(clientName, channel, () -> new JwtCredentials("stub"));
     }
 
     @Override

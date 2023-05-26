@@ -29,15 +29,3 @@ Configuration:
 
       - name: GrpcServer
         level: error
-
-      - name: kafka
-        level: error
-
-      - name: state.change.logger # kafka.controller.StateChangeLogger
-        level: error
-
-      - name: org.flywaydb
-        level: error
-
-      - name: org.apache
-        level: error

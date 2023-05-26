@@ -33,9 +33,4 @@ public class Root implements AuthResource {
         final Root that = (Root) o;
         return this.resourceId().equals(that.resourceId()) && this.type().equals(that.type());
     }
-
-    @Override
-    public String toString() {
-        return "Root";
-    }
 }
