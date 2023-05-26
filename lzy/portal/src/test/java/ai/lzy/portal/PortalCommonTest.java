@@ -2,8 +2,12 @@ package ai.lzy.portal;
 
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.test.GrpcUtils;
+import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.slots.LSA;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import io.findify.s3mock.provider.InMemoryProvider;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -20,6 +24,8 @@ import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
+import static org.junit.Assert.assertThrows;
 
 public class PortalCommonTest extends PortalTestBase {
 
@@ -372,5 +378,41 @@ public class PortalCommonTest extends PortalTestBase {
         var result3 = new String(Files.readAllBytes(tmpFile3.toPath()));
         Assert.assertEquals("i-am-a-hacker\n", result2);
         Assert.assertEquals("i-am-a-hacker\n", result3);
+    }
+
+    @Test
+    public void slotsApiUnavailableUntilExecution() throws InterruptedException {
+        try (var worker = startWorker()) {
+            // SlotsApi Ops unavailable
+            var e1 = assertThrows(StatusRuntimeException.class, () ->
+                worker.slotsOpStub().get(LongRunning.GetOperationRequest.getDefaultInstance()));
+            Assert.assertEquals(e1.toString(), Status.Code.UNAVAILABLE, e1.getStatus().getCode());
+
+            // SlotsApi unavailable
+            var e2 = assertThrows(StatusRuntimeException.class, () ->
+                worker.slotsStub().createSlot(LSA.CreateSlotRequest.getDefaultInstance()));
+            Assert.assertEquals(e2.toString(), Status.Code.UNAVAILABLE, e2.getStatus().getCode());
+
+            // WorkerApi Ops available
+            var e3 = assertThrows(StatusRuntimeException.class, () ->
+                worker.opStub().get(LongRunning.GetOperationRequest.newBuilder().setOperationId("1").build()));
+            Assert.assertEquals(e3.toString(), Status.Code.NOT_FOUND, e3.getStatus().getCode());
+
+
+            var snapshotId = idGenerator.generate("snapshot-");
+            var taskOutputSlot = idGenerator.generate("/");
+            var taskId = startTask(
+                "echo 'i-am-a-hacker' > $LZY_MOUNT%s && echo 'hello'".formatted(taskOutputSlot),
+                taskOutputSlot, worker, true, snapshotId, stdlogsTopic);
+
+            // SlotsApi Ops available
+            var e4 = assertThrows(StatusRuntimeException.class, () ->
+                worker.slotsOpStub().get(LongRunning.GetOperationRequest.newBuilder().setOperationId("1").build()));
+            Assert.assertEquals(e4.toString(), Status.Code.NOT_FOUND, e4.getStatus().getCode());
+
+            waitPortalCompleted();
+            assertStdLogs(stdlogs, List.of(StdlogMessage.out(taskId, "hello")), List.of());
+            finishStdlogsReader.finish();
+        }
     }
 }

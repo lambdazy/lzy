@@ -415,19 +415,30 @@ public class PortalTestBase {
             Assert.fail("Failed to create worker user: " + e.getMessage());
             throw new RuntimeException(e);
         }
+
         var workerChannel = ai.lzy.util.grpc.GrpcUtils.newGrpcChannel("localhost:" + config.getApiPort(),
             WorkerApiGrpc.SERVICE_NAME);
 
-        var stub = WorkerApiGrpc.newBlockingStub(workerChannel);
-
-        stub = ai.lzy.util.grpc.GrpcUtils.newBlockingClient(stub, "worker", () -> iamTestContext.getClientConfig()
-            .createRenewableToken().get().token());
+        var workerStub = WorkerApiGrpc.newBlockingStub(workerChannel);
+        workerStub = newBlockingClient(workerStub, "worker",
+            () -> iamTestContext.getClientConfig().createRenewableToken().get().token());
 
         var opStub = LongRunningServiceGrpc.newBlockingStub(workerChannel);
-        opStub = ai.lzy.util.grpc.GrpcUtils.newBlockingClient(opStub, "worker", () -> iamTestContext.getClientConfig()
-            .createRenewableToken().get().token());
+        opStub = newBlockingClient(opStub, "worker",
+            () -> iamTestContext.getClientConfig().createRenewableToken().get().token());
 
-        return new WorkerDesc(worker, workerChannel, stub, opStub);
+        var slotsChannel = ai.lzy.util.grpc.GrpcUtils.newGrpcChannel("localhost:" + config.getFsPort(),
+            LzySlotsApiGrpc.SERVICE_NAME);
+
+        var slotsStub = LzySlotsApiGrpc.newBlockingStub(slotsChannel);
+        slotsStub = newBlockingClient(slotsStub, "worker",
+            () -> iamTestContext.getClientConfig().createRenewableToken().get().token());
+
+        var slotsOpStub = LongRunningServiceGrpc.newBlockingStub(slotsChannel);
+        slotsOpStub = newBlockingClient(slotsOpStub, "worker",
+            () -> iamTestContext.getClientConfig().createRenewableToken().get().token());
+
+        return new WorkerDesc(worker, workerChannel, workerStub, opStub, slotsStub, slotsOpStub);
     }
 
     protected boolean waitPortalCompleted() {
@@ -789,7 +800,9 @@ public class PortalTestBase {
         Worker worker,
         ManagedChannel channel,
         WorkerApiGrpc.WorkerApiBlockingStub workerStub,
-        LongRunningServiceGrpc.LongRunningServiceBlockingStub opStub
+        LongRunningServiceGrpc.LongRunningServiceBlockingStub opStub,
+        LzySlotsApiGrpc.LzySlotsApiBlockingStub slotsStub,
+        LongRunningServiceGrpc.LongRunningServiceBlockingStub slotsOpStub
     ) implements AutoCloseable
     {
 
