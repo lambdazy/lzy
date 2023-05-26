@@ -168,10 +168,6 @@
             <artifactId>bcprov-jdk18on</artifactId>
         </dependency>
         <dependency>
-            <groupId>ru.yandex.clickhouse</groupId>
-            <artifactId>clickhouse-jdbc</artifactId>
-        </dependency>
-        <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-test</artifactId>
             <version>${project.version}</version>

@@ -34,7 +34,6 @@
         <bcprov-jdk18on.version>1.71.1</bcprov-jdk18on.version>
         <c3p0.version>0.9.5.5</c3p0.version>
         <checkstyle.version>9.3</checkstyle.version>
-        <clickhouse.version>0.3.1</clickhouse.version>
         <commons-cli.version>1.4</commons-cli.version>
         <commons-collections4.version>4.4</commons-collections4.version>
         <commons-io.version>2.11.0</commons-io.version>
@@ -657,11 +656,6 @@
                 <groupId>pl.pragmatists</groupId>
                 <artifactId>JUnitParams</artifactId>
                 <version>${JUnitParams.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>ru.yandex.clickhouse</groupId>
-                <artifactId>clickhouse-jdbc</artifactId>
-                <version>${clickhouse.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.projectlombok</groupId>
