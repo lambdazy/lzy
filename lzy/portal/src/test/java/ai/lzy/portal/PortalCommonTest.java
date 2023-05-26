@@ -3,7 +3,9 @@ package ai.lzy.portal;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.slots.LSA;
+import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import io.findify.s3mock.provider.InMemoryProvider;
 import io.grpc.Status;
@@ -25,6 +27,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static org.junit.Assert.assertThrows;
 
 public class PortalCommonTest extends PortalTestBase {
@@ -380,6 +383,7 @@ public class PortalCommonTest extends PortalTestBase {
         Assert.assertEquals("i-am-a-hacker\n", result3);
     }
 
+    // TODO: move to the Worker tests
     @Test
     public void slotsApiUnavailableUntilExecution() throws InterruptedException {
         try (var worker = startWorker()) {
@@ -413,6 +417,47 @@ public class PortalCommonTest extends PortalTestBase {
             waitPortalCompleted();
             assertStdLogs(stdlogs, List.of(StdlogMessage.out(taskId, "hello")), List.of());
             finishStdlogsReader.finish();
+        }
+    }
+
+    // TODO: move to the Worker tests
+    @Test
+    public void workerAccessPermissions() throws Exception {
+        User hackerWorker;
+        try (final var iamClient = new IamClient(iamTestContext.getClientConfig())) {
+            hackerWorker = iamClient.createUser("hacker-worker");
+            iamClient.addWorkflowAccess(hackerWorker.id(), "hacker-user", "wf");
+            System.out.println("--> hacker: " + hackerWorker.id());
+        }
+        var hackerToken = hackerWorker.credentials().credentials().token();
+
+        try (var worker = startWorker()) {
+            var snapshotId = idGenerator.generate("snapshot-");
+            var taskOutputSlot = idGenerator.generate("/");
+            var taskId = startTask(
+                "echo 'i-am-a-hacker' > $LZY_MOUNT%s && echo 'hello'".formatted(taskOutputSlot),
+                taskOutputSlot, worker, true, snapshotId, stdlogsTopic);
+
+            var slotsApi = newBlockingClient(
+                LzySlotsApiGrpc.newBlockingStub(worker.slotsChannel()), "hacker", () -> hackerToken);
+
+            var slotsOp = newBlockingClient(
+                LongRunningServiceGrpc.newBlockingStub(worker.slotsChannel()), "hacker", () -> hackerToken);
+
+            // no SlotsApi control plane
+            var e1 = assertThrows(StatusRuntimeException.class, () ->
+                slotsApi.createSlot(LSA.CreateSlotRequest.getDefaultInstance()));
+            Assert.assertEquals(e1.toString(), Status.Code.PERMISSION_DENIED, e1.getStatus().getCode());
+
+            // no SlotsApi data plane
+            var e2 = assertThrows(StatusRuntimeException.class, () ->
+                slotsApi.openOutputSlot(LSA.SlotDataRequest.getDefaultInstance()).next());
+            Assert.assertEquals(e2.toString(), Status.Code.PERMISSION_DENIED, e2.getStatus().getCode());
+
+            // no SlotsApi Ops plane
+            var e3 = assertThrows(StatusRuntimeException.class, () ->
+                slotsOp.get(LongRunning.GetOperationRequest.getDefaultInstance()));
+            Assert.assertEquals(e3.toString(), Status.Code.PERMISSION_DENIED, e3.getStatus().getCode());
         }
     }
 }

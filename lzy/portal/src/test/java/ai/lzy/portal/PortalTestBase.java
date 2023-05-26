@@ -106,7 +106,7 @@ public class PortalTestBase {
     @Rule
     public Timeout globalTimeout = Timeout.seconds(60);
 
-    private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
+    protected static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
 
     private static final int S3_PORT = 8001;
@@ -438,7 +438,7 @@ public class PortalTestBase {
         slotsOpStub = newBlockingClient(slotsOpStub, "worker",
             () -> iamTestContext.getClientConfig().createRenewableToken().get().token());
 
-        return new WorkerDesc(worker, workerChannel, workerStub, opStub, slotsStub, slotsOpStub);
+        return new WorkerDesc(worker, workerChannel, workerStub, opStub, slotsChannel, slotsStub, slotsOpStub);
     }
 
     protected boolean waitPortalCompleted() {
@@ -801,6 +801,7 @@ public class PortalTestBase {
         ManagedChannel channel,
         WorkerApiGrpc.WorkerApiBlockingStub workerStub,
         LongRunningServiceGrpc.LongRunningServiceBlockingStub opStub,
+        ManagedChannel slotsChannel,
         LzySlotsApiGrpc.LzySlotsApiBlockingStub slotsStub,
         LongRunningServiceGrpc.LongRunningServiceBlockingStub slotsOpStub
     ) implements AutoCloseable
