@@ -9,7 +9,7 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface TaskDao {
-    void createTask(Task task, @Nullable TransactionHandle transaction) throws SQLException;
+    void createTasks(List<Task> tasks, @Nullable TransactionHandle transaction) throws SQLException;
     void updateTask(Task task, @Nullable TransactionHandle transaction) throws SQLException;
     Task getTaskById(String taskId) throws SQLException;
     List<Task> getTasksByGraph(String graphId) throws SQLException;

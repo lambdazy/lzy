@@ -53,7 +53,8 @@ public class TaskDaoImpl implements TaskDao {
     public TaskDaoImpl(GraphExecutorDataSource storage,
                        @Named("GraphExecutorOperationDao") OperationDao operationDao,
                        @Named("GraphExecutorOperationsExecutor") OperationsExecutor operationsExecutor,
-                       ServiceConfig config) {
+                       ServiceConfig config)
+    {
         this.storage = storage;
         this.config = config;
         this.operationsExecutor = operationsExecutor;
@@ -61,27 +62,43 @@ public class TaskDaoImpl implements TaskDao {
     }
 
     @Override
-    public void createTask(Task task, TransactionHandle transaction) throws SQLException {
-        LOG.info("Saving task: {}", task);
+    public void createTasks(List<Task> tasks, TransactionHandle transaction) throws SQLException {
+        LOG.info("Saving tasks: {}", tasks);
 
         DbOperation.execute(transaction, storage, connection -> {
             try (PreparedStatement st = connection.prepareStatement(
                 "INSERT INTO task (" + TASK_INSERT_FIELDS_LIST + ")"
                     + "VALUES (?, ?, ?, ?::status, ?, ?, ?, ?, ?, ?)"))
             {
-                int count = 0;
-                st.setString(++count, task.id());
-                st.setString(++count, task.name());
-                st.setString(++count, task.graphId());
-                st.setString(++count, task.status().toString());
-                st.setString(++count, task.workflowId());
-                st.setString(++count, task.workflowName());
-                st.setString(++count, task.userId());
-                st.setString(++count, task.getDescription());
-                st.setString(++count, task.errorDescription());
-                st.setString(++count, config.getInstanceId());
+                for (Task task: tasks) {
+                    int count = 0;
+                    st.setString(++count, task.id());
+                    st.setString(++count, task.name());
+                    st.setString(++count, task.graphId());
+                    st.setString(++count, task.status().toString());
+                    st.setString(++count, task.workflowId());
+                    st.setString(++count, task.workflowName());
+                    st.setString(++count, task.userId());
+                    st.setString(++count, task.getDescription());
+                    st.setString(++count, task.errorDescription());
+                    st.setString(++count, config.getInstanceId());
 
-                st.execute();
+                    st.addBatch();
+                }
+                st.executeBatch();
+            }
+
+            try (PreparedStatement st = connection.prepareStatement(
+                "INSERT INTO task_dependency (task_id, dependent_task_id) VALUES (?, ?)"))
+            {
+                for (Task task: tasks) {
+                    for (String id: task.tasksDependedFrom()) {
+                        st.setString(1, task.id());
+                        st.setString(2, id);
+                        st.addBatch();
+                    }
+                    st.executeBatch();
+                }
             }
         });
     }

@@ -98,20 +98,20 @@ public class GraphDaoImpl implements GraphDao {
 
     @Override
     public Graph getById(String graphId) throws SQLException {
-       try (final Connection con = storage.connect()) {
-           final PreparedStatement st = con.prepareStatement("""
-               SELECT %s
-               FROM graph
-               WHERE id = ?""".formatted(GRAPH_SELECT_FIELDS_LIST));
-           st.setString(1, graphId);
-           try (ResultSet s = st.executeQuery()) {
-               if (!s.isBeforeFirst()) {
-                   return null;
-               }
-               s.next();
-               return fromResultSet(s);
-           }
-       }
+        try (final Connection con = storage.connect()) {
+            final PreparedStatement st = con.prepareStatement("""
+                SELECT %s
+                FROM graph
+                WHERE id = ?""".formatted(GRAPH_SELECT_FIELDS_LIST));
+            st.setString(1, graphId);
+            try (ResultSet s = st.executeQuery()) {
+                if (!s.isBeforeFirst()) {
+                    return null;
+                }
+                s.next();
+                return fromResultSet(s);
+            }
+        }
     }
 
     @Override

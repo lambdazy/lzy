@@ -28,7 +28,7 @@ CREATE TYPE status AS ENUM ('WAITING', 'EXECUTING', 'COMPLETED', 'FAILED');
 CREATE TABLE graph
 (
     id                    TEXT                           NOT NULL PRIMARY KEY,
-    op_id                 TEXT                           NOT NULL REFERENCES operation (id),
+    op_id                 TEXT                           NOT NULL REFERENCES operation (id) ON DELETE CASCADE,
     status                status default 'WAITING'       NOT NULL,
     workflow_id           TEXT                           NOT NULL,
     workflow_name         TEXT                           NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE graph
 CREATE TABLE task (
     id                    TEXT                          NOT NULL PRIMARY KEY,
     task_name             TEXT                          NOT NULL,
-    graph_id              TEXT                          NOT NULL REFERENCES graph (id),
+    graph_id              TEXT                          NOT NULL REFERENCES graph (id) ON DELETE CASCADE,
     status                status default 'WAITING'      NOT NULL,
     workflow_id           TEXT                          NOT NULL,
     workflow_name         TEXT                          NOT NULL,
@@ -55,9 +55,9 @@ CREATE TABLE task (
 );
 
 CREATE TABLE task_dependency (
-    id                    TEXT      NOT NULL PRIMARY KEY,
-    task_id               TEXT      NOT NULL REFERENCES task (id),
-    dependent_task_id     TEXT      NOT NULL REFERENCES task (id)
+    id                    SERIAL    PRIMARY KEY,
+    task_id               TEXT      NOT NULL REFERENCES task (id) ON DELETE CASCADE,
+    dependent_task_id     TEXT      NOT NULL REFERENCES task (id) ON DELETE CASCADE
 );
 
 CREATE TYPE task_op_status AS ENUM ('WAITING', 'ALLOCATING', 'EXECUTING', 'COMPLETED', 'FAILED');
@@ -65,7 +65,7 @@ CREATE TYPE task_op_status AS ENUM ('WAITING', 'ALLOCATING', 'EXECUTING', 'COMPL
 CREATE TABLE task_operation
 (
     id                    TEXT                             NOT NULL PRIMARY KEY,
-    task_id               TEXT                             NOT NULL REFERENCES task (id),
+    task_id               TEXT                             NOT NULL REFERENCES task (id) ON DELETE CASCADE,
     started_at            TIMESTAMP                        NOT NULL,
     owner_instance_id     TEXT                             NOT NULL,
     status                task_op_status default 'WAITING' NOT NULL,
