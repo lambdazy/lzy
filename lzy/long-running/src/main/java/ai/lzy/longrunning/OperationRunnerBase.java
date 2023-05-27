@@ -55,6 +55,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
             }
 
             for (var step : steps()) {
+                beforeStep();
                 final var stepResult = step.get();
                 switch (stepResult.code()) {
                     case ALREADY_DONE -> { }
@@ -83,7 +84,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
                 }
             }
         } catch (Throwable e) {
-            notifyFinished();
+            notifyFinished(e);
             if (e instanceof Error err && isInjectedError(err)) {
                 log.error("{} Terminated by InjectedFailure exception: {}", logPrefix, e.getMessage());
             } else {
@@ -96,6 +97,10 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
                 throw e;
             }
         }
+    }
+
+    protected void beforeStep() {
+
     }
 
     protected Map<String, String> prepareLogContext() {
@@ -272,7 +277,11 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
     protected void onCompletedOutside(Operation op, @Nullable TransactionHandle tx) throws SQLException {
     }
 
-    protected void notifyFinished() {
+    private void notifyFinished() {
+        notifyFinished(null);
+    }
+
+    protected void notifyFinished(@Nullable Throwable t) {
     }
 
     protected final void failOperation(Status status, @Nullable TransactionHandle tx) throws SQLException {

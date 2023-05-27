@@ -67,7 +67,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
     }
 
     @Override
-    protected void notifyFinished() {
+    protected void notifyFinished(@Nullable Throwable t) {
         allocationContext.metrics().runningAllocations.labels(vm.poolLabel()).dec();
 
         if (deleteVmAction != null) {
