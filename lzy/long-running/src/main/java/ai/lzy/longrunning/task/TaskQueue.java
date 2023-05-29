@@ -6,14 +6,16 @@ import java.time.Duration;
 import java.util.List;
 
 public interface TaskQueue {
-    void add(Task task);
+    Task add(Task task);
 
     @Nullable
     Task pollNext();
 
     List<Task> pollRemaining();
 
-    void update(long id, Task.Update update);
+    Task update(long id, Task.Update update);
 
-    void updateLease(Task task, Duration duration);
+    Task updateLease(long taskId, Duration duration);
+
+    void delete(long id);
 }

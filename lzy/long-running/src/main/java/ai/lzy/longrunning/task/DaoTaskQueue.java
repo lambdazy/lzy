@@ -18,14 +18,14 @@ public class DaoTaskQueue implements TaskQueue {
 
     private final TaskDao taskDao;
     private final int maxQueueSize;
-    private final Duration leaseTime;
+    private final Duration initialLeaseTime;
     private final String instanceId;
     private final Queue<Task> queue;
 
-    public DaoTaskQueue(TaskDao taskDao, int maxQueueSize, Duration leaseTime, String instanceId) {
+    public DaoTaskQueue(TaskDao taskDao, int maxQueueSize, Duration initialLeaseTime, String instanceId) {
         this.taskDao = taskDao;
         this.maxQueueSize = maxQueueSize;
-        this.leaseTime = leaseTime;
+        this.initialLeaseTime = initialLeaseTime;
         this.instanceId = instanceId;
         this.queue = Queues.newConcurrentLinkedQueue();
     }
@@ -44,16 +44,16 @@ public class DaoTaskQueue implements TaskQueue {
 
     private List<Task> loadPendingTasks(int toLoad) {
         try {
-            return withRetries(LOG, () -> taskDao.lockPendingBatch(instanceId, leaseTime, toLoad, null));
+            return withRetries(LOG, () -> taskDao.lockPendingBatch(instanceId, initialLeaseTime, toLoad, null));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public void add(Task task) {
+    public Task add(Task task) {
         try {
-            withRetries(LOG, () -> taskDao.insert(task, null));
+            return withRetries(LOG, () -> taskDao.insert(task, null));
         } catch (Exception e) {
             throw new RuntimeException();
         }
@@ -70,6 +70,7 @@ public class DaoTaskQueue implements TaskQueue {
         return next;
     }
 
+    @Override
     public List<Task> pollRemaining() {
         if (!queue.isEmpty()) {
             var result = queue.stream().toList();
@@ -81,18 +82,27 @@ public class DaoTaskQueue implements TaskQueue {
     }
 
     @Override
-    public void update(long id, Task.Update update) {
+    public Task update(long id, Task.Update update) {
         try {
-            withRetries(LOG, () -> taskDao.update(id, update, null));
+            return withRetries(LOG, () -> taskDao.update(id, update, null));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public void updateLease(Task task, Duration duration) {
+    public Task updateLease(long taskId, Duration duration) {
         try {
-            withRetries(LOG, () -> taskDao.updateLease(task.id(), duration, null));
+            return withRetries(LOG, () -> taskDao.updateLease(taskId, duration, null));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void delete(long id) {
+        try {
+            withRetries(LOG, () -> taskDao.delete(id, null));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

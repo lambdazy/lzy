@@ -10,9 +10,9 @@ import java.time.Duration;
 import java.util.Map;
 
 public abstract class TaskAwareAction extends OperationRunnerBase {
-    private final Task task;
     private final TaskQueue queue;
     private final Duration leaseDuration;
+    private Task task;
 
     public TaskAwareAction(Task task, TaskQueue queue, Duration leaseDuration, String opId, String desc,
                            Storage storage, OperationDao operationsDao, OperationsExecutor executor)
@@ -40,7 +40,7 @@ public abstract class TaskAwareAction extends OperationRunnerBase {
     @Override
     protected void beforeStep() {
         super.beforeStep();
-        queue.updateLease(task, leaseDuration);
+        task = queue.updateLease(task.id(), leaseDuration);
     }
 
     @Override
@@ -53,6 +53,6 @@ public abstract class TaskAwareAction extends OperationRunnerBase {
         } else {
             builder.status(Task.Status.FINISHED);
         }
-        queue.update(task.id(), builder.build());
+        task = queue.update(task.id(), builder.build());
     }
 }

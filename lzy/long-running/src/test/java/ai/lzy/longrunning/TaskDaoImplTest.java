@@ -132,6 +132,26 @@ public class TaskDaoImplTest {
         assertEquals(Set.of(task1.id(), task7.id(), task8.id()), lockedTaskIds);
     }
 
+    @Test
+    public void lockPendingBatchWithAllRunning() throws Exception {
+        var task1 = taskDao.insert(Task.createPending("task1", "1", "MOUNT", Map.of()), null);
+        var task2 = taskDao.insert(Task.createPending("task2", "2", "MOUNT", Map.of()), null);
+        var task3 = taskDao.insert(Task.createPending("task3", "3", "MOUNT", Map.of()), null);
+        var task4 = taskDao.insert(Task.createPending("task4", "4", "MOUNT", Map.of()), null);
+        var task5 = taskDao.insert(Task.createPending("task5", "1", "MOUNT", Map.of()), null);
+        var task6 = taskDao.insert(Task.createPending("task6", "2", "MOUNT", Map.of()), null);
+        var task7 = taskDao.insert(Task.createPending("task7", "3", "MOUNT", Map.of()), null);
+        var task8 = taskDao.insert(Task.createPending("task8", "4", "MOUNT", Map.of()), null);
+
+        task1 = taskDao.update(task1.id(), statusUpdate(Task.Status.RUNNING), null);
+        task2 = taskDao.update(task2.id(), statusUpdate(Task.Status.RUNNING), null);
+        task3 = taskDao.update(task3.id(), statusUpdate(Task.Status.RUNNING), null);
+        task4 = taskDao.update(task4.id(), statusUpdate(Task.Status.RUNNING), null);
+
+        var lockedTasks = taskDao.lockPendingBatch("worker", Duration.ofMinutes(5), 10, null);
+        assertTrue(lockedTasks.isEmpty());
+    }
+
     private Task.Update statusUpdate(Task.Status status) {
         return Task.Update.builder().status(status).build();
     }
