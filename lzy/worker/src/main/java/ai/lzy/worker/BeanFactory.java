@@ -1,7 +1,6 @@
 package ai.lzy.worker;
 
 import ai.lzy.allocator.AllocatorAgent;
-import ai.lzy.fs.LzyFsServer;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
@@ -10,7 +9,6 @@ import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
-import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -18,8 +16,6 @@ import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-
-import java.nio.file.Path;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
@@ -36,7 +32,7 @@ public class BeanFactory {
     @Bean(preDestroy = "shutdown")
     @Named("WorkerIamGrpcChannel")
     public ManagedChannel iamChannel(ServiceConfig config) {
-        return GrpcUtils.newGrpcChannel(config.getIam().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+        return GrpcUtils.newGrpcChannel(config.getIamAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
     }
 
     @Singleton
@@ -44,24 +40,6 @@ public class BeanFactory {
     @Named("WorkerChannelManagerGrpcChannel")
     public ManagedChannel channelManagerChannel(ServiceConfig config) {
         return GrpcUtils.newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerGrpc.SERVICE_NAME);
-    }
-
-    @Singleton
-    public LzyFsServer lzyFsServer(ServiceConfig config,
-                                   @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel,
-                                   @Named("WorkerChannelManagerGrpcChannel") ManagedChannel channelManagerChannel,
-                                   @Named("WorkerOperationService") LocalOperationService localOperationService)
-    {
-        return new LzyFsServer(
-            config.getVmId(),
-            Path.of(config.getMountPoint()),
-            HostAndPort.fromParts(config.getHost(), config.getFsPort()),
-            channelManagerChannel,
-            iamChannel,
-            config.getIam().createRenewableToken(),
-            localOperationService,
-            /* isPortal */ false
-        );
     }
 
     @Bean(preDestroy = "shutdown")

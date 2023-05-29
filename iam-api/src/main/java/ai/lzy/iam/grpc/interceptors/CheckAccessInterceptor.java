@@ -34,6 +34,7 @@ public class CheckAccessInterceptor implements ServerInterceptor {
     }
 
     public void configure(AuthResource authResource, AuthPermission authPermission) {
+        LOG.debug("Configure check access to {}/{}", authResource, authPermission);
         authConf.set(new AuthConf(authResource, authPermission));
     }
 

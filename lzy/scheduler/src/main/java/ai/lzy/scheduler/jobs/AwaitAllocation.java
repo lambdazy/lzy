@@ -11,6 +11,7 @@ import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateResponse.VmEndpoint.VmEndpointType;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.worker.MetadataConstants;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.rpc.Code;
 import com.google.rpc.Status;
@@ -83,19 +84,7 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
                 return null;
             }
 
-            var pk = vmDesc.getMetadataMap().get("PUBLIC_KEY");
-
-            if (pk == null) {
-                logger.error("Not found public key im metadata for vm {} for op {}", vmDesc.getVmId(), operationId);
-
-                fail(Status.newBuilder()
-                    .setCode(Code.INTERNAL.getNumber())
-                    .setMessage("Cannot allocate vm")
-                    .build());
-                return null;
-            }
-
-            var apiPort = vmDesc.getMetadataMap().get("API_PORT");
+            var apiPort = vmDesc.getMetadataMap().get(MetadataConstants.API_PORT);
 
             if (apiPort == null) {
                 logger.error("Not found public api port im metadata for vm {} for op {}",
@@ -110,7 +99,6 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
 
             return state.copy()
                 .workerHost(address.getValue())
-                .workerPublicKey(pk)
                 .workerPort(Integer.valueOf(apiPort))
                 .build();
         } catch (InvalidProtocolBufferException e) {

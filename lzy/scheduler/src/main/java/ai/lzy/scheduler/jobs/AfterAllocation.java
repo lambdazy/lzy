@@ -18,6 +18,7 @@ import ai.lzy.scheduler.db.JobsOperationDao;
 import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.scheduler.providers.WorkflowJobProvider;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
@@ -26,6 +27,7 @@ import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import com.google.common.net.HostAndPort;
+import com.google.rpc.Code;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
@@ -60,18 +62,32 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
         var subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
         var abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
 
+        RsaUtils.RsaKeys iamKeys;
+        try {
+            iamKeys = RsaUtils.generateRsaKeys();
+        } catch (Exception e) {
+            logger.error("Cannot generate RSA keys: {}", e.getMessage());
+
+            // TODO: delete VM
+
+            fail(com.google.rpc.Status.newBuilder()
+                .setCode(Code.INTERNAL.getNumber())
+                .setMessage("Cannot generate keys")
+                .build());
+            return null;
+        }
+
         try {
             Subject subj;
 
             try {
                 subj = subjectClient.createSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER,
-                    new SubjectCredentials("main", task.workerPublicKey(), CredentialsType.PUBLIC_KEY));
+                    new SubjectCredentials("main", iamKeys.publicKey(), CredentialsType.PUBLIC_KEY));
             } catch (AuthUniqueViolationException e) {
                 subj = subjectClient.findSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER);
 
                 try {
-                    subjectClient.addCredentials(subj,
-                        SubjectCredentials.publicKey("worker_key", task.workerPublicKey()));
+                    subjectClient.addCredentials(subj, SubjectCredentials.publicKey("worker_key", iamKeys.publicKey()));
                 } catch (AuthUniqueViolationException ex) {
                     // already added
                 }
@@ -103,6 +119,13 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
             var workerChannel = newGrpcChannel(HostAndPort.fromParts(address, port), WorkerApiGrpc.SERVICE_NAME);
             var client = newBlockingClient(
                 WorkerApiGrpc.newBlockingStub(workerChannel), "Scheduler", () -> credentials.get().token());
+
+            client.init(LWS.InitRequest.newBuilder()
+                .setUserId(task.userId())
+                .setWorkflowName(task.workflowName())
+                .setWorkerSubjectName(task.vmId())
+                .setWorkerPrivateKey(iamKeys.privateKey())
+                .build());
 
             var operation = withIdempotencyKey(client, task.id())
                 .execute(

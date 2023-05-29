@@ -13,7 +13,6 @@ public record TaskState(
     @Nullable String allocatorOperationId,
     @Nullable Integer workerPort,
     @Nullable String workerHost,
-    @Nullable String workerPublicKey,
     @Nullable String workerOperationId
 ) {
     public enum Status {
@@ -37,7 +36,6 @@ public record TaskState(
         private @Nullable String vmId;
         private @Nullable String allocatorOperationId;
         private @Nullable String workerHost;
-        private @Nullable String workerPublicKey;
         private @Nullable String workerOperationId;
         private @Nullable Integer workerPort;
 
@@ -75,11 +73,6 @@ public record TaskState(
             return this;
         }
 
-        public TaskStateBuilder workerPublicKey(@Nullable String workerPublicKey) {
-            this.workerPublicKey = workerPublicKey;
-            return this;
-        }
-
         public TaskStateBuilder workerPort(@Nullable Integer workerPort) {
             this.workerPort = workerPort;
             return this;
@@ -96,7 +89,6 @@ public record TaskState(
                 allocatorOperationId,
                 workerPort,
                 workerHost,
-                workerPublicKey,
                 workerOperationId
             );
         }
