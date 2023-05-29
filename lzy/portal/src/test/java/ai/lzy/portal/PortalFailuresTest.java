@@ -11,6 +11,8 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.List;
 
+import static ai.lzy.util.kafka.test.KafkaTestUtils.assertStdLogs;
+
 
 public class PortalFailuresTest extends PortalTestBase {
     @Test

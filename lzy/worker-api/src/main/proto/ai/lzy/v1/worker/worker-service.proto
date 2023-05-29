@@ -25,6 +25,8 @@ message ExecuteRequest {
   lzy.v1.common.TaskDesc task_desc = 1;
   string task_id = 2;
   string execution_id = 3;
+  string workflow_name = 4;
+  string user_id = 5;
 }
 
 message ExecuteResponse {
