@@ -43,15 +43,16 @@ message BindResponse {
   // Data scheme of channel. Data of slot can be validated with this scheme
   common.DataScheme data_scheme                   = 1;
 
-  // Targets of Transmissions on bound slot
-  // This list may include already completed transmissions
-  repeated common.PeerDescription targets = 2;
+  // Target like in StartTransmission call in slots api
+  // If set, bound slot must start this new transmission
+  /* optional */ common.PeerDescription target = 2;
 }
 
 // =========== Unbind ==============
 
 message UnbindRequest {
-  string peer_id = 1;
+  string peer_id    = 1;
+  string channel_id = 2;
 }
 
 message UnbindResponse {}
@@ -70,16 +71,17 @@ message GetChannelsStatusResponse {
 // =========== TransmissionCompleted ==============
 
 message TransmissionCompletedRequest {
-  string loader_peer_id = 1;
-  string target_peer_id = 2;
+  string channel_id     = 1;
+  string loader_peer_id = 2;
+  string target_peer_id = 3;
 
   oneof status {
-    Succeeded succeeded = 3;
-    Failed failed       = 4;
+    Succeeded succeeded = 4;
+    Failed failed       = 5;
   }
 
   message Failed {
-    string description = 1;  // Error description for logging
+    string description  = 1;  // Error description for logging
   }
 
   message Succeeded {}
@@ -90,5 +92,3 @@ message TransmissionCompletedResponse {
   // If set, loader must start new transmission to this new target
   /* optional */ common.PeerDescription new_target = 1;
 }
-
-

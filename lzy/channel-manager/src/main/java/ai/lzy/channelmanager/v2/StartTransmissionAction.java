@@ -9,6 +9,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Singleton
@@ -19,39 +21,64 @@ public class StartTransmissionAction {
 
     private final SlotConnectionManager connectionManager;
     private final ChannelOperationExecutor operationExecutor;
+    private final Utils utils;
 
     public StartTransmissionAction(TransmissionsDao connections, SlotConnectionManager connectionManager,
-                                   ChannelOperationExecutor operationExecutor)
+                                   ChannelOperationExecutor operationExecutor, Utils utils)
     {
         this.connections = connections;
         this.connectionManager = connectionManager;
         this.operationExecutor = operationExecutor;
+        this.utils = utils;
     }
 
-    public void schedule(Peer producer, Peer consumer) {
-        operationExecutor.schedule(() -> run(producer, consumer), 0L, TimeUnit.SECONDS);
+    public void schedule(Peer loader, Peer target) {
+        operationExecutor.schedule(() -> run(loader, target), 0L, TimeUnit.SECONDS);
     }
 
-    private void run(Peer producer, Peer consumer) {
+    public void restoreActions() {
+        final List<TransmissionsDao.Transmission> transmissions;
+        try {
+            transmissions = DbHelper.withRetries(LOG, () -> connections.listPendingTransmissions(null));
+        } catch (Exception e) {
+            LOG.error("Cannot restore pending transmissions", e);
+            throw new RuntimeException(e);
+        }
+
+        for (var transmission: transmissions) {
+            schedule(transmission.loader(), transmission.target());
+        }
+    }
+
+    private void run(Peer loader, Peer target) {
 
         try {
-            var url = consumer.peerDescription().getSlotPeer().getPeerUrl();
+            var url = loader.peerDescription().getSlotPeer().getPeerUrl();
 
             var uri = new URI(url);
 
             var connection = connectionManager.getConnection(uri);
 
-            connection.v2SlotsApi().connectPeer(
-                LSA.ConnectPeerRequest.newBuilder()
-                    .setPeerId(consumer.id())
-                    .setTarget(producer.peerDescription())
+            connection.v2SlotsApi().startTransmission(
+                LSA.StartTransmissionRequest.newBuilder()
+                    .setLoaderPeerId(target.id())
+                    .setTarget(loader.peerDescription())
                     .build()
             );
 
-            DbHelper.withRetries(LOG, () -> connections.dropPendingConnection(consumer.id(), null));
+            DbHelper.withRetries(LOG, () -> connections.dropPendingTransmission(loader.id(), target.id(), null));
         } catch (Exception e) {
-            LOG.error("(Connecting producer: {} to consumer: {}): Cannot connect: ", producer, consumer, e);
-            // TODO(artolord) drop channel here and abort workflow
+
+            var reason = "(Connecting loader: %s to target: %s): Cannot connect. errId: %s".formatted(loader, target,
+                UUID.randomUUID().toString());
+
+            LOG.error(reason, e);
+            try {
+                DbHelper.withRetries(LOG, () -> utils.destroyChannelAndWorkflow(loader.channelId(), reason, null));
+            } catch (Exception ex) {
+                LOG.error("Cannot abort workflow", ex);
+                throw new RuntimeException(ex);
+            }
         }
 
     }

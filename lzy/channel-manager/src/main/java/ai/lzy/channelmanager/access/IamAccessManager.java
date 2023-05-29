@@ -9,7 +9,9 @@ import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import ai.lzy.util.auth.exceptions.AuthPermissionDeniedException;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import jakarta.inject.Singleton;
 
+@Singleton
 public class IamAccessManager {
 
     private final SubjectServiceClient iamSubjectClient;
@@ -25,13 +27,18 @@ public class IamAccessManager {
 
     public boolean checkAccess(String subjId, String userId, String workflowName, ChannelOperation.Type opType) {
         // TODO: retries
-
-        final var subj = iamSubjectClient.getSubject(subjId);
-        final var resource = new Workflow(userId + "/" + workflowName);
         final var permission = switch (opType) {
             case BIND, UNBIND -> AuthPermission.WORKFLOW_RUN;
             case DESTROY -> AuthPermission.WORKFLOW_STOP;
         };
+
+        return checkAccess(subjId, userId, workflowName, permission);
+    }
+
+    public boolean checkAccess(String subjId, String userId, String workflowName, AuthPermission permission) {
+
+        final var subj = iamSubjectClient.getSubject(subjId);
+        final var resource = new Workflow(userId + "/" + workflowName);
 
         try {
             return iamAccessClient.hasResourcePermission(subj, resource, permission);
