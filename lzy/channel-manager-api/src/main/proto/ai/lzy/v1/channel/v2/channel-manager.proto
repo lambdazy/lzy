@@ -16,7 +16,7 @@ service LzyChannelManager {
 
   rpc Unbind (UnbindRequest) returns (UnbindResponse) {}
 
-  rpc TransmissionCompleted (TransmissionCompletedRequest) returns (TransmissionCompletedResponse);
+  rpc TransferCompleted (TransferCompletedRequest) returns (TransferCompletedResponse);
 
   rpc GetChannelsStatus (GetChannelsStatusRequest) returns (GetChannelsStatusResponse);
 
@@ -67,10 +67,10 @@ message GetChannelsStatusResponse {
   repeated common.ChannelStatus channels = 1;
 }
 
-// =========== TransmissionCompleted ==============
+// =========== TransferCompleted ==============
 
-message TransmissionCompletedRequest {
-  string loader_peer_id = 1;
+message TransferCompletedRequest {
+  string slot_peer_id = 1;
   string target_peer_id = 2;
 
   oneof status {
@@ -85,7 +85,7 @@ message TransmissionCompletedRequest {
   message Succeeded {}
 }
 
-message TransmissionCompletedResponse {
+message TransferCompletedResponse {
 
   // If set, loader must start new transmission to this new target
   /* optional */ common.PeerDescription new_target = 1;
