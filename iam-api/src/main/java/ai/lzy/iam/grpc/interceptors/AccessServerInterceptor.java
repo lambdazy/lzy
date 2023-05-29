@@ -17,8 +17,8 @@ import org.apache.logging.log4j.Logger;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class CheckAccessInterceptor implements ServerInterceptor {
-    private static final Logger LOG = LogManager.getLogger(CheckAccessInterceptor.class);
+public class AccessServerInterceptor implements ServerInterceptor {
+    private static final Logger LOG = LogManager.getLogger(AccessServerInterceptor.class);
 
     private final AccessClient accessServiceClient;
 
@@ -29,8 +29,13 @@ public class CheckAccessInterceptor implements ServerInterceptor {
 
     private final AtomicReference<AuthConf> authConf = new AtomicReference<>(null);
 
-    public CheckAccessInterceptor(AccessClient accessServiceClient) {
+    public AccessServerInterceptor(AccessClient accessServiceClient) {
         this.accessServiceClient = accessServiceClient;
+    }
+
+    public AccessServerInterceptor(AccessClient accessClient, AuthResource resource, AuthPermission permission) {
+        this.accessServiceClient = accessClient;
+        authConf.set(new AuthConf(resource, permission));
     }
 
     public void configure(AuthResource authResource, AuthPermission authPermission) {
