@@ -4,6 +4,8 @@ import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
@@ -20,7 +22,9 @@ import ai.lzy.worker.StreamQueue.LogHandle;
 import ai.lzy.worker.env.AuxEnvironment;
 import ai.lzy.worker.env.EnvironmentFactory;
 import ai.lzy.worker.env.EnvironmentInstallationException;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
@@ -45,6 +49,14 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private final LocalOperationService operationService;
     private final EnvironmentFactory envFactory;
     private final KafkaHelper kafkaHelper;
+
+    private record Owner(
+        String userId,
+        String workflowName
+    ) {}
+
+    @Nullable
+    private Owner owner = null; // guarded by this
 
     public WorkerApiImpl(@Named("WorkerOperationService") LocalOperationService localOperationService,
                          EnvironmentFactory environmentFactory, LzyFsServer lzyFsServer,
@@ -205,7 +217,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     }
 
     @Override
-    public void execute(LWS.ExecuteRequest request, StreamObserver<LongRunning.Operation> response) {
+    public synchronized void execute(LWS.ExecuteRequest request, StreamObserver<LongRunning.Operation> response) {
         withLoggingContext(
             Map.of(
                 "tid", request.getTaskId(),
@@ -215,6 +227,19 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
                     LOG.debug("Worker::execute {}", ProtoPrinter.safePrinter().printToString(request));
                 } else {
                     LOG.info("Worker::execute request");
+                }
+
+                var requester = new Owner(request.getUserId(), request.getWorkflowName());
+
+                if (owner == null) {
+                    owner = requester;
+
+                    var workflow = new Workflow(owner.userId() + '/' + owner.workflowName());
+                    lzyFs.configureAccess(workflow, AuthPermission.WORKFLOW_RUN);
+                } else if (!owner.equals(requester)) {
+                    LOG.error("Attempt to execute op from another owner. Current is {}, got {}", owner, requester);
+                    response.onError(Status.PERMISSION_DENIED.asException());
+                    return;
                 }
 
                 var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);

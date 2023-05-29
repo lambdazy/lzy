@@ -1,6 +1,7 @@
 package ai.lzy.whiteboard;
 
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AllowSubjectOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
@@ -101,6 +102,7 @@ public class WhiteboardApp {
             .forAddress(new InetSocketAddress(address.getHost(), address.getPort()))
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .intercept(AllowSubjectOnlyInterceptor.ALLOW_USER_ONLY)
             .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
             .intercept(GrpcLogsInterceptor.server())
             .intercept(RequestIdInterceptor.server())

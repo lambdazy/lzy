@@ -109,6 +109,8 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
                     LWS.ExecuteRequest.newBuilder()
                         .setTaskId(task.id())
                         .setExecutionId(task.executionId())
+                        .setWorkflowName(task.workflowName())
+                        .setUserId(task.userId())
                         .setTaskDesc(task.description())
                         .build());
 

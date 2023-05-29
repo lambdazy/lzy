@@ -17,5 +17,27 @@ Configuration:
     Logger:
       - name: UserEventLogs
         level: error
-        AppenderRef:
-          ref: Console
+
+      - name: "ai.lzy.model.utils.FreePortFinder"
+        level: error
+
+      - name: io.zonky.test
+        level: warn
+
+      - name: GrpcServer
+        level: error
+
+      - name: kafka
+        level: error
+
+      - name: state.change.logger # kafka.controller.StateChangeLogger
+        level: error
+
+      - name: org.flywaydb
+        level: error
+
+      - name: org.apache
+        level: error
+
+      - name: com.mchange
+        level: error

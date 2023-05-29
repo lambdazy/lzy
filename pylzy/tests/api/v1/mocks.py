@@ -16,6 +16,7 @@ from typing import (
     Dict,
     Tuple,
 )
+from pypi_simple import PYPI_SIMPLE_ENDPOINT
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
 from ai.lzy.v1.long_running.operation_pb2 import Operation, GetOperationRequest
@@ -323,10 +324,19 @@ class WhiteboardIndexServiceMock(LzyWhiteboardServiceServicer):
 
 
 class EnvProviderMock(PyEnvProvider):
+    @property
+    def pypi_index_url(self):
+        return PYPI_SIMPLE_ENDPOINT
+
     def __init__(self, libraries: Optional[Dict[str, str]] = None, local_modules_path: Optional[Sequence[str]] = None):
         self.__libraries = libraries if libraries else {}
         self.__local_modules_path = local_modules_path if local_modules_path else []
 
     def provide(self, namespace: Dict[str, Any], exclude_packages: Iterable[str] = tuple()) -> PyEnv:
         info = sys.version_info
-        return PyEnv(f"{info.major}.{info.minor}.{info.micro}", self.__libraries, self.__local_modules_path)
+        return PyEnv(
+            python_version=f"{info.major}.{info.minor}.{info.micro}",
+            libraries=self.__libraries,
+            local_modules_path=self.__local_modules_path,
+            pypi_index_url=self.pypi_index_url,
+        )

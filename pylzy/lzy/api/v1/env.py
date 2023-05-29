@@ -12,8 +12,11 @@ from typing import (
 
 import yaml
 
+from pypi_simple import PYPI_SIMPLE_ENDPOINT
+
 from lzy.py_env.api import PyEnv
 from lzy.logs.config import get_logger
+from lzy.utils.pypi import validate_pypi_index_url
 
 _LOG = get_logger(__name__)
 
@@ -40,6 +43,8 @@ class Env:
     python_version: Optional[str] = None
     libraries: Dict[str, str] = dataclasses.field(default_factory=dict)
     local_modules_path: Sequence[str] = dataclasses.field(default_factory=list)
+
+    pypi_index_url: Optional[str] = None
 
     conda_yaml_path: Optional[str] = None
 
@@ -92,6 +97,9 @@ class Env:
 
         if self.docker_image and not self.docker_pull_policy:
             raise ValueError("docker_image is set but docker_pull_policy is not")
+
+        if self.pypi_index_url:
+            validate_pypi_index_url(self.pypi_index_url)
 
         return self
 
@@ -160,9 +168,15 @@ class Env:
 
         dependencies.append("pip")
 
+        extra_pip_options = []
+        if self.pypi_index_url:
+            extra_pip_options.append(f'--index-url {self.pypi_index_url}')
+
         libraries = [f"{name}=={version}" for name, version in self.libraries.items()]
-        if libraries:
-            dependencies.append({"pip": libraries})
+
+        pip_options = extra_pip_options + libraries
+        if pip_options:
+            dependencies.append({"pip": pip_options})
 
         return {"name": env_name, "dependencies": dependencies}
 
