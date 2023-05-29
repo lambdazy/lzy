@@ -58,7 +58,7 @@ public class AccessServerInterceptor implements ServerInterceptor {
         if (authConf == null) {
             LOG.warn("Auth resource is not configures yet");
 
-            call.close(Status.UNAVAILABLE, new Metadata());
+            call.close(Status.UNAUTHENTICATED, new Metadata());
             return new ServerCall.Listener<>() {};
         }
 
