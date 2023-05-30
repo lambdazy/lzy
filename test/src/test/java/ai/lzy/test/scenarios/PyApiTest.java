@@ -139,4 +139,9 @@ public class PyApiTest {
     public void testCachedException() {
         pythonContext.context().evalAndAssertScenarioResult("cached_exception");
     }
+
+    @Test
+    public void testSubprocessWithStartup() {
+        pythonContext.context().evalAndAssertScenarioResult("subprocess_with_startup");
+    }
 }
