@@ -22,8 +22,8 @@ service LzySlotsApi {
 // ============ StartTransfer ==============
 
 message StartTransferRequest {
-  string slot_peer_id = 1;
-  common.PeerDescription target = 2;
+  string slot_id = 1;  // Peer id of slot
+  common.PeerDescription peer = 2;
 }
 
 message StartTransferResponse {}

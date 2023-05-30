@@ -18,6 +18,8 @@ service LzyChannelManager {
 
   rpc TransferCompleted (TransferCompletedRequest) returns (TransferCompletedResponse);
 
+  rpc TransferFailed (TransferFailedRequest) returns (TransferFailedResponse);
+
   rpc GetChannelsStatus (GetChannelsStatusRequest) returns (GetChannelsStatusResponse);
 
 }
@@ -70,25 +72,25 @@ message GetChannelsStatusResponse {
 // =========== TransferCompleted ==============
 
 message TransferCompletedRequest {
-  string slot_peer_id = 1;
-  string target_peer_id = 2;
-
-  oneof status {
-    Succeeded succeeded = 3;
-    Failed failed       = 4;
-  }
-
-  message Failed {
-    string description = 1;  // Error description for logging
-  }
-
-  message Succeeded {}
+  string slot_id  = 1;  // Peer id of slot that completed transfer
+  string peer_id = 2;
 }
 
-message TransferCompletedResponse {
+message TransferCompletedResponse {}
 
-  // If set, loader must start new transmission to this new target
-  /* optional */ common.PeerDescription new_target = 1;
+
+// =========== TransferFailed ==============
+
+message TransferFailedRequest {
+  string slot_id     = 1;  // Peer id of slot that failed transfer
+  string peer_id     = 2;
+
+  string description = 3;  // Error description for logging
 }
+
+message TransferFailedResponse {
+  common.PeerDescription new_peer = 1;
+}
+
 
 
