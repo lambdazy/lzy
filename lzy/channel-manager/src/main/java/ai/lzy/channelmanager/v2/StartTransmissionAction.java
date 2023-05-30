@@ -2,6 +2,8 @@ package ai.lzy.channelmanager.v2;
 
 import ai.lzy.channelmanager.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
+import ai.lzy.channelmanager.v2.db.TransmissionsDao;
+import ai.lzy.channelmanager.v2.model.Peer;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.v1.slots.v2.LSA;
 import jakarta.inject.Singleton;

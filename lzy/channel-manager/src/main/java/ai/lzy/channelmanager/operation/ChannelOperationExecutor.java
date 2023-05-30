@@ -15,14 +15,11 @@ public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
 
     private static final Logger LOG = LogManager.getLogger(ChannelOperationExecutor.class);
 
-    // for micronaut
-    private final ChannelManagerDataSource dataSource;
 
-    public ChannelOperationExecutor(ChannelManagerDataSource dataSource, ChannelManagerConfig config) {
+    public ChannelOperationExecutor(ChannelManagerConfig config) {
         super(config.getExecutorThreadsCount(), new ExecutorThreadFactory());
         this.setKeepAliveTime(1, TimeUnit.MINUTES);
         this.setMaximumPoolSize(20);
-        this.dataSource = dataSource;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package ai.lzy.channelmanager.v2;
 
+import ai.lzy.channelmanager.v2.db.ChannelDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.workflow.LWFS.AbortWorkflowRequest;

@@ -1,5 +1,6 @@
-package ai.lzy.channelmanager.v2;
+package ai.lzy.channelmanager.v2.db;
 
+import ai.lzy.channelmanager.v2.model.Peer;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.common.LC;
 import jakarta.annotation.Nullable;

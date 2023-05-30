@@ -81,9 +81,8 @@ public class BeanFactory {
 
     @Bean(preDestroy = "shutdown")
     @Singleton
-    @Requires(bean = ChannelManagerDataSource.class)
-    public ChannelOperationExecutor executor(ChannelManagerDataSource dataSource, ChannelManagerConfig config) {
-        return new ChannelOperationExecutor(dataSource, config);
+    public ChannelOperationExecutor executor(ChannelManagerConfig config) {
+        return new ChannelOperationExecutor(config);
     }
 
 }

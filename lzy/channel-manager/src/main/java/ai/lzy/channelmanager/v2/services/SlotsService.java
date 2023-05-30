@@ -1,7 +1,14 @@
-package ai.lzy.channelmanager.v2;
+package ai.lzy.channelmanager.v2.services;
 
 import ai.lzy.channelmanager.access.IamAccessManager;
-import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
+import ai.lzy.channelmanager.v2.StartTransmissionAction;
+import ai.lzy.channelmanager.v2.Utils;
+import ai.lzy.channelmanager.v2.db.ChannelDao;
+import ai.lzy.channelmanager.v2.db.ChannelManagerDataSource;
+import ai.lzy.channelmanager.v2.db.PeerDao;
+import ai.lzy.channelmanager.v2.db.TransmissionsDao;
+import ai.lzy.channelmanager.v2.model.Channel;
+import ai.lzy.channelmanager.v2.model.Peer;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
@@ -15,6 +22,7 @@ import ai.lzy.v1.common.LC;
 import ai.lzy.v1.common.LC.PeerDescription;
 import ai.lzy.v1.common.LC.PeerDescription.SlotPeer;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Singleton;
 import org.apache.commons.lang3.tuple.Pair;
@@ -25,9 +33,9 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-import static ai.lzy.channelmanager.v2.Peer.Role.CONSUMER;
-import static ai.lzy.channelmanager.v2.Peer.Role.PRODUCER;
-import static ai.lzy.channelmanager.v2.PeerDao.Priority.BACKUP;
+import static ai.lzy.channelmanager.v2.db.PeerDao.Priority.BACKUP;
+import static ai.lzy.channelmanager.v2.model.Peer.Role.CONSUMER;
+import static ai.lzy.channelmanager.v2.model.Peer.Role.PRODUCER;
 import static ai.lzy.iam.resources.AuthPermission.WORKFLOW_RUN;
 
 @Singleton
@@ -172,17 +180,40 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         var logPrefix = "(Unbind: {peerId: %s, channelId: %s, userId: %s, workflowName: %s, execId: %s}): ".formatted(
             request.getPeerId(), request.getChannelId(), channel.userId(), channel.workflowName(), channel.executionId()
         );
+        final boolean res;
 
         try {
-            DbHelper.withRetries(LOG, () -> peerDao.drop(request.getPeerId(), null));
+            res = DbHelper.withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    if (!transmissionsDao.hasPendingTransfers(request.getPeerId(), tx)) {
+                        peerDao.drop(request.getPeerId(), tx);
+                        tx.commit();
+                        return true;
+                    }
+                    return false;
+                }
+            });
         } catch (Exception e) {
             LOG.error("{} Cannot unbind slot: ", logPrefix, e);
-            throw Status.INTERNAL
-                .withDescription("Cannot unbind slot")
-                .asRuntimeException();
+            responseObserver.onError(
+                Status.INTERNAL
+                    .withDescription("Cannot unbind slot")
+                    .asRuntimeException());
+            return;
         }
-        responseObserver.onNext(LCMS.UnbindResponse.newBuilder().build());
-        responseObserver.onCompleted();
+
+        if (res) {
+            responseObserver.onNext(LCMS.UnbindResponse.newBuilder().build());
+            responseObserver.onCompleted();
+            return;
+        }
+
+        LOG.error("{} Cannot unbind this slot now, there are some not started transfers", logPrefix);
+
+        responseObserver.onError(Status
+            .UNAVAILABLE
+            .withDescription("Cannot unbind this slot now, there are some not started transfers")
+            .asRuntimeException());
     }
 
     @Override
@@ -221,7 +252,8 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                     target.peerDescription().getStoragePeer().getStorageUri()
                 ), logPrefix, null, loader.channelId());
 
-                throw Status.INTERNAL.asRuntimeException();
+                responseObserver.onError(Status.INTERNAL.asRuntimeException());
+                return;
             }
 
             final Peer newProducer;
@@ -281,6 +313,9 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                 throw Status.INTERNAL.asRuntimeException();
             }
         }
+
+        responseObserver.onNext(TransmissionCompletedResponse.newBuilder().build());
+        responseObserver.onCompleted();
     }
 
     private Channel getChannelAndCheckAccess(String channelId, String callName) {

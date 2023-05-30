@@ -1,4 +1,4 @@
-package ai.lzy.channelmanager.v2;
+package ai.lzy.channelmanager.v2.model;
 
 import ai.lzy.v1.common.LMD;
 import jakarta.annotation.Nullable;

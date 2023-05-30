@@ -19,10 +19,6 @@ service LzyChannelManagerPrivate {
 
   // Like Destroy, but for all channels of this wf
   rpc DestroyAll (DestroyAllRequest) returns (DestroyAllResponse) {}
-
-  rpc Status (StatusRequest) returns (StatusResponse);
-
-  rpc List (ListRequest) returns (ListResponse);
 }
 
 // ============== Create ==================
@@ -62,23 +58,3 @@ message DestroyAllRequest {
 }
 
 message DestroyAllResponse {}
-
-// ============== Status ==================
-
-message StatusRequest {
-  string channel_id = 1;
-}
-
-message StatusResponse {
-  common.ChannelStatus channel = 1;
-}
-
-// ============== List ==================
-
-message ListRequest {
-  string execution_id = 1;
-}
-
-message ListResponse {
-  repeated common.ChannelStatus statuses = 1;
-}

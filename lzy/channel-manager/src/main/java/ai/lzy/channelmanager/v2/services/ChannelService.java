@@ -1,6 +1,10 @@
-package ai.lzy.channelmanager.v2;
+package ai.lzy.channelmanager.v2.services;
 
-import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
+import ai.lzy.channelmanager.v2.db.ChannelDao;
+import ai.lzy.channelmanager.v2.db.ChannelManagerDataSource;
+import ai.lzy.channelmanager.v2.db.PeerDao;
+import ai.lzy.channelmanager.v2.model.Channel;
+import ai.lzy.channelmanager.v2.model.Peer;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.channel.v2.LCMPS;
@@ -76,12 +80,14 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
             case PRODUCER -> Pair.of(
                 Peer.Role.PRODUCER,
                 PeerDescription.newBuilder()
+                    .setPeerId(UUID.randomUUID().toString())
                     .setStoragePeer(request.getProducer())
                     .build()
             );
             case CONSUMER -> Pair.of(
                 Peer.Role.CONSUMER,
                 PeerDescription.newBuilder()
+                    .setPeerId(UUID.randomUUID().toString())
                     .setStoragePeer(request.getConsumer())
                     .build()
             );
@@ -92,8 +98,8 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
             DbHelper.withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
 
-                    channelDao.create(id, request.getUserId(), request.getExecutionId(), request.getScheme(),
-                        producerUri, consumerUri, tx);
+                    channelDao.create(id, request.getUserId(), request.getExecutionId(), request.getWorkflowName(),
+                        request.getScheme(), producerUri, consumerUri, tx);
 
                     peerDao.create(id, pair.getRight(), pair.getLeft(), PeerDao.Priority.BACKUP, false, tx);
                     tx.commit();
@@ -113,23 +119,38 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
     }
 
     @Override
-    public void status(LCMPS.StatusRequest request, StreamObserver<LCMPS.StatusResponse> responseObserver) {
-        super.status(request, responseObserver);
-    }
-
-    @Override
     public void destroy(LCMPS.DestroyRequest request, StreamObserver<LCMPS.DestroyResponse> responseObserver) {
         var logPrefix = "(Destroy: {channelId: %s}): ".formatted(request.getChannelId());
+        LOG.info("{} Destroying channel with reason {}", logPrefix, request.getReason());
 
+        try {
+            DbHelper.withRetries(LOG, () -> channelDao.drop(request.getChannelId(), null));
+        } catch (Exception e) {
+            LOG.error("{} Cannot destroy channel in db: ", logPrefix, e);
+            throw Status.INTERNAL
+                .withDescription("Cannot destroy channel in db")
+                .asRuntimeException();
+        }
+
+        responseObserver.onNext(LCMPS.DestroyResponse.newBuilder().build());
+        responseObserver.onCompleted();
     }
 
     @Override
     public void destroyAll(LCMPS.DestroyAllRequest request, StreamObserver<LCMPS.DestroyAllResponse> responseObserver) {
-        super.destroyAll(request, responseObserver);
-    }
+        var logPrefix = "(DestroyAll: {executionId: %s}): ".formatted(request.getExecutionId());
+        LOG.info("{} Destroying all channels with reason {}", logPrefix, request.getReason());
 
-    @Override
-    public void list(LCMPS.ListRequest request, StreamObserver<LCMPS.ListResponse> responseObserver) {
-        super.list(request, responseObserver);
+        try {
+            DbHelper.withRetries(LOG, () -> channelDao.dropAll(request.getExecutionId(), null));
+        } catch (Exception e) {
+            LOG.error("{} Cannot destroy channels in db: ", logPrefix, e);
+            throw Status.INTERNAL
+                .withDescription("Cannot destroy channels in db")
+                .asRuntimeException();
+        }
+
+        responseObserver.onNext(LCMPS.DestroyAllResponse.newBuilder().build());
+        responseObserver.onCompleted();
     }
 }

@@ -1,5 +1,6 @@
-package ai.lzy.channelmanager.v2;
+package ai.lzy.channelmanager.v2.db;
 
+import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.common.LMD;
@@ -9,12 +10,14 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface ChannelDao {
-    Channel create(String id, String userId, String executionId, @Nullable LMD.DataScheme dataScheme,
-                   @Nullable String storageProducerUri, @Nullable String storageConsumerUri,
-                   @Nullable TransactionHandle tx) throws SQLException;
+    Channel create(String id, String userId, String executionId, String workflowName,
+                   @Nullable LMD.DataScheme dataScheme, @Nullable String storageProducerUri,
+                   @Nullable String storageConsumerUri, @Nullable TransactionHandle tx) throws SQLException;
 
     @Nullable
     Channel drop(String channelId, TransactionHandle tx) throws SQLException;
+
+    void dropAll(String executionId, TransactionHandle tx) throws SQLException;
 
     @Nullable
     Channel find(String userId, String executionId, String storageProducerUri, String storageConsumerUri,
