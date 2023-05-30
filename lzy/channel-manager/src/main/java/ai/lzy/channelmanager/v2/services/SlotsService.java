@@ -1,28 +1,24 @@
 package ai.lzy.channelmanager.v2.services;
 
 import ai.lzy.channelmanager.access.IamAccessManager;
-import ai.lzy.channelmanager.v2.StartTransmissionAction;
+import ai.lzy.channelmanager.v2.StartTransferAction;
 import ai.lzy.channelmanager.v2.Utils;
 import ai.lzy.channelmanager.v2.db.ChannelDao;
 import ai.lzy.channelmanager.v2.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.db.PeerDao;
-import ai.lzy.channelmanager.v2.db.TransmissionsDao;
+import ai.lzy.channelmanager.v2.db.TransferDao;
 import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Peer;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.channel.v2.LCMS;
-import ai.lzy.v1.channel.v2.LCMS.GetChannelsStatusRequest;
-import ai.lzy.v1.channel.v2.LCMS.GetChannelsStatusResponse;
-import ai.lzy.v1.channel.v2.LCMS.TransmissionCompletedRequest;
-import ai.lzy.v1.channel.v2.LCMS.TransmissionCompletedResponse;
+import ai.lzy.v1.channel.v2.LCMS.*;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.common.LC.PeerDescription;
 import ai.lzy.v1.common.LC.PeerDescription.SlotPeer;
 import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Singleton;
 import org.apache.commons.lang3.tuple.Pair;
@@ -44,19 +40,19 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
     private final PeerDao peerDao;
     private final ChannelDao channelDao;
     private final ChannelManagerDataSource storage;
-    private final TransmissionsDao transmissionsDao;
-    private final StartTransmissionAction action;
+    private final TransferDao transferDao;
+    private final StartTransferAction action;
     private final Utils utils;
     private final IamAccessManager accessManager;
 
     public SlotsService(PeerDao peerDao, ChannelDao channelDao, ChannelManagerDataSource storage,
-                        TransmissionsDao transmissionsDao, StartTransmissionAction action, Utils utils,
+                        TransferDao transferDao, StartTransferAction action, Utils utils,
                         IamAccessManager accessManager)
     {
         this.peerDao = peerDao;
         this.channelDao = channelDao;
         this.storage = storage;
-        this.transmissionsDao = transmissionsDao;
+        this.transferDao = transferDao;
         this.action = action;
         this.utils = utils;
         this.accessManager = accessManager;
@@ -121,7 +117,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
             if (prod != null) {
                 LOG.info("{} Connected to producer(peerId: {})", logPrefix, prod.id());
 
-                builder.setTarget(prod.peerDescription());
+                builder.setPeer(prod.peerDescription());
             }
 
             responseObserver.onNext(builder.build());
@@ -138,7 +134,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                     final var consumers = peerDao.markConsumersAsConnected(channelId, tx);
 
                     for (var consumer : consumers) {
-                        transmissionsDao.createPendingTransmission(peerId, consumer.id(), tx);
+                        transferDao.createPendingTransmission(peerId, consumer.id(), tx);
                     }
 
                     tx.commit();
@@ -165,7 +161,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         var builder = LCMS.BindResponse.newBuilder();
 
         if (storageConsumer != null) {
-            builder.setTarget(storageConsumer);
+            builder.setPeer(storageConsumer);
         }
 
         responseObserver.onNext(builder.build());
@@ -185,7 +181,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         try {
             res = DbHelper.withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
-                    if (!transmissionsDao.hasPendingTransfers(request.getPeerId(), tx)) {
+                    if (!transferDao.hasPendingTransfers(request.getPeerId(), tx)) {
                         peerDao.drop(request.getPeerId(), tx);
                         tx.commit();
                         return true;
@@ -217,104 +213,130 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
     }
 
     @Override
-    public void transmissionCompleted(TransmissionCompletedRequest request,
-                                      StreamObserver<TransmissionCompletedResponse> responseObserver)
+    public void transferFailed(TransferFailedRequest request, StreamObserver<TransferFailedResponse> responseObserver) {
+        final Channel channel = getChannelAndCheckAccess(request.getChannelId(), "TransmissionCompleted");
+
+        var logPrefix = ("(TransmissionFailed: {loaderPeerId: %s, targetPeerId: %s,  channelId: %s, userId: %s," +
+            " workflowName: %s, execId: %s}): ").formatted(request.getSlotId(), request.getPeerId(),
+            request.getChannelId(), channel.userId(), channel.workflowName(), channel.executionId()
+        );
+
+        final Peer slot;
+        final Peer peer;
+        try {
+            slot = DbHelper.withRetries(LOG, () -> peerDao.get(request.getSlotId(), null));
+            peer = DbHelper.withRetries(LOG, () -> peerDao.get(request.getPeerId(), null));
+        } catch (Exception e) {
+            LOG.error("{} Cannot get slot and peer from db", logPrefix, e);
+            responseObserver.onError(Status.INTERNAL.asRuntimeException());
+            return;
+        }
+
+        if (slot == null || peer == null) {
+            LOG.error("{} Slot or peer not found in db", logPrefix);
+            responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
+            return;
+        }
+
+        LOG.error("{} Failed with description {}", logPrefix, request.getDescription());
+
+        if (peer.role().equals(CONSUMER) && peer.peerDescription().hasStoragePeer()) {
+            // Loading data to storage failed, failing all execution
+
+            dropChannel("Uploading data to storage %s for channel failed".formatted(
+                peer.peerDescription().getStoragePeer().getStorageUri()
+            ), logPrefix, null, slot.channelId());
+
+            responseObserver.onError(Status.INTERNAL.asRuntimeException());
+            return;
+        }
+
+        final Peer newProducer;
+        try {
+            newProducer = DbHelper.withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    var newPriority = peerDao.decrementPriority(peer.id(), tx);
+
+                    if (newPriority < 0) {
+                        LOG.error("{} Count of retries of connecting to peer {} is exceeded." +
+                            " It will be not used for other connections", logPrefix, peer.id());
+                    }
+
+                    // Failed to load data from producer, selecting other
+                    var prod = peerDao.findPriorProducer(slot.channelId(), tx);
+                    tx.commit();
+
+                    return prod;
+                }
+            });
+        } catch (Exception e) {
+            dropChannel("Cannot get peer from db", logPrefix, e, slot.channelId());
+            throw Status.INTERNAL.asRuntimeException();
+        }
+
+        if (newProducer == null) {
+            // This can be only if there was only one producer and connection retries count to it exceeded
+            dropChannel("No more producers in channel, while there are consumers",
+                logPrefix, null, slot.channelId());
+
+            throw Status.INTERNAL.asRuntimeException();
+        }
+
+        responseObserver.onNext(TransferFailedResponse.newBuilder()
+            .setNewPeer(newProducer.peerDescription())
+            .build()
+        );
+
+        responseObserver.onCompleted();
+    }
+
+    @Override
+    public void transferCompleted(TransferCompletedRequest request,
+                                  StreamObserver<TransferCompletedResponse> responseObserver)
     {
         final Channel channel = getChannelAndCheckAccess(request.getChannelId(), "TransmissionCompleted");
 
         var logPrefix = ("(TransmissionCompleted: {loaderPeerId: %s, targetPeerId: %s,  channelId: %s, userId: %s," +
-            " workflowName: %s, execId: %s}): ").formatted(request.getLoaderPeerId(), request.getTargetPeerId(),
+            " workflowName: %s, execId: %s}): ").formatted(request.getSlotId(), request.getPeerId(),
             request.getChannelId(), channel.userId(), channel.workflowName(), channel.executionId()
         );
 
-        final Peer loader;
-        final Peer target;
+        final Peer slot;
+        final Peer peer;
         try {
-            loader = DbHelper.withRetries(LOG, () -> peerDao.get(request.getLoaderPeerId(), null));
-            target = DbHelper.withRetries(LOG, () -> peerDao.get(request.getTargetPeerId(), null));
+            slot = DbHelper.withRetries(LOG, () -> peerDao.get(request.getSlotId(), null));
+            peer = DbHelper.withRetries(LOG, () -> peerDao.get(request.getPeerId(), null));
         } catch (Exception e) {
-            LOG.error("{} Cannot get loader and target from db", logPrefix, e);
-            throw Status.INTERNAL.asRuntimeException();
+            LOG.error("{} Cannot get slot and peer from db", logPrefix, e);
+            responseObserver.onError(Status.INTERNAL.asRuntimeException());
+            return;
         }
 
-        if (loader == null || target == null) {
-            LOG.error("{} Loader or target not found in db", logPrefix);
-            throw Status.NOT_FOUND.asRuntimeException();
-        }
-
-        if (request.hasFailed()) {
-            LOG.error("{} Failed with description {}", logPrefix, request.getFailed().getDescription());
-
-            if (target.role().equals(CONSUMER) && target.peerDescription().hasStoragePeer()) {
-                // Loading data to storage failed, failing all execution
-
-                dropChannel("Uploading data to storage %s for channel failed".formatted(
-                    target.peerDescription().getStoragePeer().getStorageUri()
-                ), logPrefix, null, loader.channelId());
-
-                responseObserver.onError(Status.INTERNAL.asRuntimeException());
-                return;
-            }
-
-            final Peer newProducer;
-            try {
-                newProducer = DbHelper.withRetries(LOG, () -> {
-                    try (var tx = TransactionHandle.create(storage)) {
-                        var newPriority = peerDao.decrementPriority(target.id(), tx);
-
-                        if (newPriority < 0) {
-                            LOG.error("{} Count of retries of connecting to peer {} is exceeded." +
-                                " It will be not used for other connections", logPrefix, target.id());
-                        }
-
-                        // Failed to load data from producer, selecting other
-                        var prod = peerDao.findPriorProducer(loader.channelId(), tx);
-                        tx.commit();
-
-                        return prod;
-                    }
-                });
-            } catch (Exception e) {
-                dropChannel("Cannot get peer from db", logPrefix, e, loader.channelId());
-                throw Status.INTERNAL.asRuntimeException();
-            }
-
-            if (newProducer == null) {
-                // This can be only if there was only one producer and connection retries count to it exceeded
-                dropChannel("No more producers in channel, while there are consumers",
-                    logPrefix, null, loader.channelId());
-
-                throw Status.INTERNAL.asRuntimeException();
-            }
-
-            responseObserver.onNext(TransmissionCompletedResponse.newBuilder()
-                .setNewTarget(newProducer.peerDescription())
-                .build()
-            );
-
-            responseObserver.onCompleted();
+        if (slot == null || peer == null) {
+            LOG.error("{} Loader or peer not found in db", logPrefix);
+            responseObserver.onError(Status.NOT_FOUND.asRuntimeException());
             return;
         }
 
         LOG.info("{} Succeeded", logPrefix);
-        if (target.peerDescription().hasStoragePeer() && target.role().equals(CONSUMER)) {
+        if (peer.peerDescription().hasStoragePeer() && peer.role().equals(CONSUMER)) {
             // Data uploaded to storage, we can use it as producer
             try {
                 DbHelper.withRetries(LOG, () -> {
                     try (var tx = TransactionHandle.create(storage)) {
-                        peerDao.drop(target.id(), tx);
-                        peerDao.create(target.channelId(), target.peerDescription(), PRODUCER, BACKUP, false, tx);
+                        peerDao.drop(peer.id(), tx);
+                        peerDao.create(peer.channelId(), peer.peerDescription(), PRODUCER, BACKUP, false, tx);
                         tx.commit();
                     }
                 });
             } catch (Exception e) {
-                dropChannel("Cannot recreate storage peer as producer", logPrefix, e, loader.channelId());
+                dropChannel("Cannot recreate storage peer as producer", logPrefix, e, slot.channelId());
 
                 throw Status.INTERNAL.asRuntimeException();
             }
         }
 
-        responseObserver.onNext(TransmissionCompletedResponse.newBuilder().build());
+        responseObserver.onNext(TransferCompletedResponse.newBuilder().build());
         responseObserver.onCompleted();
     }
 

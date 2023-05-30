@@ -54,6 +54,7 @@ message BindResponse {
 
 message UnbindRequest {
   string peer_id = 1;
+  string channel_id = 2;
 }
 
 message UnbindResponse {}
@@ -74,6 +75,7 @@ message GetChannelsStatusResponse {
 message TransferCompletedRequest {
   string slot_id  = 1;  // Peer id of slot that completed transfer
   string peer_id = 2;
+  string channel_id = 3;
 }
 
 message TransferCompletedResponse {}
@@ -86,6 +88,7 @@ message TransferFailedRequest {
   string peer_id     = 2;
 
   string description = 3;  // Error description for logging
+  string channel_id  = 4;
 }
 
 message TransferFailedResponse {

@@ -6,8 +6,6 @@ import ai.lzy.channelmanager.test.InjectedFailures;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.v1.channel.v2.LCMPS;
 import ai.lzy.v1.channel.v2.LCMS;
-import ai.lzy.v1.channel.v2.LCMS.TransmissionCompletedRequest.Failed;
-import ai.lzy.v1.channel.v2.LCMS.TransmissionCompletedRequest.Succeeded;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
 import ai.lzy.v1.channel.v2.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LC.PeerDescription.StoragePeer;
@@ -133,7 +131,7 @@ public class ApiTest {
 
         var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "1");
 
-        Assert.assertEquals("s3://some-bucket", resp.getTarget().getStoragePeer().getStorageUri());
+        Assert.assertEquals("s3://some-bucket", resp.getPeer().getStoragePeer().getStorageUri());
 
         var state = publicClient.getChannelsStatus(
             LCMS.GetChannelsStatusRequest.newBuilder()
@@ -145,21 +143,18 @@ public class ApiTest {
         Assert.assertEquals(1, state.getChannels(0).getConsumersCount());
         Assert.assertEquals(1, state.getChannels(0).getProducersCount());
 
-        Assert.assertEquals(resp.getTarget().getPeerId(), state.getChannels(0).getProducers(0).getPeerId());
+        Assert.assertEquals(resp.getPeer().getPeerId(), state.getChannels(0).getProducers(0).getPeerId());
         Assert.assertEquals("1", state.getChannels(0).getConsumers(0).getPeerId());
 
-        var compl = completed(chan.getChannelId(), "1", resp.getTarget().getPeerId());
-
-        Assert.assertFalse(compl.hasNewTarget());
+        completed(chan.getChannelId(), "1", resp.getPeer().getPeerId());
     }
 
-    private static LCMS.TransmissionCompletedResponse completed(String chanId, String loaderId, String targetId) {
-        return publicClient.transmissionCompleted(
-            LCMS.TransmissionCompletedRequest.newBuilder()
+    private static void completed(String chanId, String loaderId, String peerId) {
+        publicClient.transferCompleted(
+            LCMS.TransferCompletedRequest.newBuilder()
                 .setChannelId(chanId)
-                .setSucceeded(Succeeded.newBuilder().build())
-                .setLoaderPeerId(loaderId)
-                .setTargetPeerId(targetId)
+                .setSlotId(loaderId)
+                .setPeerId(peerId)
                 .build());
     }
 
@@ -177,11 +172,9 @@ public class ApiTest {
 
         var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "1");
 
-        Assert.assertEquals("s3://some-bucket", resp.getTarget().getStoragePeer().getStorageUri());
+        Assert.assertEquals("s3://some-bucket", resp.getPeer().getStoragePeer().getStorageUri());
 
-        var resp1 = completed(chan.getChannelId(), "1", resp.getTarget().getPeerId());
-
-        Assert.assertFalse(resp1.hasNewTarget());
+        completed(chan.getChannelId(), "1", resp.getPeer().getPeerId());
 
         var state = publicClient.getChannelsStatus(
             LCMS.GetChannelsStatusRequest.newBuilder()
@@ -196,7 +189,7 @@ public class ApiTest {
         // Connecting new consumer to get slot producer
         var resp2 = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "2");
 
-        Assert.assertEquals("1", resp2.getTarget().getPeerId());  // New producer is most prioritized
+        Assert.assertEquals("1", resp2.getPeer().getPeerId());  // New producer is most prioritized
     }
 
     @Test
@@ -211,15 +204,15 @@ public class ApiTest {
                     .build())
                 .build());
 
-        var fut = slotService.waitForStartTransmission("1");
+        var fut = slotService.waitForStartTransfer("1");
         var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "1");
-        Assert.assertFalse(resp.hasTarget());
+        Assert.assertFalse(resp.hasPeer());
 
         var resp2 = bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "2");
-        Assert.assertEquals("s3://some-bucket", resp2.getTarget().getStoragePeer().getStorageUri());
+        Assert.assertEquals("s3://some-bucket", resp2.getPeer().getStoragePeer().getStorageUri());
 
         var resp3 = fut.get();
-        Assert.assertEquals("2", resp3.getTarget().getPeerId());
+        Assert.assertEquals("2", resp3.getPeer().getPeerId());
     }
 
     @Test
@@ -240,19 +233,19 @@ public class ApiTest {
 
         // Binding consumer
         var resp3 = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "3");
-        var prodId = resp3.getTarget().getPeerId();
+        var prodId = resp3.getPeer().getPeerId();
 
-        // Failing transmission
-        var resp4 = publicClient.transmissionCompleted(
-            LCMS.TransmissionCompletedRequest.newBuilder()
+        // Failing transfer
+        var resp4 = publicClient.transferFailed(
+            LCMS.TransferFailedRequest.newBuilder()
                 .setChannelId(chan.getChannelId())
-                .setFailed(Failed.newBuilder().setDescription("Fail").build())
-                .setLoaderPeerId("3")
-                .setTargetPeerId(prodId)
+                .setDescription("Fail")
+                .setSlotId("3")
+                .setPeerId(prodId)
                 .build());
 
-        Assert.assertTrue(resp4.hasNewTarget());
-        Assert.assertNotEquals(prodId, resp4.getNewTarget().getPeerId());
+        Assert.assertTrue(resp4.hasNewPeer());
+        Assert.assertNotEquals(prodId, resp4.getNewPeer().getPeerId());
     }
 
     @Test
@@ -295,12 +288,12 @@ public class ApiTest {
         var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "1");
 
         try {
-            publicClient.transmissionCompleted(
-                LCMS.TransmissionCompletedRequest.newBuilder()
+            publicClient.transferFailed(
+                LCMS.TransferFailedRequest.newBuilder()
                     .setChannelId(chan.getChannelId())
-                    .setFailed(Failed.newBuilder().setDescription("Fail").build())
-                    .setLoaderPeerId("1")
-                    .setTargetPeerId(resp.getTarget().getPeerId())
+                    .setDescription("Fail")
+                    .setSlotId("1")
+                    .setPeerId(resp.getPeer().getPeerId())
                     .build());
             Assert.fail();
         } catch (StatusRuntimeException e) {

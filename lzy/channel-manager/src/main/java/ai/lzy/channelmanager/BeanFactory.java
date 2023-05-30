@@ -3,7 +3,6 @@ package ai.lzy.channelmanager;
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
 import ai.lzy.channelmanager.lock.GrainedLock;
-import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
@@ -17,7 +16,6 @@ import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
-import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
@@ -78,11 +76,4 @@ public class BeanFactory {
     public ManagedChannel workflowGrpcChannel(ChannelManagerConfig config) {
         return GrpcUtils.newGrpcChannel(config.getLzyServiceAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
     }
-
-    @Bean(preDestroy = "shutdown")
-    @Singleton
-    public ChannelOperationExecutor executor(ChannelManagerConfig config) {
-        return new ChannelOperationExecutor(config);
-    }
-
 }

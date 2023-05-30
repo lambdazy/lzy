@@ -25,9 +25,9 @@ CREATE TABLE peer
 
 CREATE TABLE pending_transfer
 (
-    slot_peer_id        text       NOT NULL,
-    target_peer_id      text       NOT NULL,
-    PRIMARY KEY (slot_peer_id, target_peer_id),
-    FOREIGN KEY (slot_peer_id)   references peer(id),
-    FOREIGN KEY (target_peer_id) references peer(id)
+    slot_id        text       NOT NULL,
+    peer_id        text       NOT NULL,
+    PRIMARY KEY (slot_id, peer_id),
+    FOREIGN KEY (slot_id)   references peer(id),
+    FOREIGN KEY (peer_id)   references peer(id)
 );

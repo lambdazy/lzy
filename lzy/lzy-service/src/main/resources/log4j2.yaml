@@ -3,7 +3,7 @@ Configuration:
   properties:
     property:
       name: gc_filename
-      value: target/garbage_collector.log
+      value: peer/garbage_collector.log
 
   Appenders:
     Console:

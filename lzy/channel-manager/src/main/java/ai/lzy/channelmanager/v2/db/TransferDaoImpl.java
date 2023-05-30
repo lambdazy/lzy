@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Singleton
-public class TransferDaoImpl implements TransmissionsDao {
+public class TransferDaoImpl implements TransferDao {
     private final ChannelManagerDataSource storage;
 
     public TransferDaoImpl(ChannelManagerDataSource storage) {
@@ -23,7 +23,7 @@ public class TransferDaoImpl implements TransmissionsDao {
     {
         DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                INSERT INTO pending_transfer (slot_peer_id, target_peer_id)
+                INSERT INTO pending_transfer (slot_id, peer_id)
                 VALUES (?, ?)
                 """))
             {
@@ -40,7 +40,7 @@ public class TransferDaoImpl implements TransmissionsDao {
         DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
                 DELETE FROM pending_transfer
-                 WHERE slot_peer_id = ? AND target_peer_id = ?
+                 WHERE slot_id = ? AND peer_id = ?
                 """))
             {
                 ps.setString(1, loaderId);
@@ -56,7 +56,7 @@ public class TransferDaoImpl implements TransmissionsDao {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
                 SELECT count(*) FROM pending_transfer
-                 WHERE slot_peer_id = ? OR target_peer_id = ?
+                 WHERE slot_id = ? OR peer_id = ?
                 """))
             {
                 ps.setString(1, peerId);
@@ -80,8 +80,8 @@ public class TransferDaoImpl implements TransmissionsDao {
                 SELECT slot.id, slot.channel_id, slot.role, slot.peer_description,
                   target.id, target.channel_id, target.role, target.peer_description
                  FROM pending_transfer
-                  JOIN peer slot on slot.id = pending_transfer.slot_peer_id
-                  JOIN peer target on target.id = pending_transfer.target_peer_id
+                  JOIN peer slot on slot.id = pending_transfer.slot_id
+                  JOIN peer target on target.id = pending_transfer.peer_id
                 """))
             {
                 var rs = ps.executeQuery();

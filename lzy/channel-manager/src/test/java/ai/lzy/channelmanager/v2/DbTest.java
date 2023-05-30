@@ -2,7 +2,7 @@ package ai.lzy.channelmanager.v2;
 
 import ai.lzy.channelmanager.v2.db.ChannelDao;
 import ai.lzy.channelmanager.v2.db.PeerDao;
-import ai.lzy.channelmanager.v2.db.TransmissionsDao;
+import ai.lzy.channelmanager.v2.db.TransferDao;
 import ai.lzy.channelmanager.v2.model.Peer;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.common.LMD;
@@ -21,7 +21,7 @@ public class DbTest {
     public static ApplicationContext context;
     private static PeerDao peerDao;
     private static ChannelDao channelDao;
-    private static TransmissionsDao transmissionDao;
+    private static TransferDao transmissionDao;
 
     @BeforeClass
     public static void init() {
@@ -29,7 +29,7 @@ public class DbTest {
         context = ApplicationContext.run(channelManagerDbConfig);
         peerDao = context.getBean(PeerDao.class);
         channelDao = context.getBean(ChannelDao.class);
-        transmissionDao = context.getBean(TransmissionsDao.class);
+        transmissionDao = context.getBean(TransferDao.class);
     }
 
     @AfterClass
@@ -249,8 +249,8 @@ public class DbTest {
 
         var list = transmissionDao.listPendingTransmissions(null);
         Assert.assertEquals(1, list.size());
-        Assert.assertEquals(peer1, list.get(0).loader());
-        Assert.assertEquals(peer2, list.get(0).target());
+        Assert.assertEquals(peer1, list.get(0).slot());
+        Assert.assertEquals(peer2, list.get(0).peer());
 
         transmissionDao.dropPendingTransmission(peer1.id(), peer2.id(), null);
 

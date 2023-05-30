@@ -27,12 +27,12 @@ public class ChannelManagerMain {
     private static final Logger LOG = LogManager.getLogger(ChannelManagerMain.class);
 
     private final Server server;
-    private final StartTransmissionAction action;
+    private final StartTransferAction action;
 
     public ChannelManagerMain(
         ChannelManagerConfig config,
         ChannelService channelService, SlotsService slotsService,
-        @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel, StartTransmissionAction action)
+        @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel, StartTransferAction action)
     {
         this.action = action;
         LOG.info("Starting ChannelManager service with config: {}", config);
