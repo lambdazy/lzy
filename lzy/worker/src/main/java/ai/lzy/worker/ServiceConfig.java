@@ -1,6 +1,5 @@
 package ai.lzy.worker;
 
-import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
@@ -22,11 +21,8 @@ public class ServiceConfig {
     private int fsPort;
     private int apiPort;
     private String mountPoint;
-    private String publicKey;
     private int gpuCount;
-
-    @ConfigurationBuilder("iam")
-    private final IamClientConfiguration iam = new IamClientConfiguration();
+    private String iamAddress;
 
     @ConfigurationBuilder("kafka")
     private final KafkaConfig kafka = new KafkaConfig();

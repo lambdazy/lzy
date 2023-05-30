@@ -404,8 +404,15 @@ public class PortalTestBase {
         var worker = ctx.getBean(Worker.class);
         var config = ctx.getBean(ServiceConfig.class);
 
+        RsaUtils.RsaKeys iamKeys;
+        try {
+            iamKeys = RsaUtils.generateRsaKeys();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
         try (final var iamClient = new IamClient(iamTestContext.getClientConfig())) {
-            var user = iamClient.createUser(workerId, config.getPublicKey());
+            var user = iamClient.createUser(workerId, iamKeys.publicKey());
             workflowName = "wf";
             iamClient.addWorkflowAccess(user, userId, workflowName);
         } catch (Exception e) {
@@ -424,6 +431,13 @@ public class PortalTestBase {
         var opStub = LongRunningServiceGrpc.newBlockingStub(workerChannel);
         opStub = ai.lzy.util.grpc.GrpcUtils.newBlockingClient(opStub, "worker", () -> iamTestContext.getClientConfig()
             .createRenewableToken().get().token());
+
+        stub.init(LWS.InitRequest.newBuilder()
+            .setUserId(userId)
+            .setWorkflowName(workflowName)
+            .setWorkerSubjectName(workerId)
+            .setWorkerPrivateKey(iamKeys.privateKey())
+            .build());
 
         return new WorkerDesc(worker, workerChannel, stub, opStub);
     }
