@@ -16,7 +16,9 @@ service LzyChannelManager {
 
   rpc Unbind (UnbindRequest) returns (UnbindResponse) {}
 
-  rpc TransmissionCompleted (TransmissionCompletedRequest) returns (TransmissionCompletedResponse);
+  rpc TransferCompleted (TransferCompletedRequest) returns (TransferCompletedResponse);
+
+  rpc TransferFailed (TransferFailedRequest) returns (TransferFailedResponse);
 
   rpc GetChannelsStatus (GetChannelsStatusRequest) returns (GetChannelsStatusResponse);
 
@@ -43,16 +45,15 @@ message BindResponse {
   // Data scheme of channel. Data of slot can be validated with this scheme
   common.DataScheme data_scheme                   = 1;
 
-  // Target like in StartTransmission call in slots api
-  // If set, bound slot must start this new transmission
-  /* optional */ common.PeerDescription target = 2;
+  // Peer like in StartTransfer call in slots api
+  // If set, bound slot must start this new transfer
+  /* optional */ common.PeerDescription peer = 2;
 }
 
 // =========== Unbind ==============
 
 message UnbindRequest {
-  string peer_id    = 1;
-  string channel_id = 2;
+  string peer_id = 1;
 }
 
 message UnbindResponse {}
@@ -68,27 +69,28 @@ message GetChannelsStatusResponse {
   repeated common.ChannelStatus channels = 1;
 }
 
-// =========== TransmissionCompleted ==============
+// =========== TransferCompleted ==============
 
-message TransmissionCompletedRequest {
-  string channel_id     = 1;
-  string loader_peer_id = 2;
-  string target_peer_id = 3;
-
-  oneof status {
-    Succeeded succeeded = 4;
-    Failed failed       = 5;
-  }
-
-  message Failed {
-    string description  = 1;  // Error description for logging
-  }
-
-  message Succeeded {}
+message TransferCompletedRequest {
+  string slot_id  = 1;  // Peer id of slot that completed transfer
+  string peer_id = 2;
 }
 
-message TransmissionCompletedResponse {
+message TransferCompletedResponse {}
 
-  // If set, loader must start new transmission to this new target
-  /* optional */ common.PeerDescription new_target = 1;
+
+// =========== TransferFailed ==============
+
+message TransferFailedRequest {
+  string slot_id     = 1;  // Peer id of slot that failed transfer
+  string peer_id     = 2;
+
+  string description = 3;  // Error description for logging
 }
+
+message TransferFailedResponse {
+  common.PeerDescription new_peer = 1;
+}
+
+
+

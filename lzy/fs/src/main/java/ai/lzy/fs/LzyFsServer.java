@@ -6,12 +6,18 @@ import ai.lzy.fs.fs.LzyFileSlot;
 import ai.lzy.fs.fs.LzyLinuxFsManagerImpl;
 import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyScript;
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -30,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static io.grpc.ServerInterceptors.intercept;
 
 public class LzyFsServer {
     private static final Logger LOG = LogManager.getLogger(LzyFsServer.class);
@@ -40,6 +47,7 @@ public class LzyFsServer {
     private final SlotsManager slotsManager;
     private final LzyFSManager fsManager;
     private final SlotsService slotsService;
+    private final AccessServerInterceptor accessInterceptor;
     private final Server localServer;
     private final AtomicBoolean finished = new AtomicBoolean(false);
 
@@ -52,12 +60,10 @@ public class LzyFsServer {
         this.selfService = selfAddress;
 
         final var channelManagerClient = newBlockingClient(
-            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel),
-            "LzyFs.ChannelManagerClient", () -> token.get().token());
+            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel), "LzyFs", () -> token.get().token());
 
         final var channelManagerOperationClient = newBlockingClient(
-            LongRunningServiceGrpc.newBlockingStub(channelManagerChannel),
-            "LzyFs.ChannelManagerOperationClient", () -> token.get().token());
+            LongRunningServiceGrpc.newBlockingStub(channelManagerChannel), "LzyFs", () -> token.get().token());
 
         this.slotsManager = new SlotsManager(channelManagerClient, channelManagerOperationClient,
             selfAddress, isPortal);
@@ -72,10 +78,25 @@ public class LzyFsServer {
 
         this.slotsService = new SlotsService(agentId, operationService, slotsManager, fsManager, token);
 
-        this.localServer = newGrpcServer(selfAddress.getHost(), selfAddress.getPort(),
-            new AuthServerInterceptor(new AuthenticateServiceGrpcClient(agentId, iamChannel)))
-            .addService(slotsService.getSlotsApi())
-            .addService(slotsService.getLongrunningApi())
+        var authClient = new AuthenticateServiceGrpcClient(agentId, iamChannel);
+        var authInterceptor = new AuthServerInterceptor(authClient);
+
+
+        var accessClient = new AccessServiceGrpcClient(agentId, iamChannel);
+        var internalOnlyInterceptor = new AllowInternalUserOnlyInterceptor(accessClient);
+        accessInterceptor = new AccessServerInterceptor(accessClient);
+
+        this.localServer = newGrpcServer(selfAddress.getHost(), selfAddress.getPort(), authInterceptor)
+            .addService(
+                intercept(
+                    slotsService.getSlotsApi(),
+                    accessInterceptor,
+                    internalOnlyInterceptor.ignoreMethods(LzySlotsApiGrpc.getOpenOutputSlotMethod())))
+            .addService(
+                intercept(
+                    slotsService.getLongrunningApi(),
+                    accessInterceptor,
+                    internalOnlyInterceptor))
             .build();
     }
 
@@ -95,6 +116,10 @@ public class LzyFsServer {
         LOG.info("Registering lzy cat command...");
         registerCatCommand();
         LOG.info("LzyFs started on {}.", selfService);
+    }
+
+    public void configureAccess(AuthResource authResource, AuthPermission authPermission) {
+        accessInterceptor.configure(authResource, authPermission);
     }
 
     private void registerCatCommand() {

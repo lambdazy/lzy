@@ -90,7 +90,6 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             null,
             null,
             null,
-            null,
             null
         );
 

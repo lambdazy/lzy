@@ -21,6 +21,9 @@ import java.util.concurrent.CountDownLatch;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static ai.lzy.util.kafka.test.KafkaTestUtils.StdlogMessage;
+import static ai.lzy.util.kafka.test.KafkaTestUtils.assertStdLogs;
+
 public class PortalCommonTest extends PortalTestBase {
 
     private StorageClientFactory storageClientFactory;

@@ -188,10 +188,6 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>ru.yandex.clickhouse</groupId>
-            <artifactId>clickhouse-jdbc</artifactId>
-        </dependency>
-        <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
             <version>${project.version}</version>

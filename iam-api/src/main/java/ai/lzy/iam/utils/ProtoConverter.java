@@ -5,6 +5,7 @@ import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.*;
@@ -16,6 +17,7 @@ public class ProtoConverter {
         return switch (resource.getType()) {
             case Workflow.TYPE -> new Workflow(resource.getId());
             case Whiteboard.TYPE -> new Whiteboard(resource.getId());
+            case Root.TYPE -> Root.INSTANCE;
             default -> throw new RuntimeException("Unknown Resource type::" + resource.getType());
         };
     }
@@ -36,7 +38,7 @@ public class ProtoConverter {
         return switch (subjectType) {
             case USER -> new User(subject.getId());
             case WORKER -> new Worker(subject.getId());
-            case EXTERNAL -> new External(subject.getId(), subject.getExternalDetails());
+            case EXTERNAL -> new External(subject.getId(), subject.getDetails());
         };
     }
 
@@ -81,7 +83,7 @@ public class ProtoConverter {
             builder.setType(SubjectType.WORKER.name());
         } else if (subject instanceof External external) {
             builder.setType(SubjectType.EXTERNAL.name());
-            builder.setExternalDetails(external.details());
+            builder.setDetails(external.details());
         } else {
             throw new RuntimeException("Unknown subject type " + subject.getClass());
         }
