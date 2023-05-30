@@ -775,9 +775,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         if (type == VmAllocatorApi.MountRequest.VolumeTypeCase.DISK_VOLUME) {
             var diskVolume = request.getDiskVolume();
             var accessMode = validateAccessMode(diskVolume.getAccessMode());
+            var storageClass = validateStorageClass(diskVolume.getStorageClass());
             var id = idGenerator.generate("vm-volume-");
             final var diskVolumeDescription = new DiskVolumeDescription(id, diskVolume.getDiskId(),
-                diskVolume.getSizeGb(), accessMode);
+                diskVolume.getSizeGb(), accessMode, storageClass);
             var mountName = "disk-" + diskVolume.getDiskId();
             var dynamicMount = DynamicMount.createNew(vm.vmId(), clusterId, mountName,
                 mountConfig.getWorkerMountPoint() + "/" + request.getMountPath(),
@@ -824,9 +825,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         throw Status.NOT_FOUND.withDescription(message).asException();
                     }
                     var accessMode = validateAccessMode(diskVolume.getAccessMode());
+                    var storageClass = validateStorageClass(diskVolume.getStorageClass());
                     yield new VolumeRequest(idGenerator.generate("disk-volume-").toLowerCase(Locale.ROOT),
                         new DiskVolumeDescription(volume.getName(), diskVolume.getDiskId(), disk.spec().sizeGb(),
-                            accessMode));
+                            accessMode, storageClass));
                 }
 
                 case HOST_PATH_VOLUME -> {
@@ -998,6 +1000,19 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT.withDescription("invalid access_mode")
                 .asRuntimeException();
             default -> Volume.AccessMode.READ_WRITE_ONCE;
+        };
+    }
+
+    @Nullable
+    private DiskVolumeDescription.StorageClass validateStorageClass(
+        VolumeApi.DiskVolumeType.StorageClass storageClass
+    ) {
+        return switch (storageClass) {
+            case DEFAULT -> null; //todo think about it
+            case HDD -> DiskVolumeDescription.StorageClass.HDD;
+            case SSD -> DiskVolumeDescription.StorageClass.SSD;
+            case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT.withDescription("invalid storage_class")
+                .asRuntimeException();
         };
     }
 }

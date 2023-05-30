@@ -61,7 +61,7 @@ public class KuberVolumeManager implements VolumeManager {
             accessMode = Objects.requireNonNullElse(diskVolumeDescription.accessMode(),
                 Volume.AccessMode.READ_WRITE_ONCE);
             resourceName = diskVolumeDescription.name();
-            storageClass = EMPTY_STORAGE_CLASS_NAME;
+            storageClass = ycStorageClass(diskVolumeDescription.storageClass());
             var readOnly = accessMode == Volume.AccessMode.READ_ONLY_MANY;
             volume = new PersistentVolumeBuilder()
                 .withNewMetadata()
@@ -132,6 +132,16 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.error("Could not create volume {}: {}", result, e.getMessage(), e);
             throw e;
         }
+    }
+
+    private String ycStorageClass(@Nullable DiskVolumeDescription.StorageClass storageClass) {
+        if (storageClass == null) {
+            return EMPTY_STORAGE_CLASS_NAME;
+        }
+        return switch (storageClass) {
+            case HDD -> "yc-network-hdd";
+            case SSD -> "yc-network-ssd";
+        };
     }
 
     @Override
