@@ -14,6 +14,7 @@ import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.services.DiskService;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
+import ai.lzy.allocator.volume.StorageProvider;
 import ai.lzy.allocator.volume.VolumeManager;
 import ai.lzy.longrunning.OperationsService;
 import ai.lzy.test.GrpcUtils;
@@ -60,12 +61,13 @@ public class VolumeManagerTest {
         operations = context.getBean(OperationsService.class);
         final ServiceConfig serviceConfig = context.getBean(ServiceConfig.class);
         final ClusterRegistry clusterRegistry = context.getBean(ClusterRegistry.class);
+        final StorageProvider storageProvider = context.getBean(StorageProvider.class);
         clusterId = serviceConfig.getUserClusters().stream().findFirst().orElse(null);
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
         var kuberClientFactory = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX));
-        volumeManager = new KuberVolumeManager(kuberClientFactory, clusterRegistry);
+        volumeManager = new KuberVolumeManager(kuberClientFactory, clusterRegistry, storageProvider);
     }
 
     @Test

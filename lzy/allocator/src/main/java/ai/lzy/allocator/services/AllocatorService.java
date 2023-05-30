@@ -1003,12 +1003,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         };
     }
 
-    @Nullable
     private DiskVolumeDescription.StorageClass validateStorageClass(
         VolumeApi.DiskVolumeType.StorageClass storageClass
     ) {
         return switch (storageClass) {
-            case DEFAULT -> null; //todo think about it
+            case STORAGE_CLASS_UNSPECIFIED -> null;
             case HDD -> DiskVolumeDescription.StorageClass.HDD;
             case SSD -> DiskVolumeDescription.StorageClass.SSD;
             case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT.withDescription("invalid storage_class")

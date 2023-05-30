@@ -161,7 +161,8 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertEquals(diskVolumeDescription.diskId(), diskVolume.getDiskId());
         Assert.assertEquals(diskVolumeDescription.sizeGb(), diskVolume.getSizeGb());
         Assert.assertEquals(diskVolumeDescription.accessMode().toString(), diskVolume.getAccessMode().toString());
-        Assert.assertEquals(VolumeApi.DiskVolumeType.StorageClass.DEFAULT, diskVolume.getStorageClass());
+        Assert.assertEquals(VolumeApi.DiskVolumeType.StorageClass.STORAGE_CLASS_UNSPECIFIED,
+            diskVolume.getStorageClass());
 
         var fetchedMount2 = fetchedMountsById.get(mount2.id());
         Assert.assertNotNull(fetchedMount2);

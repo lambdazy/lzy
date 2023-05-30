@@ -39,7 +39,7 @@ message DiskVolumeType {
   }
 
   enum StorageClass {
-    DEFAULT = 0;
+    STORAGE_CLASS_UNSPECIFIED = 0;
     SSD = 1;
     HDD = 2;
   }
