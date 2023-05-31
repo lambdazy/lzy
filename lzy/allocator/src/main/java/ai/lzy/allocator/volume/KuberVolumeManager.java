@@ -48,19 +48,20 @@ public class KuberVolumeManager implements VolumeManager {
         final String storageClass;
 
         var cluster = getClusterOrThrow(clusterId);
-        final String volumeName = volumeRequest.volumeId();
+        String volumeName = volumeRequest.volumeId();
 
         if (volumeRequest.volumeDescription() instanceof DiskVolumeDescription diskVolumeDescription) {
             diskId = diskVolumeDescription.diskId();
             diskSize = diskVolumeDescription.sizeGb();
-
-            LOG.info("Creating persistent volume '{}' for disk {} of size {}Gi", volumeName, diskId, diskSize);
 
             accessMode = Objects.requireNonNullElse(diskVolumeDescription.accessMode(),
                 Volume.AccessMode.READ_WRITE_ONCE);
             resourceName = diskVolumeDescription.name();
             storageClass = storageProvider.resolveDiskStorageClass(diskVolumeDescription.storageClass());
             var readOnly = accessMode == Volume.AccessMode.READ_ONLY_MANY;
+            volumeName += "-" + (readOnly ? "ro" : "rw");
+
+            LOG.info("Creating persistent volume '{}' with description {}", volumeName, diskVolumeDescription);
             volume = new PersistentVolumeBuilder()
                 .withNewMetadata()
                     .withName(volumeName)
@@ -239,19 +240,7 @@ public class KuberVolumeManager implements VolumeManager {
 
     @Override
     public void delete(String clusterId, String volumeName) {
-        var cluster = getClusterOrThrow(clusterId);
-        try (var client = kuberClientFactory.build(cluster)) {
-            LOG.info("Deleting persistent volume {}", volumeName);
-            client.persistentVolumes().withName(volumeName).delete();
-            LOG.info("Persistent volume {} successfully deleted", volumeName);
-        } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-                LOG.warn("Persistent volume {} not found", volumeName);
-                return;
-            }
-            LOG.error("Cannot delete persistent volume {}: {}", volumeName, e.getMessage(), e);
-            throw e;
-        }
+        LOG.info("Skipping persistent volume {} deletion", volumeName);
     }
 
     @Override

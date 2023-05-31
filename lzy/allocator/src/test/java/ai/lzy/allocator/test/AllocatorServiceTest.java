@@ -750,14 +750,14 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         Assert.assertEquals(expectedDiskSize,
             persistentVolumeClaim.getSpec().getResources().getRequests().get(VOLUME_CAPACITY_STORAGE_KEY));
 
-        final CountDownLatch kuberRemoveResourceLatch = new CountDownLatch(3);
+        final CountDownLatch kuberRemoveResourceLatch = new CountDownLatch(2);
         mockDeletePodByName(podName, kuberRemoveResourceLatch::countDown, HttpURLConnection.HTTP_OK);
-        mockDeleteResource(
-            PERSISTENT_VOLUME_PATH,
-            persistentVolume.getMetadata().getName(),
-            kuberRemoveResourceLatch::countDown,
-            HttpURLConnection.HTTP_OK
-        );
+//        mockDeleteResource(
+//            PERSISTENT_VOLUME_PATH,
+//            persistentVolume.getMetadata().getName(),
+//            kuberRemoveResourceLatch::countDown,
+//            HttpURLConnection.HTTP_OK
+//        );
         mockDeleteResource(
             PERSISTENT_VOLUME_CLAIM_PATH,
             persistentVolumeClaim.getMetadata().getName(),
