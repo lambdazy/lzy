@@ -33,7 +33,7 @@ public class PeerDaoImpl implements PeerDao {
     {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                INSERT INTO peer(%s)
+                INSERT INTO peers(%s)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """.formatted(FIELDS)))
             {
@@ -62,7 +62,7 @@ public class PeerDaoImpl implements PeerDao {
     public Peer findPriorProducer(String channelId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                SELECT %s FROM peer
+                SELECT %s FROM peers
                 WHERE channel_id = ? AND "role" = 'PRODUCER' AND priority >= 0
                 ORDER BY priority DESC, RANDOM() LIMIT 1
                 """.formatted(FIELDS)))
@@ -84,7 +84,7 @@ public class PeerDaoImpl implements PeerDao {
     public List<Peer> markConsumersAsConnected(String channelId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                UPDATE peer
+                UPDATE peers
                 SET connected = true
                 WHERE channel_id = ? AND connected = false AND "role" = 'CONSUMER'
                 RETURNING %s
@@ -109,7 +109,7 @@ public class PeerDaoImpl implements PeerDao {
     public int decrementPriority(String peerId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                UPDATE peer
+                UPDATE peers
                 SET priority = priority - 1
                 WHERE id = ?
                 RETURNING priority
@@ -131,7 +131,7 @@ public class PeerDaoImpl implements PeerDao {
     public Peer drop(String peerId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                DELETE FROM peer CASCADE
+                DELETE FROM peers CASCADE
                 WHERE id = ?
                 RETURNING %s
                 """.formatted(FIELDS)))
@@ -151,7 +151,7 @@ public class PeerDaoImpl implements PeerDao {
     public Peer get(String peerId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                SELECT %s FROM peer
+                SELECT %s FROM peers
                 WHERE id = ?
                 """.formatted(FIELDS)))
             {

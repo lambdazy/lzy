@@ -1,6 +1,5 @@
 package ai.lzy.channelmanager.access;
 
-import ai.lzy.channelmanager.operation.ChannelOperation;
 import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.resources.AuthPermission;
@@ -23,16 +22,6 @@ public class IamAccessManager {
     {
         this.iamSubjectClient = subjectClient;
         this.iamAccessClient = iamAccessClient;
-    }
-
-    public boolean checkAccess(String subjId, String userId, String workflowName, ChannelOperation.Type opType) {
-        // TODO: retries
-        final var permission = switch (opType) {
-            case BIND, UNBIND -> AuthPermission.WORKFLOW_RUN;
-            case DESTROY -> AuthPermission.WORKFLOW_STOP;
-        };
-
-        return checkAccess(subjId, userId, workflowName, permission);
     }
 
     public boolean checkAccess(String subjId, String userId, String workflowName, AuthPermission permission) {

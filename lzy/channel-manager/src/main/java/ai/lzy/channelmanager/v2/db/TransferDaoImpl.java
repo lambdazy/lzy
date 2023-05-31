@@ -23,7 +23,7 @@ public class TransferDaoImpl implements TransferDao {
     {
         DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                INSERT INTO pending_transfer (slot_id, peer_id)
+                INSERT INTO pending_transfers (slot_id, peer_id)
                 VALUES (?, ?)
                 """))
             {
@@ -39,7 +39,7 @@ public class TransferDaoImpl implements TransferDao {
     public void dropPendingTransmission(String loaderId, String targetId, TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                DELETE FROM pending_transfer
+                DELETE FROM pending_transfers
                  WHERE slot_id = ? AND peer_id = ?
                 """))
             {
@@ -55,7 +55,7 @@ public class TransferDaoImpl implements TransferDao {
     public boolean hasPendingTransfers(String peerId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                SELECT count(*) FROM pending_transfer
+                SELECT count(*) FROM pending_transfers
                  WHERE slot_id = ? OR peer_id = ?
                 """))
             {
@@ -79,9 +79,9 @@ public class TransferDaoImpl implements TransferDao {
             try (PreparedStatement ps = connection.prepareStatement("""
                 SELECT slot.id, slot.channel_id, slot.role, slot.peer_description,
                   target.id, target.channel_id, target.role, target.peer_description
-                 FROM pending_transfer
-                  JOIN peer slot on slot.id = pending_transfer.slot_id
-                  JOIN peer target on target.id = pending_transfer.peer_id
+                 FROM pending_transfers
+                  JOIN peers slot on slot.id = pending_transfers.slot_id
+                  JOIN peers target on target.id = pending_transfers.peer_id
                 """))
             {
                 var rs = ps.executeQuery();

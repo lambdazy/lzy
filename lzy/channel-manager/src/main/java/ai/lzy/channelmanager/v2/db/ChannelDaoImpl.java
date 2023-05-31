@@ -25,8 +25,9 @@ public class ChannelDaoImpl implements ChannelDao {
     private static final String FIELDS = "id, owner_id, execution_id, workflow_name, data_scheme_json," +
         " storage_producer_uri, storage_consumer_uri";
 
-    private static final String CHANNEL_FIELDS = "channel.id, channel.owner_id, channel.execution_id, " +
-        "channel.workflow_name, channel.data_scheme_json, channel.storage_producer_uri, channel.storage_consumer_uri";
+    private static final String CHANNEL_FIELDS = "channels.id, channels.owner_id, channels.execution_id, " +
+        "channels.workflow_name, channels.data_scheme_json, channels.storage_producer_uri," +
+        " channels.storage_consumer_uri";
 
     private static final Logger LOG = LogManager.getLogger(ChannelDaoImpl.class);
 
@@ -43,7 +44,7 @@ public class ChannelDaoImpl implements ChannelDao {
     {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                INSERT INTO channel (%s)
+                INSERT INTO channels (%s)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """.formatted(FIELDS)))
             {
@@ -69,7 +70,7 @@ public class ChannelDaoImpl implements ChannelDao {
     public Channel drop(String channelId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                DELETE FROM channel
+                DELETE FROM channels
                 WHERE id = ?
                 RETURNING %s
                 """.formatted(FIELDS)))
@@ -124,7 +125,7 @@ public class ChannelDaoImpl implements ChannelDao {
     {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                SELECT %s FROM channel
+                SELECT %s FROM channels
                 WHERE owner_id = ? AND execution_id = ?
                     AND storage_producer_uri IS NOT DISTINCT FROM ?
                     AND storage_consumer_uri IS NOT DISTINCT FROM ?
@@ -151,7 +152,7 @@ public class ChannelDaoImpl implements ChannelDao {
     public Channel get(String channelId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                SELECT %s FROM channel
+                SELECT %s FROM channels
                 WHERE id = ?
                 """.formatted(FIELDS)))
             {
@@ -178,16 +179,16 @@ public class ChannelDaoImpl implements ChannelDao {
         if (channelIdsFilter == null || channelIdsFilter.isEmpty()) {
             cond = "";
         } else {
-            cond = "AND channel.id IN (%s)".formatted(
+            cond = "AND channels.id IN (%s)".formatted(
                 String.join(",", Collections.nCopies(channelIdsFilter.size(), "?")));
         }
 
         String query = """
-            SELECT %s, array_agg(peer.role || '@@@' || peer.peer_description) as peer_descriptions
-            FROM channel
-            LEFT JOIN peer ON channel.id = peer.channel_id
-            WHERE channel.execution_id = ? %s
-            GROUP BY channel.id, channel.owner_id, channel.workflow_name;
+            SELECT %s, array_agg(peers.role || '@@@' || peers.peer_description) as peer_descriptions
+            FROM channels
+            LEFT JOIN peers ON channels.id = peers.channel_id
+            WHERE channels.execution_id = ? %s
+            GROUP BY channels.id, channels.owner_id, channels.workflow_name;
             """.formatted(CHANNEL_FIELDS, cond);
 
         DbOperation.execute(tx, storage, connection -> {
@@ -248,7 +249,7 @@ public class ChannelDaoImpl implements ChannelDao {
     public void dropAll(String executionId, TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
-                DELETE FROM channel
+                DELETE FROM channels
                 WHERE execution_id = ?
                 """))
             {

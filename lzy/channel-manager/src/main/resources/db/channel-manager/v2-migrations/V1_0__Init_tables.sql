@@ -1,4 +1,4 @@
-CREATE TABLE channel
+CREATE TABLE channels
 (
     id                   text      NOT NULL PRIMARY KEY,
     owner_id             text      NOT NULL,
@@ -9,7 +9,7 @@ CREATE TABLE channel
     storage_consumer_uri text      NULL
 );
 
-CREATE TABLE peer
+CREATE TABLE peers
 (
     id                   text      NOT NULL PRIMARY KEY,
     channel_id           text      NOT NULL,
@@ -18,16 +18,16 @@ CREATE TABLE peer
     priority             integer   NOT NULL,
     connected            boolean   NOT NULL,
 
-    FOREIGN KEY(channel_id) references channel(id)
+    FOREIGN KEY(channel_id) references channels(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
 
-CREATE TABLE pending_transfer
+CREATE TABLE pending_transfers
 (
     slot_id        text       NOT NULL,
     peer_id        text       NOT NULL,
     PRIMARY KEY (slot_id, peer_id),
-    FOREIGN KEY (slot_id)   references peer(id),
-    FOREIGN KEY (peer_id)   references peer(id)
+    FOREIGN KEY (slot_id)   references peers(id),
+    FOREIGN KEY (peer_id)   references peers(id)
 );

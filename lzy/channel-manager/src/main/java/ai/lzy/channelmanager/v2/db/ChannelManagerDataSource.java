@@ -9,6 +9,6 @@ import jakarta.inject.Singleton;
 @Requires(property = "channel-manager.database.enabled", value = "true")
 public class ChannelManagerDataSource extends StorageImpl {
     public ChannelManagerDataSource(ChannelManagerConfig config) {
-        super(config.getDatabase(), "classpath:db/channel-manager/migrations/v2");
+        super(config.getDatabase(), "classpath:db/channel-manager/v2-migrations");
     }
 }
