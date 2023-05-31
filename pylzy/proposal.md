@@ -1,6 +1,6 @@
 Мы имеем 4 типа настройки окружения пользовательской операции, которые конечным образом уезжают на сервер:
 1) Ресурсы (Provisioning)
-2) Файлы, которые мы тащим с собой (например, локальный проект)
+2) Файлы, которые мы тащим с собой, например, локальный проект, но в перспективе это могут быть и обычные файлы-ресурсы
 3) Библиотеки, которые мы должны поставить на удаленной машине
 4) Контейнер, который в котором мы запустимся
 Отсюда мы имеем 4 естественных и семантичных точки для настроек окружения со стороны пользователя:
@@ -13,7 +13,8 @@ class Provisioning:
     ...
     # ничего нового тут
 
-# Названия еще предстоит обсудит
+
+# Названия еще предстоит обсудить
 class FilesEnv:
     @abstractproperty
     def local_paths(self) -> List[str]:
@@ -44,10 +45,12 @@ class ManualFilesEnv(FilesEnv):
 
 class AutoFilesEnv(FilesEnv):
     pypi_index_url: str
+    exclude_packages: List[str]
     additional_paths: str
 
-    def __init__(self, pypi_index_url: str, additional_paths: List[str]):
-        self.local_paths = self.explore_local_paths(pypi_index_url) + additional_paths
+    @property
+    def local_paths(self):
+        ...
 
 ```
 
@@ -91,7 +94,10 @@ class AutoLibrariesEnv(PythonEnv):
 Во всех остальных случаях мы обязаны запускать конду на удаленной машине, даже в докере
 и если в докере конды нет - падать с ошибкой про то, что у тебя указано непустое окружение,
 а конды в контейнере нет (возможно, стоит это дело инкапсулировать в свой пакет `lzy_env_manager`,
-чтобы не торчать наружу кондой)
+чтобы не торчать наружу кондой).
+
+*Игорь говорит/предлагает, что при отсутствии конды в докере нужно сделать фоллбек на pip, но
+тогда артефактом PythonEnv должен быть не conda_config, а нечто вроде pypi_libraries*
 
 ```python
 class EmptyEnv(PythonEnv):
@@ -161,11 +167,15 @@ class Env:
 ```python
 class LocalEnvExplorer:
     pypi_index_url: str
+    additional_pypi_index_urls: List[str]
     exclude_packages: str
 
     def explore(self, namespace: Dict[Any]) -> Tuple[LocalPaths, LocalLibraries]:
         pass
 ```
+
+*NB: непонятно, почему что-то с именем LocalEnvExplorer должно использоваться by CondaEnv*
+Возможно, стоит обозвать это дело как-нибудь типа PipTool, или разделить его на PipSettings + LocalEnvExplorer.
 
 Проблемы начинаются тогда, когда мы хотим дать пользователю настроить LocalEnvExplorer,
 при том, что AutoFilesEnv и PythonEnv должны содержать один и тот же экзмепляр LocalEnvExplorer.
@@ -260,6 +270,19 @@ class WithEnvironmentMixin(Generic[T]):
 
     def with_container(...) -> ...:
         pass
+
+    def with_env(sels, env: Env = None, *, provisioning: Provisioning = None, files_env: FilesEnv = None, ...) -> ...:
+        # фабричный метод, чтобы не вызывать предыдущие четыре по-одному
+
+    # фантазия на будущее
+    @classmethod
+    def generate_arparser(cls):
+        ...
+
+    @classmethod
+    def from_cli_args(cls, argv=sys.argv) -> ...:
+        ...
+
 ```
 
 Это позволит следующие конструкции:
@@ -351,6 +374,7 @@ env = Env(
 )
 
 @op(env=env):
+def foo():
     pass
 ```
 
@@ -365,11 +389,11 @@ with lzy.workflow() as wf:
     wf.env = env  # Так можно сделать, потому что окружение вычисляется в первый ленивый момент
 ```
 
-Альтернативный возможный способ настройки через декораторы (подходит только для @op):
+Альтернативный возможный способ настройки через декораторы и `__call__ (подходит только для @op):
 
 ```python
-@Provisioning(cpu=123).set
-@AutoFilesEnv(local_paths=[...]).set
+@Provisioning(cpu=123)
+@AutoFilesEnv(local_paths=[...])
 @op()
 def foo():
     pass
