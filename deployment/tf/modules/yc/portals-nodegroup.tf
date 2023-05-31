@@ -65,12 +65,37 @@ resource "kubernetes_daemonset" "portal_cpu_fictive_containers" {
         }
       }
       spec {
-        container {
+        init_container {
+          image             = var.portal_image
           image_pull_policy = "Always"
-          image   = var.portal_image
-          name    = "fictive-portal"
-          command = ["sleep", "10000000d"]
+          name              = "fictive-portal"
+          command           = ["sh", "-c", "exit 0"]
         }
+        # Container for notifying allocator about node readiness
+        container {
+          image             = var.node-sync-image
+          image_pull_policy = "Always"
+          name              = "node-allocator-sync"
+          command           = ["sh", "-c", "/entrypoint.sh $ALLOCATOR_IP; tail -f /dev/null"]
+
+          env {
+            name  = "CLUSTER_ID"
+            value = yandex_kubernetes_cluster.allocator_cluster.id
+          }
+          env {
+            name  = "NODE_NAME"
+            value_from {
+              field_ref {
+                field_path = "spec.nodeName"
+              }
+            }
+          }
+          env {
+            name  = "ALLOCATOR_IP"
+            value = kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]
+          }
+        }
+        host_network = true
         node_selector = {
           "lzy.ai/node-pool-id" = "portals1"
         }
