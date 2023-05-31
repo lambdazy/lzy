@@ -224,7 +224,7 @@ public class DynamicDaoImplTest {
         var random = UUID.randomUUID().toString();
         return DynamicMount.createNew(vmId, clusterId, "disk" + random,
             "disk" + random, new VolumeRequest("42", new DiskVolumeDescription("disk", "disk-42", 42,
-                Volume.AccessMode.READ_WRITE_ONCE)),
+                Volume.AccessMode.READ_WRITE_ONCE, DiskVolumeDescription.StorageClass.HDD)),
             operationId, workerId);
     }
 }
