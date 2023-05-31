@@ -172,7 +172,9 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
         try {
             if (internalAccess()) {
                 var subject = subjectService.findSubject(
-                    request.getProviderUserId(), request.getAuthProvider(), request.getSubjectType());
+                    request.getProviderUserId(),
+                    AuthProvider.fromProto(request.getAuthProvider()),
+                    SubjectType.valueOf(request.getSubjectType()));
 
                 if (subject == null) {
                     responseObserver.onError(Status.NOT_FOUND.withDescription("Subject not found").asException());

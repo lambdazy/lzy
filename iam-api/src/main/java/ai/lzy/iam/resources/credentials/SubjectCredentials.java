@@ -31,4 +31,8 @@ public record SubjectCredentials(
     public static SubjectCredentials publicKey(String name, String value, Duration ttl) {
         return new SubjectCredentials(name, value, CredentialsType.PUBLIC_KEY, Instant.now().plus(ttl));
     }
+
+    public String str() {
+        return "SubjectCredentials(name='%s', type='%s', expired_at='%s'".formatted(name, type.name(), expiredAt);
+    }
 }

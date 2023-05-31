@@ -67,7 +67,7 @@ message ListCredentialsResponse {
 
 message FindSubjectRequest {
   string provider_user_id = 1;
-  string auth_provider = 2;
+  AuthProvider auth_provider = 2;
   string subject_type = 3;
 }
 

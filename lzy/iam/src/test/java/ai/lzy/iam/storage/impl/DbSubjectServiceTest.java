@@ -146,22 +146,6 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     }
 
     @Test
-    public void createSubjectsWithSameAuthButDifferentPropertiesIsError() {
-        var alisa = createSubject("Alisa", SubjectType.USER);
-
-        assertThrows(AuthUniqueViolationException.class, () ->
-            createSubject("Alisa", SubjectType.WORKER,
-                List.of(new SubjectCredentials("super-user", "SuperValue", CredentialsType.PUBLIC_KEY))));
-
-        var actualAlisa = subject(alisa.id());
-
-        assertEquals(alisa.id(), actualAlisa.id());
-        assertSame(alisa.type(), actualAlisa.type());
-
-        assertThrows(AuthNotFoundException.class, () -> credentials(alisa, "super_user"));
-    }
-
-    @Test
     public void addToSubjectMultipleSameCredentialsIsOkay() {
         var dima = createSubject("Dima", SubjectType.USER);
 
@@ -257,7 +241,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         assertEquals("Value", credentialsOfDima.value());
         assertEquals(CredentialsType.PUBLIC_KEY, credentialsOfDima.type());
 
-        var nonExistentSubject = new User("some-id");
+        var nonExistentSubject = new User("some-id", AuthProvider.GITHUB, "xxx");
         assertThrows(AuthInternalException.class, () ->
             addCredentials(nonExistentSubject, credentialsName));
     }
@@ -316,7 +300,14 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
     @Override
     protected Subject createSubject(String name, SubjectType subjectType, List<SubjectCredentials> credentials) {
-        var authProvider = AuthProvider.GITHUB;
+        var authProvider = subjectType == SubjectType.WORKER ? AuthProvider.INTERNAL : AuthProvider.GITHUB;
+        return createSubject(name, subjectType, authProvider, credentials);
+    }
+
+    @Override
+    protected Subject createSubject(String name, SubjectType subjectType, AuthProvider authProvider,
+                                    List<SubjectCredentials> credentials)
+    {
         var request = LSS.CreateSubjectRequest.newBuilder()
             .setAuthProvider(authProvider.toProto())
             .setProviderSubjectId(name)

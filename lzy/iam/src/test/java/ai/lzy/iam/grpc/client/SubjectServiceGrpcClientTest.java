@@ -116,7 +116,15 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
 
     @Override
     protected Subject createSubject(String name, SubjectType subjectType, List<SubjectCredentials> credentials) {
-        return subjectClient.createSubject(AuthProvider.GITHUB, name, subjectType,
+        var authProvider = subjectType == SubjectType.WORKER ? AuthProvider.INTERNAL : AuthProvider.GITHUB;
+        return createSubject(name, subjectType, authProvider, credentials);
+    }
+
+    @Override
+    protected Subject createSubject(String name, SubjectType subjectType, AuthProvider authProvider,
+                                    List<SubjectCredentials> credentials)
+    {
+        return subjectClient.createSubject(authProvider, name, subjectType,
             credentials.toArray(new SubjectCredentials[0]));
     }
 
