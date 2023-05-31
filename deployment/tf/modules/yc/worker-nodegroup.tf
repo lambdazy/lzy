@@ -129,7 +129,7 @@ resource "kubernetes_daemonset" "worker_gpu_fictive_containers" {
 
           env {
             name  = "CLUSTER_ID"
-            value = yandex_kubernetes_cluster.main.id
+            value = yandex_kubernetes_cluster.allocator_cluster.id
           }
           env {
             name  = "NODE_NAME"

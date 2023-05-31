@@ -80,7 +80,7 @@ resource "kubernetes_daemonset" "portal_cpu_fictive_containers" {
 
           env {
             name  = "CLUSTER_ID"
-            value = yandex_kubernetes_cluster.allocator_cluster.id
+            value = yandex_kubernetes_cluster.main.id
           }
           env {
             name  = "NODE_NAME"
