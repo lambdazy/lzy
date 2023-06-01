@@ -1,7 +1,7 @@
 package ai.lzy.channelmanager.v2.services;
 
 import ai.lzy.channelmanager.access.IamAccessManager;
-import ai.lzy.channelmanager.v2.StartTransferAction;
+import ai.lzy.channelmanager.v2.ActionScheduler;
 import ai.lzy.channelmanager.v2.Utils;
 import ai.lzy.channelmanager.v2.db.ChannelDao;
 import ai.lzy.channelmanager.v2.db.ChannelManagerDataSource;
@@ -41,12 +41,12 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
     private final ChannelDao channelDao;
     private final ChannelManagerDataSource storage;
     private final TransferDao transferDao;
-    private final StartTransferAction action;
+    private final ActionScheduler action;
     private final Utils utils;
     private final IamAccessManager accessManager;
 
     public SlotsService(PeerDao peerDao, ChannelDao channelDao, ChannelManagerDataSource storage,
-                        TransferDao transferDao, StartTransferAction action, Utils utils,
+                        TransferDao transferDao, ActionScheduler action, Utils utils,
                         IamAccessManager accessManager)
     {
         this.peerDao = peerDao;
@@ -151,7 +151,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         PeerDescription storageConsumer = null;
 
         for (var consumer: pair.getRight()) {
-            action.schedule(pair.getLeft(), consumer);
+            action.scheduleStartTransferAction(pair.getLeft(), consumer);
 
             if (consumer.peerDescription().hasStoragePeer()) {
                 storageConsumer = consumer.peerDescription();

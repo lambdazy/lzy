@@ -16,8 +16,8 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Singleton
-public class StartTransferAction {
-    private static final Logger LOG = LogManager.getLogger(StartTransferAction.class);
+public class ActionScheduler {
+    private static final Logger LOG = LogManager.getLogger(ActionScheduler.class);
 
     private final TransferDao connections;
 
@@ -25,8 +25,8 @@ public class StartTransferAction {
     private final ChannelOperationExecutor operationExecutor;
     private final Utils utils;
 
-    public StartTransferAction(TransferDao connections, SlotConnectionManager connectionManager,
-                               ChannelOperationExecutor operationExecutor, Utils utils)
+    public ActionScheduler(TransferDao connections, SlotConnectionManager connectionManager,
+                           ChannelOperationExecutor operationExecutor, Utils utils)
     {
         this.connections = connections;
         this.connectionManager = connectionManager;
@@ -34,7 +34,7 @@ public class StartTransferAction {
         this.utils = utils;
     }
 
-    public void schedule(Peer slot, Peer peer) {
+    public void scheduleStartTransferAction(Peer slot, Peer peer) {
         operationExecutor.schedule(() -> run(slot, peer), 0L, TimeUnit.SECONDS);
     }
 
@@ -48,7 +48,7 @@ public class StartTransferAction {
         }
 
         for (var transmission: transmissions) {
-            schedule(transmission.slot(), transmission.peer());
+            scheduleStartTransferAction(transmission.slot(), transmission.peer());
         }
     }
 
