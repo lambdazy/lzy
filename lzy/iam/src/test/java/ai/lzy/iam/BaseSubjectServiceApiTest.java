@@ -1,6 +1,7 @@
 package ai.lzy.iam;
 
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
@@ -134,6 +135,9 @@ public abstract class BaseSubjectServiceApiTest {
     protected abstract Subject createSubject(String name, SubjectType subjectType);
 
     protected abstract Subject createSubject(String name, SubjectType subjectType,
+                                             List<SubjectCredentials> credentials);
+
+    protected abstract Subject createSubject(String name, SubjectType subjectType, AuthProvider authProvider,
                                              List<SubjectCredentials> credentials);
 
     protected abstract void removeSubject(Subject subject);

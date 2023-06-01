@@ -70,7 +70,8 @@ public class DbAccessClientTest {
     }
 
     public void validAccess(SubjectType subjectType) {
-        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of(), "hash").id();
+        var authProvider = subjectType == SubjectType.WORKER ? AuthProvider.INTERNAL : AuthProvider.GITHUB;
+        var userId = subjectService.createSubject(authProvider, "user1", subjectType, List.of(), "hash").id();
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");
@@ -140,7 +141,8 @@ public class DbAccessClientTest {
     }
 
     public void invalidAccess(SubjectType subjectType) {
-        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of(), "hash").id();
+        var authProvider = subjectType == SubjectType.WORKER ? AuthProvider.INTERNAL : AuthProvider.GITHUB;
+        var userId = subjectService.createSubject(authProvider, "user1", subjectType, List.of(), "hash").id();
         final Subject user = subjectService.subject(userId);
 
         AuthResource whiteboardResource = new Whiteboard("whiteboard");

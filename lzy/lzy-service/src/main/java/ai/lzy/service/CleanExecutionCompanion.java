@@ -1,6 +1,7 @@
 package ai.lzy.service;
 
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
+import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -241,7 +242,7 @@ public class CleanExecutionCompanion {
         }
 
         if (portalDesc != null && portalDesc.subjectId() != null) {
-            removePortalSubject(executionId, portalDesc.subjectId());
+            removePortalSubject(executionId, portalDesc.subjectId(), portalDesc.portalId());
         }
 
         kafkaLogsListeners.notifyFinished(executionId);
@@ -319,12 +320,13 @@ public class CleanExecutionCompanion {
         }
 
         if (portalDesc != null && portalDesc.subjectId() != null) {
-            removePortalSubject(executionId, portalDesc.subjectId());
+            removePortalSubject(executionId, portalDesc.subjectId(), portalDesc.portalId());
         }
 
         if (portalDesc != null && portalDesc.subjectId() != null) {
             try {
-                subjectClient.removeSubject(new Worker(portalDesc.subjectId()));
+                subjectClient.removeSubject(
+                    new Worker(portalDesc.subjectId(), AuthProvider.INTERNAL, portalDesc.portalId()));
             } catch (Exception e) {
                 LOG.warn("Cannot remove portal subject from iam: { executionId: {}, subjectId: {} }", executionId,
                     portalDesc.subjectId());
@@ -492,11 +494,11 @@ public class CleanExecutionCompanion {
         }
     }
 
-    public void removePortalSubject(String executionId, String subjectId) {
+    public void removePortalSubject(String executionId, String subjectId, String subjectName) {
         LOG.debug("Remove portal iam subject: { executionId: {}, subjectId: {} }", executionId, subjectId);
 
         try {
-            subjectClient.removeSubject(new Worker(subjectId));
+            subjectClient.removeSubject(new Worker(subjectId, AuthProvider.INTERNAL, subjectName));
             withRetries(LOG, () -> executionDao.updatePortalSubjectId(executionId, null, null));
         } catch (Exception e) {
             LOG.warn("Cannot remove portal iam subject: { executionId: {}, subjectId: {} }", executionId, subjectId);

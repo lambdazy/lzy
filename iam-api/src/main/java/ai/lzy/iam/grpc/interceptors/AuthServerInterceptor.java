@@ -84,7 +84,7 @@ public class AuthServerInterceptor implements ServerInterceptor {
                     throw new IllegalArgumentException("Authorization header is missing");
                 } else {
                     Context context = Context.current().withValue(AuthenticationContext.KEY, authContext);
-                    var serverCall = new GrpcServerCall<>(call, authContext.getSubject().str());
+                    var serverCall = new GrpcServerCall<>(call, authContext.getSubject().toString());
                     return Contexts.interceptCall(context, serverCall, headers, next);
                 }
             }

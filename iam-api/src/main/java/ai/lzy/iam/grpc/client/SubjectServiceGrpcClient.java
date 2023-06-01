@@ -174,7 +174,7 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
         try {
             var res = subjectService.findSubject(
                 LSS.FindSubjectRequest.newBuilder()
-                    .setAuthProvider(authProvider.name())
+                    .setAuthProvider(authProvider.toProto())
                     .setProviderUserId(providerSubjectId)
                     .setSubjectType(type.name())
                     .build());
