@@ -54,5 +54,5 @@ enum AuthProvider {
   AUTH_PROVIDER_UNSPECIFIED = 0;
   INTERNAL = 1;
   GITHUB = 2;
-  YCDS = 3;
+  EXTERNAL = 3;
 }

@@ -5,21 +5,25 @@ import ai.lzy.v1.iam.IAM;
 public enum AuthProvider {
     INTERNAL,
     GITHUB,
-    YCDS;
+    EXTERNAL;
 
     public boolean isInternal() {
         return this == INTERNAL;
     }
 
+    public boolean isExternal() {
+        return this == EXTERNAL;
+    }
+
     public boolean allowMetadata() {
-        return this == YCDS;
+        return this == EXTERNAL;
     }
 
     public static AuthProvider fromProto(IAM.AuthProvider authProvider) {
         return switch (authProvider) {
             case INTERNAL -> AuthProvider.INTERNAL;
             case GITHUB -> AuthProvider.GITHUB;
-            case YCDS -> AuthProvider.YCDS;
+            case EXTERNAL -> AuthProvider.EXTERNAL;
             default -> throw new IllegalArgumentException(authProvider.name());
         };
     }
@@ -28,7 +32,7 @@ public enum AuthProvider {
         return switch (this) {
             case INTERNAL -> IAM.AuthProvider.INTERNAL;
             case GITHUB -> IAM.AuthProvider.GITHUB;
-            case YCDS -> IAM.AuthProvider.YCDS;
+            case EXTERNAL -> IAM.AuthProvider.EXTERNAL;
         };
     }
 }
