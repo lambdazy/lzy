@@ -179,7 +179,12 @@ class LzyServiceClient:
         metadata = metadata_with(idempotency_key) if idempotency_key else None
         await self.__stub.AbortWorkflow(request=request, metadata=metadata)
 
-    async def read_std_slots(self, execution_id: str, logs_offset: int) -> AsyncIterator[StdlogMessage]:
+    async def read_std_slots(
+        self, *,
+        workflow_name: str,
+        execution_id: str,
+        logs_offset: int
+    ) -> AsyncIterator[StdlogMessage]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
             ReadStdSlotsRequest(executionId=execution_id, offset=logs_offset)
         )
@@ -211,11 +216,11 @@ class LzyServiceClient:
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="get graph status")
-    async def graph_status(self, execution_id: str, graph_id: str) -> GraphStatus:
+    async def graph_status(self, *, workflow_name: str, execution_id: str, graph_id: str) -> GraphStatus:
         await self.__start()
 
         res: GraphStatusResponse = await self.__stub.GraphStatus(
-            GraphStatusRequest(executionId=execution_id, graphId=graph_id)
+            GraphStatusRequest(workflow_name=workflow_name, executionId=execution_id, graphId=graph_id)
         )
 
         if res.HasField("waiting"):
@@ -236,19 +241,25 @@ class LzyServiceClient:
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="stop graph")
-    async def graph_stop(self, *, execution_id: str, graph_id: str, idempotency_key: Optional[str] = None) -> None:
+    async def graph_stop(
+        self, *,
+        workflow_name: str,
+        execution_id: str,
+        graph_id: str,
+        idempotency_key: Optional[str] = None
+    ) -> None:
         await self.__start()
-        request = StopGraphRequest(executionId=execution_id, graphId=graph_id)
+        request = StopGraphRequest(workflow_name=workflow_name, executionId=execution_id, graphId=graph_id)
         metadata = metadata_with(idempotency_key) if idempotency_key else None
         await self.__stub.StopGraph(request=request, metadata=metadata)
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="get vm pools specs")
-    async def get_pool_specs(self, execution_id: str) -> Sequence[VmPoolSpec]:
+    async def get_pool_specs(self, *, workflow_name: str, execution_id: str) -> Sequence[VmPoolSpec]:
         await self.__start()
 
         pools: GetAvailablePoolsResponse = await self.__stub.GetAvailablePools(
-            GetAvailablePoolsRequest(executionId=execution_id)
+            GetAvailablePoolsRequest(workflow_name=workflow_name, executionId=execution_id)
         )
 
         return pools.poolSpecs  # type: ignore
