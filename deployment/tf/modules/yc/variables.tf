@@ -134,3 +134,8 @@ variable "node-sync-image" {
   type = string
   default = "lzydock/kuber-node-sync:1.0"
 }
+
+variable "db_disk_size" {
+  type = number
+  default = 16
+}
