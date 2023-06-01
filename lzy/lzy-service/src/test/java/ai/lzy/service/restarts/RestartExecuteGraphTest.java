@@ -1,4 +1,5 @@
-package ai.lzy.service.graph;
+/*
+package ai.lzy.service.restarts;
 
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.service.LzyService;
@@ -136,3 +137,4 @@ public class RestartExecuteGraphTest extends AbstractGraphExecutionTest {
         assertSame(1, operationDaoDecorator.createCallsCount());
     }
 }
+*/

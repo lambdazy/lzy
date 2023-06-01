@@ -46,7 +46,15 @@ public class BaseTestWithGraphExecutor {
         return context;
     }
 
+    public GraphExecutorDecorator getGraphExecutor() {
+        return context.getBean(GraphExecutorDecorator.class);
+    }
+
     public int getPort() {
         return port;
+    }
+
+    public String getAddress() {
+        return "localhost:" + getPort();
     }
 }

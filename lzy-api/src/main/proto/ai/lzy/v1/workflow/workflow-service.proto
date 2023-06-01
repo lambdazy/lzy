@@ -67,8 +67,9 @@ message ExecuteGraphResponse {
 // ==================== GraphStatus =====================
 
 message GraphStatusRequest {
-  string executionId = 1;
-  string graphId = 2;
+  string workflow_name = 1;
+  string executionId = 2;
+  string graphId = 3;
 }
 
 message GraphStatusResponse {
@@ -98,8 +99,9 @@ message GraphStatusResponse {
 // ==================== StopGraph =====================
 
 message StopGraphRequest {
-  string executionId = 1;
-  string graphId = 2;
+  string workflow_name = 1;
+  string executionId = 2;
+  string graphId = 3;
 }
 
 message StopGraphResponse {}
@@ -108,11 +110,12 @@ message StopGraphResponse {}
 // ==================== ReadStdSlots =====================
 
 message ReadStdSlotsRequest {
-  string executionId = 1;
+  string workflow_name = 1;
+  string executionId = 2;
 
   // Offset of data to read from.
   // If 0 or not set, read from the beginning.
-  /* optional */ uint64 offset = 2;
+  /* optional */ uint64 offset = 3;
 }
 
 message ReadStdSlotsResponse {
@@ -135,7 +138,8 @@ message ReadStdSlotsResponse {
 // ==================== GetAvailablePools =====================
 
 message GetAvailablePoolsRequest {
-  string executionId = 1;
+  string workflow_name = 1;
+  string executionId = 2;
 }
 
 message GetAvailablePoolsResponse {
