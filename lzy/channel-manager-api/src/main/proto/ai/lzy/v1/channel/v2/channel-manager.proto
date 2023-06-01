@@ -12,19 +12,13 @@ option java_package = "ai.lzy.v1.channel.v2";
 
 service LzyChannelManager {
 
-  rpc Bind (BindRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      response: "BindResponse"
-      metadata: "BindMetadata"
-    };
-  }
+  rpc Bind (BindRequest) returns (BindResponse) {}
 
-  rpc Unbind (UnbindRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      response: "UnbindResponse"
-      metadata: "UnbindMetadata"
-    };
-  }
+  rpc Unbind (UnbindRequest) returns (UnbindResponse) {}
+
+  rpc TransferCompleted (TransferCompletedRequest) returns (TransferCompletedResponse);
+
+  rpc TransferFailed (TransferFailedRequest) returns (TransferFailedResponse);
 
   rpc GetChannelsStatus (GetChannelsStatusRequest) returns (GetChannelsStatusResponse);
 
@@ -48,10 +42,13 @@ message BindRequest {
 }
 
 message BindResponse {
-  common.DataScheme data_scheme = 1;  // Data scheme of channel. Data of slot can be validated with this scheme
-}
+  // Data scheme of channel. Data of slot can be validated with this scheme
+  common.DataScheme data_scheme                   = 1;
 
-message BindMetadata {}
+  // Peer like in StartTransfer call in slots api
+  // If set, bound slot must start this new transfer
+  /* optional */ common.PeerDescription peer = 2;
+}
 
 // =========== Unbind ==============
 
@@ -60,8 +57,6 @@ message UnbindRequest {
 }
 
 message UnbindResponse {}
-
-message UnbindMetadata {}
 
 // =========== GetChannelsStatus ==============
 
@@ -73,5 +68,29 @@ message GetChannelsStatusRequest {
 message GetChannelsStatusResponse {
   repeated common.ChannelStatus channels = 1;
 }
+
+// =========== TransferCompleted ==============
+
+message TransferCompletedRequest {
+  string slot_id  = 1;  // Peer id of slot that completed transfer
+  string peer_id = 2;
+}
+
+message TransferCompletedResponse {}
+
+
+// =========== TransferFailed ==============
+
+message TransferFailedRequest {
+  string slot_id     = 1;  // Peer id of slot that failed transfer
+  string peer_id     = 2;
+
+  string description = 3;  // Error description for logging
+}
+
+message TransferFailedResponse {
+  common.PeerDescription new_peer = 1;
+}
+
 
 

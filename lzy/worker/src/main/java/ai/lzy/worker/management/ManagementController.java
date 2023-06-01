@@ -1,7 +1,7 @@
 package ai.lzy.worker.management;
 
-import ai.lzy.fs.LzyFsServer;
 import ai.lzy.fs.fs.LzySlot;
+import ai.lzy.worker.WorkerApiImpl;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.http.MediaType;
 import io.micronaut.http.annotation.Controller;
@@ -15,12 +15,13 @@ import java.util.stream.Collectors;
 @Requires(property = "worker.enable-http-debug", value = "true")
 @Controller(value = "/debug", consumes = MediaType.ALL, produces = MediaType.TEXT_PLAIN)
 public class ManagementController {
+
     @Inject
-    LzyFsServer lzyFsServer;
+    private WorkerApiImpl workerApiImpl;
 
     @Get("/slots")
     public String slotsStates() {
-        List<LzySlot> slots = lzyFsServer.getSlotsManager().slots().toList();
+        List<LzySlot> slots = workerApiImpl.lzyFs().getSlotsManager().slots().toList();
 
         if (slots.isEmpty()) {
             return "No opened slots";
@@ -33,7 +34,7 @@ public class ManagementController {
 
     @Get("/slot")
     public String slotState(@QueryValue("task") String task, @QueryValue("slot") String slot) {
-        LzySlot lzySlot = lzyFsServer.getSlotsManager().slot(task, slot);
+        LzySlot lzySlot = workerApiImpl.lzyFs().getSlotsManager().slot(task, slot);
 
         if (lzySlot == null) {
             return "No slot found for task %s, slot %s".formatted(task, slot);

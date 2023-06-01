@@ -26,6 +26,7 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Singleton
 public class App {
@@ -66,6 +67,8 @@ public class App {
     public void start() throws IOException {
         server.start();
         metricReporter.start();
+        LOG.info("LzyServer started at {}",
+            server.getListenSockets().stream().map(Object::toString).collect(Collectors.joining()));
     }
 
     public void shutdown(boolean force) {

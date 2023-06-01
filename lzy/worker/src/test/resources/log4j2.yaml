@@ -25,7 +25,13 @@ Configuration:
         level: warn
 
       - name: GrpcServer
-        level: error
+        level: warn
+
+      - name: GrpcClient
+        level: warn
+
+      - name: io.grpc
+        level: warn
 
       - name: kafka
         level: error

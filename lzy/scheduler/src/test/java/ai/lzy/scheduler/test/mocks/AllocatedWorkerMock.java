@@ -4,7 +4,10 @@ import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.longrunning.LongRunning;
-import ai.lzy.v1.worker.LWS.*;
+import ai.lzy.v1.worker.LWS.ExecuteRequest;
+import ai.lzy.v1.worker.LWS.ExecuteResponse;
+import ai.lzy.v1.worker.LWS.InitRequest;
+import ai.lzy.v1.worker.LWS.InitResponse;
 import ai.lzy.v1.worker.WorkerApiGrpc;
 import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
@@ -38,6 +41,12 @@ public class AllocatedWorkerMock {
     }
 
     private class WorkerImpl extends WorkerApiGrpc.WorkerApiImplBase {
+
+        @Override
+        public void init(InitRequest request, StreamObserver<InitResponse> responseObserver) {
+            responseObserver.onNext(InitResponse.getDefaultInstance());
+            responseObserver.onCompleted();
+        }
 
         @Override
         public void execute(ExecuteRequest request, StreamObserver<LongRunning.Operation> responseObserver) {

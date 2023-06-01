@@ -23,10 +23,8 @@ import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.util.kafka.ScramKafkaAdminClient;
 import ai.lzy.util.kafka.test.KafkaTestUtils;
-import ai.lzy.util.kafka.test.KafkaTestUtils.StdlogMessage;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.VmAllocatorPrivateApi;
-import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunning.GetOperationRequest;
@@ -183,7 +181,9 @@ public class WorkerTests {
     }
 
     private record WorkerDesc(
+        String workerId,
         Worker worker,
+        RsaUtils.RsaKeys keys,
         RenewableJwt jwt,
         ManagedChannel workerApiChannel,
         WorkerApiGrpc.WorkerApiBlockingStub workerApiStub,
@@ -193,21 +193,25 @@ public class WorkerTests {
         LongRunningServiceGrpc.LongRunningServiceBlockingStub slotsApiOpStub
     ) implements AutoCloseable {
         WorkerApiGrpc.WorkerApiBlockingStub workerApiStub(@Nullable String token) {
+            workerApiChannel.resetConnectBackoff();
             var creds = token != null ? token : jwt.get().token();
             return newBlockingClient(workerApiStub, "x", () -> creds);
         }
 
         LongRunningServiceGrpc.LongRunningServiceBlockingStub workerApiOpStub(@Nullable String token) {
+            workerApiChannel.resetConnectBackoff();
             var creds = token != null ? token : jwt.get().token();
             return newBlockingClient(workerApiOpStub, "x", () -> creds);
         }
 
         LzySlotsApiGrpc.LzySlotsApiBlockingStub slotsApiStub(@Nullable String token) {
+            slotsApiChannel.resetConnectBackoff();
             var creds = token != null ? token : jwt.get().token();
             return newBlockingClient(slotsApiStub, "x", () -> creds);
         }
 
         LongRunningServiceGrpc.LongRunningServiceBlockingStub slotsApiOpStub(@Nullable String token) {
+            slotsApiChannel.resetConnectBackoff();
             var creds = token != null ? token : jwt.get().token();
             return newBlockingClient(slotsApiOpStub, "x", () -> creds);
         }
@@ -261,8 +265,10 @@ public class WorkerTests {
         var workerJwt = new RenewableJwt(workerId, "INTERNAL", Duration.ofDays(1),
             CredentialsUtils.readPrivateKey(workerKeys.privateKey()));
 
-        var workerApiChannel = newGrpcChannel("localhost:" + config.getApiPort());
-        var slotsApiChannel = newGrpcChannel("localhost:" + config.getFsPort());
+        var workerApiChannel = newGrpcChannel("localhost:" + config.getApiPort(),
+            WorkerApiGrpc.SERVICE_NAME, LongRunningServiceGrpc.SERVICE_NAME);
+        var slotsApiChannel = newGrpcChannel("localhost:" + config.getFsPort(),
+            LzySlotsApiGrpc.SERVICE_NAME, LongRunningServiceGrpc.SERVICE_NAME);
 
         var workerApiStub = WorkerApiGrpc.newBlockingStub(workerApiChannel);
         var workerApiOpStub = LongRunningServiceGrpc.newBlockingStub(workerApiChannel);
@@ -270,7 +276,8 @@ public class WorkerTests {
         var slotsApiStub = LzySlotsApiGrpc.newBlockingStub(slotsApiChannel);
         var slotsApiOpStub = LongRunningServiceGrpc.newBlockingStub(slotsApiChannel);
 
-        return new WorkerDesc(worker, workerJwt, workerApiChannel, workerApiStub, workerApiOpStub,
+        return new WorkerDesc(workerId, worker, workerKeys, workerJwt,
+            workerApiChannel, workerApiStub, workerApiOpStub,
             slotsApiChannel, slotsApiStub, slotsApiOpStub);
     }
 
@@ -284,7 +291,7 @@ public class WorkerTests {
             // SlotsApi Ops unavailable for any worker
             var e = assertThrows(StatusRuntimeException.class, () ->
                 worker.slotsApiOpStub(null).get(GetOperationRequest.getDefaultInstance()));
-            Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
+            Assert.assertEquals(e.toString(), Status.Code.UNAVAILABLE, e.getStatus().getCode());
 
             // SlotsApi Ops unavailable for internal user
             e = assertThrows(StatusRuntimeException.class, () ->
@@ -294,7 +301,7 @@ public class WorkerTests {
             // SlotsApi unavailable for any worker
             e = assertThrows(StatusRuntimeException.class, () ->
                 worker.slotsApiStub(null).createSlot(LSA.CreateSlotRequest.getDefaultInstance()));
-            Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
+            Assert.assertEquals(e.toString(), Status.Code.UNAVAILABLE, e.getStatus().getCode());
 
             // SlotsApi unavailable for internal user
             e = assertThrows(StatusRuntimeException.class, () ->
@@ -316,33 +323,17 @@ public class WorkerTests {
                 worker.workerApiStub(null).execute(LWS.ExecuteRequest.getDefaultInstance()));
             Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
 
-            var taskId = idGenerator.generate("task-");
-            final String opId;
+            // init worker
             {
-                var op = worker.workerApiStub(internalUser).execute(LWS.ExecuteRequest.newBuilder()
-                    .setTaskDesc(LMO.TaskDesc.newBuilder()
-                        .setOperation(LMO.Operation.newBuilder()
-                            .setEnv(LME.EnvSpec.newBuilder()
-                                .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-                                .build())
-                            .setName(idGenerator.generate("cmd-"))
-                            .setCommand("echo 'Hello World!'")
-                            .setKafkaTopic(stdlogsTopic)
-                            .build())
-                        .build())
-                    .setTaskId(taskId)
-                    .setExecutionId("ex-1")
-                    .setWorkflowName("wf")
-                    .setUserId("uid")
-                    .build());
-
-                while (!op.getDone()) {
-                    op = worker.workerApiOpStub(internalUser).get(LongRunning.GetOperationRequest.newBuilder()
-                        .setOperationId(op.getId())
-                        .build());
-                }
-
-                opId = op.getId();
+                var resp = worker.workerApiStub(internalUser)
+                    .init(
+                        LWS.InitRequest.newBuilder()
+                            .setUserId("uid")
+                            .setWorkflowName("wf")
+                            .setWorkerSubjectName(worker.workerId())
+                            .setWorkerPrivateKey(worker.keys().privateKey())
+                            .build());
+                resp.writeTo(System.err);
             }
 
             // SlotsApi Ops unavailable for worker
@@ -351,7 +342,9 @@ public class WorkerTests {
             Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
 
             // SlotsApi Ops available for internal user
-            worker.slotsApiOpStub(internalUser).get(GetOperationRequest.newBuilder().setOperationId(opId).build());
+            e = assertThrows(StatusRuntimeException.class, () ->
+                worker.workerApiOpStub(internalUser).get(GetOperationRequest.newBuilder().setOperationId("1").build()));
+            Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
 
             // SlotsApi unavailable for worker
             e = assertThrows(StatusRuntimeException.class, () ->
@@ -383,7 +376,6 @@ public class WorkerTests {
                 Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
             }
 
-            KafkaTestUtils.assertStdLogs(stdlogs, List.of(StdlogMessage.out(taskId, "Hello World!")), List.of());
             finishStdlogsReader.finish();
         }
     }
