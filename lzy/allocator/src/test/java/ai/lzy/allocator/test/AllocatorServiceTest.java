@@ -1,6 +1,7 @@
 package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.model.debug.InjectedFailures;
+import ai.lzy.allocator.volume.YcStorageProvider;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.OttHelper;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
@@ -33,7 +34,8 @@ import java.util.function.Consumer;
 
 import static ai.lzy.allocator.model.Volume.AccessMode.READ_WRITE_ONCE;
 import static ai.lzy.allocator.test.Utils.waitOperation;
-import static ai.lzy.allocator.volume.KuberVolumeManager.*;
+import static ai.lzy.allocator.volume.KuberVolumeManager.KUBER_GB_NAME;
+import static ai.lzy.allocator.volume.KuberVolumeManager.VOLUME_CAPACITY_STORAGE_KEY;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
@@ -735,7 +737,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         final PersistentVolumeClaim persistentVolumeClaim = persistentVolumeClaimFuture.get();
         final PersistentVolumeSpec volumeSpec = persistentVolume.getSpec();
         Assert.assertEquals(disk.getDiskId(), volumeSpec.getCsi().getVolumeHandle());
-        Assert.assertEquals(YCLOUD_DISK_DRIVER, volumeSpec.getCsi().getDriver());
+        Assert.assertEquals(YcStorageProvider.YCLOUD_DISK_DRIVER, volumeSpec.getCsi().getDriver());
         final Quantity expectedDiskSize = new Quantity(disk.getSpec().getSizeGb() + KUBER_GB_NAME);
         Assert.assertEquals(
             expectedDiskSize,

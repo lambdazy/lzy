@@ -15,11 +15,11 @@ import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.micronaut.context.annotation.Primary;
 import jakarta.annotation.PreDestroy;
+import jakarta.inject.Singleton;
 
 import java.io.IOException;
 import java.util.UUID;
 import java.util.function.Consumer;
-import jakarta.inject.Singleton;
 
 @Singleton
 @Primary // for tests only
@@ -66,7 +66,6 @@ public class AllocatorMock implements WorkersAllocator {
             .setVmId(vmId)
             .setPoolId("s")
             .setSessionId(sessionId)
-            .putMetadata(MetadataConstants.PUBLIC_KEY, pk)
             .putMetadata(MetadataConstants.API_PORT, String.valueOf(port))
             .addEndpoints(VmEndpoint.newBuilder()
                 .setType(VmEndpoint.VmEndpointType.INTERNAL_IP)

@@ -6,12 +6,15 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.ReturnCodes;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
+import ai.lzy.util.auth.credentials.CredentialsUtils;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMO;
@@ -22,18 +25,24 @@ import ai.lzy.worker.StreamQueue.LogHandle;
 import ai.lzy.worker.env.AuxEnvironment;
 import ai.lzy.worker.env.EnvironmentFactory;
 import ai.lzy.worker.env.EnvironmentInstallationException;
+import com.google.common.net.HostAndPort;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.annotation.Nullable;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.locks.LockSupport;
 import java.util.stream.Collectors;
 
@@ -45,9 +54,11 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private static final Logger LOG = LogManager.getLogger(WorkerApiImpl.class);
     public static volatile boolean TEST_ENV = false;
 
-    private final LzyFsServer lzyFs;
     private final LocalOperationService operationService;
     private final EnvironmentFactory envFactory;
+    private final ServiceConfig config;
+    private final ManagedChannel channelManagerChannel;
+    private final ManagedChannel iamChannel;
     private final KafkaHelper kafkaHelper;
 
     private record Owner(
@@ -57,15 +68,28 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
     @Nullable
     private Owner owner = null; // guarded by this
+    @Nullable
+    private LzyFsServer lzyFs = null; // guarded by this
 
-    public WorkerApiImpl(@Named("WorkerOperationService") LocalOperationService localOperationService,
-                         EnvironmentFactory environmentFactory, LzyFsServer lzyFsServer,
+    public WorkerApiImpl(ServiceConfig config, EnvironmentFactory environmentFactory,
+                         @Named("WorkerOperationService") LocalOperationService localOperationService,
+                         @Named("WorkerChannelManagerGrpcChannel") ManagedChannel channelManagerChannel,
+                         @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel,
                          @Named("WorkerKafkaHelper") KafkaHelper helper)
     {
+        this.config = config;
+        this.channelManagerChannel = channelManagerChannel;
+        this.iamChannel = iamChannel;
         this.kafkaHelper = helper;
         this.operationService = localOperationService;
         this.envFactory = environmentFactory;
-        this.lzyFs = lzyFsServer;
+    }
+
+    @PreDestroy
+    public synchronized void shutdown() {
+        if (lzyFs != null) {
+            lzyFs.stop();
+        }
     }
 
     private synchronized LWS.ExecuteResponse executeOp(LWS.ExecuteRequest request) {
@@ -216,6 +240,63 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
         }
     }
 
+    public synchronized LzyFsServer lzyFs() {
+        return Objects.requireNonNull(lzyFs);
+    }
+
+    @Override
+    public synchronized void init(LWS.InitRequest request, StreamObserver<LWS.InitResponse> response) {
+        var owner = this.owner;
+        var requester = new Owner(request.getUserId(), request.getWorkflowName());
+
+        if (owner == null) {
+            this.owner = requester;
+
+            RenewableJwt token;
+            try {
+                token = new RenewableJwt(
+                    request.getWorkerSubjectName(),
+                    AuthProvider.INTERNAL.name(),
+                    Duration.ofDays(1),
+                    CredentialsUtils.readPrivateKey(request.getWorkerPrivateKey()));
+            } catch (Exception e) {
+                LOG.error("Cannot create renewable JWT token: {}", e.getMessage(), e);
+                response.onError(Status.INTERNAL.asException());
+                return;
+            }
+
+            lzyFs = new LzyFsServer(
+                config.getVmId(),
+                Path.of(config.getMountPoint()),
+                HostAndPort.fromParts(config.getHost(), config.getFsPort()),
+                channelManagerChannel,
+                iamChannel,
+                token,
+                operationService,
+                /* isPortal */ false
+            );
+
+            try {
+                lzyFs.start();
+            } catch (IOException e) {
+                LOG.error("Cannot start LzyFs server", e);
+                response.onError(Status.INTERNAL
+                    .withDescription("Cannot start LzyFs server: " + e.getMessage()).asException());
+                return;
+            }
+
+            var workflow = new Workflow(requester.userId() + '/' + requester.workflowName());
+            lzyFs.configureAccess(workflow, AuthPermission.WORKFLOW_RUN);
+        } else if (!owner.equals(requester)) {
+            LOG.error("Attempt to execute op from another owner. Current is {}, got {}", owner, requester);
+            response.onError(Status.PERMISSION_DENIED.asException());
+            return;
+        }
+
+        response.onNext(LWS.InitResponse.getDefaultInstance());
+        response.onCompleted();
+    }
+
     @Override
     public synchronized void execute(LWS.ExecuteRequest request, StreamObserver<LongRunning.Operation> response) {
         withLoggingContext(
@@ -230,13 +311,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
                 }
 
                 var requester = new Owner(request.getUserId(), request.getWorkflowName());
-
-                if (owner == null) {
-                    owner = requester;
-
-                    var workflow = new Workflow(owner.userId() + '/' + owner.workflowName());
-                    lzyFs.configureAccess(workflow, AuthPermission.WORKFLOW_RUN);
-                } else if (!owner.equals(requester)) {
+                if (owner == null || !owner.equals(requester)) {
                     LOG.error("Attempt to execute op from another owner. Current is {}, got {}", owner, requester);
                     response.onError(Status.PERMISSION_DENIED.asException());
                     return;

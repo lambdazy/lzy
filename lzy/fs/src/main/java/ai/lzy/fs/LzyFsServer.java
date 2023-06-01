@@ -8,9 +8,9 @@ import ai.lzy.fs.fs.LzyMacosFsManagerImpl;
 import ai.lzy.fs.fs.LzyScript;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.iam.grpc.interceptors.CheckAccessInterceptor;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.longrunning.LocalOperationService;
@@ -47,7 +47,7 @@ public class LzyFsServer {
     private final SlotsManager slotsManager;
     private final LzyFSManager fsManager;
     private final SlotsService slotsService;
-    private final CheckAccessInterceptor accessInterceptor;
+    private final AccessServerInterceptor accessInterceptor;
     private final Server localServer;
     private final AtomicBoolean finished = new AtomicBoolean(false);
 
@@ -84,7 +84,7 @@ public class LzyFsServer {
 
         var accessClient = new AccessServiceGrpcClient(agentId, iamChannel);
         var internalOnlyInterceptor = new AllowInternalUserOnlyInterceptor(accessClient);
-        accessInterceptor = new CheckAccessInterceptor(accessClient);
+        accessInterceptor = new AccessServerInterceptor(accessClient);
 
         this.localServer = newGrpcServer(selfAddress.getHost(), selfAddress.getPort(), authInterceptor)
             .addService(
