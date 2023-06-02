@@ -124,11 +124,9 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                         all_from_pypi = False
                         continue
 
-                    distribution = importlib_metadata.distribution(package_name)
+                    is_editable = _check_package_is_editable(package_name)
 
-                    # NB: here we checking if package installed as editable installation
-                    # look at https://github.com/python/importlib_metadata/issues/404 discussion
-                    is_editable = bool(distribution.read_text('direct_url.json'))
+                    distribution = importlib_metadata.distribution(package_name)
 
                     package_version = distribution.version
 
@@ -378,3 +376,51 @@ def _get_module_parents(module: ModuleType) -> Iterable[ModuleType]:
         yield parent
 
         parts.pop()
+
+
+def _check_url_is_local_file(url: str) -> bool:
+    file_scheme = 'file://'
+
+    if not url.startswith(file_scheme):
+        return False
+
+    raw_path = url[len(file_scheme):]
+
+    # idk if there may be relative paths in direct_url.json,
+    # but if it is, next code will work badly with it.
+    if not raw_path.startswith('/'):
+        return False
+
+    path = Path(raw_path)
+
+    return path.exists()
+
+
+def _check_package_is_editable(package_name: str) -> bool:
+    """Here we checking if package installed as editable installation.
+
+    Relevant links:
+    https://github.com/python/importlib_metadata/issues/404 discussion
+    https://packaging.python.org/en/latest/specifications/direct-url/
+    https://github.com/conda/conda/issues/11580
+    """
+    distribution = importlib_metadata.distribution(package_name)
+
+    direct_url_str = distribution.read_text('direct_url.json')
+    if not direct_url_str:
+        # there is not direct_url.json
+        return False
+
+    direct_url_data = json.loads(direct_url_str)
+
+    url = direct_url_data.get('url', '')
+
+    # The whole this with a direct_url.json that
+    # it is a sign of editable installation from the one hand,
+    # but from the other hand, conda left this file at it's
+    # distributions as a artifact of repack process
+    # (see https://github.com/conda/conda/issues/11580).
+    # In case of conda, there will be some strange path as
+    # file:///work/ci_py311/idna_1676822698822/work
+    # which is probably will not exists at user's system
+    return _check_url_is_local_file(url)
