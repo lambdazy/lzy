@@ -74,7 +74,7 @@ public class TransferDaoImpl implements TransferDao {
     }
 
     @Override
-    public List<Transmission> listPendingTransmissions(TransactionHandle tx) throws SQLException {
+    public List<Transfer> listPendingTransmissions(TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
                 SELECT slot.id, slot.channel_id, slot.role, slot.peer_description,
@@ -86,16 +86,16 @@ public class TransferDaoImpl implements TransferDao {
             {
                 var rs = ps.executeQuery();
 
-                final ArrayList<Transmission> transmissions = new ArrayList<>();
+                final ArrayList<Transfer> transfers = new ArrayList<>();
 
                 while (rs.next()) {
                     var slot = PeerDaoImpl.getPeer(rs);
                     var peer = PeerDaoImpl.getPeer(rs, 4);
 
-                    transmissions.add(new Transmission(slot, peer));
+                    transfers.add(new Transfer(slot, peer));
                 }
 
-                return transmissions;
+                return transfers;
             }
         });
     }

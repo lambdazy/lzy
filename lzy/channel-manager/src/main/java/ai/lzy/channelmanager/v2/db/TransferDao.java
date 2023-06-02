@@ -13,10 +13,10 @@ public interface TransferDao {
 
     boolean hasPendingTransfers(String peerId, TransactionHandle tx) throws SQLException;
 
-    List<Transmission> listPendingTransmissions(TransactionHandle tx) throws SQLException;
+    List<Transfer> listPendingTransmissions(TransactionHandle tx) throws SQLException;
 
-    record Transmission(
-        Peer slot,
-        Peer peer
+    record Transfer(
+        Peer from,
+        Peer to
     ) { }
 }

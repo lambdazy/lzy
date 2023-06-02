@@ -14,10 +14,10 @@ public interface PeerDao {
                 TransactionHandle tx) throws SQLException;
 
     /**
-     * Find most prior producer in this channel
+     * Find producer with max priority in this channel
      */
     @Nullable
-    Peer findPriorProducer(String channelId, TransactionHandle tx) throws SQLException;
+    Peer findProducer(String channelId, TransactionHandle tx) throws SQLException;
 
     /**
      * Atomic request to get all not connected consumers and mark them as connected
@@ -39,7 +39,7 @@ public interface PeerDao {
     enum Priority {
         PRIMARY(10),
         BACKUP(5),
-        NO_USE(-1);
+        DONT_USE(-1);
         final int val;
 
         Priority(int val) {

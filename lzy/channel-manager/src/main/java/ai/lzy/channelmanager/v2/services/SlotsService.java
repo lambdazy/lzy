@@ -2,7 +2,7 @@ package ai.lzy.channelmanager.v2.services;
 
 import ai.lzy.channelmanager.access.IamAccessManager;
 import ai.lzy.channelmanager.v2.ActionScheduler;
-import ai.lzy.channelmanager.v2.Utils;
+import ai.lzy.channelmanager.v2.LzyServiceClient;
 import ai.lzy.channelmanager.v2.db.ChannelDao;
 import ai.lzy.channelmanager.v2.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.db.PeerDao;
@@ -42,11 +42,11 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
     private final ChannelManagerDataSource storage;
     private final TransferDao transferDao;
     private final ActionScheduler action;
-    private final Utils utils;
+    private final LzyServiceClient lzyServiceClient;
     private final IamAccessManager accessManager;
 
     public SlotsService(PeerDao peerDao, ChannelDao channelDao, ChannelManagerDataSource storage,
-                        TransferDao transferDao, ActionScheduler action, Utils utils,
+                        TransferDao transferDao, ActionScheduler action, LzyServiceClient lzyServiceClient,
                         IamAccessManager accessManager)
     {
         this.peerDao = peerDao;
@@ -54,7 +54,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         this.storage = storage;
         this.transferDao = transferDao;
         this.action = action;
-        this.utils = utils;
+        this.lzyServiceClient = lzyServiceClient;
         this.accessManager = accessManager;
     }
 
@@ -98,7 +98,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
             try {
                 prod = DbHelper.withRetries(LOG, () -> {
                     try (var tx = TransactionHandle.create(storage)) {
-                        var producer = peerDao.findPriorProducer(channelId, tx);
+                        var producer = peerDao.findProducer(channelId, tx);
                         peerDao.create(channelId, peerDesc, role, PeerDao.Priority.PRIMARY, producer != null, tx);
                         tx.commit();
 
@@ -151,7 +151,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         PeerDescription storageConsumer = null;
 
         for (var consumer: pair.getRight()) {
-            action.scheduleStartTransferAction(pair.getLeft(), consumer);
+            action.runStartTransferAction(pair.getLeft(), consumer);
 
             if (consumer.peerDescription().hasStoragePeer()) {
                 storageConsumer = consumer.peerDescription();
@@ -263,7 +263,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                     }
 
                     // Failed to load data from producer, selecting other
-                    var prod = peerDao.findPriorProducer(slot.channelId(), tx);
+                    var prod = peerDao.findProducer(slot.channelId(), tx);
                     tx.commit();
 
                     return prod;
@@ -425,7 +425,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         }
 
         try {
-            DbHelper.withRetries(LOG, () -> utils.destroyChannelAndWorkflow(channelId, r, null));
+            DbHelper.withRetries(LOG, () -> lzyServiceClient.destroyChannelAndWorkflow(channelId, r, null));
 
         } catch (Exception ex) {
             LOG.error("{} Cannot abort workflow for channel {}: ", logPrefix, channelId, ex);

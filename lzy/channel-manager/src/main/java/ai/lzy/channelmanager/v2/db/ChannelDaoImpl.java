@@ -22,12 +22,13 @@ import java.util.List;
 
 @Singleton
 public class ChannelDaoImpl implements ChannelDao {
-    private static final String FIELDS = "id, owner_id, execution_id, workflow_name, data_scheme_json," +
-        " storage_producer_uri, storage_consumer_uri";
+    private static final String FIELDS =
+        "id, owner_id, execution_id, workflow_name, data_scheme_json, storage_producer_uri, storage_consumer_uri";
 
-    private static final String CHANNEL_FIELDS = "channels.id, channels.owner_id, channels.execution_id, " +
-        "channels.workflow_name, channels.data_scheme_json, channels.storage_producer_uri," +
-        " channels.storage_consumer_uri";
+    private static final String CHANNEL_FIELDS = """
+        channels.id, channels.owner_id, channels.execution_id, channels.workflow_name, channels.data_scheme_json,
+        channels.storage_producer_uri, channels.storage_consumer_uri
+        """;
 
     private static final Logger LOG = LogManager.getLogger(ChannelDaoImpl.class);
 
@@ -184,7 +185,7 @@ public class ChannelDaoImpl implements ChannelDao {
         }
 
         String query = """
-            SELECT %s, array_agg(peers.role || '@@@' || peers.peer_description) as peer_descriptions
+            SELECT %s, array_agg(array[peers.role, peers.peer_description]) as peer_descriptions
             FROM channels
             LEFT JOIN peers ON channels.id = peers.channel_id
             WHERE channels.execution_id = ? %s
@@ -215,7 +216,7 @@ public class ChannelDaoImpl implements ChannelDao {
     private ChannelStatus getChannelStatus(ResultSet rs) throws SQLException {
         var channel = getChannel(rs);
 
-        var peers = (String[]) rs.getArray(8).getArray();
+        var peers = (String[][]) rs.getArray(8).getArray();
         final List<LC.PeerDescription> producers = new ArrayList<>();
         final List<LC.PeerDescription> consumers = new ArrayList<>();
 
@@ -224,12 +225,11 @@ public class ChannelDaoImpl implements ChannelDao {
                 continue;
             }
 
-            var parts = peer.split("@@@");
-            var role = Role.valueOf(parts[0]);
+            var role = Role.valueOf(peer[0]);
 
             var builder = LC.PeerDescription.newBuilder();
             try {
-                JsonFormat.parser().merge(parts[1], builder);
+                JsonFormat.parser().merge(peer[1], builder);
             } catch (InvalidProtocolBufferException e) {
                 LOG.error("Cannot parse peerDesc from json:", e);
                 throw new RuntimeException(e);

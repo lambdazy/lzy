@@ -178,14 +178,14 @@ public class DbTest {
             .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, null);
 
         peerDao.decrementPriority(peer2.id(), null);
-        var producer = peerDao.findPriorProducer("test-channel", null);
+        var producer = peerDao.findProducer("test-channel", null);
 
         Assert.assertEquals(peer1, producer);
 
         peerDao.decrementPriority(peer1.id(), null);
         peerDao.decrementPriority(peer1.id(), null);
 
-        var producer2 = peerDao.findPriorProducer("test-channel", null);
+        var producer2 = peerDao.findProducer("test-channel", null);
         Assert.assertEquals(peer2, producer2);
 
         channelDao.drop(chan.id(), null);
@@ -249,8 +249,8 @@ public class DbTest {
 
         var list = transmissionDao.listPendingTransmissions(null);
         Assert.assertEquals(1, list.size());
-        Assert.assertEquals(peer1, list.get(0).slot());
-        Assert.assertEquals(peer2, list.get(0).peer());
+        Assert.assertEquals(peer1, list.get(0).from());
+        Assert.assertEquals(peer2, list.get(0).to());
 
         transmissionDao.dropPendingTransmission(peer1.id(), peer2.id(), null);
 

@@ -59,7 +59,7 @@ public class PeerDaoImpl implements PeerDao {
     }
 
     @Override
-    public Peer findPriorProducer(String channelId, TransactionHandle tx) throws SQLException {
+    public Peer findProducer(String channelId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement("""
                 SELECT %s FROM peers

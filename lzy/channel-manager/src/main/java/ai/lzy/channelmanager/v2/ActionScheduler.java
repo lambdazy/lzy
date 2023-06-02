@@ -23,39 +23,39 @@ public class ActionScheduler {
 
     private final SlotConnectionManager connectionManager;
     private final ChannelOperationExecutor operationExecutor;
-    private final Utils utils;
+    private final LzyServiceClient lzyServiceClient;
 
     public ActionScheduler(TransferDao connections, SlotConnectionManager connectionManager,
-                           ChannelOperationExecutor operationExecutor, Utils utils)
+                           ChannelOperationExecutor operationExecutor, LzyServiceClient lzyServiceClient)
     {
         this.connections = connections;
         this.connectionManager = connectionManager;
         this.operationExecutor = operationExecutor;
-        this.utils = utils;
+        this.lzyServiceClient = lzyServiceClient;
     }
 
-    public void scheduleStartTransferAction(Peer slot, Peer peer) {
-        operationExecutor.schedule(() -> run(slot, peer), 0L, TimeUnit.SECONDS);
+    public void runStartTransferAction(Peer from, Peer to) {
+        operationExecutor.schedule(() -> startTransfer(from, to), 0L, TimeUnit.SECONDS);
     }
 
     public void restoreActions() {
-        final List<TransferDao.Transmission> transmissions;
+        final List<TransferDao.Transfer> transfers;
         try {
-            transmissions = DbHelper.withRetries(LOG, () -> connections.listPendingTransmissions(null));
+            transfers = DbHelper.withRetries(LOG, () -> connections.listPendingTransmissions(null));
         } catch (Exception e) {
             LOG.error("Cannot restore pending transmissions", e);
             throw new RuntimeException(e);
         }
 
-        for (var transmission: transmissions) {
-            scheduleStartTransferAction(transmission.slot(), transmission.peer());
+        for (var transmission: transfers) {
+            runStartTransferAction(transmission.from(), transmission.to());
         }
     }
 
-    private void run(Peer slot, Peer peer) {
-
+    private void startTransfer(Peer from, Peer to) {
+        LOG.info("Connecting from: {} to to: {}", from, to);
         try {
-            var url = slot.peerDescription().getSlotPeer().getPeerUrl();
+            var url = from.peerDescription().getSlotPeer().getPeerUrl();
 
             var uri = new URI(url);
 
@@ -63,20 +63,21 @@ public class ActionScheduler {
 
             connection.v2SlotsApi().startTransfer(
                 LSA.StartTransferRequest.newBuilder()
-                    .setSlotId(peer.id())
-                    .setPeer(slot.peerDescription())
+                    .setSlotId(to.id())
+                    .setPeer(from.peerDescription())
                     .build()
             );
 
-            DbHelper.withRetries(LOG, () -> connections.dropPendingTransmission(slot.id(), peer.id(), null));
+            DbHelper.withRetries(LOG, () -> connections.dropPendingTransmission(from.id(), to.id(), null));
         } catch (Exception e) {
 
-            var reason = "(Connecting slot: %s to peer: %s): Cannot connect. errId: %s".formatted(slot, peer,
+            var reason = "(Connecting slot: %s to peer: %s): Cannot connect. errId: %s".formatted(from, to,
                 UUID.randomUUID().toString());
 
             LOG.error(reason, e);
             try {
-                DbHelper.withRetries(LOG, () -> utils.destroyChannelAndWorkflow(slot.channelId(), reason, null));
+                DbHelper.withRetries(LOG, () -> lzyServiceClient.destroyChannelAndWorkflow(from.channelId(), reason,
+                    null));
             } catch (Exception ex) {
                 LOG.error("Cannot abort workflow", ex);
                 throw new RuntimeException(ex);
