@@ -20,10 +20,8 @@ import java.net.URI;
 import java.net.UnknownHostException;
 import java.net.http.HttpClient;
 import java.time.Duration;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberLabels.NODE_READINESS_LABEL;
 
@@ -42,8 +40,6 @@ public class KuberNodeService {
 
     @Inject
     HttpClientAddressResolver clientAddressResolver;
-
-    private final Set<String> readyNodes = new HashSet<>();
 
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofMillis(1000))
@@ -65,12 +61,6 @@ public class KuberNodeService {
 
         LOG.info("Set node ready request; clientAddress: {}, clusterId: {}, nodeName: {}",
             clientAddress, clusterId, nodeName);
-
-        if (readyNodes.contains(nodeName)) {
-            String errorMessage = "Node was set ready before";
-            handleError(clientAddress, clusterId, nodeName, errorMessage);
-            return HttpResponse.status(HttpStatus.BAD_REQUEST);
-        }
 
         try {
             if (clientAddress == null || !isNodeAddress(clientAddress, clusterId, nodeName)) {
@@ -94,7 +84,6 @@ public class KuberNodeService {
             return HttpResponse.status(HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
-        readyNodes.add(nodeName);
         LOG.info("Set node ready done; nodeName: {}", nodeName);
         return HttpResponse.ok("OK");
     }
