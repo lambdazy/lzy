@@ -11,6 +11,25 @@ import java.util.List;
 
 @Singleton
 public class TransferDaoImpl implements TransferDao {
+    private static final String CREATE_PENDING_TRANSFER = """
+        INSERT INTO pending_transfers (slot_id, peer_id)
+        VALUES (?, ?)
+        """;
+    private static final String DROP_PENDING_TRANSFER = """
+        DELETE FROM pending_transfers
+         WHERE slot_id = ? AND peer_id = ?
+        """;
+    private static final String HAS_PENDING_TRANSFERS = """
+        SELECT count(*) FROM pending_transfers
+         WHERE slot_id = ? OR peer_id = ?
+        """;
+    private static final String LIST_PENDING_TRANSFERS = """
+        SELECT slot.id, slot.channel_id, slot.role, slot.peer_description,
+          target.id, target.channel_id, target.role, target.peer_description
+         FROM pending_transfers
+          JOIN peers slot on slot.id = pending_transfers.slot_id
+          JOIN peers target on target.id = pending_transfers.peer_id
+        """;
     private final ChannelManagerDataSource storage;
 
     public TransferDaoImpl(ChannelManagerDataSource storage) {
@@ -18,15 +37,11 @@ public class TransferDaoImpl implements TransferDao {
     }
 
     @Override
-    public void createPendingTransmission(String loaderId, String targetId,
-                                                  TransactionHandle tx) throws SQLException
+    public void createPendingTransfer(String loaderId, String targetId,
+                                      TransactionHandle tx) throws SQLException
     {
         DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement("""
-                INSERT INTO pending_transfers (slot_id, peer_id)
-                VALUES (?, ?)
-                """))
-            {
+            try (PreparedStatement ps = connection.prepareStatement(CREATE_PENDING_TRANSFER)) {
                 ps.setString(1, loaderId);
                 ps.setString(2, targetId);
 
@@ -36,13 +51,9 @@ public class TransferDaoImpl implements TransferDao {
     }
 
     @Override
-    public void dropPendingTransmission(String loaderId, String targetId, TransactionHandle tx) throws SQLException {
+    public void dropPendingTransfer(String loaderId, String targetId, TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement("""
-                DELETE FROM pending_transfers
-                 WHERE slot_id = ? AND peer_id = ?
-                """))
-            {
+            try (PreparedStatement ps = connection.prepareStatement(DROP_PENDING_TRANSFER)) {
                 ps.setString(1, loaderId);
                 ps.setString(2, targetId);
 
@@ -54,11 +65,7 @@ public class TransferDaoImpl implements TransferDao {
     @Override
     public boolean hasPendingTransfers(String peerId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement("""
-                SELECT count(*) FROM pending_transfers
-                 WHERE slot_id = ? OR peer_id = ?
-                """))
-            {
+            try (PreparedStatement ps = connection.prepareStatement(HAS_PENDING_TRANSFERS)) {
                 ps.setString(1, peerId);
                 ps.setString(2, peerId);
 
@@ -76,14 +83,7 @@ public class TransferDaoImpl implements TransferDao {
     @Override
     public List<Transfer> listPendingTransmissions(TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement("""
-                SELECT slot.id, slot.channel_id, slot.role, slot.peer_description,
-                  target.id, target.channel_id, target.role, target.peer_description
-                 FROM pending_transfers
-                  JOIN peers slot on slot.id = pending_transfers.slot_id
-                  JOIN peers target on target.id = pending_transfers.peer_id
-                """))
-            {
+            try (PreparedStatement ps = connection.prepareStatement(LIST_PENDING_TRANSFERS)) {
                 var rs = ps.executeQuery();
 
                 final ArrayList<Transfer> transfers = new ArrayList<>();

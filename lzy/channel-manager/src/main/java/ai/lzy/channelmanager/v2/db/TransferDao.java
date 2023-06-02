@@ -7,9 +7,9 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface TransferDao {
-    void createPendingTransmission(String loaderId, String targetId, TransactionHandle tx) throws SQLException;
+    void createPendingTransfer(String loaderId, String targetId, TransactionHandle tx) throws SQLException;
 
-    void dropPendingTransmission(String loaderId, String targetId, TransactionHandle tx) throws SQLException;
+    void dropPendingTransfer(String loaderId, String targetId, TransactionHandle tx) throws SQLException;
 
     boolean hasPendingTransfers(String peerId, TransactionHandle tx) throws SQLException;
 

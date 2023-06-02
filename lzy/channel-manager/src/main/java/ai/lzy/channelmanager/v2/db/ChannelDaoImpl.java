@@ -24,10 +24,34 @@ import java.util.List;
 public class ChannelDaoImpl implements ChannelDao {
     private static final String FIELDS =
         "id, owner_id, execution_id, workflow_name, data_scheme_json, storage_producer_uri, storage_consumer_uri";
+    private static final String GET_CHANNEL = """
+        SELECT %s FROM channels
+        WHERE id = ?
+        """.formatted(FIELDS);
+    private static final String FIND_CHANNELS = """
+        SELECT %s FROM channels
+        WHERE owner_id = ? AND execution_id = ?
+            AND storage_producer_uri IS NOT DISTINCT FROM ?
+            AND storage_consumer_uri IS NOT DISTINCT FROM ?
+        """.formatted(FIELDS);
+    private static final String DELETE_FROM_CHANNELS = """
+        DELETE FROM channels
+        WHERE id = ?
+        RETURNING %s
+        """.formatted(FIELDS);
+    private static final String INSERT_INTO_CHANNELS = """
+        INSERT INTO channels (%s)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """.formatted(FIELDS);
 
     private static final String CHANNEL_FIELDS = """
         channels.id, channels.owner_id, channels.execution_id, channels.workflow_name, channels.data_scheme_json,
         channels.storage_producer_uri, channels.storage_consumer_uri
+        """;
+
+    private static final String DROP_ALL = """
+        DELETE FROM channels
+        WHERE execution_id = ?
         """;
 
     private static final Logger LOG = LogManager.getLogger(ChannelDaoImpl.class);
@@ -44,11 +68,7 @@ public class ChannelDaoImpl implements ChannelDao {
                           TransactionHandle tx) throws SQLException
     {
         return DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement("""
-                INSERT INTO channels (%s)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """.formatted(FIELDS)))
-            {
+            try (PreparedStatement ps = connection.prepareStatement(INSERT_INTO_CHANNELS)) {
                 ps.setString(1, id);
                 ps.setString(2, userId);
                 ps.setString(3, executionId);
@@ -70,12 +90,7 @@ public class ChannelDaoImpl implements ChannelDao {
     @Override
     public Channel drop(String channelId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement("""
-                DELETE FROM channels
-                WHERE id = ?
-                RETURNING %s
-                """.formatted(FIELDS)))
-            {
+            try (PreparedStatement ps = connection.prepareStatement(DELETE_FROM_CHANNELS)) {
                 ps.setString(1, channelId);
                 ResultSet rs = ps.executeQuery();
 
@@ -125,13 +140,7 @@ public class ChannelDaoImpl implements ChannelDao {
                         TransactionHandle tx) throws SQLException
     {
         return DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement("""
-                SELECT %s FROM channels
-                WHERE owner_id = ? AND execution_id = ?
-                    AND storage_producer_uri IS NOT DISTINCT FROM ?
-                    AND storage_consumer_uri IS NOT DISTINCT FROM ?
-                """.formatted(FIELDS)))
-            {
+            try (PreparedStatement ps = connection.prepareStatement(FIND_CHANNELS)) {
                 ps.setString(1, userId);
                 ps.setString(2, executionId);
                 ps.setString(3, storageProducerUri);
@@ -152,11 +161,7 @@ public class ChannelDaoImpl implements ChannelDao {
     @Override
     public Channel get(String channelId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement("""
-                SELECT %s FROM channels
-                WHERE id = ?
-                """.formatted(FIELDS)))
-            {
+            try (PreparedStatement ps = connection.prepareStatement(GET_CHANNEL)) {
                 ps.setString(1, channelId);
 
                 ResultSet rs = ps.executeQuery();
@@ -221,7 +226,7 @@ public class ChannelDaoImpl implements ChannelDao {
         final List<LC.PeerDescription> consumers = new ArrayList<>();
 
         for (var peer: peers) {
-            if (peer == null) {  // No peers for this channel
+            if (peer == null || peer[0] == null || peer[1] == null) {  // No peers for this channel
                 continue;
             }
 
@@ -248,11 +253,7 @@ public class ChannelDaoImpl implements ChannelDao {
     @Override
     public void dropAll(String executionId, TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement("""
-                DELETE FROM channels
-                WHERE execution_id = ?
-                """))
-            {
+            try (PreparedStatement ps = connection.prepareStatement(DROP_ALL)) {
                 ps.setString(1, executionId);
                 ps.execute();
             }

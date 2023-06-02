@@ -134,7 +134,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                     final var consumers = peerDao.markConsumersAsConnected(channelId, tx);
 
                     for (var consumer : consumers) {
-                        transferDao.createPendingTransmission(peerId, consumer.id(), tx);
+                        transferDao.createPendingTransfer(peerId, consumer.id(), tx);
                     }
 
                     tx.commit();

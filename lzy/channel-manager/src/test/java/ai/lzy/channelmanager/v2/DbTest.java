@@ -243,7 +243,7 @@ public class DbTest {
                 .build())
             .build(), Peer.Role.CONSUMER, PeerDao.Priority.PRIMARY, false, null);
 
-        transmissionDao.createPendingTransmission(peer1.id(), peer2.id(), null);
+        transmissionDao.createPendingTransfer(peer1.id(), peer2.id(), null);
 
         Assert.assertTrue(transmissionDao.hasPendingTransfers(peer1.id(), null));
 
@@ -252,7 +252,7 @@ public class DbTest {
         Assert.assertEquals(peer1, list.get(0).from());
         Assert.assertEquals(peer2, list.get(0).to());
 
-        transmissionDao.dropPendingTransmission(peer1.id(), peer2.id(), null);
+        transmissionDao.dropPendingTransfer(peer1.id(), peer2.id(), null);
 
         var list1 = transmissionDao.listPendingTransmissions(null);
         Assert.assertEquals(0, list1.size());

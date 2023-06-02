@@ -68,7 +68,7 @@ public class ActionScheduler {
                     .build()
             );
 
-            DbHelper.withRetries(LOG, () -> connections.dropPendingTransmission(from.id(), to.id(), null));
+            DbHelper.withRetries(LOG, () -> connections.dropPendingTransfer(from.id(), to.id(), null));
         } catch (Exception e) {
 
             var reason = "(Connecting slot: %s to peer: %s): Cannot connect. errId: %s".formatted(from, to,
