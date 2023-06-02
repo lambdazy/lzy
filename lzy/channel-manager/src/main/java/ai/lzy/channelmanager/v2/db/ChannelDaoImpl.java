@@ -35,7 +35,7 @@ public class ChannelDaoImpl implements ChannelDao {
             AND storage_consumer_uri IS NOT DISTINCT FROM ?
         """.formatted(FIELDS);
     private static final String DELETE_FROM_CHANNELS = """
-        DELETE FROM channels
+        DELETE FROM channels CASCADE
         WHERE id = ?
         RETURNING %s
         """.formatted(FIELDS);
@@ -50,7 +50,7 @@ public class ChannelDaoImpl implements ChannelDao {
         """;
 
     private static final String DROP_ALL = """
-        DELETE FROM channels
+        DELETE FROM channels CASCADE
         WHERE execution_id = ?
         """;
 

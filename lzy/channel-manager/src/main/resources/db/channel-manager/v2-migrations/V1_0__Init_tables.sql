@@ -28,6 +28,10 @@ CREATE TABLE pending_transfers
     slot_id        text       NOT NULL,
     peer_id        text       NOT NULL,
     PRIMARY KEY (slot_id, peer_id),
-    FOREIGN KEY (slot_id)   references peers(id),
+    FOREIGN KEY (slot_id)   references peers(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
     FOREIGN KEY (peer_id)   references peers(id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
 );

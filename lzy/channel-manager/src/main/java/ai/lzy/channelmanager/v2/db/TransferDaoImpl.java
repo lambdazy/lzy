@@ -16,7 +16,7 @@ public class TransferDaoImpl implements TransferDao {
         VALUES (?, ?)
         """;
     private static final String DROP_PENDING_TRANSFER = """
-        DELETE FROM pending_transfers
+        DELETE FROM pending_transfers CASCADE
          WHERE slot_id = ? AND peer_id = ?
         """;
     private static final String HAS_PENDING_TRANSFERS = """
