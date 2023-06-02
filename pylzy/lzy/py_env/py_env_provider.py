@@ -385,13 +385,12 @@ def _check_url_is_local_file(url: str) -> bool:
         return False
 
     raw_path = url[len(file_scheme):]
+    path = Path(raw_path)
 
     # idk if there may be relative paths in direct_url.json,
     # but if it is, next code will work badly with it.
-    if not raw_path.startswith('/'):
+    if not path.is_absolute():
         return False
-
-    path = Path(raw_path)
 
     return path.exists()
 
@@ -413,14 +412,18 @@ def _check_package_is_editable(package_name: str) -> bool:
 
     direct_url_data = json.loads(direct_url_str)
 
-    url = direct_url_data.get('url', '')
+    url = direct_url_data.get('url')
+    if not url:
+        # just in case, because spec tells that url must be
+        # always present
+        return False
 
-    # The whole this with a direct_url.json that
+    # The whole thing about direct_url.json is that
     # it is a sign of editable installation from the one hand,
     # but from the other hand, conda left this file at it's
     # distributions as a artifact of repack process
     # (see https://github.com/conda/conda/issues/11580).
-    # In case of conda, there will be some strange path as
+    # In case of conda, there will be some strange path like
     # file:///work/ci_py311/idna_1676822698822/work
     # which is probably will not exists at user's system
     return _check_url_is_local_file(url)
