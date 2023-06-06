@@ -1,9 +1,15 @@
 package ai.lzy.kafka.s3sink;
 
+import ai.lzy.common.IdGenerator;
+import ai.lzy.common.RandomIdGenerator;
+import ai.lzy.longrunning.Operation;
+import ai.lzy.util.kafka.KafkaHelper;
+import ai.lzy.v1.kafka.KafkaS3Sink.StartRequest;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,11 +32,18 @@ public class JobExecutor {
     private final BlockingQueue<JobHandle> queue = new DelayQueue<>();
     private final Map<String, JobHandle> handles = new ConcurrentHashMap<>();
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
+    private final Map<String, String> idempotencyKeyToJobId = new ConcurrentHashMap<>();
+    private final IdGenerator idGenerator = new RandomIdGenerator();
+    private final KafkaHelper helper;
+    private final S3SinkMetrics metrics;
 
     // For tests only
     private final Map<String, CompletableFuture<Job.PollResult>> waiters = new ConcurrentHashMap<>();
 
-    public JobExecutor() {
+    public JobExecutor(@Named("S3SinkKafkaHelper") KafkaHelper helper, S3SinkMetrics metrics) {
+        this.helper = helper;
+        this.metrics = metrics;
+
         for (int i = 0; i < THREAD_POOL_SIZE; i++) {
             threadPool.submit(() -> {
                 while (!shutdown.get()) {
@@ -50,10 +63,27 @@ public class JobExecutor {
         threadPool.shutdown();
     }
 
-    public void submit(Job job) {
-        var handle = new JobHandle(job);
+    public synchronized String submit(StartRequest req, @Nullable Operation.IdempotencyKey idempotencyKey) {
+        var token = idempotencyKey == null ? null : idempotencyKey.token();
+
+        if (token != null) {
+            var jobId = idempotencyKeyToJobId.get(token);
+            if (jobId != null) {
+                return jobId;
+            }
+        }
+
+        var job = new Job(idGenerator.generate("s3sink-"), helper, req, metrics);
+
+        var handle = new JobHandle(job, token);
         handles.put(job.id(), handle);
         queue.add(handle);
+
+        if (token != null) {
+            idempotencyKeyToJobId.put(token, job.id());
+        }
+
+        return job.id();
     }
 
     public void complete(String id) {
@@ -69,9 +99,11 @@ public class JobExecutor {
     private class JobHandle implements Delayed {
         private final AtomicReference<Instant> nextRun = new AtomicReference<>(Instant.now());
         private final Job job;
+        private final String idempotencyKey;
 
-        private JobHandle(Job job) {
+        private JobHandle(Job job, @Nullable String idempotencyKey) {
             this.job = job;
+            this.idempotencyKey = idempotencyKey;
         }
 
         public synchronized void run() {
@@ -85,6 +117,10 @@ public class JobExecutor {
 
             if (res.completed()) {
                 handles.remove(job.id());
+
+                if (idempotencyKey != null) {
+                    idempotencyKeyToJobId.remove(idempotencyKey);
+                }
 
                 var waiter = waiters.remove(job.id());
                 if (waiter != null)  {  // For tests only
@@ -107,6 +143,7 @@ public class JobExecutor {
         public int compareTo(Delayed o) {
             return Long.compare(this.getDelay(TimeUnit.MILLISECONDS), o.getDelay(TimeUnit.MILLISECONDS));
         }
+
     }
 
     @VisibleForTesting

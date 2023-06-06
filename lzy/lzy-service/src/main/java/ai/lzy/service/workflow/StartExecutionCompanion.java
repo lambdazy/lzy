@@ -14,6 +14,7 @@ import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.data.KafkaTopicDesc;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.util.auth.credentials.RsaUtils;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.common.LMST;
@@ -309,13 +310,14 @@ final class StartExecutionCompanion {
                 var uri = "s3://" + path;
 
                 LOG.info("Starting remote job on s3-sink, topic: {}, bucket: {}", topicName, storageConfig.getUri());
-                var resp = owner.s3SinkClient.stub().start(KafkaS3Sink.StartRequest.newBuilder()
-                    .setTopicName(topicName)
-                    .setStorageConfig(LMST.StorageConfig.newBuilder()
-                        .setUri(uri)
-                        .setS3(storageConfig.getS3())
-                        .build())
-                    .build());
+                var resp = GrpcUtils.withIdempotencyKey(owner.s3SinkClient.stub(), state.getExecutionId())
+                    .start(KafkaS3Sink.StartRequest.newBuilder()
+                        .setTopicName(topicName)
+                        .setStorageConfig(LMST.StorageConfig.newBuilder()
+                            .setUri(uri)
+                            .setS3(storageConfig.getS3())
+                            .build())
+                        .build());
 
                 sinkJobId = resp.getJobId();
             } else {
