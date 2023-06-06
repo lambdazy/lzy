@@ -1,8 +1,6 @@
 package ai.lzy.service;
 
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.iam.resources.subjects.AuthProvider;
-import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -69,7 +67,6 @@ public class CleanExecutionCompanion {
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
 
-    @Nullable
     private final KafkaAdminClient kafkaAdminClient;
     private final KafkaLogsListeners kafkaLogsListeners;
     private final BeanFactory.S3SinkClient s3SinkClient;
@@ -242,7 +239,7 @@ public class CleanExecutionCompanion {
         }
 
         if (portalDesc != null && portalDesc.subjectId() != null) {
-            removePortalSubject(executionId, portalDesc.subjectId(), portalDesc.portalId());
+            removePortalSubject(executionId, portalDesc.subjectId());
         }
 
         kafkaLogsListeners.notifyFinished(executionId);
@@ -320,13 +317,12 @@ public class CleanExecutionCompanion {
         }
 
         if (portalDesc != null && portalDesc.subjectId() != null) {
-            removePortalSubject(executionId, portalDesc.subjectId(), portalDesc.portalId());
+            removePortalSubject(executionId, portalDesc.subjectId());
         }
 
         if (portalDesc != null && portalDesc.subjectId() != null) {
             try {
-                subjectClient.removeSubject(
-                    new Worker(portalDesc.subjectId(), AuthProvider.INTERNAL, portalDesc.portalId()));
+                subjectClient.removeSubject(portalDesc.subjectId());
             } catch (Exception e) {
                 LOG.warn("Cannot remove portal subject from iam: { executionId: {}, subjectId: {} }", executionId,
                     portalDesc.subjectId());
@@ -494,11 +490,11 @@ public class CleanExecutionCompanion {
         }
     }
 
-    public void removePortalSubject(String executionId, String subjectId, String subjectName) {
+    public void removePortalSubject(String executionId, String subjectId) {
         LOG.debug("Remove portal iam subject: { executionId: {}, subjectId: {} }", executionId, subjectId);
 
         try {
-            subjectClient.removeSubject(new Worker(subjectId, AuthProvider.INTERNAL, subjectName));
+            subjectClient.removeSubject(subjectId);
             withRetries(LOG, () -> executionDao.updatePortalSubjectId(executionId, null, null));
         } catch (Exception e) {
             LOG.warn("Cannot remove portal iam subject: { executionId: {}, subjectId: {} }", executionId, subjectId);

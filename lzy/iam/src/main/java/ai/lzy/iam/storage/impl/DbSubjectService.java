@@ -229,7 +229,7 @@ public class DbSubjectService {
         }
     }
 
-    public void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException {
+    public void addCredentials(String subjectId, SubjectCredentials credentials) throws AuthException {
         withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -241,7 +241,7 @@ public class DbSubjectService {
                         ? Timestamp.from(credentials.expiredAt().truncatedTo(ChronoUnit.SECONDS))
                         : null;
 
-                    addCredentialsDataToStatement(upsertSt, credentials.name(), credentials.value(), subject.id(),
+                    addCredentialsDataToStatement(upsertSt, credentials.name(), credentials.value(), subjectId,
                         credentials.type().name(), expiredAt);
 
                     ResultSet rs = upsertSt.executeQuery();
@@ -254,7 +254,7 @@ public class DbSubjectService {
                         if (actualValue == null) {
                             try (var selectSt = conn.prepareStatement(QUERY_SELECT_CREDENTIALS)) {
                                 selectSt.setString(1, credentials.name());
-                                selectSt.setString(2, subject.id());
+                                selectSt.setString(2, subjectId);
                                 rs = selectSt.executeQuery();
                             }
                         }
@@ -267,7 +267,7 @@ public class DbSubjectService {
                             || !Objects.equals(expiredAt, actualExpiredAt))
                         {
                             throw new AuthUniqueViolationException(String.format("Credentials name '%s' is already " +
-                                "used for another user '%s' credentials", credentials.name(), subject.id()));
+                                "used for another user '%s' credentials", credentials.name(), subjectId));
                         }
                     } else {
                         throw new RuntimeException("Result set is empty");
@@ -302,7 +302,7 @@ public class DbSubjectService {
             DbSubjectService::wrapError);
     }
 
-    public void removeSubject(Subject subject) throws AuthException {
+    public void removeSubject(String subjectId) throws AuthException {
         withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -312,14 +312,14 @@ public class DbSubjectService {
                          "DELETE FROM users WHERE user_id = ?"))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, subject.id());
+                    st.setString(++parameterIndex, subjectId);
                     st.executeUpdate();
                 }
             },
             AuthInternalException::new);
     }
 
-    public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
+    public SubjectCredentials credentials(String subjectId, String name) throws AuthException {
         return withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -331,7 +331,7 @@ public class DbSubjectService {
                          WHERE user_id = ? AND name = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, subject.id());
+                    st.setString(++parameterIndex, subjectId);
                     st.setString(++parameterIndex, name);
                     ResultSet rs = st.executeQuery();
                     if (rs.next()) {
@@ -349,7 +349,7 @@ public class DbSubjectService {
             DbSubjectService::wrapError);
     }
 
-    public List<SubjectCredentials> listCredentials(Subject subject) throws AuthException {
+    public List<SubjectCredentials> listCredentials(String subjectId) throws AuthException {
         return withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -361,7 +361,7 @@ public class DbSubjectService {
                          WHERE user_id = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, subject.id());
+                    st.setString(++parameterIndex, subjectId);
                     ResultSet rs = st.executeQuery();
                     List<SubjectCredentials> result = new ArrayList<>();
                     while (rs.next()) {
@@ -379,7 +379,7 @@ public class DbSubjectService {
             AuthInternalException::new);
     }
 
-    public void removeCredentials(Subject subject, String name) throws AuthException {
+    public void removeCredentials(String subjectId, String name) throws AuthException {
         withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -389,7 +389,7 @@ public class DbSubjectService {
                          "DELETE FROM credentials WHERE user_id = ? AND name = ?"))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, subject.id());
+                    st.setString(++parameterIndex, subjectId);
                     st.setString(++parameterIndex, name);
                     st.executeUpdate();
                 }
