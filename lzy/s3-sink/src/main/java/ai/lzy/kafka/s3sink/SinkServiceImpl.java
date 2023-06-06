@@ -1,9 +1,6 @@
 package ai.lzy.kafka.s3sink;
 
-import ai.lzy.common.IdGenerator;
-import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.longrunning.IdempotencyUtils;
-import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.kafka.KafkaS3Sink.StartRequest;
 import ai.lzy.v1.kafka.KafkaS3Sink.StartResponse;
 import ai.lzy.v1.kafka.KafkaS3Sink.StopRequest;
@@ -11,7 +8,6 @@ import ai.lzy.v1.kafka.KafkaS3Sink.StopResponse;
 import ai.lzy.v1.kafka.S3SinkServiceGrpc;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
 @Singleton
