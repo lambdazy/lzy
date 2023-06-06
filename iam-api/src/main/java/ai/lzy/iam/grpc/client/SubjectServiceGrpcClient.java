@@ -94,11 +94,11 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
     }
 
     @Override
-    public Subject getSubject(String id) throws AuthException {
+    public Subject getSubject(String subjectId) throws AuthException {
         try {
             final IAM.Subject subject = subjectService.getSubject(
                 LSS.GetSubjectRequest.newBuilder()
-                    .setId(id)
+                    .setSubjectId(subjectId)
                     .build());
             return ProtoConverter.to(subject);
         } catch (StatusRuntimeException e) {
@@ -107,13 +107,13 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
     }
 
     @Override
-    public void removeSubject(Subject subject) throws AuthException {
+    public void removeSubject(String subjectId) throws AuthException {
         try {
             //Empty response, see lzy-subject-service.proto
             //noinspection ResultOfMethodCallIgnored
             subjectService.removeSubject(
                 LSS.RemoveSubjectRequest.newBuilder()
-                    .setSubject(ProtoConverter.from(subject))
+                    .setSubjectId(subjectId)
                     .build());
         } catch (StatusRuntimeException e) {
             throw AuthException.fromStatusRuntimeException(e);
@@ -121,13 +121,13 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
     }
 
     @Override
-    public void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException {
+    public void addCredentials(String subjectId, SubjectCredentials credentials) throws AuthException {
         try {
             //Empty response, see lzy-subject-service.proto
             //noinspection ResultOfMethodCallIgnored
             subjectService.addCredentials(
                 LSS.AddCredentialsRequest.newBuilder()
-                    .setSubject(ProtoConverter.from(subject))
+                    .setSubjectId(subjectId)
                     .setCredentials(ProtoConverter.from(credentials))
                     .build());
         } catch (StatusRuntimeException e) {
@@ -136,11 +136,11 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
     }
 
     @Override
-    public List<SubjectCredentials> listCredentials(Subject subject) throws AuthException {
+    public List<SubjectCredentials> listCredentials(String subjectId) throws AuthException {
         try {
             LSS.ListCredentialsResponse listCredentialsResponse = subjectService.listCredentials(
                 LSS.ListCredentialsRequest.newBuilder()
-                    .setSubject(ProtoConverter.from(subject))
+                    .setSubjectId(subjectId)
                     .build());
             return listCredentialsResponse.getCredentialsListList()
                 .stream()
@@ -152,13 +152,13 @@ public class SubjectServiceGrpcClient implements SubjectServiceClient {
     }
 
     @Override
-    public void removeCredentials(Subject subject, String name) throws AuthException {
+    public void removeCredentials(String subjectId, String name) throws AuthException {
         try {
             //Empty response, see lzy-subject-service.proto
             //noinspection ResultOfMethodCallIgnored
             subjectService.removeCredentials(
                 LSS.RemoveCredentialsRequest.newBuilder()
-                    .setSubject(ProtoConverter.from(subject))
+                    .setSubjectId(subjectId)
                     .setCredentialsName(name)
                     .build());
         } catch (StatusRuntimeException e) {

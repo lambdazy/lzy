@@ -80,7 +80,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         assertEquals(dima.id(), actualDima.id());
         assertSame(dima.type(), actualDima.type());
 
-        removeSubject(anotherDima);
+        removeSubject(anotherDima.id());
         assertThrows(AuthNotFoundException.class, () -> subject(dima.id()));
     }
 
@@ -141,7 +141,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
         assertThrows(AuthUniqueViolationException.class, () -> createSubject("Dima", SubjectType.USER));
 
-        removeSubject(dima);
+        removeSubject(dima.id());
         assertThrows(AuthNotFoundException.class, () -> subject(dima.id()));
     }
 
@@ -152,14 +152,14 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         var credentialsName1 = "Scotty-secure";
         var credentialsName2 = "New-chapter";
 
-        addCredentials(dima, credentialsName1);
-        addCredentials(dima, credentialsName2);
-        addCredentials(dima, credentialsName1);
-        addCredentials(dima, credentialsName2);
-        addCredentials(dima, credentialsName1);
+        addCredentials(dima.id(), credentialsName1);
+        addCredentials(dima.id(), credentialsName2);
+        addCredentials(dima.id(), credentialsName1);
+        addCredentials(dima.id(), credentialsName2);
+        addCredentials(dima.id(), credentialsName1);
 
-        var credentials1 = credentials(dima, credentialsName1);
-        var credentials2 = credentials(dima, credentialsName2);
+        var credentials1 = credentials(dima.id(), credentialsName1);
+        var credentials2 = credentials(dima.id(), credentialsName2);
 
         assertEquals(credentialsName1, credentials1.name());
         assertEquals("Value", credentials1.value());
@@ -168,14 +168,14 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         assertEquals("Value", credentials2.value());
         assertEquals(CredentialsType.PUBLIC_KEY, credentials2.type());
 
-        removeCredentials(dima, credentialsName1);
-        credentials(dima, credentialsName2);
+        removeCredentials(dima.id(), credentialsName1);
+        credentials(dima.id(), credentialsName2);
 
-        assertThrows(AuthNotFoundException.class, () -> credentials(dima, credentialsName1));
+        assertThrows(AuthNotFoundException.class, () -> credentials(dima.id(), credentialsName1));
 
-        removeCredentials(dima, credentialsName2);
+        removeCredentials(dima.id(), credentialsName2);
 
-        assertThrows(AuthNotFoundException.class, () -> credentials(dima, credentialsName2));
+        assertThrows(AuthNotFoundException.class, () -> credentials(dima.id(), credentialsName2));
     }
 
     @Test
@@ -195,7 +195,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
                     readyLatch.countDown();
                     readyLatch.await();
 
-                    addCredentials(dima, credentialsName);
+                    addCredentials(dima.id(), credentialsName);
                 } catch (Exception e) {
                     failed.set(true);
                     e.printStackTrace(System.err);
@@ -210,7 +210,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
         assertFalse(failed.get());
 
-        var credentials1 = credentials(dima, credentialsName);
+        var credentials1 = credentials(dima.id(), credentialsName);
 
         assertEquals(credentialsName, credentials1.name());
         assertEquals("Value", credentials1.value());
@@ -234,8 +234,8 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         var dima = createSubject("Dima", SubjectType.USER);
         var credentialsName = "Scotty-secure";
 
-        addCredentials(dima, credentialsName);
-        var credentialsOfDima = credentials(dima, credentialsName);
+        addCredentials(dima.id(), credentialsName);
+        var credentialsOfDima = credentials(dima.id(), credentialsName);
 
         assertEquals(credentialsName, credentialsOfDima.name());
         assertEquals("Value", credentialsOfDima.value());
@@ -243,7 +243,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
 
         var nonExistentSubject = new User("some-id", AuthProvider.GITHUB, "xxx");
         assertThrows(AuthInternalException.class, () ->
-            addCredentials(nonExistentSubject, credentialsName));
+            addCredentials(nonExistentSubject.id(), credentialsName));
     }
 
     @Test
@@ -253,11 +253,11 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
         var credentialsName1 = "Scotty-secure";
         var credentialsName2 = "New-chapter";
 
-        addCredentials(dima, credentialsName1);
-        addCredentials(dima, credentialsName2);
+        addCredentials(dima.id(), credentialsName1);
+        addCredentials(dima.id(), credentialsName2);
 
-        var credentials1 = credentials(dima, credentialsName1);
-        var credentials2 = credentials(dima, credentialsName2);
+        var credentials1 = credentials(dima.id(), credentialsName1);
+        var credentials2 = credentials(dima.id(), credentialsName2);
 
         assertEquals(credentialsName1, credentials1.name());
         assertEquals("Value", credentials1.value());
@@ -270,7 +270,7 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
             CredentialsType.PUBLIC_KEY, Instant.now().plus(Duration.ofDays(30)));
 
         assertThrows(AuthUniqueViolationException.class, () ->
-            subjectService.addCredentials(dima, credentials2ReplicaWithOtherTypeAndTtl));
+            subjectService.addCredentials(dima.id(), credentials2ReplicaWithOtherTypeAndTtl));
     }
 
     @Test
@@ -319,22 +319,22 @@ public class DbSubjectServiceTest extends BaseSubjectServiceApiTest {
     }
 
     @Override
-    protected void removeSubject(Subject subject) {
-        subjectService.removeSubject(subject);
+    protected void removeSubject(String subjectId) {
+        subjectService.removeSubject(subjectId);
     }
 
     @Override
-    protected SubjectCredentials credentials(Subject subject, String name) throws NoSuchElementException {
-        return subjectService.credentials(subject, name);
+    protected SubjectCredentials credentials(String subjectId, String name) throws NoSuchElementException {
+        return subjectService.credentials(subjectId, name);
     }
 
     @Override
-    protected void addCredentials(Subject subject, String name) {
-        subjectService.addCredentials(subject, new SubjectCredentials(name, "Value", CredentialsType.PUBLIC_KEY));
+    protected void addCredentials(String subjectId, String name) {
+        subjectService.addCredentials(subjectId, new SubjectCredentials(name, "Value", CredentialsType.PUBLIC_KEY));
     }
 
     @Override
-    protected void removeCredentials(Subject subject, String name) {
-        subjectService.removeCredentials(subject, name);
+    protected void removeCredentials(String subjectId, String name) {
+        subjectService.removeCredentials(subjectId, name);
     }
 }

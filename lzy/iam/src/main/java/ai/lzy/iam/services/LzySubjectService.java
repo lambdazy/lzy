@@ -72,7 +72,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     public void removeSubject(LSS.RemoveSubjectRequest request, StreamObserver<LSS.RemoveSubjectResponse> response) {
         try {
             if (internalAccess()) {
-                subjectService.removeSubject(ProtoConverter.to(request.getSubject()));
+                subjectService.removeSubject(request.getSubjectId());
                 response.onNext(LSS.RemoveSubjectResponse.getDefaultInstance());
                 response.onCompleted();
                 return;
@@ -89,7 +89,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     public void getSubject(LSS.GetSubjectRequest request, StreamObserver<IAM.Subject> response) {
         try {
             if (internalAccess()) {
-                Subject subject = subjectService.subject(request.getId());
+                Subject subject = subjectService.subject(request.getSubjectId());
                 response.onNext(ProtoConverter.from(subject));
                 response.onCompleted();
             }
@@ -105,7 +105,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
         try {
             if (internalAccess()) {
                 subjectService.addCredentials(
-                    ProtoConverter.to(request.getSubject()),
+                    request.getSubjectId(),
                     ProtoConverter.to(request.getCredentials()));
                 response.onNext(LSS.AddCredentialsResponse.getDefaultInstance());
                 response.onCompleted();
@@ -125,10 +125,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     {
         try {
             if (internalAccess()) {
-                subjectService.removeCredentials(
-                    ProtoConverter.to(request.getSubject()),
-                    request.getCredentialsName()
-                );
+                subjectService.removeCredentials(request.getSubjectId(), request.getCredentialsName());
                 response.onNext(LSS.RemoveCredentialsResponse.getDefaultInstance());
                 response.onCompleted();
                 return;
@@ -147,7 +144,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     {
         try {
             if (internalAccess()) {
-                var subjectCredentials = subjectService.listCredentials(ProtoConverter.to(request.getSubject()));
+                var subjectCredentials = subjectService.listCredentials(request.getSubjectId());
 
                 response.onNext(
                     LSS.ListCredentialsResponse.newBuilder()

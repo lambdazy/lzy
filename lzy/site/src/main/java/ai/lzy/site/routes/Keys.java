@@ -30,7 +30,7 @@ public class Keys {
                                @Valid @Body AddPublicKeyRequest request)
     {
         final Subject subject = authUtils.checkCookieAndGetSubject(userSubjectId, sessionId);
-        subjectService.addCredentials(subject, SubjectCredentials.publicKey(request.keyName, request.publicKey));
+        subjectService.addCredentials(subject.id(), SubjectCredentials.publicKey(request.keyName, request.publicKey));
         return HttpResponse.ok();
     }
 
@@ -39,7 +39,7 @@ public class Keys {
                                   @Valid @Body DeletePublicKeyRequest request)
     {
         final Subject subject = authUtils.checkCookieAndGetSubject(userSubjectId, sessionId);
-        subjectService.removeCredentials(subject, request.keyName);
+        subjectService.removeCredentials(subject.id(), request.keyName);
         return HttpResponse.ok();
     }
 
@@ -48,7 +48,7 @@ public class Keys {
         final Subject subject = authUtils.checkCookieAndGetSubject(userSubjectId, sessionId);
         return HttpResponse.ok(
             new ListKeysResponse(
-                subjectService.listCredentials(subject).stream()
+                subjectService.listCredentials(subject.id()).stream()
                     .filter(creds -> creds.type().equals(CredentialsType.PUBLIC_KEY))
                     .map(creds -> new Key(creds.name(), creds.value()))
                     .collect(Collectors.toList())
