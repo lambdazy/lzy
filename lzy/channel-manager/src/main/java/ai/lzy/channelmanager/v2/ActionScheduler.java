@@ -53,7 +53,7 @@ public class ActionScheduler {
     }
 
     private void startTransfer(Peer from, Peer to) {
-        LOG.info("Connecting from: {} to to: {}", from, to);
+        LOG.info("Connecting slot: {} to peer: {}", from, to);
         try {
             var url = from.peerDescription().getSlotPeer().getPeerUrl();
 
