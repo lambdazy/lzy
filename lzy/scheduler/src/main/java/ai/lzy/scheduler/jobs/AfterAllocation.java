@@ -33,11 +33,9 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Singleton;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -45,8 +43,6 @@ import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 @Singleton
 public class AfterAllocation extends WorkflowJobProvider<TaskState> {
-
-    private static final AtomicInteger fails = new AtomicInteger(0);
 
     private final RenewableJwt credentials;
     private final IamClientConfiguration authConfig;
@@ -108,12 +104,6 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
                     .build());
                 return null;
             }
-
-            if (fails.getAndIncrement() == 0) {
-                reschedule(Duration.ofMillis(10));
-                return null;
-            }
-
 
             try {
                 abClient.setAccessBindings(new Workflow(task.userId() + "/" + task.workflowName()),
