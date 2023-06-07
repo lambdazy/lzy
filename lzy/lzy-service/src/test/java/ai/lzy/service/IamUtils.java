@@ -23,7 +23,7 @@ public abstract class IamUtils {
     private IamUtils() {}
 
     public static Subject createIamSubject(String userName, String publicKey, SubjectServiceGrpcClient grpcClient) {
-        return grpcClient.createSubject(AuthProvider.INTERNAL, userName, SubjectType.USER,
+        return grpcClient.createSubject(AuthProvider.GITHUB, userName, SubjectType.USER,
             new SubjectCredentials("main", publicKey, CredentialsType.PUBLIC_KEY));
     }
 
@@ -34,7 +34,7 @@ public abstract class IamUtils {
         RsaUtils.RsaKeys rsaKeys = RsaUtils.generateRsaKeys();
         Subject iamSubject = createIamSubject(userName, rsaKeys.publicKey(), iamGrpcClient);
         PrivateKey privateKey = CredentialsUtils.readPrivateKey(rsaKeys.privateKey());
-        var jwt = new RenewableJwt(iamSubject.id(), AuthProvider.INTERNAL.name(), Duration.ofHours(1), privateKey);
+        var jwt = new RenewableJwt(userName, AuthProvider.GITHUB.name(), Duration.ofHours(1), privateKey);
         return newBlockingClient(grpcClient, "TestClient", () -> jwt.get().token());
     }
 }

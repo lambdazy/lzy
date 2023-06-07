@@ -6,7 +6,6 @@ import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 public final class ExecuteGraphState {
     // from ExecuteGraphRequest
@@ -22,6 +21,8 @@ public final class ExecuteGraphState {
     @Nullable
     public Map<String, String> slotUri2channelId;
     @Nullable
+    public List<String> portalInputSlotsNames;
+    @Nullable
     public Map<String, String> portalSlotUri2slotName;
     @Nullable
     public List<TaskDesc> tasks;
@@ -30,5 +31,21 @@ public final class ExecuteGraphState {
 
     public ExecuteGraphState(LWF.Graph request) {
         this.request = request;
+    }
+
+    @Override
+    public String toString() {
+        // todo: make string more clarify
+        return "ExecuteGraphState{" +
+            "request=" + request +
+            ", operationsToExecute=" + operationsToExecute +
+            ", vmPoolZone='" + vmPoolZone + '\'' +
+            ", dataFlowGraph=" + dataFlowGraph +
+            ", portalOutputSlotUri2channelName=" + portalOutputSlotUri2channelName +
+            ", slotUri2channelId=" + slotUri2channelId +
+            ", portalSlotUri2slotName=" + portalSlotUri2slotName +
+            ", tasks=" + tasks +
+            ", graphId='" + graphId + '\'' +
+            '}';
     }
 }

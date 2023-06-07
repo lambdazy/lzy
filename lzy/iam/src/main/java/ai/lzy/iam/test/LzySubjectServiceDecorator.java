@@ -4,11 +4,15 @@ import ai.lzy.iam.services.LzySubjectService;
 import ai.lzy.v1.iam.IAM;
 import ai.lzy.v1.iam.LSS;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 
 import java.util.function.Consumer;
 
+import static ai.lzy.iam.test.BaseTestWithIam.testEnvName;
+
 @Singleton
+@Requires(env = testEnvName)
 public class LzySubjectServiceDecorator extends LzySubjectService {
     private volatile Consumer<String> onCreate = subjId -> {};
     private volatile Consumer<String> onRemove = subjId -> {};

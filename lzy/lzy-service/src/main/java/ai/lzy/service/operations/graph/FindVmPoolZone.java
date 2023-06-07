@@ -14,7 +14,6 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 import static ai.lzy.allocator.vmpool.VmPoolClient.findZones;
-import static ai.lzy.model.db.DbHelper.withRetries;
 
 public final class FindVmPoolZone extends ExecuteGraphContextAwareStep
     implements Supplier<StepResult>, RetryableFailStep
@@ -48,9 +47,9 @@ public final class FindVmPoolZone extends ExecuteGraphContextAwareStep
         }
 
         if (suitableZones.isEmpty()) {
-            log().debug("{} Found suitable zones: {}", logPrefix(), String.join(", ", suitableZones));
-        } else {
             log().error("{} Suitable zones set are empty", logPrefix());
+        } else {
+            log().debug("{} Found suitable zones: {}", logPrefix(), String.join(", ", suitableZones));
         }
 
         Supplier<StepResult> onError = () -> {

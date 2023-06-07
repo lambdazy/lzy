@@ -10,6 +10,8 @@ import org.junit.Before;
 import java.io.IOException;
 import java.util.List;
 
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+
 public abstract class AbstractGraphExecutionTest extends ContextAwareTests {
     protected LMST.StorageConfig storageConfig;
 
@@ -19,22 +21,22 @@ public abstract class AbstractGraphExecutionTest extends ContextAwareTests {
             LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
     }
 
-    protected LWFS.StartWorkflowResponse startWorkflow(String workflowName) {
+    protected LWFS.StartWorkflowResponse startWorkflow(String workflowName, String idempotencyKey) {
         var request = LWFS.StartWorkflowRequest.newBuilder()
             .setWorkflowName(workflowName)
             .setSnapshotStorage(storageConfig)
             .build();
-        return authLzyGrpcClient.startWorkflow(request);
+        return withIdempotencyKey(authLzyGrpcClient, idempotencyKey).startWorkflow(request);
     }
 
-    protected void finishWorkflow(String workflowName, String executionId) {
+    protected void finishWorkflow(String workflowName, String executionId, String idempotencyKey) {
         var request = LWFS.FinishWorkflowRequest.newBuilder()
             .setWorkflowName(workflowName)
             .setExecutionId(executionId)
             .setReason("no-matter")
             .build();
         //noinspection ResultOfMethodCallIgnored
-        authLzyGrpcClient.finishWorkflow(request);
+        withIdempotencyKey(authLzyGrpcClient, idempotencyKey).finishWorkflow(request);
     }
 
     protected Graph emptyGraph() {

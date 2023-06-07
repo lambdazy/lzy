@@ -10,16 +10,15 @@ Configuration:
 
   Loggers:
     Root:
-      level: info
+      level: error
       AppenderRef:
         ref: Console
     Logger:
-
-      - name: "ai.lzy.test"
+      - name: "ai.lzy"
         level: info
 
-      - name: "org.flywaydb"
-        level: error
+      - name: "ai.lzy.service"
+        level: debug
 
       - name: "io.zonky.test"
         level: warn

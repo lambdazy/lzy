@@ -1,13 +1,14 @@
 package ai.lzy.service.other;
 
-import ai.lzy.service.Graphs;
 import ai.lzy.service.ContextAwareTests;
+import ai.lzy.service.Graphs;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWFS;
 import org.junit.Test;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
@@ -17,22 +18,22 @@ public class WorkflowCacheTests extends ContextAwareTests {
             LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
     }
 
-    private String startWorkflow(String workflowName, LMST.StorageConfig storage) {
+    private String startWorkflow(String workflowName, LMST.StorageConfig storage, String idempotencyKey) {
         var request = LWFS.StartWorkflowRequest.newBuilder()
             .setWorkflowName(workflowName)
             .setSnapshotStorage(storage)
             .build();
-        return authLzyGrpcClient.startWorkflow(request).getExecutionId();
+        return withIdempotencyKey(authLzyGrpcClient, idempotencyKey).startWorkflow(request).getExecutionId();
     }
 
-    private void finishWorkflow(String workflowName, String executionId) {
+    private void finishWorkflow(String workflowName, String executionId, String idempotencyKey) {
         var request = LWFS.FinishWorkflowRequest.newBuilder()
             .setWorkflowName(workflowName)
             .setExecutionId(executionId)
             .setReason("no-matter")
             .build();
         //noinspection ResultOfMethodCallIgnored
-        authLzyGrpcClient.finishWorkflow(request);
+        withIdempotencyKey(authLzyGrpcClient, idempotencyKey).finishWorkflow(request);
     }
 
     @Test
@@ -43,23 +44,23 @@ public class WorkflowCacheTests extends ContextAwareTests {
 
         graphExecutor().setOnExecute(request -> countOfTasks.addAndGet(request.getTasksCount()));
 
-        var execId1 = startWorkflow("workflow_1", storage);
-        var graphId1 = authLzyGrpcClient.executeGraph(
+        var execId1 = startWorkflow("workflow_1", storage, "start_wf_1");
+        var graphId1 = withIdempotencyKey(authLzyGrpcClient, "execute_graph_1").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_1")
                 .setExecutionId(execId1)
                 .setGraph(graphs.get(0))
                 .build()).getGraphId();
 
-        finishWorkflow("workflow_1", execId1);
+        finishWorkflow("workflow_1", execId1, "finish_wf_1");
 
-        var execId2 = startWorkflow("workflow_2", storage);
-        var graphId2 = authLzyGrpcClient.executeGraph(
+        var execId2 = startWorkflow("workflow_2", storage, "start_wf_2");
+        var graphId2 = withIdempotencyKey(authLzyGrpcClient, "execute_graph_2").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName("workflow_2")
                 .setExecutionId(execId2)
                 .setGraph(graphs.get(1))
                 .build()).getGraphId();
 
-        finishWorkflow("workflow_2", execId2);
+        finishWorkflow("workflow_2", execId2, "finish_wf_2");
 
         assertFalse(graphId1.isBlank());
         assertFalse(graphId2.isBlank());

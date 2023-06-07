@@ -87,15 +87,13 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     @Override
     public boolean exists(String userId, String wfName) throws SQLException {
-        boolean[] exists = {false};
-        DbOperation.execute(null, storage, connection -> {
+        return DbOperation.execute(null, storage, connection -> {
             try (var st = connection.prepareStatement(QUERY_WORKFLOW_EXISTS)) {
                 st.setString(1, userId);
                 st.setString(2, wfName);
-                exists[0] = st.executeQuery().next();
+                return st.executeQuery().next();
             }
         });
-        return exists[0];
     }
 
     @Override

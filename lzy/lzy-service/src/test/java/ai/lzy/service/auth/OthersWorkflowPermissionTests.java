@@ -5,7 +5,8 @@ import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
 import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.service.TestContextConfigurator;
-import ai.lzy.service.test.BaseTestWithLzy;
+import ai.lzy.service.ValidationTests;
+import ai.lzy.service.test.LzyServiceTestContext;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWF;
@@ -23,6 +24,7 @@ import org.junit.Test;
 import java.sql.SQLException;
 
 import static ai.lzy.service.IamUtils.authorize;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 
@@ -32,7 +34,7 @@ public class OthersWorkflowPermissionTests {
     private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
     private static final BaseTestWithGraphExecutor graphExecutorTestContext = new BaseTestWithGraphExecutor();
     private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
-    private static final BaseTestWithLzy lzyServiceTestContext = new BaseTestWithLzy();
+    private static final LzyServiceTestContext lzyServiceTestContext = new LzyServiceTestContext();
 
     @ClassRule
     public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -67,26 +69,18 @@ public class OthersWorkflowPermissionTests {
         );
 
         authGrpcClient1 = authorize(
-            lzyServiceTestContext.getGrpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
+            lzyServiceTestContext.grpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
         );
         authGrpcClient2 = authorize(
-            lzyServiceTestContext.getGrpcClient(), "test-user-2", iamTestContext.iamSubjectsClient()
+            lzyServiceTestContext.grpcClient(), "test-user-2", iamTestContext.iamSubjectsClient()
         );
 
-        executionId = authGrpcClient1.startWorkflow(LWFS.StartWorkflowRequest.newBuilder()
-            .setWorkflowName(workflowName)
-            .setSnapshotStorage(LMST.StorageConfig.getDefaultInstance())
-            .build()).getExecutionId();
+        executionId = ValidationTests.startWorkflow(authGrpcClient1, workflowName);
     }
 
     @AfterClass
     public static void afterClass() throws SQLException, InterruptedException {
-        //noinspection ResultOfMethodCallIgnored
-        authGrpcClient1.finishWorkflow(
-            LWFS.FinishWorkflowRequest.newBuilder()
-                .setWorkflowName(workflowName)
-                .setExecutionId(executionId)
-                .build());
+        ValidationTests.finishWorkflow(authGrpcClient1, workflowName, executionId);
 
         TestContextConfigurator.tearDown(
             iamTestContext,
@@ -107,7 +101,8 @@ public class OthersWorkflowPermissionTests {
             .build();
 
         //noinspection ResultOfMethodCallIgnored
-        var sre = assertThrows(StatusRuntimeException.class, () -> authGrpcClient2.finishWorkflow(request));
+        var sre = assertThrows(StatusRuntimeException.class, () ->
+            withIdempotencyKey(authGrpcClient2, "finish_wf_" + workflowName).finishWorkflow(request));
         assertSame(Status.INVALID_ARGUMENT.getCode(), sre.getStatus().getCode());
     }
 
@@ -120,7 +115,8 @@ public class OthersWorkflowPermissionTests {
             .build();
 
         //noinspection ResultOfMethodCallIgnored
-        var sre = assertThrows(StatusRuntimeException.class, () -> authGrpcClient2.abortWorkflow(request));
+        var sre = assertThrows(StatusRuntimeException.class, () ->
+            withIdempotencyKey(authGrpcClient2, "abort_wf_" + workflowName).abortWorkflow(request));
         assertSame(Status.INVALID_ARGUMENT.getCode(), sre.getStatus().getCode());
     }
 
@@ -133,7 +129,8 @@ public class OthersWorkflowPermissionTests {
             .build();
 
         //noinspection ResultOfMethodCallIgnored
-        var sre = assertThrows(StatusRuntimeException.class, () -> authGrpcClient2.executeGraph(request));
+        var sre = assertThrows(StatusRuntimeException.class, () ->
+            withIdempotencyKey(authGrpcClient2, "execute_graph_" + workflowName).executeGraph(request));
         assertSame(Status.INVALID_ARGUMENT.getCode(), sre.getStatus().getCode());
     }
 
@@ -159,7 +156,8 @@ public class OthersWorkflowPermissionTests {
             .build();
 
         //noinspection ResultOfMethodCallIgnored
-        var sre = assertThrows(StatusRuntimeException.class, () -> authGrpcClient2.stopGraph(request));
+        var sre = assertThrows(StatusRuntimeException.class, () ->
+            withIdempotencyKey(authGrpcClient2, "stop_graph_" + workflowName).stopGraph(request));
         assertSame(Status.INVALID_ARGUMENT.getCode(), sre.getStatus().getCode());
     }
 
@@ -170,8 +168,7 @@ public class OthersWorkflowPermissionTests {
             .setExecutionId(executionId)
             .build();
 
-        //noinspection ResultOfMethodCallIgnored
-        var sre = assertThrows(StatusRuntimeException.class, () -> authGrpcClient2.readStdSlots(request));
+        var sre = assertThrows(StatusRuntimeException.class, () -> authGrpcClient2.readStdSlots(request).next());
         assertSame(Status.INVALID_ARGUMENT.getCode(), sre.getStatus().getCode());
     }
 

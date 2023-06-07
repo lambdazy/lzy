@@ -5,7 +5,7 @@ import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
 import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.service.TestContextConfigurator;
-import ai.lzy.service.test.BaseTestWithLzy;
+import ai.lzy.service.test.LzyServiceTestContext;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -13,6 +13,7 @@ import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
+import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
@@ -35,7 +36,7 @@ public class WrongCredentialsTests {
     private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
     private static final BaseTestWithGraphExecutor graphExecutorTestContext = new BaseTestWithGraphExecutor();
     private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
-    private static final BaseTestWithLzy lzyServiceTestContext = new BaseTestWithLzy();
+    private static final LzyServiceTestContext lzyServiceTestContext = new LzyServiceTestContext();
 
     @ClassRule
     public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -55,7 +56,7 @@ public class WrongCredentialsTests {
     private static final String graphId = "test-graph-id";
     private static final String reason = "no-matter";
 
-    private static LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub wrongAuthLzyGrpcClient;
+    private static LzyWorkflowServiceBlockingStub wrongAuthLzyGrpcClient;
 
     @BeforeClass
     public static void beforeClass() throws Exception {
@@ -68,7 +69,7 @@ public class WrongCredentialsTests {
             lzyServiceTestContext, lzyServiceDb.getConnectionInfo()
         );
 
-        wrongAuthLzyGrpcClient = lzyServiceTestContext.getGrpcClient().withInterceptors(
+        wrongAuthLzyGrpcClient = lzyServiceTestContext.grpcClient().withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, invalidCredentials("user", "GITHUB")::token)
         );
     }
@@ -156,8 +157,8 @@ public class WrongCredentialsTests {
             .setWorkflowName(workflowName)
             .setExecutionId(executionId)
             .build();
-        //noinspection ResultOfMethodCallIgnored
-        doPermDeniedAssert(() -> wrongAuthLzyGrpcClient.readStdSlots(request));
+
+        doPermDeniedAssert(() -> wrongAuthLzyGrpcClient.readStdSlots(request).next());
     }
 
     @Test

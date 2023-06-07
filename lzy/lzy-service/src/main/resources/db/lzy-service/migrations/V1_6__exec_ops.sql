@@ -1,4 +1,4 @@
-ALTER TABLE workflow_executions DROM COLUMN portal;
+ALTER TABLE workflow_executions DROP COLUMN portal;
 DROP TYPE portal_status;
 
 DROP INDEX expired_workflow_executions_index;
@@ -14,7 +14,7 @@ CREATE TABLE execution_operations
     op_type             TEXT NOT NULL,
     service_instance_id TEXT NOT NULL, -- instance that created the op
     execution_id        TEXT NOT NULL,
-    state_json          TEXT NOT NULL, -- some operation specific state
+    state_json          TEXT, -- some operation specific state
 
     FOREIGN KEY (op_id) REFERENCES operation (id)
 );

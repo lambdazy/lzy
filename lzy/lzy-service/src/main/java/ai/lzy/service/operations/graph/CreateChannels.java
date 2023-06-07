@@ -23,18 +23,13 @@ import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 public final class CreateChannels extends ExecuteGraphContextAwareStep
     implements Supplier<StepResult>, RetryableFailStep
 {
-    private final List<Data> tasksOutput;
-    private final List<Data> dataFromPortal;
+
     private final LzyChannelManagerPrivateBlockingStub channelsClient;
 
     public CreateChannels(ExecutionStepContext stepCtx, ExecuteGraphState state,
                           LzyChannelManagerPrivateBlockingStub channelsClient)
     {
         super(stepCtx, state);
-        Map<Boolean, List<Data>> dataPartitionBySupplier = dataFlowGraph().getDataflow().stream()
-            .collect(Collectors.partitioningBy(data -> data.supplier() != null));
-        this.tasksOutput = dataPartitionBySupplier.get(true);
-        this.dataFromPortal = dataPartitionBySupplier.get(false);
         this.channelsClient = channelsClient;
     }
 
@@ -47,6 +42,12 @@ public final class CreateChannels extends ExecuteGraphContextAwareStep
 
         log().info("{} Create channels for slots with data: { wfName: {}, execId: {} }", logPrefix(), wfName(),
             execId());
+
+        Map<Boolean, List<Data>> dataPartitionBySupplier = dataFlowGraph().getDataflow().stream()
+            .collect(Collectors.partitioningBy(data -> data.supplier() != null));
+
+        List<Data> tasksOutput = dataPartitionBySupplier.get(true);
+        List<Data> dataFromPortal = dataPartitionBySupplier.get(false);
 
         log().debug("{} Generate channels names for data from other graph tasks...", logPrefix());
         Map<String, Data> readFromWorker = generateChannelsNamesForTaskOutputs(tasksOutput);

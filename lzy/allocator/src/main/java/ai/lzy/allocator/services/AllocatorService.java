@@ -188,9 +188,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         session.owner(),
                         "Delete session %s".formatted(session.sessionId()),
                         Duration.ofDays(1),
-                        new Operation.IdempotencyKey(
-                            "delete-session-%s".formatted(session.sessionId()),
-                            IdempotencyUtils.md5(request)),
+                        idempotencyKey,
                         null);
 
                     operationsDao.create(op, tx);
@@ -338,7 +336,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                             .putAllMetadata(requireNonNull(existingVm.runState()).vmMeta())
                             .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId);
 
-                        for (var endpoint: existingVm.instanceProperties().endpoints()) {
+                        for (var endpoint : existingVm.instanceProperties().endpoints()) {
                             builder.addEndpoints(endpoint.toProto());
                         }
 
@@ -789,7 +787,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription("unsupported volume type: " + type));
     }
 
-    private record MountWithAction(DynamicMount dynamicMount, MountDynamicDiskAction action) { }
+    private record MountWithAction(DynamicMount dynamicMount, MountDynamicDiskAction action) {}
 
     @Nonnull
     private Operation createMountOperation(VmAllocatorApi.MountRequest request,
@@ -1005,7 +1003,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
     private DiskVolumeDescription.StorageClass validateStorageClass(
         VolumeApi.DiskVolumeType.StorageClass storageClass
-    ) {
+    )
+    {
         return switch (storageClass) {
             case STORAGE_CLASS_UNSPECIFIED -> null;
             case HDD -> DiskVolumeDescription.StorageClass.HDD;

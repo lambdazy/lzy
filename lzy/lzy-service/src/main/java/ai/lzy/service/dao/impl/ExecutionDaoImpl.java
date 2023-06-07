@@ -31,12 +31,12 @@ public class ExecutionDaoImpl implements ExecutionDao {
         VALUES (?, ?, ?, ?, ?, ?)""";
 
     private static final String QUERY_SELECT_EXECUTION = """
-        SELECT 1 FROM workflow_executions WHERE execution_id = ? AND user_id = ?""";
+        SELECT 1 FROM workflow_executions WHERE user_id = ? AND execution_id = ?""";
 
     private static final String QUERY_UPDATE_KAFKA_TOPIC = """
         UPDATE workflow_executions
         SET kafka_topic_json = ?
-        WHERE execution_id = ? AND kafka_topic_json is null""";
+        WHERE execution_id = ?""";
 
     private static final String QUERY_UPDATE_ALLOCATOR_SESSION = """
         UPDATE workflow_executions
@@ -86,7 +86,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
             allocator_session_id,
             portal_subject_id,
             portal_vm_id,
-            portal_vm_address,
+            portal_vm_address
         FROM workflow_executions
         WHERE execution_id = ?""";
 
@@ -138,24 +138,21 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public boolean exists(String execId, String userId) throws SQLException {
-        boolean[] exists = {false};
-        DbOperation.execute(null, storage, connection -> {
+    public boolean exists(String userId, String execId) throws SQLException {
+        return DbOperation.execute(null, storage, connection -> {
             try (var st = connection.prepareStatement(QUERY_SELECT_EXECUTION)) {
-                st.setString(1, execId);
-                st.setString(2, userId);
-                exists[0] = st.executeQuery().next();
+                st.setString(1, userId);
+                st.setString(2, execId);
+                return st.executeQuery().next();
             }
         });
-        return exists[0];
     }
 
     @Override
     public void setKafkaTopicDesc(String execId, KafkaTopicDesc topicDesc, @Nullable TransactionHandle transaction)
         throws SQLException
     {
-        LOG.debug("Update execution data: { execId: {}, newKafkaUser: {}, newKafkaTopic: {} }", execId,
-            topicDesc.username(), topicDesc.topicName());
+        LOG.debug("Update execution data: { execId: {}, newKafkaDesc: {} }", execId, String.valueOf(topicDesc));
         DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement stmt = con.prepareStatement(QUERY_UPDATE_KAFKA_TOPIC)) {
                 stmt.setString(1, objectMapper.writeValueAsString(topicDesc));

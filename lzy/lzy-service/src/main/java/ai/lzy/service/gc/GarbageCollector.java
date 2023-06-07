@@ -1,3 +1,4 @@
+/*
 package ai.lzy.service.gc;
 
 import ai.lzy.model.db.DbHelper;
@@ -117,3 +118,4 @@ public class GarbageCollector extends TimerTask {
         }
     }
 }
+*/

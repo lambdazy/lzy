@@ -101,6 +101,7 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
         }
 
         setAllocatorSessionId(sessionId);
+        log().debug("{} Allocator session successfully created...", logPrefix());
         return StepResult.CONTINUE;
     }
 }

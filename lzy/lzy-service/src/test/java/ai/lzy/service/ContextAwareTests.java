@@ -7,7 +7,7 @@ import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.graph.test.GraphExecutorDecorator;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.iam.test.LzySubjectServiceDecorator;
-import ai.lzy.service.test.BaseTestWithLzy;
+import ai.lzy.service.test.LzyServiceTestContext;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.v1.workflow.LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
@@ -28,7 +28,7 @@ public abstract class ContextAwareTests {
     private final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
     private final BaseTestWithGraphExecutor graphExecutorTestContext = new BaseTestWithGraphExecutor();
     private final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
-    private final BaseTestWithLzy lzyServiceTestContext = new BaseTestWithLzy();
+    private final LzyServiceTestContext lzyServiceTestContext = new LzyServiceTestContext();
 
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -58,12 +58,12 @@ public abstract class ContextAwareTests {
         );
 
         authLzyGrpcClient = authorize(
-            lzyServiceTestContext.getGrpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
+            lzyServiceTestContext.grpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
         );
 
         var internalUserCredentials = iamTestContext.getClientConfig().createRenewableToken();
         authLzyPrivateGrpcClient = newBlockingClient(
-            lzyServiceTestContext.getPrivateGrpcClient(), "TestClient", () -> internalUserCredentials.get().token()
+            lzyServiceTestContext.privateGrpcClient(), "TestClient", () -> internalUserCredentials.get().token()
         );
     }
 

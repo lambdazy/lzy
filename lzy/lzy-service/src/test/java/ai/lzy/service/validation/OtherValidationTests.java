@@ -5,7 +5,8 @@ import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
 import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.service.TestContextConfigurator;
-import ai.lzy.service.test.BaseTestWithLzy;
+import ai.lzy.service.ValidationTests;
+import ai.lzy.service.test.LzyServiceTestContext;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWFS;
@@ -32,7 +33,7 @@ public class OtherValidationTests {
     private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
     private static final BaseTestWithGraphExecutor graphExecutorTestContext = new BaseTestWithGraphExecutor();
     private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
-    private static final BaseTestWithLzy lzyServiceTestContext = new BaseTestWithLzy();
+    private static final LzyServiceTestContext lzyServiceTestContext = new LzyServiceTestContext();
 
     @ClassRule
     public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -63,23 +64,14 @@ public class OtherValidationTests {
         );
 
         authLzyGrpcClient = authorize(
-            lzyServiceTestContext.getGrpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
+            lzyServiceTestContext.grpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
         );
-        executionId = authLzyGrpcClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder()
-                .setWorkflowName(workflowName)
-                .setSnapshotStorage(LMST.StorageConfig.getDefaultInstance())
-                .build()).getExecutionId();
+        executionId = ValidationTests.startWorkflow(authLzyGrpcClient, workflowName);
     }
 
     @AfterClass
     public static void afterClass() throws InterruptedException, SQLException {
-        // noinspection ResultOfMethodCallIgnored
-        authLzyGrpcClient.finishWorkflow(
-            LWFS.FinishWorkflowRequest.newBuilder()
-                .setWorkflowName(workflowName)
-                .setExecutionId(executionId)
-                .build());
+        ValidationTests.finishWorkflow(authLzyGrpcClient, workflowName, executionId);
 
         TestContextConfigurator.tearDown(
             iamTestContext,

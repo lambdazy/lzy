@@ -6,7 +6,7 @@ import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.service.TestContextConfigurator;
 import ai.lzy.service.ValidationTests;
-import ai.lzy.service.test.BaseTestWithLzy;
+import ai.lzy.service.test.LzyServiceTestContext;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWF;
@@ -23,6 +23,7 @@ import org.junit.function.ThrowingRunnable;
 import java.sql.SQLException;
 
 import static ai.lzy.service.IamUtils.authorize;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 public class ExecuteGraphValidationTests implements ValidationTests<LWFS.ExecuteGraphRequest> {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
@@ -30,7 +31,7 @@ public class ExecuteGraphValidationTests implements ValidationTests<LWFS.Execute
     private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
     private static final BaseTestWithGraphExecutor graphExecutorTestContext = new BaseTestWithGraphExecutor();
     private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
-    private static final BaseTestWithLzy lzyServiceTestContext = new BaseTestWithLzy();
+    private static final LzyServiceTestContext lzyServiceTestContext = new LzyServiceTestContext();
 
     @ClassRule
     public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -61,23 +62,14 @@ public class ExecuteGraphValidationTests implements ValidationTests<LWFS.Execute
         );
 
         authLzyGrpcClient = authorize(
-            lzyServiceTestContext.getGrpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
+            lzyServiceTestContext.grpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
         );
-        executionId = authLzyGrpcClient.startWorkflow(
-            LWFS.StartWorkflowRequest.newBuilder()
-                .setWorkflowName(workflowName)
-                .setSnapshotStorage(LMST.StorageConfig.getDefaultInstance())
-                .build()).getExecutionId();
+        executionId = ValidationTests.startWorkflow(authLzyGrpcClient, workflowName);
     }
 
     @AfterClass
     public static void afterClass() throws InterruptedException, SQLException {
-        // noinspection ResultOfMethodCallIgnored
-        authLzyGrpcClient.finishWorkflow(
-            LWFS.FinishWorkflowRequest.newBuilder()
-                .setWorkflowName(workflowName)
-                .setExecutionId(executionId)
-                .build());
+        ValidationTests.finishWorkflow(authLzyGrpcClient, workflowName, executionId);
 
         TestContextConfigurator.tearDown(
             iamTestContext,
@@ -139,6 +131,6 @@ public class ExecuteGraphValidationTests implements ValidationTests<LWFS.Execute
     @Override
     public ThrowingRunnable action(LWFS.ExecuteGraphRequest request) {
         //noinspection ResultOfMethodCallIgnored
-        return () -> authLzyGrpcClient.executeGraph(request);
+        return () -> withIdempotencyKey(authLzyGrpcClient, "execute_graph").executeGraph(request);
     }
 }

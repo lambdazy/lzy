@@ -82,7 +82,7 @@ final class CreatePortalSubject extends StartExecutionContextAwareStep
 
         try {
             var wfResource = new Workflow(userId() + "/" + wfName());
-            var bindings = List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subject));
+            var bindings = List.of(new AccessBinding(Role.LZY_WORKER, subject));
             abClient.setAccessBindings(wfResource, bindings);
         } catch (Exception e) {
             return retryableFail(e, "Error in AccessBinding:set call for iam subject with id='%s'".formatted(

@@ -8,6 +8,8 @@ import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
 import java.util.Iterator;
 import java.util.function.Consumer;
 
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+
 
 public class OldScenarios {
     private static final Runnable emptyAction = () -> {};
@@ -41,12 +43,13 @@ public class OldScenarios {
         assertBeforeStartWorkflow.run();
         var startWfRequest = LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName)
             .setSnapshotStorage(defaultStorage).build();
-        var executionId = lzyGrpcClient.startWorkflow(startWfRequest).getExecutionId();
+        var executionId = withIdempotencyKey(lzyGrpcClient, "start_wf_" + workflowName)
+            .startWorkflow(startWfRequest).getExecutionId();
         assertAfterStartWorkflow.run();
 
         assertBeforeStopWorkflow.run();
         //noinspection ResultOfMethodCallIgnored
-        lzyGrpcClient.finishWorkflow(
+        withIdempotencyKey(lzyGrpcClient, "finish_wf_" + workflowName).finishWorkflow(
             LWFS.FinishWorkflowRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
@@ -63,14 +66,15 @@ public class OldScenarios {
         assertBeforeStartWorkflow.run();
         var startWfRequest = LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName)
             .setSnapshotStorage(defaultStorage).build();
-        lzyGrpcClient.startWorkflow(startWfRequest).getExecutionId();
+        withIdempotencyKey(lzyGrpcClient, "start_wf_1_" + workflowName).startWorkflow(startWfRequest).getExecutionId();
         assertAfterStartWorkflow.run();
 
-        var secondExecutionId = lzyGrpcClient.startWorkflow(startWfRequest).getExecutionId();
+        var secondExecutionId = withIdempotencyKey(lzyGrpcClient, "start_wf_2_" + workflowName)
+            .startWorkflow(startWfRequest).getExecutionId();
 
         assertBeforeStopWorkflow.run();
         //noinspection ResultOfMethodCallIgnored
-        lzyGrpcClient.finishWorkflow(
+        withIdempotencyKey(lzyGrpcClient, "finish_wf_2_" + workflowName).finishWorkflow(
             LWFS.FinishWorkflowRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(secondExecutionId)
@@ -87,12 +91,13 @@ public class OldScenarios {
         assertBeforeStartWorkflow.run();
         var startWfRequest = LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName)
             .setSnapshotStorage(defaultStorage).build();
-        var executionId = lzyGrpcClient.startWorkflow(startWfRequest).getExecutionId();
+        var executionId = withIdempotencyKey(lzyGrpcClient, "start_wf_" + workflowName)
+            .startWorkflow(startWfRequest).getExecutionId();
         assertAfterStartWorkflow.run();
 
         assertBeforeStopWorkflow.run();
         //noinspection ResultOfMethodCallIgnored
-        lzyGrpcClient.abortWorkflow(
+        withIdempotencyKey(lzyGrpcClient, "abort_wf_" + workflowName).abortWorkflow(
             LWFS.AbortWorkflowRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
@@ -109,12 +114,13 @@ public class OldScenarios {
         assertBeforeStartWorkflow.run();
         var startWfRequest = LWFS.StartWorkflowRequest.newBuilder().setWorkflowName(workflowName)
             .setSnapshotStorage(defaultStorage).build();
-        var executionId = lzyGrpcClient.startWorkflow(startWfRequest).getExecutionId();
+        var executionId = withIdempotencyKey(lzyGrpcClient, "start_wf_" + workflowName)
+            .startWorkflow(startWfRequest).getExecutionId();
         assertAfterStartWorkflow.run();
 
         assertBeforeStopWorkflow.run();
         //noinspection ResultOfMethodCallIgnored
-        privateLzyGrpcClient.abortExecution(
+        withIdempotencyKey(privateLzyGrpcClient, "abort_wf_" + workflowName).abortExecution(
             LWFPS.AbortExecutionRequest.newBuilder()
                 .setExecutionId(executionId)
                 .setReason(reason)

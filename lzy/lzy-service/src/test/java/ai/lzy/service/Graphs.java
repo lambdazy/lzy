@@ -41,8 +41,16 @@ public abstract class Graphs {
                 .setPoolSpecName("s")
                 .build()
         );
+        var dataDescriptions = List.of(
+            LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_a_1", storageConfig)).build(),
+            LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_b_1", storageConfig)).build()
+        );
 
-        return LWF.Graph.newBuilder().setName("simple-graph").setZone("ru-central1-a").addAllOperations(operations)
+        return LWF.Graph.newBuilder()
+            .setName("simple-graph")
+            .setZone("ru-central1-a")
+            .addAllOperations(operations)
+            .addAllDataDescriptions(dataDescriptions)
             .build();
     }
 
@@ -165,7 +173,12 @@ public abstract class Graphs {
                 .build()
         );
 
-        return LWF.Graph.newBuilder().setName("without-out").addAllOperations(operations).build();
+        return LWF.Graph.newBuilder()
+            .setName("without-out")
+            .addAllOperations(operations)
+            .addDataDescriptions(
+                LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_a_1", storageConfig)).build()
+            ).build();
     }
 
     /*  Graph: 1 --> 2
@@ -199,7 +212,16 @@ public abstract class Graphs {
                 .build()
         );
 
-        return LWF.Graph.newBuilder().setName("has-same-ops").setZone("ru-central1-a").addAllOperations(operations)
+        var dataDescriptions = List.of(
+            LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_a_1", storageConfig)).build(),
+            LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_b_1", storageConfig)).build()
+        );
+
+        return LWF.Graph.newBuilder()
+            .setName("has-same-ops")
+            .setZone("ru-central1-a")
+            .addAllOperations(operations)
+            .addAllDataDescriptions(dataDescriptions)
             .build();
     }
 
@@ -218,7 +240,12 @@ public abstract class Graphs {
                 .build())
             .setPoolSpecName("s")
             .build();
-        var firstGraph = LWF.Graph.newBuilder().setName("producer").addOperations(firstOp).build();
+        var firstGraph = LWF.Graph.newBuilder()
+            .setName("producer")
+            .addOperations(firstOp)
+            .addDataDescriptions(
+                LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_a_1", storageConfig)).build()
+            ).build();
 
         var secondOp = LWF.Operation.newBuilder()
             .setName("operation-2")
@@ -233,7 +260,13 @@ public abstract class Graphs {
                 .build())
             .setPoolSpecName("s")
             .build();
-        var secondGraph = LWF.Graph.newBuilder().setName("consumer-1").addOperations(secondOp).build();
+        var secondGraph = LWF.Graph.newBuilder()
+            .setName("consumer-1")
+            .addOperations(secondOp)
+            .addAllDataDescriptions(List.of(
+                LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_a_1", storageConfig)).build(),
+                LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_b_1", storageConfig)).build()
+            )).build();
 
         var thirdOp = LWF.Operation.newBuilder()
             .setName("operation-3")
@@ -252,7 +285,14 @@ public abstract class Graphs {
                 .build())
             .setPoolSpecName("s")
             .build();
-        var thirdGraph = LWF.Graph.newBuilder().setName("consumer-2").addOperations(thirdOp).build();
+        var thirdGraph = LWF.Graph.newBuilder()
+            .setName("consumer-2")
+            .addOperations(thirdOp)
+            .addAllDataDescriptions(List.of(
+                LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_a_1", storageConfig)).build(),
+                LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_b_1", storageConfig)).build(),
+                LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_c_1", storageConfig)).build()
+            )).build();
 
         return List.of(firstGraph, secondGraph, thirdGraph);
     }
@@ -272,7 +312,12 @@ public abstract class Graphs {
                 .build())
             .setPoolSpecName("s")
             .build();
-        var firstGraph = LWF.Graph.newBuilder().setName("single-out").addOperations(firstOp).build();
+        var firstGraph = LWF.Graph.newBuilder()
+            .setName("single-out")
+            .addOperations(firstOp)
+            .addDataDescriptions(
+                LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_a_1", storageConfig)).build()
+            ).build();
 
         var secondOp = LWF.Operation.newBuilder()
             .setName("operation-2")
@@ -287,11 +332,17 @@ public abstract class Graphs {
                 .build())
             .setPoolSpecName("s")
             .build();
+
+        var dataDescriptions = List.of(
+            LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_a_1", storageConfig)).build(),
+            LWF.DataDescription.newBuilder().setStorageUri(buildSlotUri("snapshot_b_1", storageConfig)).build()
+        );
+
         var secondGraph = LWF.Graph.newBuilder().setName("in-out").addAllOperations(
-            List.of(firstOp, secondOp)).build();
+            List.of(firstOp, secondOp)).addAllDataDescriptions(dataDescriptions).build();
 
         var sameAsSecond = LWF.Graph.newBuilder().setName("fully-cached").addAllOperations(List.of(
-            firstOp, secondOp)).build();
+            firstOp, secondOp)).addAllDataDescriptions(dataDescriptions).build();
 
         return List.of(firstGraph, secondGraph, sameAsSecond);
     }

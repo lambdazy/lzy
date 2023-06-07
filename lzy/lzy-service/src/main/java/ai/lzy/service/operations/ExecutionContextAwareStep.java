@@ -7,6 +7,7 @@ import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.dao.WorkflowDao;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ProtoPrinter;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.Logger;
@@ -58,6 +59,10 @@ public abstract class ExecutionContextAwareStep implements FailContextAwareStep 
 
     protected ExecutionOperationsDao execOpsDao() {
         return stepCtx.execOpsDao();
+    }
+
+    protected RenewableJwt internalUserCredentials() {
+        return stepCtx.internalUserCredentials();
     }
 
     protected String idempotencyKey() {

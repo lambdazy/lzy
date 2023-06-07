@@ -8,7 +8,6 @@ import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.service.operations.ExecutionOperationRunner;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
-import ai.lzy.v1.portal.LzyPortalGrpc.LzyPortalBlockingStub;
 import com.google.protobuf.Any;
 import com.google.protobuf.Message;
 import io.grpc.Status;
@@ -19,8 +18,7 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 
 public abstract class StopExecution extends ExecutionOperationRunner {
     private final KafkaLogsListeners kafkaLogsListeners;
-    private final LzyPortalBlockingStub portalClient;
-    private final LongRunningServiceBlockingStub portalOpClient;
+    private final LongRunningServiceBlockingStub allocOpClient;
     private final LzyChannelManagerPrivateBlockingStub channelsClient;
     private final Status finishStatus;
     private final StopExecutionState state;
@@ -28,8 +26,7 @@ public abstract class StopExecution extends ExecutionOperationRunner {
     protected StopExecution(StopExecutionBuilder<?> builder) {
         super(builder);
         this.kafkaLogsListeners = builder.kafkaLogsListeners;
-        this.portalClient = builder.portalClient;
-        this.portalOpClient = builder.portalOpClient;
+        this.allocOpClient = builder.allocOpClient;
         this.channelsClient = builder.channelsClient;
         this.finishStatus = builder.finishStatus;
         this.state = builder.state;
@@ -39,12 +36,8 @@ public abstract class StopExecution extends ExecutionOperationRunner {
         return kafkaLogsListeners;
     }
 
-    protected LzyPortalBlockingStub portalClient() {
-        return portalClient;
-    }
-
-    protected LongRunningServiceBlockingStub portalOpClient() {
-        return portalOpClient;
+    protected LongRunningServiceBlockingStub allocOpClient() {
+        return allocOpClient;
     }
 
     protected LzyChannelManagerPrivateBlockingStub channelsClient() {
@@ -67,7 +60,9 @@ public abstract class StopExecution extends ExecutionOperationRunner {
             withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(storage())) {
                     execDao().setFinishStatus(execId(), finishStatus(), tx);
+                    execOpsDao().deleteOp(id(), tx);
                     completeOperation(null, response, tx);
+                    tx.commit();
                 }
             });
         } catch (Exception e) {
@@ -88,7 +83,13 @@ public abstract class StopExecution extends ExecutionOperationRunner {
             status.getDescription());
 
         try {
-            withRetries(log(), () -> failOperation(status, null));
+            withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(storage())) {
+                    execOpsDao().deleteOp(id(), tx);
+                    failOperation(status, tx);
+                    tx.commit();
+                }
+            });
         } catch (OperationCompletedException ex) {
             log().error("{} Cannot fail operation: already completed", logPrefix());
         } catch (NotFoundException ex) {
@@ -105,24 +106,18 @@ public abstract class StopExecution extends ExecutionOperationRunner {
         extends ExecutionOperationRunnerBuilder<T>
     {
         private KafkaLogsListeners kafkaLogsListeners;
-        private LzyPortalBlockingStub portalClient;
-        private LongRunningServiceBlockingStub portalOpClient;
+        private LongRunningServiceBlockingStub allocOpClient;
         private LzyChannelManagerPrivateBlockingStub channelsClient;
         private Status finishStatus;
         private StopExecutionState state;
 
+        public T setAllocOpClient(LongRunningServiceBlockingStub allocOpClient) {
+            this.allocOpClient = allocOpClient;
+            return self();
+        }
+
         public T setKafkaLogsListeners(KafkaLogsListeners kafkaLogsListeners) {
             this.kafkaLogsListeners = kafkaLogsListeners;
-            return self();
-        }
-
-        public T setPortalClient(LzyPortalBlockingStub portalClient) {
-            this.portalClient = portalClient;
-            return self();
-        }
-
-        public T setPortalOpClient(LongRunningServiceBlockingStub portalOpClient) {
-            this.portalOpClient = portalOpClient;
             return self();
         }
 

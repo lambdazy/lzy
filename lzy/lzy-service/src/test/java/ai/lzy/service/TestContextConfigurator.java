@@ -4,7 +4,7 @@ import ai.lzy.allocator.test.BaseTestWithAllocator;
 import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
 import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.service.test.BaseTestWithLzy;
+import ai.lzy.service.test.LzyServiceTestContext;
 import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import io.zonky.test.db.postgres.embedded.ConnectionInfo;
@@ -23,7 +23,7 @@ public abstract class TestContextConfigurator {
         BaseTestWithChannelManager channelManagerTestContext, ConnectionInfo channelManagerDbConn,
         BaseTestWithGraphExecutor graphExecutorTestContext, ConnectionInfo graphExecutorDbConn,
         BaseTestWithAllocator allocatorTestContext, ConnectionInfo allocatorDbConn,
-        BaseTestWithLzy lzyServiceTestContext, ConnectionInfo lzyServiceDbConn
+        LzyServiceTestContext lzyServiceTestContext, ConnectionInfo lzyServiceDbConn
     ) throws Exception
     {
         ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(true);
@@ -78,7 +78,7 @@ public abstract class TestContextConfigurator {
         BaseTestWithChannelManager channelManagerTestContext,
         BaseTestWithGraphExecutor graphExecutorTestContext,
         BaseTestWithAllocator allocatorTestContext,
-        BaseTestWithLzy lzyServiceTestContext
+        LzyServiceTestContext lzyServiceTestContext
     ) throws SQLException, InterruptedException
     {
         lzyServiceTestContext.after();

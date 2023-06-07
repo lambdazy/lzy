@@ -7,6 +7,7 @@ import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.dao.WorkflowDao;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.Logger;
@@ -23,6 +24,7 @@ public record ExecutionStepContext(
     ExecutionDao execDao,
     GraphDao graphDao,
     ExecutionOperationsDao execOpsDao,
+    RenewableJwt internalUserCredentials,
     @Nullable String idempotencyKey,
     Function<StatusRuntimeException, StepResult> failAction,
     Logger log,

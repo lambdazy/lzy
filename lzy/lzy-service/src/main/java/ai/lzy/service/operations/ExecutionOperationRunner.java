@@ -12,11 +12,14 @@ import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.dao.WorkflowDao;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.AllocatorGrpc.AllocatorBlockingStub;
 import io.grpc.Status;
 
 public abstract class ExecutionOperationRunner extends OperationRunnerBase {
+    private final String instanceId;
+
     private final ExecutionStepContext stepCtx;
     private final LzyServiceMetrics metrics;
 
@@ -30,10 +33,12 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
 
     protected ExecutionOperationRunner(ExecutionOperationRunnerBuilder<?> builder) {
         super(builder.id, builder.description, builder.storage, builder.operationsDao, builder.executor);
+        this.instanceId = builder.instanceId;
         this.stepCtx = new ExecutionStepContext(builder.id, builder.userId, builder.wfName, builder.execId,
             builder.storage, builder.wfDao, builder.execDao, builder.graphDao, builder.execOpsDao,
-            builder.idempotencyKey, sre -> fail(sre.getStatus()) ? StepResult.FINISH : StepResult.RESTART,
-            log(), logPrefix(), builder.idGenerator);
+            builder.internalUserCredentials, builder.idempotencyKey,
+            sre -> fail(sre.getStatus()) ? StepResult.FINISH : StepResult.RESTART, log(), logPrefix(),
+            builder.idGenerator);
         this.metrics = builder.metrics;
         this.s3SinkClient = builder.s3SinkClient;
         this.kafkaClient = builder.kafkaClient;
@@ -47,6 +52,10 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
 
     protected ExecutionStepContext stepCtx() {
         return stepCtx;
+    }
+
+    protected String instanceId() {
+        return instanceId;
     }
 
     protected String userId() {
@@ -110,6 +119,7 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
     }
 
     protected abstract static class ExecutionOperationRunnerBuilder<T extends ExecutionOperationRunnerBuilder<T>> {
+        private String instanceId;
         private String id;
         private String description;
         private String idempotencyKey;
@@ -122,6 +132,7 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
         private ExecutionDao execDao;
         private OperationDao operationsDao;
         private ExecutionOperationsDao execOpsDao;
+        private RenewableJwt internalUserCredentials;
         private IdGenerator idGenerator;
         private OperationsExecutor executor;
         private LzyServiceMetrics metrics;
@@ -132,6 +143,11 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
         private OperationRunnersFactory opRunnersFactory;
 
         public abstract ExecutionOperationRunner build();
+
+        public T setInstanceId(String id) {
+            this.instanceId = id;
+            return self();
+        }
 
         public T setId(String id) {
             this.id = id;
@@ -200,6 +216,11 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
 
         public T setExecutor(OperationsExecutor executor) {
             this.executor = executor;
+            return self();
+        }
+
+        public T setInternalUserCredentials(RenewableJwt internalUserCredentials) {
+            this.internalUserCredentials = internalUserCredentials;
             return self();
         }
 

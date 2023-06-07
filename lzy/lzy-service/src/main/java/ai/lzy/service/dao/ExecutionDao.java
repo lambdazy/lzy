@@ -17,7 +17,7 @@ public interface ExecutionDao {
 
     boolean exists(String userId, String execId) throws SQLException;
 
-    void setKafkaTopicDesc(String execId, KafkaTopicDesc topicDesc, @Nullable TransactionHandle transaction)
+    void setKafkaTopicDesc(String execId, @Nullable KafkaTopicDesc topicDesc, @Nullable TransactionHandle transaction)
         throws SQLException;
 
     void updateAllocatorSession(String execId, String allocSessionId, @Nullable TransactionHandle transaction)

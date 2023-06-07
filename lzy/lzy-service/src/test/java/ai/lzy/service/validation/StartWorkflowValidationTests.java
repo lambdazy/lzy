@@ -6,7 +6,7 @@ import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.service.TestContextConfigurator;
 import ai.lzy.service.ValidationTests;
-import ai.lzy.service.test.BaseTestWithLzy;
+import ai.lzy.service.test.LzyServiceTestContext;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWFS;
@@ -22,6 +22,7 @@ import org.junit.function.ThrowingRunnable;
 import java.sql.SQLException;
 
 import static ai.lzy.service.IamUtils.authorize;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 public class StartWorkflowValidationTests implements ValidationTests<LWFS.StartWorkflowRequest> {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
@@ -29,7 +30,7 @@ public class StartWorkflowValidationTests implements ValidationTests<LWFS.StartW
     private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
     private static final BaseTestWithGraphExecutor graphExecutorTestContext = new BaseTestWithGraphExecutor();
     private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
-    private static final BaseTestWithLzy lzyServiceTestContext = new BaseTestWithLzy();
+    private static final LzyServiceTestContext lzyServiceTestContext = new LzyServiceTestContext();
 
     @ClassRule
     public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -58,7 +59,7 @@ public class StartWorkflowValidationTests implements ValidationTests<LWFS.StartW
         );
 
         authLzyGrpcClient = authorize(
-            lzyServiceTestContext.getGrpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
+            lzyServiceTestContext.grpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
         );
     }
 
@@ -90,6 +91,6 @@ public class StartWorkflowValidationTests implements ValidationTests<LWFS.StartW
     @Override
     public ThrowingRunnable action(LWFS.StartWorkflowRequest request) {
         //noinspection ResultOfMethodCallIgnored
-        return () -> authLzyGrpcClient.startWorkflow(request);
+        return () -> withIdempotencyKey(authLzyGrpcClient, "start_wf").startWorkflow(request);
     }
 }

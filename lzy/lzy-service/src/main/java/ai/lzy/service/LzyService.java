@@ -55,31 +55,32 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         this.serviceContext = serviceContext;
     }
 
-//    @VisibleForTesting
-//    public void testRestart() {
-//        restartNotCompletedOps();
-//    }
+    /*@VisibleForTesting
+    public void testRestart() {
+        restartNotCompletedOps();
+    }
 
-//    private void restartNotCompletedOps() {
-//        try {
-//            var execGraphStates = graphDao.loadNotCompletedOpStates(instanceId, null);
-//            if (!execGraphStates.isEmpty()) {
-//                LOG.warn("Found {} not completed operations on lzy-service {}", execGraphStates.size(), instanceId);
-//
-//                var activeExecutions = new HashSet<String>();
-//                execGraphStates.forEach(state -> {
-//                    if (activeExecutions.add(state.getExecutionId())) {
-//                        metrics.activeExecutions.labels(state.getUserId()).inc();
-//                    }
-//                    workersPool.submit(() -> graphExecutionService.executeGraph(state));
-//                });
-//            } else {
-//                LOG.info("Not completed lzy-service operations weren't found.");
-//            }
-//        } catch (SQLException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
+    private void restartNotCompletedOps() {
+        try {
+            var execGraphStates = graphDao.loadNotCompletedOpStates(instanceId, null);
+            if (!execGraphStates.isEmpty()) {
+                LOG.warn("Found {} not completed operations on lzy-service {}", execGraphStates.size(), instanceId);
+
+                var activeExecutions = new HashSet<String>();
+                execGraphStates.forEach(state -> {
+                    if (activeExecutions.add(state.getExecutionId())) {
+                        metrics.activeExecutions.labels(state.getUserId()).inc();
+                    }
+                    workersPool.submit(() -> graphExecutionService.executeGraph(state));
+                });
+            } else {
+                LOG.info("Not completed lzy-service operations weren't found.");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+    */
 
     @Override
     public LzyServiceContext lzyServiceCtx() {
@@ -94,7 +95,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var storageCfg = request.getSnapshotStorage();
         var newExecId = wfName + "_" + idGenerator().generate();
 
-        LOG.info("Request to start workflow execution: {}", safePrinter().printToString(request));
+        LOG.info("Request to start workflow execution: {}", safePrinter().shortDebugString(request));
 
         if (validator().validate(userId, request, responseObserver)) {
             return;
@@ -120,7 +121,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
             if (oldExecId != null) {
                 stopOp = Operation.create(userId, "Stop execution: execId='%s'".formatted(oldExecId),
-                    Duration.ofMinutes(1), idempotencyKey, null);
+                    Duration.ofMinutes(1), null, null);
                 opsDao().create(stopOp, tx);
                 execOpsDao().createStopOp(stopOp.id(), serviceCfg().getInstanceId(), oldExecId, tx);
             }
@@ -129,9 +130,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             execOpsDao().createStartOp(startOp.id(), serviceCfg().getInstanceId(), newExecId, tx);
             tx.commit();
         } catch (Exception e) {
-            if (idempotencyKey != null &&
-                handleIdempotencyKeyConflict(idempotencyKey, e, opsDao(), responseObserver,
-                    StartWorkflowResponse.class, checkOpResultDelay, startOpTimeout, LOG))
+            if (idempotencyKey != null && handleIdempotencyKeyConflict(idempotencyKey, e, opsDao(), responseObserver,
+                StartWorkflowResponse.class, checkOpResultDelay, startOpTimeout, LOG))
             {
                 return;
             }
@@ -158,7 +158,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         try {
             if (stopOp != null) {
                 LOG.info("Schedule action to abort previous execution: { userId: {}, wfName: {} }", userId, wfName);
-                var opRunner = opRunnersFactory().createAbortExecOpRunner(stopOp.id(), stopOp.description(), idk,
+                var opRunner = opRunnersFactory().createAbortWorkflowOpRunner(stopOp.id(), stopOp.description(), idk,
                     userId, wfName, oldExecId, Status.CANCELLED.withDescription("by new started execution"));
                 opsExecutor().startNew(opRunner);
             }
@@ -177,7 +177,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             LOG.error("Start workflow operation with id='{}' not completed in time", startOp.id());
             responseObserver.onError(Status.DEADLINE_EXCEEDED.withDescription("Cannot start workflow")
                 .asRuntimeException());
-        } else {
+        } else if (operation.response() != null) {
             try {
                 responseObserver.onNext(operation.response().unpack(StartWorkflowResponse.class));
                 responseObserver.onCompleted();
@@ -185,6 +185,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 LOG.error("Unexpected result of start workflow operation: {}", e.getMessage(), e);
                 responseObserver.onError(Status.INTERNAL.withDescription("Cannot start workflow").asRuntimeException());
             }
+        } else {
+            responseObserver.onError(operation.error().asRuntimeException());
         }
     }
 
@@ -223,6 +225,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
                     var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                     if (!opsToCancel.isEmpty()) {
+                        execOpsDao().deleteOps(opsToCancel, tx);
                         opsDao().fail(opsToCancel, toProto(Status.CANCELLED.withDescription("Execution was finished")),
                             tx);
                     }
@@ -280,9 +283,17 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             LOG.error("Finish workflow operation with id='{}' not completed in time", op.id());
             responseObserver.onError(Status.DEADLINE_EXCEEDED.withDescription("Cannot finish workflow")
                 .asRuntimeException());
+        } else if (operation.response() != null) {
+            try {
+                responseObserver.onNext(operation.response().unpack(FinishWorkflowResponse.class));
+                responseObserver.onCompleted();
+            } catch (InvalidProtocolBufferException e) {
+                LOG.error("Unexpected result of finish workflow operation: {}", e.getMessage(), e);
+                responseObserver.onError(Status.INTERNAL.withDescription("Cannot finish workflow")
+                    .asRuntimeException());
+            }
         } else {
-            responseObserver.onNext(FinishWorkflowResponse.getDefaultInstance());
-            responseObserver.onCompleted();
+            responseObserver.onError(operation.error().asRuntimeException());
         }
     }
 
@@ -321,6 +332,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
                     var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                     if (!opsToCancel.isEmpty()) {
+                        execOpsDao().deleteOps(opsToCancel, tx);
                         opsDao().fail(opsToCancel, toProto(Status.CANCELLED.withDescription("Execution was aborted")),
                             tx);
                     }
@@ -360,8 +372,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var idk = idempotencyKey != null ? idempotencyKey.token() : null;
         try {
             LOG.info("Schedule action to abort workflow: { wfName: {}, execId: {} }", wfName, execId);
-            var opRunner = opRunnersFactory().createAbortExecOpRunner(op.id(), op.description(), idk, userId, wfName,
-                execId, Status.CANCELLED.withDescription(reason));
+            var opRunner = opRunnersFactory().createAbortWorkflowOpRunner(op.id(), op.description(), idk, userId,
+                wfName, execId, Status.CANCELLED.withDescription(reason));
             opsExecutor().startNew(opRunner);
         } catch (Exception e) {
             LOG.error("Cannot schedule action to abort workflow: { wfName: {}, execId: {} }", wfName, execId);
@@ -377,9 +389,16 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             LOG.error("Abort workflow operation with id='{}' not completed in time", op.id());
             responseObserver.onError(Status.DEADLINE_EXCEEDED.withDescription("Cannot abort workflow")
                 .asRuntimeException());
+        } else if (operation.response() != null) {
+            try {
+                responseObserver.onNext(operation.response().unpack(AbortWorkflowResponse.class));
+                responseObserver.onCompleted();
+            } catch (InvalidProtocolBufferException e) {
+                LOG.error("Unexpected result of abort workflow operation: {}", e.getMessage(), e);
+                responseObserver.onError(Status.INTERNAL.withDescription("Cannot abort workflow").asRuntimeException());
+            }
         } else {
-            responseObserver.onNext(AbortWorkflowResponse.getDefaultInstance());
-            responseObserver.onCompleted();
+            responseObserver.onError(operation.error().asRuntimeException());
         }
     }
 
@@ -465,7 +484,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             LOG.error("Execute graph operation with id='{}' not completed in time", op.id());
             responseObserver.onError(Status.DEADLINE_EXCEEDED.withDescription("Cannot execute graph")
                 .asRuntimeException());
-        } else {
+        } else if (operation.response() != null) {
             try {
                 responseObserver.onNext(operation.response().unpack(ExecuteGraphResponse.class));
                 responseObserver.onCompleted();
@@ -473,6 +492,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 LOG.error("Unexpected result of execute graph operation: {}", e.getMessage(), e);
                 responseObserver.onError(Status.INTERNAL.withDescription("Cannot execute graph").asRuntimeException());
             }
+        } else {
+            responseObserver.onError(operation.error().asRuntimeException());
         }
     }
 
@@ -482,7 +503,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var execId = request.getExecutionId();
         var graphId = request.getGraphId();
 
-        LOG.info("Request to graph status: {}", safePrinter().printToString(request));
+        LOG.debug("Request to graph status: {}", safePrinter().printToString(request));
 
         if (validator().validate(userId, request, responseObserver)) {
             return;

@@ -5,7 +5,7 @@ import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
 import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.service.TestContextConfigurator;
-import ai.lzy.service.test.BaseTestWithLzy;
+import ai.lzy.service.test.LzyServiceTestContext;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWF;
@@ -32,7 +32,7 @@ public class UnauthenticatedLzyClientTests {
     private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
     private static final BaseTestWithGraphExecutor graphExecutorTestContext = new BaseTestWithGraphExecutor();
     private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
-    private static final BaseTestWithLzy lzyServiceTestContext = new BaseTestWithLzy();
+    private static final LzyServiceTestContext lzyServiceTestContext = new LzyServiceTestContext();
 
     @ClassRule
     public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -65,7 +65,7 @@ public class UnauthenticatedLzyClientTests {
             lzyServiceTestContext, lzyServiceDb.getConnectionInfo()
         );
 
-        unauthLzyGrpcClient = lzyServiceTestContext.getGrpcClient();
+        unauthLzyGrpcClient = lzyServiceTestContext.grpcClient();
     }
 
     @AfterClass
@@ -151,8 +151,7 @@ public class UnauthenticatedLzyClientTests {
             .setWorkflowName(workflowName)
             .setExecutionId(executionId)
             .build();
-        //noinspection ResultOfMethodCallIgnored
-        doUnauthAssert(() -> unauthLzyGrpcClient.readStdSlots(request));
+        doUnauthAssert(() -> unauthLzyGrpcClient.readStdSlots(request).next());
     }
 
     @Test

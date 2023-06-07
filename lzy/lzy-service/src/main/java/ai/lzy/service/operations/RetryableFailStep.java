@@ -13,6 +13,9 @@ public interface RetryableFailStep extends FailContextAwareStep {
     default StepResult retryableFail(Exception e, String logErrorMes, Runnable free,
                                      StatusRuntimeException defaultSre)
     {
+        /*
+        todo: it would be better to pass Status.INTERNAL here This way does not reveal internal error cause
+         */
         var retryableError = e instanceof StatusRuntimeException sre && retryableStatusCode(sre.getStatus()) ||
             e instanceof SQLException || e instanceof AuthUnavailableException;
         log().error("{} {}: {}.{}", logPrefix(), logErrorMes, e.getMessage(), (retryableError ? " Reschedule..." : ""),

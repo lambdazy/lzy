@@ -11,9 +11,9 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class AgainstResourceLeaksTests extends ContextAwareTests {
-    private Set<String> allocatorSessions;
-    private Set<String> allocatePortalVms;
-    private Set<String> portalIamSubjects;
+    private volatile Set<String> allocatorSessions;
+    private volatile Set<String> allocatePortalVms;
+    private volatile Set<String> portalIamSubjects;
 
     private OldScenarios oldScenarios;
 

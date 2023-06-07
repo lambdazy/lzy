@@ -13,7 +13,6 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
 import java.util.Arrays;
-import java.util.Objects;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoPrinter.safePrinter;
@@ -58,14 +57,16 @@ final class LzyServiceValidator {
 
     boolean validate(String userId, LWFS.FinishWorkflowRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         var debugMes = "FinishWorkflowRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot finish workflow. Blank 'user id' or 'execution id' or 'workflow name'";
-        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName()}, debugMes, errorMes, resp);
+        var errorMes = "Cannot finish workflow. Blank 'user id' or 'execution id' or 'workflow name' or 'reason'";
+        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName(), req.getReason()},
+            debugMes, errorMes, resp);
     }
 
     boolean validate(String userId, LWFS.AbortWorkflowRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         var debugMes = "AbortWorkflowRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot abort workflow. Blank 'user id' or 'execution id' or 'workflow name'";
-        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName()}, debugMes, errorMes, resp);
+        var errorMes = "Cannot abort workflow. Blank 'user id' or 'execution id' or 'workflow name' or 'reason'";
+        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName(), req.getReason()},
+            debugMes, errorMes, resp);
     }
 
     boolean validate(String userId, LWFS.ExecuteGraphRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
@@ -77,7 +78,7 @@ final class LzyServiceValidator {
 
     boolean validate(String userId, LWFS.GraphStatusRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         var debugMes = "GraphStatusRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot get graph status. Blank 'user id' or 'execution id' or 'graph id'";
+        var errorMes = "Cannot get graph status. Blank 'user id' or 'execution id' or 'workflow name' or 'graph id'";
         return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName(), req.getGraphId()}, debugMes,
             errorMes, resp);
     }
@@ -122,28 +123,20 @@ final class LzyServiceValidator {
         try {
             if (withRetries(LOG, () -> wfDao.exists(userId, wfName))) {
                 if (withRetries(LOG, () -> execDao.exists(userId, execId))) {
-                    var activeExecId = withRetries(LOG, () -> wfDao.getExecutionId(userId, wfName, null));
-                    if (Objects.equals(activeExecId, execId)) {
-                        return false;
-                    }
-
-                    LOG.error("Cannot find execution of user: { execId: {}, userId: {} }", execId, userId);
-                    resp.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find execution '%s' of user '%s'"
-                        .formatted(execId, userId)).asRuntimeException());
-                    return true;
+                    return false;
                 }
 
-                LOG.error("Cannot find execution of user: { execId: {}, userId: {} }", execId, userId);
+                LOG.error("Cannot find execution of user: { userId: {}, execId: {} }", userId, execId);
                 resp.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find execution '%s' of user '%s'"
                     .formatted(execId, userId)).asRuntimeException());
                 return true;
             }
 
-            LOG.error("Cannot find workflow of user: { userId: {}, wfName: {} }", execId, userId);
+            LOG.error("Cannot find workflow of user: { userId: {}, wfName: {} }", userId, wfName);
             resp.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find workflow '%s' of user '%s'"
                 .formatted(wfName, userId)).asRuntimeException());
         } catch (NotFoundException nfe) {
-            LOG.error("Cannot find workflow of user: { userId: {}, wfName: {} }", execId, userId);
+            LOG.error("Cannot find workflow of user: { userId: {}, wfName: {} }", userId, wfName);
             resp.onError(Status.INVALID_ARGUMENT.withDescription("Cannot find workflow '%s' of user '%s'"
                 .formatted(wfName, userId)).asRuntimeException());
         } catch (Exception e) {

@@ -6,10 +6,13 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.service.dao.ExecutionDao;
+import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.operations.ExecutionOperationRunner;
 import ai.lzy.storage.StorageClient;
 import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.v1.VmPoolServiceGrpc.VmPoolServiceBlockingStub;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
+import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.protobuf.Any;
@@ -26,7 +29,9 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
     private final KafkaConfig kafkaConfig;
     private final ExecutionDao.KafkaTopicDesc kafkaTopicDesc;
     private final VmPoolServiceBlockingStub vmPoolClient;
+    private final LzyChannelManagerPrivateBlockingStub channelsClient;
     private final GraphExecutorBlockingStub graphsClient;
+    private final LMST.StorageConfig storageConfig;
     private final StorageClient storageClient;
     private final ExecuteGraphState state;
 
@@ -37,11 +42,13 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
         this.kafkaConfig = builder.kafkaConfig;
         this.kafkaTopicDesc = builder.kafkaTopicDesc;
         this.vmPoolClient = builder.vmPoolClient;
+        this.channelsClient = builder.channelsClient;
         this.graphsClient = builder.graphsClient;
         this.storageClient = builder.storageClient;
+        this.storageConfig = builder.storageConfig;
         this.state = builder.state;
-        this.steps = List.of(checkCache(), findZone(), buildDataflowGraph(), buildGraph(), executeGraph(),
-            this::complete);
+        this.steps = List.of(checkCache(), findZone(), buildDataflowGraph(), createChannels(),
+            createPortalSlots(), buildTasks(), executeGraph(), this::complete);
     }
 
     @Override
@@ -61,7 +68,15 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
         return new BuildDataFlowGraph(stepCtx(), state);
     }
 
-    private Supplier<StepResult> buildGraph() {
+    private Supplier<StepResult> createChannels() {
+        return new CreateChannels(stepCtx(), state, channelsClient);
+    }
+
+    private Supplier<StepResult> createPortalSlots() {
+        return new CreatePortalSlots(stepCtx(), state, storageConfig);
+    }
+
+    private Supplier<StepResult> buildTasks() {
         return new BuildTasks(stepCtx(), state, kafkaConfig, kafkaTopicDesc);
     }
 
@@ -70,16 +85,28 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
     }
 
     private StepResult complete() {
-        var response = Any.pack(state.graphId != null ?
-            LWFS.ExecuteGraphResponse.newBuilder().setGraphId(state.graphId).build() :
-            LWFS.ExecuteGraphResponse.getDefaultInstance());
         try {
-            withRetries(log(), () -> {
-                try (var tx = TransactionHandle.create(storage())) {
-                    execOpsDao().putState(id(), state, tx);
-                    completeOperation(null, response, tx);
-                }
-            });
+            if (state.graphId != null) {
+                var graphDesc = new GraphDao.GraphDescription(state.graphId, execId(), state.portalInputSlotsNames);
+                var response = Any.pack(LWFS.ExecuteGraphResponse.newBuilder().setGraphId(state.graphId).build());
+                withRetries(log(), () -> {
+                    try (var tx = TransactionHandle.create(storage())) {
+                        execOpsDao().deleteOp(id(), tx);
+                        graphDao().put(graphDesc, tx);
+                        completeOperation(null, response, tx);
+                        tx.commit();
+                    }
+                });
+            } else {
+                var response = Any.pack(LWFS.ExecuteGraphResponse.getDefaultInstance());
+                withRetries(log(), () -> {
+                    try (var tx = TransactionHandle.create(storage())) {
+                        execOpsDao().deleteOp(id(), tx);
+                        completeOperation(null, response, tx);
+                        tx.commit();
+                    }
+                });
+            }
         } catch (Exception e) {
             var sqlError = e instanceof SQLException;
 
@@ -104,8 +131,10 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
                     success[0] = Objects.equals(wfDao().getExecutionId(userId(), wfName(), tx), execId());
                     if (success[0]) {
                         wfDao().setActiveExecutionId(userId(), wfName(), null, tx);
+                        execOpsDao().createStopOp(stopOp.id(), instanceId(), execId(), tx);
                         operationsDao().create(stopOp, tx);
                     }
+                    execOpsDao().deleteOp(id(), tx);
                     failOperation(status, tx);
                     tx.commit();
                 }
@@ -125,7 +154,7 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
             try {
                 log().debug("{} Schedule action to abort execution that has graph not executed properly: " +
                     "{ execId: {} }", logPrefix(), execId());
-                var opRunner = opRunnersFactory().createAbortExecOpRunner(stopOp.id(), stopOp.description(), null,
+                var opRunner = opRunnersFactory().createAbortWorkflowOpRunner(stopOp.id(), stopOp.description(), null,
                     userId(), wfName(), execId(), Status.INTERNAL.withDescription("error on execute graph"));
                 opsExecutor().startNew(opRunner);
             } catch (Exception e) {
@@ -142,12 +171,19 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
     }
 
     public static final class ExecuteGraphBuilder extends ExecutionOperationRunnerBuilder<ExecuteGraphBuilder> {
+        private LMST.StorageConfig storageConfig;
         private KafkaConfig kafkaConfig;
         private ExecutionDao.KafkaTopicDesc kafkaTopicDesc;
         private VmPoolServiceBlockingStub vmPoolClient;
+        private LzyChannelManagerPrivateBlockingStub channelsClient;
         private GraphExecutorBlockingStub graphsClient;
         private StorageClient storageClient;
         private ExecuteGraphState state;
+
+        public ExecuteGraphBuilder setStorageConfig(LMST.StorageConfig storageConfig) {
+            this.storageConfig = storageConfig;
+            return this;
+        }
 
         public ExecuteGraphBuilder setKafkaConfig(KafkaConfig kafkaConfig) {
             this.kafkaConfig = kafkaConfig;
@@ -161,6 +197,11 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
 
         public ExecuteGraphBuilder setVmPoolClient(VmPoolServiceBlockingStub vmPoolClient) {
             this.vmPoolClient = vmPoolClient;
+            return this;
+        }
+
+        public ExecuteGraphBuilder setChannelsClient(LzyChannelManagerPrivateBlockingStub channelsClient) {
+            this.channelsClient = channelsClient;
             return this;
         }
 

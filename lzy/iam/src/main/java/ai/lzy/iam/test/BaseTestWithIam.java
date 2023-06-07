@@ -28,6 +28,8 @@ import java.util.Map;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class BaseTestWithIam {
+    public static final String testEnvName = "local-test";
+
     private ApplicationContext iamCtx;
     private LzyIAM iamApp;
     private int port;
@@ -43,7 +45,7 @@ public class BaseTestWithIam {
         var iamProps = new YamlPropertySourceLoader().read("iam",
             new FileInputStream("../iam/src/main/resources/application-test.yml"));
         iamProps.putAll(overrides);
-        iamCtx = ApplicationContext.run(PropertySource.of(iamProps));
+        iamCtx = ApplicationContext.run(PropertySource.of(iamProps), testEnvName);
 
         var config = iamCtx.getBean(ServiceConfig.class);
         port = GrpcUtils.rollPort();
@@ -56,7 +58,7 @@ public class BaseTestWithIam {
         grpcChannel = newGrpcChannel(
             "localhost:" + getPort(), LzySubjectServiceGrpc.SERVICE_NAME, LzyAccessBindingServiceGrpc.SERVICE_NAME
         );
-        grpcClient = new SubjectServiceGrpcClient("Test-Client", grpcChannel, internalUserCredentials::get);
+        grpcClient = new SubjectServiceGrpcClient("TestClient", grpcChannel, internalUserCredentials::get);
     }
 
     public void after() {
