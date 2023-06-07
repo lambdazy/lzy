@@ -150,12 +150,13 @@ public class DbAuthServiceTest {
     }
 
     public void validAuth(SubjectType subjectType) throws Exception {
-        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of(
+        var authProvider = subjectType == SubjectType.WORKER ? AuthProvider.INTERNAL : AuthProvider.GITHUB;
+        var userId = subjectService.createSubject(authProvider, "user1", subjectType, List.of(
             new SubjectCredentials("testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY)), "hash").id();
 
         final Subject user = subjectService.subject(userId);
 
-        var jwt = JwtUtils.buildJWT("user1", AuthProvider.GITHUB.name(), Date.from(Instant.now()),
+        var jwt = JwtUtils.buildJWT("user1", authProvider.name(), Date.from(Instant.now()),
             JwtUtils.afterDays(1), CredentialsUtils.readPrivateKey(PRIVATE_PEM2));
         authenticateService.authenticate(new JwtCredentials(jwt));
     }
@@ -171,12 +172,13 @@ public class DbAuthServiceTest {
     }
 
     public void invalidAuth(SubjectType subjectType) throws Exception {
-        var userId = subjectService.createSubject(AuthProvider.GITHUB, "user1", subjectType, List.of(
+        var authProvider = subjectType == SubjectType.WORKER ? AuthProvider.INTERNAL : AuthProvider.GITHUB;
+        var userId = subjectService.createSubject(authProvider, "user1", subjectType, List.of(
             new SubjectCredentials("testCred", PUBLIC_PEM2, CredentialsType.PUBLIC_KEY)), "hash").id();
 
         final Subject user = subjectService.subject(userId);
 
-        var jwt = JwtUtils.buildJWT("user1", AuthProvider.GITHUB.name(), Date.from(Instant.now()),
+        var jwt = JwtUtils.buildJWT("user1", authProvider.name(), Date.from(Instant.now()),
             JwtUtils.afterDays(1), CredentialsUtils.readPrivateKey(PRIVATE_PEM2));
         try {
             authenticateService.authenticate(new JwtCredentials(jwt));

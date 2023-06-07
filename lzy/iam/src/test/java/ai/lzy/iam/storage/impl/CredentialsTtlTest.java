@@ -59,7 +59,7 @@ public class CredentialsTtlTest {
         var subject = subjectService.createSubject(AuthProvider.GITHUB, "subject", SubjectType.USER, List.of(
             creds1, creds2, creds3), "some-hash");
 
-        var creds = subjectService.listCredentials(subject);
+        var creds = subjectService.listCredentials(subject.id());
         Assert.assertEquals(2, creds.size());
 
         creds = creds.stream().sorted(Comparator.comparing(SubjectCredentials::name)).toList();

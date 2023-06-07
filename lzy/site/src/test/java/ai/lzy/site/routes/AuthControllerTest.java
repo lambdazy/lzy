@@ -12,7 +12,11 @@ import io.micronaut.http.HttpStatus;
 import io.micronaut.runtime.server.EmbeddedServer;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URI;
@@ -85,7 +89,7 @@ public class AuthControllerTest extends BaseTestWithIam {
         final Utils.ParsedCookies cookies = Utils.parseCookiesFromHeaders(response);
         Assert.assertEquals(GithubApiRouteTest.TEST_USER, cookies.userId());
 
-        final var creds = listCredentials(subject);
+        final var creds = listCredentials(subject.id());
         Assert.assertNotNull(creds);
     }
 }

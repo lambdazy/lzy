@@ -20,15 +20,15 @@ public interface SubjectServiceClient {
     Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type,
                           SubjectCredentials... credentials) throws AuthException;
 
-    Subject getSubject(String id) throws AuthException;
+    Subject getSubject(String subjectId) throws AuthException;
 
-    void removeSubject(Subject subject) throws AuthException;
+    void removeSubject(String subjectId) throws AuthException;
 
-    void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException;
+    void addCredentials(String subjectId, SubjectCredentials credentials) throws AuthException;
 
-    List<SubjectCredentials> listCredentials(Subject subject) throws AuthException;
+    List<SubjectCredentials> listCredentials(String subjectId) throws AuthException;
 
-    void removeCredentials(Subject subject, String name) throws AuthException;
+    void removeCredentials(String subjectId, String name) throws AuthException;
 
     @Nullable
     Subject findSubject(AuthProvider authProvider, String providerSubjectId, SubjectType type) throws AuthException;

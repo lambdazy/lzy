@@ -2,9 +2,10 @@ package ai.lzy.iam.resources;
 
 import ai.lzy.iam.resources.subjects.Subject;
 
-public record AccessBinding(Role role,
-                            Subject subject) {
-
+public record AccessBinding(
+    Role role,
+    Subject subject
+) {
     @Override
     public boolean equals(Object o) {
         if (this == o) {

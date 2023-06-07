@@ -5,9 +5,10 @@ import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AccessBindingDelta.AccessBindingAction;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.Role;
-import ai.lzy.iam.resources.subjects.User;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
-import ai.lzy.iam.storage.db.ResourceBinding;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthInternalException;
 import io.micronaut.context.annotation.Requires;
@@ -27,9 +28,10 @@ import java.util.stream.Stream;
 public class DbAccessBindingClient {
 
     private static final String QUERY_LIST_ACCESS_BINDINGS = """
-        SELECT *
-        FROM user_resource_roles
-        WHERE resource_id = ?;
+        SELECT r.user_id, r.resource_id, r.resource_type, r.role,
+               u.user_type, u.auth_provider, u.provider_user_id
+        FROM user_resource_roles AS r INNER JOIN users u on r.user_id = u.user_id
+        WHERE r.resource_id = ?;
         """;
 
     private static final String QUERY_DELETE_ACCESS_BINDING = """
@@ -60,7 +62,14 @@ public class DbAccessBindingClient {
             selectSt.setString(++parameterIndex, resource.resourceId());
             final ResultSet rs = selectSt.executeQuery();
             while (rs.next()) {
-                bindings.add(toAccessBinding(ResourceBinding.fromResultSet(rs)));
+                var role = Role.of(rs.getString("role"));
+                var subject = Subject.of(
+                    rs.getString("user_id"),
+                    SubjectType.valueOf(rs.getString("user_type")),
+                    AuthProvider.valueOf(rs.getString("auth_provider")),
+                    rs.getString("provider_user_id"));
+                var accessBinding = new AccessBinding(role, subject);
+                bindings.add(accessBinding);
             }
         } catch (SQLException e) {
             throw new AuthInternalException(e);
@@ -124,9 +133,5 @@ public class DbAccessBindingClient {
         } catch (SQLException e) {
             throw new AuthInternalException(e);
         }
-    }
-
-    private AccessBinding toAccessBinding(ResourceBinding model) {
-        return new AccessBinding(Role.of(model.role()), new User(model.userId()));
     }
 }

@@ -1,6 +1,7 @@
 package ai.lzy.iam;
 
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
@@ -45,7 +46,7 @@ public abstract class BaseSubjectServiceApiTest {
         assertEquals(subj2.id(), subject2.id());
         assertEquals(subjectType, subject2.type());
 
-        removeSubject(subject1);
+        removeSubject(subject1.id());
         try {
             subject(subj1.id());
             fail();
@@ -57,7 +58,7 @@ public abstract class BaseSubjectServiceApiTest {
         assertEquals(subj2.id(), subject2.id());
         assertEquals(subjectType, subject2.type());
 
-        removeSubject(subject2);
+        removeSubject(subject2.id());
         try {
             subject(subj2.id());
             fail();
@@ -79,21 +80,21 @@ public abstract class BaseSubjectServiceApiTest {
     public void createAndRemoveWithCredentialsScenario(SubjectType subjectType) {
         var subj1 = createSubject("user1", subjectType);
         Subject subject = subject(subj1.id());
-        addCredentials(subject, "1");
-        addCredentials(subject, "2");
+        addCredentials(subject.id(), "1");
+        addCredentials(subject.id(), "2");
 
-        SubjectCredentials credentials1 = credentials(subject, "1");
+        SubjectCredentials credentials1 = credentials(subject.id(), "1");
         assertEquals("1", credentials1.name());
         assertEquals("Value", credentials1.value());
         assertEquals(CredentialsType.PUBLIC_KEY, credentials1.type());
-        SubjectCredentials credentials2 = credentials(subject, "2");
+        SubjectCredentials credentials2 = credentials(subject.id(), "2");
         assertEquals("2", credentials2.name());
         assertEquals("Value", credentials2.value());
         assertEquals(CredentialsType.PUBLIC_KEY, credentials2.type());
 
-        removeCredentials(subject, "1");
+        removeCredentials(subject.id(), "1");
         try {
-            credentials(subject, "1");
+            credentials(subject.id(), "1");
             fail();
         } catch (NoSuchElementException e) {
             LOG.info("Valid exception {}", e.getMessage());
@@ -101,21 +102,21 @@ public abstract class BaseSubjectServiceApiTest {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
 
-        credentials2 = credentials(subject, "2");
+        credentials2 = credentials(subject.id(), "2");
         assertEquals("2", credentials2.name());
         assertEquals("Value", credentials2.value());
         assertEquals(CredentialsType.PUBLIC_KEY, credentials2.type());
 
-        removeCredentials(subject, "2");
+        removeCredentials(subject.id(), "2");
         try {
-            credentials(subject, "2");
+            credentials(subject.id(), "2");
             fail();
         } catch (NoSuchElementException e) {
             LOG.info("Valid exception {}", e.getMessage());
         } catch (AuthNotFoundException e) {
             LOG.info("Valid exception {}", e.getInternalDetails());
         }
-        removeSubject(subject);
+        removeSubject(subject.id());
     }
 
     public static Collection<Object[]> restrictEqualSubjectIdsParams() {
@@ -136,11 +137,14 @@ public abstract class BaseSubjectServiceApiTest {
     protected abstract Subject createSubject(String name, SubjectType subjectType,
                                              List<SubjectCredentials> credentials);
 
-    protected abstract void removeSubject(Subject subject);
+    protected abstract Subject createSubject(String name, SubjectType subjectType, AuthProvider authProvider,
+                                             List<SubjectCredentials> credentials);
 
-    protected abstract SubjectCredentials credentials(Subject subject, String name) throws NoSuchElementException;
+    protected abstract void removeSubject(String id);
 
-    protected abstract void addCredentials(Subject subject, String name);
+    protected abstract SubjectCredentials credentials(String subjectId, String name) throws NoSuchElementException;
 
-    protected abstract void removeCredentials(Subject subject, String name);
+    protected abstract void addCredentials(String subjectId, String name);
+
+    protected abstract void removeCredentials(String subjectId, String name);
 }
