@@ -92,7 +92,7 @@ final class LzyServiceValidator {
 
     boolean validate(String userId, LWFS.ReadStdSlotsRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         var debugMes = "ReadStdSlotsRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot open stream on std slots. Blank 'user id' or 'execution id'";
+        var errorMes = "Cannot open stream on std slots. Blank 'user id' or 'execution id' or 'workflow name'";
         return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName()}, debugMes, errorMes, resp);
     }
 

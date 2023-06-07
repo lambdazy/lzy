@@ -86,15 +86,13 @@ public class OtherValidationTests {
     @Test
     public void missingWorkflowNameInReadStdRequest() {
         var request = LWFS.ReadStdSlotsRequest.newBuilder().setExecutionId(executionId).build();
-        //noinspection ResultOfMethodCallIgnored
-        doAssert(() -> authLzyGrpcClient.readStdSlots(request));
+        doAssert(() -> authLzyGrpcClient.readStdSlots(request).next());
     }
 
     @Test
     public void missingExecutionIdInReadStdRequest() {
         var request = LWFS.ReadStdSlotsRequest.newBuilder().setWorkflowName(workflowName).build();
-        //noinspection ResultOfMethodCallIgnored
-        doAssert(() -> authLzyGrpcClient.readStdSlots(request));
+        doAssert(() -> authLzyGrpcClient.readStdSlots(request).next());
     }
 
     @Test
@@ -103,8 +101,7 @@ public class OtherValidationTests {
             .setWorkflowName("unknown-workflow-name")
             .setExecutionId(executionId)
             .build();
-        //noinspection ResultOfMethodCallIgnored
-        doAssert(() -> authLzyGrpcClient.readStdSlots(request));
+        doAssert(() -> authLzyGrpcClient.readStdSlots(request).next());
     }
 
     @Test
@@ -113,8 +110,7 @@ public class OtherValidationTests {
             .setWorkflowName(workflowName)
             .setExecutionId("unknown-exec-id")
             .build();
-        //noinspection ResultOfMethodCallIgnored
-        doAssert(() -> authLzyGrpcClient.readStdSlots(request));
+        doAssert(() -> authLzyGrpcClient.readStdSlots(request).next());
     }
 
     @Test

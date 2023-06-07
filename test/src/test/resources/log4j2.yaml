@@ -17,9 +17,6 @@ Configuration:
       - name: "ai.lzy"
         level: info
 
-      - name: "ai.lzy.service"
-        level: debug
-
       - name: "io.zonky.test"
         level: warn
 
