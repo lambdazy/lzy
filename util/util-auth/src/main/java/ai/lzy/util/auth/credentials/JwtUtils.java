@@ -167,6 +167,7 @@ public enum JwtUtils {
                 .require(CLAIM_PROVIDER, provider)
                 .setSigningKey(key)
                 .setClock(() -> Date.from(clock.instant()))
+                .setAllowedClockSkewSeconds(3)
                 .build()
                 .parseClaimsJws(jwt);
             return true;
