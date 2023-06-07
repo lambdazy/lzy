@@ -24,6 +24,12 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>util-common</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>util-auth</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>

@@ -4,7 +4,10 @@ import ai.lzy.kafka.s3sink.JobExecutor;
 import ai.lzy.kafka.s3sink.Main;
 import ai.lzy.kafka.s3sink.S3SinkMetrics;
 import ai.lzy.kafka.s3sink.ServiceConfig;
+import ai.lzy.longrunning.IdempotencyUtils;
+import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.kafka.KafkaS3Sink;
@@ -141,6 +144,51 @@ public class S3SinkTest {
     public void after() {
         Assert.assertEquals(0, (long) metrics.errors.get());
         Assert.assertEquals(0, (long) metrics.activeSessions.get());
+    }
+
+    @Test
+    public void testIdempotent() throws Exception {
+        var topic = "testIdempotentTopic";
+        var taskId = UUID.randomUUID().toString();
+        s3Client.createBucket("testidempotent");
+
+        writeToKafka(null, taskId, topic, "Some simple data");
+        var resp1 = GrpcUtils.withIdempotencyKey(stub, "idempotent").start(KafkaS3Sink.StartRequest.newBuilder()
+            .setStorageConfig(LMST.StorageConfig.newBuilder()
+                .setS3(LMST.S3Credentials.newBuilder()
+                    .setEndpoint("http://localhost:12345")
+                    .setAccessToken("test")
+                    .setSecretToken("test")
+                    .build())
+                .setUri("s3://testidempotent/a")
+                .build())
+            .setTopicName(topic)
+            .build());
+
+        var resp2 = GrpcUtils.withIdempotencyKey(stub, "idempotent").start(KafkaS3Sink.StartRequest.newBuilder()
+            .setStorageConfig(LMST.StorageConfig.newBuilder()
+                .setS3(LMST.S3Credentials.newBuilder()
+                    .setEndpoint("http://localhost:12345")
+                    .setAccessToken("test")
+                    .setSecretToken("test")
+                    .build())
+                .setUri("s3://testidempotent/a")
+                .build())
+            .setTopicName(topic)
+            .build());
+
+        Assert.assertEquals(resp1.getJobId(), resp2.getJobId());
+
+        var fut = executor.setupWaiter(resp1.getJobId());
+        executor.addActiveStream(resp1.getJobId(), taskId + "-stdout");
+
+        stub.stop(KafkaS3Sink.StopRequest.newBuilder()
+            .setJobId(resp1.getJobId())
+            .build());
+
+        fut.get();
+
+        Assert.assertEquals("Some simple data", readFromS3("s3://testidempotent/a"));
     }
 
     @Test

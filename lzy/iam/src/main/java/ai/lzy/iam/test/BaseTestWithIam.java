@@ -105,8 +105,8 @@ public class BaseTestWithIam {
     }
 
     @Nullable
-    public List<SubjectCredentials> listCredentials(Subject subject) {
+    public List<SubjectCredentials> listCredentials(String subjectId) {
         var subjectService = iamCtx.getBean(DbSubjectService.class);
-        return subjectService.listCredentials(subject);
+        return subjectService.listCredentials(subjectId);
     }
 }

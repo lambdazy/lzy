@@ -73,7 +73,7 @@ final class CreatePortalSubject extends StartExecutionContextAwareStep
 
         Function<Exception, Runnable> removeSubject = e -> () -> {
             try {
-                subjClient.removeSubject(subject);
+                subjClient.removeSubject(subject.id());
             } catch (AuthException sre) {
                 log().warn("{} Cannot remove portal iam subject with id='{}' after error {}: ", logPrefix(),
                     subject.id(), e.getMessage(), sre);

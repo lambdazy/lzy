@@ -46,7 +46,7 @@ public class AllowSubjectOnlyInterceptor implements ServerInterceptor {
             return next.startCall(call, headers);
         } else {
             LOG.warn("Subject '{}' is not allowed to call {} by the policy {}.",
-                subject.str(), call.getMethodDescriptor().getFullMethodName(), subjectFilter);
+                subject, call.getMethodDescriptor().getFullMethodName(), subjectFilter);
 
             call.close(Status.PERMISSION_DENIED, new Metadata());
             return new ServerCall.Listener<>() {};
@@ -72,17 +72,6 @@ public class AllowSubjectOnlyInterceptor implements ServerInterceptor {
         @Override
         public String toString() {
             return "AllowWorkerOnly";
-        }
-    }
-
-    public static final class AllowExternalOnly implements Predicate<Subject> {
-        @Override
-        public boolean test(Subject subject) {
-            return subject.type() == SubjectType.EXTERNAL;
-        }
-        @Override
-        public String toString() {
-            return "AllowExternalOnly";
         }
     }
 }

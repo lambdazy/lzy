@@ -1,8 +1,12 @@
 package ai.lzy.iam.storage.impl;
 
+import ai.lzy.common.IdGenerator;
 import ai.lzy.iam.configs.ServiceConfig;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
-import ai.lzy.iam.resources.subjects.*;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.iam.utils.UserVerificationType;
 import ai.lzy.model.db.TransactionHandle;
@@ -11,10 +15,10 @@ import ai.lzy.util.auth.exceptions.AuthInternalException;
 import ai.lzy.util.auth.exceptions.AuthNotFoundException;
 import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.Any;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -28,7 +32,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static ai.lzy.model.db.DbHelper.defaultRetryPolicy;
@@ -51,12 +54,12 @@ public class DbSubjectService {
             attempt_to_insert AS
             (
                 INSERT INTO users (user_id, auth_provider, provider_user_id, access_type, user_type, request_hash)
-                SELECT user_id, auth_provider, provider_user_id, access_type, user_type, request_hash 
+                SELECT user_id, auth_provider, provider_user_id, access_type, user_type, request_hash
                 FROM row_to_insert
                 ON CONFLICT (auth_provider, provider_user_id) DO NOTHING
                 RETURNING user_id, auth_provider, provider_user_id, access_type, user_type, request_hash
             )
-        SELECT 
+        SELECT
             COALESCE(attempt_to_insert.user_id, users.user_id) AS user_id,
             COALESCE(attempt_to_insert.request_hash, users.request_hash) AS request_hash
         FROM row_to_insert
@@ -97,7 +100,7 @@ public class DbSubjectService {
         ON attempt_to_insert.name = row_to_insert.name AND attempt_to_insert.user_id = row_to_insert.user_id""";
 
     private static final String QUERY_FIND_SUBJECT = """
-        SELECT user_id, user_type
+        SELECT user_id
         FROM users
         WHERE provider_user_id = ? AND auth_provider = ? AND user_type = ?""";
 
@@ -107,17 +110,26 @@ public class DbSubjectService {
     @Inject
     private ServiceConfig serviceConfig;
 
+    @Inject
+    @Named("IamIdGenerator")
+    private IdGenerator idGenerator;
+
     public Subject createSubject(AuthProvider authProvider, String providerSubjectId, SubjectType subjectType,
                                  List<SubjectCredentials> credentials, String requestHash) throws AuthException
     {
         LOG.debug("Create subject {}/{}/{} with credentials [{}]", authProvider, providerSubjectId, subjectType,
-            credentials.stream().map(Record::toString).collect(Collectors.joining(", ")));
+            credentials.stream().map(SubjectCredentials::str).collect(Collectors.joining(", ")));
 
-        if (authProvider.isInternal() && subjectType == SubjectType.USER) {
+        if (authProvider != AuthProvider.INTERNAL && authProvider != AuthProvider.GITHUB) {
+            throw new AuthInternalException("Invalid auth provider");
+        }
+        if (authProvider.isInternal() && subjectType != SubjectType.WORKER) {
             throw new AuthInternalException("Invalid auth provider");
         }
 
-        final var subjectId = UUID.randomUUID().toString();
+        final var subjectId = subjectType == SubjectType.USER
+            ? idGenerator.generate("u-")
+            : idGenerator.generate("w-");
 
         if (credentials.isEmpty()) {
             return withRetries(
@@ -128,7 +140,7 @@ public class DbSubjectService {
                         var actualSubjectId = insertSubject(authProvider, providerSubjectId, subjectType,
                             requestHash, subjectId, conn);
 
-                        return subjectWith(subjectType, actualSubjectId);
+                        return Subject.of(actualSubjectId, subjectType, authProvider, providerSubjectId);
                     }
                 },
                 DbSubjectService::wrapError);
@@ -148,7 +160,7 @@ public class DbSubjectService {
 
                     tx.commit();
 
-                    return subjectWith(subjectType, actualSubjectId);
+                    return Subject.of(actualSubjectId, subjectType, authProvider, providerSubjectId);
                 }
             },
             DbSubjectService::wrapError);
@@ -217,7 +229,7 @@ public class DbSubjectService {
         }
     }
 
-    public void addCredentials(Subject subject, SubjectCredentials credentials) throws AuthException {
+    public void addCredentials(String subjectId, SubjectCredentials credentials) throws AuthException {
         withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -229,7 +241,7 @@ public class DbSubjectService {
                         ? Timestamp.from(credentials.expiredAt().truncatedTo(ChronoUnit.SECONDS))
                         : null;
 
-                    addCredentialsDataToStatement(upsertSt, credentials.name(), credentials.value(), subject.id(),
+                    addCredentialsDataToStatement(upsertSt, credentials.name(), credentials.value(), subjectId,
                         credentials.type().name(), expiredAt);
 
                     ResultSet rs = upsertSt.executeQuery();
@@ -242,7 +254,7 @@ public class DbSubjectService {
                         if (actualValue == null) {
                             try (var selectSt = conn.prepareStatement(QUERY_SELECT_CREDENTIALS)) {
                                 selectSt.setString(1, credentials.name());
-                                selectSt.setString(2, subject.id());
+                                selectSt.setString(2, subjectId);
                                 rs = selectSt.executeQuery();
                             }
                         }
@@ -255,7 +267,7 @@ public class DbSubjectService {
                             || !Objects.equals(expiredAt, actualExpiredAt))
                         {
                             throw new AuthUniqueViolationException(String.format("Credentials name '%s' is already " +
-                                "used for another user '%s' credentials", credentials.name(), subject.id()));
+                                "used for another user '%s' credentials", credentials.name(), subjectId));
                         }
                     } else {
                         throw new RuntimeException("Result set is empty");
@@ -272,14 +284,16 @@ public class DbSubjectService {
             () -> {
                 try (var connect = storage.connect();
                      var st = connect.prepareStatement(
-                         "SELECT user_type FROM users WHERE user_id = ?"))
+                         "SELECT user_type, auth_provider, provider_user_id FROM users WHERE user_id = ?"))
                 {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, id);
                     ResultSet rs = st.executeQuery();
                     if (rs.next()) {
-                        final SubjectType type = SubjectType.valueOf(rs.getString("user_type"));
-                        return subjectWith(type, id);
+                        var type = SubjectType.valueOf(rs.getString("user_type"));
+                        var authProvider = AuthProvider.valueOf(rs.getString("auth_provider"));
+                        var providerId = rs.getString("provider_user_id");
+                        return Subject.of(id, type, authProvider, providerId);
                     }
 
                     throw new AuthNotFoundException("Subject:: " + id + " NOT_FOUND");
@@ -288,7 +302,7 @@ public class DbSubjectService {
             DbSubjectService::wrapError);
     }
 
-    public void removeSubject(Subject subject) throws AuthException {
+    public void removeSubject(String subjectId) throws AuthException {
         withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -298,14 +312,14 @@ public class DbSubjectService {
                          "DELETE FROM users WHERE user_id = ?"))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, subject.id());
+                    st.setString(++parameterIndex, subjectId);
                     st.executeUpdate();
                 }
             },
             AuthInternalException::new);
     }
 
-    public SubjectCredentials credentials(Subject subject, String name) throws AuthException {
+    public SubjectCredentials credentials(String subjectId, String name) throws AuthException {
         return withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -317,7 +331,7 @@ public class DbSubjectService {
                          WHERE user_id = ? AND name = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, subject.id());
+                    st.setString(++parameterIndex, subjectId);
                     st.setString(++parameterIndex, name);
                     ResultSet rs = st.executeQuery();
                     if (rs.next()) {
@@ -335,7 +349,7 @@ public class DbSubjectService {
             DbSubjectService::wrapError);
     }
 
-    public List<SubjectCredentials> listCredentials(Subject subject) throws AuthException {
+    public List<SubjectCredentials> listCredentials(String subjectId) throws AuthException {
         return withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -347,7 +361,7 @@ public class DbSubjectService {
                          WHERE user_id = ? AND (expired_at IS NULL OR expired_at > NOW())"""))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, subject.id());
+                    st.setString(++parameterIndex, subjectId);
                     ResultSet rs = st.executeQuery();
                     List<SubjectCredentials> result = new ArrayList<>();
                     while (rs.next()) {
@@ -365,7 +379,7 @@ public class DbSubjectService {
             AuthInternalException::new);
     }
 
-    public void removeCredentials(Subject subject, String name) throws AuthException {
+    public void removeCredentials(String subjectId, String name) throws AuthException {
         withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -375,7 +389,7 @@ public class DbSubjectService {
                          "DELETE FROM credentials WHERE user_id = ? AND name = ?"))
                 {
                     int parameterIndex = 0;
-                    st.setString(++parameterIndex, subject.id());
+                    st.setString(++parameterIndex, subjectId);
                     st.setString(++parameterIndex, name);
                     st.executeUpdate();
                 }
@@ -384,7 +398,7 @@ public class DbSubjectService {
     }
 
     @Nullable
-    public Subject findSubject(String providerUserId, String authProvider, String subjectType) {
+    public Subject findSubject(String providerUserId, AuthProvider authProvider, SubjectType subjectType) {
         return withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -392,15 +406,14 @@ public class DbSubjectService {
                 try (var connect = storage.connect(); var st = connect.prepareStatement(QUERY_FIND_SUBJECT)) {
                     int parameterIndex = 0;
                     st.setString(++parameterIndex, providerUserId);
-                    st.setString(++parameterIndex, authProvider);
-                    st.setString(++parameterIndex, subjectType);
+                    st.setString(++parameterIndex, authProvider.name());
+                    st.setString(++parameterIndex, subjectType.name());
                     var rs = st.executeQuery();
                     if (!rs.next()) {
                         return null;
                     }
                     var userId = rs.getString(1);
-                    var type = rs.getString(2);
-                    return subjectWith(SubjectType.valueOf(type), userId);
+                    return Subject.of(userId, subjectType, authProvider, providerUserId);
                 }
             },
             DbSubjectService::wrapError);
@@ -426,7 +439,7 @@ public class DbSubjectService {
             ResultSet rs = st.executeQuery();
             if (rs.next()) {
                 var id = rs.getString("user_id");
-                return subjectWith(subjectType, id);
+                return Subject.of(id, subjectType, authProvider, providerSubjectId);
             }
 
             return null;
@@ -472,15 +485,8 @@ public class DbSubjectService {
         st.setTimestamp(5, expiredAt);
     }
 
-    private static Subject subjectWith(SubjectType type, String id) {
-        return switch (type) {
-            case USER -> new User(id);
-            case WORKER -> new Worker(id);
-            case EXTERNAL -> new External(id, Any.getDefaultInstance());
-        };
-    }
-
     private static AuthException wrapError(Exception ex) {
+        LOG.error("Got auth exception ", ex);
         if (ex instanceof AuthException e) {
             return e;
         } else {

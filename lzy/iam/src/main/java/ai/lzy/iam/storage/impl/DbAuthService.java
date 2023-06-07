@@ -4,8 +4,6 @@ import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.resources.subjects.User;
-import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.credentials.JwtCredentials;
@@ -96,19 +94,13 @@ public class DbAuthService implements AuthenticateService {
             var rs = st.executeQuery();
             while (rs.next()) {
                 // validate auth provider
-                AuthProvider.valueOf(providerName);
+                var authProvider = AuthProvider.valueOf(providerName);
 
                 try (StringReader keyReader = new StringReader(rs.getString("cred_value"))) {
                     if (JwtUtils.checkJWT(keyReader, credentials.token(), providerLogin, providerName)) {
                         var subjectId = rs.getString("user_id");
                         var subjectType = SubjectType.valueOf(rs.getString("user_type"));
-
-                        var subject = switch (subjectType) {
-                            case USER -> new User(subjectId);
-                            case WORKER -> new Worker(subjectId);
-                            case EXTERNAL -> throw new RuntimeException("Unexpected subject type " + subjectType);
-                        };
-
+                        var subject = Subject.of(subjectId, subjectType, authProvider, providerLogin);
                         LOG.info("Successfully checked {}::{} token with key name {}",
                             subjectType, subjectId, rs.getString("cred_name"));
                         return subject;

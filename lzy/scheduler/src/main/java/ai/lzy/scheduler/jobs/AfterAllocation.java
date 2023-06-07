@@ -86,10 +86,14 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
             } catch (AuthUniqueViolationException e) {
                 subj = subjectClient.findSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER);
 
-                try {
-                    subjectClient.addCredentials(subj, SubjectCredentials.publicKey("worker_key", iamKeys.publicKey()));
-                } catch (AuthUniqueViolationException ex) {
-                    // already added
+                for (int i = 0; i < 1000 /* 1000 retries is enough for all ;) */; ++i) {
+                    try {
+                        subjectClient.addCredentials(
+                            subj.id(), SubjectCredentials.publicKey("main-" + i, iamKeys.publicKey()));
+                        break;
+                    } catch (AuthUniqueViolationException ex) {
+                        // (uid, key-name) already exists, try another key name
+                    }
                 }
 
             } catch (AuthException e) {
@@ -100,7 +104,6 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
                     .build());
                 return null;
             }
-
 
             try {
                 abClient.setAccessBindings(new Workflow(task.userId() + "/" + task.workflowName()),

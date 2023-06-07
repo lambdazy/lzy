@@ -1,7 +1,6 @@
 package ai.lzy.service.operations.stop;
 
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.dao.StopExecutionState;
@@ -36,7 +35,7 @@ final class DeletePortalSubject extends StopExecutionContextAwareStep
         log().info("{} Delete portal iam subject: { subjectId: {} }", logPrefix(), portalSubjectId());
 
         try {
-            subjClient.removeSubject(new Worker(portalSubjectId()));
+            subjClient.removeSubject(portalSubjectId());
         } catch (AuthException e) {
             return retryableFail(e, "Error while deleting portal subject", Status.INTERNAL.withDescription(
                 "Cannot delete portal subject").asRuntimeException());
