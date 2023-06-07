@@ -40,7 +40,7 @@ public class LzySubjectServiceDecorator extends LzySubjectService {
 
     @Override
     public void removeSubject(LSS.RemoveSubjectRequest request, StreamObserver<LSS.RemoveSubjectResponse> response) {
-        onRemove.accept(request.getSubject().getId());
+        onRemove.accept(request.getSubjectId());
         super.removeSubject(request, response);
     }
 
