@@ -33,9 +33,11 @@ import io.grpc.StatusRuntimeException;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Singleton;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -43,6 +45,8 @@ import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 @Singleton
 public class AfterAllocation extends WorkflowJobProvider<TaskState> {
+
+    private static final AtomicInteger fails = new AtomicInteger(0);
 
     private final RenewableJwt credentials;
     private final IamClientConfiguration authConfig;
@@ -86,11 +90,14 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
             } catch (AuthUniqueViolationException e) {
                 subj = subjectClient.findSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER);
 
-                try {
-                    subjectClient.addCredentials(
-                        subj.id(), SubjectCredentials.publicKey("worker_key", iamKeys.publicKey()));
-                } catch (AuthUniqueViolationException ex) {
-                    // already added
+                for (int i = 0; i < 1000 /* 1000 retries is enough for all ;) */; ++i) {
+                    try {
+                        subjectClient.addCredentials(
+                            subj.id(), SubjectCredentials.publicKey("main-" + i, iamKeys.publicKey()));
+                        break;
+                    } catch (AuthUniqueViolationException ex) {
+                        // (uid, key-name) already exists, try another key name
+                    }
                 }
 
             } catch (AuthException e) {
@@ -99,6 +106,11 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
                     .setCode(Status.Code.INTERNAL.value())
                     .setMessage("Error in iam")
                     .build());
+                return null;
+            }
+
+            if (fails.getAndIncrement() == 0) {
+                reschedule(Duration.ofMillis(10));
                 return null;
             }
 

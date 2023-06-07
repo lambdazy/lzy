@@ -3,7 +3,6 @@ package ai.lzy.scheduler.test.mocks;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.scheduler.allocator.WorkersAllocator;
 import ai.lzy.scheduler.configs.ServiceConfig;
-import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
@@ -55,12 +54,6 @@ public class AllocatorMock implements WorkersAllocator {
         var host = addr.getHost();
 
         var vmId = UUID.randomUUID().toString();
-        final String pk;
-        try {
-            pk = RsaUtils.generateRsaKeys().publicKey();
-        } catch (IOException | InterruptedException e) {
-            throw new RuntimeException(e);
-        }
 
         var resp = VmAllocatorApi.AllocateResponse.newBuilder()
             .setVmId(vmId)
