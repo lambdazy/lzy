@@ -130,8 +130,6 @@ public class ChannelDaoImpl implements ChannelDao {
         });
     }
 
-
-
     @Override
     @Nullable
     public Channel get(String channelId, @Nullable TransactionHandle tx) throws SQLException {
