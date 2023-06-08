@@ -296,7 +296,7 @@ public class KuberVmAllocator implements VmAllocator {
             return Result.FAILED.withReason("Pod not found");
         }
 
-        if (pod.getStatus().getPhase().equals("Failed")) {
+        if (pod.getStatus().getPhase() != null && pod.getStatus().getPhase().equals("Failed")) {
             StringBuilder reason = new StringBuilder();
             if (pod.getStatus().getReason() != null && !pod.getStatus().getReason().isBlank()) {
                 reason.append(pod.getStatus().getReason());
@@ -304,9 +304,14 @@ public class KuberVmAllocator implements VmAllocator {
             for (var containerStatus : pod.getStatus().getContainerStatuses()) {
                 var terminationStatus = containerStatus.getState().getTerminated();
                 if (terminationStatus != null) {
-                    reason.append("; ").append(containerStatus.getName())
-                        .append(" ").append(terminationStatus.getReason())
-                        .append(": ").append(terminationStatus.getMessage());
+                    reason.append("; ").append(containerStatus.getName());
+                    reason.append(" ").append(terminationStatus.getReason());
+                    if (terminationStatus.getExitCode() != null) {
+                        reason.append(" with exitCode=").append(terminationStatus.getExitCode());
+                    }
+                    if (terminationStatus.getMessage() != null && !terminationStatus.getMessage().isBlank()) {
+                        reason.append(": ").append(terminationStatus.getMessage());
+                    }
                 }
             }
             return Result.FAILED.withReason(reason.toString());
