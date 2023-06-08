@@ -186,7 +186,7 @@ class LzyServiceClient:
         logs_offset: int
     ) -> AsyncIterator[StdlogMessage]:
         stream: AsyncIterable[ReadStdSlotsResponse] = self.__stub.ReadStdSlots(
-            ReadStdSlotsRequest(executionId=execution_id, offset=logs_offset)
+            ReadStdSlotsRequest(workflow_name=workflow_name, executionId=execution_id, offset=logs_offset)
         )
 
         async for msg in stream:
