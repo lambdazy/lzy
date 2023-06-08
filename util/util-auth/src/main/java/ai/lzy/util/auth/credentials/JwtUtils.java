@@ -32,6 +32,7 @@ public enum JwtUtils {
     ;
 
     public static final String CLAIM_PROVIDER = "pvd";
+    public static final Duration ALLOWED_SKEW = Duration.ofSeconds(10);
 
     public static Date afterDays(int days, Clock clock) {
         return Date.from(clock.instant().plus(Duration.ofDays(days)));
@@ -167,7 +168,7 @@ public enum JwtUtils {
                 .require(CLAIM_PROVIDER, provider)
                 .setSigningKey(key)
                 .setClock(() -> Date.from(clock.instant()))
-                .setAllowedClockSkewSeconds(3)
+                .setAllowedClockSkewSeconds(ALLOWED_SKEW.getSeconds())
                 .build()
                 .parseClaimsJws(jwt);
             return true;

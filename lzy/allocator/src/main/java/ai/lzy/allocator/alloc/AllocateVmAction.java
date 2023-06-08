@@ -36,7 +36,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
     private DeleteVmAction deleteVmAction = null;
     private boolean mountPodAllocated = false;
     private ClusterPod mountHolder;
-    private Instant vmLastPollTimestamp = Instant.now();
+    private Instant vmLastPollTimestamp;
 
     public AllocateVmAction(Vm vm, AllocationContext allocationContext, boolean restore) {
         super(vm.allocOpId(), "VM " + vm.vmId(), allocationContext.storage(), allocationContext.operationsDao(),
@@ -219,10 +219,10 @@ public final class AllocateVmAction extends OperationRunnerBase {
 
     private StepResult waitVm() {
         log().info("{} ... waiting ...", logPrefix());
-        if (Instant.now().isAfter(vmLastPollTimestamp.plus(WAIT_VM_POLL_PERIOD))) {
+        if (vmLastPollTimestamp == null || Instant.now().isAfter(vmLastPollTimestamp.plus(WAIT_VM_POLL_PERIOD))) {
             try {
                 final var result = allocationContext.allocator().getVmAllocationStatus(vm);
-                if (result.code() == VmAllocator.Result.Code.FAILED) {
+                if (result.code() != VmAllocator.Result.Code.SUCCESS) {
                     return tryFail(Status.INTERNAL.withDescription(result.message()));
                 }
             } catch (Exception e) {
