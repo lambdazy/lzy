@@ -31,6 +31,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.iam.grpc.context.AuthenticationContext.currentSubject;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
@@ -575,54 +576,66 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     return;
                 }
 
-                var portalClient = newBlockingClient(newBlockingStub(newGrpcChannel(portalVmAddress,
-                    LzyPortalGrpc.SERVICE_NAME)), APP, () -> internalUserCredentials().get().token());
-
-                LzyPortalApi.PortalStatusResponse status;
-                GraphDao.GraphDescription desc;
-
+                var grpcChannel = newGrpcChannel(portalVmAddress, LzyPortalGrpc.SERVICE_NAME);
                 try {
-                    desc = withRetries(LOG, () -> graphDao().get(graphId, execId));
+                    var portalClient = newBlockingClient(newBlockingStub(grpcChannel), APP,
+                        () -> internalUserCredentials().get().token());
 
-                    status = portalClient.status(LzyPortalApi.PortalStatusRequest.newBuilder()
-                        .addAllSlotNames(desc.portalInputSlotNames())
-                        .build());
-                } catch (StatusRuntimeException e) {
-                    LOG.error("Exception while getting status of portal", e);
-                    responseObserver.onError(e);
-                    return;
-                } catch (Exception e) {
-                    LOG.error("Exception while getting status of portal", e);
-                    responseObserver.onError(Status.INTERNAL.asException());
-                    return;
-                }
-                var allSynced = true;
-                var hasFailed = false;
+                    LzyPortalApi.PortalStatusResponse status;
+                    GraphDao.GraphDescription desc;
 
-                for (var s : status.getSlotsList()) {
-                    if (s.getSnapshotStatus() == LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.NOT_IN_SNAPSHOT) {
-                        continue;
-                    }
-                    if (s.getSnapshotStatus() != LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.SYNCED) {
-                        allSynced = false;
-                    }
-                    if (s.getSnapshotStatus() == LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.FAILED) {
-                        LOG.error(
-                            "Portal slot <{}> of graph <{}> of execution <{}> is failed to sync data with storage",
-                            s.getSlot().getName(), graphId, execId
-                        );
-                        hasFailed = true;
-                    }
-                }
+                    try {
+                        desc = withRetries(LOG, () -> graphDao().get(graphId, execId));
 
-                if (hasFailed) {
-                    graphStatusResponse.setFailed(LWFS.GraphStatusResponse.Failed.newBuilder()
-                        .setDescription("Error while loading data to external storage")
-                        .build());
-                } else if (allSynced) {
-                    graphStatusResponse.setCompleted(LWFS.GraphStatusResponse.Completed.getDefaultInstance());
-                } else {
-                    graphStatusResponse.setExecuting(LWFS.GraphStatusResponse.Executing.getDefaultInstance());
+                        status = portalClient.status(LzyPortalApi.PortalStatusRequest.newBuilder()
+                            .addAllSlotNames(desc.portalInputSlotNames())
+                            .build());
+                    } catch (StatusRuntimeException e) {
+                        LOG.error("Exception while getting status of portal", e);
+                        responseObserver.onError(e);
+                        return;
+                    } catch (Exception e) {
+                        LOG.error("Exception while getting status of portal", e);
+                        responseObserver.onError(Status.INTERNAL.asException());
+                        return;
+                    }
+                    var allSynced = true;
+                    var hasFailed = false;
+
+                    for (var s : status.getSlotsList()) {
+                        if (s.getSnapshotStatus() == LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.NOT_IN_SNAPSHOT) {
+                            continue;
+                        }
+                        if (s.getSnapshotStatus() != LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.SYNCED) {
+                            allSynced = false;
+                        }
+                        if (s.getSnapshotStatus() == LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.FAILED) {
+                            LOG.error(
+                                "Portal slot <{}> of graph <{}> of execution <{}> is failed to sync data with storage",
+                                s.getSlot().getName(), graphId, execId
+                            );
+                            hasFailed = true;
+                        }
+                    }
+
+                    if (hasFailed) {
+                        graphStatusResponse.setFailed(LWFS.GraphStatusResponse.Failed.newBuilder()
+                            .setDescription("Error while loading data to external storage")
+                            .build());
+                    } else if (allSynced) {
+                        graphStatusResponse.setCompleted(LWFS.GraphStatusResponse.Completed.getDefaultInstance());
+                    } else {
+                        graphStatusResponse.setExecuting(LWFS.GraphStatusResponse.Executing.getDefaultInstance());
+                    }
+                } finally {
+                    grpcChannel.shutdown();
+                    try {
+                        grpcChannel.awaitTermination(5, TimeUnit.SECONDS);
+                    } catch (InterruptedException e) {
+                        // intentionally blank
+                    } finally {
+                        grpcChannel.shutdownNow();
+                    }
                 }
             }
             case FAILED -> graphStatusResponse.setFailed(LWFS.GraphStatusResponse.Failed.newBuilder()
