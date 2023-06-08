@@ -296,7 +296,7 @@ public class KuberVmAllocator implements VmAllocator {
             return Result.FAILED.withReason("Pod not found");
         }
 
-        if (pod.getStatus().getPhase() != null && pod.getStatus().getPhase().equals("Failed")) {
+        if ("Failed".equals(pod.getStatus().getPhase())) {
             StringBuilder reason = new StringBuilder();
             if (pod.getStatus().getReason() != null && !pod.getStatus().getReason().isBlank()) {
                 reason.append(pod.getStatus().getReason());
