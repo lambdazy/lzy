@@ -61,6 +61,8 @@ public interface VmAllocator {
      */
     Result allocate(Vm.Ref vmRef) throws InvalidConfigurationException;
 
+    Result getVmAllocationStatus(Vm vm) throws InvalidConfigurationException;
+
     void unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException;
 
     /**

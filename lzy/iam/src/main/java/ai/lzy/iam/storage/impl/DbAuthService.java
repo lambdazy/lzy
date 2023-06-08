@@ -61,7 +61,7 @@ public class DbAuthService implements AuthenticateService {
         var providerLogin = (String) jwtPayload.get(Claims.ISSUER);
         var providerName = (String) jwtPayload.get("pvd");
 
-        LOG.debug("Authenticate by JWT: id={}, provider={}", providerLogin, providerName);
+        LOG.debug("Authenticate by JWT: id={}, provider={}, credName={}", providerLogin, providerName, credName);
 
         if (Strings.isEmpty(providerLogin) || Strings.isEmpty(providerName)) {
             LOG.error("Either providerLogin ({}) or providerName ({}) is empty. Token '{}' of type {}",
@@ -92,7 +92,7 @@ public class DbAuthService implements AuthenticateService {
             st.setString(++parameterIndex, credName);
 
             var rs = st.executeQuery();
-            while (rs.next()) {
+            if (rs.next()) {
                 // validate auth provider
                 var authProvider = AuthProvider.valueOf(providerName);
 
@@ -104,6 +104,8 @@ public class DbAuthService implements AuthenticateService {
                         LOG.info("Successfully checked {}::{} token with key name {}",
                             subjectType, subjectId, rs.getString("cred_name"));
                         return subject;
+                    } else {
+                        throw new AuthPermissionDeniedException("Permission denied. JWT check failed.");
                     }
                 } catch (Exception e) {
                     throw new AuthInternalException(e);
