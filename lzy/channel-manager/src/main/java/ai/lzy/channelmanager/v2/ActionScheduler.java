@@ -12,7 +12,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Singleton
@@ -20,7 +19,6 @@ public class ActionScheduler {
     private static final Logger LOG = LogManager.getLogger(ActionScheduler.class);
 
     private final TransferDao connections;
-
     private final SlotConnectionManager connectionManager;
     private final ChannelOperationExecutor operationExecutor;
     private final LzyServiceClient lzyServiceClient;
@@ -41,21 +39,21 @@ public class ActionScheduler {
     public void restoreActions() {
         final List<TransferDao.Transfer> transfers;
         try {
-            transfers = DbHelper.withRetries(LOG, () -> connections.listPendingTransmissions(null));
+            transfers = DbHelper.withRetries(LOG, () -> connections.listPending(null));
         } catch (Exception e) {
             LOG.error("Cannot restore pending transmissions", e);
             throw new RuntimeException(e);
         }
 
-        for (var transmission: transfers) {
-            runStartTransferAction(transmission.from(), transmission.to());
+        for (var transfer: transfers) {
+            runStartTransferAction(transfer.from(), transfer.to());
         }
     }
 
     private void startTransfer(Peer from, Peer to) {
         LOG.info("Connecting slot: {} to peer: {}", from, to);
         try {
-            var url = from.peerDescription().getSlotPeer().getPeerUrl();
+            var url = from.description().getSlotPeer().getPeerUrl();
 
             var uri = new URI(url);
 
@@ -64,15 +62,14 @@ public class ActionScheduler {
             connection.v2SlotsApi().startTransfer(
                 LSA.StartTransferRequest.newBuilder()
                     .setSlotId(to.id())
-                    .setPeer(from.peerDescription())
+                    .setPeer(from.description())
                     .build()
             );
 
-            DbHelper.withRetries(LOG, () -> connections.dropPendingTransfer(from.id(), to.id(), null));
+            DbHelper.withRetries(LOG, () -> connections.markActive(from.id(), to.id(), null));
         } catch (Exception e) {
 
-            var reason = "(Connecting slot: %s to peer: %s): Cannot connect. errId: %s".formatted(from, to,
-                UUID.randomUUID().toString());
+            var reason = "(Connecting slot: %s to peer: %s): Cannot connect.".formatted(from, to);
 
             LOG.error(reason, e);
             try {

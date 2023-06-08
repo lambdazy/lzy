@@ -7,6 +7,7 @@ import ai.lzy.v1.workflow.LWFS.AbortWorkflowRequest;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
 import io.grpc.ManagedChannel;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
@@ -24,10 +25,16 @@ public class LzyServiceClient {
     {
         this.channelDao = channelDao;
         this.lzyServiceBlockingStub = newBlockingClient(LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel),
-            "LzyServiceStub", () -> token.get().token());
+            "ChannelManager", () -> token.get().token());
     }
 
-    public void destroyChannelAndWorkflow(String channelId, String reason, TransactionHandle tx) throws SQLException {
+    /**
+     * Aborts the workflow associated with the channel and drops the channel.
+     * Must be not very long call
+     */
+    public void destroyChannelAndWorkflow(String channelId, String reason, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         var channel = channelDao.drop(channelId, tx);
         if (channel == null) {
             return;

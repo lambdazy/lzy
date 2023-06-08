@@ -6,9 +6,8 @@ public record Peer(
     String id,
     String channelId,
     Role role,
-    LC.PeerDescription peerDescription
+    LC.PeerDescription description
 ) {
-
     public enum Role {
         PRODUCER,
         CONSUMER

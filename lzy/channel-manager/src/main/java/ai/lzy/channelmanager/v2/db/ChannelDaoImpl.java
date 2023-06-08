@@ -22,23 +22,29 @@ import java.util.List;
 
 @Singleton
 public class ChannelDaoImpl implements ChannelDao {
+    private static final Logger LOG = LogManager.getLogger(ChannelDaoImpl.class);
+
     private static final String FIELDS =
         "id, owner_id, execution_id, workflow_name, data_scheme_json, storage_producer_uri, storage_consumer_uri";
+
     private static final String GET_CHANNEL = """
         SELECT %s FROM channels
         WHERE id = ?
         """.formatted(FIELDS);
+
     private static final String FIND_CHANNELS = """
         SELECT %s FROM channels
         WHERE owner_id = ? AND execution_id = ?
             AND storage_producer_uri IS NOT DISTINCT FROM ?
             AND storage_consumer_uri IS NOT DISTINCT FROM ?
         """.formatted(FIELDS);
+
     private static final String DELETE_FROM_CHANNELS = """
         DELETE FROM channels CASCADE
         WHERE id = ?
         RETURNING %s
         """.formatted(FIELDS);
+
     private static final String INSERT_INTO_CHANNELS = """
         INSERT INTO channels (%s)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -54,8 +60,6 @@ public class ChannelDaoImpl implements ChannelDao {
         WHERE execution_id = ?
         """;
 
-    private static final Logger LOG = LogManager.getLogger(ChannelDaoImpl.class);
-
     private final ChannelManagerDataSource storage;
 
     public ChannelDaoImpl(ChannelManagerDataSource storage) {
@@ -64,8 +68,8 @@ public class ChannelDaoImpl implements ChannelDao {
 
     @Override
     public Channel create(String id, String userId, String executionId, String workflowName,
-                          LMD.DataScheme dataScheme, String storageProducerUri, String storageConsumerUri,
-                          TransactionHandle tx) throws SQLException
+                   @Nullable LMD.DataScheme dataScheme, @Nullable String storageProducerUri,
+                   @Nullable String storageConsumerUri, @Nullable TransactionHandle tx) throws SQLException
     {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement(INSERT_INTO_CHANNELS)) {
@@ -78,7 +82,7 @@ public class ChannelDaoImpl implements ChannelDao {
                 ps.setString(7, storageConsumerUri);
                 ps.execute();
 
-                return new Channel(userId, executionId, id, dataScheme, workflowName, storageProducerUri,
+                return new Channel(id, userId, workflowName, executionId, dataScheme, storageProducerUri,
                     storageConsumerUri);
             } catch (InvalidProtocolBufferException e) {
                 LOG.error("Cannot serialize dataScheme into json: ", e);
@@ -88,56 +92,26 @@ public class ChannelDaoImpl implements ChannelDao {
     }
 
     @Override
-    public Channel drop(String channelId, TransactionHandle tx) throws SQLException {
+    @Nullable
+    public Channel drop(String id, @Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement(DELETE_FROM_CHANNELS)) {
-                ps.setString(1, channelId);
-                ResultSet rs = ps.executeQuery();
+                ps.setString(1, id);
 
+                ResultSet rs = ps.executeQuery();
                 if (!rs.next()) {
                     return null;
                 }
 
-                return getChannel(rs);
-
+                return readChannel(rs);
             }
         });
     }
 
-    @Nullable
-    private static Channel getChannel(ResultSet rs) throws SQLException {
-        var id = rs.getString(1);
-        var ownerId = rs.getString(2);
-        var executionId = rs.getString(3);
-        var workflowName = rs.getString(4);
-        var dataSchemeJson = rs.getString(5);
-        final LMD.DataScheme dataScheme;
-
-        if (dataSchemeJson == null) {
-            dataScheme = null;
-        } else {
-            try {
-                var dsBuilder = LMD.DataScheme.newBuilder();
-                JsonFormat.parser().merge(dataSchemeJson, dsBuilder);
-                dataScheme = dsBuilder.build();
-            } catch (InvalidProtocolBufferException e) {
-                LOG.error("Cannot parse dataScheme from json", e);
-                throw new RuntimeException(e);
-            }
-        }
-
-
-        var storageProducerUri = rs.getString(6);
-        var storageConsumerUri = rs.getString(7);
-
-        return new Channel(ownerId, executionId, id, dataScheme, workflowName,
-            storageProducerUri, storageConsumerUri);
-    }
-
-
     @Override
-    public Channel find(String userId, String executionId, String storageProducerUri, String storageConsumerUri,
-                        TransactionHandle tx) throws SQLException
+    @Nullable
+    public Channel find(String userId, String executionId, @Nullable String storageProducerUri,
+                        @Nullable String storageConsumerUri, @Nullable TransactionHandle tx) throws SQLException
     {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement(FIND_CHANNELS)) {
@@ -148,7 +122,7 @@ public class ChannelDaoImpl implements ChannelDao {
 
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
-                    return getChannel(rs);
+                    return readChannel(rs);
                 } else {
                     return null;
                 }
@@ -159,14 +133,15 @@ public class ChannelDaoImpl implements ChannelDao {
 
 
     @Override
-    public Channel get(String channelId, TransactionHandle tx) throws SQLException {
+    @Nullable
+    public Channel get(String channelId, @Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement(GET_CHANNEL)) {
                 ps.setString(1, channelId);
 
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) {
-                    return getChannel(rs);
+                    return readChannel(rs);
                 } else {
                     return null;
                 }
@@ -175,8 +150,8 @@ public class ChannelDaoImpl implements ChannelDao {
     }
 
     @Override
-    public List<ChannelStatus> list(String executionId, List<String> channelIdsFilter, TransactionHandle tx)
-        throws SQLException
+    public List<ChannelStatus> list(String executionId, @Nullable List<String> channelIdsFilter,
+                                    @Nullable TransactionHandle tx) throws SQLException
     {
         List<ChannelStatus> channelStatusList = new ArrayList<>();
 
@@ -190,7 +165,7 @@ public class ChannelDaoImpl implements ChannelDao {
         }
 
         String query = """
-            SELECT %s, array_agg(array[peers.role, peers.peer_description]) as peer_descriptions
+            SELECT %s, array_agg(array[peers.role, peers.description]) as descriptions
             FROM channels
             LEFT JOIN peers ON channels.id = peers.channel_id
             WHERE channels.execution_id = ? %s
@@ -209,7 +184,7 @@ public class ChannelDaoImpl implements ChannelDao {
 
                 ResultSet rs = ps.executeQuery();
                 while (rs.next()) {
-                    ChannelStatus channelStatus = getChannelStatus(rs);
+                    ChannelStatus channelStatus = readChannelStatus(rs);
                     channelStatusList.add(channelStatus);
                 }
             }
@@ -218,8 +193,18 @@ public class ChannelDaoImpl implements ChannelDao {
         return channelStatusList;
     }
 
-    private ChannelStatus getChannelStatus(ResultSet rs) throws SQLException {
-        var channel = getChannel(rs);
+    @Override
+    public void dropAll(String executionId, @Nullable TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(DROP_ALL)) {
+                ps.setString(1, executionId);
+                ps.execute();
+            }
+        });
+    }
+
+    private static ChannelStatus readChannelStatus(ResultSet rs) throws SQLException {
+        var channel = readChannel(rs);
 
         var peers = (String[][]) rs.getArray(8).getArray();
         final List<LC.PeerDescription> producers = new ArrayList<>();
@@ -240,23 +225,40 @@ public class ChannelDaoImpl implements ChannelDao {
                 throw new RuntimeException(e);
             }
 
-            if (role.equals(Role.CONSUMER)) {
-                consumers.add(builder.build());
-            } else {
-                producers.add(builder.build());
+            switch (role) {
+                case CONSUMER -> consumers.add(builder.build());
+                case PRODUCER -> producers.add(builder.build());
             }
         }
 
         return new ChannelStatus(channel, consumers, producers);
     }
 
-    @Override
-    public void dropAll(String executionId, TransactionHandle tx) throws SQLException {
-        DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement(DROP_ALL)) {
-                ps.setString(1, executionId);
-                ps.execute();
+    private static Channel readChannel(ResultSet rs) throws SQLException {
+        var id = rs.getString(1);
+        var ownerId = rs.getString(2);
+        var executionId = rs.getString(3);
+        var workflowName = rs.getString(4);
+        var dataSchemeJson = rs.getString(5);
+        final LMD.DataScheme dataScheme;
+
+        if (dataSchemeJson == null) {
+            dataScheme = null;
+        } else {
+            try {
+                var dsBuilder = LMD.DataScheme.newBuilder();
+                JsonFormat.parser().merge(dataSchemeJson, dsBuilder);
+                dataScheme = dsBuilder.build();
+            } catch (InvalidProtocolBufferException e) {
+                LOG.error("Cannot parse dataScheme from json", e);
+                throw new RuntimeException(e);
             }
-        });
+        }
+
+        var storageProducerUri = rs.getString(6);
+        var storageConsumerUri = rs.getString(7);
+
+        return new Channel(id, ownerId, workflowName, executionId, dataScheme,
+            storageProducerUri, storageConsumerUri);
     }
 }

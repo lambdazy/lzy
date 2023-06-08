@@ -13,6 +13,7 @@ import org.junit.*;
 
 import java.sql.SQLException;
 
+import static ai.lzy.channelmanager.v2.db.TransferDao.State.PENDING;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 
 public class DbTest {
@@ -21,7 +22,7 @@ public class DbTest {
     public static ApplicationContext context;
     private static PeerDao peerDao;
     private static ChannelDao channelDao;
-    private static TransferDao transmissionDao;
+    private static TransferDao transferDao;
 
     @BeforeClass
     public static void init() {
@@ -29,7 +30,7 @@ public class DbTest {
         context = ApplicationContext.run(channelManagerDbConfig);
         peerDao = context.getBean(PeerDao.class);
         channelDao = context.getBean(ChannelDao.class);
-        transmissionDao = context.getBean(TransferDao.class);
+        transferDao = context.getBean(TransferDao.class);
     }
 
     @AfterClass
@@ -147,13 +148,13 @@ public class DbTest {
                 .build())
             .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, null);
 
-        var peer2 = peerDao.get("peer1", null);
+        var peer2 = peerDao.get("peer1", "test-channel", null);
         Assert.assertEquals(peer1, peer2);
 
-        var peer3 = peerDao.drop("peer1", null);
+        var peer3 = peerDao.drop("peer1", "test-channel", null);
         Assert.assertEquals(peer1, peer3);
 
-        var peer4 = peerDao.get("peer1", null);
+        var peer4 = peerDao.get("peer1", "test-channel", null);
         Assert.assertNull(peer4);
 
         channelDao.dropAll("exec-id", null);
@@ -177,21 +178,21 @@ public class DbTest {
                 .build())
             .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, null);
 
-        peerDao.decrementPriority(peer2.id(), null);
+        peerDao.decrementPriority(peer2.id(), "test-channel", null);
         var producer = peerDao.findProducer("test-channel", null);
 
         Assert.assertEquals(peer1, producer);
 
-        peerDao.decrementPriority(peer1.id(), null);
-        peerDao.decrementPriority(peer1.id(), null);
+        peerDao.decrementPriority(peer1.id(), "test-channel", null);
+        peerDao.decrementPriority(peer1.id(), "test-channel", null);
 
         var producer2 = peerDao.findProducer("test-channel", null);
         Assert.assertEquals(peer2, producer2);
 
         channelDao.drop(chan.id(), null);
 
-        Assert.assertNull(peerDao.get(peer1.id(), null));
-        Assert.assertNull(peerDao.get(peer2.id(), null));
+        Assert.assertNull(peerDao.get(peer1.id(), "test-channel", null));
+        Assert.assertNull(peerDao.get(peer2.id(), "test-channel", null));
 
         channelDao.dropAll("exec-id", null);
     }
@@ -226,7 +227,7 @@ public class DbTest {
     }
 
     @Test
-    public void peerDaoTestTransmission() throws SQLException {
+    public void peerDaoTestTransfer() throws SQLException {
         var chan = channelDao.create("test-channel", "test-user-id", "exec-id", "wfName", null, null, null, null);
 
         var peer1 = peerDao.create("test-channel", LC.PeerDescription.newBuilder()
@@ -243,19 +244,31 @@ public class DbTest {
                 .build())
             .build(), Peer.Role.CONSUMER, PeerDao.Priority.PRIMARY, false, null);
 
-        transmissionDao.createPendingTransfer(peer1.id(), peer2.id(), null);
+        transferDao.create("transfer", peer1.id(), peer2.id(), "test-channel", PENDING, null);
 
-        Assert.assertTrue(transmissionDao.hasPendingTransfers(peer1.id(), null));
+        Assert.assertTrue(transferDao.hasPendingOrActiveTransfers(peer1.id(), "test-channel", null));
 
-        var list = transmissionDao.listPendingTransmissions(null);
+        var list = transferDao.listPending(null);
         Assert.assertEquals(1, list.size());
         Assert.assertEquals(peer1, list.get(0).from());
         Assert.assertEquals(peer2, list.get(0).to());
 
-        transmissionDao.dropPendingTransfer(peer1.id(), peer2.id(), null);
+        transferDao.markActive(list.get(0).id(), list.get(0).channelId(), null);
 
-        var list1 = transmissionDao.listPendingTransmissions(null);
+        var list1 = transferDao.listPending(null);
         Assert.assertEquals(0, list1.size());
+
+        var transfer = transferDao.get(list.get(0).id(), "test-channel", null);
+        Assert.assertEquals(TransferDao.State.ACTIVE, transfer.state());
+
+        transferDao.markCompleted(list.get(0).id(), list.get(0).channelId(), null);
+        var transfer1 = transferDao.get(list.get(0).id(), "test-channel", null);
+        Assert.assertEquals(TransferDao.State.COMPLETED, transfer1.state());
+
+        transferDao.markFailed(list.get(0).id(), list.get(0).channelId(), "FAILED", null);
+        var transfer2 = transferDao.get(list.get(0).id(), "test-channel", null);
+        Assert.assertEquals(TransferDao.State.FAILED, transfer2.state());
+        Assert.assertEquals("FAILED", transfer2.errorDescription());
 
         channelDao.dropAll("exec-id", null);
     }

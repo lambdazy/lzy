@@ -3,8 +3,9 @@ package ai.lzy.channelmanager.v2.services;
 import ai.lzy.channelmanager.v2.db.ChannelDao;
 import ai.lzy.channelmanager.v2.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.v2.db.PeerDao;
-import ai.lzy.channelmanager.v2.model.Channel;
 import ai.lzy.channelmanager.v2.model.Peer;
+import ai.lzy.common.IdGenerator;
+import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.channel.v2.LCMPS;
@@ -15,11 +16,8 @@ import ai.lzy.v1.common.LC.PeerDescription;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.inject.Singleton;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.util.UUID;
 
 @Singleton
 public class ChannelService extends LzyChannelManagerPrivateImplBase {
@@ -28,6 +26,7 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
     private final ChannelDao channelDao;
     private final PeerDao peerDao;
     private final ChannelManagerDataSource storage;
+    private final IdGenerator idGenerator = new RandomIdGenerator();
 
     public ChannelService(ChannelDao channelDao, PeerDao peerDao, ChannelManagerDataSource storage) {
         this.channelDao = channelDao;
@@ -40,15 +39,15 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
         var logPrefix = "(GetOrCreate: {execId: %s, userId: %s}): "
             .formatted(request.getExecutionId(), request.getUserId());
 
-        final String consumerUri;
-        final String producerUri;
+        final String storageConsumerUri;
+        final String storageProducerUri;
 
         if (request.hasConsumer()) {
-            producerUri = null;
-            consumerUri = request.getConsumer().getStorageUri();
+            storageProducerUri = null;
+            storageConsumerUri = request.getConsumer().getStorageUri();
         } else if (request.hasProducer()) {
-            producerUri = request.getProducer().getStorageUri();
-            consumerUri = null;
+            storageProducerUri = request.getProducer().getStorageUri();
+            storageConsumerUri = null;
         } else {
             LOG.error("{} Consumer and producer not set", logPrefix);
 
@@ -57,65 +56,59 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
                 .asRuntimeException();
         }
 
-        final Channel channel;
 
-        try {
-            channel = DbHelper.withRetries(LOG,
-                () -> channelDao.find(request.getUserId(), request.getExecutionId(), producerUri, consumerUri, null));
-        } catch (Exception e) {
-            LOG.error("{} Cannot find channel in db: ", logPrefix, e);
-            throw Status.INTERNAL.asRuntimeException();
-        }
+        var peerId = idGenerator.generate("storage_peer-");
+        var channelId = idGenerator.generate("channel-");
 
-        if (channel != null) {
-            responseObserver.onNext(GetOrCreateResponse.newBuilder()
-                .setChannelId(channel.id())
-                .build());
-            responseObserver.onCompleted();
-            return;
-        }
+        var role = switch (request.getInitialStoragePeerCase()) {
+            case PRODUCER -> Peer.Role.PRODUCER;
+            case CONSUMER -> Peer.Role.CONSUMER;
+            case INITIALSTORAGEPEER_NOT_SET -> throw Status.INVALID_ARGUMENT.asRuntimeException();
+        };
 
-        var id = UUID.randomUUID().toString();
-        var pair = switch (request.getInitialStoragePeerCase()) {
-            case PRODUCER -> Pair.of(
-                Peer.Role.PRODUCER,
-                PeerDescription.newBuilder()
-                    .setPeerId(UUID.randomUUID().toString())
-                    .setStoragePeer(request.getProducer())
-                    .build()
-            );
-            case CONSUMER -> Pair.of(
-                Peer.Role.CONSUMER,
-                PeerDescription.newBuilder()
-                    .setPeerId(UUID.randomUUID().toString())
-                    .setStoragePeer(request.getConsumer())
-                    .build()
-            );
+        var peerDesc = switch (request.getInitialStoragePeerCase()) {
+            case PRODUCER -> PeerDescription.newBuilder()
+                .setPeerId(peerId)
+                .setStoragePeer(request.getProducer())
+                .build();
+            case CONSUMER -> PeerDescription.newBuilder()
+                .setPeerId(peerId)
+                .setStoragePeer(request.getConsumer())
+                .build();
             case INITIALSTORAGEPEER_NOT_SET -> throw Status.INVALID_ARGUMENT.asRuntimeException();
         };
 
         try {
-            DbHelper.withRetries(LOG, () -> {
+            var res = DbHelper.withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
+                    var channel = channelDao.find(request.getUserId(), request.getExecutionId(), storageProducerUri,
+                        storageConsumerUri, tx);
 
-                    channelDao.create(id, request.getUserId(), request.getExecutionId(), request.getWorkflowName(),
-                        request.getScheme(), producerUri, consumerUri, tx);
+                    if (channel != null) {
+                        // Channel already exists, returning it
+                        return channel;
+                    }
 
-                    peerDao.create(id, pair.getRight(), pair.getLeft(), PeerDao.Priority.BACKUP, false, tx);
+                    // Creating channel and peer
+                    channel = channelDao.create(channelId, request.getUserId(), request.getExecutionId(),
+                        request.getWorkflowName(), request.getScheme(), storageProducerUri, storageConsumerUri, tx);
+                    peerDao.create(channelId, peerDesc, role, PeerDao.Priority.BACKUP, false, tx);
+
                     tx.commit();
+                    return channel;
                 }
             });
-        } catch (Exception e) {
-            LOG.error("{} Cannot save channel in db: ", logPrefix, e);
-            throw Status.INTERNAL
-                .withDescription("Cannot save channel in db")
-                .asRuntimeException();
-        }
 
-        responseObserver.onNext(GetOrCreateResponse.newBuilder()
-            .setChannelId(id)
-            .build());
-        responseObserver.onCompleted();
+            responseObserver.onNext(GetOrCreateResponse.newBuilder()
+                .setChannelId(res.id())
+                .build());
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            LOG.error("{} Cannot create channel in db: ", logPrefix, e);
+            responseObserver.onError(Status.INTERNAL
+                .withDescription("Cannot create channel in db")
+                .asRuntimeException());
+        }
     }
 
     @Override

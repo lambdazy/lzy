@@ -2,34 +2,55 @@ package ai.lzy.channelmanager.v2.db;
 
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
 @Singleton
 public class TransferDaoImpl implements TransferDao {
-    private static final String CREATE_PENDING_TRANSFER = """
-        INSERT INTO pending_transfers (slot_id, peer_id)
-        VALUES (?, ?)
+    private static final String FIELDS = "id, channel_id, from_id, to_id, state, error_description";
+
+    private static final String CREATE = """
+        INSERT INTO transfers (%s)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """.formatted(FIELDS);
+
+    private static final String JOIN_WITH_PEERS = """
+        SELECT
+          transfers.id, transfers.channel_id, transfers.state, transfers.error_description,
+          from_peer.id, from_peer.channel_id, from_peer.role, from_peer.description,
+          to_peer.id, to_peer.channel_id, to_peer.role, to_peer.description
+        FROM transfers
+          JOIN peers from_peer on from_peer.id = transfers.from_id AND from_peer.channel_id = transfers.channel_id
+          JOIN peers to_peer on to_peer.id = transfers.to_id AND to_peer.channel_id = transfers.channel_id
         """;
-    private static final String DROP_PENDING_TRANSFER = """
-        DELETE FROM pending_transfers CASCADE
-         WHERE slot_id = ? AND peer_id = ?
+
+    private static final String LIST_PENDING = JOIN_WITH_PEERS + "\n WHERE state = 'PENDING'";
+
+    private static final String GET = JOIN_WITH_PEERS + "\n WHERE transfers.id = ? AND transfers.channel_id = ?";
+
+    private static final String SET_STATE = """
+        UPDATE transfers
+          SET state = ?
+          WHERE id = ? AND channel_id = ?
         """;
+
+    private static final String MARK_FAILED = """
+        UPDATE transfers
+          SET state = ?, error_description = ?
+          WHERE id = ? AND channel_id = ?
+        """;
+
     private static final String HAS_PENDING_TRANSFERS = """
-        SELECT count(*) FROM pending_transfers
-         WHERE slot_id = ? OR peer_id = ?
+        SELECT count(*) FROM transfers
+         WHERE (from_id = ? OR to_id = ?) AND channel_id = ? AND (state = 'ACTIVE' OR state = 'PENDING')
         """;
-    private static final String LIST_PENDING_TRANSFERS = """
-        SELECT slot.id, slot.channel_id, slot.role, slot.peer_description,
-          target.id, target.channel_id, target.role, target.peer_description
-         FROM pending_transfers
-          JOIN peers slot on slot.id = pending_transfers.slot_id
-          JOIN peers target on target.id = pending_transfers.peer_id
-        """;
+
     private final ChannelManagerDataSource storage;
 
     public TransferDaoImpl(ChannelManagerDataSource storage) {
@@ -37,25 +58,49 @@ public class TransferDaoImpl implements TransferDao {
     }
 
     @Override
-    public void createPendingTransfer(String loaderId, String targetId,
-                                      TransactionHandle tx) throws SQLException
+    public void create(String id, String fromId, String toId, String channelId,
+                       State state, @Nullable TransactionHandle tx) throws SQLException
     {
         DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement(CREATE_PENDING_TRANSFER)) {
-                ps.setString(1, loaderId);
-                ps.setString(2, targetId);
+            try (PreparedStatement ps = connection.prepareStatement(CREATE)) {
+                ps.setString(1, id);
+                ps.setString(2, channelId);
+                ps.setString(3, fromId);
+                ps.setString(4, toId);
+                ps.setString(5, state.name());
+                ps.setString(6, null);
 
                 ps.execute();
             }
         });
     }
 
+    @Nullable
     @Override
-    public void dropPendingTransfer(String loaderId, String targetId, TransactionHandle tx) throws SQLException {
+    public Transfer get(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(GET)) {
+                ps.setString(1, id);
+                ps.setString(2, channelId);
+
+                var rs = ps.executeQuery();
+
+                if (!rs.next()) {
+                    return null;
+                }
+
+                return readTransfer(rs);
+            }
+        });
+    }
+
+    @Override
+    public void markActive(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException {
         DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement(DROP_PENDING_TRANSFER)) {
-                ps.setString(1, loaderId);
-                ps.setString(2, targetId);
+            try (PreparedStatement ps = connection.prepareStatement(SET_STATE)) {
+                ps.setString(1, State.ACTIVE.name());
+                ps.setString(2, id);
+                ps.setString(3, channelId);
 
                 ps.execute();
             }
@@ -63,11 +108,43 @@ public class TransferDaoImpl implements TransferDao {
     }
 
     @Override
-    public boolean hasPendingTransfers(String peerId, TransactionHandle tx) throws SQLException {
+    public void markFailed(String id, String channelId, String errorDescription,
+                           @Nullable TransactionHandle tx) throws SQLException
+    {
+        DbOperation.execute(tx, storage, connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(MARK_FAILED)) {
+                ps.setString(1, State.FAILED.name());
+                ps.setString(2, errorDescription);
+                ps.setString(3, id);
+                ps.setString(4, channelId);
+
+                ps.execute();
+            }
+        });
+    }
+
+    @Override
+    public void markCompleted(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(SET_STATE)) {
+                ps.setString(1, State.COMPLETED.name());
+                ps.setString(2, id);
+                ps.setString(3, channelId);
+
+                ps.execute();
+            }
+        });
+    }
+
+    @Override
+    public boolean hasPendingOrActiveTransfers(String peerId, String channelId,
+                                               @Nullable TransactionHandle tx) throws SQLException
+    {
         return DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement(HAS_PENDING_TRANSFERS)) {
                 ps.setString(1, peerId);
                 ps.setString(2, peerId);
+                ps.setString(3, channelId);
 
                 var rs = ps.executeQuery();
 
@@ -81,22 +158,31 @@ public class TransferDaoImpl implements TransferDao {
     }
 
     @Override
-    public List<Transfer> listPendingTransmissions(TransactionHandle tx) throws SQLException {
+    public List<Transfer> listPending(@Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement(LIST_PENDING_TRANSFERS)) {
+            try (PreparedStatement ps = connection.prepareStatement(LIST_PENDING)) {
                 var rs = ps.executeQuery();
 
                 final ArrayList<Transfer> transfers = new ArrayList<>();
 
                 while (rs.next()) {
-                    var slot = PeerDaoImpl.getPeer(rs);
-                    var peer = PeerDaoImpl.getPeer(rs, 4);
-
-                    transfers.add(new Transfer(slot, peer));
+                    transfers.add(readTransfer(rs));
                 }
 
                 return transfers;
             }
         });
+    }
+
+    private Transfer readTransfer(ResultSet rs) throws SQLException {
+        var id = rs.getString(1);
+        var channelId = rs.getString(2);
+        var state = State.valueOf(rs.getString(3));
+        var errorDesc = rs.getString(4);
+
+        var from = PeerDaoImpl.readPeer(rs, 4);
+        var to = PeerDaoImpl.readPeer(rs, 8);
+
+        return new Transfer(id, from, to, channelId, state, errorDesc);
     }
 }

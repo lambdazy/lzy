@@ -15,19 +15,19 @@ public interface ChannelDao {
                    @Nullable String storageConsumerUri, @Nullable TransactionHandle tx) throws SQLException;
 
     @Nullable
-    Channel drop(String channelId, TransactionHandle tx) throws SQLException;
+    Channel drop(String channelId, @Nullable TransactionHandle tx) throws SQLException;
 
-    void dropAll(String executionId, TransactionHandle tx) throws SQLException;
-
-    @Nullable
-    Channel find(String userId, String executionId, String storageProducerUri, String storageConsumerUri,
-                 TransactionHandle tx) throws SQLException;
+    void dropAll(String executionId, @Nullable TransactionHandle tx) throws SQLException;
 
     @Nullable
-    Channel get(String channelId, TransactionHandle tx) throws SQLException;
+    Channel find(String userId, String executionId, @Nullable String storageProducerUri,
+                 @Nullable String storageConsumerUri, @Nullable TransactionHandle tx) throws SQLException;
+
+    @Nullable
+    Channel get(String channelId, @Nullable TransactionHandle tx) throws SQLException;
 
     List<ChannelStatus> list(String executionId, @Nullable List<String> channelIdsFilter,
-                       @Nullable TransactionHandle tx) throws SQLException;
+                             @Nullable TransactionHandle tx) throws SQLException;
 
     record ChannelStatus(
         Channel channel,

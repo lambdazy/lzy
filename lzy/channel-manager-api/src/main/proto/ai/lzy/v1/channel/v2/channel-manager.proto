@@ -43,11 +43,12 @@ message BindRequest {
 
 message BindResponse {
   // Data scheme of channel. Data of slot can be validated with this scheme
-  common.DataScheme data_scheme                   = 1;
+  common.DataScheme data_scheme              = 1;
 
-  // Peer like in StartTransfer call in slots api
+  // Peer and transfer_id like in StartTransfer call in slots api
   // If set, bound slot must start this new transfer
   /* optional */ common.PeerDescription peer = 2;
+  /* optional */ string transfer_id          = 3;
 }
 
 // =========== Unbind ==============
@@ -73,9 +74,8 @@ message GetChannelsStatusResponse {
 // =========== TransferCompleted ==============
 
 message TransferCompletedRequest {
-  string slot_id  = 1;  // Peer id of slot that completed transfer
-  string peer_id = 2;
-  string channel_id = 3;
+  string transfer_id  = 1;
+  string channel_id   = 2;
 }
 
 message TransferCompletedResponse {}
@@ -84,15 +84,14 @@ message TransferCompletedResponse {}
 // =========== TransferFailed ==============
 
 message TransferFailedRequest {
-  string slot_id     = 1;  // Peer id of slot that failed transfer
-  string peer_id     = 2;
-
+  string transfer_id = 1;
+  string channel_id  = 2;
   string description = 3;  // Error description for logging
-  string channel_id  = 4;
 }
 
 message TransferFailedResponse {
-  common.PeerDescription new_peer = 1;
+  /* optional */ string new_transfer_id          = 1;  // New transfer id to start
+  /* optional */ common.PeerDescription new_peer = 2;  // New peer to start transfer with
 }
 
 

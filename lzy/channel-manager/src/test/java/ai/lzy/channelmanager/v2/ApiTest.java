@@ -45,7 +45,6 @@ public class ApiTest {
     private static HostAndPort mockedSlotApiAddress;
     private static Server mockedSlotApiServer;
     private static SlotsApiMock slotService;
-    private static LzyChannelManagerGrpc.LzyChannelManagerBlockingStub unauthorizedPublicClient;
     private static Server mockedLzyServiceServer;
 
     @BeforeClass
@@ -75,8 +74,6 @@ public class ApiTest {
 
         publicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel),
             "AuthPublicTest", () -> user.credentials().token());
-        unauthorizedPublicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel),
-            "AuthPublicTest", () -> "invalidToken");
 
         mockedSlotApiAddress = HostAndPort.fromString(config.getStubSlotApiAddress());
         slotService = new SlotsApiMock();
@@ -146,15 +143,14 @@ public class ApiTest {
         Assert.assertEquals(resp.getPeer().getPeerId(), state.getChannels(0).getProducers(0).getPeerId());
         Assert.assertEquals("1", state.getChannels(0).getConsumers(0).getPeerId());
 
-        completed(chan.getChannelId(), "1", resp.getPeer().getPeerId());
+        completed(chan.getChannelId(), resp.getTransferId());
     }
 
-    private static void completed(String chanId, String loaderId, String peerId) {
+    private static void completed(String chanId, String transferId) {
         publicClient.transferCompleted(
             LCMS.TransferCompletedRequest.newBuilder()
                 .setChannelId(chanId)
-                .setSlotId(loaderId)
-                .setPeerId(peerId)
+                .setTransferId(transferId)
                 .build());
     }
 
@@ -174,7 +170,7 @@ public class ApiTest {
 
         Assert.assertEquals("s3://some-bucket", resp.getPeer().getStoragePeer().getStorageUri());
 
-        completed(chan.getChannelId(), "1", resp.getPeer().getPeerId());
+        completed(chan.getChannelId(), resp.getTransferId());
 
         var state = publicClient.getChannelsStatus(
             LCMS.GetChannelsStatusRequest.newBuilder()
@@ -240,8 +236,7 @@ public class ApiTest {
             LCMS.TransferFailedRequest.newBuilder()
                 .setChannelId(chan.getChannelId())
                 .setDescription("Fail")
-                .setSlotId("3")
-                .setPeerId(prodId)
+                .setTransferId(resp3.getTransferId())
                 .build());
 
         Assert.assertTrue(resp4.hasNewPeer());
@@ -292,8 +287,7 @@ public class ApiTest {
                 LCMS.TransferFailedRequest.newBuilder()
                     .setChannelId(chan.getChannelId())
                     .setDescription("Fail")
-                    .setSlotId("1")
-                    .setPeerId(resp.getPeer().getPeerId())
+                    .setTransferId(resp.getTransferId())
                     .build());
             Assert.fail();
         } catch (StatusRuntimeException e) {
@@ -307,7 +301,7 @@ public class ApiTest {
             LCMPS.GetOrCreateRequest.newBuilder()
                 .setExecutionId("execId")
                 .setWorkflowName(workflowName)
-                .setConsumer(StoragePeer.newBuilder()
+                .setProducer(StoragePeer.newBuilder()
                     .setStorageUri("s3://some-bucket")
                     .build())
                 .setUserId(user.id())
@@ -328,8 +322,8 @@ public class ApiTest {
                 .build());
 
         Assert.assertEquals(1, status.getChannelsCount());
-        Assert.assertEquals(0, status.getChannels(0).getProducersCount());
-        Assert.assertEquals(1, status.getChannels(0).getConsumersCount());
+        Assert.assertEquals(1, status.getChannels(0).getProducersCount());
+        Assert.assertEquals(0, status.getChannels(0).getConsumersCount());
     }
 
 

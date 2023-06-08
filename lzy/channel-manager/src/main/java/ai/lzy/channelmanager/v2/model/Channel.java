@@ -4,11 +4,11 @@ import ai.lzy.v1.common.LMD;
 import jakarta.annotation.Nullable;
 
 public record Channel(
-    String userId,
-    String executionId,
     String id,
-    LMD.DataScheme dataScheme,
+    String userId,
     String workflowName,
+    String executionId,
+    LMD.DataScheme dataScheme,
     @Nullable String storageProducerUri,
     @Nullable String storageConsumerUri
 ) { }

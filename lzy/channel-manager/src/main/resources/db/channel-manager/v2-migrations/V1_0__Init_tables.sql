@@ -11,27 +11,38 @@ CREATE TABLE channels
 
 CREATE TABLE peers
 (
-    id                   text      NOT NULL PRIMARY KEY,
+    id                   text      NOT NULL,
     channel_id           text      NOT NULL,
     "role"               text      NOT NULL,  /* PRODUCER or CONSUMER*/
-    peer_description     text      NOT NULL,
+    description          text      NOT NULL,
     priority             integer   NOT NULL,
     connected            boolean   NOT NULL,
+
+    PRIMARY KEY (id, channel_id),
 
     FOREIGN KEY(channel_id) references channels(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
 
-CREATE TABLE pending_transfers
+CREATE TABLE transfers
 (
-    slot_id        text       NOT NULL,
-    peer_id        text       NOT NULL,
-    PRIMARY KEY (slot_id, peer_id),
-    FOREIGN KEY (slot_id)   references peers(id)
+    id                text       NOT NULL,
+    channel_id        text       NOT NULL,
+    from_id           text       NOT NULL,
+    to_id             text       NOT NULL,
+    state             text       NOT NULL,  /* PENDING, ACTIVE, FAILED, COMPLETED */
+    error_description text       NULL,      /* Error description if transfer is failed */
+
+    PRIMARY KEY (id, channel_id),
+
+    FOREIGN KEY (from_id, channel_id)    references peers(id, channel_id)
         ON DELETE CASCADE
         ON UPDATE CASCADE,
-    FOREIGN KEY (peer_id)   references peers(id)
+    FOREIGN KEY (to_id, channel_id)      references peers(id, channel_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE,
+    FOREIGN KEY (channel_id) references channels(id)
         ON DELETE CASCADE
         ON UPDATE CASCADE
 );
