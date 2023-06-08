@@ -205,7 +205,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         }
 
         var checkOpResultDelay = Duration.ofMillis(300);
-        var opTimeout = Duration.ofSeconds(15);
+        var opTimeout = Duration.ofSeconds(10);
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
             FinishWorkflowResponse.class, checkOpResultDelay, opTimeout, LOG))
@@ -312,7 +312,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         }
 
         var checkOpResultDelay = Duration.ofMillis(300);
-        var opTimeout = Duration.ofSeconds(15);
+        var opTimeout = Duration.ofSeconds(10);
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
             AbortWorkflowResponse.class, checkOpResultDelay, opTimeout, LOG))
@@ -639,7 +639,9 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 }
             }
             case FAILED -> graphStatusResponse.setFailed(LWFS.GraphStatusResponse.Failed.newBuilder()
-                .setDescription(graphStatus.getStatus().getFailed().getDescription()));
+                .setDescription(graphStatus.getStatus().getFailed().getDescription())
+                .setFailedTaskId(graphStatus.getStatus().getFailed().getFailedTaskId())
+                .setFailedTaskName(graphStatus.getStatus().getFailed().getFailedTaskName()));
         }
 
         responseObserver.onNext(graphStatusResponse.build());

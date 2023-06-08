@@ -275,7 +275,7 @@ class RemoteRuntime(Runtime):
         client = self.__lzy_client
         workflow = cast(LzyWorkflow, self.__workflow)
         async for msg in client.read_std_slots(
-                workflow_name=workflow.name, execution_id=execution_id, logs_offset=self.__logs_offset
+            workflow_name=workflow.name, execution_id=execution_id, logs_offset=self.__logs_offset
         ):
             task_id_prefix = COLOURS["WHITE"] + "[LZY-REMOTE-" + msg.task_id + "] " + RESET_COLOR
             if isinstance(msg, StderrMessage):

@@ -15,8 +15,7 @@ public final class FinishExecution extends StopExecution {
         super(builder);
         this.channelsOpService = builder.channelsOpClient;
         this.steps = List.of(finishPortal(), waitFinishPortal(), freePortalVm(), deleteAllocSession(),
-            waitDeleteAllocSession(), deletePortalSubject(), destroyChannels(),
-            waitDestroyChannels(), deleteKafkaTopic(), this::complete);
+            waitDeleteAllocSession(), deletePortalSubject(), destroyChannels(), deleteKafkaTopic(), this::complete);
     }
 
     @Override
@@ -52,6 +51,7 @@ public final class FinishExecution extends StopExecution {
         return new DestroyChannels(stepCtx(), state(), channelsClient());
     }
 
+    @SuppressWarnings("unused")
     private Supplier<StepResult> waitDestroyChannels() {
         return new WaitDestroyChannels(stepCtx(), state(), channelsOpService);
     }

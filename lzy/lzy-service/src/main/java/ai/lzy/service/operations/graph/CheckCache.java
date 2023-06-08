@@ -52,7 +52,9 @@ public final class CheckCache extends ExecuteGraphContextAwareStep implements Su
         for (LWF.Operation operation : request().getOperationsList()) {
             try {
                 var cached = !operation.getOutputSlotsList().isEmpty() && operation.getOutputSlotsList().stream()
-                    .map(LWF.Operation.SlotDescription::getStorageUri).allMatch(uri -> {
+                    .map(LWF.Operation.SlotDescription::getStorageUri)
+                    .filter(uri -> !uri.endsWith("exception"))
+                    .allMatch(uri -> {
                         try {
                             return storageClient.blobExists(URI.create(uri));
                         } catch (Exception e) {
