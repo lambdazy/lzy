@@ -57,7 +57,7 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
         }
 
 
-        var peerId = idGenerator.generate("storage_peer-");
+        var storagePeerId = idGenerator.generate("storage_peer-");
         var channelId = idGenerator.generate("channel-");
 
         var role = switch (request.getInitialStoragePeerCase()) {
@@ -68,11 +68,11 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
 
         var peerDesc = switch (request.getInitialStoragePeerCase()) {
             case PRODUCER -> PeerDescription.newBuilder()
-                .setPeerId(peerId)
+                .setPeerId(storagePeerId)
                 .setStoragePeer(request.getProducer())
                 .build();
             case CONSUMER -> PeerDescription.newBuilder()
-                .setPeerId(peerId)
+                .setPeerId(storagePeerId)
                 .setStoragePeer(request.getConsumer())
                 .build();
             case INITIALSTORAGEPEER_NOT_SET -> throw Status.INVALID_ARGUMENT.asRuntimeException();
@@ -86,6 +86,8 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
 
                     if (channel != null) {
                         // Channel already exists, returning it
+                        LOG.info("{} Found already created channel {}, returning it", logPrefix, channel.id());
+
                         return channel;
                     }
 
@@ -117,6 +119,8 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
         LOG.info("{} Destroying channel with reason {}", logPrefix, request.getReason());
 
         try {
+            // Just dropping channel from db here
+            // Caller must drop all vms on this channel by itself
             DbHelper.withRetries(LOG, () -> channelDao.drop(request.getChannelId(), null));
         } catch (Exception e) {
             LOG.error("{} Cannot destroy channel in db: ", logPrefix, e);

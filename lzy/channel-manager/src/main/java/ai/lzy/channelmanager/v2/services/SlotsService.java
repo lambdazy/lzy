@@ -95,7 +95,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                     .asRuntimeException();
             }
             case CONSUMER -> CONSUMER;
-            case PRODUCER -> Peer.Role.PRODUCER;
+            case PRODUCER -> PRODUCER;
         };
 
         if (role == CONSUMER) {
@@ -121,6 +121,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         for (var consumer: res.transfers) {
             if (consumer.peer().description().hasStoragePeer()) {
                 storageConsumer = consumer;
+                break;
             }
         }
 
@@ -139,95 +140,6 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
             }
         }
     }
-
-    /**
-     * Atomic operation to create producer
-     * If there are not connected consumers, then this consumers will be marked as connected
-     *  and transfers will be created.
-     * @return pair of producer and list of consumer transfers
-     */
-    private ProducerAndConsumerTransfers createProducer(String channelId, String peerId, PeerDescription peerDesc,
-                                                        String logPrefix, Peer.Role role)
-    {
-        final ProducerAndConsumerTransfers result;
-        try {
-            result = DbHelper.withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    var prod = peerDao.create(channelId, peerDesc, role, PeerDao.Priority.PRIMARY, false, tx);
-
-                    final var consumers = peerDao.markConsumersAsConnected(channelId, tx);
-
-                    final var transfers = new ArrayList<PeerAndTransfer>();
-
-                    for (var consumer : consumers) {
-                        var transferId = idGenerator.generate("transfer-");
-
-                        // Setting state to ACTIVE if consumer has storage peer
-                        // We will return this consumer in response to producer
-                        var state = consumer.description().hasStoragePeer() ? State.ACTIVE : State.PENDING;
-
-                        transferDao.create(transferId, peerId, consumer.id(), channelId, state, tx);
-                        transfers.add(new PeerAndTransfer(consumer, transferId));
-                    }
-
-                    tx.commit();
-                    return new ProducerAndConsumerTransfers(prod, transfers);
-                }
-            });
-        } catch (Exception e) {
-            LOG.error("{} Cannot save peer description in db: ", logPrefix, e);
-            throw Status.INTERNAL
-                .withDescription("Cannot save peer description in db")
-                .asRuntimeException();
-        }
-        return result;
-    }
-
-    /**
-     * Atomic consumer creation
-     * If producer not found, mark consumer as not connected
-     * Else mark it connected, create new active transfer and return producer with this transfer
-     * All done in one transaction
-     * @return producer with transfer id or null if producer not found
-     */
-    @Nullable
-    private PeerAndTransfer createConsumer(String channelId, String peerId, PeerDescription peerDesc, String logPrefix,
-                                           Peer.Role role)
-    {
-        final PeerAndTransfer result;
-        try {
-            result = DbHelper.withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    var producer = peerDao.findProducer(channelId, tx);
-                    peerDao.create(channelId, peerDesc, role, PeerDao.Priority.PRIMARY, producer != null, tx);
-
-                    String transferId = null;
-
-                    if (producer != null) {
-                        transferId = idGenerator.generate("transfer-");
-
-                        // We are assuming call cannot fail after this transaction
-                        // So we can create transfer already in active state
-                        transferDao.create(
-                            transferId, producer.id(), peerId, channelId, State.ACTIVE, tx);
-                    }
-
-                    tx.commit();
-                    return producer == null ? null : new PeerAndTransfer(producer, transferId);
-                }
-            });
-        } catch (Exception e) {
-            LOG.error("{} Cannot save peer description in db: ", logPrefix, e);
-            throw Status.INTERNAL
-                .withDescription("Cannot save peer description in db")
-                .asRuntimeException();
-        }
-        return result;
-    }
-
-    private record PeerAndTransfer(Peer peer, String transferId) {}
-
-    private record ProducerAndConsumerTransfers(Peer producer, List<PeerAndTransfer> transfers) {}
 
     @Override
     public void unbind(LCMS.UnbindRequest request, StreamObserver<LCMS.UnbindResponse> responseObserver) {
@@ -352,28 +264,6 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         responseObserver.onCompleted();
     }
 
-    private Transfer getAndValidateTransfer(String id, Channel channel, String logPrefix,
-                                            @Nullable TransactionHandle tx) throws SQLException
-    {
-        var transfer = transferDao.get(id, channel.id(), tx);
-
-        if (transfer == null) {
-            LOG.error("{} Cannot find transfer in db", logPrefix);
-            throw Status.NOT_FOUND
-                .withDescription("Cannot find transfer in db")
-                .asRuntimeException();
-        }
-
-        if (transfer.state() != State.ACTIVE) {
-            LOG.error("{} Transfer is not active", logPrefix);
-            throw Status.FAILED_PRECONDITION
-                .withDescription("Transfer is not active")
-                .asRuntimeException();
-        }
-
-        return transfer;
-    }
-
     @Override
     public void transferCompleted(TransferCompletedRequest request,
                                   StreamObserver<TransferCompletedResponse> responseObserver)
@@ -492,5 +382,122 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
             throw Status.PERMISSION_DENIED.asRuntimeException();
         }
         return channel;
+    }
+
+    /**
+     * Atomic operation to create producer
+     * If there are not connected consumers, then this consumers will be marked as connected
+     *  and transfers will be created.
+     * @return pair of producer and list of consumer transfers
+     */
+    private ProducerAndConsumerTransfers createProducer(String channelId, String peerId, PeerDescription peerDesc,
+                                                        String logPrefix, Peer.Role role)
+    {
+        final ProducerAndConsumerTransfers result;
+        try {
+            result = DbHelper.withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    var prod = peerDao.create(channelId, peerDesc, role, PeerDao.Priority.PRIMARY, false, tx);
+
+                    final var consumers = peerDao.markConsumersAsConnected(channelId, tx);
+
+                    final var transfers = new ArrayList<PeerAndTransfer>();
+
+                    for (var consumer : consumers) {
+                        var transferId = idGenerator.generate("transfer-");
+
+                        // Setting state to ACTIVE if consumer has storage peer
+                        // We will return this consumer in response to producer
+                        var state = consumer.description().hasStoragePeer() ? State.ACTIVE : State.PENDING;
+
+                        transferDao.create(transferId, peerId, consumer.id(), channelId, state, tx);
+                        transfers.add(new PeerAndTransfer(consumer, transferId));
+                    }
+
+                    tx.commit();
+                    return new ProducerAndConsumerTransfers(prod, transfers);
+                }
+            });
+        } catch (Exception e) {
+            LOG.error("{} Cannot save peer description in db: ", logPrefix, e);
+            throw Status.INTERNAL
+                .withDescription("Cannot save peer description in db")
+                .asRuntimeException();
+        }
+        return result;
+    }
+
+    /**
+     * Atomic consumer creation
+     * If producer not found, mark consumer as not connected
+     * Else mark it connected, create new active transfer and return producer with this transfer
+     * All done in one transaction
+     * @return producer with transfer id or null if producer not found
+     */
+    @Nullable
+    private PeerAndTransfer createConsumer(String channelId, String peerId, PeerDescription peerDesc, String logPrefix,
+                                           Peer.Role role)
+    {
+        final PeerAndTransfer result;
+        try {
+            result = DbHelper.withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+                    var producer = peerDao.findProducer(channelId, tx);
+                    peerDao.create(channelId, peerDesc, role, PeerDao.Priority.PRIMARY, producer != null, tx);
+
+                    String transferId = null;
+
+                    if (producer != null) {
+                        transferId = idGenerator.generate("transfer-");
+
+                        // We are assuming call cannot fail after this transaction
+                        // So we can create transfer already in active state
+                        transferDao.create(
+                            transferId, producer.id(), peerId, channelId, State.ACTIVE, tx);
+                    }
+
+                    tx.commit();
+                    return producer == null ? null : new PeerAndTransfer(producer, transferId);
+                }
+            });
+        } catch (Exception e) {
+            LOG.error("{} Cannot save peer description in db: ", logPrefix, e);
+            throw Status.INTERNAL
+                .withDescription("Cannot save peer description in db")
+                .asRuntimeException();
+        }
+        return result;
+    }
+
+    private record PeerAndTransfer(
+        Peer peer,
+        String transferId
+    ) {}
+
+    private record ProducerAndConsumerTransfers(
+        Peer producer,
+        List<PeerAndTransfer> transfers
+    ) {}
+
+    private Transfer getAndValidateTransfer(String id, Channel channel, String logPrefix,
+                                            @Nullable TransactionHandle tx) throws SQLException
+    {
+        var transfer = transferDao.get(id, channel.id(), tx);
+
+        if (transfer == null) {
+            LOG.error("{} Cannot find transfer in db", logPrefix);
+            throw Status.NOT_FOUND
+                .withDescription("Cannot find transfer in db")
+                .asRuntimeException();
+        }
+
+        if (transfer.state() != State.ACTIVE) {
+            LOG.error("{} Transfer is not active", logPrefix);
+            throw Status.FAILED_PRECONDITION
+                .withDescription("Transfer is not active")
+                .asRuntimeException();
+        }
+
+        return transfer;
     }
 }
