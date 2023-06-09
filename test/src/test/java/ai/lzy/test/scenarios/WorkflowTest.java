@@ -4,6 +4,7 @@ import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.WhiteboardContext;
 import ai.lzy.test.impl.v2.WorkflowContext;
+import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWF.Graph;
 import ai.lzy.v1.workflow.LWF.Operation;
 import ai.lzy.v1.workflow.LWF.Operation.SlotDescription;
@@ -17,6 +18,8 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+
 public class WorkflowTest {
     static final Logger LOG = LogManager.getLogger(WorkflowTest.class);
 
@@ -29,22 +32,21 @@ public class WorkflowTest {
     @Rule
     public final ContextRule<WhiteboardContext> whiteboard = new ContextRule<>(ctx, WhiteboardContext.class);
 
-
     @Test
     public void simple() throws InvalidProtocolBufferException {
         var stub = workflow.context().stub();
 
         var workflowName = "wf";
-        var creds =
-            stub.getOrCreateDefaultStorage(LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
-        var wf = stub.startWorkflow(LWFS.StartWorkflowRequest
+        var creds = stub.getOrCreateDefaultStorage(LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build())
+            .getStorage();
+        var wf = withIdempotencyKey(stub, "start_wf").startWorkflow(LWFS.StartWorkflowRequest
             .newBuilder()
             .setWorkflowName(workflowName)
             .setSnapshotStorage(creds)
             .build()
         );
 
-        var graph = stub.executeGraph(ExecuteGraphRequest.newBuilder()
+        var graph = withIdempotencyKey(stub, "execute_graph").executeGraph(ExecuteGraphRequest.newBuilder()
             .setWorkflowName(workflowName)
             .setExecutionId(wf.getExecutionId())
             .setGraph(Graph.newBuilder()
@@ -72,6 +74,7 @@ public class WorkflowTest {
                             .build())
                         .build()
                 )
+                .addDataDescriptions(LWF.DataDescription.newBuilder().setStorageUri(creds.getUri() + "/o1").build())
                 .build()
             )
             .build());
@@ -80,6 +83,7 @@ public class WorkflowTest {
 
         do {
             status = stub.graphStatus(LWFS.GraphStatusRequest.newBuilder()
+                .setWorkflowName(workflowName)
                 .setExecutionId(wf.getExecutionId())
                 .setGraphId(graph.getGraphId())
                 .build());
@@ -90,7 +94,7 @@ public class WorkflowTest {
         Assert.assertTrue(status.hasCompleted());
 
         //noinspection ResultOfMethodCallIgnored
-        stub.finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder().setWorkflowName(workflowName)
-            .setExecutionId(wf.getExecutionId()).build());
+        withIdempotencyKey(stub, "finish_wf").finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName).setExecutionId(wf.getExecutionId()).setReason("no-matter").build());
     }
 }

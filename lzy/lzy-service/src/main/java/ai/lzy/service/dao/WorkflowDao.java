@@ -14,6 +14,8 @@ public interface WorkflowDao {
     String upsert(String userId, String wfName, String newActiveExecId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
+    boolean exists(String userId, String wfName) throws SQLException;
+
     @Nullable
     String getExecutionId(String userId, String wfName, @Nullable TransactionHandle transaction) throws SQLException;
 

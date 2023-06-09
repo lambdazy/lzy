@@ -105,6 +105,8 @@ final class CreateKafkaTopic extends StartExecutionContextAwareStep implements S
 
             withRetries(log(), () -> execDao().setKafkaTopicDesc(execId(), topicDesc, null));
             setKafkaTopicDesc(topicDesc);
+
+            log().debug("{} Kafka topic with name='{}' successfully created...", logPrefix(), kafkaTopicName);
         } catch (Exception e) {
             Runnable dropKafka = () -> {
                 if (s3sinkJobId[0] != null) {

@@ -1,33 +1,27 @@
-package ai.lzy.service.debug;
+package ai.lzy.longrunning.dao;
 
 import ai.lzy.longrunning.Operation;
-import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.OperationDaoImpl;
+import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.service.data.storage.LzyServiceStorage;
 import com.google.protobuf.Any;
 import com.google.rpc.Status;
-import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
-import jakarta.inject.Named;
-import jakarta.inject.Singleton;
+import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
-@Singleton
-@Named("LzyServiceOperationDao")
-@Requires(env = "test-mock")
 public class OperationDaoDecorator implements OperationDao {
     private final Queue<Runnable> onCreateEvents = new ConcurrentLinkedQueue<>();
     private final AtomicInteger createCallsCounter = new AtomicInteger(0);
 
     private final OperationDao delegate;
 
-    public OperationDaoDecorator(LzyServiceStorage storage) {
+    public OperationDaoDecorator(Storage storage) {
         this.delegate = new OperationDaoImpl(storage);
     }
 
@@ -94,6 +88,11 @@ public class OperationDaoDecorator implements OperationDao {
     }
 
     @Override
+    public void fail(Collection<String> ids, Status error, TransactionHandle transaction) throws SQLException {
+        delegate.fail(ids, error, transaction);
+    }
+
+    @Override
     public boolean deleteCompletedOperation(String operationId, TransactionHandle transaction) throws SQLException {
         return delegate.deleteCompletedOperation(operationId, transaction);
     }
@@ -101,5 +100,12 @@ public class OperationDaoDecorator implements OperationDao {
     @Override
     public int deleteOutdatedOperations(int hours) throws SQLException {
         return delegate.deleteOutdatedOperations(hours);
+    }
+
+    @Override
+    public Operation failOperation(String operationId, Status error, TransactionHandle tx, Logger log)
+        throws SQLException
+    {
+        return OperationDao.super.failOperation(operationId, error, tx, log);
     }
 }

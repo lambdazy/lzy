@@ -41,7 +41,7 @@ final class DeleteAllocatorSession extends StopExecutionContextAwareStep
             setDeleteAllocSessionOpId(op.getId());
             return StepResult.CONTINUE;
         } catch (StatusRuntimeException sre) {
-            return retryableFail(sre, "Error in AllocClient::deleteSession call", sre);
+            return retryableFail(sre, "Error in AllocatorGrpcClient::deleteSession call", sre);
         }
     }
 }

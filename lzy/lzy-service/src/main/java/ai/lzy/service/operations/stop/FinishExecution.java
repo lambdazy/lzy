@@ -8,18 +8,14 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public final class FinishExecution extends StopExecution {
-    private final LongRunningServiceBlockingStub allocOpClient;
     private final LongRunningServiceBlockingStub channelsOpService;
-
     private final List<Supplier<StepResult>> steps;
 
     private FinishExecution(FinishExecutionBuilder builder) {
         super(builder);
-        this.allocOpClient = builder.allocOpClient;
         this.channelsOpService = builder.channelsOpClient;
         this.steps = List.of(finishPortal(), waitFinishPortal(), freePortalVm(), deleteAllocSession(),
-            waitDeleteAllocSession(), deletePortalSubject(), destroyChannels(),
-            waitDestroyChannels(), deleteKafkaTopic(), this::complete);
+            waitDeleteAllocSession(), deletePortalSubject(), destroyChannels(), deleteKafkaTopic(), this::complete);
     }
 
     @Override
@@ -28,11 +24,11 @@ public final class FinishExecution extends StopExecution {
     }
 
     private Supplier<StepResult> finishPortal() {
-        return new FinishPortal(stepCtx(), state(), portalClient());
+        return new FinishPortal(stepCtx(), state());
     }
 
     private Supplier<StepResult> waitFinishPortal() {
-        return new WaitFinishPortal(stepCtx(), state(), portalOpClient());
+        return new WaitFinishPortal(stepCtx(), state());
     }
 
     private Supplier<StepResult> freePortalVm() {
@@ -44,7 +40,7 @@ public final class FinishExecution extends StopExecution {
     }
 
     private Supplier<StepResult> waitDeleteAllocSession() {
-        return new WaitDeleteAllocatorSession(stepCtx(), state(), allocOpClient);
+        return new WaitDeleteAllocatorSession(stepCtx(), state(), allocOpClient());
     }
 
     private Supplier<StepResult> deletePortalSubject() {
@@ -55,6 +51,7 @@ public final class FinishExecution extends StopExecution {
         return new DestroyChannels(stepCtx(), state(), channelsClient());
     }
 
+    @SuppressWarnings("unused")
     private Supplier<StepResult> waitDestroyChannels() {
         return new WaitDestroyChannels(stepCtx(), state(), channelsOpService);
     }
@@ -73,13 +70,7 @@ public final class FinishExecution extends StopExecution {
     }
 
     public static final class FinishExecutionBuilder extends StopExecutionBuilder<FinishExecutionBuilder> {
-        private LongRunningServiceBlockingStub allocOpClient;
         private LongRunningServiceBlockingStub channelsOpClient;
-
-        public FinishExecutionBuilder setAllocOpClient(LongRunningServiceBlockingStub allocOpClient) {
-            this.allocOpClient = allocOpClient;
-            return this;
-        }
 
         public FinishExecutionBuilder setChannelsOpClient(LongRunningServiceBlockingStub channelsOpClient) {
             this.channelsOpClient = channelsOpClient;

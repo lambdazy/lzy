@@ -4,6 +4,7 @@ import ai.lzy.model.db.TransactionHandle;
 import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.List;
 
 public interface ExecutionOperationsDao {
@@ -15,6 +16,10 @@ public interface ExecutionOperationsDao {
 
     void createExecGraphOp(String opId, String instanceId, String execId, @Nullable TransactionHandle transaction)
         throws SQLException;
+
+    void deleteOp(String opId, @Nullable TransactionHandle transaction) throws SQLException;
+
+    void deleteOps(Collection<String> opIds, @Nullable TransactionHandle transaction) throws SQLException;
 
     void putState(String opId, ExecuteGraphState state, @Nullable TransactionHandle transaction) throws SQLException;
 

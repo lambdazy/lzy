@@ -56,23 +56,19 @@ public class GraphDaoImpl implements GraphDao {
     @Override
     @Nullable
     public GraphDescription get(String graphId, String execId) throws SQLException {
-        GraphDescription[] desc = {null};
-
-        DbOperation.execute(null, storage, connection -> {
+        return DbOperation.execute(null, storage, connection -> {
             try (var st = connection.prepareStatement(QUERY_SELECT_GRAPH_DESCRIPTION)) {
                 st.setString(1, graphId);
                 st.setString(2, execId);
                 var rs = st.executeQuery();
                 if (rs.next()) {
-                    desc[0] = new GraphDescription(
-                        graphId, execId,
+                    return new GraphDescription(graphId, execId,
                         Arrays.stream(((String[]) rs.getArray(1).getArray())).toList()
                     );
                 }
+                return null;
             }
         });
-
-        return desc[0];
     }
 
     @Override

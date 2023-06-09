@@ -5,14 +5,15 @@ import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.service.operations.ExecutionStepContext;
 import ai.lzy.service.operations.RetryableFailStep;
 import ai.lzy.storage.StorageClient;
-import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.workflow.LWF;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public final class CheckCache extends ExecuteGraphContextAwareStep implements Supplier<StepResult>, RetryableFailStep {
     private final StorageClient storageClient;
@@ -51,7 +52,9 @@ public final class CheckCache extends ExecuteGraphContextAwareStep implements Su
         for (LWF.Operation operation : request().getOperationsList()) {
             try {
                 var cached = !operation.getOutputSlotsList().isEmpty() && operation.getOutputSlotsList().stream()
-                    .map(LWF.Operation.SlotDescription::getStorageUri).allMatch(uri -> {
+                    .map(LWF.Operation.SlotDescription::getStorageUri)
+                    .filter(uri -> !uri.endsWith("exception"))
+                    .allMatch(uri -> {
                         try {
                             return storageClient.blobExists(URI.create(uri));
                         } catch (Exception e) {
@@ -64,11 +67,10 @@ public final class CheckCache extends ExecuteGraphContextAwareStep implements Su
 
                 if (cached) {
                     log().debug("{} Task '{}' already in cache... removed from graph", logPrefix(),
-                        printer().shortDebugString(operation));
+                        debugStringForOperation(operation));
                     cachedOps.add(operation);
                 } else {
-                    log().debug("{} Task '{}' not found in cache...", logPrefix(),
-                        printer().shortDebugString(operation));
+                    log().debug("{} Task '{}' not found in cache...", logPrefix(), debugStringForOperation(operation));
                     operationsToExecute.add(operation);
                 }
             } catch (StatusRuntimeException sre) {
@@ -77,7 +79,7 @@ public final class CheckCache extends ExecuteGraphContextAwareStep implements Su
         }
 
         log().debug("{} Cache was scanned: { foundTasksResults: {}, notFound: {} }", logPrefix(),
-            printer().shortDebugString(operationsToExecute), printer().shortDebugString(cachedOps));
+            debugStringForOperations(cachedOps), debugStringForOperations(operationsToExecute));
 
         log().debug("{} Save data about cached tasks results in dao...", logPrefix());
         setOperationsToExecute(operationsToExecute);
@@ -95,5 +97,14 @@ public final class CheckCache extends ExecuteGraphContextAwareStep implements Su
         }
 
         return StepResult.CONTINUE;
+    }
+
+    private String debugStringForOperations(Collection<LWF.Operation> operations) {
+        return operations.stream().map(this::debugStringForOperation).collect(Collectors.joining(", ", "[", "]"));
+    }
+
+    private String debugStringForOperation(LWF.Operation operation) {
+        return "{ name: " + operation.getName() + ", outputs: [" +
+            printer().shortDebugString(operation.getOutputSlotsList()) + "] }";
     }
 }

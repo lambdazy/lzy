@@ -18,6 +18,9 @@ import java.time.Instant;
 public class WorkflowDaoImpl implements WorkflowDao {
     private static final Logger LOG = LogManager.getLogger(WorkflowDaoImpl.class);
 
+    private static final String QUERY_WORKFLOW_EXISTS = """
+        SELECT 1 from workflows WHERE user_id = ? AND workflow_name = ?""";
+
     private static final String QUERY_SELECT_WORKFLOW = """
         SELECT workflow_name, user_id, created_at, modified_at, active_execution_id
         FROM workflows
@@ -80,6 +83,17 @@ public class WorkflowDaoImpl implements WorkflowDao {
         });
 
         return oldExecId[0];
+    }
+
+    @Override
+    public boolean exists(String userId, String wfName) throws SQLException {
+        return DbOperation.execute(null, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_WORKFLOW_EXISTS)) {
+                st.setString(1, userId);
+                st.setString(2, wfName);
+                return st.executeQuery().next();
+            }
+        });
     }
 
     @Override

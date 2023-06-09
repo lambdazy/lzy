@@ -2,8 +2,8 @@ package ai.lzy.service.operations.graph;
 
 import ai.lzy.service.dao.DataFlowGraph;
 import ai.lzy.service.dao.ExecuteGraphState;
-import ai.lzy.service.operations.ExecutionStepContext;
 import ai.lzy.service.operations.ExecutionContextAwareStep;
+import ai.lzy.service.operations.ExecutionStepContext;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.workflow.LWF;
 import jakarta.annotation.Nullable;
@@ -76,6 +76,15 @@ public abstract class ExecuteGraphContextAwareStep extends ExecutionContextAware
 
     protected void setChannels(Map<String, String> slotUri2channelId) {
         state.slotUri2channelId = slotUri2channelId;
+    }
+
+    @Nullable
+    protected List<String> portalInputSlotsNames() {
+        return state.portalInputSlotsNames;
+    }
+
+    protected void setPortalInputSlotsNames(List<String> slotsNames) {
+        state.portalInputSlotsNames = slotsNames;
     }
 
     @Nullable

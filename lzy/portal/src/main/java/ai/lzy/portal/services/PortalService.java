@@ -100,7 +100,7 @@ public class PortalService extends LzyPortalImplBase {
     public synchronized void status(PortalStatusRequest request,
                                     StreamObserver<PortalStatusResponse> response)
     {
-        LOG.debug("Request portal slots status: { portalId: {}, request: {} }", portalId,
+        LOG.info("Request portal slots status: { portalId: {}, request: {} }", portalId,
             ProtoPrinter.safePrinter().printToString(request));
         if (assertActive(response)) {
             return;
@@ -154,7 +154,7 @@ public class PortalService extends LzyPortalImplBase {
 
     @Override
     public synchronized void openSlots(OpenSlotsRequest request, StreamObserver<OpenSlotsResponse> response) {
-        LOG.debug("Open portal slots: { portalId: {}, request: {} }", portalId,
+        LOG.info("Open portal slots: { portalId: {}, request: {} }", portalId,
             ProtoPrinter.safePrinter().printToString(request));
         if (assertActive(response)) {
             return;
@@ -251,7 +251,7 @@ public class PortalService extends LzyPortalImplBase {
 
     @Override
     public void finish(FinishRequest request, StreamObserver<LongRunning.Operation> response) {
-        LOG.debug("Finish portal: { portalId: {}, request: {} }", portalId,
+        LOG.info("Finish portal: { portalId: {}, request: {} }", portalId,
             ProtoPrinter.safePrinter().printToString(request));
         if (assertActive(response)) {
             return;

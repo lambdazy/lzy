@@ -140,7 +140,7 @@ class RemoteRuntime(Runtime):
 
         client = self.__lzy_client
         workflow = cast(LzyWorkflow, self.__workflow)
-        pools = await client.get_pool_specs(self.__execution_id)
+        pools = await client.get_pool_specs(workflow_name=workflow.name, execution_id=self.__execution_id)
 
         modules: Set[str] = set()
 
@@ -167,7 +167,8 @@ class RemoteRuntime(Runtime):
         is_executing = False
         while True:
             await asyncio.sleep(FETCH_STATUS_PERIOD_SEC)
-            status = await client.graph_status(self.__execution_id, graph_id)
+            status = await client.graph_status(workflow_name=workflow.name, execution_id=self.__execution_id,
+                                               graph_id=graph_id)
 
             if isinstance(status, Executing) and not is_executing:
                 is_executing = True
@@ -218,8 +219,9 @@ class RemoteRuntime(Runtime):
         client = self.__lzy_client
         if not self.__running:
             return
+        workflow = cast(LzyWorkflow, self.__workflow)
         try:
-            await client.finish_workflow(workflow_name=self.__workflow.name, execution_id=self.__execution_id,
+            await client.finish_workflow(workflow_name=workflow.name, execution_id=self.__execution_id,
                                          reason="Workflow completed", idempotency_key=self.__gen_rand_idempt_key())
             try:
                 if self.__std_slots_listener is not None:
@@ -271,7 +273,10 @@ class RemoteRuntime(Runtime):
     @retry(action_name="listening to std slots", config=RetryConfig(max_retry=12000, backoff_multiplier=1.2))
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__lzy_client
-        async for msg in client.read_std_slots(execution_id, self.__logs_offset):
+        workflow = cast(LzyWorkflow, self.__workflow)
+        async for msg in client.read_std_slots(
+            workflow_name=workflow.name, execution_id=execution_id, logs_offset=self.__logs_offset
+        ):
             task_id_prefix = COLOURS["WHITE"] + "[LZY-REMOTE-" + msg.task_id + "] " + RESET_COLOR
             if isinstance(msg, StderrMessage):
                 system_log = "[SYS]" in msg.message

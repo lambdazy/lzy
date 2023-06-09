@@ -1,22 +1,20 @@
 package ai.lzy.service.operations.stop;
 
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
-import ai.lzy.v1.workflow.LWFS;
-import com.google.protobuf.Message;
 
 import java.util.List;
 import java.util.function.Supplier;
 
-public final class AbortExecution extends StopExecution {
+public abstract class AbortExecution extends StopExecution {
     private final GraphExecutorBlockingStub graphClient;
 
     private final List<Supplier<StepResult>> steps;
 
-    private AbortExecution(AbortExecutionBuilder builder) {
+    protected AbortExecution(AbortExecutionBuilder<?> builder) {
         super(builder);
         this.graphClient = builder.graphClient;
         this.steps = List.of(stopGraphs(), finishPortal(), waitFinishPortal(), freePortalVm(), deleteAllocSession(),
-            deletePortalSubject(), destroyChannels(), deleteKafkaTopic(), this::complete);
+            waitDeleteAllocSession(), deletePortalSubject(), destroyChannels(), deleteKafkaTopic(), this::complete);
     }
 
     @Override
@@ -29,11 +27,11 @@ public final class AbortExecution extends StopExecution {
     }
 
     private Supplier<StepResult> finishPortal() {
-        return new FinishPortal(stepCtx(), state(), portalClient());
+        return new FinishPortal(stepCtx(), state());
     }
 
     private Supplier<StepResult> waitFinishPortal() {
-        return new WaitFinishPortal(stepCtx(), state(), portalOpClient());
+        return new WaitFinishPortal(stepCtx(), state());
     }
 
     private Supplier<StepResult> freePortalVm() {
@@ -42,6 +40,10 @@ public final class AbortExecution extends StopExecution {
 
     private Supplier<StepResult> deleteAllocSession() {
         return new DeleteAllocatorSession(stepCtx(), state(), allocClient());
+    }
+
+    private Supplier<StepResult> waitDeleteAllocSession() {
+        return new WaitDeleteAllocatorSession(stepCtx(), state(), allocOpClient());
     }
 
     private Supplier<StepResult> deletePortalSubject() {
@@ -56,26 +58,14 @@ public final class AbortExecution extends StopExecution {
         return new DeleteKafkaTopic(stepCtx(), state(), kafkaClient(), kafkaLogsListeners(), s3SinkClient());
     }
 
-    @Override
-    protected Message response() {
-        return LWFS.AbortWorkflowResponse.getDefaultInstance();
-    }
-
-    public static AbortExecutionBuilder builder() {
-        return new AbortExecutionBuilder();
-    }
-
-    public static final class AbortExecutionBuilder extends StopExecutionBuilder<AbortExecutionBuilder> {
+    public abstract static class AbortExecutionBuilder<T extends AbortExecutionBuilder<T>>
+        extends StopExecutionBuilder<T>
+    {
         private GraphExecutorBlockingStub graphClient;
 
-        public AbortExecutionBuilder setGraphClient(GraphExecutorBlockingStub graphClient) {
+        public T setGraphClient(GraphExecutorBlockingStub graphClient) {
             this.graphClient = graphClient;
-            return this;
-        }
-
-        @Override
-        public AbortExecution build() {
-            return new AbortExecution(this);
+            return self();
         }
     }
 }

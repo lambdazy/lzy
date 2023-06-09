@@ -1,3 +1,4 @@
+/*
 package ai.lzy.service.gc;
 
 import ai.lzy.service.dao.ExecutionDao;
@@ -37,3 +38,4 @@ public class GarbageCollectorTask extends TimerTask {
         cleanExecutionCompanion.cleanExecution(executionId);
     }
 }
+*/

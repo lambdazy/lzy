@@ -9,13 +9,17 @@ import ai.lzy.model.db.Storage;
 import ai.lzy.service.BeanFactory;
 import ai.lzy.service.LzyServiceMetrics;
 import ai.lzy.service.config.AllocatorSessionSpec;
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.*;
+import ai.lzy.service.dao.impl.LzyServiceStorage;
 import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.service.operations.graph.ExecuteGraph;
 import ai.lzy.service.operations.start.StartExecution;
 import ai.lzy.service.operations.stop.AbortExecution;
 import ai.lzy.service.operations.stop.FinishExecution;
+import ai.lzy.service.operations.stop.PrivateAbortExecution;
+import ai.lzy.service.operations.stop.PublicAbortExecution;
 import ai.lzy.storage.StorageClient;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -27,13 +31,12 @@ import ai.lzy.v1.VmPoolServiceGrpc.VmPoolServiceBlockingStub;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
-import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
-import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.protobuf.util.Durations;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
+import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,14 +44,12 @@ import org.apache.logging.log4j.Logger;
 import java.time.Duration;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.service.LzyService.APP;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Singleton
 public class OperationRunnersFactory {
     private static final Logger LOG = LogManager.getLogger(OperationRunnersFactory.class);
 
+    private final String instanceId;
     private final Storage storage;
     private final WorkflowDao wfDao;
     private final ExecutionDao execDao;
@@ -75,20 +76,27 @@ public class OperationRunnersFactory {
     private final IdGenerator idGenerator;
     private final LzyServiceMetrics metrics;
 
-    public OperationRunnersFactory(Storage storage, WorkflowDao wfDao, ExecutionDao execDao, OperationDao opDao,
-                                   GraphDao graphDao, ExecutionOperationsDao execOpsDao,
-                                   OperationsExecutor executor, KafkaAdminClient kafkaAdminClient,
-                                   KafkaLogsListeners kafkaLogsListeners, AllocatorBlockingStub allocClient,
-                                   BeanFactory.S3SinkClient s3SinkClient,
-                                   LongRunningServiceBlockingStub allocOpClient, SubjectServiceGrpcClient subjectClient,
-                                   AccessBindingServiceGrpcClient abClient, GraphExecutorBlockingStub graphsClient,
-                                   LzyChannelManagerPrivateBlockingStub channelManagerClient,
-                                   LongRunningServiceBlockingStub channelManagerOpClient,
-                                   RenewableJwt internalUserCredentials,
-                                   StorageClientFactory storageClientFactory, LzyServiceMetrics metrics,
-                                   VmPoolServiceBlockingStub vmPoolClient, KafkaConfig kafkaConfig,
-                                   IdGenerator idGenerator)
+    public OperationRunnersFactory(LzyServiceStorage storage, WorkflowDao wfDao, ExecutionDao execDao,
+                                   @Named("LzyServiceOperationDao") OperationDao opDao, GraphDao graphDao,
+                                   @Named("LzyServiceOperationsExecutor") OperationsExecutor executor,
+                                   ExecutionOperationsDao execOpsDao, KafkaAdminClient kafkaAdminClient,
+                                   KafkaLogsListeners kafkaLogsListeners, BeanFactory.S3SinkClient s3SinkClient,
+                                   @Named("LzyServiceAllocatorGrpcClient") AllocatorBlockingStub allocClient,
+                                   @Named("LzyServiceAllocOpsGrpcClient") LongRunningServiceBlockingStub allocOpClient,
+                                   @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
+                                   @Named("LzyServiceAccessBindingClient") AccessBindingServiceGrpcClient abClient,
+                                   @Named("LzyServiceGraphExecutorGrpcClient") GraphExecutorBlockingStub graphsClient,
+                                   @Named("LzyServicePrivateChannelsGrpcClient")
+                                       LzyChannelManagerPrivateBlockingStub channelManagerClient,
+                                   @Named("LzyServiceChannelManagerOpsGrpcClient")
+                                       LongRunningServiceBlockingStub channelManagerOpClient,
+                                   @Named("LzyServiceStorageClientFactory") StorageClientFactory storageClientFactory,
+                                   @Named("LzyServiceVmPoolGrpcClient") VmPoolServiceBlockingStub vmPoolClient,
+                                   @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
+                                   LzyServiceMetrics metrics, LzyServiceConfig config,
+                                   @Named("LzyServiceIdGenerator") IdGenerator idGenerator)
     {
+        this.instanceId = config.getInstanceId();
         this.storage = storage;
         this.wfDao = wfDao;
         this.execDao = execDao;
@@ -110,7 +118,7 @@ public class OperationRunnersFactory {
         this.storageClientFactory = storageClientFactory;
         this.metrics = metrics;
         this.vmPoolClient = vmPoolClient;
-        this.kafkaConfig = kafkaConfig;
+        this.kafkaConfig = config.getKafka();
         this.idGenerator = idGenerator;
     }
 
@@ -127,6 +135,7 @@ public class OperationRunnersFactory {
                 .build());
 
         return StartExecution.builder()
+            .setInstanceId(instanceId)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)
@@ -152,6 +161,7 @@ public class OperationRunnersFactory {
             .setS3SinkClient(s3SinkClient)
             .setIdGenerator(idGenerator)
             .setMetrics(metrics)
+            .setInternalUserCredentials(internalUserCredentials)
             .setOpRunnersFactory(this)
             .build();
     }
@@ -162,13 +172,8 @@ public class OperationRunnersFactory {
     {
         StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
 
-        var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(newGrpcChannel(state.portalApiAddress,
-            LzyPortalGrpc.SERVICE_NAME)), APP, () -> internalUserCredentials.get().token());
-        var portalOpClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(newGrpcChannel(
-                state.portalApiAddress, LongRunningServiceGrpc.SERVICE_NAME)), APP,
-            () -> internalUserCredentials.get().token());
-
         return FinishExecution.builder()
+            .setInstanceId(instanceId)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)
@@ -184,8 +189,6 @@ public class OperationRunnersFactory {
             .setState(state)
             .setFinishStatus(finishStatus)
             .setIdempotencyKey(idempotencyKey)
-            .setPortalClient(portalClient)
-            .setPortalOpClient(portalOpClient)
             .setChannelsClient(channelManagerClient)
             .setChannelsOpClient(channelManagerOpClient)
             .setSubjClient(subjectClient)
@@ -196,24 +199,20 @@ public class OperationRunnersFactory {
             .setS3SinkClient(s3SinkClient)
             .setIdGenerator(idGenerator)
             .setMetrics(metrics)
+            .setInternalUserCredentials(internalUserCredentials)
             .setOpRunnersFactory(this)
             .build();
     }
 
-    public AbortExecution createAbortExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                  @Nullable String userId, @Nullable String wfName,
-                                                  String execId, Status finishStatus)
+    public AbortExecution createAbortExecutionOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
+                                                       @Nullable String userId, @Nullable String wfName,
+                                                       String execId, Status finishStatus)
         throws Exception
     {
         StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
 
-        var portalClient = newBlockingClient(LzyPortalGrpc.newBlockingStub(newGrpcChannel(state.portalApiAddress,
-            LzyPortalGrpc.SERVICE_NAME)), APP, () -> internalUserCredentials.get().token());
-        var portalOpClient = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(newGrpcChannel(
-                state.portalApiAddress, LongRunningServiceGrpc.SERVICE_NAME)), APP,
-            () -> internalUserCredentials.get().token());
-
-        return AbortExecution.builder()
+        return PrivateAbortExecution.builder()
+            .setInstanceId(instanceId)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)
@@ -229,17 +228,57 @@ public class OperationRunnersFactory {
             .setState(state)
             .setFinishStatus(finishStatus)
             .setIdempotencyKey(idempotencyKey)
-            .setPortalClient(portalClient)
-            .setPortalOpClient(portalOpClient)
             .setChannelsClient(channelManagerClient)
             .setGraphClient(graphsClient)
             .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
+            .setAllocOpClient(allocOpClient)
             .setKafkaClient(kafkaAdminClient)
             .setKafkaLogsListeners(kafkaLogsListeners)
             .setS3SinkClient(s3SinkClient)
             .setIdGenerator(idGenerator)
             .setMetrics(metrics)
+            .setInternalUserCredentials(internalUserCredentials)
+            .setOpRunnersFactory(this)
+            .build();
+    }
+
+
+    public AbortExecution createAbortWorkflowOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
+                                                      @Nullable String userId, @Nullable String wfName,
+                                                      String execId, Status finishStatus)
+        throws Exception
+    {
+        StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
+
+        return PublicAbortExecution.builder()
+            .setInstanceId(instanceId)
+            .setId(opId)
+            .setDescription(opDesc)
+            .setUserId(userId)
+            .setWfName(wfName)
+            .setExecId(execId)
+            .setStorage(storage)
+            .setWfDao(wfDao)
+            .setExecDao(execDao)
+            .setGraphDao(graphDao)
+            .setOperationsDao(opDao)
+            .setExecOpsDao(execOpsDao)
+            .setExecutor(executor)
+            .setState(state)
+            .setFinishStatus(finishStatus)
+            .setIdempotencyKey(idempotencyKey)
+            .setChannelsClient(channelManagerClient)
+            .setGraphClient(graphsClient)
+            .setSubjClient(subjectClient)
+            .setAllocClient(allocClient)
+            .setAllocOpClient(allocOpClient)
+            .setKafkaClient(kafkaAdminClient)
+            .setKafkaLogsListeners(kafkaLogsListeners)
+            .setS3SinkClient(s3SinkClient)
+            .setIdGenerator(idGenerator)
+            .setMetrics(metrics)
+            .setInternalUserCredentials(internalUserCredentials)
             .setOpRunnersFactory(this)
             .build();
     }
@@ -249,11 +288,13 @@ public class OperationRunnersFactory {
                                                    LWFS.ExecuteGraphRequest request) throws Exception
     {
         ExecutionDao.ExecuteGraphData execGraphData = withRetries(LOG, () -> execDao.loadExecGraphData(execId, null));
+        LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
 
         ExecuteGraphState state = new ExecuteGraphState(request.getGraph());
         StorageClient storageClient = storageClientFactory.provider(execGraphData.storageConfig()).get();
 
         return ExecuteGraph.builder()
+            .setInstanceId(instanceId)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)
@@ -273,12 +314,15 @@ public class OperationRunnersFactory {
             .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
             .setGraphsClient(graphsClient)
+            .setChannelsClient(channelManagerClient)
+            .setStorageConfig(storageConfig)
             .setStorageClient(storageClient)
             .setVmPoolClient(vmPoolClient)
             .setKafkaClient(kafkaAdminClient)
             .setS3SinkClient(s3SinkClient)
             .setIdGenerator(idGenerator)
             .setMetrics(metrics)
+            .setInternalUserCredentials(internalUserCredentials)
             .setOpRunnersFactory(this)
             .build();
     }

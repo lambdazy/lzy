@@ -17,6 +17,7 @@ import ai.lzy.v1.iam.LSS;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -24,7 +25,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
 
+import static ai.lzy.iam.test.BaseTestWithIam.testEnvName;
+
 @Singleton
+@Requires(notEnv = testEnvName)
 public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceImplBase {
     public static final Logger LOG = LogManager.getLogger(LzySubjectService.class);
 
@@ -195,8 +199,8 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     private boolean internalAccess() {
         var currentSubject = Objects.requireNonNull(AuthenticationContext.current()).getSubject();
 
-        if (!accessClient.hasResourcePermission(
-                currentSubject, Root.INSTANCE.resourceId(), AuthPermission.INTERNAL_AUTHORIZE))
+        if (!accessClient.hasResourcePermission(currentSubject, Root.INSTANCE.resourceId(),
+            AuthPermission.INTERNAL_AUTHORIZE))
         {
             LOG.error("Not INTERNAL user::{} try to create subjects", currentSubject.id());
             throw new AuthPermissionDeniedException("");

@@ -1,10 +1,10 @@
 package ai.lzy.service.dao.impl;
 
 import ai.lzy.model.db.DbOperation;
-import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.ExecuteGraphState;
+import ai.lzy.service.dao.ExecutionOperationsDao;
+import ai.lzy.util.grpc.JsonUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nullable;
@@ -14,6 +14,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @Singleton
@@ -27,13 +28,19 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
     private static final String QUERY_SELECT_EXEC_OPERATIONS = """
         SELECT op_id, op_type, execution_id FROM execution_operations WHERE execution_id = ?""";
 
+    public static final String QUERY_DELETE_EXEC_OPERATION = """
+        DELETE FROM execution_operations WHERE op_id = ?""";
+
+    public static final String QUERY_DELETE_EXEC_OPERATIONS = """
+        DELETE FROM execution_operations WHERE op_id = ANY (?)""";
+
     private static final String QUERY_UPDATE_EXECUTE_GRAPH_OP_STATE = """
         UPDATE execution_operations SET state_json = ? WHERE op_id = ?""";
 
-    private final Storage storage;
+    private final LzyServiceStorage storage;
     private final ObjectMapper objectMapper;
 
-    public ExecutionOperationsDaoImpl(Storage storage, ObjectMapper objectMapper) {
+    public ExecutionOperationsDaoImpl(LzyServiceStorage storage, ObjectMapper objectMapper) {
         this.storage = storage;
         this.objectMapper = objectMapper;
     }
@@ -82,6 +89,36 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
                 st.setString(3, instanceId);
                 st.setString(4, execId);
                 st.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void deleteOp(String opId, @Nullable TransactionHandle transaction) throws SQLException {
+        LOG.debug("Delete operation from actives: { opId: {} }", opId);
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_DELETE_EXEC_OPERATION)) {
+                st.setString(1, opId);
+                if (st.executeUpdate() < 1) {
+                    LOG.error("Cannot delete unknown operation: { opId: {} }", opId);
+                    throw new RuntimeException("Operation with id='%s' not found".formatted(opId));
+                }
+            }
+        });
+    }
+
+    @Override
+    public void deleteOps(Collection<String> opIds, @Nullable TransactionHandle transaction) throws SQLException {
+        LOG.debug("Delete operations from actives: { opIds: {} }", JsonUtils.printAsArray(opIds));
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_DELETE_EXEC_OPERATIONS)) {
+                var sqlArr = connection.createArrayOf("TEXT", opIds.toArray());
+                st.setArray(1, sqlArr);
+                if (st.executeUpdate() < opIds.size()) {
+                    LOG.error("Some operation was not deleted from actives: { opIds: {} }",
+                        JsonUtils.printAsArray(opIds));
+                    throw new RuntimeException("Some operation not found, list ids " + JsonUtils.printAsArray(opIds));
+                }
             }
         });
     }

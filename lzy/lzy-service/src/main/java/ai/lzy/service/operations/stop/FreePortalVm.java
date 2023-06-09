@@ -37,7 +37,8 @@ final class FreePortalVm extends StopExecutionContextAwareStep implements Suppli
             //noinspection ResultOfMethodCallIgnored
             freeVmAllocClient.free(VmAllocatorApi.FreeRequest.newBuilder().setVmId(portalVmId()).build());
         } catch (StatusRuntimeException sre) {
-            return retryableFail(sre, "Cannot free portal VM", sre);
+            return retryableFail(sre, "Error in AllocatorGrpcClient:free call for VM with id='%s'"
+                .formatted(portalVmId()), sre);
         }
 
         try {

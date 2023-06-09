@@ -72,7 +72,13 @@ public final class StartExecution extends ExecutionOperationRunner {
     private StepResult complete() {
         var response = Any.pack(LWFS.StartWorkflowResponse.newBuilder().setExecutionId(execId()).build());
         try {
-            withRetries(log(), () -> completeOperation(null, response, null));
+            withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(storage())) {
+                    execOpsDao().deleteOp(id(), tx);
+                    completeOperation(null, response, tx);
+                    tx.commit();
+                }
+            });
         } catch (Exception e) {
             var sqlError = e instanceof SQLException;
 
@@ -98,8 +104,10 @@ public final class StartExecution extends ExecutionOperationRunner {
                     success[0] = Objects.equals(wfDao().getExecutionId(userId(), wfName(), tx), execId());
                     if (success[0]) {
                         wfDao().setActiveExecutionId(userId(), wfName(), null, tx);
+                        execOpsDao().createStopOp(stopOp.id(), instanceId(), execId(), tx);
                         operationsDao().create(stopOp, tx);
                     }
+                    execOpsDao().deleteOp(id(), tx);
                     failOperation(status, tx);
                     tx.commit();
                 }
@@ -119,7 +127,7 @@ public final class StartExecution extends ExecutionOperationRunner {
             try {
                 log().debug("{} Schedule action to abort execution that not started properly: { execId: {} }",
                     logPrefix(), execId());
-                var opRunner = opRunnersFactory().createAbortExecOpRunner(stopOp.id(), stopOp.description(), null,
+                var opRunner = opRunnersFactory().createAbortWorkflowOpRunner(stopOp.id(), stopOp.description(), null,
                     userId(), wfName(), execId(), Status.INTERNAL.withDescription("error on start"));
                 opsExecutor().startNew(opRunner);
             } catch (Exception e) {

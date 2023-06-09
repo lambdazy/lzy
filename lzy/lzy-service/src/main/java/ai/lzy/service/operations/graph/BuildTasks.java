@@ -50,7 +50,7 @@ public final class BuildTasks extends ExecuteGraphContextAwareStep implements Su
 
         final List<GraphExecutor.TaskDesc> tasks;
         try {
-            tasks = operationsToExecute().stream().map(this::buildTask).toList();
+            tasks = dataFlowGraph().getOperations().stream().map(this::buildTask).toList();
         } catch (IllegalArgumentException iae) {
             log().error("{} Cannot build graph task: {}", logPrefix(), iae.getMessage(), iae);
             return failAction().apply(Status.INVALID_ARGUMENT.withDescription(iae.getMessage()).asRuntimeException());

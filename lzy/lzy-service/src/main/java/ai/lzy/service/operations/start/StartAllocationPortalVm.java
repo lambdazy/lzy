@@ -1,7 +1,6 @@
 package ai.lzy.service.operations.start;
 
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
-import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.StartExecutionState;
 import ai.lzy.service.operations.ExecutionStepContext;
@@ -45,8 +44,8 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
+        // todo: remove execID wfName it's already noticed in logPrefix
         log().info("{} Allocate portal VM: { wfName: {}, execId: {} }", logPrefix(), wfName(), execId());
-        log().debug("{} Portal spec: {}", logPrefix(), spec);
 
         var cfg = prepareConfig();
         var args = formatToArgs(cfg);
@@ -60,23 +59,26 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
             withIdempotencyKey(allocClient, idempotencyKey() + "_alloc_portal_vm");
         final LongRunning.Operation op;
 
+        var allocateRequest = VmAllocatorApi.AllocateRequest.newBuilder()
+            .setSessionId(allocatorSessionId())
+            .setPoolLabel(spec.poolLabel())
+            .setZone(spec.poolZone())
+            .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.SYSTEM)
+            .addWorkload(VmAllocatorApi.AllocateRequest.Workload.newBuilder()
+                .setName("portal")
+                .setImage(spec.dockerImage())
+                .addAllArgs(args)
+                .putEnv(portalEnvPKEY, spec.rsaKeys().privateKey())
+                .putAllPortBindings(ports)
+                .build())
+            .build();
+
+        log().debug("{} Allocate VM request: {}", logPrefix(), safePrinter().shortDebugString(allocateRequest));
+
         try {
-            op = allocateVmClient.allocate(
-                VmAllocatorApi.AllocateRequest.newBuilder()
-                    .setSessionId(allocatorSessionId())
-                    .setPoolLabel(spec.poolLabel())
-                    .setZone(spec.poolZone())
-                    .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.SYSTEM)
-                    .addWorkload(VmAllocatorApi.AllocateRequest.Workload.newBuilder()
-                        .setName("portal")
-                        .setImage(spec.dockerImage())
-                        .addAllArgs(args)
-                        .putEnv(portalEnvPKEY, spec.rsaKeys().privateKey())
-                        .putAllPortBindings(ports)
-                        .build())
-                    .build());
+            op = allocateVmClient.allocate(allocateRequest);
         } catch (StatusRuntimeException sre) {
-            return retryableFail(sre, "Error in Alloc::allocate call", () -> {}, sre);
+            return retryableFail(sre, "Error in AllocatorGrpcClient::allocate call", () -> {}, sre);
         }
 
         setAllocateVmOpId(op.getId());
@@ -125,21 +127,17 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
     }
 
     private Map<String, Object> prepareConfig() {
-        var actualPortalPort = (spec.portalPort() == -1) ? FreePortFinder.find(10000, 11000)
-            : spec.portalPort();
-        var actualSlotsApiPort = (spec.slotsApiPort() == -1) ? FreePortFinder.find(11000, 12000)
-            : spec.slotsApiPort();
-
         return new HashMap<>(Map.of(
             "portal.portal-id", portalId(),
-            "portal.portal-api-port", actualPortalPort,
-            "portal.slots-api-port", actualSlotsApiPort,
-            "portal.channel-manager-address" + spec.channelManagerAddress(),
-            "portal.iam-address" + spec.iamAddress(),
-            "portal.whiteboard-address" + spec.whiteboardAddress(),
-            "portal.concurrency.workers-pool-size" + spec.workersPoolSize(),
-            "portal.concurrency.downloads-pool-size" + spec.downloadPoolSize(),
-            "portal.concurrency.chunks-pool-size" + spec.chunksPoolSize()));
+            "portal.portal-api-port", spec.portalPort(),
+            "portal.slots-api-port", spec.slotsApiPort(),
+            "portal.channel-manager-address", spec.channelManagerAddress(),
+            "portal.iam-address", spec.iamAddress(),
+            "portal.whiteboard-address", spec.whiteboardAddress(),
+            "portal.concurrency.workers-pool-size", spec.workersPoolSize(),
+            "portal.concurrency.downloads-pool-size", spec.downloadPoolSize(),
+            "portal.concurrency.chunks-pool-size", spec.chunksPoolSize())
+        );
     }
 
     private static List<String> formatToArgs(Map<String, Object> cfg) {

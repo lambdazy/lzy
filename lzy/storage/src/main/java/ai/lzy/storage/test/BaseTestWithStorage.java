@@ -49,4 +49,8 @@ public class BaseTestWithStorage {
     public int getPort() {
         return port;
     }
+
+    public String getAddress() {
+        return "localhost:" + getPort();
+    }
 }
