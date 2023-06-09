@@ -1,7 +1,6 @@
 package ai.lzy.service;
 
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
-import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -68,7 +67,6 @@ public class CleanExecutionCompanion {
     private final GraphExecutorGrpc.GraphExecutorBlockingStub graphExecutorClient;
     private final AllocatorGrpc.AllocatorBlockingStub allocatorClient;
 
-    @Nullable
     private final KafkaAdminClient kafkaAdminClient;
     private final KafkaLogsListeners kafkaLogsListeners;
     private final BeanFactory.S3SinkClient s3SinkClient;
@@ -324,7 +322,7 @@ public class CleanExecutionCompanion {
 
         if (portalDesc != null && portalDesc.subjectId() != null) {
             try {
-                subjectClient.removeSubject(new Worker(portalDesc.subjectId()));
+                subjectClient.removeSubject(portalDesc.subjectId());
             } catch (Exception e) {
                 LOG.warn("Cannot remove portal subject from iam: { executionId: {}, subjectId: {} }", executionId,
                     portalDesc.subjectId());
@@ -496,7 +494,7 @@ public class CleanExecutionCompanion {
         LOG.debug("Remove portal iam subject: { executionId: {}, subjectId: {} }", executionId, subjectId);
 
         try {
-            subjectClient.removeSubject(new Worker(subjectId));
+            subjectClient.removeSubject(subjectId);
             withRetries(LOG, () -> executionDao.updatePortalSubjectId(executionId, null, null));
         } catch (Exception e) {
             LOG.warn("Cannot remove portal iam subject: { executionId: {}, subjectId: {} }", executionId, subjectId);

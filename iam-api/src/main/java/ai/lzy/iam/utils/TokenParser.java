@@ -13,9 +13,13 @@ public final class TokenParser {
     private static final Pattern JWT_TOKEN_PATTERN = Pattern.compile(
             "^[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]*$");
 
+    // format: "<provider_login>/<uuid>"
     private static final Pattern OTT_TOKEN_PATTERN = Pattern.compile(
             "^[A-Za-z0-9-_]+/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
-    //        provider_login/uuid
+
+    // https://cloud.yandex.ru/docs/iam/concepts/authorization/iam-token#iam-token-format
+    private static final Pattern YC_IAM_TOKEN_PATTERN = Pattern.compile(
+        "^t1\\.[A-Z0-9a-z_-]+[=]{0,2}\\.[A-Z0-9a-z_-]{86}[=]{0,2}$");
 
     public TokenParser() {
     }
@@ -25,6 +29,11 @@ public final class TokenParser {
 
         if (header.startsWith("Bearer ")) {
             var token = header.substring("Bearer ".length()).trim();
+
+            var ycIamMatcher = YC_IAM_TOKEN_PATTERN.matcher(token);
+            if (ycIamMatcher.find()) {
+                return new Token(Token.Kind.YC_IAM, token);
+            }
 
             var jwtMatcher = JWT_TOKEN_PATTERN.matcher(token);
             if (jwtMatcher.find()) {
@@ -68,7 +77,8 @@ public final class TokenParser {
 
         public enum Kind {
             JWT,
-            OTT
+            OTT,
+            YC_IAM
         }
     }
 }

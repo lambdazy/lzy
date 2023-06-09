@@ -96,7 +96,7 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
             creds1, creds2);
         Assert.assertEquals(SubjectType.WORKER, subject.type());
 
-        var creds = subjectClient.listCredentials(subject);
+        var creds = subjectClient.listCredentials(subject.id());
         Assert.assertEquals(2, creds.size());
 
         creds = creds.stream().sorted(Comparator.comparing(SubjectCredentials::name)).toList();
@@ -116,18 +116,26 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
 
     @Override
     protected Subject createSubject(String name, SubjectType subjectType, List<SubjectCredentials> credentials) {
-        return subjectClient.createSubject(AuthProvider.GITHUB, name, subjectType,
+        var authProvider = subjectType == SubjectType.WORKER ? AuthProvider.INTERNAL : AuthProvider.GITHUB;
+        return createSubject(name, subjectType, authProvider, credentials);
+    }
+
+    @Override
+    protected Subject createSubject(String name, SubjectType subjectType, AuthProvider authProvider,
+                                    List<SubjectCredentials> credentials)
+    {
+        return subjectClient.createSubject(authProvider, name, subjectType,
             credentials.toArray(new SubjectCredentials[0]));
     }
 
     @Override
-    protected void removeSubject(Subject subject) {
-        subjectClient.removeSubject(subject);
+    protected void removeSubject(String subjectId) {
+        subjectClient.removeSubject(subjectId);
     }
 
     @Override
-    protected SubjectCredentials credentials(Subject subject, String name) throws NoSuchElementException {
-        return subjectClient.listCredentials(subject)
+    protected SubjectCredentials credentials(String subjectId, String name) throws NoSuchElementException {
+        return subjectClient.listCredentials(subjectId)
                 .stream()
                 .filter(c -> name.equals(c.name()))
                 .findAny()
@@ -135,12 +143,12 @@ public class SubjectServiceGrpcClientTest extends BaseSubjectServiceApiTest {
     }
 
     @Override
-    protected void addCredentials(Subject subject, String name) {
-        subjectClient.addCredentials(subject, new SubjectCredentials(name, "Value", CredentialsType.PUBLIC_KEY));
+    protected void addCredentials(String subjectId, String name) {
+        subjectClient.addCredentials(subjectId, new SubjectCredentials(name, "Value", CredentialsType.PUBLIC_KEY));
     }
 
     @Override
-    protected void removeCredentials(Subject subject, String name) {
-        subjectClient.removeCredentials(subject, name);
+    protected void removeCredentials(String subjectId, String name) {
+        subjectClient.removeCredentials(subjectId, name);
     }
 }

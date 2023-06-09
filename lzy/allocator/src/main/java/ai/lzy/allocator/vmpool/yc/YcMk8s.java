@@ -2,7 +2,11 @@ package ai.lzy.allocator.vmpool.yc;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.vmpool.*;
+import ai.lzy.allocator.vmpool.ClusterRegistry;
+import ai.lzy.allocator.vmpool.CpuTypes;
+import ai.lzy.allocator.vmpool.GpuTypes;
+import ai.lzy.allocator.vmpool.VmPoolRegistry;
+import ai.lzy.allocator.vmpool.VmPoolSpec;
 import com.google.common.net.HostAndPort;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
@@ -23,7 +27,6 @@ import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass.ListNodeGroupsRequest;
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.grpc.interceptors.RequestIdInterceptor;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -44,16 +47,8 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     private final Map<String, VmPoolSpec> systemPools = new ConcurrentHashMap<>();
     private final Map<String, VmPoolSpec> userPools = new ConcurrentHashMap<>();
 
-    private final Set<String> systemFolders = new HashSet<>();
-    private final Set<String> userFolders = new HashSet<>();
-
     private final Map<String, Set<String>> folder2clusters = new ConcurrentHashMap<>();
-
-    private record NodeGroupDesc(
-        String zone,
-        String label,
-        NodeGroup proto
-    ) {}
+    private final Map<String, Set<String>> cluster2labels = new ConcurrentHashMap<>();
 
     private record ClusterDesc(
         String clusterId,
@@ -61,7 +56,6 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         HostAndPort masterInternalAddress,
         HostAndPort masterExternalAddress,
         String masterCert,
-        Map<String, NodeGroupDesc> nodeGroups,
         String clusterIpv4CidrBlock,
         ClusterType type
     ) {}
@@ -122,11 +116,19 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     @Nullable
     public ClusterDescription findCluster(String poolLabel, String zone, ClusterType type) {
         // TODO(artolord) make better logic of vm scheduling
-        final var desc = clusters.values()
-            .stream()
-            .filter(cluster -> cluster.type.equals(type))
-            .filter(cluster -> cluster.nodeGroups.values().stream()
-                .anyMatch(ng -> ng.zone.equals(zone) && ng.label.equals(poolLabel)))
+
+        final var pools = switch (type) {
+            case System -> systemPools;
+            case User -> userPools;
+        };
+        final var poolSpec = pools.get(poolLabel);
+
+        if (poolSpec == null || !poolSpec.zones().contains(zone)) {
+            return null;
+        }
+
+        final var desc = clusters.values().stream()
+            .filter(c -> cluster2labels.get(c.clusterId()).contains(poolLabel))
             .findFirst()
             .orElse(null);
 
@@ -181,13 +183,13 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             throw new RuntimeException(msg);
         }
 
-        ClusterDesc clusterDesc = resolveClusterDescription(cluster, system);
+        resolveClusterDescription(cluster, system);
 
         // process node groups
 
-        NodeGroupServiceOuterClass.ListNodeGroupsResponse nodeGroups;
+        NodeGroupServiceOuterClass.ListNodeGroupsResponse nodeGroupsResponse;
         try {
-            nodeGroups = nodeGroupServiceClient.list(
+            nodeGroupsResponse = nodeGroupServiceClient.list(
                 ListNodeGroupsRequest.newBuilder()
                     .setFolderId(cluster.getFolderId())
                     .setPageSize(1000)
@@ -198,9 +200,10 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         }
 
         // TODO
-        assert nodeGroups.getNextPageToken().isEmpty();
+        assert nodeGroupsResponse.getNextPageToken().isEmpty();
 
-        for (var nodeGroup : nodeGroups.getNodeGroupsList()) {
+        final Set<String> clusterVmSpecLabels = new HashSet<>();
+        for (var nodeGroup : nodeGroupsResponse.getNodeGroupsList()) {
             if (!clusterId.equals(nodeGroup.getClusterId())) {
                 continue;
             }
@@ -222,10 +225,15 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             }
 
             resolveVmPoolSpec(cluster, nodeGroup, label, zone, system);
-
-            var nodeGroupDesc = new NodeGroupDesc(zone, label, nodeGroup);
-            clusterDesc.nodeGroups().put(nodeGroup.getId(), nodeGroupDesc);
+            clusterVmSpecLabels.add(label);
         }
+
+        cluster2labels.computeIfAbsent(clusterId, __ -> new HashSet<>()).forEach(label -> {
+            if (!clusterVmSpecLabels.contains(label)) {
+                (system ? systemPools : userPools).remove(label);
+            }
+        });
+        cluster2labels.put(clusterId, clusterVmSpecLabels);
     }
 
     private ClusterDesc resolveClusterDescription(Cluster cluster, boolean system) {
@@ -245,7 +253,6 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             HostAndPort.fromString(masterInternalAddress),
             HostAndPort.fromString(masterExternalAddress),
             masterCert,
-            new HashMap<>(),
             cluster.getIpAllocationPolicy().getClusterIpv4CidrBlock(),
             system ? ClusterType.System : ClusterType.User);
 
@@ -272,12 +279,13 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             master.getMasterTypeCase(), masterInternalAddress, masterExternalAddress, /* masterCert */ "***");
 
         folder2clusters.computeIfAbsent(cluster.getFolderId(), x -> new HashSet<>()).add(clusterId);
-        (system ? systemFolders : userFolders).add(cluster.getFolderId());
         clusters.put(clusterId, clusterNewDesc);
         return clusterNewDesc;
     }
 
-    private void resolveVmPoolSpec(Cluster cluster, NodeGroup nodeGroup, String label, String zone, boolean system) {
+    private void resolveVmPoolSpec(Cluster cluster, NodeGroup nodeGroup,
+                                   String label, String zone, boolean system)
+    {
         var nodeTemplate = nodeGroup.getNodeTemplate();
         var spec = nodeTemplate.getResourcesSpec();
 
@@ -322,6 +330,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
 
         var newVmSpec = new VmPoolSpec(label, cpuType, (int) spec.getCores(), gpuType, (int) spec.getGpus(),
             (int) (spec.getMemory() >> 30), new HashSet<>());
+        newVmSpec.zones().add(zone);
 
         var pool = system ? systemPools : userPools;
         var oldVmSpec = pool.get(label);
@@ -346,7 +355,6 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             nodeTemplate.getPlatformId(), spec.getCores(), cpuType, spec.getGpus(), gpuType, spec.getMemory());
 
         pool.put(label, newVmSpec);
-        newVmSpec.zones().add(zone);
     }
 
     private static String ct(boolean system) {

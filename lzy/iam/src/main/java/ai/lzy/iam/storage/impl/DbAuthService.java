@@ -4,8 +4,6 @@ import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.resources.subjects.User;
-import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.iam.storage.db.IamDataSource;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.credentials.JwtCredentials;
@@ -63,7 +61,7 @@ public class DbAuthService implements AuthenticateService {
         var providerLogin = (String) jwtPayload.get(Claims.ISSUER);
         var providerName = (String) jwtPayload.get("pvd");
 
-        LOG.debug("Authenticate by JWT: id={}, provider={}", providerLogin, providerName);
+        LOG.debug("Authenticate by JWT: id={}, provider={}, credName={}", providerLogin, providerName, credName);
 
         if (Strings.isEmpty(providerLogin) || Strings.isEmpty(providerName)) {
             LOG.error("Either providerLogin ({}) or providerName ({}) is empty. Token '{}' of type {}",
@@ -94,23 +92,20 @@ public class DbAuthService implements AuthenticateService {
             st.setString(++parameterIndex, credName);
 
             var rs = st.executeQuery();
-            while (rs.next()) {
+            if (rs.next()) {
                 // validate auth provider
-                AuthProvider.valueOf(providerName);
+                var authProvider = AuthProvider.valueOf(providerName);
 
                 try (StringReader keyReader = new StringReader(rs.getString("cred_value"))) {
                     if (JwtUtils.checkJWT(keyReader, credentials.token(), providerLogin, providerName)) {
                         var subjectId = rs.getString("user_id");
                         var subjectType = SubjectType.valueOf(rs.getString("user_type"));
-
-                        var subject = switch (subjectType) {
-                            case USER -> new User(subjectId);
-                            case WORKER -> new Worker(subjectId);
-                        };
-
+                        var subject = Subject.of(subjectId, subjectType, authProvider, providerLogin);
                         LOG.info("Successfully checked {}::{} token with key name {}",
                             subjectType, subjectId, rs.getString("cred_name"));
                         return subject;
+                    } else {
+                        throw new AuthPermissionDeniedException("Permission denied. JWT check failed.");
                     }
                 } catch (Exception e) {
                     throw new AuthInternalException(e);

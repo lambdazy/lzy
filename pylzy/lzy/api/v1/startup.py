@@ -21,6 +21,7 @@ from lzy.proxy import proxy
 from lzy.serialization.registry import LzySerializerRegistry, SerializerImport
 
 NAME = __name__
+MAIN_PID_ENV_VAR = 'LZY_OP_MAIN_PID'
 _lzy_mount: Optional[str] = None  # for tests only
 __lzy_lazy_argument = "__lzy_lazy_argument__"
 
@@ -79,6 +80,35 @@ def write_data(path: str, typ: Type, data: Any, serializers: SerializerRegistry,
         os.fsync(out_handle.fileno())
 
 
+def _get_main_pid() -> int:
+    """
+    Some programs can be replicated by subprocesses, i.e. as in default DDP strategy in Pytorch Lightning. This will
+    cause repeated execution of this startup script. We write @op results only from initial process to avoid multiple
+    writes, which will cause problems in output slots files.
+
+    We consider different approaches to check if process is initial:
+    - Setting environment variable LZY_OP_MAIN_PID value equal to PID of initial process. On start, each process
+      match its PID with LZY_OP_MAIN_PID, if they are equal, than process is initial.
+    - Creating pidfile. Initial process creates marker file, subprocesses will check its existence to understand
+      that they are not initial.
+
+    We choose usage of LZY_OP_MAIN_PID. Initial process set this variable by itself, counting on the fact that the
+    subprocesses will inherit all environment variables from their parent. If subprocesses which don't inherit
+    environment variables will become a common use-case, we will have to change way of setting LZY_OP_MAIN_PID.
+
+    As alternative, we can set this variable in run command, such as "LZY_OP_MAIN_PID=$BASHPID python startup.py ...".
+    However, this approach can work differently depending on the way of launching of startup script.
+
+    As for pidfile, since this file cannot be guaranteed to be deleted (i.e. if execution crashed before deletion), we
+    have to construct its path such as it cannot be clashed with further @op execution, if they are eventually will be
+    scheduled to the same pod without cleanup (i.e., same lzy user of @op retry). It will require to include some
+    # @op metadata (operation ID, launch ID, ...) to startup script input, what looks like an abstraction leak.
+    """
+    if MAIN_PID_ENV_VAR not in os.environ:
+        os.environ[MAIN_PID_ENV_VAR] = str(os.getpid())
+    return int(os.environ[MAIN_PID_ENV_VAR])
+
+
 def process_execution(
     serializers: SerializerRegistry,
     op: Callable,
@@ -89,6 +119,10 @@ def process_execution(
     logger: Logger,
     lazy_arguments: bool
 ):
+    pid, ppid = os.getpid(), os.getppid()
+    main_pid = _get_main_pid()
+    logger.debug("Starting process with pid %d (ppid %d, main pid %s)", pid, ppid, main_pid)
+
     logger.info("Reading arguments...")
     exc_typ, exc_path = exception_path
 
@@ -116,7 +150,14 @@ def process_execution(
         logger.error(f"Execution completed with error `{e}` in {time.time() - start}")
         write_data(exc_path, exc_typ, sys.exc_info(), serializers, logger)
         raise
+    finally:
+        # TODO: actually needed only for unit tests, move to common tests tearDown() logic
+        del os.environ[MAIN_PID_ENV_VAR]
     logger.info(f"Execution completed in {time.time() - start} sec")
+
+    if main_pid != pid:
+        logger.debug("Don't write results from not main process with pid %d", pid)
+        return
 
     logger.info("Writing results...")
     try:

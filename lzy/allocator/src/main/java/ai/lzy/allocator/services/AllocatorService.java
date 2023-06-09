@@ -774,9 +774,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         var type = request.getVolumeTypeCase();
         if (type == VmAllocatorApi.MountRequest.VolumeTypeCase.DISK_VOLUME) {
             var diskVolume = request.getDiskVolume();
+            var accessMode = validateAccessMode(diskVolume.getAccessMode());
+            var storageClass = validateStorageClass(diskVolume.getStorageClass());
             var id = idGenerator.generate("vm-volume-");
             final var diskVolumeDescription = new DiskVolumeDescription(id, diskVolume.getDiskId(),
-                diskVolume.getSizeGb());
+                diskVolume.getSizeGb(), accessMode, storageClass);
             var mountName = "disk-" + diskVolume.getDiskId();
             var dynamicMount = DynamicMount.createNew(vm.vmId(), clusterId, mountName,
                 mountConfig.getWorkerMountPoint() + "/" + request.getMountPath(),
@@ -822,8 +824,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         LOG.error(message);
                         throw Status.NOT_FOUND.withDescription(message).asException();
                     }
+                    var accessMode = validateAccessMode(diskVolume.getAccessMode());
+                    var storageClass = validateStorageClass(diskVolume.getStorageClass());
                     yield new VolumeRequest(idGenerator.generate("disk-volume-").toLowerCase(Locale.ROOT),
-                        new DiskVolumeDescription(volume.getName(), diskVolume.getDiskId(), disk.spec().sizeGb()));
+                        new DiskVolumeDescription(volume.getName(), diskVolume.getDiskId(), disk.spec().sizeGb(),
+                            accessMode, storageClass));
                 }
 
                 case HOST_PATH_VOLUME -> {
@@ -984,5 +989,29 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             return null;
         }
         return new Vm.TunnelSettings(proxyV6Address, tunnelIndex);
+    }
+
+    private Volume.AccessMode validateAccessMode(VolumeApi.DiskVolumeType.AccessMode accessMode) {
+        return switch (accessMode) {
+            case READ_WRITE_ONCE -> Volume.AccessMode.READ_WRITE_ONCE;
+            case READ_WRITE_ONCE_POD -> Volume.AccessMode.READ_WRITE_ONCE_POD;
+            case READ_WRITE_MANY -> Volume.AccessMode.READ_WRITE_MANY;
+            case READ_ONLY_MANY -> Volume.AccessMode.READ_ONLY_MANY;
+            case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT.withDescription("invalid access_mode")
+                .asRuntimeException();
+            default -> Volume.AccessMode.READ_WRITE_ONCE;
+        };
+    }
+
+    private DiskVolumeDescription.StorageClass validateStorageClass(
+        VolumeApi.DiskVolumeType.StorageClass storageClass
+    ) {
+        return switch (storageClass) {
+            case STORAGE_CLASS_UNSPECIFIED -> null;
+            case HDD -> DiskVolumeDescription.StorageClass.HDD;
+            case SSD -> DiskVolumeDescription.StorageClass.SSD;
+            case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT.withDescription("invalid storage_class")
+                .asRuntimeException();
+        };
     }
 }

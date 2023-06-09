@@ -1,0 +1,96 @@
+syntax = "proto3";
+
+package ai.lzy.v1.channel.v2;
+
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
+import "ai/lzy/v1/common/channel.proto";
+import "ai/lzy/v1/common/data-scheme.proto";
+
+option java_outer_classname = "LCMS";
+option java_package = "ai.lzy.v1.channel.v2";
+
+service LzyChannelManager {
+
+  rpc Bind (BindRequest) returns (BindResponse) {}
+
+  rpc Unbind (UnbindRequest) returns (UnbindResponse) {}
+
+  rpc TransferCompleted (TransferCompletedRequest) returns (TransferCompletedResponse);
+
+  rpc TransferFailed (TransferFailedRequest) returns (TransferFailedResponse);
+
+  rpc GetChannelsStatus (GetChannelsStatusRequest) returns (GetChannelsStatusResponse);
+
+}
+
+// =========== Bind ==============
+
+message BindRequest {
+  string execution_id = 1;
+  string channel_id   = 2;   // Id of channel to bind to
+
+  string peer_id      = 3;
+  string peer_url     = 4;   // URL of slots api to connect to
+  Role role           = 5;
+
+  enum Role {
+    UNSPECIFIED = 0;
+    CONSUMER = 1;
+    PRODUCER = 2;
+  }
+}
+
+message BindResponse {
+  // Data scheme of channel. Data of slot can be validated with this scheme
+  common.DataScheme data_scheme                   = 1;
+
+  // Peer like in StartTransfer call in slots api
+  // If set, bound slot must start this new transfer
+  /* optional */ common.PeerDescription peer = 2;
+}
+
+// =========== Unbind ==============
+
+message UnbindRequest {
+  string peer_id = 1;
+}
+
+message UnbindResponse {}
+
+// =========== GetChannelsStatus ==============
+
+message GetChannelsStatusRequest {
+  string execution_id = 1;
+  repeated string channel_ids = 2;
+}
+
+message GetChannelsStatusResponse {
+  repeated common.ChannelStatus channels = 1;
+}
+
+// =========== TransferCompleted ==============
+
+message TransferCompletedRequest {
+  string slot_id  = 1;  // Peer id of slot that completed transfer
+  string peer_id = 2;
+}
+
+message TransferCompletedResponse {}
+
+
+// =========== TransferFailed ==============
+
+message TransferFailedRequest {
+  string slot_id     = 1;  // Peer id of slot that failed transfer
+  string peer_id     = 2;
+
+  string description = 3;  // Error description for logging
+}
+
+message TransferFailedResponse {
+  common.PeerDescription new_peer = 1;
+}
+
+
+

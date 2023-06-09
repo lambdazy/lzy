@@ -7,13 +7,7 @@ import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.DiskSpec;
 import ai.lzy.allocator.disk.DiskType;
 import ai.lzy.allocator.disk.dao.DiskDao;
-import ai.lzy.allocator.model.CachePolicy;
-import ai.lzy.allocator.model.DiskVolumeDescription;
-import ai.lzy.allocator.model.Session;
-import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.VolumeMount;
-import ai.lzy.allocator.model.VolumeRequest;
-import ai.lzy.allocator.model.Workload;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.common.IdGenerator;
@@ -29,19 +23,11 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 
 import java.sql.SQLException;
 import java.time.Duration;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static java.time.Instant.now;
@@ -193,7 +179,8 @@ public class DaoTest {
         final var wl1 = new Workload(
             "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222),
             List.of(volume));
-        final var volumeRequest = new VolumeRequest("id-1", new DiskVolumeDescription("diskVolume", "diskId", 3));
+        final var volumeRequest = new VolumeRequest("id-1", new DiskVolumeDescription("diskVolume", "diskId", 3,
+            Volume.AccessMode.READ_WRITE_ONCE, null));
 
         final var vmSpec = new Vm.Spec(
             "placeholder",

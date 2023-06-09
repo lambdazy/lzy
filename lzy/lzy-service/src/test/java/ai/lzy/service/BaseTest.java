@@ -7,6 +7,7 @@ import ai.lzy.channelmanager.test.ChannelManagerDecorator;
 import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.graph.test.GraphExecutorDecorator;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.User;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.longrunning.OperationsService;
@@ -133,7 +134,7 @@ public class BaseTest {
                 throw new AuthPermissionDeniedException("heck");
             }
 
-            return new User(iam.getInternalUserName());
+            return new User(iam.getInternalUserName(), AuthProvider.INTERNAL, iam.getInternalUserName());
         });
 
         var workflowAddress = HostAndPort.fromString(config.getAddress());

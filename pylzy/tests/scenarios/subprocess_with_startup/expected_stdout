@@ -1,0 +1,4 @@
+hello from main process
+hello from subprocess
+subprocess exit code: 0
+main process result: 42

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package ai.lzy.v1.iam;
 
+import "google/protobuf/any.proto";
 import "google/protobuf/timestamp.proto";
 import "ai/lzy/v1/validation/validation.proto";
 
@@ -16,6 +17,9 @@ message Resource {
 message Subject {
   string id = 1;
   string type = 2;
+  AuthProvider auth_provider = 3;
+  string provider_id = 4;
+  map<string, string> meta = 5;
 }
 
 message Credentials {
@@ -50,4 +54,5 @@ enum AuthProvider {
   AUTH_PROVIDER_UNSPECIFIED = 0;
   INTERNAL = 1;
   GITHUB = 2;
+  EXTERNAL = 3;
 }

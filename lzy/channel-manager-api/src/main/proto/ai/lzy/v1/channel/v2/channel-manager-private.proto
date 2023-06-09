@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package ai.lzy.v1.channel.v2;
+
+import "ai/lzy/v1/common/channel.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
+import "ai/lzy/v1/common/data-scheme.proto";
+
+option java_outer_classname = "LCMPS";
+option java_package = "ai.lzy.v1.channel.v2";
+
+service LzyChannelManagerPrivate {
+  rpc GetOrCreate (GetOrCreateRequest) returns (GetOrCreateResponse);
+
+  // Does nothing, just drops channel and all the peers from db
+  // All failed vms and other resources must be released by other services
+  rpc Destroy (DestroyRequest) returns (DestroyResponse) {}
+
+  // Like Destroy, but for all channels of this wf
+  rpc DestroyAll (DestroyAllRequest) returns (DestroyAllResponse) {}
+
+  rpc Status (StatusRequest) returns (StatusResponse);
+
+  rpc List (ListRequest) returns (ListResponse);
+}
+
+// ============== Create ==================
+
+message GetOrCreateRequest {
+  string execution_id                                     = 1;
+  string workflow_name                                    = 2;
+  string user_id                                          = 3;
+
+  /* optional */ai.lzy.v1.common.DataScheme scheme        = 4;  // If not set, using plain DataScheme
+
+  // Initial storage peer
+  oneof initial_storage_peer {
+    common.PeerDescription.StoragePeer producer   = 5;
+    common.PeerDescription.StoragePeer consumer   = 6;
+  }
+}
+
+message GetOrCreateResponse {
+  string channel_id = 1;
+}
+
+// ============== Destroy ==================
+
+message DestroyRequest {
+  string channel_id = 1;
+  string reason     = 2;
+}
+
+message DestroyResponse {}
+
+// ============== DestroyAll ==================
+
+message DestroyAllRequest {
+  string execution_id = 1;
+  string reason       = 2;
+}
+
+message DestroyAllResponse {}
+
+// ============== Status ==================
+
+message StatusRequest {
+  string channel_id = 1;
+}
+
+message StatusResponse {
+  common.ChannelStatus channel = 1;
+}
+
+// ============== List ==================
+
+message ListRequest {
+  string execution_id = 1;
+}
+
+message ListResponse {
+  repeated common.ChannelStatus statuses = 1;
+}
