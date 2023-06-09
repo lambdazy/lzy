@@ -57,7 +57,7 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
         }
 
 
-        var storagePeerId = idGenerator.generate("storage_peer-");
+        var storagePeerId = idGenerator.generate("storage-peer-");
         var channelId = idGenerator.generate("channel-");
 
         var role = switch (request.getInitialStoragePeerCase()) {
