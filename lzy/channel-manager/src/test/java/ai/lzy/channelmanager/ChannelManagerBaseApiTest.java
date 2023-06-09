@@ -353,7 +353,7 @@ public class ChannelManagerBaseApiTest {
         private final SubjectServiceClient subjectClient;
         private final AccessBindingClient accessBindingClient;
 
-        IamClient(IamClientConfiguration config) {
+        public IamClient(IamClientConfiguration config) {
             this.channel = GrpcUtils.newGrpcChannel(config.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
             var iamToken = config.createRenewableToken();
             this.subjectClient = new SubjectServiceGrpcClient("TestClient", channel, iamToken::get);

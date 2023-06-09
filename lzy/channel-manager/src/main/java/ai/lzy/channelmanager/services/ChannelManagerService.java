@@ -13,6 +13,7 @@ import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.operation.ChannelOperationManager;
 import ai.lzy.channelmanager.test.InjectedFailures;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -111,7 +112,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
         final String userId = channel.getUserId();
         final String workflowName = channel.getWorkflowName();
-        if (!accessManager.checkAccess(subjId, userId, workflowName, ChannelOperation.Type.BIND)) {
+        if (!checkAccess(subjId, userId, workflowName, ChannelOperation.Type.BIND)) {
             LOG.error(operationDescription + "failed: PERMISSION DENIED; workflowName: {}, userId: {}",
                 workflowName, userId);
             response.onError(Status.PERMISSION_DENIED.withDescription(
@@ -231,7 +232,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         final String channelId = channel.getId();
         final String userId = channel.getUserId();
         final String workflowName = channel.getWorkflowName();
-        if (!accessManager.checkAccess(subjId, userId, workflowName, ChannelOperation.Type.UNBIND)) {
+        if (!checkAccess(subjId, userId, workflowName, ChannelOperation.Type.UNBIND)) {
             LOG.error(operationDescription + "failed: PERMISSION DENIED; workflowName: {}, userId: {}",
                 workflowName, userId);
             response.onError(Status.PERMISSION_DENIED.withDescription(
@@ -350,7 +351,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
 
             final String userId = channel.getUserId();
             final String workflowName = channel.getWorkflowName();
-            if (!accessManager.checkAccess(subjId, userId, workflowName, ChannelOperation.Type.BIND)) {
+            if (!checkAccess(subjId, userId, workflowName, ChannelOperation.Type.BIND)) {
                 LOG.error("Get channel status (executionId: {}, channelId: {}) failed: PERMISSION DENIED; " +
                         "workflowName: {}, userId: {}", request.getExecutionId(), channelId, workflowName, userId);
                 response.onError(Status.PERMISSION_DENIED.withDescription(
@@ -425,4 +426,13 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         return Endpoint.SlotOwner.valueOf(origin.name());
     }
 
+    private boolean checkAccess(String subjId, String userId, String workflowName, ChannelOperation.Type opType) {
+        // TODO: retries
+        final var permission = switch (opType) {
+            case BIND, UNBIND -> AuthPermission.WORKFLOW_RUN;
+            case DESTROY -> AuthPermission.WORKFLOW_STOP;
+        };
+
+        return accessManager.checkAccess(subjId, userId, workflowName, permission);
+    }
 }

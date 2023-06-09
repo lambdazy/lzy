@@ -1,9 +1,9 @@
 package ai.lzy.channelmanager.operation;
 
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
-import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.PreDestroy;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -11,18 +11,16 @@ import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Singleton
 public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
 
     private static final Logger LOG = LogManager.getLogger(ChannelOperationExecutor.class);
 
-    // for micronaut
-    private final ChannelManagerDataSource dataSource;
 
-    public ChannelOperationExecutor(ChannelManagerDataSource dataSource, ChannelManagerConfig config) {
+    public ChannelOperationExecutor(ChannelManagerConfig config) {
         super(config.getExecutorThreadsCount(), new ExecutorThreadFactory());
         this.setKeepAliveTime(1, TimeUnit.MINUTES);
         this.setMaximumPoolSize(20);
-        this.dataSource = dataSource;
     }
 
     @Override
