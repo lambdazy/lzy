@@ -25,7 +25,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class LzyServiceTestContext {
-    private static final String grpcClientName = "Test-Client";
+    private static final String GRPC_CLIENT_NAME = "TestClient";
 
     private ApplicationContext lzyMicronautContext;
     private App lzyApp;
@@ -41,15 +41,15 @@ public class LzyServiceTestContext {
     }
 
     public LzyWorkflowServiceBlockingStub grpcClient() {
-        return newBlockingClient(LzyWorkflowServiceGrpc.newBlockingStub(grpcChannel), grpcClientName, null);
+        return newBlockingClient(LzyWorkflowServiceGrpc.newBlockingStub(grpcChannel), GRPC_CLIENT_NAME, null);
     }
 
     public LzyWorkflowPrivateServiceBlockingStub privateGrpcClient() {
-        return newBlockingClient(LzyWorkflowPrivateServiceGrpc.newBlockingStub(grpcChannel), grpcClientName, null);
+        return newBlockingClient(LzyWorkflowPrivateServiceGrpc.newBlockingStub(grpcChannel), GRPC_CLIENT_NAME, null);
     }
 
     public LongRunningServiceBlockingStub grpcLongRunningClient() {
-        return newBlockingClient(LongRunningServiceGrpc.newBlockingStub(grpcChannel), grpcClientName, null);
+        return newBlockingClient(LongRunningServiceGrpc.newBlockingStub(grpcChannel), GRPC_CLIENT_NAME, null);
     }
 
     public OperationDaoDecorator operationsDao() {
@@ -66,7 +66,7 @@ public class LzyServiceTestContext {
         lzyProps.putAll(configOverrides);
         lzyProps.put("lzy-service.address", HostAndPort.fromParts("localhost", GrpcUtils.rollPort()).toString());
 
-        lzyMicronautContext = ApplicationContext.run(PropertySource.of(lzyProps), BeanFactory.testEnvName);
+        lzyMicronautContext = ApplicationContext.run(PropertySource.of(lzyProps), BeanFactory.TEST_ENV_NAME);
         serviceConfig = lzyMicronautContext.getBean(LzyServiceConfig.class);
 
         lzyApp = lzyMicronautContext.getBean(App.class);

@@ -350,7 +350,7 @@ public class OperationDaoImpl implements OperationDao {
         DbOperation.execute(transaction, storage, connection -> {
             try (var statement = connection.prepareStatement(QUERY_FAIL_OPERATIONS)) {
                 statement.setBytes(1, error.toByteArray());
-                Array sqlArr = connection.createArrayOf("VARCHAR", ids.toArray());
+                Array sqlArr = connection.createArrayOf("TEXT", ids.toArray());
                 statement.setArray(2, sqlArr);
                 statement.executeUpdate();
             }

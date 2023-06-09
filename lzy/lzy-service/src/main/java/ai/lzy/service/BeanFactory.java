@@ -2,7 +2,6 @@ package ai.lzy.service;
 
 import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
-import ai.lzy.common.UUIDIdGenerator;
 import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
@@ -65,10 +64,10 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Factory
 public class BeanFactory {
-    public static final String testEnvName = "local-tests";
+    public static final String TEST_ENV_NAME = "local-tests";
 
     @Singleton
-    @Requires(notEnv = testEnvName)
+    @Requires(notEnv = TEST_ENV_NAME)
     public PortalServiceSpec portalVmSpec(LzyServiceConfig serviceCfg) throws IOException, InterruptedException {
         return new PortalServiceSpec(serviceCfg.getPortal().getPoolZone(), serviceCfg.getPortal().getPoolLabel(),
             serviceCfg.getPortal().getDockerImage(), RsaUtils.generateRsaKeys(),
@@ -224,7 +223,7 @@ public class BeanFactory {
 
     @Singleton
     @Named("LzyServiceOperationDao")
-    @Requires(notEnv = testEnvName)
+    @Requires(notEnv = TEST_ENV_NAME)
     public OperationDao operationDao(LzyServiceStorage storage) {
         return new OperationDaoImpl(storage);
     }
@@ -233,13 +232,6 @@ public class BeanFactory {
     @Named("LzyServiceObjectMapper")
     public ObjectMapper mapper() {
         return new ObjectMapper().registerModule(new ProtobufModule());
-    }
-
-    @Singleton
-    @Named("LzyServiceIdGenerator")
-    @Requires(notEnv = testEnvName)
-    public IdGenerator idGenerator() {
-        return new UUIDIdGenerator();
     }
 
     @Singleton
@@ -259,21 +251,21 @@ public class BeanFactory {
     @Bean(preDestroy = "destroy")
     @Singleton
     @Named("LzyServiceStorageClientFactory")
-    @Requires(notEnv = testEnvName)
+    @Requires(notEnv = TEST_ENV_NAME)
     public StorageClientFactory storageClientFactory() {
         return new StorageClientFactory(10, 10);
     }
 
     @Singleton
     @Named("LzyServiceKafkaAdminClient")
-    @Requires(notEnv = testEnvName)
+    @Requires(notEnv = TEST_ENV_NAME)
     public KafkaAdminClient kafkaAdminClient(LzyServiceConfig config) {
         return new ScramKafkaAdminClient(config.getKafka());
     }
 
     @Singleton
     @Named("LzyServiceKafkaAdminClient")
-    @Requires(env = testEnvName)
+    @Requires(env = TEST_ENV_NAME)
     public KafkaAdminClient testKafkaAdminClient(LzyServiceConfig config) {
         return new NoopKafkaAdminClient();
     }
@@ -341,7 +333,7 @@ public class BeanFactory {
     }
 
     @Bean
-    @Requires(env = testEnvName)
+    @Requires(env = TEST_ENV_NAME)
     public PortalServiceSpec portalVmSpecForTests(LzyServiceConfig serviceCfg)
         throws IOException, InterruptedException
     {
@@ -355,22 +347,21 @@ public class BeanFactory {
 
     @Singleton
     @Named("LzyServiceOperationDao")
-    @Requires(env = testEnvName)
+    @Requires(env = TEST_ENV_NAME)
     public OperationDao operationDaoDecorator(LzyServiceStorage storage) {
         return new OperationDaoDecorator(storage);
     }
 
     @Singleton
     @Named("LzyServiceIdGenerator")
-    @Requires(env = testEnvName)
-    public IdGenerator idGeneratorForTests() {
+    public IdGenerator idGenerator() {
         return new RandomIdGenerator();
     }
 
     @Bean(preDestroy = "destroy")
     @Singleton
     @Named("LzyServiceStorageClientFactory")
-    @Requires(env = testEnvName)
+    @Requires(env = TEST_ENV_NAME)
     public StorageClientFactory storageClientFactoryForTests() {
         return new StorageClientFactory(2, 2);
     }

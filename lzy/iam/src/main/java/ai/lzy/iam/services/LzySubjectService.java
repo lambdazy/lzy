@@ -25,10 +25,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
 
-import static ai.lzy.iam.test.BaseTestWithIam.testEnvName;
+import static ai.lzy.iam.BeanFactory.TEST_ENV_NAME;
 
 @Singleton
-@Requires(notEnv = testEnvName)
+@Requires(notEnv = TEST_ENV_NAME)
 public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceImplBase {
     public static final Logger LOG = LogManager.getLogger(LzySubjectService.class);
 

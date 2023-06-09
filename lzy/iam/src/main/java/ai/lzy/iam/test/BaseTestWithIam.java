@@ -25,11 +25,10 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
+import static ai.lzy.iam.BeanFactory.TEST_ENV_NAME;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 public class BaseTestWithIam {
-    public static final String testEnvName = "local-test";
-
     private ApplicationContext iamCtx;
     private LzyIAM iamApp;
     private int port;
@@ -45,7 +44,7 @@ public class BaseTestWithIam {
         var iamProps = new YamlPropertySourceLoader().read("iam",
             new FileInputStream("../iam/src/main/resources/application-test.yml"));
         iamProps.putAll(overrides);
-        iamCtx = ApplicationContext.run(PropertySource.of(iamProps), testEnvName);
+        iamCtx = ApplicationContext.run(PropertySource.of(iamProps), TEST_ENV_NAME);
 
         var config = iamCtx.getBean(ServiceConfig.class);
         port = GrpcUtils.rollPort();

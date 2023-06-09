@@ -9,10 +9,10 @@ import jakarta.inject.Singleton;
 
 import java.util.function.Consumer;
 
-import static ai.lzy.iam.test.BaseTestWithIam.testEnvName;
+import static ai.lzy.iam.BeanFactory.TEST_ENV_NAME;
 
 @Singleton
-@Requires(env = testEnvName)
+@Requires(env = TEST_ENV_NAME)
 public class LzySubjectServiceDecorator extends LzySubjectService {
     private volatile Consumer<String> onCreate = subjId -> {};
     private volatile Consumer<String> onRemove = subjId -> {};

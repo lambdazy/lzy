@@ -51,7 +51,7 @@ public class App {
         grpcServer.start();
         metricReporter.start();
         LOG.info("LzyServer started at {}",
-            grpcServer.getListenSockets().stream().map(Object::toString).collect(Collectors.joining()));
+            grpcServer.getListenSockets().stream().map(Object::toString).collect(Collectors.joining(", ")));
     }
 
     public void shutdown(boolean force) {
