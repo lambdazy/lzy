@@ -106,6 +106,6 @@ public class OperationDaoDecorator implements OperationDao {
     public Operation failOperation(String operationId, Status error, TransactionHandle tx, Logger log)
         throws SQLException
     {
-        return OperationDao.super.failOperation(operationId, error, tx, log);
+        return delegate.failOperation(operationId, error, tx, log);
     }
 }
