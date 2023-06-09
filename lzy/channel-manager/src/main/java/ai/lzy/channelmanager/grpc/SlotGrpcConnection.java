@@ -17,6 +17,7 @@ public class SlotGrpcConnection {
     private final ManagedChannel channel;
     private final LzySlotsApiGrpc.LzySlotsApiBlockingStub slotApiBlockingStub;
     private final LongRunningServiceGrpc.LongRunningServiceBlockingStub operationApiBlockingStub;
+    private final ai.lzy.v1.slots.v2.LzySlotsApiGrpc.LzySlotsApiBlockingStub v2SlotsApi;
 
     SlotGrpcConnection(RenewableJwt credentials, HostAndPort address) {
         this.channel = newGrpcChannel(address, LzySlotsApiGrpc.SERVICE_NAME);
@@ -24,6 +25,8 @@ public class SlotGrpcConnection {
             LzySlotsApiGrpc.newBlockingStub(channel), APP, () -> credentials.get().token());
         this.operationApiBlockingStub = newBlockingClient(
             LongRunningServiceGrpc.newBlockingStub(channel), APP, () -> credentials.get().token());
+        this.v2SlotsApi = newBlockingClient(
+            ai.lzy.v1.slots.v2.LzySlotsApiGrpc.newBlockingStub(channel), APP, () -> credentials.get().token());
     }
 
     public LzySlotsApiGrpc.LzySlotsApiBlockingStub slotApiBlockingStub() {
@@ -32,6 +35,10 @@ public class SlotGrpcConnection {
 
     public LongRunningServiceGrpc.LongRunningServiceBlockingStub operationApiBlockingStub() {
         return operationApiBlockingStub;
+    }
+
+    public ai.lzy.v1.slots.v2.LzySlotsApiGrpc.LzySlotsApiBlockingStub v2SlotsApi() {
+        return v2SlotsApi;
     }
 
     void shutdown() {
