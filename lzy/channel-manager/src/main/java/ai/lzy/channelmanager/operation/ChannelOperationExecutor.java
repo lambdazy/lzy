@@ -7,7 +7,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -50,17 +49,15 @@ public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
         super.shutdown();
 
         try {
-            //noinspection ResultOfMethodCallIgnored
-            awaitTermination(1, TimeUnit.MINUTES);
+            if (!awaitTermination(1, TimeUnit.MINUTES)) {
+                shutdownNow();
+            }
         } catch (InterruptedException e) {
             LOG.error("Shutdown executor interrupted, tasks in queue: {}, running tasks: {}",
                 getQueue().size(), getActiveCount());
+        } finally {
+            shutdownNow();
         }
-    }
-
-    @Override
-    public List<Runnable> shutdownNow() {
-        return super.shutdownNow();
     }
 
     private static class ExecutorThreadFactory implements ThreadFactory {
