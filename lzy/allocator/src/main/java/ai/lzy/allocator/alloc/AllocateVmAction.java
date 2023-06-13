@@ -26,6 +26,7 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 public final class AllocateVmAction extends OperationRunnerBase {
 
     private static final Duration WAIT_VM_PERIOD = Duration.ofMillis(500);
+    private static final Duration WAIT_VM_POLL_START = Duration.ofSeconds(3);
     private static final Duration WAIT_VM_POLL_PERIOD = Duration.ofSeconds(10);
 
     private Vm vm;
@@ -36,7 +37,8 @@ public final class AllocateVmAction extends OperationRunnerBase {
     private DeleteVmAction deleteVmAction = null;
     private boolean mountPodAllocated = false;
     private ClusterPod mountHolder;
-    private Instant vmLastPollTimestamp;
+    @Nullable
+    private Instant vmLastPollTimestamp = null;
 
     public AllocateVmAction(Vm vm, AllocationContext allocationContext, boolean restore) {
         super(vm.allocOpId(), "VM " + vm.vmId(), allocationContext.storage(), allocationContext.operationsDao(),
@@ -219,16 +221,24 @@ public final class AllocateVmAction extends OperationRunnerBase {
 
     private StepResult waitVm() {
         log().info("{} ... waiting ...", logPrefix());
-        if (vmLastPollTimestamp == null || Instant.now().isAfter(vmLastPollTimestamp.plus(WAIT_VM_POLL_PERIOD))) {
+
+        var now = Instant.now();
+
+        if (vmLastPollTimestamp == null) {
+            vmLastPollTimestamp = now.plus(WAIT_VM_POLL_START);
+            return StepResult.RESTART.after(WAIT_VM_PERIOD);
+        }
+
+        if (now.isAfter(vmLastPollTimestamp.plus(WAIT_VM_POLL_PERIOD))) {
             try {
                 final var result = allocationContext.allocator().getVmAllocationStatus(vm);
                 if (result.code() != VmAllocator.Result.Code.SUCCESS) {
-                    return tryFail(Status.INTERNAL.withDescription(result.message()));
+                    return tryFail(Status.INTERNAL.withDescription("Wait VM failed: " + result.message()));
                 }
             } catch (Exception e) {
                 log().error("{} Error during allocation VM status checking: {}", logPrefix(), e.getMessage(), e);
             }
-            vmLastPollTimestamp = Instant.now();
+            vmLastPollTimestamp = now;
         }
         return StepResult.RESTART.after(WAIT_VM_PERIOD);
     }

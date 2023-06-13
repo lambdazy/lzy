@@ -44,7 +44,7 @@ public class CondaEnvironment implements AuxEnvironment {
         RECONFIGURE_CONDA = reconfigure;
     }
 
-    public CondaEnvironment(LME.PythonEnv pythonEnv, BaseEnvironment baseEnv, String resourcesPath,
+    public CondaEnvironment(BaseEnvironment baseEnv, LME.PythonEnv pythonEnv, String resourcesPath,
                             String localModulesPath)
     {
         this.resourcesPath = resourcesPath;
