@@ -133,6 +133,8 @@ public class ChannelOperationManager {
 
     @VisibleForTesting
     public void interruptActions() {
+        LOG.debug("Shutdown executor, tasks in queue: {}, running tasks: {}",
+            executor.getQueue().size(), executor.getActiveCount());
         executor.shutdownNow();
     }
 

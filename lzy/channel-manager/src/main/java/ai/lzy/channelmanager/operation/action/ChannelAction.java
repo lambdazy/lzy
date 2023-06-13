@@ -127,6 +127,11 @@ public abstract class ChannelAction implements Runnable {
 
         final String channelId = sender.getChannelId();
         while (true) {
+            if (Thread.interrupted()) {
+                LOG.debug("Async operation (operationId={}) was interrupted", operationId);
+                return;
+            }
+
             final Endpoint receiverToUnbind;
             try (final var guard = lockManager.withLock(sender.getChannelId())) {
                 final Channel channel;

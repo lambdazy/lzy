@@ -60,6 +60,11 @@ public class DestroyAction extends ChannelAction {
         operationStopped = false;
 
         while (true) {
+            if (Thread.interrupted()) {
+                LOG.debug("Async operation (operationId={}) was interrupted", operationId);
+                return;
+            }
+
             String channelId = state.toDestroyChannels().stream().findFirst().orElse(null);
 
             if (channelId == null) {

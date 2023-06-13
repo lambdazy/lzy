@@ -8,11 +8,13 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationsService;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.runtime.Micronaut;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -34,6 +36,7 @@ public class ChannelManagerApp {
     private final ManagedChannel iamChannel;
 
     private final ChannelOperationManager channelOperationManager;
+    private final ChannelManagerConfig config;
 
     public ChannelManagerApp(ChannelManagerConfig config,
                              @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
@@ -42,8 +45,7 @@ public class ChannelManagerApp {
                              @Named("ChannelManagerOperationService") OperationsService operationsService,
                              ChannelOperationManager channelOperationManager)
     {
-        LOG.info("Starting ChannelManager service with config: {}", config.toString());
-
+        this.config = config;
         this.iamChannel = iamChannel;
 
         final var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
@@ -69,28 +71,55 @@ public class ChannelManagerApp {
     }
 
     public void start() throws IOException {
+        LOG.info("Starting ChannelManager service with config: {}", config.toString());
+
         channelManagerServer.start();
 
         channelOperationManager.restoreActiveOperations();
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             LOG.info("Stopping ChannelManager service");
-            stop();
+            shutdown();
         }));
     }
 
-    public void awaitTermination() throws InterruptedException {
-        channelManagerServer.awaitTermination();
-        iamChannel.awaitTermination(10, TimeUnit.SECONDS);
+    public boolean awaitTermination() throws InterruptedException {
+        return awaitTermination(10, TimeUnit.SECONDS);
     }
 
-    public void awaitTermination(long timeout, TimeUnit timeUnit) throws InterruptedException {
-        channelManagerServer.awaitTermination(timeout / 2, timeUnit);
-        iamChannel.awaitTermination(timeout / 2, timeUnit);
+    public boolean awaitTermination(long timeout, TimeUnit timeUnit) throws InterruptedException {
+        var serverStopped = channelManagerServer.awaitTermination(timeout / 2, timeUnit);
+        return iamChannel.awaitTermination(timeout / 2, timeUnit) && serverStopped;
     }
 
-    public void stop() {
+    public void shutdown() {
         channelManagerServer.shutdown();
         iamChannel.shutdown();
+    }
+
+    public void shutdownNow() {
+        channelManagerServer.shutdownNow();
+        iamChannel.shutdownNow();
+    }
+
+    @PreDestroy
+    public void stop() {
+        LOG.debug("Stopping channel manager...");
+
+        this.shutdown();
+        try {
+            if (!this.awaitTermination()) {
+                this.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            // intentionally blank
+        } finally {
+            this.shutdownNow();
+        }
+    }
+
+    @VisibleForTesting
+    public ChannelOperationManager getChannelOperationManager() {
+        return channelOperationManager;
     }
 }

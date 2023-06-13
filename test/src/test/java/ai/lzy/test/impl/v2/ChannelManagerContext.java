@@ -80,8 +80,6 @@ public class ChannelManagerContext {
         channel.shutdown();
         channel.awaitTermination(10, TimeUnit.SECONDS);
         channelManager.stop();
-        channelManager.awaitTermination();
-
         operationsChannel.shutdownNow();
         context.stop();
     }

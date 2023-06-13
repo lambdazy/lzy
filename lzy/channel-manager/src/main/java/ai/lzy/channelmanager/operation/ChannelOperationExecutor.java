@@ -49,14 +49,11 @@ public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
         super.shutdown();
 
         try {
-            if (!awaitTermination(1, TimeUnit.MINUTES)) {
-                shutdownNow();
-            }
+            //noinspection ResultOfMethodCallIgnored
+            awaitTermination(1, TimeUnit.MINUTES);
         } catch (InterruptedException e) {
             LOG.error("Shutdown executor interrupted, tasks in queue: {}, running tasks: {}",
                 getQueue().size(), getActiveCount());
-        } finally {
-            shutdownNow();
         }
     }
 

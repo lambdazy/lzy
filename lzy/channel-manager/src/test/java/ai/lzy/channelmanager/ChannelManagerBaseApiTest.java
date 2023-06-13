@@ -144,7 +144,8 @@ public class ChannelManagerBaseApiTest {
         InjectedFailures.assertClean();
 
         iamTestContext.after();
-        app.stop();
+        app.getChannelOperationManager().interruptActions();
+        app.shutdown();
         app.awaitTermination();
         channel.shutdown();
         channel.awaitTermination(10, TimeUnit.SECONDS);

@@ -40,8 +40,8 @@ public class BaseTestWithChannelManager {
             channel.shutdown();
             channel.awaitTermination(10, TimeUnit.SECONDS);
         }
-        app.stop();
-        app.awaitTermination(5, TimeUnit.SECONDS);
+        app.getChannelOperationManager().interruptActions();
+        app.shutdown();
         context.stop();
     }
 
