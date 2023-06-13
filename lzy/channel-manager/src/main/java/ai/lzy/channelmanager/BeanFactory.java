@@ -21,7 +21,6 @@ import jakarta.inject.Singleton;
 
 @Factory
 public class BeanFactory {
-
     @Singleton
     public GrainedLock lockManager(ChannelManagerConfig config) {
         return new GrainedLock(config.getLockBucketsCount());

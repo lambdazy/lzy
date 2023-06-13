@@ -44,16 +44,18 @@ public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
     @Override
     @PreDestroy
     public void shutdown() {
-        LOG.info("Shutdown executor, tasks in queue: {}, running tasks: {}",
-            getQueue().size(), getActiveCount());
+        LOG.debug("Shutdown executor, tasks in queue: {}, running tasks: {}", getQueue().size(), getActiveCount());
         super.shutdown();
 
         try {
-            //noinspection ResultOfMethodCallIgnored
-            awaitTermination(1, TimeUnit.MINUTES);
+            if (!awaitTermination(1, TimeUnit.MINUTES)) {
+                shutdownNow();
+            }
         } catch (InterruptedException e) {
             LOG.error("Shutdown executor interrupted, tasks in queue: {}, running tasks: {}",
                 getQueue().size(), getActiveCount());
+        } finally {
+            shutdownNow();
         }
     }
 

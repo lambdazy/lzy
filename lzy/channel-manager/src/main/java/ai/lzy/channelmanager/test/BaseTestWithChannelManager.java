@@ -24,7 +24,6 @@ public class BaseTestWithChannelManager {
 
     private ApplicationContext context;
     private ChannelManagerConfig config;
-    private ChannelManagerApp app;
 
     @Nullable
     private ManagedChannel channel;
@@ -38,10 +37,17 @@ public class BaseTestWithChannelManager {
     public void after() throws InterruptedException {
         if (channel != null) {
             channel.shutdown();
-            channel.awaitTermination(10, TimeUnit.SECONDS);
+            try {
+                if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
+                    channel.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                // intentionally blank
+            } finally {
+                channel.shutdownNow();
+            }
         }
-        app.getChannelOperationManager().interruptActions();
-        app.shutdown();
+
         context.stop();
     }
 
@@ -55,7 +61,7 @@ public class BaseTestWithChannelManager {
 
         config = context.getBean(ChannelManagerConfig.class);
 
-        app = context.getBean(ChannelManagerApp.class);
+        ChannelManagerApp app = context.getBean(ChannelManagerApp.class);
         app.start();
 
         channel = null;

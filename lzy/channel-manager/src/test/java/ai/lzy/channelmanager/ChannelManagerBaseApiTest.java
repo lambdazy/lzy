@@ -28,11 +28,7 @@ import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LCM;
 import ai.lzy.v1.channel.LCM.Channel;
 import ai.lzy.v1.channel.LCM.ChannelSpec;
-import ai.lzy.v1.channel.LCMPS.ChannelCreateRequest;
-import ai.lzy.v1.channel.LCMPS.ChannelDestroyAllRequest;
-import ai.lzy.v1.channel.LCMPS.ChannelDestroyRequest;
-import ai.lzy.v1.channel.LCMPS.ChannelStatusAllRequest;
-import ai.lzy.v1.channel.LCMPS.ChannelStatusRequest;
+import ai.lzy.v1.channel.LCMPS.*;
 import ai.lzy.v1.channel.LCMS.BindRequest;
 import ai.lzy.v1.channel.LCMS.UnbindRequest;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
@@ -143,17 +139,32 @@ public class ChannelManagerBaseApiTest {
     public void after() throws InterruptedException {
         InjectedFailures.assertClean();
 
-        iamTestContext.after();
-        app.getChannelOperationManager().interruptActions();
-        app.shutdown();
-        app.awaitTermination();
         channel.shutdown();
-        channel.awaitTermination(10, TimeUnit.SECONDS);
+        try {
+            if (!channel.awaitTermination(5, TimeUnit.SECONDS)) {
+                channel.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            // intentionally blank
+        } finally {
+            channel.shutdownNow();
+        }
+
         context.getBean(ChannelManagerDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
         context.close();
 
         mockedSlotApiServer.shutdown();
-        mockedSlotApiServer.awaitTermination();
+        try {
+            if (!mockedSlotApiServer.awaitTermination(5, TimeUnit.SECONDS)) {
+                mockedSlotApiServer.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            // intentionally blank
+        } finally {
+            mockedSlotApiServer.shutdownNow();
+        }
+
+        iamTestContext.after();
     }
 
     protected ChannelCreateRequest makeChannelCreateCommand(String executionId, String channelName) {
@@ -346,7 +357,7 @@ public class ChannelManagerBaseApiTest {
     public record User(
         String id,
         JwtCredentials credentials
-    ) { }
+    ) {}
 
     public static class IamClient implements AutoCloseable {
 
@@ -400,7 +411,7 @@ public class ChannelManagerBaseApiTest {
         public record GeneratedCredentials(
             String publicKey,
             JwtCredentials credentials
-        ) { }
+        ) {}
 
     }
 

@@ -8,7 +8,6 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationsService;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -21,19 +20,19 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 @Singleton
 public class ChannelManagerApp {
-
     private static final Logger LOG = LogManager.getLogger(ChannelManagerApp.class);
-
     public static final String APP = "ChannelManager";
 
+    private static CountDownLatch shutdown;
+
     private final Server channelManagerServer;
-    private final ManagedChannel iamChannel;
 
     private final ChannelOperationManager channelOperationManager;
     private final ChannelManagerConfig config;
@@ -46,7 +45,6 @@ public class ChannelManagerApp {
                              ChannelOperationManager channelOperationManager)
     {
         this.config = config;
-        this.iamChannel = iamChannel;
 
         final var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
         final var channelManagerAddress = HostAndPort.fromString(config.getAddress());
@@ -64,9 +62,17 @@ public class ChannelManagerApp {
 
     public static void main(String[] args) throws InterruptedException, IOException {
         try (var context = Micronaut.run(ChannelManagerApp.class, args)) {
+            shutdown = new CountDownLatch(1);
+
             final ChannelManagerApp channelManagerApp = context.getBean(ChannelManagerApp.class);
             channelManagerApp.start();
-            channelManagerApp.awaitTermination();
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                LOG.info("Stopping ChannelManager service...");
+                shutdown.countDown();
+            }));
+
+            shutdown.await();
         }
     }
 
@@ -76,39 +82,31 @@ public class ChannelManagerApp {
         channelManagerServer.start();
 
         channelOperationManager.restoreActiveOperations();
-
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            LOG.info("Stopping ChannelManager service");
-            shutdown();
-        }));
-    }
-
-    public boolean awaitTermination() throws InterruptedException {
-        return awaitTermination(10, TimeUnit.SECONDS);
-    }
-
-    public boolean awaitTermination(long timeout, TimeUnit timeUnit) throws InterruptedException {
-        var serverStopped = channelManagerServer.awaitTermination(timeout / 2, timeUnit);
-        return iamChannel.awaitTermination(timeout / 2, timeUnit) && serverStopped;
     }
 
     public void shutdown() {
         channelManagerServer.shutdown();
-        iamChannel.shutdown();
     }
 
     public void shutdownNow() {
         channelManagerServer.shutdownNow();
-        iamChannel.shutdownNow();
+    }
+
+    public void awaitTermination() throws InterruptedException {
+        channelManagerServer.awaitTermination();
+    }
+
+    public boolean awaitTermination(long timeout, TimeUnit timeUnit) throws InterruptedException {
+        return channelManagerServer.awaitTermination(timeout, timeUnit);
     }
 
     @PreDestroy
     public void stop() {
-        LOG.debug("Stopping channel manager...");
+        LOG.debug("Stopping ChannelManager service...");
 
         this.shutdown();
         try {
-            if (!this.awaitTermination()) {
+            if (!this.awaitTermination(5, TimeUnit.SECONDS)) {
                 this.shutdownNow();
             }
         } catch (InterruptedException e) {
@@ -116,10 +114,5 @@ public class ChannelManagerApp {
         } finally {
             this.shutdownNow();
         }
-    }
-
-    @VisibleForTesting
-    public ChannelOperationManager getChannelOperationManager() {
-        return channelOperationManager;
     }
 }
