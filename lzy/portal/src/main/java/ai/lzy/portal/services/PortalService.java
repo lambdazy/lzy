@@ -253,9 +253,6 @@ public class PortalService extends LzyPortalImplBase {
     public void finish(FinishRequest request, StreamObserver<LongRunning.Operation> response) {
         LOG.info("Finish portal: { portalId: {}, request: {} }", portalId,
             ProtoPrinter.safePrinter().printToString(request));
-        if (assertActive(response)) {
-            return;
-        }
 
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(idempotencyKey, response)) {
@@ -273,15 +270,10 @@ public class PortalService extends LzyPortalImplBase {
 
             LOG.info("Finishing portal with id <{}>", portalId);
 
-            String errorMessage = null;
-
             for (var slot : slotsService.getSnapshots().getOutputSlots()) {
                 try {
                     slot.close();
                 } catch (Exception e) {
-                    if (errorMessage == null) {
-                        errorMessage = "Cannot close slot '" + slot.name() + "'";
-                    }
                     LOG.error("Cannot close slot <{}>:", slot.name(), e);
                 }
             }
@@ -290,18 +282,10 @@ public class PortalService extends LzyPortalImplBase {
                 try {
                     slot.close();
                 } catch (Exception e) {
-                    if (errorMessage == null) {
-                        errorMessage = "Cannot close slot '" + slot.name() + "'";
-                    }
                     LOG.error("Cannot close slot <{}>:", slot.name(), e);
                 }
             }
-
-            if (errorMessage != null) {
-                operationService.updateError(op.id(), Status.INTERNAL.withDescription(errorMessage));
-            } else {
-                operationService.updateResponse(op.id(), FinishResponse.getDefaultInstance());
-            }
+            operationService.updateResponse(op.id(), FinishResponse.getDefaultInstance());
         } else {
             LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
             response.onNext(opSnapshot.toProto());
