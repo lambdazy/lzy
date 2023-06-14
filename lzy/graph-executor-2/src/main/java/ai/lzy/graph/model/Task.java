@@ -19,8 +19,8 @@ public record Task(
     String userId,
     String errorDescription,
     TaskSlotDescription taskSlotDescription,
-    List<String> tasksDependedOn,
-    List<String> tasksDependedFrom
+    List<String> tasksDependedOn, // tasks, on which this task is depended on
+    List<String> tasksDependedFrom // tasks, that are depended from this task
 ) {
     public enum Status {
         WAITING, EXECUTING, COMPLETED, FAILED

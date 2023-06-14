@@ -72,7 +72,8 @@ public class TaskDaoImpl implements TaskDao {
                 FROM task
                   LEFT JOIN task_dependency as t1 ON task.id = t1.task_id
                   LEFT JOIN task_dependency as t2 ON task.id = t2.dependent_task_id
-                WHERE task.owner_instance_id = ?
+                  INNER JOIN graph ON graph.id = task.graph_id
+                WHERE task.owner_instance_id = ? AND graph.status not in ('FAILED', 'COMPLETED')
                 GROUP BY task.id""".formatted(TASK_SELECT_FIELDS_LIST);
 
     private static final String TASK_OPERATION_INSERT_FIELDS_LIST = """

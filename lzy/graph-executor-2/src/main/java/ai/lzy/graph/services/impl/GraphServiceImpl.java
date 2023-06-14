@@ -13,12 +13,19 @@ import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static ai.lzy.model.db.DbHelper.withRetries;
+
 @Singleton
 public class GraphServiceImpl implements GraphService {
+    private static final Logger LOG = LogManager.getLogger(GraphServiceImpl.class);
+
     private final TaskService taskService;
     private final GraphDao graphDao;
     private final OperationDao operationDao;
@@ -56,6 +63,14 @@ public class GraphServiceImpl implements GraphService {
     }
 
     private void restoreGraphs(String instanceId) {
-
+        try {
+            withRetries(LOG, () -> {
+                List<Graph> graphList = graphDao.getByInstance(instanceId);
+                graphList.forEach(graph -> graphs.put(graph.id(), graph));
+            });
+        } catch (Exception e) {
+            LOG.error("Cannot restore graphs for instance {}", instanceId);
+            throw new RuntimeException(e);
+        }
     }
 }
