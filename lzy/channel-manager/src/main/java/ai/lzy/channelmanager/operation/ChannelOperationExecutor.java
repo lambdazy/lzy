@@ -1,6 +1,7 @@
 package ai.lzy.channelmanager.operation;
 
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
+import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
@@ -16,7 +17,7 @@ public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
     private static final Logger LOG = LogManager.getLogger(ChannelOperationExecutor.class);
 
 
-    public ChannelOperationExecutor(ChannelManagerConfig config) {
+    public ChannelOperationExecutor(ChannelManagerConfig config, ChannelManagerDataSource storage) {
         super(config.getExecutorThreadsCount(), new ExecutorThreadFactory());
         this.setKeepAliveTime(1, TimeUnit.MINUTES);
         this.setMaximumPoolSize(20);
@@ -44,7 +45,7 @@ public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
     @Override
     @PreDestroy
     public void shutdown() {
-        LOG.debug("Shutdown executor, tasks in queue: {}, running tasks: {}", getQueue().size(), getActiveCount());
+        LOG.info("Shutdown executor, tasks in queue: {}, running tasks: {}", getQueue().size(), getActiveCount());
         super.shutdown();
 
         try {

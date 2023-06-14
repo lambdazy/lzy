@@ -102,7 +102,7 @@ public class ChannelManagerApp {
 
     @PreDestroy
     public void stop() {
-        LOG.debug("Stopping ChannelManager service...");
+        LOG.info("Stopping ChannelManager service...");
 
         this.shutdown();
         try {

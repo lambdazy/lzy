@@ -60,7 +60,7 @@ public class DestroyAction extends ChannelAction {
         operationStopped = false;
 
         while (true) {
-            if (Thread.interrupted()) {
+            if (Thread.currentThread().isInterrupted()) {
                 LOG.debug("Async operation (operationId={}) was interrupted", operationId);
                 return;
             }
