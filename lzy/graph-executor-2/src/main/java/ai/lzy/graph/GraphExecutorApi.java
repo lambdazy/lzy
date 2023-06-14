@@ -1,6 +1,7 @@
 package ai.lzy.graph;
 
 import ai.lzy.graph.GraphExecutorApi2.*;
+import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.model.DirectedGraph;
 import ai.lzy.graph.services.GraphService;
 import ai.lzy.longrunning.IdempotencyUtils;
@@ -9,11 +10,17 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.v1.longrunning.LongRunning;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.sql.SQLException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
@@ -24,13 +31,28 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
     private final GraphService graphService;
     private final OperationDao operationDao;
+    private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     @Inject
-    public GraphExecutorApi(GraphService graphService,
+    public GraphExecutorApi(ServiceConfig config,
+                            GraphService graphService,
                             @Named("GraphExecutorOperationDao") OperationDao operationDao)
     {
         this.graphService = graphService;
         this.operationDao = operationDao;
+
+        executor.schedule(() -> {
+            try {
+                operationDao.deleteOutdatedOperations(config.getGcPeriod().toHoursPart());
+            } catch (SQLException e) {
+                LOG.error("Cannot delete outdated operations");
+            }
+        }, config.getGcPeriod().getSeconds(), TimeUnit.SECONDS);
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        executor.shutdown();
     }
 
     @Override

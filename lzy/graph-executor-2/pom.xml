@@ -180,6 +180,7 @@
         <dependency>
             <groupId>ru.yandex.clickhouse</groupId>
             <artifactId>clickhouse-jdbc</artifactId>
+            <version>${clickhouse.version}</version>
         </dependency>
         <dependency>
             <groupId>io.micronaut.test</groupId>

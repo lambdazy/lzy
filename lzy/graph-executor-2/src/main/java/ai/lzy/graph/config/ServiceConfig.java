@@ -7,6 +7,8 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Duration;
+
 @Getter
 @Setter
 @ConfigurationProperties("graph-executor-2")
@@ -15,6 +17,7 @@ public class ServiceConfig {
     private int port;
     private int userLimit;
     private int workflowLimit;
+    private Duration gcPeriod = Duration.ofHours(12);
 
     @ConfigurationBuilder("iam")
     private IamClientConfiguration iam = new IamClientConfiguration();
