@@ -4,8 +4,7 @@ import ai.lzy.v1.common.LMO;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
+import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
@@ -27,12 +26,11 @@ public record Task(
     List<String> tasksDependedOn,
     List<String> tasksDependedFrom
 ) {
-    private static final Logger LOG = LogManager.getLogger(Task.class);
-
     public enum Status {
         WAITING, EXECUTING, COMPLETED, FAILED
     }
 
+    @Nullable
     public String getDescription() {
         return null;
     }

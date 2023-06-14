@@ -4,6 +4,7 @@ import ai.lzy.graph.GraphExecutorApi2;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import jakarta.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
@@ -27,10 +28,12 @@ public record Graph(
         WAITING, EXECUTING, COMPLETED, FAILED
     }
 
-    public GraphExecutorApi2.GraphExecuteResponse toGrpc() {
+    @Nullable
+    public GraphExecutorApi2.GraphExecuteResponse toProto() {
         return null;
     }
 
+    @Nullable
     public String getDescription() {
         return null;
     }

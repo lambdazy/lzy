@@ -33,16 +33,68 @@ public class TaskDaoImpl implements TaskDao {
     private static final String TASK_INSERT_FIELDS_LIST = """
         id, task_name, graph_id, status, workflow_id, workflow_name, user_id,
         task_description, error_description, owner_instance_id""";
-
     private static final String TASK_SELECT_FIELDS_LIST = """
         task.id, task.task_name, task.graph_id, task.status::text as status, task.workflow_id,
         task.workflow_name, task.user_id, task.task_description, task.error_description, task.owner_instance_id""";
+    private static final String TASK_INSERT_STATEMENT = "INSERT INTO task (" + TASK_INSERT_FIELDS_LIST +
+        ") VALUES (?, ?, ?, ?::status, ?, ?, ?, ?, ?, ?)";
+    public static final String TASK_DEPENDENCY_INSERT_STATEMENT = "INSERT INTO task_dependency " +
+        "(task_id, dependent_task_id) VALUES (?, ?)";
+    public static final String TASK_UPDATE_STATEMENT = """
+                 UPDATE task
+                 SET error_description = ?,
+                     status = ?::status
+                 WHERE id = ?""";
+    public static final String TASK_GET_BY_ID_STATEMENT = """
+                SELECT %s,
+                  STRING_AGG(t1.dependent_task_id, ',') as dependend_from,
+                  STRING_AGG(t2.task_id, ',') as dependend_on
+                FROM task
+                  LEFT JOIN task_dependency as t1 ON task.id = t1.task_id
+                  LEFT JOIN task_dependency as t2 ON task.id = t2.dependent_task_id
+                WHERE task.id = ?
+                GROUP BY task.id""".formatted(TASK_SELECT_FIELDS_LIST);
+    public static final String TASK_GET_BY_GRAPH_STATEMENT = """
+                SELECT %s,
+                  STRING_AGG(t1.dependent_task_id, ',') as dependend_from,
+                  STRING_AGG(t2.task_id, ',') as dependend_on
+                FROM task
+                  LEFT JOIN task_dependency as t1 ON task.id = t1.task_id
+                  LEFT JOIN task_dependency as t2 ON task.id = t2.dependent_task_id
+                WHERE task.graph_id = ?
+                GROUP BY task.id""".formatted(TASK_SELECT_FIELDS_LIST);
+    public static final String TASK_GET_BY_INSTANCE_STATEMENT = """
+                SELECT %s,
+                  STRING_AGG(t1.dependent_task_id, ',') as dependend_from,
+                  STRING_AGG(t2.task_id, ',') as dependend_on
+                FROM task
+                  LEFT JOIN task_dependency as t1 ON task.id = t1.task_id
+                  LEFT JOIN task_dependency as t2 ON task.id = t2.dependent_task_id
+                WHERE task.owner_instance_id = ?
+                GROUP BY task.id""".formatted(TASK_SELECT_FIELDS_LIST);
 
     private static final String TASK_OPERATION_INSERT_FIELDS_LIST = """
         id, task_id, started_at, owner_instance_id, status, task_state, error_description""";
-
     private static final String TASK_OPERATION_SELECT_FIELDS_LIST = """
         id, task_id, started_at, owner_instance_id, status::text as task_op_status, task_state, error_description""";
+    public static final String TASK_OPERATION_INSERT_STATEMENT = "INSERT INTO task_operation (" +
+        TASK_OPERATION_INSERT_FIELDS_LIST + ") VALUES (?, ?, ?, ?, ?::task_op_status, ?, ?)";
+    public static final String TASK_OPERATION_UPDATE_STATEMENT = """
+                 UPDATE task_operation
+                 SET error_description = ?,
+                     status = ?::status,
+                     task_state = ?
+                 WHERE id = ?""";
+    public static final String TASK_OPERATION_GET_BY_ID_STATEMENT = """
+                SELECT %s
+                FROM task_operation
+                WHERE id = ?
+                """.formatted(TASK_OPERATION_SELECT_FIELDS_LIST);
+    public static final String TASK_OPERATION_GET_BY_INSTANCE_STATEMENT = """
+                SELECT %s
+                FROM task_operation
+                WHERE owner_instance_id = ?
+                """.formatted(TASK_OPERATION_SELECT_FIELDS_LIST);
 
     private final GraphExecutorDataSource storage;
     private final OperationDao operationDao;
@@ -66,10 +118,7 @@ public class TaskDaoImpl implements TaskDao {
         LOG.info("Saving tasks: {}", tasks);
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (PreparedStatement st = connection.prepareStatement(
-                "INSERT INTO task (" + TASK_INSERT_FIELDS_LIST + ")"
-                    + "VALUES (?, ?, ?, ?::status, ?, ?, ?, ?, ?, ?)"))
-            {
+            try (PreparedStatement st = connection.prepareStatement(TASK_INSERT_STATEMENT)) {
                 for (Task task: tasks) {
                     int count = 0;
                     st.setString(++count, task.id());
@@ -88,9 +137,7 @@ public class TaskDaoImpl implements TaskDao {
                 st.executeBatch();
             }
 
-            try (PreparedStatement st = connection.prepareStatement(
-                "INSERT INTO task_dependency (task_id, dependent_task_id) VALUES (?, ?)"))
-            {
+            try (PreparedStatement st = connection.prepareStatement(TASK_DEPENDENCY_INSERT_STATEMENT)) {
                 for (Task task: tasks) {
                     for (String id: task.tasksDependedFrom()) {
                         st.setString(1, task.id());
@@ -107,11 +154,7 @@ public class TaskDaoImpl implements TaskDao {
     public void updateTask(Task task, @Nullable TransactionHandle transaction) throws SQLException {
         DbOperation.execute(transaction, storage, connection -> {
             try (final Connection con = storage.connect();
-                 final PreparedStatement st = con.prepareStatement("""
-                 UPDATE task
-                 SET error_description = ?,
-                     status = ?::status
-                 WHERE id = ?"""))
+                 final PreparedStatement st = con.prepareStatement(TASK_UPDATE_STATEMENT))
             {
                 int count = 0;
                 st.setString(++count, task.errorDescription());
@@ -124,17 +167,10 @@ public class TaskDaoImpl implements TaskDao {
     }
 
     @Override
+    @Nullable
     public Task getTaskById(String taskId) throws SQLException {
         try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement("""
-                SELECT %s,
-                  STRING_AGG(t1.dependent_task_id, ',') as dependend_from,
-                  STRING_AGG(t2.task_id, ',') as dependend_on
-                FROM task
-                  LEFT JOIN task_dependency as t1 ON task.id = t1.task_id
-                  LEFT JOIN task_dependency as t2 ON task.id = t2.dependent_task_id
-                WHERE task.id = ?
-                GROUP BY task.id""".formatted(TASK_SELECT_FIELDS_LIST));
+            final PreparedStatement st = con.prepareStatement(TASK_GET_BY_ID_STATEMENT);
             st.setString(1, taskId);
             try (ResultSet s = st.executeQuery()) {
                 if (!s.isBeforeFirst()) {
@@ -149,15 +185,7 @@ public class TaskDaoImpl implements TaskDao {
     @Override
     public List<Task> getTasksByGraph(String graphId) throws SQLException {
         try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement("""
-                SELECT %s,
-                  STRING_AGG(t1.dependent_task_id, ',') as dependend_from,
-                  STRING_AGG(t2.task_id, ',') as dependend_on
-                FROM task
-                  LEFT JOIN task_dependency as t1 ON task.id = t1.task_id
-                  LEFT JOIN task_dependency as t2 ON task.id = t2.dependent_task_id
-                WHERE task.graph_id = ?
-                GROUP BY task.id""".formatted(TASK_SELECT_FIELDS_LIST));
+            final PreparedStatement st = con.prepareStatement(TASK_GET_BY_GRAPH_STATEMENT);
             st.setString(1, graphId);
             try (ResultSet s = st.executeQuery()) {
                 if (!s.isBeforeFirst()) {
@@ -175,15 +203,7 @@ public class TaskDaoImpl implements TaskDao {
     @Override
     public List<Task> getTasksByInstance(String instanceId) throws SQLException {
         try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement("""
-                SELECT %s,
-                  STRING_AGG(t1.dependent_task_id, ',') as dependend_from,
-                  STRING_AGG(t2.task_id, ',') as dependend_on
-                FROM task
-                  LEFT JOIN task_dependency as t1 ON task.id = t1.task_id
-                  LEFT JOIN task_dependency as t2 ON task.id = t2.dependent_task_id
-                WHERE task.owner_instance_id = ?
-                GROUP BY task.id""".formatted(TASK_SELECT_FIELDS_LIST));
+            final PreparedStatement st = con.prepareStatement(TASK_GET_BY_INSTANCE_STATEMENT);
             st.setString(1, instanceId);
             try (ResultSet s = st.executeQuery()) {
                 if (!s.isBeforeFirst()) {
@@ -205,10 +225,7 @@ public class TaskDaoImpl implements TaskDao {
         LOG.info("Saving task operation: {}", taskOperation);
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (PreparedStatement st = connection.prepareStatement(
-                "INSERT INTO task_operation (" + TASK_OPERATION_INSERT_FIELDS_LIST + ")"
-                    + "VALUES (?, ?, ?, ?, ?::task_op_status, ?, ?)"))
-            {
+            try (PreparedStatement st = connection.prepareStatement(TASK_OPERATION_INSERT_STATEMENT)) {
                 int count = 0;
                 st.setString(++count, taskOperation.id());
                 st.setString(++count, taskOperation.taskId());
@@ -229,12 +246,7 @@ public class TaskDaoImpl implements TaskDao {
     {
         DbOperation.execute(transaction, storage, connection -> {
             try (final Connection con = storage.connect();
-                 final PreparedStatement st = con.prepareStatement("""
-                 UPDATE task_operation
-                 SET error_description = ?,
-                     status = ?::status,
-                     task_state = ?
-                 WHERE id = ?"""))
+                 final PreparedStatement st = con.prepareStatement(TASK_OPERATION_UPDATE_STATEMENT))
             {
                 int count = 0;
                 st.setString(++count, taskOperation.errorDescription());
@@ -248,13 +260,10 @@ public class TaskDaoImpl implements TaskDao {
     }
 
     @Override
+    @Nullable
     public TaskOperation getTaskOperationById(String taskOperationId) throws SQLException {
         try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement("""
-                SELECT %s
-                FROM task_operation
-                WHERE id = ?
-                """.formatted(TASK_OPERATION_SELECT_FIELDS_LIST));
+            final PreparedStatement st = con.prepareStatement(TASK_OPERATION_GET_BY_ID_STATEMENT);
             st.setString(1, taskOperationId);
             try (ResultSet s = st.executeQuery()) {
                 if (!s.isBeforeFirst()) {
@@ -269,11 +278,7 @@ public class TaskDaoImpl implements TaskDao {
     @Override
     public List<TaskOperation> getTasksOperationsByInstance(String instanceId) throws SQLException {
         try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement("""
-                SELECT %s
-                FROM task_operation
-                WHERE owner_instance_id = ?
-                """.formatted(TASK_OPERATION_SELECT_FIELDS_LIST));
+            final PreparedStatement st = con.prepareStatement(TASK_OPERATION_GET_BY_INSTANCE_STATEMENT);
             st.setString(1, instanceId);
             try (ResultSet s = st.executeQuery()) {
                 if (!s.isBeforeFirst()) {

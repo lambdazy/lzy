@@ -30,8 +30,27 @@ public class GraphDaoImpl implements GraphDao {
         failed_task_id, failed_task_name, last_updated, owner_instance_id""";
 
     private static final String GRAPH_SELECT_FIELDS_LIST = """
-        id, op_id, status::text as status, workflow_id, workflow_name, user_id, graph_description, 
+        id, op_id, status::text as status, workflow_id, workflow_name, user_id, graph_description,
         error_description, failed_task_id, failed_task_name, last_updated, owner_instance_id""";
+
+    public static final String GRAPH_INSERT_STATEMENT = "INSERT INTO graph (" +
+        GRAPH_INSERT_FIELDS_LIST + ") VALUES (?, ?, ?::status, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    public static final String GRAPH_UPDATE_STATEMENT = """
+                 UPDATE graph
+                 SET error_description = ?,
+                     failed_task_id = ?,
+                     failed_task_name = ?,
+                     status = ?::status,
+                     last_updated = ?
+                 WHERE id = ?""";
+    public static final String GRAPH_GET_BY_ID_STATEMENT = """
+                SELECT %s
+                FROM graph
+                WHERE id = ?""".formatted(GRAPH_SELECT_FIELDS_LIST);
+    public static final String GRAPH_GET_BY_INSTANCE_STATEMENT = """
+                SELECT %s
+                FROM graph
+                WHERE owner_instance_id = ?""".formatted(GRAPH_SELECT_FIELDS_LIST);
 
     private final GraphExecutorDataSource storage;
     private final ServiceConfig config;
@@ -47,10 +66,7 @@ public class GraphDaoImpl implements GraphDao {
         LOG.info("Saving graph: {}", graph);
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (PreparedStatement st = connection.prepareStatement(
-                "INSERT INTO graph (" + GRAPH_INSERT_FIELDS_LIST + ")"
-                    + "VALUES (?, ?, ?::status, ?, ?, ?, ?, ?, ?, ?, ?, ?)"))
-            {
+            try (PreparedStatement st = connection.prepareStatement(GRAPH_INSERT_STATEMENT)) {
                 int count = 0;
                 st.setString(++count, graph.id());
                 st.setString(++count, graph.operationId());
@@ -74,14 +90,7 @@ public class GraphDaoImpl implements GraphDao {
     public void update(Graph graph, @Nullable TransactionHandle transaction) throws SQLException {
         DbOperation.execute(transaction, storage, connection -> {
             try (final Connection con = storage.connect();
-                 final PreparedStatement st = con.prepareStatement("""
-                 UPDATE graph
-                 SET error_description = ?,
-                     failed_task_id = ?,
-                     failed_task_name = ?,
-                     status = ?::status,
-                     last_updated = ?
-                 WHERE id = ?"""))
+                 final PreparedStatement st = con.prepareStatement(GRAPH_UPDATE_STATEMENT))
             {
                 int count = 0;
                 st.setString(++count, graph.errorDescription());
@@ -97,12 +106,10 @@ public class GraphDaoImpl implements GraphDao {
     }
 
     @Override
+    @Nullable
     public Graph getById(String graphId) throws SQLException {
         try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement("""
-                SELECT %s
-                FROM graph
-                WHERE id = ?""".formatted(GRAPH_SELECT_FIELDS_LIST));
+            final PreparedStatement st = con.prepareStatement(GRAPH_GET_BY_ID_STATEMENT);
             st.setString(1, graphId);
             try (ResultSet s = st.executeQuery()) {
                 if (!s.isBeforeFirst()) {
@@ -115,12 +122,10 @@ public class GraphDaoImpl implements GraphDao {
     }
 
     @Override
+    @Nullable
     public List<Graph> getByInstance(String instanceId) throws SQLException {
         try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement("""
-                SELECT %s
-                FROM graph
-                WHERE owner_instance_id = ?""".formatted(GRAPH_SELECT_FIELDS_LIST));
+            final PreparedStatement st = con.prepareStatement(GRAPH_GET_BY_INSTANCE_STATEMENT);
             st.setString(1, instanceId);
             try (ResultSet s = st.executeQuery()) {
                 if (!s.isBeforeFirst()) {

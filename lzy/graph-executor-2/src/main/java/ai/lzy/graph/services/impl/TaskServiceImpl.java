@@ -6,6 +6,7 @@ import ai.lzy.graph.db.TaskDao;
 import ai.lzy.graph.model.Task;
 import ai.lzy.graph.services.TaskService;
 import ai.lzy.longrunning.OperationsExecutor;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -54,6 +55,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
+    @Nullable
     public GraphExecutorApi2.TaskExecutionStatus getTaskStatus(String taskId) {
         return null;
     }
@@ -70,7 +72,7 @@ public class TaskServiceImpl implements TaskService {
     private void run() {
         while (true) {
             Task task = readyTasks.peek();
-            if (limitByUser.get(task.userId()) < config.getUserLimit() &&
+            if (task != null && limitByUser.get(task.userId()) < config.getUserLimit() &&
                 limitByWorkflow.get(task.workflowId()) < config.getWorkflowLimit())
             {
                 //create and execute task operation

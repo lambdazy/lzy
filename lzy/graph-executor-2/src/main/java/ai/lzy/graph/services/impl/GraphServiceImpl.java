@@ -9,6 +9,7 @@ import ai.lzy.graph.model.Task;
 import ai.lzy.graph.services.GraphService;
 import ai.lzy.graph.services.TaskService;
 import ai.lzy.longrunning.dao.OperationDao;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -35,13 +36,13 @@ public class GraphServiceImpl implements GraphService {
     }
 
     @Override
+    @Nullable
     public DirectedGraph buildGraph(GraphExecutorApi2.GraphExecuteRequest request) {
         return null;
     }
 
     @Override
-    public boolean validateGraph(DirectedGraph graph) {
-        return false;
+    public void validateGraph(@Nullable DirectedGraph graph) {
     }
 
     @Override
