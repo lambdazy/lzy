@@ -4,11 +4,14 @@ import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.TaskDao;
 import ai.lzy.graph.model.Task;
 import ai.lzy.graph.model.TaskOperation;
+import ai.lzy.graph.model.TaskSlotDescription;
 import ai.lzy.graph.services.impl.ExecuteTaskAction;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -23,7 +26,6 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 @Singleton
@@ -100,6 +102,7 @@ public class TaskDaoImpl implements TaskDao {
     private final OperationDao operationDao;
     private final OperationsExecutor operationsExecutor;
     private final ServiceConfig config;
+    private final ObjectMapper objectMapper;
 
     @Inject
     public TaskDaoImpl(GraphExecutorDataSource storage,
@@ -111,6 +114,7 @@ public class TaskDaoImpl implements TaskDao {
         this.config = config;
         this.operationsExecutor = operationsExecutor;
         this.operationDao = operationDao;
+        this.objectMapper = new ObjectMapper().findAndRegisterModules();
     }
 
     @Override
@@ -128,13 +132,15 @@ public class TaskDaoImpl implements TaskDao {
                     st.setString(++count, task.workflowId());
                     st.setString(++count, task.workflowName());
                     st.setString(++count, task.userId());
-                    st.setString(++count, task.getDescription());
+                    st.setString(++count, objectMapper.writeValueAsString(task.taskSlotDescription()));
                     st.setString(++count, task.errorDescription());
                     st.setString(++count, config.getInstanceId());
 
                     st.addBatch();
                 }
                 st.executeBatch();
+            } catch (JsonProcessingException e) {
+                throw new SQLException(e);
             }
 
             try (PreparedStatement st = connection.prepareStatement(TASK_DEPENDENCY_INSERT_STATEMENT)) {
@@ -305,9 +311,16 @@ public class TaskDaoImpl implements TaskDao {
         final String errorDescription = resultSet.getString("error_description");
         final String dependentsFrom = resultSet.getString("dependend_from");
         final String dependentsOn = resultSet.getString("dependend_on");
+        final TaskSlotDescription taskSlotDescription;
+
+        try {
+            taskSlotDescription = objectMapper.readValue(taskDescription, TaskSlotDescription.class);
+        } catch (JsonProcessingException e) {
+            throw new SQLException(e);
+        }
 
         return new Task(taskId, taskName, graphId, status,
-            workflowId, workflowName, userId, errorDescription, null, Collections.emptyMap(),
+            workflowId, workflowName, userId, errorDescription, taskSlotDescription,
             Arrays.stream(dependentsOn.split(",")).distinct().toList(),
             Arrays.stream(dependentsFrom.split(",")).distinct().toList()
         );
