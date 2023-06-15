@@ -94,7 +94,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var wfName = request.getWorkflowName();
         var storageName = request.getStorageName();
         var storageCfg = request.getSnapshotStorage();
-        var newExecId = wfName + "_" + idGenerator().generate();
+        var newExecId = idGenerator().generate(wfName + "_");
 
         var checkOpResultDelay = Duration.ofMillis(300);
         var startOpTimeout = serviceCfg().getWaitAllocationTimeout().plus(Duration.ofSeconds(10));

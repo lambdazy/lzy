@@ -112,7 +112,7 @@ final class CreateChannels extends ExecuteGraphContextAwareStep implements Suppl
               a new portal slot and channel with UUID containing name for each graph.
          */
         return outputs.stream().collect(Collectors.toMap(
-            /* key */ data -> "portal_channel_" + data.slotUri() + "_" + idGenerator().generate(),
+            /* key */ data -> idGenerator().generate("portal_channel_" + data.slotUri() + "_"),
             /* value */ Function.identity())
         );
     }

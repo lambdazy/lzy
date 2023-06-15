@@ -48,7 +48,7 @@ final class CreatePortalSubject extends StartExecutionContextAwareStep
         }
 
         if (portalId() == null) {
-            setPortalId(idGenerator().generate());
+            setPortalId(idGenerator().generate("portal_"));
 
             try {
                 withRetries(log(), () -> execDao().updatePortalId(execId(), portalId(), null));

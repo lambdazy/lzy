@@ -132,7 +132,7 @@ final class CreatePortalSlots extends ExecuteGraphContextAwareStep implements Su
 
     private Map<String, Data> generatePortalSlotsNames(List<Data> outputs) {
         return outputs.stream().collect(Collectors.toMap(
-            /* name */ data -> PortalService.PORTAL_SLOT_PREFIX + "_" + idGenerator().generate(),
+            /* name */ data -> idGenerator().generate(PortalService.PORTAL_SLOT_PREFIX + "_"),
             /* data */ Function.identity()
         ));
     }

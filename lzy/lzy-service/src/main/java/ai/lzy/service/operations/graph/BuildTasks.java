@@ -70,7 +70,7 @@ final class BuildTasks extends ExecuteGraphContextAwareStep implements Supplier<
     }
 
     private GraphExecutor.TaskDesc buildTask(LWF.Operation operation) throws IllegalArgumentException {
-        var taskBuilder = GraphExecutor.TaskDesc.newBuilder().setId(idGenerator().generate());
+        var taskBuilder = GraphExecutor.TaskDesc.newBuilder().setId(idGenerator().generate("task_"));
 
         var env = buildEnv(operation);
         var requirements = LMO.Requirements.newBuilder().setZone(vmPoolZone())
