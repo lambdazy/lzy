@@ -13,7 +13,7 @@ public class ClientVersions {
     private static final Logger LOG = LogManager.getLogger(ClientVersions.class);
     private static final Map<String, ClientVersionsDescription> versions = Map.of(
         "pylzy", new ClientVersionsDescription(
-            /* minimal version */ new SemanticVersion(1, 12, 0),
+            /* minimal version */ new SemanticVersion(1, 15, 0),
             Set.of()
         )
     );
@@ -21,7 +21,7 @@ public class ClientVersions {
     public static boolean isSupported(String clientVersion) throws StatusException {
         var res = clientVersion.split("=");  // Requires format <client_name>=<version>
         if (res.length != 2) {
-            LOG.error("Got client request with version {}, witch is in incorrect format", clientVersion);
+            LOG.error("Got client request with incorrect format version {}", clientVersion);
             throw Status.INVALID_ARGUMENT
                 .withDescription("Invalid client version format")
                 .asException();
@@ -32,7 +32,7 @@ public class ClientVersions {
         var versionParts = version.split("\\.");  // Required format of version <major>.<minor>.<patch>
 
         if (versionParts.length != 3) {
-            LOG.error("Got client request with version {}, witch is in incorrect format", clientVersion);
+            LOG.error("Got client request with incorrect format version {}", clientVersion);
             throw Status.INVALID_ARGUMENT
                 .withDescription("Invalid client version format")
                 .asException();
@@ -94,5 +94,5 @@ public class ClientVersions {
     public record ClientVersionsDescription(
         SemanticVersion minimalVersion,
         Set<SemanticVersion> blacklist
-    ) { }
+    ) {}
 }
