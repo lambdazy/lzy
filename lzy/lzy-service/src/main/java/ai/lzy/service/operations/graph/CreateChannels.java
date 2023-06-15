@@ -20,10 +20,7 @@ import java.util.stream.Stream;
 import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
-public final class CreateChannels extends ExecuteGraphContextAwareStep
-    implements Supplier<StepResult>, RetryableFailStep
-{
-
+final class CreateChannels extends ExecuteGraphContextAwareStep implements Supplier<StepResult>, RetryableFailStep {
     private final LzyChannelManagerPrivateBlockingStub channelsClient;
 
     public CreateChannels(ExecutionStepContext stepCtx, ExecuteGraphState state,
@@ -40,8 +37,7 @@ public final class CreateChannels extends ExecuteGraphContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Create channels for slots with data: { wfName: {}, execId: {} }", logPrefix(), wfName(),
-            execId());
+        log().info("{} Create channels for slots with data...", logPrefix());
 
         Map<Boolean, List<Data>> dataPartitionBySupplier = dataFlowGraph().getDataflow().stream()
             .collect(Collectors.partitioningBy(data -> data.supplier() != null));
@@ -80,7 +76,7 @@ public final class CreateChannels extends ExecuteGraphContextAwareStep
             ));
         }
 
-        log().debug("{} Create channels for data...", logPrefix());
+        log().debug("{} Request to create channels for data...", logPrefix());
 
         final Map<String, String> slotUri2channelId;
         try {
@@ -93,7 +89,7 @@ public final class CreateChannels extends ExecuteGraphContextAwareStep
             return retryableFail(sre, "Cannot create channels for data from portal or graph task output slots", sre);
         }
 
-        log().debug("{} Save data about created channels in dao...", logPrefix());
+        log().debug("{} Channel successfully created. Save data to dao...", logPrefix());
         setChannels(slotUri2channelId);
 
         try {
@@ -116,7 +112,7 @@ public final class CreateChannels extends ExecuteGraphContextAwareStep
               a new portal slot and channel with UUID containing name for each graph.
          */
         return outputs.stream().collect(Collectors.toMap(
-            /* key */ data -> "portal_channel_" + data.slotUri() + "_" + idGenerator().generate(),
+            /* key */ data -> idGenerator().generate("portal_channel_" + data.slotUri() + "_"),
             /* value */ Function.identity())
         );
     }

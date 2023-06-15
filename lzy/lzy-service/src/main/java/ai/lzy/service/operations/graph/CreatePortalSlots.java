@@ -27,9 +27,7 @@ import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.*;
 import static ai.lzy.v1.portal.LzyPortalGrpc.newBlockingStub;
 
-public final class CreatePortalSlots extends ExecuteGraphContextAwareStep
-    implements Supplier<StepResult>, RetryableFailStep
-{
+final class CreatePortalSlots extends ExecuteGraphContextAwareStep implements Supplier<StepResult>, RetryableFailStep {
     private final LMST.StorageConfig storageConfig;
 
     public CreatePortalSlots(ExecutionStepContext stepCtx, ExecuteGraphState state, LMST.StorageConfig storageConfig) {
@@ -39,8 +37,7 @@ public final class CreatePortalSlots extends ExecuteGraphContextAwareStep
 
     @Override
     public StepResult get() {
-        log().info("{} Create portal slots to consume and supply data: { wfName: {}, execId: {} }", logPrefix(),
-            wfName(), execId());
+        log().info("{} Create portal slots to load s3 data...", logPrefix());
 
         final Map<String, Data> portalSlotName2data;
 
@@ -105,12 +102,11 @@ public final class CreatePortalSlots extends ExecuteGraphContextAwareStep
         }
 
         var grpcChannel = newGrpcChannel(portalAddress, LzyPortalGrpc.SERVICE_NAME);
-
         try {
             var portalClient = newBlockingClient(newBlockingStub(grpcChannel), APP,
                 () -> internalUserCredentials().get().token());
 
-            log().debug("{} Send request to open portal slots for tasks...", logPrefix());
+            log().debug("{} Request to open portal slots for tasks...", logPrefix());
 
             var idempotentPortalClient = (idempotencyKey() == null) ? portalClient :
                 withIdempotencyKey(portalClient, idempotencyKey() + "_open_tasks_data_slots");
@@ -129,12 +125,14 @@ public final class CreatePortalSlots extends ExecuteGraphContextAwareStep
             }
         }
 
+        log().debug("{} Portal slots successfully created...", logPrefix());
+
         return StepResult.CONTINUE;
     }
 
     private Map<String, Data> generatePortalSlotsNames(List<Data> outputs) {
         return outputs.stream().collect(Collectors.toMap(
-            /* name */ data -> PortalService.PORTAL_SLOT_PREFIX + "_" + idGenerator().generate(),
+            /* name */ data -> idGenerator().generate(PortalService.PORTAL_SLOT_PREFIX + "_"),
             /* data */ Function.identity()
         ));
     }

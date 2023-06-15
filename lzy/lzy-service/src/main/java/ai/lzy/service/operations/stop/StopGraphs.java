@@ -27,7 +27,7 @@ final class StopGraphs extends StopExecutionContextAwareStep implements Supplier
 
     @Override
     public StepResult get() {
-        log().info("{} Stop executed graphs", logPrefix());
+        log().info("{} Stop executed graphs...", logPrefix());
 
         final List<GraphDao.GraphDescription> graphIds;
         try {
@@ -44,6 +44,8 @@ final class StopGraphs extends StopExecutionContextAwareStep implements Supplier
         } catch (StatusRuntimeException sre) {
             return retryableFail(sre, "Error while GraphExecutorBlockingStub::stopGraph call", sre);
         }
+
+        log().debug("{} Executed graphs successfully requested to stop...", logPrefix());
 
         return StepResult.CONTINUE;
     }

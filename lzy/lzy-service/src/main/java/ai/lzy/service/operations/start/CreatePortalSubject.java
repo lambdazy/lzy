@@ -48,18 +48,17 @@ final class CreatePortalSubject extends StartExecutionContextAwareStep
         }
 
         if (portalId() == null) {
-            setPortalId(idGenerator().generate());
+            setPortalId(idGenerator().generate("portal_"));
 
             try {
                 withRetries(log(), () -> execDao().updatePortalId(execId(), portalId(), null));
             } catch (Exception e) {
-                return retryableFail(e, "Cannot save portal id", () -> {}, Status.INTERNAL.withDescription(
+                return retryableFail(e, "Cannot save generated portal id", () -> {}, Status.INTERNAL.withDescription(
                     "Cannot create portal subject").asRuntimeException());
             }
         }
 
-        log().info("{} Creating iam subject for portal of execution: { wfName: {}, execId: {}, portalId: {} }",
-            logPrefix(), wfName(), execId(), portalId());
+        log().info("{} Creating iam subject for portal with id='{}'", logPrefix(), portalId());
 
         final Subject subject;
 
@@ -80,6 +79,8 @@ final class CreatePortalSubject extends StartExecutionContextAwareStep
             }
         };
 
+        log().debug("{} Set access to workflow for portal iam subject with id='{}'", logPrefix(), subject.id());
+
         try {
             var wfResource = new Workflow(userId() + "/" + wfName());
             var bindings = List.of(new AccessBinding(Role.LZY_WORKER, subject));
@@ -98,6 +99,8 @@ final class CreatePortalSubject extends StartExecutionContextAwareStep
         }
 
         setPortalSubjectId(subject.id());
+        log().debug("{} Portal iam subject with id='{}' successfully created", logPrefix(), subject.id());
+
         return StepResult.CONTINUE;
     }
 }

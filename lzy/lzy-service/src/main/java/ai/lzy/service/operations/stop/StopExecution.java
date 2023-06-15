@@ -16,7 +16,7 @@ import java.sql.SQLException;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
-public abstract class StopExecution extends ExecutionOperationRunner {
+abstract class StopExecution extends ExecutionOperationRunner {
     private final KafkaLogsListeners kafkaLogsListeners;
     private final LongRunningServiceBlockingStub allocOpClient;
     private final LzyChannelManagerPrivateBlockingStub channelsClient;

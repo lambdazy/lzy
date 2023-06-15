@@ -38,7 +38,10 @@ final class FinishPortal extends StopExecutionContextAwareStep implements Suppli
                 withIdempotencyKey(portalClient, idempotencyKey() + "_finish_portal");
             try {
                 var op = finishPortalClient.finish(LzyPortalApi.FinishRequest.getDefaultInstance());
+
                 setFinishPortalOpId(op.getId());
+                log().debug("{} Portal shutdown operation with id='{}' starts...", logPrefix(), op.getId());
+
                 return StepResult.CONTINUE;
             } catch (StatusRuntimeException sre) {
                 return retryableFail(sre, "Error in PortalClient::finish call", sre);

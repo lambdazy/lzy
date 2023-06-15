@@ -25,7 +25,7 @@ final class WaitDestroyChannels extends StopExecutionContextAwareStep
 
     @Override
     public StepResult get() {
-        log().info("{} Test status of destroy channels operation: { opId: {} }", logPrefix(), destroyChannelsOpId());
+        log().info("{} Test status of destroy channels operation with id='{}'", logPrefix(), destroyChannelsOpId());
 
         final LongRunning.Operation op;
         try {
@@ -41,6 +41,8 @@ final class WaitDestroyChannels extends StopExecutionContextAwareStep
                 op.getId());
             return StepResult.RESTART.after(Duration.ofMillis(500));
         }
+
+        log().debug("{} Channels of execution successfully destroyed...", logPrefix());
 
         return StepResult.CONTINUE;
     }

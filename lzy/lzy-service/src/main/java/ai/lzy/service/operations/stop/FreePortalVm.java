@@ -29,7 +29,7 @@ final class FreePortalVm extends StopExecutionContextAwareStep implements Suppli
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Free portal VM: { vmId: {} }", logPrefix(), portalVmId());
+        log().info("{} Free portal VM with id='{}'", logPrefix(), portalVmId());
 
         var freeVmAllocClient = (idempotencyKey() == null) ? allocClient :
             withIdempotencyKey(allocClient, idempotencyKey() + "_free_portal_vm");
@@ -48,7 +48,9 @@ final class FreePortalVm extends StopExecutionContextAwareStep implements Suppli
                 "Cannot free portal VM").asRuntimeException());
         }
 
+        log().debug("{} Portal VM with id='{}' successfully released", logPrefix(), portalVmId());
         setPortalVmId(null);
+
         return StepResult.CONTINUE;
     }
 }

@@ -9,9 +9,7 @@ import io.grpc.Status;
 
 import java.util.function.Supplier;
 
-public final class BuildDataFlowGraph extends ExecuteGraphContextAwareStep
-    implements Supplier<StepResult>, RetryableFailStep
-{
+final class BuildDataFlowGraph extends ExecuteGraphContextAwareStep implements Supplier<StepResult>, RetryableFailStep {
     public BuildDataFlowGraph(ExecutionStepContext stepCtx, ExecuteGraphState state) {
         super(stepCtx, state);
     }
@@ -23,7 +21,7 @@ public final class BuildDataFlowGraph extends ExecuteGraphContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Building dataflow graph: { wfName: {}, execId: {} }", logPrefix(), wfName(), execId());
+        log().info("{} Building dataflow graph...", logPrefix());
 
         var dataflowGraph = new DataFlowGraph(operationsToExecute());
         if (dataflowGraph.hasCycle()) {
@@ -32,7 +30,7 @@ public final class BuildDataFlowGraph extends ExecuteGraphContextAwareStep
                 dataflowGraph.printCycle()).asRuntimeException());
         }
 
-        log().debug("{} Save dataflow graph in dao...", logPrefix());
+        log().debug("{} Dataflow graph successfully built. Save to dao...", logPrefix());
         setDataFlowGraph(dataflowGraph);
 
         try {

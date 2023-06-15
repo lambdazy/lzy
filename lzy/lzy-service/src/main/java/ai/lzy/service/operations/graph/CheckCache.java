@@ -15,7 +15,7 @@ import java.util.Collection;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-public final class CheckCache extends ExecuteGraphContextAwareStep implements Supplier<StepResult>, RetryableFailStep {
+final class CheckCache extends ExecuteGraphContextAwareStep implements Supplier<StepResult>, RetryableFailStep {
     private final StorageClient storageClient;
     private final Supplier<StepResult> completeAction;
 
@@ -41,8 +41,7 @@ public final class CheckCache extends ExecuteGraphContextAwareStep implements Su
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Looking for graph tasks results in cache: { wfName: {}, execId: {} }", logPrefix(), wfName(),
-            execId());
+        log().info("{} Looking for graph tasks results in cache...", logPrefix());
         log().debug("{} Graph tasks descriptions: {}", logPrefix(), printer().shortDebugString(
             request().getOperationsList()));
 

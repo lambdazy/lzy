@@ -24,7 +24,7 @@ import java.util.stream.Stream;
 import static ai.lzy.model.grpc.ProtoConverter.*;
 import static ai.lzy.service.dao.ExecutionDao.KafkaTopicDesc;
 
-public final class BuildTasks extends ExecuteGraphContextAwareStep implements Supplier<StepResult>, RetryableFailStep {
+final class BuildTasks extends ExecuteGraphContextAwareStep implements Supplier<StepResult>, RetryableFailStep {
     private final KafkaConfig kafkaCfg;
     private final KafkaTopicDesc kafkaTopicDesc;
     private final Map<String, LWF.DataDescription> slotUri2dataDescription;
@@ -46,17 +46,17 @@ public final class BuildTasks extends ExecuteGraphContextAwareStep implements Su
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Building graph tasks: { wfName: {}, execId: {} }", logPrefix(), wfName(), execId());
+        log().info("{} Building graph for GraphExecutor...", logPrefix());
 
         final List<GraphExecutor.TaskDesc> tasks;
         try {
             tasks = dataFlowGraph().getOperations().stream().map(this::buildTask).toList();
         } catch (IllegalArgumentException iae) {
-            log().error("{} Cannot build graph task: {}", logPrefix(), iae.getMessage(), iae);
+            log().error("{} Cannot build graph tasks: {}", logPrefix(), iae.getMessage(), iae);
             return failAction().apply(Status.INVALID_ARGUMENT.withDescription(iae.getMessage()).asRuntimeException());
         }
 
-        log().debug("{} Save data about graph tasks in dao...", logPrefix());
+        log().debug("{} Graph for GraphExecutor successfully built. Save graph tasks to dao...", logPrefix());
         setTasks(tasks);
 
         try {
@@ -70,7 +70,7 @@ public final class BuildTasks extends ExecuteGraphContextAwareStep implements Su
     }
 
     private GraphExecutor.TaskDesc buildTask(LWF.Operation operation) throws IllegalArgumentException {
-        var taskBuilder = GraphExecutor.TaskDesc.newBuilder().setId(idGenerator().generate());
+        var taskBuilder = GraphExecutor.TaskDesc.newBuilder().setId(idGenerator().generate("task_"));
 
         var env = buildEnv(operation);
         var requirements = LMO.Requirements.newBuilder().setZone(vmPoolZone())

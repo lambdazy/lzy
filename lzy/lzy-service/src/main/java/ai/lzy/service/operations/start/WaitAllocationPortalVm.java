@@ -42,7 +42,7 @@ final class WaitAllocationPortalVm extends StartExecutionContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Test status of allocate portal VM operation: { opId: {} }", logPrefix(), allocateVmOpId());
+        log().info("{} Test status of allocate portal VM operation with id='{}'", logPrefix(), allocateVmOpId());
 
         Function<Exception, Runnable> dropAllocVm = e -> () -> {
             try {
@@ -102,6 +102,7 @@ final class WaitAllocationPortalVm extends StartExecutionContextAwareStep
             }
 
             setPortalApiAddress(allocateResponse.getMetadataOrDefault(Constants.PORTAL_ADDRESS_KEY, null));
+            log().debug("{} Portal VM with id='{}' is successfully allocated", logPrefix(), portalVmId());
 
             return StepResult.CONTINUE;
         }
