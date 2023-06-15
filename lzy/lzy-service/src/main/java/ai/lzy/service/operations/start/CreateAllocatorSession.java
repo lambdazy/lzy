@@ -40,8 +40,7 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Create allocator session: { userId: {}, wfName: {}, execId: {} }", logPrefix(), userId(),
-            wfName(), execId());
+        log().info("{} Create allocator session...", logPrefix());
 
         var createSessionAllocClient = (idempotencyKey() == null) ? allocClient :
             withIdempotencyKey(allocClient, idempotencyKey() + "_alloc_session");
@@ -55,8 +54,7 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
                     .setCachePolicy(spec.cachePolicy())
                     .build());
         } catch (StatusRuntimeException sre) {
-            return retryableFail(sre, "Error in Allocator:createSession call for execution with id='%s'"
-                .formatted(execId()), () -> {}, sre);
+            return retryableFail(sre, "Error in Allocator:createSession call", sre);
         }
 
         final String sessionId;
@@ -65,7 +63,7 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
             try {
                 sessionId = createSessionOp.getResponse().unpack(CreateSessionResponse.class).getSessionId();
             } catch (InvalidProtocolBufferException e) {
-                log().error("{} Cannot parse CreateSessionResponse from operation with id='{}': {}", logPrefix(),
+                log().error("{} Cannot parse CreateSessionResponse of operation with id='{}': {}", logPrefix(),
                     createSessionOp.getId(), e.getMessage(), e);
                 return StepResult.RESTART;
             }
@@ -73,13 +71,13 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
             var status = (createSessionOp.getDone() && createSessionOp.hasError())
                 ? StatusProto.toStatusRuntimeException(createSessionOp.getError())
                 : Status.INTERNAL.withDescription("operation must be completed").asRuntimeException();
-            log().error("{} Create session operation with id='{}' in invalid state: {}", logPrefix(),
+            log().error("{} CreateSession operation with id='{}' in invalid state: {}", logPrefix(),
                 createSessionOp.getId(), status.getMessage());
 
             return failAction().apply(status);
         }
 
-        log().debug("{} Allocator session successfully created: { sessionId: {} }", logPrefix(), sessionId);
+        log().debug("{} Allocator session with id='{}' successfully created", logPrefix(), sessionId);
 
         try {
             withRetries(log(), () -> execDao().updateAllocatorSession(execId(), sessionId, null));
@@ -96,12 +94,13 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
                         sessionId, e.getMessage(), sre);
                 }
             };
-            return retryableFail(e, "Cannot save data about allocator session", deleteSession, Status.INTERNAL
-                .withDescription("Cannot create allocator session").asRuntimeException());
+            return retryableFail(e, "Cannot save data about allocator session with id='%s'".formatted(sessionId),
+                deleteSession, Status.INTERNAL.withDescription("Cannot create allocator session").asRuntimeException());
         }
 
         setAllocatorSessionId(sessionId);
         log().debug("{} Allocator session successfully created...", logPrefix());
+
         return StepResult.CONTINUE;
     }
 }

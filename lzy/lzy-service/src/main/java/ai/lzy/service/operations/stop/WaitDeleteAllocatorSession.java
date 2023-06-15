@@ -33,7 +33,7 @@ final class WaitDeleteAllocatorSession extends StopExecutionContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Test status of delete allocator session operation: { opId: {} }", logPrefix(),
+        log().info("{} Test status of delete allocator session operation with id='{}'", logPrefix(),
             deleteAllocSessionOpId());
 
         final LongRunning.Operation op;
@@ -58,7 +58,9 @@ final class WaitDeleteAllocatorSession extends StopExecutionContextAwareStep
                 "Cannot delete allocator session").asRuntimeException());
         }
 
+        log().debug("{} Allocator session with id='{}' was successfully deleted", logPrefix(), allocatorSessionId());
         setAllocatorSessionId(null);
+
         return StepResult.CONTINUE;
     }
 }

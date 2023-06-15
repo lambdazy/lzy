@@ -17,9 +17,7 @@ public class PublicAbortExecution extends AbortExecution {
         return new PublicAbortExecutionBuilder();
     }
 
-    public static final class PublicAbortExecutionBuilder extends
-        AbortExecution.AbortExecutionBuilder<PublicAbortExecutionBuilder>
-    {
+    public static final class PublicAbortExecutionBuilder extends AbortExecutionBuilder<PublicAbortExecutionBuilder> {
         @Override
         public PublicAbortExecution build() {
             return new PublicAbortExecution(this);

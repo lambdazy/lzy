@@ -32,7 +32,7 @@ final class DeletePortalSubject extends StopExecutionContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Delete portal iam subject: { subjectId: {} }", logPrefix(), portalSubjectId());
+        log().info("{} Delete portal iam subject with id='{}'", logPrefix(), portalSubjectId());
 
         try {
             subjClient.removeSubject(portalSubjectId());
@@ -53,7 +53,9 @@ final class DeletePortalSubject extends StopExecutionContextAwareStep
                 "Cannot delete portal subject").asRuntimeException());
         }
 
+        log().debug("{} Portal iam subject with id='{}' successfully deleted", logPrefix(), portalSubjectId());
         setPortalSubjectId(null);
+
         return StepResult.CONTINUE;
     }
 }

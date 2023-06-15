@@ -37,8 +37,7 @@ final class DeleteKafkaTopic extends StopExecutionContextAwareStep implements Su
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Delete kafka topic: { execId: {}, topicName: {} }", logPrefix(), execId(),
-            kafkaTopicDesc().topicName());
+        log().info("{} Delete kafka topic with name='{}'", logPrefix(), kafkaTopicDesc().topicName());
 
         kafkaLogsListeners.notifyFinished(execId());
 
@@ -69,7 +68,8 @@ final class DeleteKafkaTopic extends StopExecutionContextAwareStep implements Su
         }
 
         if (kafkaTopicDesc().sinkJobId() != null) {
-            log().info("{} Stop remote job on s3-sink, topic: {}", logPrefix(), kafkaTopicDesc().topicName());
+            log().info("{} Stop remote job on s3-sink for topic with name='{}'", logPrefix(),
+                kafkaTopicDesc().topicName());
 
             var s3SinkStub = (idempotencyKey() != null) ?
                 withIdempotencyKey(s3SinkClient.stub(), idempotencyKey() + "_stop_sync") : s3SinkClient.stub();
@@ -90,7 +90,9 @@ final class DeleteKafkaTopic extends StopExecutionContextAwareStep implements Su
                 .withDescription("Cannot delete kafka topic").asRuntimeException());
         }
 
+        log().debug("{} Kafka topic with name='{}' successfully deleted", logPrefix(), kafkaTopicDesc().topicName());
         setKafkaTopicDesc(null);
+
         return StepResult.CONTINUE;
     }
 }

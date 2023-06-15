@@ -24,14 +24,17 @@ final class DestroyChannels extends StopExecutionContextAwareStep implements Sup
 
     @Override
     public StepResult get() {
-        log().info("{} Destroy channels of execution: { execId: {} }", logPrefix(), execId());
+        log().info("{} Destroy channels of execution...", logPrefix());
 
         var destroyAllChannelsClient = (idempotencyKey() == null) ? channelsClient :
             withIdempotencyKey(channelsClient, idempotencyKey() + "_destroy_exec_channels");
         try {
             var op = destroyAllChannelsClient.destroyAll(LCMPS.ChannelDestroyAllRequest.newBuilder()
                 .setExecutionId(execId()).build());
+
             setDestroyChannelsOpId(op.getId());
+            log().debug("{} Destroy channels operation with id='{}' started", logPrefix(), op.getId());
+
             return StepResult.CONTINUE;
         } catch (StatusRuntimeException sre) {
             return retryableFail(sre, "Error in Channels::destroyAll call for execution with id='%s'"

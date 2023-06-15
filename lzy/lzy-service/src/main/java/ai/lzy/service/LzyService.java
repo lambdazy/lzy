@@ -96,23 +96,25 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var storageCfg = request.getSnapshotStorage();
         var newExecId = wfName + "_" + idGenerator().generate();
 
-        LOG.info("Request to start workflow execution: {}", safePrinter().shortDebugString(request));
+        var checkOpResultDelay = Duration.ofMillis(300);
+        var startOpTimeout = serviceCfg().getWaitAllocationTimeout().plus(Duration.ofSeconds(10));
+        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
+            StartWorkflowResponse.class, checkOpResultDelay, startOpTimeout, "Request to start workflow: %s"
+                .formatted(request), LOG))
+        {
+            return;
+        }
+
+        LOG.info("Request to start workflow execution: { idempotencyKey: {}, request: {} }",
+            idempotencyKey != null ? idempotencyKey.token() : "null", safePrinter().shortDebugString(request));
 
         if (validator().validate(userId, request, responseObserver)) {
             return;
         }
 
-        var checkOpResultDelay = Duration.ofMillis(300);
-        var startOpTimeout = serviceCfg().getWaitAllocationTimeout().plus(Duration.ofSeconds(10));
-        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
-            StartWorkflowResponse.class, checkOpResultDelay, startOpTimeout, LOG))
-        {
-            return;
-        }
-
-        Operation startOp = Operation.create(userId, String.format("Start workflow execution: wfName='%s', " +
-            "newActiveExecId=%s", wfName, newExecId), startOpTimeout, idempotencyKey, null);
+        Operation startOp = Operation.create(userId, ("Start workflow execution: userId='%s', wfName='%s', " +
+            "newActiveExecId=%s").formatted(userId, wfName, newExecId), startOpTimeout, idempotencyKey, null);
         Operation stopOp = null;
         String oldExecId;
 
@@ -198,23 +200,25 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var execId = request.getExecutionId();
         var reason = request.getReason();
 
-        LOG.info("Request to finish workflow: {}", safePrinter().printToString(request));
+        var checkOpResultDelay = Duration.ofMillis(300);
+        var opTimeout = Duration.ofSeconds(10);
+        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
+            FinishWorkflowResponse.class, checkOpResultDelay, opTimeout, "Request to finish workflow: %s"
+                .formatted(safePrinter().shortDebugString(request)), LOG))
+        {
+            return;
+        }
+
+        LOG.info("Request to finish workflow: { idempotencyKey: {}, request: {} }",
+            idempotencyKey != null ? idempotencyKey.token() : "null", safePrinter().shortDebugString(request));
 
         if (validator().validate(userId, request, responseObserver)) {
             return;
         }
 
-        var checkOpResultDelay = Duration.ofMillis(300);
-        var opTimeout = Duration.ofSeconds(10);
-        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
-            FinishWorkflowResponse.class, checkOpResultDelay, opTimeout, LOG))
-        {
-            return;
-        }
-
-        var op = Operation.create(userId, "Finish workflow execution: wfName='%s', activeExecId='%s'".formatted(
-            wfName, execId), opTimeout, idempotencyKey, null);
+        var op = Operation.create(userId, ("Finish workflow with active execution: userId='%s', wfName='%s', " +
+            "activeExecId='%s'").formatted(userId, wfName, execId), opTimeout, idempotencyKey, null);
 
         try {
             withRetries(LOG, () -> {
@@ -305,23 +309,25 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var execId = request.getExecutionId();
         var reason = request.getReason();
 
-        LOG.info("Request to abort workflow: {}", safePrinter().printToString(request));
+        var checkOpResultDelay = Duration.ofMillis(300);
+        var opTimeout = Duration.ofSeconds(10);
+        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
+            AbortWorkflowResponse.class, checkOpResultDelay, opTimeout, "Request to abort workflow: %s"
+                .formatted(safePrinter().shortDebugString(request)), LOG))
+        {
+            return;
+        }
+
+        LOG.info("Request to abort workflow: { idempotencyKey: {}, request: {} }",
+            idempotencyKey != null ? idempotencyKey.token() : "null", safePrinter().shortDebugString(request));
 
         if (validator().validate(userId, request, responseObserver)) {
             return;
         }
 
-        var checkOpResultDelay = Duration.ofMillis(300);
-        var opTimeout = Duration.ofSeconds(10);
-        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
-            AbortWorkflowResponse.class, checkOpResultDelay, opTimeout, LOG))
-        {
-            return;
-        }
-
         var op = Operation.create(userId, ("Abort workflow with active execution: userId='%s', " +
-            "wfName='%s', activeExecId='%s'").formatted(userId, wfName, execId), null, idempotencyKey, null);
+            "wfName='%s', activeExecId='%s'").formatted(userId, wfName, execId), opTimeout, idempotencyKey, null);
 
         try {
             withRetries(LOG, () -> {
@@ -409,23 +415,25 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var wfName = request.getWorkflowName();
         var execId = request.getExecutionId();
 
-        LOG.info("Request to execute graph: {}", safePrinter().printToString(request));
+        var checkOpResultDelay = Duration.ofMillis(300);
+        var opTimeout = Duration.ofSeconds(10);
+        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
+            ExecuteGraphResponse.class, checkOpResultDelay, opTimeout, "Request to execute graph: %s"
+                .formatted(safePrinter().printToString(request)), LOG))
+        {
+            return;
+        }
+
+        LOG.info("Request to execute graph: { idempotencyKey: {}, request: {} }",
+            idempotencyKey != null ? idempotencyKey.token() : "null", safePrinter().printToString(request));
 
         if (validator().validate(userId, request, responseObserver)) {
             return;
         }
 
-        var checkOpResultDelay = Duration.ofMillis(300);
-        var opTimeout = Duration.ofSeconds(10);
-        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-        if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
-            ExecuteGraphResponse.class, checkOpResultDelay, opTimeout, LOG))
-        {
-            return;
-        }
-
         var op = Operation.create(userId, "Execute graph: userId='%s', wfName='%s', activeExecId='%s'".formatted(
-            userId, wfName, execId), Duration.ofSeconds(10), idempotencyKey, null);
+            userId, wfName, execId), opTimeout, idempotencyKey, null);
 
         try (var tx = TransactionHandle.create(storage())) {
             if (!Objects.equals(wfDao().getExecutionId(userId, wfName, tx), execId)) {
@@ -504,7 +512,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var execId = request.getExecutionId();
         var graphId = request.getGraphId();
 
-        LOG.debug("Request to graph status: {}", safePrinter().printToString(request));
+        LOG.debug("Request to graph status: {}", safePrinter().shortDebugString(request));
 
         if (validator().validate(userId, request, responseObserver)) {
             return;
@@ -654,7 +662,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var execId = request.getExecutionId();
         var graphId = request.getGraphId();
 
-        LOG.info("Request to stop graph: {}", safePrinter().printToString(request));
+        LOG.info("Request to stop graph: {}", safePrinter().shortDebugString(request));
 
         if (validator().validate(userId, request, responseObserver)) {
             return;
@@ -682,7 +690,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var userId = currentSubject().id();
         var execId = request.getExecutionId();
 
-        LOG.info("Request to stream std slots content for execution: {}", safePrinter().printToString(request));
+        LOG.info("Request to stream std slots content for execution: {}", safePrinter().shortDebugString(request));
 
         if (validator().validate(userId, request, responseObserver)) {
             return;
@@ -710,7 +718,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
     {
         var userId = currentSubject().id();
 
-        LOG.info("Request to get available user VM pools: {}", safePrinter().printToString(request));
+        LOG.info("Request to get available user VM pools: {}", safePrinter().shortDebugString(request));
 
         if (validator().validate(userId, request, responseObserver)) {
             LOG.error("Cannot get available VM pools because of invalid request: {}",

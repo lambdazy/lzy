@@ -45,7 +45,7 @@ final class CreateKafkaTopic extends StartExecutionContextAwareStep implements S
         var kafkaUsername = "user_" + execId().replace("-", "_");
         var kafkaUserPassword = idGenerator().generate();
 
-        log().info("{} Create kafka topic: { execId: {}, topicName: {} }", logPrefix(), execId(), kafkaTopicName);
+        log().info("{} Create kafka topic with name='{}'", logPrefix(), kafkaTopicName);
 
         try {
             kafkaClient.createTopic(kafkaTopicName);
@@ -54,7 +54,7 @@ final class CreateKafkaTopic extends StartExecutionContextAwareStep implements S
                 // idempotent call
                 log().debug("{} Kafka topic with name='{}' already created", logPrefix(), kafkaTopicName);
             } else {
-                return retryableFail(sre, "Cannot create kafka topic", () -> {}, sre);
+                return retryableFail(sre, "Cannot create kafka topic with name='%s'".formatted(kafkaTopicName), sre);
             }
         }
 
@@ -65,7 +65,7 @@ final class CreateKafkaTopic extends StartExecutionContextAwareStep implements S
                 // idempotent call
                 log().debug("{} Kafka user with name='{}' already created", logPrefix(), kafkaUsername);
             } else {
-                return retryableFail(sre, "Cannot create kafka user", () -> {}, sre);
+                return retryableFail(sre, "Cannot create kafka user with name='%s'".formatted(kafkaUsername), sre);
             }
         }
 
@@ -85,8 +85,8 @@ final class CreateKafkaTopic extends StartExecutionContextAwareStep implements S
 
                 var uri = "s3://" + path;
 
-                log().info("{} Starting remote job on s3-sink, topic: {}, bucket: {}", logPrefix(), kafkaTopicName,
-                    storageConfig.getUri());
+                log().info("{} Starting remote job on s3-sink with topicName='{}', bucketUri='{}'", logPrefix(),
+                    kafkaTopicName, storageConfig.getUri());
 
                 var s3SinkStub = (idempotencyKey() != null) ?
                     withIdempotencyKey(s3SinkClient.stub(), idempotencyKey() + "_start_sync") : s3SinkClient.stub();
@@ -125,19 +125,23 @@ final class CreateKafkaTopic extends StartExecutionContextAwareStep implements S
                 try {
                     kafkaClient.dropUser(kafkaUsername);
                 } catch (StatusRuntimeException sre) {
-                    log().warn("{} Cannot remove kafka user after error {}: ", logPrefix(), e.getMessage(), sre);
+                    log().warn("{} Cannot remove kafka user with name='{}' after error {}: ", logPrefix(),
+                        kafkaUsername, e.getMessage(), sre);
                 }
 
                 try {
                     kafkaClient.dropTopic(kafkaTopicName);
                 } catch (StatusRuntimeException sre) {
-                    log().warn("{} Cannot remove topic after error {}: ", logPrefix(), e.getMessage(), sre);
+                    log().warn("{} Cannot remove topic with name='{}' after error {}: ", logPrefix(), kafkaTopicName,
+                        e.getMessage(), sre);
                 }
             };
 
-            return retryableFail(e, "Cannot create kafka topic", dropKafka, Status.INTERNAL.withDescription(
-                "Cannot create kafka topic").asRuntimeException());
+            return retryableFail(e, "Cannot create kafka topic with name='%s'".formatted(kafkaTopicName), dropKafka,
+                Status.INTERNAL.withDescription("Cannot create kafka topic").asRuntimeException());
         }
+
+        log().debug("{} Kafka topic with name='{}' successfully created...", logPrefix(), kafkaTopicName);
 
         return StepResult.CONTINUE;
     }

@@ -9,6 +9,7 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.Logger;
+import org.apache.logging.log4j.util.Strings;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -27,6 +28,18 @@ public final class IdempotencyUtils {
                                                                    Duration loadAttemptDelay, Duration timeout,
                                                                    Logger log)
     {
+        return loadExistingOpResult(operationsDao, idempotencyKey, response, responseType, loadAttemptDelay, timeout,
+            "", log);
+    }
+
+    public static <T extends Message> boolean loadExistingOpResult(OperationDao operationsDao,
+                                                                   Operation.IdempotencyKey idempotencyKey,
+                                                                   StreamObserver<T> response, Class<T> responseType,
+                                                                   Duration loadAttemptDelay, Duration timeout,
+                                                                   String logPrefix, Logger log)
+    {
+        var prefix = Strings.isBlank(logPrefix) ? "" : logPrefix + " -- ";
+
         long deadline = System.nanoTime() + timeout.toNanos();
         Operation op;
 
@@ -37,21 +50,21 @@ public final class IdempotencyUtils {
             }
 
             if (!idempotencyKey.equals(op.idempotencyKey())) {
-                log.error("Idempotency key {} conflict", idempotencyKey.token());
+                log.error("{}Idempotency key {} conflict", prefix, idempotencyKey.token());
                 response.onError(Status.INVALID_ARGUMENT
-                    .withDescription("IdempotencyKey conflict").asException());
+                    .withDescription("{} IdempotencyKey conflict").asException());
                 return true;
             }
         } catch (Exception ex) {
-            log.error("Error while loading operation by idempotency key {}: {}",
-                idempotencyKey.token(), ex.getMessage(), ex);
+            log.error("{}Error while loading operation by idempotency key {}: {}", prefix, idempotencyKey.token(),
+                ex.getMessage(), ex);
             response.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
             return true;
         }
 
         var opId = op.id();
 
-        log.info("Found existing op {} with idempotency key {}", opId, idempotencyKey.token());
+        log.info("{}Found existing op {} with idempotency key {}", prefix, opId, idempotencyKey.token());
 
         while (!op.done() && deadline - System.nanoTime() > 0L) {
             LockSupport.parkNanos(loadAttemptDelay.toNanos());
@@ -59,16 +72,16 @@ public final class IdempotencyUtils {
             try {
                 op = withRetries(log, () -> operationsDao.get(opId, null));
             } catch (Exception e) {
-                log.error("Error while loading operation by idempotency key {}: {}",
-                    idempotencyKey.token(), e.getMessage(), e);
+                log.error("{}Error while loading operation by idempotency key {}: {}", prefix, idempotencyKey.token(),
+                    e.getMessage(), e);
                 response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
                 return true;
             }
         }
 
         if (!op.done()) {
-            log.error("Error while loading operation by idempotency key {}: {}",
-                idempotencyKey.token(), "Cannot await completion of concurrent call which processed operation");
+            log.error("{} Error while loading operation by idempotency key {}: {}", prefix, idempotencyKey.token(),
+                "Cannot await completion of concurrent call which processed operation");
             response.onError(Status.INTERNAL.withDescription("Concurrent call error").asException());
             return true;
         }
@@ -79,8 +92,8 @@ public final class IdempotencyUtils {
             try {
                 response.onNext(resp.unpack(responseType));
             } catch (InvalidProtocolBufferException e) {
-                log.error("Error while loading operation by idempotency key {}: {}",
-                    idempotencyKey.token(), e.getMessage(), e);
+                log.error("{}Error while loading operation by idempotency key {}: {}", prefix, idempotencyKey.token(),
+                    e.getMessage(), e);
                 response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
                 return true;
             }

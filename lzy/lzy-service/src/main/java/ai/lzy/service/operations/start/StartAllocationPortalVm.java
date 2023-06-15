@@ -44,8 +44,7 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
-        // todo: remove execID wfName it's already noticed in logPrefix
-        log().info("{} Allocate portal VM: { wfName: {}, execId: {} }", logPrefix(), wfName(), execId());
+        log().info("{} Allocate portal VM...", logPrefix());
 
         var cfg = prepareConfig();
         var args = formatToArgs(cfg);
@@ -73,7 +72,8 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
                 .build())
             .build();
 
-        log().debug("{} Allocate VM request: {}", logPrefix(), safePrinter().shortDebugString(allocateRequest));
+        log().debug("{} Request to allocate portal VM: {}", logPrefix(),
+            safePrinter().shortDebugString(allocateRequest));
 
         try {
             op = allocateVmClient.allocate(allocateRequest);
@@ -122,6 +122,9 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
                 .formatted(op.getId()), dropAllocVm, Status.INTERNAL.withDescription("Cannot allocate portal VM")
                 .asRuntimeException());
         }
+
+        log().debug("{} Allocator is successfully requested for portal VM, vmId='{}', allocOpId='{}'", logPrefix(),
+            portalVmId(), op.getId());
 
         return StepResult.CONTINUE;
     }

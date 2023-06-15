@@ -12,7 +12,7 @@ import io.grpc.StatusRuntimeException;
 
 import java.util.function.Supplier;
 
-public final class StartGraphExecution extends ExecuteGraphContextAwareStep
+final class StartGraphExecution extends ExecuteGraphContextAwareStep
     implements Supplier<StepResult>, RetryableFailStep
 {
     private final GraphExecutorBlockingStub graphExecutorClient;
@@ -41,7 +41,7 @@ public final class StartGraphExecution extends ExecuteGraphContextAwareStep
                 .build()
             ).toList());
 
-        log().info("{} Send execute graph request to service", logPrefix());
+        log().info("{} Request to execute graph to GraphExecutor service...", logPrefix());
 
         final String graphId;
         try {
@@ -50,7 +50,7 @@ public final class StartGraphExecution extends ExecuteGraphContextAwareStep
             return retryableFail(sre, "Error while GraphExecutor::execute call", sre);
         }
 
-        log().debug("{} Save id of executed graph in dao...", logPrefix());
+        log().debug("{} GraphExecutor is successfully requested. Save graph id to dao...", logPrefix());
         setGraphId(graphId);
 
         try {

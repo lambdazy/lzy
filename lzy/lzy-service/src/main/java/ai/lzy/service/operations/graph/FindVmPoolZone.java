@@ -15,9 +15,7 @@ import java.util.function.Supplier;
 
 import static ai.lzy.allocator.vmpool.VmPoolClient.findZones;
 
-public final class FindVmPoolZone extends ExecuteGraphContextAwareStep
-    implements Supplier<StepResult>, RetryableFailStep
-{
+final class FindVmPoolZone extends ExecuteGraphContextAwareStep implements Supplier<StepResult>, RetryableFailStep {
     private final VmPoolServiceBlockingStub vmPoolClient;
 
     public FindVmPoolZone(ExecutionStepContext stepCtx, ExecuteGraphState state,
@@ -34,8 +32,7 @@ public final class FindVmPoolZone extends ExecuteGraphContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Find VM pools zone according to graph tasks specs: { wfName: {}, execId: {} }", logPrefix(),
-            wfName(), execId());
+        log().info("{} Find VM pools zone according to graph tasks specs...", logPrefix());
 
         var poolLabels = request().getOperationsList().stream().map(LWF.Operation::getPoolSpecName).toList();
 

@@ -13,10 +13,10 @@ import java.util.Map;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
-public abstract class ExecuteGraphContextAwareStep extends ExecutionContextAwareStep {
+abstract class ExecuteGraphContextAwareStep extends ExecutionContextAwareStep {
     private final ExecuteGraphState state;
 
-    public ExecuteGraphContextAwareStep(ExecutionStepContext stepCtx, ExecuteGraphState state) {
+    protected ExecuteGraphContextAwareStep(ExecutionStepContext stepCtx, ExecuteGraphState state) {
         super(stepCtx);
         this.state = state;
     }

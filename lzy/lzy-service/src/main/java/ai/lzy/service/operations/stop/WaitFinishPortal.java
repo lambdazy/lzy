@@ -31,7 +31,7 @@ final class WaitFinishPortal extends StopExecutionContextAwareStep implements Su
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Test status of shutdown portal operation: { opId: {} }", logPrefix(), finishPortalOpId());
+        log().info("{} Test status of shutdown portal operation with id='{}'", logPrefix(), finishPortalOpId());
 
         var grpcChannel = newGrpcChannel(portalApiAddress(), LongRunningServiceGrpc.SERVICE_NAME);
 
@@ -71,7 +71,9 @@ final class WaitFinishPortal extends StopExecutionContextAwareStep implements Su
             }
         }
 
+        log().debug("{} Portal at VM with address='{}' successfully finished", logPrefix(), portalApiAddress());
         setPortalApiAddress(null);
+
         return StepResult.CONTINUE;
     }
 }
