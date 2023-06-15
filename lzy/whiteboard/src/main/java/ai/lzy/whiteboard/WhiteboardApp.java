@@ -105,7 +105,7 @@ public class WhiteboardApp {
             .intercept(AllowSubjectOnlyInterceptor.ALLOW_USER_ONLY)
             .intercept(new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
             .intercept(GrpcLogsInterceptor.server())
-            .intercept(RequestIdInterceptor.server())
+            .intercept(RequestIdInterceptor.generate())
             .intercept(GrpcHeadersServerInterceptor.create());
 
         for (var service : services) {

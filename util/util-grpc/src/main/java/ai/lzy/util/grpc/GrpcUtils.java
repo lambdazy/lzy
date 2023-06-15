@@ -12,6 +12,7 @@ import jakarta.annotation.Nullable;
 
 import java.net.InetSocketAddress;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
@@ -19,6 +20,11 @@ public final class GrpcUtils {
 
     public static final ServerInterceptor NO_AUTH = null;
     public static final Supplier<String>  NO_AUTH_TOKEN = null;
+
+    private static final List<ClientHeaderInterceptor.Entry<String>> COMMON_CLIENT_HEADERS = List.of(
+        new ClientHeaderInterceptor.Entry<>(GrpcHeaders.X_REQUEST_ID, GrpcHeaders::getRequestId),
+        new ClientHeaderInterceptor.Entry<>(GrpcHeaders.X_EXECUTION_ID, GrpcHeaders::getExecutionId)
+    );
 
     private GrpcUtils() {}
 
@@ -29,11 +35,11 @@ public final class GrpcUtils {
             return stub.withInterceptors(
                 GrpcLogsInterceptor.client(name),
                 ClientHeaderInterceptor.authorization(token),
-                RequestIdInterceptor.client());
+                ClientHeaderInterceptor.all(COMMON_CLIENT_HEADERS));
         } else {
             return stub.withInterceptors(
                 GrpcLogsInterceptor.client(name),
-                RequestIdInterceptor.client());
+                ClientHeaderInterceptor.all(COMMON_CLIENT_HEADERS));
         }
     }
 
@@ -73,13 +79,13 @@ public final class GrpcUtils {
             return builder
                 .intercept(authInterceptor)
                 .intercept(GrpcLogsInterceptor.server())
-                .intercept(RequestIdInterceptor.server())
+                .intercept(RequestIdInterceptor.forward())
                 .intercept(RemoteAddressInterceptor.create())
                 .intercept(GrpcHeadersServerInterceptor.create());
         } else {
             return builder
                 .intercept(GrpcLogsInterceptor.server())
-                .intercept(RequestIdInterceptor.server())
+                .intercept(RequestIdInterceptor.forward())
                 .intercept(RemoteAddressInterceptor.create())
                 .intercept(GrpcHeadersServerInterceptor.create());
         }

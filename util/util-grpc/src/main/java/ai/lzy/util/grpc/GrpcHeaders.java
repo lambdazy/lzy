@@ -14,10 +14,12 @@ public class GrpcHeaders {
     public static final Context.Key<Metadata> HEADERS = Context.key("metadata");
 
     public static final Metadata.Key<String> AUTHORIZATION = createMetadataKey("Authorization");
-    public static final Metadata.Key<String> X_REQUEST_ID = createMetadataKey("X-Request-ID");
-    public static final Metadata.Key<String> X_SUBJECT_ID = createMetadataKey("X-Subject-ID");
     public static final Metadata.Key<String> IDEMPOTENCY_KEY = createMetadataKey("Idempotency-Key");
+
     public static final Metadata.Key<String> CLIENT_VERSION = createMetadataKey("X-Client-Version");
+    public static final Metadata.Key<String> X_REQUEST_ID = createMetadataKey("X-Request-ID");
+    public static final Metadata.Key<String> X_EXECUTION_ID = createMetadataKey("X-Execution-ID");
+
 
     public static Metadata getHeaders() {
         return HEADERS.get();
@@ -56,6 +58,11 @@ public class GrpcHeaders {
     @Nullable
     public static String getRequestId() {
         return getHeader(X_REQUEST_ID);
+    }
+
+    @Nullable
+    public static String getExecutionId() {
+        return getHeader(X_EXECUTION_ID);
     }
 
     public static Context createContext(Map<Metadata.Key<String>, String> overrideHeaders) {

@@ -6,6 +6,7 @@ import ai.lzy.longrunning.OperationsService;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.util.ClientVersionInterceptor;
+import ai.lzy.service.util.ExecutionIdInterceptor;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.util.grpc.RequestIdInterceptor;
@@ -76,11 +77,12 @@ public class App {
             .permitKeepAliveTime(500, TimeUnit.MILLISECONDS)
             .keepAliveTime(1000, TimeUnit.MILLISECONDS)
             .keepAliveTimeout(500, TimeUnit.MILLISECONDS)
+            .intercept(new ExecutionIdInterceptor())
             .intercept(versionInterceptor)
             .intercept(AllowSubjectOnlyInterceptor.ALLOW_USER_ONLY)
             .intercept(authInterceptor)
             .intercept(GrpcLogsInterceptor.server())
-            .intercept(RequestIdInterceptor.server(true))
+            .intercept(RequestIdInterceptor.generate())
             .intercept(GrpcHeadersServerInterceptor.create());
 
         for (var service : services) {
