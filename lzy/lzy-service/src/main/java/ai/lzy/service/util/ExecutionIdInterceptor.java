@@ -5,6 +5,7 @@ import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.logs.LogContextKey;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.workflow.LWFS;
+import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
@@ -26,6 +27,11 @@ public class ExecutionIdInterceptor implements ServerInterceptor {
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers,
                                                                  ServerCallHandler<ReqT, RespT> next)
     {
+        if (!LzyWorkflowServiceGrpc.SERVICE_NAME.equals(call.getMethodDescriptor().getServiceName())) {
+            LOG.error("Unexpected intercepted method call: {}", call.getMethodDescriptor().getFullMethodName());
+            return next.startCall(call, headers);
+        }
+
         var listener = next.startCall(call, headers);
         return new ServerCall.Listener<>() {
             @Nullable

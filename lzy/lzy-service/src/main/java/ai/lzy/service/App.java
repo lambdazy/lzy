@@ -11,8 +11,9 @@ import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.util.grpc.RequestIdInterceptor;
 import com.google.common.net.HostAndPort;
-import io.grpc.BindableService;
 import io.grpc.Server;
+import io.grpc.ServerInterceptors;
+import io.grpc.ServerServiceDefinition;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Named;
@@ -43,9 +44,9 @@ public class App {
             HostAndPort.fromString(config.getAddress()),
             clientVersionInterceptor,
             authInterceptor,
-            lzyService,
-            lzyPrivateService,
-            operationService);
+            ServerInterceptors.intercept(lzyService, new ExecutionIdInterceptor()),
+            lzyPrivateService.bindService(),
+            operationService.bindService());
     }
 
     public void start() throws IOException {
@@ -69,7 +70,7 @@ public class App {
     }
 
     public static Server createServer(HostAndPort endpoint, ClientVersionInterceptor versionInterceptor,
-                                      AuthServerInterceptor authInterceptor, BindableService... services)
+                                      AuthServerInterceptor authInterceptor, ServerServiceDefinition... services)
     {
         var serverBuilder = NettyServerBuilder
             .forAddress(new InetSocketAddress(endpoint.getHost(), endpoint.getPort()))
@@ -77,7 +78,6 @@ public class App {
             .permitKeepAliveTime(500, TimeUnit.MILLISECONDS)
             .keepAliveTime(1000, TimeUnit.MILLISECONDS)
             .keepAliveTimeout(500, TimeUnit.MILLISECONDS)
-            .intercept(new ExecutionIdInterceptor())
             .intercept(versionInterceptor)
             .intercept(AllowSubjectOnlyInterceptor.ALLOW_USER_ONLY)
             .intercept(authInterceptor)
