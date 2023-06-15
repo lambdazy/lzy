@@ -266,8 +266,11 @@ public class DbSubjectService {
                         if (!credentials.value().equals(actualValue) || credentials.type() != actualType
                             || !Objects.equals(expiredAt, actualExpiredAt))
                         {
-                            throw new AuthUniqueViolationException(String.format("Credentials name '%s' is already " +
-                                "used for another user '%s' credentials", credentials.name(), subjectId));
+                            LOG.error("Credentials name '{}' is already used for another user '{}' credentials",
+                                credentials.name(), subjectId);
+
+                            throw new AuthUniqueViolationException(
+                                "Credentials name '%s' is already exists".formatted(credentials.name()));
                         }
                     } else {
                         throw new RuntimeException("Result set is empty");
