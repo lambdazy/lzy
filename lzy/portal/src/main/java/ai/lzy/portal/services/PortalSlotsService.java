@@ -6,7 +6,7 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
-import ai.lzy.longrunning.LocalOperationUtils;
+import ai.lzy.longrunning.LocalOperationServiceUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
@@ -398,7 +398,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     private <T extends Message> void awaitOpAndReply(String opId, Class<T> respType,
                                                      StreamObserver<T> response, String errorMsg)
     {
-        LocalOperationUtils.awaitOpAndReply(operationService, opId, response, respType, errorMsg, LOG);
+        LocalOperationServiceUtils.awaitOpAndReply(operationService, opId, response, respType, errorMsg, LOG);
     }
 
     public SlotsManager getSlotsManager() {

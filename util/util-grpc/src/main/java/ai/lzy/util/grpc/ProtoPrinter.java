@@ -7,11 +7,8 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
     com.google.protobuf.TextFormat print-only stuff with custom printers
@@ -358,6 +355,9 @@ public class ProtoPrinter {
             }
         }
 
+        public String shortDebugString(final Collection<? extends MessageOrBuilder> messages) {
+            return messages.stream().map(this::shortDebugString).collect(Collectors.joining(", "));
+        }
 
         private static void printUnknownFieldValue(int tag, Object value, TextGenerator generator) throws IOException {
             switch (WireFormat.getTagWireType(tag)) {

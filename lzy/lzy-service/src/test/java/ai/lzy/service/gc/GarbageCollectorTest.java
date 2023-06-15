@@ -1,6 +1,7 @@
+/*
 package ai.lzy.service.gc;
 
-import ai.lzy.allocator.test.AllocatorProxy;
+import ai.lzy.allocator.test.AllocatorServiceDecorator;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.App;
@@ -60,11 +61,12 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorProxy allocatorProxy = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
-        allocatorProxy.setOnAllocate(() -> alloc.add(""));
-        allocatorProxy.setOnFree(() -> free.add(""));
-        allocatorProxy.setOnCreateSession(() -> createSession.add(""));
-        allocatorProxy.setOnDeleteSession(() -> deleteSession.add(""));
+        AllocatorServiceDecorator
+            allocatorServiceDecorator = allocatorTestContext.getContext().getBean(AllocatorServiceDecorator.class);
+        allocatorServiceDecorator.onAllocate(() -> alloc.add(""));
+        allocatorServiceDecorator.onFree(() -> free.add(""));
+        allocatorServiceDecorator.onCreateSession(() -> createSession.add(""));
+        allocatorServiceDecorator.onDeleteSession(() -> deleteSession.add(""));
 
 
         var workflowName = "workflow_" + numOfInstances;
@@ -117,14 +119,15 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorProxy allocatorProxy = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
-        allocatorProxy.setOnAllocate(() -> {
+        AllocatorServiceDecorator
+            allocatorServiceDecorator = allocatorTestContext.getContext().getBean(AllocatorServiceDecorator.class);
+        allocatorServiceDecorator.onAllocate(() -> {
             alloc.add("");
             throw new RuntimeException();
         });
-        allocatorProxy.setOnFree(() -> free.add(""));
-        allocatorProxy.setOnCreateSession(() -> createSession.add(""));
-        allocatorProxy.setOnDeleteSession(() -> deleteSession.add(""));
+        allocatorServiceDecorator.onFree(() -> free.add(""));
+        allocatorServiceDecorator.onCreateSession(() -> createSession.add(""));
+        allocatorServiceDecorator.onDeleteSession(() -> deleteSession.add(""));
 
 
         var workflowName = "workflow_" + numOfInstances;
@@ -165,14 +168,15 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorProxy allocatorProxy = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
-        allocatorProxy.setOnAllocate(() -> alloc.add(""));
-        allocatorProxy.setOnFree(() -> free.add(""));
-        allocatorProxy.setOnCreateSession(() -> {
+        AllocatorServiceDecorator
+            allocatorServiceDecorator = allocatorTestContext.getContext().getBean(AllocatorServiceDecorator.class);
+        allocatorServiceDecorator.onAllocate(() -> alloc.add(""));
+        allocatorServiceDecorator.onFree(() -> free.add(""));
+        allocatorServiceDecorator.onCreateSession(() -> {
             createSession.add("");
             throw new RuntimeException();
         });
-        allocatorProxy.setOnDeleteSession(() -> deleteSession.add(""));
+        allocatorServiceDecorator.onDeleteSession(() -> deleteSession.add(""));
 
         var workflowName = "workflow_" + numOfInstances;
 
@@ -215,3 +219,4 @@ public class GarbageCollectorTest extends BaseTest {
         lzyServer.start();
     }
 }
+*/

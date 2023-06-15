@@ -5,20 +5,13 @@ package ai.lzy.v1.workflow;
 import "ai/lzy/v1/common/storage.proto";
 import "ai/lzy/v1/workflow/workflow.proto";
 import "ai/lzy/v1/common/data-scheme.proto";
-import "ai/lzy/v1/long-running/operation.proto";
-import "ai/lzy/v1/long-running/option.proto";
 
 option java_outer_classname = "LWFS";
 option java_package = "ai.lzy.v1.workflow";
 
 service LzyWorkflowService {
   rpc StartWorkflow (StartWorkflowRequest) returns (StartWorkflowResponse);
-  rpc FinishWorkflow (FinishWorkflowRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      // metadata: null
-      response: "FinishWorkflowResponse";
-    };
-  }
+  rpc FinishWorkflow (FinishWorkflowRequest) returns (FinishWorkflowResponse);
   rpc AbortWorkflow (AbortWorkflowRequest) returns (AbortWorkflowResponse);
 
   rpc ExecuteGraph (ExecuteGraphRequest) returns (ExecuteGraphResponse);
@@ -74,8 +67,9 @@ message ExecuteGraphResponse {
 // ==================== GraphStatus =====================
 
 message GraphStatusRequest {
-  string executionId = 1;
-  string graphId = 2;
+  string workflow_name = 1;
+  string executionId = 2;
+  string graphId = 3;
 }
 
 message GraphStatusResponse {
@@ -105,8 +99,9 @@ message GraphStatusResponse {
 // ==================== StopGraph =====================
 
 message StopGraphRequest {
-  string executionId = 1;
-  string graphId = 2;
+  string workflow_name = 1;
+  string executionId = 2;
+  string graphId = 3;
 }
 
 message StopGraphResponse {}
@@ -115,11 +110,12 @@ message StopGraphResponse {}
 // ==================== ReadStdSlots =====================
 
 message ReadStdSlotsRequest {
-  string executionId = 1;
+  string workflow_name = 1;
+  string executionId = 2;
 
   // Offset of data to read from.
   // If 0 or not set, read from the beginning.
-  /* optional */ uint64 offset = 2;
+  /* optional */ uint64 offset = 3;
 }
 
 message ReadStdSlotsResponse {
@@ -142,7 +138,8 @@ message ReadStdSlotsResponse {
 // ==================== GetAvailablePools =====================
 
 message GetAvailablePoolsRequest {
-  string executionId = 1;
+  string workflow_name = 1;
+  string executionId = 2;
 }
 
 message GetAvailablePoolsResponse {

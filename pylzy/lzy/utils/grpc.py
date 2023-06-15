@@ -39,6 +39,8 @@ KEEP_ALIVE_TIMEOUT_MS = 1000
 
 _LOG = get_logger(__name__)
 
+IDEMPOTENCY_HEADER_KEY = "idempotency-key"
+
 
 @dataclass
 class RetryConfig:
@@ -204,6 +206,10 @@ def add_headers_interceptor(headers: Mapping[str, str]) -> List[ClientIntercepto
 
     return [_GenericUnaryUnaryInterceptor(intercept), _GenericUnaryStreamInterceptor(intercept),
             _GenericStreamUnaryInterceptor(intercept), _GenericStreamStreamInterceptor(intercept)]
+
+
+def metadata_with(idempotency_key: str) -> List[Tuple[str, str]]:
+    return [(IDEMPOTENCY_HEADER_KEY, idempotency_key)]
 
 
 def build_token(username: str, key_path: str) -> str:

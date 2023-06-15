@@ -5,10 +5,12 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.model.DataScheme;
 import ai.lzy.portal.slots.SnapshotSlot;
+import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.portal.LzyPortal;
 import ai.lzy.v1.portal.LzyPortalApi;
+import jakarta.annotation.Nullable;
 
 import java.net.URI;
 import java.util.Optional;
@@ -18,19 +20,22 @@ import static ai.lzy.model.grpc.ProtoConverter.toProto;
 public enum ProtoConverter {
     ;
 
-    public static LzyPortal.PortalSlotDesc makePortalOutputSlot(String slotUri, String slotName,
-                                                                String channelId, LMST.StorageConfig storageConfig)
+    public static LzyPortal.PortalSlotDesc makePortalOutputSlot(String slotUri, String slotName, String channelId,
+                                                                @Nullable LMD.DataScheme dataScheme,
+                                                                LMST.StorageConfig storageConfig)
     {
-        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.OUTPUT, storageConfig);
+        return makePortalSlot(slotUri, slotName, channelId, dataScheme, LMS.Slot.Direction.OUTPUT, storageConfig);
     }
 
-    public static LzyPortal.PortalSlotDesc makePortalInputSlot(String slotUri, String slotName,
-                                                               String channelId, LMST.StorageConfig storageConfig)
+    public static LzyPortal.PortalSlotDesc makePortalInputSlot(String slotUri, String slotName, String channelId,
+                                                               @Nullable LMD.DataScheme dataScheme,
+                                                               LMST.StorageConfig storageConfig)
     {
-        return makePortalSlot(slotUri, slotName, channelId, LMS.Slot.Direction.INPUT, storageConfig);
+        return makePortalSlot(slotUri, slotName, channelId, dataScheme, LMS.Slot.Direction.INPUT, storageConfig);
     }
 
     public static LzyPortal.PortalSlotDesc makePortalSlot(String slotUri, String slotName, String channelId,
+                                                          @Nullable LMD.DataScheme dataScheme,
                                                           LMS.Slot.Direction direction,
                                                           LMST.StorageConfig storageConfig)
     {
@@ -47,7 +52,7 @@ public enum ProtoConverter {
                 .setName(slotName)
                 .setMedia(LMS.Slot.Media.FILE)
                 .setDirection(direction)
-                .setContentType(toProto(DataScheme.PLAIN)))
+                .setContentType(dataScheme != null ? dataScheme : toProto(DataScheme.PLAIN)))
             .setChannelId(channelId)
             .setSnapshot(LzyPortal.PortalSlotDesc.Snapshot.newBuilder().setStorageConfig(builder.build()).build())
             .build();

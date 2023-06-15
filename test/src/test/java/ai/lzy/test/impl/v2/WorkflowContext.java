@@ -2,6 +2,7 @@ package ai.lzy.test.impl.v2;
 
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.service.App;
+import ai.lzy.service.BeanFactory;
 import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.test.impl.v2.AllocatorContext.PortalAllocatorContext;
@@ -59,7 +60,7 @@ public class WorkflowContext {
 
         ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(true);
 
-        ctx = ApplicationContext.run(opts);
+        ctx = ApplicationContext.run(opts, BeanFactory.TEST_ENV_NAME);
         main = ctx.getBean(App.class);
         try {
             main.start();

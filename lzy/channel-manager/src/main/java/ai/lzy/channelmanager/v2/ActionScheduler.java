@@ -1,7 +1,6 @@
 package ai.lzy.channelmanager.v2;
 
 import ai.lzy.channelmanager.grpc.SlotConnectionManager;
-import ai.lzy.channelmanager.operation.ChannelOperationExecutor;
 import ai.lzy.channelmanager.v2.db.TransferDao;
 import ai.lzy.channelmanager.v2.model.Peer;
 import ai.lzy.model.db.DbHelper;

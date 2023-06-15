@@ -1,5 +1,10 @@
-message producer was called
-bar was called
-message from 'Graceful' bar: My name is Graceful
-bar was called
-message from 'Graceful' bar: My name is Graceful
+foo was called
+message from bar: number is 42
+message from bar: number is 42
+message from bar: number is 42
+message from bar: number is 42
+message from bar: number is 42
+message from bar: number is 42
+message from bar: number is 42
+buzz was called
+buzz result: 42

@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -80,7 +81,11 @@ public abstract class ChannelAction implements Runnable {
 
     protected void scheduleRestart(Duration delay) {
         operationStopped = true;
-        executor.schedule(this, delay.toMillis(), TimeUnit.MILLISECONDS);
+        try {
+            executor.schedule(this, delay.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException rje) {
+            LOG.warn("Channel operation executor reject task: {}", rje.getMessage(), rje);
+        }
     }
 
     protected void failOperation(String executionId, Status status) {
@@ -127,6 +132,11 @@ public abstract class ChannelAction implements Runnable {
 
         final String channelId = sender.getChannelId();
         while (true) {
+            if (Thread.interrupted()) {
+                LOG.debug("Async operation (operationId={}) was interrupted", operationId);
+                return;
+            }
+
             final Endpoint receiverToUnbind;
             try (final var guard = lockManager.withLock(sender.getChannelId())) {
                 final Channel channel;

@@ -80,6 +80,11 @@ public class BindAction extends ChannelAction {
             }
 
             while (true) {
+                if (Thread.interrupted()) {
+                    LOG.debug("Async operation (operationId={}) was interrupted", operationId);
+                    return;
+                }
+
                 final Endpoint connectingEndpoint = resolveConnectingEndpoint(bindingEndpoint);
                 if (operationStopped || connectingEndpoint == null) {
                     return;

@@ -47,7 +47,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static ai.lzy.storage.App.APP;
 import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsConcurrently;
 import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsSequentially;

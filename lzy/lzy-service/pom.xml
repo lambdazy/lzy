@@ -68,12 +68,17 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>util-common</artifactId>
+            <artifactId>util-test</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-db</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>util-common</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -167,12 +172,6 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>iam</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>util-test</artifactId>
             <version>${project.version}</version>
             <scope>test</scope>
         </dependency>

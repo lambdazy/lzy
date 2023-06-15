@@ -12,10 +12,8 @@ import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.sql.*;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -129,6 +127,11 @@ public class OperationDaoImpl implements OperationDao {
         DELETE FROM operation
         WHERE done = TRUE
           AND modified_at + INTERVAL '%d hours' < NOW()""";
+
+    private static final String QUERY_FAIL_OPERATIONS = """
+        UPDATE operation
+        SET error = ?, done = TRUE, modified_at = NOW()
+        WHERE id = ANY (?) AND done = FALSE""";
 
     private final Storage storage;
 
@@ -277,7 +280,7 @@ public class OperationDaoImpl implements OperationDao {
 
         return DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(
-                    meta != null ? QUERY_UPDATE_OPERATION_META_RESPONSE : QUERY_UPDATE_OPERATION_RESPONSE))
+                meta != null ? QUERY_UPDATE_OPERATION_META_RESPONSE : QUERY_UPDATE_OPERATION_RESPONSE))
             {
                 int index = 0;
                 st.setString(++index, id);
@@ -335,6 +338,21 @@ public class OperationDaoImpl implements OperationDao {
                 var op = processResult(id, rs, "failed");
                 op.completeWith(io.grpc.Status.fromCodeValue(error.getCode()).withDescription(error.getMessage()));
                 return op;
+            }
+        });
+    }
+
+    @Override
+    public void fail(Collection<String> ids, Status error, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        LOG.info("Cancel operations {}", String.join(", ", ids));
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var statement = connection.prepareStatement(QUERY_FAIL_OPERATIONS)) {
+                statement.setBytes(1, error.toByteArray());
+                Array sqlArr = connection.createArrayOf("TEXT", ids.toArray());
+                statement.setArray(2, sqlArr);
+                statement.executeUpdate();
             }
         });
     }
