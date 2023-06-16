@@ -5,7 +5,11 @@ import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
-import ai.lzy.allocator.model.*;
+import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.model.Volume;
+import ai.lzy.allocator.model.VolumeClaim;
+import ai.lzy.allocator.model.VolumeMount;
+import ai.lzy.allocator.model.VolumeRequest;
 import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
@@ -261,6 +265,61 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Nullable
+    public Result getVmAllocationStatus(Vm vm) throws InvalidConfigurationException {
+        var meta = vm.allocateState().allocatorMeta();
+        if (meta == null) {
+            throw new InvalidConfigurationException("VM " + vm.vmId() + " does not have allocator meta");
+        }
+
+        final var podName = meta.get(POD_NAME_KEY);
+        final var clusterId = meta.get(CLUSTER_ID_KEY);
+        final var namespace = meta.get(NAMESPACE_KEY);
+        if (podName == null || clusterId == null || namespace == null) {
+            throw new InvalidConfigurationException("VM " + vm.vmId() +
+                " does not have pod name or cluster id or namespace");
+        }
+
+        var cluster = clusterRegistry.getCluster(clusterId);
+        if (cluster == null) {
+            throw new InvalidConfigurationException("Cluster " + clusterId + " does not exist");
+        }
+
+        final Pod pod;
+        try (var client = k8sClientFactory.build(cluster)) {
+            pod = client.pods()
+                .inNamespace(namespace)
+                .withName(podName)
+                .get();
+        }
+
+        if (pod == null) {
+            return Result.FAILED.withReason("Pod not found");
+        }
+
+        if ("Failed".equals(pod.getStatus().getPhase())) {
+            StringBuilder reason = new StringBuilder();
+            if (pod.getStatus().getReason() != null && !pod.getStatus().getReason().isBlank()) {
+                reason.append(pod.getStatus().getReason());
+            }
+            for (var containerStatus : pod.getStatus().getContainerStatuses()) {
+                var terminationStatus = containerStatus.getState().getTerminated();
+                if (terminationStatus != null) {
+                    reason.append("; ").append(containerStatus.getName());
+                    reason.append(" ").append(terminationStatus.getReason());
+                    if (terminationStatus.getExitCode() != null) {
+                        reason.append(" with exitCode=").append(terminationStatus.getExitCode());
+                    }
+                    if (terminationStatus.getMessage() != null && !terminationStatus.getMessage().isBlank()) {
+                        reason.append(": ").append(terminationStatus.getMessage());
+                    }
+                }
+            }
+            return Result.FAILED.withReason(reason.toString());
+        }
+        return Result.SUCCESS;
+    }
+
+    @Nullable
     public static Pod getVmPod(String namespace, String name, KubernetesClient client) {
         return client.pods()
             .inNamespace(namespace)
@@ -345,7 +404,7 @@ public class KuberVmAllocator implements VmAllocator {
         }
 
         // TODO(artolord) make optional deletion of system nodes
-        if (credentials.type().equals(ClusterRegistry.ClusterType.User) || vmId.contains("portal")) {
+        if (credentials.type().equals(ClusterRegistry.ClusterType.User)) {
             try {
                 nodeRemover.removeNode(vmId, nodeName, nodeInstanceId);
             } catch (Exception e) {

@@ -1,7 +1,7 @@
 package ai.lzy.service.kafka;
 
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.data.KafkaTopicDesc;
+import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.workflow.LWFS.ReadStdSlotsRequest;
@@ -33,7 +33,7 @@ public class KafkaLogsListeners {
     }
 
     public void listen(ReadStdSlotsRequest request, StreamObserver<ReadStdSlotsResponse> response,
-                       KafkaTopicDesc topicDesc)
+                       ExecutionDao.KafkaTopicDesc topicDesc)
     {
         if (kafkaSetup == null) {
             return;
@@ -61,13 +61,13 @@ public class KafkaLogsListeners {
     }
 
     class Listener extends Thread {
-        private final KafkaTopicDesc topicDesc;
+        private final ExecutionDao.KafkaTopicDesc topicDesc;
         private final AtomicBoolean finished = new AtomicBoolean(false);
         private final ReadStdSlotsRequest request;
         private final StreamObserver<ReadStdSlotsResponse> response;
         private final Context grpcContext;
 
-        Listener(KafkaTopicDesc topicDesc, ReadStdSlotsRequest request,
+        Listener(ExecutionDao.KafkaTopicDesc topicDesc, ReadStdSlotsRequest request,
                  StreamObserver<ReadStdSlotsResponse> response, Context grpcContext)
         {
             super("kafka-logs-listener-%s".formatted(request.getExecutionId()));

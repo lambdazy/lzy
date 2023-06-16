@@ -27,6 +27,22 @@ message VolumeRequest {
 message DiskVolumeType {
   string disk_id = 1;
   int32 size_gb = 2;
+  AccessMode access_mode = 3;
+  StorageClass storage_class = 4;
+
+  enum AccessMode {
+    UNSPECIFIED = 0;
+    READ_WRITE_ONCE = 1;
+    READ_WRITE_ONCE_POD = 2;
+    READ_WRITE_MANY = 3;
+    READ_ONLY_MANY = 4;
+  }
+
+  enum StorageClass {
+    STORAGE_CLASS_UNSPECIFIED = 0;
+    SSD = 1;
+    HDD = 2;
+  }
 }
 
 message HostPathVolumeType {

@@ -1,9 +1,7 @@
 package ai.lzy.worker;
 
 import ai.lzy.allocator.AllocatorAgent;
-import ai.lzy.fs.LzyFsServer;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.kafka.KafkaConfig;
 import io.grpc.Server;
 import io.micronaut.context.ApplicationContext;
@@ -54,17 +52,15 @@ public class Worker {
         options.addOption(null, "allocator-token", true, "OTT token for allocator");
     }
 
-    private final LzyFsServer lzyFs;
     private final AllocatorAgent allocatorAgent;
     private final Server server;
     private final ApplicationContext context;
 
     public Worker(ApplicationContext context, ServiceConfig config, @Named("WorkerServer") Server server,
-                  LzyFsServer lzyFsServer, @Named("AllocatorAgent") AllocatorAgent allocatorAgent)
+                  @Named("AllocatorAgent") AllocatorAgent allocatorAgent)
     {
         this.context = context;
         this.server = server;
-        this.lzyFs = lzyFsServer;
         this.allocatorAgent = allocatorAgent;
 
         LOG.info("Starting worker on vm {}.\n apiPort: {}\n fsPort: {}\n host: {}", config.getVmId(),
@@ -78,16 +74,7 @@ public class Worker {
         }
 
         try {
-            lzyFs.start();
-        } catch (IOException e) {
-            LOG.error("Error while building uri", e);
-            server.shutdown();
-            throw new RuntimeException(e);
-        }
-
-        try {
             allocatorAgent.start(Map.of(
-                MetadataConstants.PUBLIC_KEY, config.getPublicKey(),
                 MetadataConstants.API_PORT, String.valueOf(config.getApiPort()),
                 MetadataConstants.FS_PORT, String.valueOf(config.getFsPort())
             ));
@@ -101,7 +88,6 @@ public class Worker {
         LOG.error("Stopping worker");
         server.shutdown();
         allocatorAgent.shutdown();
-        lzyFs.stop();
         context.stop();
     }
 
@@ -212,14 +198,6 @@ public class Worker {
             fsRoot = "/tmp/lzy";
         }
 
-        final RsaUtils.RsaKeys iamKeys;
-        try {
-            iamKeys = RsaUtils.generateRsaKeys();
-        } catch (IOException | InterruptedException e) {
-            LOG.error("Cannot generate keys");
-            throw new RuntimeException(e);
-        }
-
         var properties = new HashMap<String, Object>(Map.of(
             "worker.vm-id", vmId,
             "worker.allocator-address", allocatorAddress,
@@ -229,18 +207,14 @@ public class Worker {
             "worker.fs-port", fsPort,
             "worker.api-port", apiPort,
             "worker.mount-point", fsRoot,
-            "worker.iam.address", iamAddress,
-            "worker.iam.internal-user-name", vmId
+            "worker.iam-address", iamAddress
         ));
 
-        properties.put("worker.iam.internal-user-private-key", iamKeys.privateKey());
-        properties.put("worker.public-key", iamKeys.publicKey());
         properties.put("worker.allocator-heartbeat-period", allocatorHeartbeatPeriod);
         properties.put("worker.gpu-count", gpuCount);
 
         properties.put("worker.enable-http-debug", true);
 
-        properties.put("worker.kafka.enabled", true);
         properties.put("worker.kafka.bootstrap-servers", String.join(",", kafka.getBootstrapServers()));
 
         if (kafka.isTlsEnabled()) {

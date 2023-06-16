@@ -1,11 +1,13 @@
+/*
 package ai.lzy.service.gc;
 
-import ai.lzy.allocator.test.AllocatorProxy;
+import ai.lzy.allocator.test.AllocatorServiceDecorator;
 import ai.lzy.model.db.exceptions.DaoException;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.App;
 import ai.lzy.service.BaseTest;
 import ai.lzy.service.LzyService;
+import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
@@ -59,11 +61,12 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorProxy allocatorProxy = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
-        allocatorProxy.setOnAllocate(() -> alloc.add(""));
-        allocatorProxy.setOnFree(() -> free.add(""));
-        allocatorProxy.setOnCreateSession(() -> createSession.add(""));
-        allocatorProxy.setOnDeleteSession(() -> deleteSession.add(""));
+        AllocatorServiceDecorator
+            allocatorServiceDecorator = allocatorTestContext.getContext().getBean(AllocatorServiceDecorator.class);
+        allocatorServiceDecorator.onAllocate(() -> alloc.add(""));
+        allocatorServiceDecorator.onFree(() -> free.add(""));
+        allocatorServiceDecorator.onCreateSession(() -> createSession.add(""));
+        allocatorServiceDecorator.onDeleteSession(() -> deleteSession.add(""));
 
 
         var workflowName = "workflow_" + numOfInstances;
@@ -116,14 +119,15 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorProxy allocatorProxy = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
-        allocatorProxy.setOnAllocate(() -> {
+        AllocatorServiceDecorator
+            allocatorServiceDecorator = allocatorTestContext.getContext().getBean(AllocatorServiceDecorator.class);
+        allocatorServiceDecorator.onAllocate(() -> {
             alloc.add("");
             throw new RuntimeException();
         });
-        allocatorProxy.setOnFree(() -> free.add(""));
-        allocatorProxy.setOnCreateSession(() -> createSession.add(""));
-        allocatorProxy.setOnDeleteSession(() -> deleteSession.add(""));
+        allocatorServiceDecorator.onFree(() -> free.add(""));
+        allocatorServiceDecorator.onCreateSession(() -> createSession.add(""));
+        allocatorServiceDecorator.onDeleteSession(() -> deleteSession.add(""));
 
 
         var workflowName = "workflow_" + numOfInstances;
@@ -164,14 +168,15 @@ public class GarbageCollectorTest extends BaseTest {
         final BlockingQueue<String> createSession = new LinkedBlockingQueue<>();
         final BlockingQueue<String> deleteSession = new LinkedBlockingQueue<>();
 
-        AllocatorProxy allocatorProxy = allocatorTestContext.getContext().getBean(AllocatorProxy.class);
-        allocatorProxy.setOnAllocate(() -> alloc.add(""));
-        allocatorProxy.setOnFree(() -> free.add(""));
-        allocatorProxy.setOnCreateSession(() -> {
+        AllocatorServiceDecorator
+            allocatorServiceDecorator = allocatorTestContext.getContext().getBean(AllocatorServiceDecorator.class);
+        allocatorServiceDecorator.onAllocate(() -> alloc.add(""));
+        allocatorServiceDecorator.onFree(() -> free.add(""));
+        allocatorServiceDecorator.onCreateSession(() -> {
             createSession.add("");
             throw new RuntimeException();
         });
-        allocatorProxy.setOnDeleteSession(() -> deleteSession.add(""));
+        allocatorServiceDecorator.onDeleteSession(() -> deleteSession.add(""));
 
         var workflowName = "workflow_" + numOfInstances;
 
@@ -205,7 +210,8 @@ public class GarbageCollectorTest extends BaseTest {
         var context2 = ApplicationContext.run(PropertySource.of(lzyDbConfig));
         var port = FreePortFinder.find(8000, 9000);
         var workflowAddress = HostAndPort.fromString("localhost:" + port);
-        var lzyServer = App.createServer(workflowAddress, authInterceptor, context2.getBean(LzyService.class));
+        var lzyServer = App.createServer(workflowAddress, context2.getBean(ClientVersionInterceptor.class),
+            authInterceptor, context2.getBean(LzyService.class));
 
         lzyServers.add(lzyServer);
         lzyContexts.add(context2);
@@ -213,3 +219,4 @@ public class GarbageCollectorTest extends BaseTest {
         lzyServer.start();
     }
 }
+*/

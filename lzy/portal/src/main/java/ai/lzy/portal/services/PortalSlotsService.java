@@ -6,13 +6,12 @@ import ai.lzy.fs.fs.LzyOutputSlot;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
-import ai.lzy.longrunning.LocalOperationUtils;
+import ai.lzy.longrunning.LocalOperationServiceUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.SlotInstance;
 import ai.lzy.portal.config.PortalConfig;
 import ai.lzy.portal.slots.SnapshotSlots;
-import ai.lzy.portal.slots.StdoutSlot;
 import ai.lzy.util.grpc.ContextAwareTask;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
@@ -35,8 +34,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Collections;
-import java.util.List;
 import java.util.Spliterator;
 import java.util.Spliterators;
 import java.util.concurrent.ExecutorService;
@@ -93,7 +90,7 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
 
     @PreDestroy
     public void stop() throws InterruptedException {
-        slotsManager.slots().forEach(LzySlot::destroy);
+        slotsManager.slots().forEach(slot -> slot.destroy("stop service"));
         slotsManager.stop();
     }
 
@@ -300,19 +297,6 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
             return;
         }
 
-        for (var stdSlot : getOutErrSlots()) {
-            if (stdSlot.name().equals(slotInstance.name())) {
-                reply.accept(stdSlot);
-                return;
-            }
-
-            var slot = stdSlot.find(slotInstance.name());
-            if (slot != null) {
-                reply.accept(slot);
-                return;
-            }
-        }
-
         LOG.error("Slot '" + slotInstance.name() + "' not found");
         response.onError(Status.NOT_FOUND
             .withDescription("Slot '" + slotInstance.name() + "' not found").asException());
@@ -342,16 +326,22 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         if (op.id().equals(opSnapshot.id())) {
             boolean done = false;
 
+            var error = request.getReason().isEmpty() ? null : request.getReason();
             LzyInputSlot inputSlot = snapshots.getInputSlot(slotName);
             LzyOutputSlot outputSlot = snapshots.getOutputSlot(slotName);
+
             if (inputSlot != null) {
-                inputSlot.destroy();
-                snapshots.removeInputSlot(slotName);
+                inputSlot.destroy(error);
+                if (error != null) {
+                    snapshots.removeInputSlot(slotName);
+                }
                 done = true;
             }
             if (outputSlot != null) {
-                outputSlot.destroy();
-                snapshots.removeOutputSlot(slotName);
+                outputSlot.destroy(error);
+                if (error != null) {
+                    snapshots.removeOutputSlot(slotName);
+                }
                 done = true;
             }
 
@@ -408,15 +398,11 @@ public class PortalSlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
     private <T extends Message> void awaitOpAndReply(String opId, Class<T> respType,
                                                      StreamObserver<T> response, String errorMsg)
     {
-        LocalOperationUtils.awaitOpAndReply(operationService, opId, response, respType, errorMsg, LOG);
+        LocalOperationServiceUtils.awaitOpAndReply(operationService, opId, response, respType, errorMsg, LOG);
     }
 
     public SlotsManager getSlotsManager() {
         return slotsManager;
-    }
-
-    public List<StdoutSlot> getOutErrSlots() {
-        return Collections.emptyList();
     }
 
     public SnapshotSlots getSnapshots() {

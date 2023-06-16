@@ -41,7 +41,6 @@ public class SchedulerContext {
                 "scheduler.port", SCHEDULER_PORT,
                 "scheduler.allocator-address", allocator.address(),
                 "scheduler.channel-manager-address", channelManager.address(),
-                "scheduler.kafka.enabled", true,
                 "scheduler.kafka.bootstrap-servers", kafka.getBootstrapServers(),
                 "scheduler.iam.address", iam.address(),
                 "max-workers-per-workflow", 2,

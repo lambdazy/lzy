@@ -156,7 +156,13 @@ def test_namespace_packages(provider: PyEnvProvider, test_data_dir: Path):
     nevermind = NeverMind()
 
     env = provider.provide({"nevermind": nevermind})
-    remote = env.libraries
-    local_modules_path = env.local_modules_path
 
-    assert set(local_modules_path) == {str(test_data_dir / 'google')}
+    assert set(env.local_modules_path) == {str(test_data_dir / 'google')}
+
+    # Protobuf is here because:
+    # 1) google - namespace package
+    # 2) google package have protobuf distr which is have a pypi version
+    # 3) we are adding .lzy_namespace into this namespace
+    # I guess it is okay we bring all remote namespace packages onto remote machine...
+    # But we could change this behaviour later and bring only really needed ones.
+    assert set(env.libraries) == {'protobuf'}

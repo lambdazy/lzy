@@ -8,7 +8,7 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.LocalOperationService.OperationSnapshot;
-import ai.lzy.longrunning.LocalOperationUtils;
+import ai.lzy.longrunning.LocalOperationServiceUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.UriScheme;
 import ai.lzy.model.grpc.ProtoConverter;
@@ -333,8 +333,9 @@ public class SlotsService {
                 longrunningExecutor.submit(new ContextAwareTask() {
                     @Override
                     protected void execute() {
-                        LOG.info("Explicitly closing slot {}", slotInstance.shortDesc());
-                        slot.destroy();
+                        LOG.info("Explicitly closing slot `{}` by reason: {}",
+                            slotInstance.shortDesc(), request.getReason());
+                        slot.destroy(request.getReason().isEmpty() ? null : request.getReason());
                         if (fsManager != null) {
                             fsManager.removeSlot(slot.name());
                         }
@@ -385,7 +386,7 @@ public class SlotsService {
         private <T extends Message> void awaitOpAndReply(String opId, Class<T> respType,
                                                          StreamObserver<T> response, String errorMsg)
         {
-            LocalOperationUtils.awaitOpAndReply(operationService, opId, response, respType, errorMsg, LOG);
+            LocalOperationServiceUtils.awaitOpAndReply(operationService, opId, response, respType, errorMsg, LOG);
         }
     }
 

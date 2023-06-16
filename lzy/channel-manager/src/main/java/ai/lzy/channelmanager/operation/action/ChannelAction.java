@@ -28,6 +28,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -80,7 +81,11 @@ public abstract class ChannelAction implements Runnable {
 
     protected void scheduleRestart(Duration delay) {
         operationStopped = true;
-        executor.schedule(this, delay.toMillis(), TimeUnit.MILLISECONDS);
+        try {
+            executor.schedule(this, delay.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (RejectedExecutionException rje) {
+            LOG.warn("Channel operation executor reject task: {}", rje.getMessage(), rje);
+        }
     }
 
     protected void failOperation(String executionId, Status status) {
@@ -122,11 +127,16 @@ public abstract class ChannelAction implements Runnable {
         }
     }
 
-    protected void unbindSender(Endpoint sender) throws ChannelGraphStateException {
+    protected void unbindSender(Endpoint sender, boolean onError) throws ChannelGraphStateException {
         LOG.info("Async operation (operationId={}): unbind sender {}", operationId, sender.getUri());
 
         final String channelId = sender.getChannelId();
         while (true) {
+            if (Thread.interrupted()) {
+                LOG.debug("Async operation (operationId={}) was interrupted", operationId);
+                return;
+            }
+
             final Endpoint receiverToUnbind;
             try (final var guard = lockManager.withLock(sender.getChannelId())) {
                 final Channel channel;
@@ -165,7 +175,7 @@ public abstract class ChannelAction implements Runnable {
 
             InjectedFailures.fail6();
 
-            this.unbindReceiver(receiverToUnbind);
+            this.unbindReceiver(receiverToUnbind, onError);
             if (operationStopped) {
                 return;
             }
@@ -179,7 +189,7 @@ public abstract class ChannelAction implements Runnable {
         }
 
         // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
-        destroySlot(sender);
+        destroySlot(sender, onError);
         if (operationStopped) {
             return;
         }
@@ -196,7 +206,7 @@ public abstract class ChannelAction implements Runnable {
         }
     }
 
-    protected void unbindReceiver(Endpoint receiver) throws ChannelGraphStateException {
+    protected void unbindReceiver(Endpoint receiver, boolean onError) throws ChannelGraphStateException {
         LOG.info("Async operation (operationId={}): unbind receiver {}", operationId, receiver.getUri());
 
         final String channelId = receiver.getChannelId();
@@ -239,7 +249,7 @@ public abstract class ChannelAction implements Runnable {
         }
 
         // TODO (lindvv): maybe should suspend, so shouldn't destroy, fix after slots refactoring
-        destroySlot(receiver);
+        destroySlot(receiver, onError);
         if (operationStopped) {
             return;
         }
@@ -291,11 +301,12 @@ public abstract class ChannelAction implements Runnable {
         LOG.info("Async operation (operationId={}): sent disconnectSlot request", operationId);
     }
 
-    protected void destroySlot(Endpoint endpoint) {
+    protected void destroySlot(Endpoint endpoint, boolean onError) {
         final var slotApi = slotConnectionManager.getConnection(endpoint.getUri()).slotApiBlockingStub();
         try {
             final var request = LSA.DestroySlotRequest.newBuilder()
                 .setSlotInstance(ProtoConverter.toProto(endpoint.getSlot()))
+                .setReason(onError ? "Some error occurs" : "")
                 .build();
 
             slotApi.destroySlot(request);

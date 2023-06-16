@@ -70,6 +70,11 @@ public class ThreadVmAllocator implements VmAllocator {
         return Result.SUCCESS;
     }
 
+    @Override
+    public Result getVmAllocationStatus(Vm vm) {
+        return Result.SUCCESS;
+    }
+
     private void allocateWithSingleWorkload(String vmId, String poolLabel, String vmOtt, Workload workload) {
         LOG.info("Allocating vm with id: " + vmId);
 

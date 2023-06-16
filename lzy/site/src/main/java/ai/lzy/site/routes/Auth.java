@@ -168,7 +168,7 @@ public class Auth {
                 LOG.error("Cannot get subject <{}>, but its already exists", userName);
                 throw new RuntimeException("Internal error while getting subject");
             }
-            subjectServiceClient.addCredentials(subject, cred);
+            subjectServiceClient.addCredentials(subject.id(), cred);
         }
 
         final URI siteSignInUrl = URI.create(state);

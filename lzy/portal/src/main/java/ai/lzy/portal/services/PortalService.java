@@ -3,7 +3,7 @@ package ai.lzy.portal.services;
 import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
-import ai.lzy.longrunning.LocalOperationUtils;
+import ai.lzy.longrunning.LocalOperationServiceUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.model.slot.Slot;
@@ -100,7 +100,7 @@ public class PortalService extends LzyPortalImplBase {
     public synchronized void status(PortalStatusRequest request,
                                     StreamObserver<PortalStatusResponse> response)
     {
-        LOG.debug("Request portal slots status: { portalId: {}, request: {} }", portalId,
+        LOG.info("Request portal slots status: { portalId: {}, request: {} }", portalId,
             ProtoPrinter.safePrinter().printToString(request));
         if (assertActive(response)) {
             return;
@@ -142,11 +142,6 @@ public class PortalService extends LzyPortalImplBase {
                 })
                 .forEach(slot -> resp.addSlots(buildOutputSlotStatus(slot)));
 
-            for (var stdSlot : slotsService.getOutErrSlots()) {
-                resp.addSlots(buildOutputSlotStatus(stdSlot));
-                stdSlot.forEachSlot(slot -> resp.addSlots(buildInputSlotStatus(slot)));
-            }
-
             operationService.updateResponse(op.id(), resp.build());
             response.onNext(resp.build());
             response.onCompleted();
@@ -159,7 +154,7 @@ public class PortalService extends LzyPortalImplBase {
 
     @Override
     public synchronized void openSlots(OpenSlotsRequest request, StreamObserver<OpenSlotsResponse> response) {
-        LOG.debug("Open portal slots: { portalId: {}, request: {} }", portalId,
+        LOG.info("Open portal slots: { portalId: {}, request: {} }", portalId,
             ProtoPrinter.safePrinter().printToString(request));
         if (assertActive(response)) {
             return;
@@ -256,11 +251,8 @@ public class PortalService extends LzyPortalImplBase {
 
     @Override
     public void finish(FinishRequest request, StreamObserver<LongRunning.Operation> response) {
-        LOG.debug("Finish portal: { portalId: {}, request: {} }", portalId,
+        LOG.info("Finish portal: { portalId: {}, request: {} }", portalId,
             ProtoPrinter.safePrinter().printToString(request));
-        if (assertActive(response)) {
-            return;
-        }
 
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(idempotencyKey, response)) {
@@ -278,15 +270,10 @@ public class PortalService extends LzyPortalImplBase {
 
             LOG.info("Finishing portal with id <{}>", portalId);
 
-            String errorMessage = null;
-
             for (var slot : slotsService.getSnapshots().getOutputSlots()) {
                 try {
                     slot.close();
                 } catch (Exception e) {
-                    if (errorMessage == null) {
-                        errorMessage = "Cannot close slot '" + slot.name() + "'";
-                    }
                     LOG.error("Cannot close slot <{}>:", slot.name(), e);
                 }
             }
@@ -295,18 +282,10 @@ public class PortalService extends LzyPortalImplBase {
                 try {
                     slot.close();
                 } catch (Exception e) {
-                    if (errorMessage == null) {
-                        errorMessage = "Cannot close slot '" + slot.name() + "'";
-                    }
                     LOG.error("Cannot close slot <{}>:", slot.name(), e);
                 }
             }
-
-            if (errorMessage != null) {
-                operationService.updateError(op.id(), Status.INTERNAL.withDescription(errorMessage));
-            } else {
-                operationService.updateResponse(op.id(), FinishResponse.getDefaultInstance());
-            }
+            operationService.updateResponse(op.id(), FinishResponse.getDefaultInstance());
         } else {
             LOG.info("Found operation by idempotency key: {}", opSnapshot.toString());
             response.onNext(opSnapshot.toProto());
@@ -327,7 +306,7 @@ public class PortalService extends LzyPortalImplBase {
     private <T extends Message> void awaitOpAndReply(String opId, Class<T> respType,
                                                      StreamObserver<T> response, String errorMsg)
     {
-        LocalOperationUtils.awaitOpAndReply(operationService, opId, response, respType, errorMsg, LOG);
+        LocalOperationServiceUtils.awaitOpAndReply(operationService, opId, response, respType, errorMsg, LOG);
     }
 
     private <T extends Message> boolean assertActive(StreamObserver<T> response) {

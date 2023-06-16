@@ -1,4 +1,6 @@
 # noinspection PyPackageRequirements
+import json
+
 import grpc
 import sys
 import uuid
@@ -14,6 +16,7 @@ from typing import (
     Dict,
     Tuple,
 )
+from pypi_simple import PYPI_SIMPLE_ENDPOINT
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
 from ai.lzy.v1.long_running.operation_pb2 import Operation, GetOperationRequest
@@ -31,7 +34,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServi
 # noinspection PyPackageRequirements
 from google.protobuf.any_pb2 import Any
 # noinspection PyUnresolvedReferences
-from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient, Provisioning
+from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, Provisioning
 from lzy.api.v1.runtime import ProgressStep
 from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnvProvider, PyEnv
@@ -124,6 +127,8 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         self.fail_on_get_pools = False
         self.fail_on_get_storage = False
 
+        self.fail_with_unsupported_client_version = False
+
         self.return_empty_pools = False
 
         self.started = False
@@ -136,6 +141,18 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
         self, request: StartWorkflowRequest, context: grpc.ServicerContext
     ) -> StartWorkflowResponse:
         _LOG.info(f"Creating wf {request}")
+
+        if self.fail_with_unsupported_client_version:
+            self.fail_with_unsupported_client_version = False
+            context.send_initial_metadata((("x-supported-client-versions", ""),))
+            context.set_trailing_metadata(((
+                "x-supported-client-versions",
+                json.dumps({
+                    "minimal_supported_version": "1.100.0",
+                    "blacklisted_versions": ["1.100.1", "1.100.2", "1.100.100"]
+                })
+            ),))
+            context.abort(grpc.StatusCode.FAILED_PRECONDITION, "Unsupported version")
 
         if self.fail_on_start:
             self.fail_on_start = False
@@ -307,10 +324,19 @@ class WhiteboardIndexServiceMock(LzyWhiteboardServiceServicer):
 
 
 class EnvProviderMock(PyEnvProvider):
+    @property
+    def pypi_index_url(self):
+        return PYPI_SIMPLE_ENDPOINT
+
     def __init__(self, libraries: Optional[Dict[str, str]] = None, local_modules_path: Optional[Sequence[str]] = None):
         self.__libraries = libraries if libraries else {}
         self.__local_modules_path = local_modules_path if local_modules_path else []
 
     def provide(self, namespace: Dict[str, Any], exclude_packages: Iterable[str] = tuple()) -> PyEnv:
         info = sys.version_info
-        return PyEnv(f"{info.major}.{info.minor}.{info.micro}", self.__libraries, self.__local_modules_path)
+        return PyEnv(
+            python_version=f"{info.major}.{info.minor}.{info.micro}",
+            libraries=self.__libraries,
+            local_modules_path=self.__local_modules_path,
+            pypi_index_url=self.pypi_index_url,
+        )

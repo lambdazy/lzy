@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package ai.lzy.v1.slots;
+
+import "ai/lzy/v1/common/slot.proto";
+import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
+import "ai/lzy/v1/common/channel.proto";
+
+option java_outer_classname = "LSA";
+option java_package = "ai.lzy.v1.slots.v2";
+
+service LzySlotsApi {
+
+  // Connect slot to remote peer (call from channel manager)
+  rpc StartTransfer (StartTransferRequest) returns (StartTransferResponse) {}
+
+  // Read data from slot (call from peer)
+  rpc Read (ReadDataRequest) returns (stream ReadDataChunk);
+}
+
+// ============ StartTransfer ==============
+
+message StartTransferRequest {
+  string transfer_id          = 1;
+  string slot_id              = 2;  // Peer id of slot
+  common.PeerDescription peer = 3;
+}
+
+message StartTransferResponse {}
+
+// ============ OpenOutputSlot ==============
+
+message ReadDataRequest {
+  string peer_id = 1;
+  int64 offset   = 2;
+}
+
+message ReadDataChunk {
+  enum Control {
+    EOS = 0;
+  }
+
+  oneof kind {
+    Control control = 1;
+    bytes chunk = 2;
+  }
+}

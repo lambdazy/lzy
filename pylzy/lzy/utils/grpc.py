@@ -29,13 +29,17 @@ from grpc.aio import ClientCallDetails, ClientInterceptor, AioRpcError
 # noinspection PyPackageRequirements,PyProtectedMember
 from grpc.aio._typing import RequestType, ResponseType
 
+from lzy.exceptions import BadClientVersion
 from lzy.logs.config import get_logger
+from lzy.version import __version__
 
 KEEP_ALIVE_TIME_MS = 3 * 60 * 1000  # 3 minutes
 KEEP_ALIVE_TIMEOUT_MS = 1000
 
 
 _LOG = get_logger(__name__)
+
+IDEMPOTENCY_HEADER_KEY = "idempotency-key"
 
 
 @dataclass
@@ -204,6 +208,10 @@ def add_headers_interceptor(headers: Mapping[str, str]) -> List[ClientIntercepto
             _GenericStreamUnaryInterceptor(intercept), _GenericStreamStreamInterceptor(intercept)]
 
 
+def metadata_with(idempotency_key: str) -> List[Tuple[str, str]]:
+    return [(IDEMPOTENCY_HEADER_KEY, idempotency_key)]
+
+
 def build_token(username: str, key_path: str) -> str:
     with open(key_path, "r") as f:
         private_key = f.read()
@@ -249,3 +257,43 @@ def retry(config: RetryConfig, action_name: str):
         return inner
 
     return decorator
+
+
+def build_headers(token: str) -> List[ClientInterceptor]:
+    return add_headers_interceptor({
+        "authorization": f"Bearer {token}",
+        "x-client-version": f"pylzy={__version__}"
+    })
+
+
+def redefine_errors(f: Callable[..., Awaitable]) -> Callable[..., Awaitable]:
+
+    @functools.wraps(f)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await f(*args, **kwargs)
+        except AioRpcError as e:
+            data = e.trailing_metadata().get_all("x-supported-client-versions")
+
+            if not data or len(data) == 0:
+                raise
+
+            try:
+                supported_versions = json.loads(data[0])
+            except Exception as ex:
+                _LOG.warning("Cannot parse supported versions from server metadata: %s", data[0], exc_info=True)
+                raise ex from e
+
+            minimal_version = supported_versions.get("minimal_supported_version")
+            banned_versions = supported_versions.get("blacklisted_versions", [])
+
+            if minimal_version is None:
+                raise
+
+            pip_request = ",".join((">=" + minimal_version, *("!=" + ver for ver in banned_versions)))
+
+            raise BadClientVersion(
+                f"This version of pylzy is unsupported."
+                f" Please run `pip install 'pylzy{pip_request}'` to update pylzy")
+
+    return wrapper

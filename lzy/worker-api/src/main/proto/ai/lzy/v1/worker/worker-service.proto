@@ -6,11 +6,14 @@ import "ai/lzy/v1/common/env.proto";
 import "ai/lzy/v1/common/operation.proto";
 import "ai/lzy/v1/long-running/operation.proto";
 import "ai/lzy/v1/long-running/option.proto";
+import "ai/lzy/v1/validation/validation.proto";
 
 option java_outer_classname = "LWS";
 option java_package = "ai.lzy.v1.worker";
 
 service WorkerApi {
+  rpc Init (InitRequest) returns (InitResponse);
+
   rpc Execute (ExecuteRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       // metadata: null
@@ -19,12 +22,26 @@ service WorkerApi {
   };
 }
 
+// ========== Init ==========
+
+message InitRequest {
+  string user_id = 1;
+  string workflow_name = 2;
+  string worker_subject_name = 3;
+  string worker_private_key = 4 [(validation.sensitive) = true];
+}
+
+message InitResponse {
+}
+
 // ========== Execute ============
 
 message ExecuteRequest {
   lzy.v1.common.TaskDesc task_desc = 1;
   string task_id = 2;
   string execution_id = 3;
+  string workflow_name = 4;
+  string user_id = 5;
 }
 
 message ExecuteResponse {

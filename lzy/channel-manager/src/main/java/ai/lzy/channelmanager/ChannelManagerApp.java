@@ -13,27 +13,29 @@ import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.runtime.Micronaut;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 @Singleton
 public class ChannelManagerApp {
-
     private static final Logger LOG = LogManager.getLogger(ChannelManagerApp.class);
-
     public static final String APP = "ChannelManager";
 
+    private static CountDownLatch shutdown;
+
     private final Server channelManagerServer;
-    private final ManagedChannel iamChannel;
 
     private final ChannelOperationManager channelOperationManager;
+    private final ChannelManagerConfig config;
 
     public ChannelManagerApp(ChannelManagerConfig config,
                              @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
@@ -42,9 +44,7 @@ public class ChannelManagerApp {
                              @Named("ChannelManagerOperationService") OperationsService operationsService,
                              ChannelOperationManager channelOperationManager)
     {
-        LOG.info("Starting ChannelManager service with config: {}", config.toString());
-
-        this.iamChannel = iamChannel;
+        this.config = config;
 
         final var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
         final var channelManagerAddress = HostAndPort.fromString(config.getAddress());
@@ -62,35 +62,57 @@ public class ChannelManagerApp {
 
     public static void main(String[] args) throws InterruptedException, IOException {
         try (var context = Micronaut.run(ChannelManagerApp.class, args)) {
+            shutdown = new CountDownLatch(1);
+
             final ChannelManagerApp channelManagerApp = context.getBean(ChannelManagerApp.class);
             channelManagerApp.start();
-            channelManagerApp.awaitTermination();
+
+            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                LOG.info("Stopping ChannelManager service...");
+                shutdown.countDown();
+            }));
+
+            shutdown.await();
         }
     }
 
     public void start() throws IOException {
+        LOG.info("Starting ChannelManager service with config: {}", config.toString());
+
         channelManagerServer.start();
 
         channelOperationManager.restoreActiveOperations();
+    }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            LOG.info("Stopping ChannelManager service");
-            stop();
-        }));
+    public void shutdown() {
+        channelManagerServer.shutdown();
+    }
+
+    public void shutdownNow() {
+        channelManagerServer.shutdownNow();
     }
 
     public void awaitTermination() throws InterruptedException {
         channelManagerServer.awaitTermination();
-        iamChannel.awaitTermination(10, TimeUnit.SECONDS);
     }
 
-    public void awaitTermination(long timeout, TimeUnit timeUnit) throws InterruptedException {
-        channelManagerServer.awaitTermination(timeout / 2, timeUnit);
-        iamChannel.awaitTermination(timeout / 2, timeUnit);
+    public boolean awaitTermination(long timeout, TimeUnit timeUnit) throws InterruptedException {
+        return channelManagerServer.awaitTermination(timeout, timeUnit);
     }
 
+    @PreDestroy
     public void stop() {
-        channelManagerServer.shutdown();
-        iamChannel.shutdown();
+        LOG.info("Stopping ChannelManager service...");
+
+        this.shutdown();
+        try {
+            if (!this.awaitTermination(5, TimeUnit.SECONDS)) {
+                this.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            // intentionally blank
+        } finally {
+            this.shutdownNow();
+        }
     }
 }

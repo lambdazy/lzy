@@ -10,7 +10,7 @@ import org.junit.Test;
 import java.time.Duration;
 import java.util.UUID;
 
-import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static org.junit.Assert.assertFalse;
 
 public class ChannelManagerRestartTest extends ChannelManagerBaseApiTest {

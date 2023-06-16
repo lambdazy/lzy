@@ -7,6 +7,7 @@ import ai.lzy.iam.utils.TokenParser;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.OttCredentials;
+import ai.lzy.util.auth.credentials.YcIamCredentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import com.google.common.collect.ImmutableSet;
@@ -83,7 +84,7 @@ public class AuthServerInterceptor implements ServerInterceptor {
                     throw new IllegalArgumentException("Authorization header is missing");
                 } else {
                     Context context = Context.current().withValue(AuthenticationContext.KEY, authContext);
-                    var serverCall = new GrpcServerCall<>(call, authContext.getSubject().str());
+                    var serverCall = new GrpcServerCall<>(call, authContext.getSubject().toString());
                     return Contexts.interceptCall(context, serverCall, headers, next);
                 }
             }
@@ -106,6 +107,7 @@ public class AuthServerInterceptor implements ServerInterceptor {
             Credentials credentials = switch (token.kind()) {
                 case JWT -> new JwtCredentials(token.token());
                 case OTT -> new OttCredentials(token.token());
+                case YC_IAM -> new YcIamCredentials(token.token());
             };
             Subject subject = authenticateService.authenticate(credentials);
             return new AuthenticationContext(token, credentials, subject);

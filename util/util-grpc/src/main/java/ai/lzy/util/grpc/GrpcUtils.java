@@ -117,4 +117,11 @@ public final class GrpcUtils {
         }
         return Status.UNKNOWN.withDescription(e.getMessage()).asRuntimeException();
     }
+
+    public static boolean retryableStatusCode(Status sre) {
+        return switch (sre.getCode()) {
+            case UNAVAILABLE, ABORTED, DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED -> true;
+            default -> false;
+        };
+    }
 }

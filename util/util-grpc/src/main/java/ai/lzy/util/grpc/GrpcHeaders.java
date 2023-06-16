@@ -17,6 +17,7 @@ public class GrpcHeaders {
     public static final Metadata.Key<String> X_REQUEST_ID = createMetadataKey("X-Request-ID");
     public static final Metadata.Key<String> X_SUBJECT_ID = createMetadataKey("X-Subject-ID");
     public static final Metadata.Key<String> IDEMPOTENCY_KEY = createMetadataKey("Idempotency-Key");
+    public static final Metadata.Key<String> CLIENT_VERSION = createMetadataKey("X-Client-Version");
 
     public static Metadata getHeaders() {
         return HEADERS.get();

@@ -60,6 +60,11 @@ public class DestroyAction extends ChannelAction {
         operationStopped = false;
 
         while (true) {
+            if (Thread.currentThread().isInterrupted()) {
+                LOG.debug("Async operation (operationId={}) was interrupted", operationId);
+                return;
+            }
+
             String channelId = state.toDestroyChannels().stream().findFirst().orElse(null);
 
             if (channelId == null) {
@@ -156,11 +161,11 @@ public class DestroyAction extends ChannelAction {
         }
 
         for (Endpoint receiver : channel.getReceivers().asList()) {
-            this.unbindReceiver(receiver);
+            this.unbindReceiver(receiver, true);
         }
 
         for (Endpoint sender : channel.getSenders().asList()) {
-            this.unbindSender(sender);
+            this.unbindSender(sender, true);
         }
     }
 

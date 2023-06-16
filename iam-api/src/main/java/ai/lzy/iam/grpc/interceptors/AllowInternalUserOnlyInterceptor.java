@@ -1,5 +1,6 @@
 package ai.lzy.iam.grpc.interceptors;
 
+import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.AuthPermission;
@@ -12,15 +13,31 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
+import java.util.Set;
 
 public class AllowInternalUserOnlyInterceptor implements ServerInterceptor {
     private static final Logger LOG = LogManager.getLogger(AllowInternalUserOnlyInterceptor.class);
 
-    private final AccessServiceGrpcClient accessServiceClient;
+    private final AccessClient accessServiceClient;
+    private final Set<MethodDescriptor<?, ?>> exceptMethods;
 
     public AllowInternalUserOnlyInterceptor(String clientName, Channel iamChannel) {
-        this.accessServiceClient = new AccessServiceGrpcClient(clientName, iamChannel,
-            () -> new JwtCredentials("i-am-a-hacker"));
+        this(new AccessServiceGrpcClient(clientName, iamChannel, () -> new JwtCredentials("stub")));
+    }
+
+    public AllowInternalUserOnlyInterceptor(AccessClient accessServiceClient) {
+        this(accessServiceClient, Set.of());
+    }
+
+    public AllowInternalUserOnlyInterceptor(AccessClient accessServiceClient,
+                                            Set<MethodDescriptor<?, ?>> exceptMethods)
+    {
+        this.accessServiceClient = accessServiceClient;
+        this.exceptMethods = exceptMethods;
+    }
+
+    public AllowInternalUserOnlyInterceptor ignoreMethods(MethodDescriptor<?, ?>... methods) {
+        return new AllowInternalUserOnlyInterceptor(accessServiceClient, Set.of(methods));
     }
 
     @Override
@@ -29,6 +46,10 @@ public class AllowInternalUserOnlyInterceptor implements ServerInterceptor {
     {
         if (!AuthenticationContext.isAuthenticated()) {
             return unauthenticated(call);
+        }
+
+        if (exceptMethods.contains(call.getMethodDescriptor())) {
+            return next.startCall(call, headers);
         }
 
         var auth = Objects.requireNonNull(AuthenticationContext.current());

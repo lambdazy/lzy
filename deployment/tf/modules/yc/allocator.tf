@@ -61,6 +61,11 @@ resource "kubernetes_stateful_set" "allocator" {
           }
 
           env {
+            name = "MICRONAUT_SERVER_HOST"
+            value = "0.0.0.0"
+          }
+
+          env {
             name  = "ALLOCATOR_METRICS_PORT"
             value = local.allocator-metrics-port
           }
@@ -302,9 +307,16 @@ resource "kubernetes_service" "allocator_service" {
   spec {
     selector = local.allocator-labels
     port {
+      name        = "main-grpc"
       port        = local.allocator-port
       target_port = local.allocator-port
     }
+    port {
+      name        = "http"
+      port        = local.allocator-http-port
+      target_port = local.allocator-http-port
+    }
+    external_traffic_policy = "Local"
     type = "LoadBalancer"
   }
 }

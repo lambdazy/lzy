@@ -1,11 +1,8 @@
 package ai.lzy.allocator.volume;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
-import ai.lzy.allocator.model.DiskVolumeDescription;
-import ai.lzy.allocator.model.NFSVolumeDescription;
 import ai.lzy.allocator.model.Volume;
-import ai.lzy.allocator.model.VolumeClaim;
-import ai.lzy.allocator.model.VolumeRequest;
+import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import io.fabric8.kubernetes.api.model.*;
@@ -19,27 +16,26 @@ import org.apache.logging.log4j.Logger;
 import java.net.HttpURLConnection;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Singleton
 public class KuberVolumeManager implements VolumeManager {
     public static final String REQUESTED_VOLUME_NAME_LABEL = "lzy-requested-volume-name";
-    public static final String YCLOUD_DISK_DRIVER = "disk-csi-driver.mks.ycloud.io";
-
-    public static final String NFS_DRIVER = "nfs.csi.k8s.io";
     public static final String KUBER_GB_NAME = "Gi";
     public static final String VOLUME_CAPACITY_STORAGE_KEY = "storage";
 
     private static final Logger LOG = LogManager.getLogger(KuberVolumeManager.class);
     private static final String DEFAULT_NAMESPACE = "default";
-    private static final String EMPTY_STORAGE_CLASS_NAME = "";
-    private static final String NFS_STORAGE_CLASS_NAME = "nfs-csi";
 
     private final KuberClientFactory kuberClientFactory;
     private final ClusterRegistry clusterRegistry;
+    private final StorageProvider storageProvider;
 
-    public KuberVolumeManager(KuberClientFactory kuberClientFactory, ClusterRegistry clusterRegistry) {
+    public KuberVolumeManager(KuberClientFactory kuberClientFactory, ClusterRegistry clusterRegistry,
+                              StorageProvider storageProvider) {
         this.kuberClientFactory = kuberClientFactory;
         this.clusterRegistry = clusterRegistry;
+        this.storageProvider = storageProvider;
     }
 
     @Override
@@ -60,9 +56,11 @@ public class KuberVolumeManager implements VolumeManager {
 
             LOG.info("Creating persistent volume '{}' for disk {} of size {}Gi", volumeName, diskId, diskSize);
 
-            accessMode = Volume.AccessMode.READ_WRITE_ONCE;
+            accessMode = Objects.requireNonNullElse(diskVolumeDescription.accessMode(),
+                Volume.AccessMode.READ_WRITE_ONCE);
             resourceName = diskVolumeDescription.name();
-            storageClass = EMPTY_STORAGE_CLASS_NAME;
+            storageClass = storageProvider.resolveDiskStorageClass(diskVolumeDescription.storageClass());
+            var readOnly = accessMode == Volume.AccessMode.READ_ONLY_MANY;
             volume = new PersistentVolumeBuilder()
                 .withNewMetadata()
                     .withName(volumeName)
@@ -74,9 +72,10 @@ public class KuberVolumeManager implements VolumeManager {
                     .withStorageClassName(storageClass)
                     .withPersistentVolumeReclaimPolicy("Retain")
                     .withCsi(new CSIPersistentVolumeSourceBuilder()
-                        .withDriver(YCLOUD_DISK_DRIVER)
+                        .withDriver(storageProvider.diskDriverName())
                         .withFsType("ext4")
                         .withVolumeHandle(diskId)
+                        .withReadOnly(readOnly)
                         .build())
                 .endSpec()
                 .build();
@@ -90,7 +89,7 @@ public class KuberVolumeManager implements VolumeManager {
                 ? Volume.AccessMode.READ_ONLY_MANY
                 : Volume.AccessMode.READ_WRITE_MANY;
             resourceName = nfsVolumeDescription.name();
-            storageClass = NFS_STORAGE_CLASS_NAME;
+            storageClass = storageProvider.nfsStorageClass();
             volume = new PersistentVolumeBuilder()
                 .withNewMetadata()
                     .withName(volumeName)
@@ -102,7 +101,7 @@ public class KuberVolumeManager implements VolumeManager {
                     .withStorageClassName(storageClass)
                     .withMountOptions(nfsVolumeDescription.mountOptions())
                     .withCsi(new CSIPersistentVolumeSourceBuilder()
-                        .withDriver(NFS_DRIVER)
+                        .withDriver(storageProvider.nfsDriverName())
                         .withVolumeHandle(diskId)
                         .withReadOnly(nfsVolumeDescription.readOnly())
                         .withVolumeAttributes(Map.of(

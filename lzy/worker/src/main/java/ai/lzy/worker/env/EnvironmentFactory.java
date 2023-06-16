@@ -133,7 +133,7 @@ public class EnvironmentFactory {
                     LOG.error("Cannot find conda version", e);
                 }
 
-                auxEnv = new CondaEnvironment(env.getPyenv(), baseEnv, RESOURCES_PATH, LOCAL_MODULES_PATH);
+                auxEnv = new CondaEnvironment(baseEnv, env.getPyenv(), RESOURCES_PATH, LOCAL_MODULES_PATH);
             }
 
         } else if (env.hasProcessEnv()) {

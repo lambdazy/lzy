@@ -41,6 +41,11 @@ public interface VmAllocator {
             return new Result(code, reason);
         }
 
+        @Override
+        public String toString() {
+            return "Result{code=%s, reason='%s'}".formatted(code, reason);
+        }
+
         public static Result fromGrpcStatus(Status status) {
             return switch (status.getCode()) {
                 case OK, ALREADY_EXISTS
@@ -60,6 +65,8 @@ public interface VmAllocator {
      * @throws InvalidConfigurationException on invalid spec
      */
     Result allocate(Vm.Ref vmRef) throws InvalidConfigurationException;
+
+    Result getVmAllocationStatus(Vm vm) throws InvalidConfigurationException;
 
     void unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException;
 

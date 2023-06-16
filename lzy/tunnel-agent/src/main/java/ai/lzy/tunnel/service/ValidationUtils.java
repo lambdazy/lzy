@@ -39,7 +39,7 @@ public final class ValidationUtils {
 
     public static boolean validateIpV6(String ipv6) {
         try {
-            InetAddress remoteAddress = Inet6Address.getByName(ipv6);
+            InetAddress remoteAddress = InetAddress.getByName(ipv6);
             if (!(remoteAddress instanceof Inet6Address)) {
                 return false;
             }
@@ -51,7 +51,7 @@ public final class ValidationUtils {
 
     public static boolean validateIpV4(String ipv4) {
         try {
-            InetAddress remoteAddress = Inet6Address.getByName(ipv4);
+            InetAddress remoteAddress = InetAddress.getByName(ipv4);
             if (!(remoteAddress instanceof Inet4Address)) {
                 return false;
             }

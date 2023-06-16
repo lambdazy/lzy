@@ -5,13 +5,13 @@ import ai.lzy.iam.resources.AccessBindingDelta;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.resources.subjects.User;
-import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.v1.iam.IAM;
 
 public class ProtoConverter {
@@ -20,6 +20,7 @@ public class ProtoConverter {
         return switch (resource.getType()) {
             case Workflow.TYPE -> new Workflow(resource.getId());
             case Whiteboard.TYPE -> new Whiteboard(resource.getId());
+            case Root.TYPE -> Root.INSTANCE;
             default -> throw new RuntimeException("Unknown Resource type::" + resource.getType());
         };
     }
@@ -37,10 +38,8 @@ public class ProtoConverter {
 
     public static Subject to(IAM.Subject subject) {
         var subjectType = SubjectType.valueOf(subject.getType());
-        return switch (subjectType) {
-            case USER -> new User(subject.getId());
-            case WORKER -> new Worker(subject.getId());
-        };
+        var authProvider = AuthProvider.fromProto(subject.getAuthProvider());
+        return Subject.of(subject.getId(), subjectType, authProvider, subject.getProviderId(), subject.getMetaMap());
     }
 
     public static SubjectCredentials to(IAM.Credentials credentials) {
@@ -75,18 +74,13 @@ public class ProtoConverter {
     }
 
     public static IAM.Subject from(Subject subject) {
-        SubjectType subjectType;
-        if (subject instanceof User) {
-            subjectType = SubjectType.USER;
-        } else if (subject instanceof Worker) {
-            subjectType = SubjectType.WORKER;
-        } else {
-            throw new RuntimeException("Unknown subject type " + subject.getClass());
-        }
         return IAM.Subject.newBuilder()
-                .setId(subject.id())
-                .setType(subjectType.name())
-                .build();
+            .setId(subject.id())
+            .setType(subject.type().name())
+            .setAuthProvider(subject.provider().toProto())
+            .setProviderId(subject.providerId())
+            .putAllMeta(subject.meta())
+            .build();
     }
 
     public static IAM.Credentials from(SubjectCredentials credentials) {
