@@ -33,7 +33,6 @@ CREATE TABLE graph
     workflow_id           TEXT                           NOT NULL,
     workflow_name         TEXT                           NOT NULL,
     user_id               TEXT                           NOT NULL,
-    graph_description     TEXT                           NULL,
     error_description     TEXT                           NULL,
     failed_task_id        TEXT                           NULL,
     failed_task_name      TEXT                           NULL,

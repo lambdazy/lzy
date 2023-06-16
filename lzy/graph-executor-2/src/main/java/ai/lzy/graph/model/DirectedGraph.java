@@ -7,10 +7,10 @@ import java.util.Set;
 
 public class DirectedGraph {
     static class Edge {
-        private final Task input;
-        private final Task output;
+        private final TaskState input;
+        private final TaskState output;
 
-        Edge(Task input, Task output) {
+        Edge(TaskState input, TaskState output) {
             this.input = input;
             this.output = output;
         }
@@ -18,5 +18,5 @@ public class DirectedGraph {
 
     private final Map<String, Set<Edge>> graph = new HashMap<>();  // Map from vertexId to set of edges
     private final Map<String, Set<Edge>> reversedGraph = new HashMap<>();  // Map from vertexId to set of reversed edges
-    private final Set<Task> vertexes = new HashSet<>();
+    private final Set<TaskState> vertexes = new HashSet<>();
 }

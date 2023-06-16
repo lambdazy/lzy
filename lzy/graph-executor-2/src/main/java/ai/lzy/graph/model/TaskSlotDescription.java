@@ -11,11 +11,7 @@ public record TaskSlotDescription(
     String command,
     List<Slot> slots,
     Map<String, String> slotsToChannelsAssignments,
-    String stdoutName,
-    String stdoutChannelId,
-    String stderrName,
-    String stderrChannelId,
-    KafkaTopicDescription kafkaTopicDescription
+    KafkaTopicDescription stdLogsKafkaTopic
 ) {
     public record Slot(
         String name,
@@ -27,17 +23,18 @@ public record TaskSlotDescription(
         Map<String, String> metadata
     ) {
         enum Media {
-            UNSPECIFIED, FILE, PIPE, ARG
+            FILE, PIPE, ARG
         }
 
         enum Direction {
-            UNKNOWN, INPUT, OUTPUT
+            INPUT, OUTPUT
         }
     }
 
     public record KafkaTopicDescription(
         List<String> bootstrapServers,
         String username,
+        // TODO: LZY-49
         String password,
         String topic
     ) {}

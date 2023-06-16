@@ -4,8 +4,8 @@ import ai.lzy.graph.GraphExecutorApi2;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.GraphDao;
 import ai.lzy.graph.model.DirectedGraph;
-import ai.lzy.graph.model.Graph;
-import ai.lzy.graph.model.Task;
+import ai.lzy.graph.model.GraphState;
+import ai.lzy.graph.model.TaskState;
 import ai.lzy.graph.services.GraphService;
 import ai.lzy.graph.services.TaskService;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -29,7 +29,7 @@ public class GraphServiceImpl implements GraphService {
     private final TaskService taskService;
     private final GraphDao graphDao;
     private final OperationDao operationDao;
-    private final Map<String, Graph> graphs = new ConcurrentHashMap<>();
+    private final Map<String, GraphState> graphs = new ConcurrentHashMap<>();
 
     @Inject
     public GraphServiceImpl(ServiceConfig config, TaskService taskService, GraphDao graphDao,
@@ -58,14 +58,14 @@ public class GraphServiceImpl implements GraphService {
     }
 
     @Override
-    public void handleTaskCompleted(Task task) {
+    public void handleTaskCompleted(TaskState task) {
 
     }
 
     private void restoreGraphs(String instanceId) {
         try {
             withRetries(LOG, () -> {
-                List<Graph> graphList = graphDao.getByInstance(instanceId);
+                List<GraphState> graphList = graphDao.getByInstance(instanceId);
                 graphList.forEach(graph -> graphs.put(graph.id(), graph));
             });
         } catch (Exception e) {

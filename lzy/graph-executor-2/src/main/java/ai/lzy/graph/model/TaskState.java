@@ -1,41 +1,28 @@
 package ai.lzy.graph.model;
 
-import ai.lzy.graph.GraphExecutorApi2;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import jakarta.annotation.Nullable;
 
 import java.util.List;
-import java.util.Map;
 
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize
 @JsonDeserialize
-public record Graph(
+public record TaskState(
     String id,
-    String operationId,
+    String name,
+    String graphId,
     Status status,
     String workflowId,
     String workflowName,
     String userId,
-    Map<Status, List<String>> tasks,
     String errorDescription,
-    String failedTaskId,
-    String failedTaskName
+    TaskSlotDescription taskSlotDescription,
+    List<String> tasksDependedOn, // tasks, on which this task is depended on
+    List<String> tasksDependedFrom // tasks, that are depended from this task
 ) {
     public enum Status {
         WAITING, EXECUTING, COMPLETED, FAILED
     }
-
-    @Nullable
-    public GraphExecutorApi2.GraphExecuteResponse toProto() {
-        return null;
-    }
-
-    @Nullable
-    public String getDescription() {
-        return null;
-    }
 }
-

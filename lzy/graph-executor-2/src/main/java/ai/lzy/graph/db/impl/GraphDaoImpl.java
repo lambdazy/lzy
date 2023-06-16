@@ -2,7 +2,7 @@ package ai.lzy.graph.db.impl;
 
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.GraphDao;
-import ai.lzy.graph.model.Graph;
+import ai.lzy.graph.model.GraphState;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
 import jakarta.annotation.Nullable;
@@ -26,32 +26,35 @@ public class GraphDaoImpl implements GraphDao {
     private static final Logger LOG = LogManager.getLogger(GraphDaoImpl.class);
 
     private static final String GRAPH_INSERT_FIELDS_LIST = """
-        id, op_id, status, workflow_id, workflow_name, user_id, graph_description, error_description, 
+        id, op_id, status, workflow_id, workflow_name, user_id, error_description, 
         failed_task_id, failed_task_name, last_updated, owner_instance_id""";
 
     private static final String GRAPH_SELECT_FIELDS_LIST = """
-        id, op_id, status::text as status, workflow_id, workflow_name, user_id, graph_description,
+        id, op_id, status::text as status, workflow_id, workflow_name, user_id,
         error_description, failed_task_id, failed_task_name, last_updated, owner_instance_id""";
 
-    public static final String GRAPH_INSERT_STATEMENT = "INSERT INTO graph (" +
-        GRAPH_INSERT_FIELDS_LIST + ") VALUES (?, ?, ?::status, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-    public static final String GRAPH_UPDATE_STATEMENT = """
-                 UPDATE graph
-                 SET error_description = ?,
-                     failed_task_id = ?,
-                     failed_task_name = ?,
-                     status = ?::status,
-                     last_updated = ?
-                 WHERE id = ?""";
-    public static final String GRAPH_GET_BY_ID_STATEMENT = """
-                SELECT %s
-                FROM graph
-                WHERE id = ?""".formatted(GRAPH_SELECT_FIELDS_LIST);
-    public static final String GRAPH_GET_BY_INSTANCE_STATEMENT = """
-                SELECT %s
-                FROM graph
-                WHERE owner_instance_id = ? AND status not in ('FAILED', 'COMPLETED')"""
-                .formatted(GRAPH_SELECT_FIELDS_LIST);
+    private static final String GRAPH_INSERT_STATEMENT = """
+        INSERT INTO graph (%s) VALUES (?, ?, ?::status, ?, ?, ?, ?, ?, ?, ?, ?)"""
+        .formatted(GRAPH_INSERT_FIELDS_LIST);
+
+    private static final String GRAPH_UPDATE_STATEMENT = """
+        UPDATE graph
+        SET error_description = ?,
+            failed_task_id = ?,
+            failed_task_name = ?,
+            status = ?::status,
+            last_updated = ?
+        WHERE id = ?""";
+    private static final String GRAPH_GET_BY_ID_STATEMENT = """
+        SELECT %s
+        FROM graph
+        WHERE id = ?""".formatted(GRAPH_SELECT_FIELDS_LIST);
+
+    private static final String GRAPH_GET_BY_INSTANCE_STATEMENT = """
+        SELECT %s
+        FROM graph
+        WHERE owner_instance_id = ? AND status not in ('FAILED', 'COMPLETED')"""
+        .formatted(GRAPH_SELECT_FIELDS_LIST);
 
     private final GraphExecutorDataSource storage;
     private final ServiceConfig config;
@@ -63,7 +66,7 @@ public class GraphDaoImpl implements GraphDao {
     }
 
     @Override
-    public void create(Graph graph, TransactionHandle transaction) throws SQLException {
+    public void create(GraphState graph, TransactionHandle transaction) throws SQLException {
         LOG.info("Saving graph: {}", graph);
 
         DbOperation.execute(transaction, storage, connection -> {
@@ -75,7 +78,6 @@ public class GraphDaoImpl implements GraphDao {
                 st.setString(++count, graph.workflowId());
                 st.setString(++count, graph.workflowName());
                 st.setString(++count, graph.userId());
-                st.setString(++count, graph.getDescription());
                 st.setString(++count, graph.errorDescription());
                 st.setString(++count, graph.failedTaskId());
                 st.setString(++count, graph.failedTaskName());
@@ -88,7 +90,7 @@ public class GraphDaoImpl implements GraphDao {
     }
 
     @Override
-    public void update(Graph graph, @Nullable TransactionHandle transaction) throws SQLException {
+    public void update(GraphState graph, @Nullable TransactionHandle transaction) throws SQLException {
         DbOperation.execute(transaction, storage, connection -> {
             try (final Connection con = storage.connect();
                  final PreparedStatement st = con.prepareStatement(GRAPH_UPDATE_STATEMENT))
@@ -108,7 +110,7 @@ public class GraphDaoImpl implements GraphDao {
 
     @Override
     @Nullable
-    public Graph getById(String graphId) throws SQLException {
+    public GraphState getById(String graphId) throws SQLException {
         try (final Connection con = storage.connect()) {
             final PreparedStatement st = con.prepareStatement(GRAPH_GET_BY_ID_STATEMENT);
             st.setString(1, graphId);
@@ -124,7 +126,7 @@ public class GraphDaoImpl implements GraphDao {
 
     @Override
     @Nullable
-    public List<Graph> getByInstance(String instanceId) throws SQLException {
+    public List<GraphState> getByInstance(String instanceId) throws SQLException {
         try (final Connection con = storage.connect()) {
             final PreparedStatement st = con.prepareStatement(GRAPH_GET_BY_INSTANCE_STATEMENT);
             st.setString(1, instanceId);
@@ -132,7 +134,7 @@ public class GraphDaoImpl implements GraphDao {
                 if (!s.isBeforeFirst()) {
                     return new ArrayList<>();
                 }
-                List<Graph> list = new ArrayList<>();
+                List<GraphState> list = new ArrayList<>();
                 while (s.next()) {
                     list.add(fromResultSet(s));
                 }
@@ -141,19 +143,18 @@ public class GraphDaoImpl implements GraphDao {
         }
     }
 
-    private Graph fromResultSet(ResultSet resultSet) throws SQLException {
+    private GraphState fromResultSet(ResultSet resultSet) throws SQLException {
         final String graphId = resultSet.getString("id");
         final String operationId = resultSet.getString("op_id");
-        final Graph.Status status = Graph.Status.valueOf(resultSet.getString("status"));
+        final GraphState.Status status = GraphState.Status.valueOf(resultSet.getString("status"));
         final String workflowId = resultSet.getString("workflow_id");
         final String workflowName = resultSet.getString("workflow_name");
         final String userId = resultSet.getString("user_id");
-        final String graphDescription = resultSet.getString("graph_description");
         final String errorDescription = resultSet.getString("error_description");
         final String failedTaskId = resultSet.getString("failed_task_id");
         final String failedTaskName = resultSet.getString("failed_task_name");
 
-        return new Graph(graphId, operationId, status,
+        return new GraphState(graphId, operationId, status,
             workflowId, workflowName, userId, Collections.emptyMap(),
             errorDescription, failedTaskId, failedTaskName
         );

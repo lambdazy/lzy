@@ -3,7 +3,7 @@ package ai.lzy.graph.services.impl;
 import ai.lzy.graph.GraphExecutorApi2;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.TaskDao;
-import ai.lzy.graph.model.Task;
+import ai.lzy.graph.model.TaskState;
 import ai.lzy.graph.model.TaskOperation;
 import ai.lzy.graph.services.TaskService;
 import ai.lzy.longrunning.OperationsExecutor;
@@ -31,9 +31,9 @@ public class TaskServiceImpl implements TaskService {
     private final OperationsExecutor operationsExecutor;
     private final ServiceConfig config;
 
-    private final PriorityQueue<Task> readyTasks = new PriorityQueue<>(
+    private final PriorityQueue<TaskState> readyTasks = new PriorityQueue<>(
         Comparator.comparingInt(task -> task.tasksDependedFrom().size()));
-    private final Map<String, Task> waitingTasks = new ConcurrentHashMap<>();
+    private final Map<String, TaskState> waitingTasks = new ConcurrentHashMap<>();
     private final Map<String, Integer> limitByUser = new ConcurrentHashMap<>();
     private final Map<String, Integer> limitByWorkflow = new ConcurrentHashMap<>();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -51,7 +51,7 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public void addTask(Task task, Consumer<Task> onComplete) {
+    public void addTask(TaskState task, Consumer<TaskState> onComplete) {
 
     }
 
@@ -64,12 +64,12 @@ public class TaskServiceImpl implements TaskService {
     private void restoreTasks(String instanceId) {
         try {
             withRetries(LOG, () -> {
-                List<Task> taskList = taskDao.getTasksByInstance(instanceId);
+                List<TaskState> taskList = taskDao.getTasksByInstance(instanceId);
                 List<TaskOperation> operationList = taskDao.getTasksOperationsByInstance(instanceId);
 
                 List<String> failedGraphs = taskList.stream()
-                    .filter(task -> task.status() == Task.Status.FAILED)
-                    .map(Task::graphId)
+                    .filter(task -> task.status() == TaskState.Status.FAILED)
+                    .map(TaskState::graphId)
                     .distinct()
                     .toList();
 
@@ -78,15 +78,15 @@ public class TaskServiceImpl implements TaskService {
                     throw new RuntimeException();
                 }
 
-                List<Task> completedTasks = taskList.stream()
-                    .filter(task -> task.status() == Task.Status.COMPLETED)
+                List<TaskState> completedTasks = taskList.stream()
+                    .filter(task -> task.status() == TaskState.Status.COMPLETED)
                     .toList();
-                Map<String, Task> tasksById = taskList.stream()
-                    .collect(Collectors.toMap(Task::id, task -> task));
+                Map<String, TaskState> tasksById = taskList.stream()
+                    .collect(Collectors.toMap(TaskState::id, task -> task));
 
                 for (var task: completedTasks) {
                     for (var depTaskId: task.tasksDependedFrom()) {
-                        Task depTask = tasksById.get(depTaskId);
+                        TaskState depTask = tasksById.get(depTaskId);
                         depTask.tasksDependedOn().remove(task.id());
                     }
                 }
@@ -118,7 +118,7 @@ public class TaskServiceImpl implements TaskService {
 
     private void run() {
         while (true) {
-            Task task = readyTasks.peek();
+            TaskState task = readyTasks.peek();
             if (task != null && limitByUser.get(task.userId()) < config.getUserLimit() &&
                 limitByWorkflow.get(task.workflowId()) < config.getWorkflowLimit())
             {
