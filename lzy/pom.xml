@@ -36,6 +36,8 @@
         <module>site</module>
         <module>s3-sink-api</module>
         <module>s3-sink</module>
+        <module>graph-executor-2</module>
+        <module>graph-executor-api-2</module>
     </modules>
 
     <build>
