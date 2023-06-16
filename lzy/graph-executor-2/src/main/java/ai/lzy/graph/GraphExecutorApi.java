@@ -78,7 +78,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
         var op = Operation.create(
             request.getUserId(),
-            "Execute graph of execution: executionId='%s'".formatted(request.getWorkflowId()),
+            "Execute graph of execution: executionId='%s'".formatted(request.getExecutionId()),
             null,
             idempotencyKey,
             /* meta */ null);
@@ -105,7 +105,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     private static boolean validateRequest(GraphExecuteRequest request,
                                            StreamObserver<LongRunning.Operation> response)
     {
-        if (request.getWorkflowId().isBlank()) {
+        if (request.getExecutionId().isBlank()) {
             response.onError(Status.INVALID_ARGUMENT.withDescription("workflowId not set").asException());
             return false;
         }

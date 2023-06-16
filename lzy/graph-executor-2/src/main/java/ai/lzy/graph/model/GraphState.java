@@ -33,8 +33,12 @@ public record GraphState(
             .setGraphId(id)
             .setWorkflowId(workflowId);
         switch (status) {
-            case WAITING -> builder.setWaiting(GraphExecutorApi2.GraphExecuteResponse.Waiting.newBuilder().build());
-            case COMPLETED -> builder.setCompleted(GraphExecutorApi2.GraphExecuteResponse.Completed.newBuilder().build());
+            case WAITING -> builder.setWaiting(
+                GraphExecutorApi2.GraphExecuteResponse.Waiting.newBuilder().build()
+            );
+            case COMPLETED -> builder.setCompleted(
+                GraphExecutorApi2.GraphExecuteResponse.Completed.newBuilder().build()
+            );
             case FAILED -> builder.setFailed(
                 GraphExecutorApi2.GraphExecuteResponse.Failed.newBuilder()
                     .setFailedTaskId(failedTaskId)

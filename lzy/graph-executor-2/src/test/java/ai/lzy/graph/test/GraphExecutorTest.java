@@ -39,7 +39,7 @@ public class GraphExecutorTest {
     @Test
     public void test() {
         GraphExecutorApi2.GraphExecuteRequest request = GraphExecutorApi2.GraphExecuteRequest.newBuilder()
-            .setWorkflowId("1")
+            .setExecutionId("1")
             .setWorkflowName("workflow1")
             .setUserId("2")
             .addAllTasks(List.of(

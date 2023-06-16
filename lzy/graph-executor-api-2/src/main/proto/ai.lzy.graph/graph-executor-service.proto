@@ -31,7 +31,7 @@ message GraphExecuteRequest {
     repeated SlotToChannelAssignment slotAssignments = 3;
   }
 
-  string workflowId = 1;
+  string executionId = 1;
   string workflowName = 2;
   string userId = 3;
   repeated TaskDesc tasks = 4;
