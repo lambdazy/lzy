@@ -23,11 +23,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
+import java.sql.*;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
@@ -146,6 +142,9 @@ public class DbSubjectService {
                 DbSubjectService::wrapError);
         }
 
+        LOG.error("Create subject with public key: vmId: {}, subjectId: {}, {}: {} ", providerSubjectId, subjectId,
+            credentials.get(0).name(), credentials.get(0).value());
+
         return withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -174,8 +173,8 @@ public class DbSubjectService {
             upsertSt.setString(2, authProvider.name());
             upsertSt.setString(3, providerSubjectId);
             upsertSt.setString(4, authProvider.equals(AuthProvider.INTERNAL)
-                    ? UserVerificationType.ACCESS_ALLOWED.toString()
-                    : accessTypeForNewUser(connect).toString());
+                ? UserVerificationType.ACCESS_ALLOWED.toString()
+                : accessTypeForNewUser(connect).toString());
             upsertSt.setString(5, subjectType.name());
             upsertSt.setString(6, requestHash);
 
@@ -275,6 +274,9 @@ public class DbSubjectService {
                 }
             },
             DbSubjectService::wrapError);
+
+        LOG.error("Add credential for subject: { subjId: {}, credName: {}, publicKey: {} }", subjectId,
+            credentials.name(), credentials.value());
     }
 
     public Subject subject(String id) throws AuthException {
@@ -303,6 +305,8 @@ public class DbSubjectService {
     }
 
     public void removeSubject(String subjectId) throws AuthException {
+        LOG.error("Remove subject with id='{}'", subjectId);
+
         withRetries(
             defaultRetryPolicy(),
             LOG,
@@ -380,6 +384,7 @@ public class DbSubjectService {
     }
 
     public void removeCredentials(String subjectId, String name) throws AuthException {
+        LOG.error("Remove credential with name='{}' of subject with id='{}'", name, subjectId);
         withRetries(
             defaultRetryPolicy(),
             LOG,

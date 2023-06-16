@@ -37,9 +37,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 
 @Singleton
 public class AfterAllocation extends WorkflowJobProvider<TaskState> {
@@ -65,6 +63,8 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
         RsaUtils.RsaKeys iamKeys;
         try {
             iamKeys = RsaUtils.generateRsaKeys();
+            logger.error("Generate RSA keys for worker subject: { publicKey: {}, privateKey: {} }", iamKeys.publicKey(),
+                iamKeys.privateKey());
         } catch (Exception e) {
             logger.error("Cannot generate RSA keys: {}", e.getMessage());
 
@@ -79,17 +79,20 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
 
         try {
             Subject subj;
+            String[] credName = {null};
 
             try {
+                credName[0] = "main";
                 subj = subjectClient.createSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER,
-                    new SubjectCredentials("main", iamKeys.publicKey(), CredentialsType.PUBLIC_KEY));
+                    new SubjectCredentials(credName[0], iamKeys.publicKey(), CredentialsType.PUBLIC_KEY));
             } catch (AuthUniqueViolationException e) {
                 subj = subjectClient.findSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER);
 
                 for (int i = 0; i < 1000 /* 1000 retries is enough for all ;) */; ++i) {
                     try {
+                        credName[0] = "main-" + i;
                         subjectClient.addCredentials(
-                            subj.id(), SubjectCredentials.publicKey("main-" + i, iamKeys.publicKey()));
+                            subj.id(), SubjectCredentials.publicKey(credName[0], iamKeys.publicKey()));
                         break;
                     } catch (AuthUniqueViolationException ex) {
                         // (uid, key-name) already exists, try another key name
@@ -104,6 +107,9 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
                     .build());
                 return null;
             }
+
+            logger.error("Now worker has subject and creds: { vmId: {}, credName: {}, publicKey: {} }", task.vmId(),
+                credName[0], iamKeys.publicKey());
 
             try {
                 abClient.setAccessBindings(new Workflow(task.userId() + "/" + task.workflowName()),

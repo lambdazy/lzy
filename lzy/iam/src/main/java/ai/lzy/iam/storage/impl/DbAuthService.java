@@ -20,9 +20,12 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
+import org.apache.logging.log4j.util.Supplier;
 
 import java.io.StringReader;
 import java.sql.SQLException;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Singleton
 @Requires(beans = IamDataSource.class)
@@ -105,6 +108,9 @@ public class DbAuthService implements AuthenticateService {
                             subjectType, subjectId, rs.getString("cred_name"));
                         return subject;
                     } else {
+                        LOG.error("Expected worker public key: {}, actual JWT: {}, providerName: {}, login: {}, credType: {}",
+                            rs.getString("cred_value"), credentials.token(), providerName, providerLogin,
+                            credentials.type());
                         throw new AuthPermissionDeniedException("Permission denied. JWT check failed.");
                     }
                 } catch (Exception e) {
