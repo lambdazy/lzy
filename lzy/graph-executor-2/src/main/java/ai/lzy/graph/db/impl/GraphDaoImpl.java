@@ -67,7 +67,7 @@ public class GraphDaoImpl implements GraphDao {
 
     @Override
     public void create(GraphState graph, TransactionHandle transaction) throws SQLException {
-        LOG.info("Saving graph: {}", graph);
+        LOG.debug("Saving graph: {}", graph.id());
 
         DbOperation.execute(transaction, storage, connection -> {
             try (PreparedStatement st = connection.prepareStatement(GRAPH_INSERT_STATEMENT)) {
@@ -91,6 +91,8 @@ public class GraphDaoImpl implements GraphDao {
 
     @Override
     public void update(GraphState graph, @Nullable TransactionHandle transaction) throws SQLException {
+        LOG.debug("Updating graph: {}", graph.id());
+
         DbOperation.execute(transaction, storage, connection -> {
             try (final Connection con = storage.connect();
                  final PreparedStatement st = con.prepareStatement(GRAPH_UPDATE_STATEMENT))

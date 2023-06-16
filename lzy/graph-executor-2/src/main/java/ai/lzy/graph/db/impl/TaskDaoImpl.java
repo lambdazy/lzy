@@ -134,7 +134,7 @@ public class TaskDaoImpl implements TaskDao {
 
     @Override
     public void createTasks(List<TaskState> tasks, TransactionHandle transaction) throws SQLException {
-        LOG.info("Saving tasks: {}", tasks);
+        LOG.debug("Saving tasks: {}", tasks.stream().map(TaskState::id).toList());
 
         DbOperation.execute(transaction, storage, connection -> {
             try (PreparedStatement st = connection.prepareStatement(TASK_INSERT_STATEMENT)) {
@@ -173,6 +173,8 @@ public class TaskDaoImpl implements TaskDao {
 
     @Override
     public void updateTask(TaskState task, @Nullable TransactionHandle transaction) throws SQLException {
+        LOG.debug("Updating task: {}", task.id());
+
         DbOperation.execute(transaction, storage, connection -> {
             try (final Connection con = storage.connect();
                  final PreparedStatement st = con.prepareStatement(TASK_UPDATE_STATEMENT))
@@ -243,7 +245,7 @@ public class TaskDaoImpl implements TaskDao {
     public void createTaskOperation(TaskOperation taskOperation, TransactionHandle transaction)
         throws SQLException
     {
-        LOG.info("Saving task operation: {}", taskOperation);
+        LOG.debug("Saving task operation: {}", taskOperation.id());
 
         DbOperation.execute(transaction, storage, connection -> {
             try (PreparedStatement st = connection.prepareStatement(TASK_OPERATION_INSERT_STATEMENT)) {
@@ -265,6 +267,8 @@ public class TaskDaoImpl implements TaskDao {
     public void updateTaskOperation(TaskOperation taskOperation, TransactionHandle transaction)
         throws SQLException
     {
+        LOG.debug("Updating task operation: {}", taskOperation.id());
+
         DbOperation.execute(transaction, storage, connection -> {
             try (final Connection con = storage.connect();
                  final PreparedStatement st = con.prepareStatement(TASK_OPERATION_UPDATE_STATEMENT))
