@@ -133,6 +133,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
                                 .addAllEndpoints(endpoints)
                                 .putAllMetadata(request.getMetadataMap())
                                 .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId)
+                                .setFromCache(false)
                                 .build());
                         op.completeWith(response);
 
