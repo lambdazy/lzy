@@ -86,16 +86,22 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
             } catch (AuthUniqueViolationException e) {
                 subj = subjectClient.findSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER);
 
+                boolean done = false;
                 for (int i = 0; i < 1000 /* 1000 retries is enough for all ;) */; ++i) {
                     try {
                         subjectClient.addCredentials(
                             subj.id(), SubjectCredentials.publicKey("main-" + i, iamKeys.publicKey()));
+                        done = true;
                         break;
                     } catch (AuthUniqueViolationException ex) {
                         // (uid, key-name) already exists, try another key name
+                        logger.error("Credentials for ({}, main-{}) already exist, try next...", task.vmId(), i);
                     }
                 }
 
+                if (!done) {
+                    throw new RuntimeException("Cannot add credentials to the Worker " + task.vmId());
+                }
             } catch (AuthException e) {
                 logger.error("Error while finding subject for vm {}:", task.vmId(), e);
                 fail(com.google.rpc.Status.newBuilder()

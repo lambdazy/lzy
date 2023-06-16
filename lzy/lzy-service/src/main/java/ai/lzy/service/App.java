@@ -6,12 +6,14 @@ import ai.lzy.longrunning.OperationsService;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.util.ClientVersionInterceptor;
+import ai.lzy.service.util.ExecutionIdInterceptor;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.util.grpc.RequestIdInterceptor;
 import com.google.common.net.HostAndPort;
-import io.grpc.BindableService;
 import io.grpc.Server;
+import io.grpc.ServerInterceptors;
+import io.grpc.ServerServiceDefinition;
 import io.grpc.netty.NettyServerBuilder;
 import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Named;
@@ -42,9 +44,9 @@ public class App {
             HostAndPort.fromString(config.getAddress()),
             clientVersionInterceptor,
             authInterceptor,
-            lzyService,
-            lzyPrivateService,
-            operationService);
+            ServerInterceptors.intercept(lzyService, new ExecutionIdInterceptor()),
+            lzyPrivateService.bindService(),
+            operationService.bindService());
     }
 
     public void start() throws IOException {
@@ -68,7 +70,7 @@ public class App {
     }
 
     public static Server createServer(HostAndPort endpoint, ClientVersionInterceptor versionInterceptor,
-                                      AuthServerInterceptor authInterceptor, BindableService... services)
+                                      AuthServerInterceptor authInterceptor, ServerServiceDefinition... services)
     {
         var serverBuilder = NettyServerBuilder
             .forAddress(new InetSocketAddress(endpoint.getHost(), endpoint.getPort()))
@@ -80,7 +82,7 @@ public class App {
             .intercept(AllowSubjectOnlyInterceptor.ALLOW_USER_ONLY)
             .intercept(authInterceptor)
             .intercept(GrpcLogsInterceptor.server())
-            .intercept(RequestIdInterceptor.server(true))
+            .intercept(RequestIdInterceptor.generate())
             .intercept(GrpcHeadersServerInterceptor.create());
 
         for (var service : services) {

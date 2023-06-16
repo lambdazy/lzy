@@ -92,7 +92,7 @@ public class DbAuthService implements AuthenticateService {
             st.setString(++parameterIndex, credName);
 
             var rs = st.executeQuery();
-            if (rs.next()) {
+            while (rs.next()) {
                 // validate auth provider
                 var authProvider = AuthProvider.valueOf(providerName);
 
@@ -105,12 +105,14 @@ public class DbAuthService implements AuthenticateService {
                             subjectType, subjectId, rs.getString("cred_name"));
                         return subject;
                     } else {
-                        throw new AuthPermissionDeniedException("Permission denied. JWT check failed.");
+                        LOG.warn("JWT check failed: id={}, provider={}, credName={}",
+                            providerLogin, providerName, credName);
                     }
                 } catch (Exception e) {
                     throw new AuthInternalException(e);
                 }
             }
+            LOG.error("No valid key: id={}, provider={}, credName={}", providerLogin, providerName, credName);
             throw new AuthPermissionDeniedException("Permission denied. Not found valid key.");
         } catch (SQLException e) {
             throw new AuthInternalException(e);

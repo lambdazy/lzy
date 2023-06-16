@@ -4,13 +4,22 @@ import io.grpc.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.List;
 import java.util.function.Supplier;
 
 public class ClientHeaderInterceptor<T> implements ClientInterceptor {
     private static final Logger LOG = LogManager.getLogger(ClientHeaderInterceptor.class);
 
-    private final Metadata.Key<T> key;
-    private final Supplier<T> value;
+    public record Entry<T>(
+        Metadata.Key<T> key,
+        Supplier<T> value
+    ) {}
+
+    private final List<Entry<T>> entries;
+
+    public static ClientHeaderInterceptor<String> executionId(Supplier<String> value) {
+        return new ClientHeaderInterceptor<>(GrpcHeaders.X_EXECUTION_ID, value);
+    }
 
     public static ClientHeaderInterceptor<String> idempotencyKey(Supplier<String> value) {
         return new ClientHeaderInterceptor<>(GrpcHeaders.IDEMPOTENCY_KEY, value);
@@ -28,9 +37,16 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
         return new ClientHeaderInterceptor<>(key, value);
     }
 
+    public static <T> ClientHeaderInterceptor<T> all(List<Entry<T>> entries) {
+        return new ClientHeaderInterceptor<>(entries);
+    }
+
     public ClientHeaderInterceptor(Metadata.Key<T> key, Supplier<T> value) {
-        this.key = key;
-        this.value = value;
+        this(List.of(new Entry<>(key, value)));
+    }
+
+    public ClientHeaderInterceptor(List<Entry<T>> entries) {
+        this.entries = entries;
     }
 
     @Override
@@ -42,12 +58,14 @@ public class ClientHeaderInterceptor<T> implements ClientInterceptor {
 
         return new ForwardingClientCall.SimpleForwardingClientCall<>(call) {
             public void start(Listener<RespT> responseListener, Metadata headers) {
-                T v = value.get();
-                if (v != null) {
-                    LOG.trace("Attach header {}: {}", key, v);
-                    headers.put(key, v);
-                } else {
-                    LOG.trace("Attach header {}: skip", key);
+                for (var entry : entries) {
+                    var v = entry.value().get();
+                    if (v != null) {
+                        LOG.trace("Attach header {}: {}", entry.key(), v);
+                        headers.put(entry.key(), v);
+                    } else {
+                        LOG.trace("Attach header {}: skip", entry.key());
+                    }
                 }
 
                 super.start(responseListener, headers);

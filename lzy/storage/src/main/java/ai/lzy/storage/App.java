@@ -114,7 +114,7 @@ public class App {
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .intercept(authInterceptor)
             .intercept(GrpcLogsInterceptor.server())
-            .intercept(RequestIdInterceptor.server())
+            .intercept(RequestIdInterceptor.forward())
             .intercept(GrpcHeadersServerInterceptor.create())
             .addServices(Arrays.asList(services));
 

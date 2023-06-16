@@ -8,6 +8,7 @@ import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.util.ProtoConverter;
 import ai.lzy.service.util.StorageUtils;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutorApi;
@@ -39,7 +40,9 @@ import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
 import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static ai.lzy.util.grpc.ProtoPrinter.safePrinter;
 import static ai.lzy.v1.portal.LzyPortalGrpc.newBlockingStub;
@@ -94,7 +97,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var wfName = request.getWorkflowName();
         var storageName = request.getStorageName();
         var storageCfg = request.getSnapshotStorage();
-        var newExecId = idGenerator().generate(wfName + "_");
+        var newExecId = Objects.requireNonNull(GrpcHeaders.getExecutionId());
 
         var checkOpResultDelay = Duration.ofMillis(300);
         var startOpTimeout = serviceCfg().getWaitAllocationTimeout().plus(Duration.ofSeconds(10));

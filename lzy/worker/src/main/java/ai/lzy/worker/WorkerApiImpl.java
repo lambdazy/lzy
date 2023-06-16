@@ -7,6 +7,7 @@ import ai.lzy.fs.fs.LzySlot;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.logs.LogContextKey;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
@@ -71,6 +72,8 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     @Nullable
     private LzyFsServer lzyFs = null; // guarded by this
 
+    private volatile boolean hasActiveExecution = false;
+
     public WorkerApiImpl(ServiceConfig config, EnvironmentFactory environmentFactory,
                          @Named("WorkerOperationService") LocalOperationService localOperationService,
                          @Named("WorkerChannelManagerGrpcChannel") ManagedChannel channelManagerChannel,
@@ -92,7 +95,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
         }
     }
 
-    private synchronized LWS.ExecuteResponse executeOp(LWS.ExecuteRequest request) {
+    private LWS.ExecuteResponse executeOp(LWS.ExecuteRequest request) {
         var tid = request.getTaskId();
         var task = request.getTaskDesc();
         var op = task.getOperation();
@@ -192,13 +195,13 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
                 .getChannelsStatus(request.getExecutionId(), outputChannelsIds);
 
             if (outputChannels == null) {
-                Thread.sleep(Duration.ofSeconds(1).toMillis());
+                LockSupport.parkNanos(Duration.ofSeconds(1).toNanos());
                 continue;
             }
 
             if (outputChannels.isEmpty()) {
                 LOG.warn("We don't have any information about channels, just wait a little...");
-                LockSupport.parkNanos(Duration.ofSeconds(30).toNanos());
+                LockSupport.parkNanos(Duration.ofSeconds(5).toNanos());
                 break;
             }
 
@@ -235,7 +238,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             }
 
             if (!outputChannelsIds.isEmpty()) {
-                Thread.sleep(Duration.ofSeconds(1).toMillis());
+                LockSupport.parkNanos(Duration.ofSeconds(1).toNanos());
             }
         }
     }
@@ -291,6 +294,13 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             LOG.error("Attempt to execute op from another owner. Current is {}, got {}", owner, requester);
             response.onError(Status.PERMISSION_DENIED.asException());
             return;
+        } else {
+            LOG.info("Attempt to reuse worker {} for another execution of workflow {}, has active execution: {}",
+                config.getVmId(), request.getWorkflowName(), hasActiveExecution);
+            while (hasActiveExecution) {
+                LOG.warn("Worker still has active execution, wait...");
+                LockSupport.parkNanos(Duration.ofSeconds(1).toNanos());
+            }
         }
 
         response.onNext(LWS.InitResponse.getDefaultInstance());
@@ -302,7 +312,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
         withLoggingContext(
             Map.of(
                 "tid", request.getTaskId(),
-                "exid", request.getExecutionId()),
+                LogContextKey.EXECUTION_ID, request.getExecutionId()),
             () -> {
                 if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
                     LOG.debug("Worker::execute {}", ProtoPrinter.safePrinter().printToString(request));
@@ -329,7 +339,14 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
                     idempotencyKey,
                     /* meta */ null);
 
-                var opSnapshot = operationService.execute(op, () -> executeOp(request));
+                hasActiveExecution = true;
+                var opSnapshot = operationService.execute(op, () -> {
+                    try {
+                        return executeOp(request);
+                    } finally {
+                        hasActiveExecution = false;
+                    }
+                });
 
                 response.onNext(opSnapshot.toProto());
                 response.onCompleted();

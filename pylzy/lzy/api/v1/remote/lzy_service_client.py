@@ -2,11 +2,10 @@ import atexit
 import os
 from abc import ABC
 from dataclasses import dataclass
-# noinspection PyPackageRequirements
-from grpc.aio import Channel
 from typing import AsyncIterable, AsyncIterator, Optional, Sequence, Union
 
-from lzy.logs.config import get_logger
+# noinspection PyPackageRequirements
+from grpc.aio import Channel, UnaryUnaryCall
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig
 from ai.lzy.v1.long_running.operation_pb2_grpc import LongRunningServiceStub
@@ -31,9 +30,11 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceStub
 from lzy.api.v1.remote.model import converter
 from lzy.api.v1.remote.model.converter.storage_creds import to
+from lzy.logs.config import get_logger
 from lzy.storage.api import S3Credentials, Storage, StorageCredentials, AzureCredentials
 from lzy.utils.event_loop import LzyEventLoop
-from lzy.utils.grpc import build_channel, build_token, retry, RetryConfig, build_headers, redefine_errors, metadata_with
+from lzy.utils.grpc import build_channel, build_token, retry, RetryConfig, build_headers, redefine_errors, \
+    metadata_with, REQUEST_ID_HEADER_KEY
 
 KEY_PATH_ENV = "LZY_KEY_PATH"
 USER_ENV = "LZY_USER"
@@ -87,6 +88,11 @@ class StdoutMessage(StdlogMessage):
 
 RETRY_CONFIG = RetryConfig(max_retry=12000, backoff_multiplier=1.2)
 CHANNEL: Optional[Channel] = None
+
+
+def _print_rid(method, meta):
+    if REQUEST_ID_HEADER_KEY in meta:
+        _LOG.info('call `%s`, reqid=%s', method, meta[REQUEST_ID_HEADER_KEY])
 
 
 @atexit.register
@@ -147,8 +153,13 @@ class LzyServiceClient:
 
         request = StartWorkflowRequest(workflowName=workflow_name, snapshotStorage=s, storageName=storage_name)
         metadata = metadata_with(idempotency_key) if idempotency_key else None
-        response: StartWorkflowResponse = await self.__stub.StartWorkflow(request=request, metadata=metadata)
 
+        call: UnaryUnaryCall = self.__stub.StartWorkflow(request=request, metadata=metadata)
+
+        meta = await call.initial_metadata()
+        _print_rid("start_workflow", meta)
+
+        response: StartWorkflowResponse = await call
         return response.executionId
 
     @redefine_errors
@@ -163,7 +174,13 @@ class LzyServiceClient:
         await self.__start()
         request = FinishWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
         metadata = metadata_with(idempotency_key) if idempotency_key else None
-        await self.__stub.FinishWorkflow(request=request, metadata=metadata)
+
+        call: UnaryUnaryCall = self.__stub.FinishWorkflow(request=request, metadata=metadata)
+
+        meta = await call.initial_metadata()
+        _print_rid("finish_workflow", meta)
+
+        await call
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="abort workflow")
@@ -177,7 +194,13 @@ class LzyServiceClient:
         await self.__start()
         request = AbortWorkflowRequest(workflowName=workflow_name, executionId=execution_id, reason=reason)
         metadata = metadata_with(idempotency_key) if idempotency_key else None
-        await self.__stub.AbortWorkflow(request=request, metadata=metadata)
+
+        call: UnaryUnaryCall = self.__stub.AbortWorkflow(request=request, metadata=metadata)
+
+        meta = await call.initial_metadata()
+        _print_rid("abort_workflow", meta)
+
+        await call
 
     async def read_std_slots(
         self, *,
@@ -211,7 +234,13 @@ class LzyServiceClient:
         await self.__start()
         request = ExecuteGraphRequest(workflowName=workflow_name, executionId=execution_id, graph=graph)
         metadata = metadata_with(idempotency_key) if idempotency_key else None
-        response: ExecuteGraphResponse = await self.__stub.ExecuteGraph(request=request, metadata=metadata)
+
+        call: UnaryUnaryCall = self.__stub.ExecuteGraph(request=request, metadata=metadata)
+
+        meta = await call.initial_metadata()
+        _print_rid("execute_graph", meta)
+
+        response: ExecuteGraphResponse = await call
         return response.graphId
 
     @redefine_errors
@@ -251,7 +280,13 @@ class LzyServiceClient:
         await self.__start()
         request = StopGraphRequest(workflow_name=workflow_name, executionId=execution_id, graphId=graph_id)
         metadata = metadata_with(idempotency_key) if idempotency_key else None
-        await self.__stub.StopGraph(request=request, metadata=metadata)
+
+        call: UnaryUnaryCall = self.__stub.StopGraph(request=request, metadata=metadata)
+
+        meta = await call.initial_metadata()
+        _print_rid("graph_stop", meta)
+
+        await call
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="get vm pools specs")

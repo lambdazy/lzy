@@ -40,6 +40,7 @@ KEEP_ALIVE_TIMEOUT_MS = 1000
 _LOG = get_logger(__name__)
 
 IDEMPOTENCY_HEADER_KEY = "idempotency-key"
+REQUEST_ID_HEADER_KEY = "x-request-id"
 
 
 @dataclass
