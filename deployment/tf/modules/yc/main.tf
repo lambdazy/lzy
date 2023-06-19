@@ -60,6 +60,5 @@ module "k8s_deployment" {
 
   providers = {
     kubernetes = kubernetes
-    allocator  = kubernetes.allocator
   }
 }
