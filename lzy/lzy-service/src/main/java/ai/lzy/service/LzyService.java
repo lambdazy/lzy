@@ -126,7 +126,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         LOG.info("Request to start workflow execution: { idempotencyKey: {}, request: {} }",
             idempotencyKey != null ? idempotencyKey.token() : "null", safePrinter().shortDebugString(request));
 
-        if (validator().validate(userId, request, responseObserver)) {
+        if (validator().validate(request, responseObserver)) {
             return;
         }
 
@@ -768,11 +768,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                                           StreamObserver<GetOrCreateDefaultStorageResponse> responseObserver)
     {
         final String userId = currentSubject().id();
-
-        if (validator().validate(userId, request, responseObserver)) {
-            return;
-        }
-
         final String bucketName = StorageUtils.createInternalBucketName(userId);
 
         LOG.info("Get storage credentials for bucket {}", bucketName);

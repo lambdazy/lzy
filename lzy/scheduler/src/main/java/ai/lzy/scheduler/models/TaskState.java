@@ -11,6 +11,7 @@ public record TaskState(
     LMO.TaskDesc description,
     @Nullable String vmId,
     @Nullable String allocatorOperationId,
+    @Nullable Boolean vmFromCache,
     @Nullable Integer workerPort,
     @Nullable String workerHost,
     @Nullable String workerOperationId
@@ -33,11 +34,18 @@ public record TaskState(
         private final String workflowName;
         private final String userId;
         private final LMO.TaskDesc description;
-        private @Nullable String vmId;
-        private @Nullable String allocatorOperationId;
-        private @Nullable String workerHost;
-        private @Nullable String workerOperationId;
-        private @Nullable Integer workerPort;
+        @Nullable
+        private String vmId;
+        @Nullable
+        private String allocatorOperationId;
+        @Nullable
+        private Boolean vmFromCache;
+        @Nullable
+        private String workerHost;
+        @Nullable
+        private String workerOperationId;
+        @Nullable
+        private Integer workerPort;
 
 
         public TaskStateBuilder(TaskState prev) {
@@ -48,6 +56,7 @@ public record TaskState(
             this.description = prev.description;
             this.vmId = prev.vmId;
             this.allocatorOperationId = prev.allocatorOperationId;
+            this.vmFromCache = prev.vmFromCache;
             this.workerHost = prev.workerHost;
             this.workerOperationId = prev.workerOperationId;
             this.workerPort = prev.workerPort;
@@ -60,6 +69,11 @@ public record TaskState(
 
         public TaskStateBuilder allocatorOperationId(@Nullable String allocatorOperationId) {
             this.allocatorOperationId = allocatorOperationId;
+            return this;
+        }
+
+        public TaskStateBuilder fromCache(boolean fromCache) {
+            this.vmFromCache = fromCache;
             return this;
         }
 
@@ -87,6 +101,7 @@ public record TaskState(
                 description,
                 vmId,
                 allocatorOperationId,
+                vmFromCache,
                 workerPort,
                 workerHost,
                 workerOperationId

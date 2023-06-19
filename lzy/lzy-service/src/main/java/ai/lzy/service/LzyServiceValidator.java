@@ -29,24 +29,10 @@ final class LzyServiceValidator {
         this.execDao = execDao;
     }
 
-    boolean validate(String userId, LWFS.GetOrCreateDefaultStorageRequest req,
-                     StreamObserver<? extends MessageOrBuilder> resp)
-    {
-        LOG.debug("Validate GetOrCreateDefaultStorageRequest: {}", safePrinter().printToString(req));
-        if (Strings.isBlank(userId)) {
-            var errorMes = "Cannot get or create default storage. Blank 'user id'";
-            LOG.error(errorMes);
-            resp.onError(Status.INVALID_ARGUMENT.withDescription(errorMes).asRuntimeException());
-            return true;
-        }
-
-        return false;
-    }
-
-    boolean validate(String userId, LWFS.StartWorkflowRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
+    boolean validate(LWFS.StartWorkflowRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         LOG.debug("Validate StartWorkflowRequest: {}", safePrinter().printToString(req));
-        if (Strings.isBlank(userId) || Strings.isBlank(req.getWorkflowName()) || !req.hasSnapshotStorage()) {
-            var errorMes = "Cannot start workflow. Blank 'user id' or 'workflow name' or 'storage config'";
+        if (Strings.isBlank(req.getWorkflowName()) || !req.hasSnapshotStorage()) {
+            var errorMes = "Cannot start workflow. Blank 'workflow name' or 'storage config'";
             LOG.error(errorMes);
             resp.onError(Status.INVALID_ARGUMENT.withDescription(errorMes).asRuntimeException());
             return true;
@@ -57,54 +43,54 @@ final class LzyServiceValidator {
 
     boolean validate(String userId, LWFS.FinishWorkflowRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         var debugMes = "FinishWorkflowRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot finish workflow. Blank 'user id' or 'execution id' or 'workflow name' or 'reason'";
-        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName(), req.getReason()},
-            debugMes, errorMes, resp);
+        var errorMes = "Cannot finish workflow. Blank 'execution id' or 'workflow name' or 'reason'";
+        return validate(userId, new String[] {req.getExecutionId(), req.getWorkflowName(), req.getReason()}, debugMes,
+            errorMes, resp);
     }
 
     boolean validate(String userId, LWFS.AbortWorkflowRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         var debugMes = "AbortWorkflowRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot abort workflow. Blank 'user id' or 'execution id' or 'workflow name' or 'reason'";
-        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName(), req.getReason()},
-            debugMes, errorMes, resp);
+        var errorMes = "Cannot abort workflow. Blank 'execution id' or 'workflow name' or 'reason'";
+        return validate(userId, new String[] {req.getExecutionId(), req.getWorkflowName(), req.getReason()}, debugMes,
+            errorMes, resp);
     }
 
     boolean validate(String userId, LWFS.ExecuteGraphRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         var debugMes = "ExecuteGraphRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot execute graph. Blank 'user id' or 'execution id' or 'workflow name' or 'graph'";
-        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName(), req.hasGraph() ? "ok" : ""},
+        var errorMes = "Cannot execute graph. Blank 'execution id' or 'workflow name' or 'graph'";
+        return validate(userId, new String[] {req.getExecutionId(), req.getWorkflowName(), req.hasGraph() ? "ok" : ""},
             debugMes, errorMes, resp);
     }
 
     boolean validate(String userId, LWFS.GraphStatusRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         var debugMes = "GraphStatusRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot get graph status. Blank 'user id' or 'execution id' or 'workflow name' or 'graph id'";
-        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName(), req.getGraphId()}, debugMes,
+        var errorMes = "Cannot get graph status. Blank 'execution id' or 'workflow name' or 'graph id'";
+        return validate(userId, new String[] {req.getExecutionId(), req.getWorkflowName(), req.getGraphId()}, debugMes,
             errorMes, resp);
     }
 
     boolean validate(String userId, LWFS.StopGraphRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         var debugMes = "StopGraphRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot stop graph. Blank 'user id' or 'execution id' or 'graph id'";
-        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName(), req.getGraphId()}, debugMes,
+        var errorMes = "Cannot stop graph. Blank 'execution id' or 'graph id'";
+        return validate(userId, new String[] {req.getExecutionId(), req.getWorkflowName(), req.getGraphId()}, debugMes,
             errorMes, resp);
     }
 
     boolean validate(String userId, LWFS.ReadStdSlotsRequest req, StreamObserver<? extends MessageOrBuilder> resp) {
         var debugMes = "ReadStdSlotsRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot open stream on std slots. Blank 'user id' or 'execution id' or 'workflow name'";
-        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName()}, debugMes, errorMes, resp);
+        var errorMes = "Cannot open stream on std slots. Blank 'execution id' or 'workflow name'";
+        return validate(userId, new String[] {req.getExecutionId(), req.getWorkflowName()}, debugMes, errorMes, resp);
     }
 
     boolean validate(String userId, LWFS.GetAvailablePoolsRequest req,
                      StreamObserver<? extends MessageOrBuilder> resp)
     {
         var debugMes = "GetAvailablePoolsRequest: " + safePrinter().printToString(req);
-        var errorMes = "Cannot get available VM pools. Blank 'user id' or 'execution id'";
-        return validate(new String[] {userId, req.getExecutionId(), req.getWorkflowName()}, debugMes, errorMes, resp);
+        var errorMes = "Cannot get available VM pools. Blank 'execution id'";
+        return validate(userId, new String[] {req.getExecutionId(), req.getWorkflowName()}, debugMes, errorMes, resp);
     }
 
-    boolean validate(String[] params, String debugMes, String errorMes,
+    boolean validate(String userId, String[] params, String debugMes, String errorMes,
                      StreamObserver<? extends MessageOrBuilder> resp)
     {
         LOG.debug("Validate {}", debugMes);
@@ -114,7 +100,7 @@ final class LzyServiceValidator {
             return true;
         }
 
-        return checkExecution(params[0], params[1], params[2], resp);
+        return checkExecution(userId, params[0], params[1], resp);
     }
 
     boolean checkExecution(String userId, String execId, String wfName,

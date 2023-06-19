@@ -334,7 +334,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                             .setPoolId(existingVm.poolLabel())
                             .setVmId(existingVm.vmId())
                             .putAllMetadata(requireNonNull(existingVm.runState()).vmMeta())
-                            .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId);
+                            .putMetadata(NODE_INSTANCE_ID_KEY, vmInstanceId)
+                            .setFromCache(true);
 
                         for (var endpoint : existingVm.instanceProperties().endpoints()) {
                             builder.addEndpoints(endpoint.toProto());

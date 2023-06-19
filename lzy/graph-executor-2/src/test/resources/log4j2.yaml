@@ -1,0 +1,21 @@
+Configuration:
+  status: warn
+
+  Appenders:
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{yyyy-MM-dd HH:mm:ss.SSS}{UTC} [%t] %-5level %logger{36} %notEmpty{[rid=%X{rid}] }- %msg%n"
+
+  Loggers:
+    Root:
+      level: warn
+      AppenderRef:
+        ref: Console
+    Logger:
+      - name: UserEventLogs
+        level: error
+
+      - name: io.zonky.test
+        level: warn

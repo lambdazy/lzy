@@ -135,6 +135,7 @@ message AllocateResponse {
   string session_id = 3;
   map<string, string> metadata = 4;
   repeated VmEndpoint endpoints = 5;
+  bool from_cache = 6;
 
   message VmEndpoint {
     VmEndpointType type = 1;
