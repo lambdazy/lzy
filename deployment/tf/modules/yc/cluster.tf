@@ -15,7 +15,7 @@ resource "yandex_kubernetes_cluster" "main" {
       auto_upgrade = false
     }
   }
-  node_service_account_id = yandex_iam_service_account.node-sa.id
+  node_service_account_id = yandex_iam_service_account.service-node-sa.id
   service_account_id      = yandex_iam_service_account.admin-sa.id
 }
 

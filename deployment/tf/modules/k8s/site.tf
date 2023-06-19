@@ -7,7 +7,7 @@ locals {
 
   backoffice-k8s-name         = "lzy-backoffice"
   backoffice-backend-k8s-name = "${local.backoffice-k8s-name}-backend"
-  github-redirect-address     = var.domain_name != null ? var.domain_name : yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address
+  github-redirect-address     = var.domain_name != null ? var.domain_name : var.backoffice_public_ip
 }
 
 resource "kubernetes_secret" "oauth_github" {
@@ -168,7 +168,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             ] : [
             "-Dmicronaut.env.deduction=true",
             "-Dmicronaut.ssl.enabled=false",
-            "-Dsite.hostname=http://${yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address}:8080",
+            "-Dsite.hostname=http://${var.backoffice_public_ip}:8080",
             "-Dmicronaut.server.dual-protocol=false"
           ]
 
@@ -291,7 +291,7 @@ resource "kubernetes_service" "lzy_backoffice" {
     labels = local.backoffice-labels
   }
   spec {
-    load_balancer_ip = yandex_vpc_address.backoffice_public_ip.external_ipv4_address[0].address
+    load_balancer_ip = var.backoffice_public_ip
     type             = "LoadBalancer"
     selector         = local.backoffice-labels
     port {

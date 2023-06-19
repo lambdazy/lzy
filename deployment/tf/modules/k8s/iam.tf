@@ -31,6 +31,28 @@ resource "tls_private_key" "internal_key" {
   rsa_bits  = 2048
 }
 
+resource "random_password" "iam_db_passwords" {
+  length  = 16
+  special = false
+}
+
+resource "kubernetes_secret" "iam_db_secret" {
+  metadata {
+    name      = "db-secret-${local.iam-k8s-name}"
+    namespace = "default"
+  }
+
+  data = {
+    username = local.iam-k8s-name,
+    password = random_password.iam_db_passwords.result,
+    db_host  = var.db-host
+    db_port  = 6432
+    db_name  = local.iam-k8s-name
+  }
+
+  type = "Opaque"
+}
+
 resource "kubernetes_deployment" "iam" {
   metadata {
     name   = local.iam-k8s-name
@@ -58,7 +80,7 @@ resource "kubernetes_deployment" "iam" {
             name = "IAM_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["iam"].metadata[0].name
+                name = kubernetes_secret.iam_db_secret.metadata[0].name
                 key  = "username"
               }
             }
@@ -67,7 +89,7 @@ resource "kubernetes_deployment" "iam" {
             name = "IAM_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["iam"].metadata[0].name
+                name = kubernetes_secret.iam_db_secret.metadata[0].name
                 key  = "password"
               }
             }
@@ -79,7 +101,7 @@ resource "kubernetes_deployment" "iam" {
           }
           env {
             name  = "IAM_DATABASE_URL"
-            value = "jdbc:postgresql://${yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn}:6432/iam"
+            value = "jdbc:postgresql://${kubernetes_secret.iam_db_secret.data.db_host}:${kubernetes_secret.iam_db_secret.data.db_port}/${kubernetes_secret.iam_db_secret.data.db_name}"
           }
 
           env {
@@ -204,7 +226,7 @@ resource "kubernetes_service" "iam" {
 
     annotations = {
       "yandex.cloud/load-balancer-type" : "internal"
-      "yandex.cloud/subnet-id" : yandex_vpc_subnet.custom-subnet.id
+      "yandex.cloud/subnet-id" : var.custom-subnet-id
     }
   }
   spec {

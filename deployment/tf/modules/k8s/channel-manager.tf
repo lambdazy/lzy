@@ -1,87 +1,108 @@
 locals {
-  storage-labels = {
-    app                      = "storage"
-    "app.kubernetes.io/name" = "storage"
-    "lzy.ai/app"             = "storage"
+  channel-manager-labels = {
+    app                         = "channel-manager"
+    "app.kubernetes.io/name"    = "channel-manager"
+    "app.kubernetes.io/part-of" = "lzy"
+    "lzy.ai/app"                = "channel-manager"
   }
-  storage-k8s-name = "storage"
-  storage-image    = var.storage-image
+  channel-manager-k8s-name = "channel-manager"
+  channel-manager-image    = var.channel-manager-image
 }
 
-resource "kubernetes_deployment" "storage" {
+resource "random_password" "channel_manager_db_passwords" {
+  length  = 16
+  special = false
+}
+
+resource "kubernetes_secret" "channel_manager_db_secret" {
   metadata {
-    name   = local.storage-k8s-name
-    labels = local.storage-labels
+    name      = "db-secret-${local.channel-manager-k8s-name}"
+    namespace = "default"
+  }
+
+  data = {
+    username = local.channel-manager-k8s-name,
+    password = random_password.channel_manager_db_passwords.result,
+    db_host  = var.db-host
+    db_port  = 6432
+    db_name  = local.channel-manager-k8s-name
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_deployment" "channel-manager" {
+  metadata {
+    name   = local.channel-manager-k8s-name
+    labels = local.channel-manager-labels
   }
   spec {
     strategy {
       type = "Recreate"
     }
     selector {
-      match_labels = local.storage-labels
+      match_labels = local.channel-manager-labels
     }
     template {
       metadata {
-        name   = local.storage-k8s-name
-        labels = local.storage-labels
+        name   = local.channel-manager-k8s-name
+        labels = local.channel-manager-labels
       }
       spec {
         container {
-          name              = local.storage-k8s-name
-          image             = local.storage-image
+          name              = local.channel-manager-k8s-name
+          image             = local.channel-manager-image
           image_pull_policy = "Always"
           port {
-            container_port = local.storage-port
+            container_port = local.channel-manager-port
           }
-
           port {
-            container_port = local.storage-metrics-port
+            container_port = local.channel-manager-metrics-port
           }
 
           env {
-            name  = "STORAGE_METRICS_PORT"
-            value = local.storage-metrics-port
+            name  = "CHANNEL_MANAGER_METRICS_PORT"
+            value = local.channel-manager-metrics-port
+          }
+          env {
+            name  = "CHANNEL_MANAGER_ADDRESS"
+            value = "0.0.0.0:${local.channel-manager-port}"
           }
 
           env {
-            name  = "STORAGE_ADDRESS"
-            value = "0.0.0.0:${local.storage-port}"
-          }
-
-          env {
-            name = "STORAGE_DATABASE_USERNAME"
+            name = "CHANNEL_MANAGER_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["storage"].metadata[0].name
+                name = kubernetes_secret.channel_manager_db_secret.metadata[0].name
                 key  = "username"
               }
             }
           }
           env {
-            name = "STORAGE_DATABASE_PASSWORD"
+            name = "CHANNEL_MANAGER_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["storage"].metadata[0].name
+                name = kubernetes_secret.channel_manager_db_secret.metadata[0].name
                 key  = "password"
               }
             }
           }
 
           env {
-            name  = "STORAGE_DATABASE_URL"
-            value = "jdbc:postgresql://${yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn}:6432/storage"
+            name  = "CHANNEL_MANAGER_DATABASE_URL"
+            value = "jdbc:postgresql://${kubernetes_secret.channel_manager_db_secret.data.db_host}:${kubernetes_secret.channel_manager_db_secret.data.db_port}/${kubernetes_secret.channel_manager_db_secret.data.db_name}"
           }
 
           env {
-            name  = "STORAGE_DATABASE_ENABLED"
+            name  = "CHANNEL_MANAGER_DATABASE_ENABLED"
             value = "true"
           }
           env {
-            name  = "STORAGE_IAM_ADDRESS"
+            name  = "CHANNEL_MANAGER_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
-            name = "STORAGE_IAM_INTERNAL_USER_NAME"
+            name = "CHANNEL_MANAGER_IAM_INTERNAL_USER_NAME"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
@@ -90,7 +111,7 @@ resource "kubernetes_deployment" "storage" {
             }
           }
           env {
-            name = "STORAGE_IAM_INTERNAL_USER_PRIVATE_KEY"
+            name = "CHANNEL_MANAGER_IAM_INTERNAL_USER_PRIVATE_KEY"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
@@ -98,52 +119,14 @@ resource "kubernetes_deployment" "storage" {
               }
             }
           }
-
           env {
-            name  = "STORAGE_YC_ENABLED"
-            value = "true"
+            name  = "CHANNEL_MANAGER_LZY_SERVICE_ADDRESS"
+            value = "${kubernetes_service.lzy_service.spec[0].cluster_ip}:${local.lzy-service-port}"
           }
-
           env {
-            name  = "STORAGE_YC_SERVICE_ACCOUNT_ID"
-            value = yandex_iam_service_account.admin-sa.id
+            name  = "CHANNEL_MANAGER_WHITEBOARD_ADDRESS"
+            value = "http://${kubernetes_service.whiteboard_service.spec[0].cluster_ip}:${local.whiteboard-port}"
           }
-
-          env {
-            name  = "STORAGE_YC_KEY_ID"
-            value = yandex_iam_service_account_key.admin-sa-key.id
-          }
-
-          env {
-            name  = "STORAGE_YC_PRIVATE_KEY"
-            value = yandex_iam_service_account_key.admin-sa-key.private_key
-          }
-
-          env {
-            name  = "STORAGE_YC_FOLDER_ID"
-            value = var.folder_id
-          }
-
-          env {
-            name  = "STORAGE_S3_YC_ENABLED"
-            value = "true"
-          }
-
-          env {
-            name  = "STORAGE_S3_YC_ENDPOINT"
-            value = "https://storage.yandexcloud.net"
-          }
-
-          env {
-            name  = "STORAGE_S3_YC_ACCESS_TOKEN"
-            value = yandex_iam_service_account_static_access_key.admin-sa-static-key.access_key
-          }
-
-          env {
-            name  = "STORAGE_S3_YC_SECRET_TOKEN"
-            value = yandex_iam_service_account_static_access_key.admin-sa-static-key.secret_key
-          }
-
           env {
             name = "K8S_POD_NAME"
             value_from {
@@ -162,7 +145,7 @@ resource "kubernetes_deployment" "storage" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = local.storage-k8s-name
+            value = local.channel-manager-k8s-name
           }
 
           volume_mount {
@@ -186,7 +169,7 @@ resource "kubernetes_deployment" "storage" {
         volume {
           name = "unified-agent-config"
           config_map {
-            name = kubernetes_config_map.unified-agent-config["storage"].metadata[0].name
+            name = kubernetes_config_map.unified-agent-config["channel-manager"].metadata[0].name
             items {
               key  = "config"
               path = "config.yml"
@@ -225,17 +208,21 @@ resource "kubernetes_deployment" "storage" {
   }
 }
 
-resource "kubernetes_service" "storage_service" {
+resource "kubernetes_service" "channel_manager_service" {
   metadata {
-    name   = "${local.storage-k8s-name}-load-balancer"
-    labels = local.storage-labels
+    name   = "${local.channel-manager-k8s-name}-load-balancer"
+    labels = local.channel-manager-labels
+    annotations = {
+      "yandex.cloud/load-balancer-type" : "internal"
+      "yandex.cloud/subnet-id" : var.custom-subnet-id
+    }
   }
   spec {
-    selector = local.storage-labels
+    selector = local.channel-manager-labels
     port {
-      port        = local.storage-port
-      target_port = local.storage-port
+      port        = local.channel-manager-port
+      target_port = local.channel-manager-port
     }
-    type = "ClusterIP"
+    type = "LoadBalancer"
   }
 }

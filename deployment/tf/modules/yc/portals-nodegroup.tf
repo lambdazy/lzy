@@ -92,7 +92,7 @@ resource "kubernetes_daemonset" "portal_cpu_fictive_containers" {
           }
           env {
             name  = "ALLOCATOR_IP"
-            value = kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]
+            value = module.k8s_deployment.allocator_address
           }
         }
         host_network = true
