@@ -14,3 +14,11 @@ output "db_data" {
 output "allocator_address" {
   value = kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]
 }
+
+output "whiteboard_port" {
+  value = local.whiteboard-port
+}
+
+output "lzy_service_port" {
+  value = local.lzy-service-port
+}
