@@ -14,6 +14,7 @@ import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 import java.io.BufferedInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
@@ -57,11 +58,11 @@ public final class AzureClientWithTransmitter extends StorageClientWithTransmitt
     }
 
     @Override
-    protected UploadRequest uploadRequest(URI uri, Path source) {
+    protected UploadRequest uploadRequest(URI uri, InputStream source) {
         try {
             var azureUrl = BlobUrlParts.parse(uri.toURL());
             return new UploadRequestBuilder().bucket(azureUrl.getBlobContainerName()).key(azureUrl.getBlobName())
-                .stream(() -> new BufferedInputStream(new FileInputStream(source.toFile()))).build();
+                .stream(() -> new BufferedInputStream(source)).build();
         } catch (IOException ioe) {
             throw new RuntimeException(ioe);
         }
