@@ -32,9 +32,7 @@ import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBl
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
-import ai.lzy.v1.workflow.LWFS;
 import com.google.protobuf.util.Durations;
-import io.grpc.Status;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -167,7 +165,7 @@ public class OperationRunnersFactory {
     }
 
     public FinishExecution createFinishExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                    String userId, String wfName, String execId, Status finishStatus)
+                                                    String userId, String wfName, String execId)
         throws Exception
     {
         StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
@@ -187,7 +185,6 @@ public class OperationRunnersFactory {
             .setExecOpsDao(execOpsDao)
             .setExecutor(executor)
             .setState(state)
-            .setFinishStatus(finishStatus)
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
             .setChannelsOpClient(channelManagerOpClient)
@@ -205,8 +202,7 @@ public class OperationRunnersFactory {
     }
 
     public AbortExecution createAbortExecutionOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                       @Nullable String userId, @Nullable String wfName,
-                                                       String execId, Status finishStatus)
+                                                       @Nullable String userId, @Nullable String wfName, String execId)
         throws Exception
     {
         StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
@@ -226,7 +222,6 @@ public class OperationRunnersFactory {
             .setExecOpsDao(execOpsDao)
             .setExecutor(executor)
             .setState(state)
-            .setFinishStatus(finishStatus)
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
             .setGraphClient(graphsClient)
@@ -245,8 +240,7 @@ public class OperationRunnersFactory {
 
 
     public AbortExecution createAbortWorkflowOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                      @Nullable String userId, @Nullable String wfName,
-                                                      String execId, Status finishStatus)
+                                                      @Nullable String userId, @Nullable String wfName, String execId)
         throws Exception
     {
         StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
@@ -266,7 +260,6 @@ public class OperationRunnersFactory {
             .setExecOpsDao(execOpsDao)
             .setExecutor(executor)
             .setState(state)
-            .setFinishStatus(finishStatus)
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
             .setGraphClient(graphsClient)
@@ -284,14 +277,14 @@ public class OperationRunnersFactory {
     }
 
     public ExecuteGraph createExecuteGraphOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                   String userId, String wfName, String execId,
-                                                   LWFS.ExecuteGraphRequest request) throws Exception
+                                                   String userId, String wfName, String execId) throws Exception
     {
         ExecutionDao.ExecuteGraphData execGraphData = withRetries(LOG, () -> execDao.loadExecGraphData(execId, null));
         LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
 
-        ExecuteGraphState state = new ExecuteGraphState(request.getGraph());
         StorageClient storageClient = storageClientFactory.provider(execGraphData.storageConfig()).get();
+
+        ExecuteGraphState state = withRetries(LOG, () -> execOpsDao.getState(opId, null));
 
         return ExecuteGraph.builder()
             .setInstanceId(instanceId)

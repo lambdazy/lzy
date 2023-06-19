@@ -77,7 +77,8 @@ public class LzyPrivateService extends LzyWorkflowPrivateServiceImplBase impleme
                         }
 
                         opsDao().create(op, tx);
-                        execOpsDao().createStopOp(op.id(), serviceCfg().getInstanceId(), execId, tx);
+                        execOpsDao().createPrivateAbortOp(op.id(), serviceCfg().getInstanceId(), execId, tx);
+                        execDao().setFinishStatus(execId, Status.CANCELLED.withDescription(reason), null);
                     }
 
                     tx.commit();
@@ -101,7 +102,7 @@ public class LzyPrivateService extends LzyWorkflowPrivateServiceImplBase impleme
         try {
             LOG.info("Schedule action to abort broken execution: { execId: {} }", execId);
             var opRunner = opRunnersFactory().createAbortExecutionOpRunner(op.id(), op.description(), idk, null, null,
-                execId, Status.CANCELLED.withDescription(reason));
+                execId);
             opsExecutor().startNew(opRunner);
         } catch (Exception e) {
             LOG.error("Cannot schedule action to abort broken execution: { execId: {} }", execId);

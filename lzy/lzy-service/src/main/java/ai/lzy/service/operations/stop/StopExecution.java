@@ -20,7 +20,6 @@ abstract class StopExecution extends ExecutionOperationRunner {
     private final KafkaLogsListeners kafkaLogsListeners;
     private final LongRunningServiceBlockingStub allocOpClient;
     private final LzyChannelManagerPrivateBlockingStub channelsClient;
-    private final Status finishStatus;
     private final StopExecutionState state;
 
     protected StopExecution(StopExecutionBuilder<?> builder) {
@@ -28,7 +27,6 @@ abstract class StopExecution extends ExecutionOperationRunner {
         this.kafkaLogsListeners = builder.kafkaLogsListeners;
         this.allocOpClient = builder.allocOpClient;
         this.channelsClient = builder.channelsClient;
-        this.finishStatus = builder.finishStatus;
         this.state = builder.state;
     }
 
@@ -44,10 +42,6 @@ abstract class StopExecution extends ExecutionOperationRunner {
         return channelsClient;
     }
 
-    protected Status finishStatus() {
-        return finishStatus;
-    }
-
     protected StopExecutionState state() {
         return state;
     }
@@ -59,7 +53,6 @@ abstract class StopExecution extends ExecutionOperationRunner {
         try {
             withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(storage())) {
-                    execDao().setFinishStatus(execId(), finishStatus(), tx);
                     execOpsDao().deleteOp(id(), tx);
                     completeOperation(null, response, tx);
                     tx.commit();
@@ -108,7 +101,6 @@ abstract class StopExecution extends ExecutionOperationRunner {
         private KafkaLogsListeners kafkaLogsListeners;
         private LongRunningServiceBlockingStub allocOpClient;
         private LzyChannelManagerPrivateBlockingStub channelsClient;
-        private Status finishStatus;
         private StopExecutionState state;
 
         public T setAllocOpClient(LongRunningServiceBlockingStub allocOpClient) {
@@ -123,11 +115,6 @@ abstract class StopExecution extends ExecutionOperationRunner {
 
         public T setChannelsClient(LzyChannelManagerPrivateBlockingStub channelsClient) {
             this.channelsClient = channelsClient;
-            return self();
-        }
-
-        public T setFinishStatus(Status finishStatus) {
-            this.finishStatus = finishStatus;
             return self();
         }
 
