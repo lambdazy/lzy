@@ -75,7 +75,7 @@ public class GraphDaoImpl implements GraphDao {
                 st.setString(++count, graph.id());
                 st.setString(++count, graph.operationId());
                 st.setString(++count, graph.status().toString());
-                st.setString(++count, graph.workflowId());
+                st.setString(++count, graph.executionId());
                 st.setString(++count, graph.workflowName());
                 st.setString(++count, graph.userId());
                 st.setString(++count, graph.errorDescription());
