@@ -39,7 +39,7 @@ resource "yandex_mdb_postgresql_database" "lzy_dbs" {
 
   cluster_id = yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.id
   name       = each.key
-  owner      = each.value
+  owner      = each.key
   depends_on = [yandex_mdb_postgresql_user.lzy_users]
 }
 
