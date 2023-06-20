@@ -49,4 +49,5 @@ resource "yandex_mdb_postgresql_user" "lzy_users" {
   cluster_id = yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.id
   name       = each.key
   password   = each.value
+  conn_limit = 30
 }
