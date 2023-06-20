@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.*;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -18,12 +19,20 @@ public class OutputPipeBackand implements OutputSlotBackend {
     private final File storageFile;
     private final AtomicBoolean isReady = new AtomicBoolean(false);
 
-    public OutputPipeBackand(Path pipePath) throws IOException {
+    public OutputPipeBackand(Path pipePath) throws IOException, InterruptedException {
         this.pipePath = pipePath;
         storageFile = File.createTempFile("storage", ".tmp");
 
+        if (!pipePath.getParent().toFile().exists()) {
+            Files.createDirectories(pipePath.getParent());
+        }
+
         // Creating named pipe
-        Runtime.getRuntime().exec(new String[]{"mkfifo", pipePath.toAbsolutePath().toString()});
+        var res = Runtime.getRuntime().exec(new String[]{"mkfifo", pipePath.toAbsolutePath().toString()}).waitFor();
+
+        if (res != 0) {
+            throw new RuntimeException("Failed to create named pipe");
+        }
     }
 
     @Override

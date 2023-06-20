@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
@@ -30,7 +29,5 @@ public class OutputFileBackend implements OutputSlotBackend {
     }
 
     @Override
-    public void close() throws IOException {
-        Files.delete(path);
-    }
+    public void close() throws IOException {}
 }

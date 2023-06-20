@@ -3,6 +3,7 @@ package ai.lzy.fs.backands;
 import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.SeekableByteChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -15,6 +16,10 @@ public class FileInputBackend implements InputSlotBackend {
         this.path = path;
 
         if (!path.toFile().exists()) {
+            if (!path.getParent().toFile().exists()) {
+                Files.createDirectories(path.getParent());
+            }
+            Files.createDirectories(path.getParent());
             path.toFile().createNewFile();
         } else {
             path.toFile().delete();

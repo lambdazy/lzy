@@ -4,6 +4,7 @@ import ai.lzy.fs.backands.*;
 import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LC;
+import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.slots.v2.LSA;
 import ai.lzy.v1.slots.v2.LzySlotsApiGrpc;
@@ -50,6 +51,7 @@ public class SlotsTest {
     @ClassRule
     public static S3MockRule s3MockRule = S3MockRule.builder()
         .withHttpPort(12345)
+        .silent()
         .build();
     private static AmazonS3 s3Client;
 
@@ -99,8 +101,8 @@ public class SlotsTest {
     }
 
     @Test
-    public void testSimple() throws IOException {
-        var pipePath = Path.of("/tmp", "test_simple-out");
+    public void testSimple() throws IOException, InterruptedException {
+        var pipePath = Path.of("/tmp", "lzy", "test_simple-out");
 
         var outBackand = new OutputPipeBackand(pipePath);
         var outHandle = channelManagerMock.onBind("1");
@@ -130,7 +132,7 @@ public class SlotsTest {
             .setTransferId("transfer-id")
             .build()
         );
-        var inBackend = new FileInputBackend(Path.of("/tmp", "test_simple-in"));
+        var inBackend = new FileInputBackend(Path.of("/tmp", "lzy", "test_simple-in"));
 
         var inSlot = new InputSlot(inBackend, "2", "chan", executionContext.context());
         executionContext.addSlot(inSlot);
@@ -145,7 +147,7 @@ public class SlotsTest {
 
         inBeforeFut.join();
 
-        Assert.assertEquals("Hello", Files.readString(Path.of("/tmp", "test_simple-in")));
+        Assert.assertEquals("Hello", Files.readString(Path.of("/tmp", "lzy", "test_simple-in")));
 
         // Awaiting other side of output slot
         var bindRequest = bindHandle.get();
@@ -461,6 +463,105 @@ public class SlotsTest {
         transferHandle.complete(LCMS.TransferFailedResponse.getDefaultInstance());
 
         Assert.assertThrows(ExecutionException.class, () -> outSlot.afterExecution().get());
+    }
+
+    @Test
+    public void testExecutionContext() throws Exception {
+        s3Client.createBucket("bucket-execution-context");
+        writeToS3("s3://bucket-execution-context/key1", "Hello");
+
+        var slots = List.of(
+            LMS.Slot.newBuilder()
+                .setName("a/b/in")
+                .setDirection(LMS.Slot.Direction.INPUT)
+                .build(),
+
+            LMS.Slot.newBuilder()
+                .setName("a/b/out")
+                .setDirection(LMS.Slot.Direction.OUTPUT)
+                .build()
+        );
+
+        var inHandle = channelManagerMock.onBind("a/b/in");
+        inHandle.complete(LCMS.BindResponse.newBuilder()
+            .setTransferId("transfer-id1")
+            .setPeer(LC.PeerDescription.newBuilder()
+                .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
+                    .setS3(LMST.S3Credentials.newBuilder()
+                        .setEndpoint("http://localhost:12345")
+                        .build())
+                    .setStorageUri("s3://bucket-execution-context/key1")
+                    .build())
+                .build())
+            .build());
+
+        var outHandle = channelManagerMock.onBind("a/b/out");
+        outHandle.complete(LCMS.BindResponse.newBuilder()
+            .setTransferId("transfer-id2")
+            .setPeer(LC.PeerDescription.newBuilder()
+                .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
+                    .setS3(LMST.S3Credentials.newBuilder()
+                        .setEndpoint("http://localhost:12345")
+                        .build())
+                    .setStorageUri("s3://bucket-execution-context/key2")
+                    .build())
+                .build())
+            .build());
+
+        var outHandle2 = channelManagerMock.onBind("a/b/in-out");
+        outHandle2.complete(LCMS.BindResponse.newBuilder()
+            .setTransferId("transfer-id3")
+            .setPeer(LC.PeerDescription.newBuilder()
+                .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
+                    .setS3(LMST.S3Credentials.newBuilder()
+                        .setEndpoint("http://localhost:12345")
+                        .build())
+                    .setStorageUri("s3://bucket-execution-context/key3")
+                    .build())
+                .build())
+            .build());
+
+        var transferHandle1 = channelManagerMock.onTransferCompleted("transfer-id1");
+        transferHandle1.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
+
+        var transferHandle2 = channelManagerMock.onTransferCompleted("transfer-id2");
+        transferHandle2.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
+
+        var transferHandle3 = channelManagerMock.onTransferCompleted("transfer-id3");
+        transferHandle3.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
+
+        var ctx = new SlotsExecutionContext(
+            Path.of("/tmp/lzy"),
+            slots,
+            Map.of(
+                "a/b/in", "chan",
+                "a/b/out", "chan"
+            ),
+            LzyChannelManagerGrpc.newBlockingStub(channel),
+            "exec",
+            ADDRESS,
+            () -> "",
+            slotsService
+        );
+
+        ctx.beforeExecution();
+        inHandle.get();
+        transferHandle1.get();
+
+        Assert.assertEquals("Hello", Files.readString(Path.of("/tmp/lzy/a/b/in")));
+
+        Files.write(Path.of("/tmp/lzy/a/b/out"), "World".getBytes());
+        outHandle.get();
+        transferHandle2.get();
+        outHandle2.get();
+        transferHandle3.get();
+
+        ctx.afterExecution();
+
+        Assert.assertEquals("World", readFromS3("s3://bucket-execution-context/key2"));
+        Assert.assertEquals("Hello", readFromS3("s3://bucket-execution-context/key3"));
+
+        ctx.close();
     }
 
     private static class InMemBackand implements OutputSlotBackend, InputSlotBackend {
