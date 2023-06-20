@@ -1,10 +1,10 @@
 package ai.lzy.fs.backands;
 
 import java.io.IOException;
-import java.io.OutputStream;
+import java.nio.channels.SeekableByteChannel;
 
 public interface InputSlotBackend {
-    OutputStream outputStream() throws IOException;
+    SeekableByteChannel openChannel() throws IOException;
 
     // Closes input slot and returns output slot
     OutputSlotBackend toOutput();

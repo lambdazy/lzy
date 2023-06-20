@@ -9,10 +9,17 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
-    private final ConcurrentHashMap<String, RequestHandle<BindResponse, BindRequest>> onBind = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, RequestHandle<UnbindResponse, UnbindRequest>> onUnbind = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, RequestHandle<TransferCompletedResponse, TransferCompletedRequest>> onTransferCompleted = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, RequestHandle<TransferFailedResponse, TransferFailedRequest>> onTransferFailed = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, RequestHandle<BindResponse, BindRequest>>
+        onBind = new ConcurrentHashMap<>();
+
+    private final ConcurrentHashMap<String, RequestHandle<UnbindResponse, UnbindRequest>>
+        onUnbind = new ConcurrentHashMap<>();
+
+    private final ConcurrentHashMap<String, RequestHandle<TransferCompletedResponse, TransferCompletedRequest>>
+        onTransferCompleted = new ConcurrentHashMap<>();
+
+    private final ConcurrentHashMap<String, RequestHandle<TransferFailedResponse, TransferFailedRequest>>
+        onTransferFailed = new ConcurrentHashMap<>();
 
     @Override
     public void bind(BindRequest request, StreamObserver<BindResponse> responseObserver) {
@@ -38,7 +45,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     public void transferCompleted(
         TransferCompletedRequest request, StreamObserver<TransferCompletedResponse> responseObserver)
     {
-        var handle = onTransferCompleted.get(request.getPeerId());
+        var handle = onTransferCompleted.get(request.getTransferId());
         if (handle == null) {
             responseObserver.onError(new RuntimeException("Unexpected transfer completed request: " + request));
             return;
@@ -48,7 +55,7 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
 
     @Override
     public void transferFailed(TransferFailedRequest request, StreamObserver<TransferFailedResponse> responseObserver) {
-        var handle = onTransferFailed.get(request.getPeerId());
+        var handle = onTransferFailed.get(request.getTransferId());
         if (handle == null) {
             responseObserver.onError(new RuntimeException("Unexpected transfer failed request: " + request));
             return;
@@ -68,15 +75,15 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
         return pair.getLeft();
     }
 
-    public RequestHandle<TransferCompletedRequest, TransferCompletedResponse> onTransferCompleted(String peerId) {
+    public RequestHandle<TransferCompletedRequest, TransferCompletedResponse> onTransferCompleted(String transferId) {
         var pair = RequestHandle.<TransferCompletedRequest, TransferCompletedResponse>create();
-        onTransferCompleted.put(peerId, pair.getRight());
+        onTransferCompleted.put(transferId, pair.getRight());
         return pair.getLeft();
     }
 
-    public RequestHandle<TransferFailedRequest, TransferFailedResponse> onTransferFailed(String peerId) {
+    public RequestHandle<TransferFailedRequest, TransferFailedResponse> onTransferFailed(String transferId) {
         var pair = RequestHandle.<TransferFailedRequest, TransferFailedResponse>create();
-        onTransferFailed.put(peerId, pair.getRight());
+        onTransferFailed.put(transferId, pair.getRight());
         return pair.getLeft();
     }
 

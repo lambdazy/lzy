@@ -1,21 +1,22 @@
 package ai.lzy.fs;
 
-import ai.lzy.fs.backands.FileInputBackand;
+import ai.lzy.fs.backands.FileInputBackend;
 import ai.lzy.fs.backands.OutputPipeBackand;
 import ai.lzy.fs.transfers.TransferFactory;
 import ai.lzy.storage.StorageClientFactory;
-import ai.lzy.util.auth.credentials.RenewableJwt;
-import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
 import ai.lzy.v1.common.LMS;
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
 
 public class SlotsExecutionContext {
     private static final Logger LOG = LogManager.getLogger(SlotsExecutionContext.class);
@@ -28,7 +29,7 @@ public class SlotsExecutionContext {
 
     public SlotsExecutionContext(Path fsRoot, List<LMS.Slot> slotDescriptions, Map<String, String> slotToChannelMapping,
                                  LzyChannelManagerBlockingStub channelManager, String executionId,
-                                 String slotsApiAddress, RenewableJwt jwt, SlotsService slotsService)
+                                 String slotsApiAddress, Supplier<String> jwt, SlotsService slotsService)
     {
         this.fsRoot = fsRoot;
         this.slotDescriptions = slotDescriptions;
@@ -39,7 +40,7 @@ public class SlotsExecutionContext {
         context = new SlotsContext(channelManager, transferFactory, slotsApiAddress, slotsService, executionId, this);
     }
 
-    private final List<Slot> slots = new ArrayList<>();
+    private final List<Slot> slots = Collections.synchronizedList(new ArrayList<>());
 
     public void beforeExecution() throws Exception {
         try {
@@ -50,7 +51,7 @@ public class SlotsExecutionContext {
 
                 if (desc.getDirection().equals(LMS.Slot.Direction.INPUT)) {
 
-                    var backend = new FileInputBackand(fsPath);
+                    var backend = new FileInputBackend(fsPath);
                     var inputSlot = new InputSlot(backend, desc.getName(), channelId, context);
 
                     slots.add(inputSlot);
@@ -71,7 +72,7 @@ public class SlotsExecutionContext {
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
         } catch (Exception e) {
             LOG.error("Failed to initialize slots", e);
-            fail();
+            close();
             throw e;
         }
     }
@@ -87,18 +88,23 @@ public class SlotsExecutionContext {
             CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
         } catch (Exception e) {
             LOG.error("Failed to finalize slots", e);
-            fail();
+            close();
             throw e;
         }
     }
 
-    public void fail() {
+    public synchronized void close() {
         for (var slot: slots) {
-            slot.fail();
+            slot.close();
         }
     }
 
-    public void addSlot(Slot slot) {
+    public synchronized void addSlot(Slot slot) {
         slots.add(slot);
+    }
+
+    @VisibleForTesting
+    public SlotsContext context() {
+        return context;
     }
 }

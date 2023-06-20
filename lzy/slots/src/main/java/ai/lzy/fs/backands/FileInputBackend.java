@@ -1,16 +1,17 @@
 package ai.lzy.fs.backands;
 
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
+import java.nio.channels.FileChannel;
+import java.nio.channels.SeekableByteChannel;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class FileInputBackand implements InputSlotBackend {
+public class FileInputBackend implements InputSlotBackend {
     private final Path path;
     private final AtomicBoolean closed = new AtomicBoolean(false);
 
-    public FileInputBackand(Path path) throws IOException {
+    public FileInputBackend(Path path) throws IOException {
         this.path = path;
 
         if (!path.toFile().exists()) {
@@ -22,11 +23,11 @@ public class FileInputBackand implements InputSlotBackend {
     }
 
     @Override
-    public OutputStream outputStream() throws IOException {
+    public SeekableByteChannel openChannel() throws IOException {
         if (closed.get()) {
             throw new IOException("Already closed");
         }
-        return new FileOutputStream(path.toFile());
+        return FileChannel.open(path, StandardOpenOption.WRITE);
     }
 
     @Override

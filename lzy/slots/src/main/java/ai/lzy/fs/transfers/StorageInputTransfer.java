@@ -8,6 +8,8 @@ import ai.lzy.v1.common.LMST;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
+import java.nio.channels.Channels;
+import java.nio.channels.SeekableByteChannel;
 
 public class StorageInputTransfer implements InputTransfer {
     private final LC.PeerDescription peer;
@@ -29,9 +31,10 @@ public class StorageInputTransfer implements InputTransfer {
     }
 
     @Override
-    public int readInto(OutputStream sink) throws ReadException, IOException {
+    public int readInto(SeekableByteChannel sink) throws ReadException, IOException {
         try {
-            client.read(URI.create(peer.getStoragePeer().getStorageUri()), sink);
+            client.read(URI.create(peer.getStoragePeer().getStorageUri()), Channels.newOutputStream(sink));
+            sink.close();
         } catch (InterruptedException e) {
             throw new ReadException("Interrupted while reading", e);
         }

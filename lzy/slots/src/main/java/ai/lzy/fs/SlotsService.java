@@ -53,10 +53,13 @@ public class SlotsService extends LzySlotsApiGrpc.LzySlotsApiImplBase {
         }
 
         try {
-            slot.startTransfer(request.getPeer());
+            slot.startTransfer(request.getPeer(), request.getTransferId());
         } catch (Exception e) {
             LOG.error("Failed to start transfer", e);
             responseObserver.onError(Status.INTERNAL.asException());
         }
+
+        responseObserver.onNext(StartTransferResponse.newBuilder().build());
+        responseObserver.onCompleted();
     }
 }

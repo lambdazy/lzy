@@ -12,11 +12,9 @@ import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadRequestBuilder;
 
 import java.io.BufferedInputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.nio.file.Path;
 import java.util.concurrent.ExecutorService;
 
 import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;

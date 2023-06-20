@@ -21,11 +21,11 @@ public interface Slot {
     CompletableFuture<Void> afterExecution();
 
     /**
-     * Fail slot. Slot must clean up all resources and fail all pending operations
+     * Close slot. Slot must clean up all resources and fail all pending operations
      */
-    void fail();
+    void close();
 
-    void startTransfer(LC.PeerDescription peer);
+    void startTransfer(LC.PeerDescription peer, String transferId);
     void read(long offset, StreamObserver<LSA.ReadDataChunk> transfer);
 
     String id();

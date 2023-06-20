@@ -12,8 +12,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.channels.SeekableByteChannel;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -28,18 +30,22 @@ public class SlotInputTransfer implements InputTransfer, AutoCloseable {
     private Iterator<LSA.ReadDataChunk> stream;
     private int remainingRetries = 15;
 
-    public SlotInputTransfer(LC.PeerDescription peer, int offset, RenewableJwt jwt) {
+    public SlotInputTransfer(LC.PeerDescription peer, int offset, Supplier<String> jwt) {
         this.peer = peer;
         this.currentOffset = offset;
 
         this.channel = newGrpcChannel(peer.getSlotPeer().getPeerUrl(), LzySlotsApiGrpc.SERVICE_NAME);
-        this.stub = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(channel), "SlotsApi", () -> jwt.get().token());
+        this.stub = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(channel), "SlotsApi", jwt);
     }
 
     @Override
-    public int readInto(OutputStream outputStream) throws ReadException, IOException {
+    public int readInto(SeekableByteChannel outputStream) throws ReadException, IOException {
         LSA.ReadDataChunk chunk = null;
         boolean done = false;
+
+        if (outputStream.position() != currentOffset) {
+            outputStream.position(currentOffset);
+        }
 
         while (!done) {
             try {
@@ -70,7 +76,8 @@ public class SlotInputTransfer implements InputTransfer, AutoCloseable {
             return -1;
         }
 
-        IOUtils.copy(chunk.getChunk().newInput(), outputStream);
+        outputStream.write(chunk.getChunk().asReadOnlyByteBuffer());
+
         currentOffset += chunk.getChunk().size();
         return chunk.getChunk().size();
     }

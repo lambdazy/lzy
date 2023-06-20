@@ -5,11 +5,13 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.common.LC;
 import io.grpc.Status;
 
+import java.util.function.Supplier;
+
 public class TransferFactory {
     private final StorageClientFactory clientFactory;
-    private final RenewableJwt jwt;
+    private final Supplier<String> jwt;
 
-    public TransferFactory(StorageClientFactory clientFactory, RenewableJwt jwt) {
+    public TransferFactory(StorageClientFactory clientFactory, Supplier<String> jwt) {
         this.clientFactory = clientFactory;
         this.jwt = jwt;
     }
