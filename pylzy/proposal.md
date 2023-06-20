@@ -1,9 +1,33 @@
+В чем у нас проблема:
+1) У нас растет количество параметров окружения: добавили exclude_packages, pip_index_url, а уже видно, что это не конец: будут additional_index_url, будут disk_io, network_policy, и проч.
+2) Вместе с ними растет количество несовместимых друг с другом комбинаций параметров, усложняется валидация, ад, смерть. Сейчас уже сложно сказать, как именно работает опция local_paths, например.
+3) У нас абсолюбно неявная механика мерджа параметров окружения с разных уровней: операция, воркфлоу, лизи. Например, local_modules_paths, libraries и env_variables объединяются с разных уровней, но при этом остальные опции - перезаписываются. Также часть параметров можно установить только на workflow, что тоже не слишком очевидно.
+
+Отсюда хочется получить стройную, непротиворечивую, а главное понятную и документированную систему описывания параметров окружения, которая будет решать проблему несовместимости параметров посредством разных реализаций, нежели plain валидацией, которую еще нужно обмазывать тестами.
+
 Мы имеем 4 типа настройки окружения пользовательской операции, которые конечным образом уезжают на сервер:
-1) Ресурсы (Provisioning)
-2) Файлы, которые мы тащим с собой, например, локальный проект, но в перспективе это могут быть и обычные файлы-ресурсы
-3) Библиотеки, которые мы должны поставить на удаленной машине
-4) Контейнер, который в котором мы запустимся
-Отсюда мы имеем 4 естественных и семантичных точки для настроек окружения со стороны пользователя:
+1) Ресурсы (Provisioning);
+2) Файлы, которые мы тащим с собой, например, локальный проект;
+3) Библиотеки, которые мы должны поставить на удаленной машине;
+4) Контейнер, который в котором мы запустимся;
+
+Отсюда мы имеем 4 естественных и семантичных точки для настроек окружения со стороны пользователя.
+Однако, мы не хотим давать возможность настраивать файлы, которые мы тащим с собой:
+1) Локальный и editable-пакеты мы и так хорошо детектим;
+2) Файлы-ресурсы стоит отправлять через механизм файлов ресурсов.
+
+Поэтому, мы выделяем три (с половиной) точки-области настройки окружения, которыми может управлять пользователь:
+
+1) Provisioning
+2) PythonEnv
+3) Container
+3.5) Environ
+
+Требования к этим точкам следующие: любые настройки внутри одной точки не должны уметь конфликтовать с другими точками.
+
+Далее, для каждой "точки" мы вводим по абстрактному классу, каждый из которых определяет "артефакт" результата, то есть, например, любой PythonEnv должен обладать `python_version`.
+Реализации же будут отличатсья только пользовательским интерфейсом и его преобразованием в "артефакт".
+
 
 # Интерфейсы классов
 
@@ -14,95 +38,73 @@ class Provisioning:
     # ничего нового тут
 
 
-# Названия еще предстоит обсудить
-class FilesEnv:
-    @abstractproperty
-    def local_paths(self) -> List[str]:
-        pass
-
-
 class PythonEnv:
-    @abstractmethod
-    def generate_conda_config(self) -> Dict[str, Any]:
-        pass
+    python_version: str
+    local_modules_dirs: List[str]
+    pypi_packages: Dict[str, str]
+    pip_index_url: str
 
 
 class ContainerEnv:
     @abstractproperty
     def container_type(self) -> str:
-        pass
+        # now we support only docker, so somewhere will be `if container_env.container_type != 'docker': raise`
+
 ```
 
 # Примеры реализаций классов
-
-## 2) Окружения локальных файлов:
-
-```python
-class ManualFilesEnv(FilesEnv):
-    def __init__(self, local_paths: List[str]):
-        self.local_paths = local_paths
-
-
-class AutoFilesEnv(FilesEnv):
-    pypi_index_url: str
-    exclude_packages: List[str]
-    additional_paths: str
-
-    @property
-    def local_paths(self):
-        ...
 
 ```
 
 ## 3) Удаленное окружение питона.
 
 ```python
-#Не уверен, что мы так уж хотим полностью поддерживать все возможности конды
-class CondaEnv(PythonEnv):
-    channels: List[str]
-    dependencies: List[str]
-    pip_dependencies: List[str]
-    pypi_index_url: str
-
-    @classmethod
-    def from_conda_yaml(self, path: str) -> CondaEnv:
-        # also validate here that there is only allowed options at conda yaml
-
-    def generate_conda_config(self):
-        ...
-
 # Просто перечисляем нужные библиотеки для установки
 class SimpleLibrariesEnv(PythonEnv):
     python_version: str
     pypi_index_url: str
-    pypi_libraries: Dict[str, str]
+    pypi_packages: Dict[str, str]
+    local_modules_dirs: List[str]
 
 
 # То, что есть сейчас
 class AutoLibrariesEnv(PythonEnv):
+    #: and we can document
     python_version: str = field(defaultfactory=...)
-    exclude_packages: List[str]
+
+    #: every option
     pypi_index_url: str
+
+    #: one by one
     additional_pypi_libraries: Dict[str, str]
 
-    def generate_conda_config(self):
-        ...
+    #: if we will use sphinx: https://stackoverflow.com/a/66168767
+    auto_env_explorer_class: Type[AutoEnvExplorer]
+
+    # maybe additional options, im not sure yet
+    raise_on_binaries: bool = True
+    treat_editables_as_locals: bool = True
+
 ```
 
-Если удаленно не нужно делать вообще ничего, нужно указать `EmptyEnv`
+Если удаленно не нужно делать вообще ничего, нужно указать `OnlyLocalEnv`
 
 Во всех остальных случаях мы обязаны запускать конду на удаленной машине, даже в докере
 и если в докере конды нет - падать с ошибкой про то, что у тебя указано непустое окружение,
 а конды в контейнере нет (возможно, стоит это дело инкапсулировать в свой пакет `lzy_env_manager`,
 чтобы не торчать наружу кондой).
 
-*Игорь говорит/предлагает, что при отсутствии конды в докере нужно сделать фоллбек на pip, но
-тогда артефактом PythonEnv должен быть не conda_config, а нечто вроде pypi_libraries*
+*Игорь говорит/предлагает, что при отсутствии конды в докере нужно сделать фоллбек на pip*
 
 ```python
-class EmptyEnv(PythonEnv):
-    def generate_conda_config(self):
-        return {}
+class OnlyLocalEnv(PythonEnv):
+    pypi_index_url: str
+    auto_env_explorer_class: Type[AutoEnvExplorer]
+
+    @property
+    def libraries(self):
+        return {}  # empty
+
 ```
 
 ## 4) Настройки контейнера
@@ -111,8 +113,9 @@ class EmptyEnv(PythonEnv):
 class DockerEnv(ContainerEnv):
     registry: str
     image: str
-    pull_policy: DockerPullPolcicy
-    # Научиться использовать credentials store и локальные конфиги докера
+    pull_policy: DockerPullPolcicy  # надо бы разобраться, что это и нафига это
+
+    # Надо бы научиться использовать credentials store и локальные конфиги докера
     username: Optional[str]
     password: Optional[str]
 ```
@@ -127,7 +130,6 @@ class Env:
 
     # Все классы - ABC, чтобы дать возможность наследования
     provisioning: Provisioning
-    files: FilesEnv
     python_env: PythonEnv
     container: ContainerEnv
 ```
@@ -136,90 +138,57 @@ class Env:
 (чтобы дать возможность настроить окружение один раз на всю программу).
 
 Переопределение идет op >> wf >> lzy env, то есть окружение, указанное на op-е будет самым приоритетным
-под-env-ы (`files`, `python_env`, `container`) больше не мерджатся, потому что они могут быть разного типа,
+под-env-ы (`python_env`, `container`) больше не мерджатся, потому что они могут быть разного типа,
 а если мерджить их при совпадении типа - получаем неразбериху.
 
 Возможно, Provisioning можно мерджить, потому что он не предполагает наследования.
-Кстати, можно мерджить и под-envы, только не их "настройки",
-а уже их артефакты (`local_paths`, `conda_yaml`), но не принесет ли это неразберихи?
 
-Кстати, можно (и возможно нужно) ввести следующий хелпер для мерджа окружений:
-
-```python
-class Env:
-    provisioning: Union[Provisioning, NotSpecified[Provisioning]] = NotSpecified(default_factory=Provisioning)
-    ...
-```
-
-В таком случае, если на опе будет указан `provisioning` и только он, а на wf будет указан
+Если на опе будет указан `provisioning` и только он, а на wf будет указан
 `docker_env`, то в результирующую опу прилетит и `provisioning` и `docker_env`.
 
 
-# Про pypi_index_url и explore пакетов
+# Про `pypi_index_url` и explore пакетов
 
-Есть две проблемы:
-* Часть вещей шарятся между разными подокружениями, в частности, `pypi_index_url` должен быть настройкой \
-`AutoFilesEnv`, а также всех `PythonEnv`.
-* А также, `AutoFilesEnv` и `AutoLibrariesEnv` должны переиспользовать один и тот же код поиска пакетов.
+Внутри `python_env` у нас будет сущность `AutoEnvExplorer`, который является сущностью, замкнутой над
+`pypi_index_url` и `exclude_packages`:
 
-Решение - вводим дополнительную сущность:
 
 ```python
-class LocalEnvExplorer:
+class AutoEnvExplorer:
     pypi_index_url: str
-    additional_pypi_index_urls: List[str]
     exclude_packages: str
 
-    def explore(self, namespace: Dict[Any]) -> Tuple[LocalPaths, LocalLibraries]:
+    def get_local_packages_dirs(self) -> List[str]:
+        pass
+
+    def get_pypi_installed_libraries(self) -> Dict[str, str]:
         pass
 ```
 
-*NB: непонятно, почему что-то с именем LocalEnvExplorer должно использоваться by CondaEnv*
-Возможно, стоит обозвать это дело как-нибудь типа PipTool, или разделить его на PipSettings + LocalEnvExplorer.
+При этом пользователь нигде явно его не задает, кроме как:
 
-Проблемы начинаются тогда, когда мы хотим дать пользователю настроить LocalEnvExplorer,
-при том, что AutoFilesEnv и PythonEnv должны содержать один и тот же экзмепляр LocalEnvExplorer.
 
-Варианты, которые я вижу:
+class AutoPythonEnv:
+    pypi_index_url: str
+    additional_pypi_libraries: Dict[str, str]
+    auto_env_explorer_class: Type[AutoEnvExplorer]
 
-### 1. Вариант с членством в Env
+    def __post_init__(self):
+        # на самом деле вместо auto_env_explorer_class нужна factory,
+        # у которой мы будем смотреть аргументы, чтобы дать возможность
+        # создавать свои PythonEnv и Explorer с разными зависимостями по аргументам
+        self.auto_env_explorer = self.auto_env_explorer_class(
+            pypi_index_url=self.pypi_index_url,
+            exclude_packages=self.additional_pypi_libraries.keys()
+        )
 
-Сделать `LocalEnvExplorer` членом `Env`, и при итоговом вычислении окружения передавать его
-в `AutoFilesEnv` и `PythonEnv`.
+    @property
+    def pypi_libraries(self):
+        return self.auto_env_explorer.get_pypi_installed_libraries() + self.additional_pypi_libraries
 
-Тут проблема в том, что мы должны в общем случае понимать, когда нужно передавать его провайдерам,
-а когда - нет (`ManualFilesEnv` в нем не нуждается).
-
-Разве что делать это через инспект интерфейса провайдера, но чет такое себе.
-
-Альтернатива - сделать `LocalEnvExplorer` частью
-интерфейса конструктора `FilesEnv и` `PythonEnv`, а наследники пускай сами решают, когда нужно использовать,
-а когда - нет, но этот вариант мне тоже не нравится.
-
-### 2. Tornado-Configurable-like
-
-Оформить LocalEnvExplorer [tornado-like способом](https://www.tornadoweb.org/en/stable/util.html#tornado.util.Configurable.configure),
-чтобы можно было бы сделать `LocalEnvExplorer.configure(pypi_index_url='...')` и это бы влияло на все новосозданные объекты этого класса.
-
-Плохо, потому что выбивается из остальных вариантов настройки других вещей.
-
-### 3. Идти от валидации
-
-При валидации Env проверять, что все под-env-ы имеют одинаковые настройки `LocalEnvExplorer`, если они есть.
-Тогда, когда `AutoFilesEnv` пойдет создавать `LocalEnvExplorer`, он создатся таким же, как и в других местах.
-
-Минус - необходимость держать настройки `LocalEnvExplorer` внутри `AutoFilesEnv` и компании.
-
-### 4. Singleton
-
-Вообще вынести `LocalEnvExplorer` из логики Env-ов, и сделать его псевдо-синглтоном на объекте `Lzy`.
-Тогда `pypi_index_url` убирается из настроек `AutoFilesEnv` и `PythonEnv`, а они при своей работе получают
-ссылку на единственный `LocalEnvExplorer`.
-
-Плюсы: чище код, простая реализация
-
-Минусы: настройки в `Lzy` может быть неочевидным местом для пользователя, т.к. все пакетное он настраивает
-где-нибудь в WF, а тут часть настройки (`pypi_index_url`, например) необходимо настраивать вообще в другом месте.
+    @property
+    def local_modules_dirs(self):
+        return self.auto_env_explorer.get_local_packages_dirs()
 
 
 # Про пользовательский интерфейс настройки наших *Env-ов.
@@ -256,22 +225,18 @@ class WithEnvironmentMixin(Generic[T]):
         # Метод возвращает клон оригинального объекта, только с подмененным
         # env.provisioning = klass(**kwargs)
 
-    def with_files_env(
+    def with_python_env(
         self, *,
-        klass: Type[FilesEnv] = AutoFilesEnv,
+        klass: Type[FilesEnv] = AutoPythonEnv,
         **kwargs
     ) -> ...:
-        # Также пускай klass умеет принимать строки типа lzy.api.v1.env.AutoFilesEnv,
+        # Также пускай klass умеет принимать строки типа "lzy.api.v1.env.AutoPythonEnv",
         # и импортирует такой объект, если пользователь не хочет писать импорт сверху.
-        pass
-
-    def with_python_env(...) -> ...:
-        pass
 
     def with_container(...) -> ...:
         pass
 
-    def with_env(sels, env: Env = None, *, provisioning: Provisioning = None, files_env: FilesEnv = None, ...) -> ...:
+    def with_env(sels, env: Env = None, *, provisioning: Provisioning = None, python_env: PythonEnv = None, ...) -> ...:
         # фабричный метод, чтобы не вызывать предыдущие четыре по-одному
 
     # фантазия на будущее
@@ -304,7 +269,7 @@ with lzy.workflow('123').with_files_env(
 
 ```python
 with lzy.workflow('123') \
-        .with_files_env(
+        .with_python_env(
             ...,
             ...,
         ) \
@@ -319,8 +284,8 @@ with lzy.workflow('123') \
     pass
 
 with (lzy.workflow('123')
-      .with_files_env(...,
-                      ...)
+      .with_python_env(...,
+                       ...)
       .with_container(...,
                       ...)
       .with_provisioning(...,
@@ -337,7 +302,7 @@ with (
         ...,
         ...,
     )
-    .with_files_env(
+    .with_python_env(
         ...,
         ...
     )
@@ -399,19 +364,40 @@ def foo():
     pass
 ```
 
-Альтернативный способ настройки через `__enter__` (подойдет только для wf):
+Альтернативный способ настройки через `__enter__`, но он подойдет только для wf и я не хочу его делать:
 
 ```python
 with lzy.workflow("name") as wf, Provisioning(cpu_count=2):
     pass
 ```
 
-Еще есть вариант вернуться к старому-доброму tornado.Configurable, но это будет
-влиять на все созданные объекты и будет беда с различными окружениями для wf и op
+Предложения про другие варианты настройки енвов приветствуются.
 
-```python
-FilesEnv.configure(AutoFilesEnv, pypi_index_url='foo')
-files_env = FilesEnv.new() -> AutoFilesEnv
+
+# Про организацию пакетов и импортов
+
+```
+lzy.env.environment
+lzy.env.python.base
+lzy.env.python.auto
+lzy.env.python.easy
+lzy.env.python.local
+lzy.env.container.base
+lzy.env.container.docker
+lzy.env.explorer.base
+lzy.env.explorer.auto
 ```
 
-Предложения про другие варианты настройки енвов приветствуются.
+А также в `lzy.api.v1.env` делаем реимпорт всех нужных символов из реализации выше.
+С помощью реимпортов имеем чистое и ограниченное API у модуля, в котором автоподсказки не подсказывают ненужный треш.
+
+Использование предполагается следующее (подаем пример в документациях):
+
+```
+from lzy.api.v1 import op, envs as lzenv
+
+@lzenv.Provisioning(...)
+@op
+def function(...):
+   pass
+```
