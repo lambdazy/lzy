@@ -50,7 +50,4 @@ resource "yandex_mdb_postgresql_user" "lzy_users" {
   name       = each.key
   password   = each.value
   conn_limit = 30
-  permission {
-    database_name = each.key
-  }
 }
