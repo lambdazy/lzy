@@ -156,7 +156,7 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
             try {
                 log().debug("{} Schedule action to abort execution that has graph not executed properly: " +
                     "{ execId: {} }", logPrefix(), execId());
-                var opRunner = opRunnersFactory().createAbortWorkflowOpRunner(abortOp.id(), abortOp.description(), null,
+                var opRunner = opRunnersFactory().createAbortExecOpRunner(abortOp.id(), abortOp.description(), null,
                     userId(), wfName(), execId());
                 opsExecutor().startNew(opRunner);
             } catch (Exception e) {

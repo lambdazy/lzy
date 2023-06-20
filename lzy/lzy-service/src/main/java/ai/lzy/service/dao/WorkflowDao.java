@@ -19,7 +19,7 @@ public interface WorkflowDao {
     @Nullable
     String getExecutionId(String userId, String wfName, @Nullable TransactionHandle transaction) throws SQLException;
 
-    boolean setActiveExecutionIdToNull(String brokenExecId, @Nullable TransactionHandle transaction)
+    boolean setActiveExecutionIdToNull(String activeExecId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
     void setActiveExecutionId(String userId, String wfName, @Nullable String execId,

@@ -18,8 +18,6 @@ import ai.lzy.service.operations.graph.ExecuteGraph;
 import ai.lzy.service.operations.start.StartExecution;
 import ai.lzy.service.operations.stop.AbortExecution;
 import ai.lzy.service.operations.stop.FinishExecution;
-import ai.lzy.service.operations.stop.PrivateAbortExecution;
-import ai.lzy.service.operations.stop.PublicAbortExecution;
 import ai.lzy.storage.StorageClient;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -201,51 +199,13 @@ public class OperationRunnersFactory {
             .build();
     }
 
-    public AbortExecution createAbortExecutionOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                       @Nullable String userId, @Nullable String wfName, String execId)
+    public AbortExecution createAbortExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
+                                                  @Nullable String userId, String wfName, String execId)
         throws Exception
     {
         StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
 
-        return PrivateAbortExecution.builder()
-            .setInstanceId(instanceId)
-            .setId(opId)
-            .setDescription(opDesc)
-            .setUserId(userId)
-            .setWfName(wfName)
-            .setExecId(execId)
-            .setStorage(storage)
-            .setWfDao(wfDao)
-            .setExecDao(execDao)
-            .setGraphDao(graphDao)
-            .setOperationsDao(opDao)
-            .setExecOpsDao(execOpsDao)
-            .setExecutor(executor)
-            .setState(state)
-            .setIdempotencyKey(idempotencyKey)
-            .setChannelsClient(channelManagerClient)
-            .setGraphClient(graphsClient)
-            .setSubjClient(subjectClient)
-            .setAllocClient(allocClient)
-            .setAllocOpClient(allocOpClient)
-            .setKafkaClient(kafkaAdminClient)
-            .setKafkaLogsListeners(kafkaLogsListeners)
-            .setS3SinkClient(s3SinkClient)
-            .setIdGenerator(idGenerator)
-            .setMetrics(metrics)
-            .setInternalUserCredentials(internalUserCredentials)
-            .setOpRunnersFactory(this)
-            .build();
-    }
-
-
-    public AbortExecution createAbortWorkflowOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                      @Nullable String userId, @Nullable String wfName, String execId)
-        throws Exception
-    {
-        StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
-
-        return PublicAbortExecution.builder()
+        return AbortExecution.builder()
             .setInstanceId(instanceId)
             .setId(opId)
             .setDescription(opDesc)

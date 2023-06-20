@@ -1,7 +1,6 @@
 package ai.lzy.service.operations;
 
 import ai.lzy.service.Graphs;
-import ai.lzy.v1.workflow.LWFPS;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
@@ -137,8 +136,9 @@ public class BaseScenarios {
 
         assertBeforeStopWorkflow.run();
         //noinspection ResultOfMethodCallIgnored
-        privateLzyGrpcClient.abortExecution(
-            LWFPS.AbortExecutionRequest.newBuilder()
+        privateLzyGrpcClient.abortWorkflow(
+            LWFS.AbortWorkflowRequest.newBuilder()
+                .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .build());
         assertAfterStopWorkflow.run();

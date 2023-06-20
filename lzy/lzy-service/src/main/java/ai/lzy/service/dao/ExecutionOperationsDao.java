@@ -17,9 +17,6 @@ public interface ExecutionOperationsDao {
     void createAbortOp(String opId, String instanceId, String execId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    void createPrivateAbortOp(String opId, String instanceId, String execId, @Nullable TransactionHandle transaction)
-        throws SQLException;
-
     void createExecGraphOp(String opId, String instanceId, String execId, ExecuteGraphState initial,
                            @Nullable TransactionHandle transaction) throws SQLException;
 
@@ -54,11 +51,10 @@ public interface ExecutionOperationsDao {
         START_EXECUTION,
         FINISH_EXECUTION,
         ABORT_EXECUTION,
-        PRIVATE_ABORT_EXECUTION,
         EXECUTE_GRAPH;
 
         public static boolean isStop(OpType type) {
-            return type == FINISH_EXECUTION || type == ABORT_EXECUTION || type == PRIVATE_ABORT_EXECUTION;
+            return type == FINISH_EXECUTION || type == ABORT_EXECUTION;
         }
     }
 }

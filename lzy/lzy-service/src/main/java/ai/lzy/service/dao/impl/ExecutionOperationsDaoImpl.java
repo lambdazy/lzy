@@ -109,22 +109,6 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
     }
 
     @Override
-    public void createPrivateAbortOp(String opId, String instanceId, String execId, TransactionHandle transaction)
-        throws SQLException
-    {
-        LOG.debug("Create private abort execution operation in storage: { opId: {}, execId: {} }", opId, execId);
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_INSERT_OPERATION)) {
-                st.setString(1, opId);
-                st.setString(2, OpType.PRIVATE_ABORT_EXECUTION.name());
-                st.setString(3, instanceId);
-                st.setString(4, execId);
-                st.executeUpdate();
-            }
-        });
-    }
-
-    @Override
     public void createExecGraphOp(String opId, String instanceId, String execId, ExecuteGraphState state,
                                   @Nullable TransactionHandle transaction) throws SQLException
     {

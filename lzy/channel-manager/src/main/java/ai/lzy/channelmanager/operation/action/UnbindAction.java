@@ -50,7 +50,7 @@ public class UnbindAction extends ChannelAction {
         if (deadline.isBefore(Instant.now())) {
             LOG.info("Async operation (operationId={}) stopped, deadline exceeded, channelId={}",
                 operationId, state.channelId());
-            this.failOperation(state.executionId(), Status.DEADLINE_EXCEEDED);
+            this.failOperation(state.wfName(), state.executionId(), Status.DEADLINE_EXCEEDED);
             return;
         }
 
@@ -81,7 +81,7 @@ public class UnbindAction extends ChannelAction {
         } catch (Exception e) {
             String errorMessage = "Async operation (operationId=" + operationId + ") failed: " + e.getMessage();
             LOG.error(errorMessage);
-            this.failOperation(state.executionId(), Status.INTERNAL.withDescription(errorMessage));
+            this.failOperation(state.wfName(), state.executionId(), Status.INTERNAL.withDescription(errorMessage));
         }
     }
 

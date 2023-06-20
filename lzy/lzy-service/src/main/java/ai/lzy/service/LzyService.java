@@ -84,9 +84,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                         op.execId(), serviceCfg().getAllocatorVmCacheTimeout(), portalVmSpec());
                     case FINISH_EXECUTION -> opRunnersFactory().createFinishExecOpRunner(
                         op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(), op.execId());
-                    case ABORT_EXECUTION -> opRunnersFactory().createAbortWorkflowOpRunner(
-                        op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(), op.execId());
-                    case PRIVATE_ABORT_EXECUTION -> opRunnersFactory().createAbortExecutionOpRunner(
+                    case ABORT_EXECUTION -> opRunnersFactory().createAbortExecOpRunner(
                         op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(), op.execId());
                     case EXECUTE_GRAPH -> opRunnersFactory().createExecuteGraphOpRunner(
                         op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(), op.execId());
@@ -180,7 +178,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             if (abortOp != null) {
                 LOG.info("Schedule action to abort previous execution: { userId: {}, wfName: {}, prevExecId: {} }",
                     userId, wfName, oldExecId);
-                var opRunner = opRunnersFactory().createAbortWorkflowOpRunner(abortOp.id(), abortOp.description(),
+                var opRunner = opRunnersFactory().createAbortExecOpRunner(abortOp.id(), abortOp.description(),
                     idk, userId, wfName, oldExecId);
                 opsExecutor().startNew(opRunner);
             }
@@ -400,7 +398,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var idk = idempotencyKey != null ? idempotencyKey.token() : null;
         try {
             LOG.info("Schedule action to abort workflow: { wfName: {}, execId: {} }", wfName, execId);
-            var opRunner = opRunnersFactory().createAbortWorkflowOpRunner(op.id(), op.description(), idk, userId,
+            var opRunner = opRunnersFactory().createAbortExecOpRunner(op.id(), op.description(), idk, userId,
                 wfName, execId);
             opsExecutor().startNew(opRunner);
         } catch (Exception e) {

@@ -72,24 +72,24 @@ public class ChannelOperationManager {
     }
 
     public ChannelOperation newBindOperation(String operationId, Instant startedAt, Instant deadline,
-                                             String executionId, String channelId, String endpointUri)
+                                             String wfName, String executionId, String channelId, String endpointUri)
     {
         return new ChannelOperation(operationId, startedAt, deadline, ChannelOperation.Type.BIND,
-            toJson(new BindActionState(executionId, channelId, endpointUri, null, null)));
+            toJson(new BindActionState(wfName, executionId, channelId, endpointUri, null, null)));
     }
 
     public ChannelOperation newUnbindOperation(String operationId, Instant startedAt, Instant deadline,
-                                               String executionId, String channelId, String endpointUri)
+                                               String wfName, String executionId, String channelId, String endpointUri)
     {
         return new ChannelOperation(operationId, startedAt, deadline, ChannelOperation.Type.UNBIND,
-            toJson(new UnbindActionState(executionId, channelId, endpointUri)));
+            toJson(new UnbindActionState(wfName, executionId, channelId, endpointUri)));
     }
 
     public ChannelOperation newDestroyOperation(String operationId, Instant startedAt, Instant deadline,
-                                                String executionId, List<String> channelsToDestroy)
+                                                String wfName, String executionId, List<String> channelsToDestroy)
     {
         return new ChannelOperation(operationId, startedAt, deadline, ChannelOperation.Type.DESTROY,
-            toJson(new DestroyActionState(executionId, new HashSet<>(channelsToDestroy), new HashSet<>())));
+            toJson(new DestroyActionState(wfName, executionId, new HashSet<>(channelsToDestroy), new HashSet<>())));
     }
 
     public ChannelAction getAction(ChannelOperation operation) {

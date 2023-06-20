@@ -161,7 +161,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
         final ChannelOperation channelOperation = channelOperationManager.newDestroyOperation(
-            operation.id(), startedAt, deadline, channel.getExecutionId(), List.of(channelId)
+            operation.id(), startedAt, deadline, channel.getWorkflowName(), channel.getExecutionId(), List.of(channelId)
         );
 
         try {
@@ -217,15 +217,24 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
-        final List<String> channelsToDestroy;
+        final List<Channel> channels;
         try {
-            final List<Channel> channels = withRetries(LOG, () -> channelDao.listChannels(executionId));
-            channelsToDestroy = channels.stream().map(Channel::getId).collect(Collectors.toList());
+            channels = withRetries(LOG, () -> channelDao.listChannels(executionId));
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }
+
+        if (channels.isEmpty()) {
+            LOG.error("Execution with id='{}' have no channels", executionId);
+            response.onError(Status.INVALID_ARGUMENT.withDescription("Cannot found any channel associated with " +
+                "passed execution").asRuntimeException());
+            return;
+        }
+
+        final List<String> channelsToDestroy = channels.stream().map(Channel::getId).collect(Collectors.toList());
+        final String wfName = channels.get(0).getWorkflowName();
 
         final Operation operation = Operation.create("ChannelManager", operationDescription, /* deadline */ null,
             idempotencyKey, Any.pack(LCMPS.ChannelDestroyAllMetadata.getDefaultInstance()));
@@ -233,7 +242,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
         final ChannelOperation channelOperation = channelOperationManager.newDestroyOperation(
-            operation.id(), startedAt, deadline, executionId, channelsToDestroy
+            operation.id(), startedAt, deadline, wfName, executionId, channelsToDestroy
         );
 
         try {
