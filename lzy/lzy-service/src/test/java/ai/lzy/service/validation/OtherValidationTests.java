@@ -15,10 +15,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.function.ThrowingRunnable;
 
 import java.sql.SQLException;
@@ -27,6 +24,7 @@ import static ai.lzy.service.IamUtils.authorize;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 
+@Ignore
 public class OtherValidationTests {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();

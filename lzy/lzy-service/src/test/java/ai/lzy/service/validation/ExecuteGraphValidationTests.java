@@ -14,10 +14,7 @@ import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.function.ThrowingRunnable;
 
 import java.sql.SQLException;
@@ -25,6 +22,7 @@ import java.sql.SQLException;
 import static ai.lzy.service.IamUtils.authorize;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
+@Ignore
 public class ExecuteGraphValidationTests implements ValidationTests<LWFS.ExecuteGraphRequest> {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();

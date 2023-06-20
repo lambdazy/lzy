@@ -69,7 +69,7 @@ public class LzyPrivateService extends LzyWorkflowPrivateServiceImplBase impleme
         try {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage())) {
-                    if (wfDao().setActiveExecutionIdToNull(execId, tx)) {
+                    if (wfDao().setActiveExecutionIdToNull(wfName, execId, tx)) {
                         var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                         if (!opsToCancel.isEmpty()) {
                             execOpsDao().deleteOps(opsToCancel, tx);
@@ -80,6 +80,8 @@ public class LzyPrivateService extends LzyWorkflowPrivateServiceImplBase impleme
                         opsDao().create(op, tx);
                         execOpsDao().createAbortOp(op.id(), serviceCfg().getInstanceId(), execId, tx);
                         execDao().setFinishStatus(execId, Status.CANCELLED.withDescription(reason), tx);
+                    } else {
+                        throw new IllegalStateException("Execution with id='%s' is not an active".formatted(execId));
                     }
 
                     tx.commit();

@@ -41,16 +41,18 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
         SELECT state_json FROM execution_operations WHERE op_id = ?""";
 
     private static final String QUERY_SELECT_UNCOMPLETED_OPERATIONS = """
-        SELECT op_type, o.id as id, o.description as desc, o.idempotency_key as idk, user_id, workflow_name, 
-               e.execution_id, state_json
+        SELECT e_op.op_type as op_type, o.id as id, o.description as desc, 
+               o.idempotency_key as idk, e.user_id as user_id,
+               wf.workflow_name as wf_name, e.execution_id as exec_id,
+               e_op.state_json as state_json
         FROM execution_operations e_op 
         JOIN operation o 
-        ON e_op.op_id == o.id
+        ON e_op.op_id = o.id
         JOIN workflow_executions e
-        ON e_op.execution_id == e.execution_id
+        ON e_op.execution_id = e.execution_id
         JOIN workflows wf
-        ON wf.active_execution_id == e.execution_id
-        WHERE e_op.instance_id = ?""";
+        ON wf.active_execution_id = e.execution_id
+        WHERE e_op.service_instance_id = ?""";
 
     private final LzyServiceStorage storage;
     private final ObjectMapper objectMapper;
@@ -71,6 +73,7 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
                 st.setString(2, OpType.START_EXECUTION.toString());
                 st.setString(3, instanceId);
                 st.setString(4, execId);
+                st.setString(5, null);
                 st.executeUpdate();
             }
         });
@@ -87,13 +90,14 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
                 st.setString(2, OpType.FINISH_EXECUTION.name());
                 st.setString(3, instanceId);
                 st.setString(4, execId);
+                st.setString(5, null);
                 st.executeUpdate();
             }
         });
     }
 
     @Override
-    public void createAbortOp(String opId, String instanceId, String execId, TransactionHandle transaction)
+    public void createAbortOp(String opId, String instanceId, String execId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         LOG.debug("Create abort execution operation in storage: { opId: {}, execId: {} }", opId, execId);
@@ -103,6 +107,7 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
                 st.setString(2, OpType.ABORT_EXECUTION.name());
                 st.setString(3, instanceId);
                 st.setString(4, execId);
+                st.setString(5, null);
                 st.executeUpdate();
             }
         });
@@ -181,7 +186,7 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
     }
 
     @Override
-    public ExecuteGraphState getState(String opId, TransactionHandle transaction) throws SQLException {
+    public ExecuteGraphState getState(String opId, @Nullable TransactionHandle transaction) throws SQLException {
         return DbOperation.execute(transaction, storage, connection -> {
             try (var st = connection.prepareStatement(QUERY_SELECT_EXECUTE_GRAPH_OP_STATE)) {
                 st.setString(1, opId);
@@ -250,8 +255,8 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
                     var desc = rs.getString("desc");
                     var idk = rs.getString("idk");
                     var userId = rs.getString("user_id");
-                    var wfName = rs.getString("workflow_name");
-                    var execId = rs.getString("execution_id");
+                    var wfName = rs.getString("wf_name");
+                    var execId = rs.getString("exec_id");
 
                     result.add(new ExecutionOpState(type, opId, desc, idk, userId, wfName, execId));
                 }
