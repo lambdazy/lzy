@@ -8,7 +8,6 @@ import ai.lzy.service.TestContextConfigurator;
 import ai.lzy.service.ValidationTests;
 import ai.lzy.service.test.LzyServiceTestContext;
 import ai.lzy.storage.test.BaseTestWithStorage;
-import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
@@ -182,5 +181,20 @@ public class OthersWorkflowPermissionTests {
         //noinspection ResultOfMethodCallIgnored
         var sre = assertThrows(StatusRuntimeException.class, () -> authGrpcClient2.getAvailablePools(request));
         assertSame(Status.INVALID_ARGUMENT.getCode(), sre.getStatus().getCode());
+    }
+
+    @Test
+    public void privateAbortIsInternalOnly() {
+        var request = LWFS.AbortWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName)
+            .setExecutionId(executionId)
+            .setReason(reason)
+            .build();
+
+        //noinspection ResultOfMethodCallIgnored
+        var sre = assertThrows(StatusRuntimeException.class, () ->
+            lzyServiceTestContext.privateGrpcClient().abortWorkflow(request)
+        );
+        assertSame(Status.UNAVAILABLE.getCode(), sre.getStatus().getCode());
     }
 }

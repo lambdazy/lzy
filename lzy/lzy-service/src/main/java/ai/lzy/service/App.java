@@ -1,5 +1,6 @@
 package ai.lzy.service;
 
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AllowSubjectOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationsService;
@@ -11,6 +12,7 @@ import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
 import ai.lzy.util.grpc.GrpcLogsInterceptor;
 import ai.lzy.util.grpc.RequestIdInterceptor;
 import com.google.common.net.HostAndPort;
+import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
@@ -26,6 +28,8 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static ai.lzy.service.LzyService.APP;
+
 @Singleton
 public class App {
     private static final Logger LOG = LogManager.getLogger(App.class);
@@ -34,18 +38,20 @@ public class App {
     private final MetricReporter metricReporter;
 
     public App(LzyServiceConfig config, LzyService lzyService, LzyPrivateService lzyPrivateService,
+               @Named("IamServiceChannel") ManagedChannel iamChannel,
                @Named("LzyServiceAuthInterceptor") AuthServerInterceptor authInterceptor,
                @Named("LzyServiceOperationService") OperationsService operationService,
                @Named("LzyServiceMetricReporter") MetricReporter metricReporter,
                ClientVersionInterceptor clientVersionInterceptor)
     {
         this.metricReporter = metricReporter;
+        final var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
         this.grpcServer = createServer(
             HostAndPort.fromString(config.getAddress()),
             clientVersionInterceptor,
             authInterceptor,
             ServerInterceptors.intercept(lzyService, new ExecutionIdInterceptor()),
-            lzyPrivateService.bindService(),
+            ServerInterceptors.intercept(lzyPrivateService, internalOnly),
             operationService.bindService());
     }
 
