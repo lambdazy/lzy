@@ -38,6 +38,8 @@ public class TaskServiceImpl implements TaskService {
     private final Map<String, Integer> limitByWorkflow = new ConcurrentHashMap<>();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
+    private Consumer<TaskState> taskOnComplete;
+
     @Inject
     public TaskServiceImpl(ServiceConfig config, TaskDao taskDao,
                            @Named("GraphExecutorOperationsExecutor") OperationsExecutor operationsExecutor)
@@ -51,8 +53,18 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public void addTask(TaskState task, Consumer<TaskState> onComplete) {
+    public void init(Consumer<TaskState> onComplete) {
+        this.taskOnComplete = onComplete;
+    }
 
+    @Override
+    public void addTasks(List<TaskState> tasks) {
+        tasks.stream()
+            .filter(task -> task.tasksDependedOn().isEmpty())
+            .forEach(readyTasks::add);
+        tasks.stream()
+            .filter(task -> !task.tasksDependedOn().isEmpty())
+            .forEach(task -> waitingTasks.put(task.id(), task));
     }
 
     @Override
