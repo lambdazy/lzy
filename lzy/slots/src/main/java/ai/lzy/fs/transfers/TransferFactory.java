@@ -1,7 +1,6 @@
 package ai.lzy.fs.transfers;
 
 import ai.lzy.storage.StorageClientFactory;
-import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.common.LC;
 import io.grpc.Status;
 

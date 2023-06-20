@@ -90,7 +90,7 @@ public class OutputSlot extends Thread implements Slot {
                 .build());
 
             if (res.hasPeer()) {
-                try (var transfer = context.transferFactory().output(res.getPeer())){
+                try (var transfer = context.transferFactory().output(res.getPeer())) {
                     transfer.readFrom(backend.readFromOffset(0));
 
                     context.channelManager().transferCompleted(LCMS.TransferCompletedRequest.newBuilder()

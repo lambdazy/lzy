@@ -1,17 +1,14 @@
 package ai.lzy.fs.transfers;
 
-import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.v2.LSA;
 import ai.lzy.v1.slots.v2.LzySlotsApiGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
-import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.nio.channels.SeekableByteChannel;
 import java.util.Iterator;
 import java.util.concurrent.TimeUnit;

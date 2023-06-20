@@ -6,7 +6,6 @@ import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.v2.LSA;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
