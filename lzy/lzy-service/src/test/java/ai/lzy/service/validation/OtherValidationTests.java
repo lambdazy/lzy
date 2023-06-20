@@ -24,7 +24,6 @@ import static ai.lzy.service.IamUtils.authorize;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 
-@Ignore
 public class OtherValidationTests {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();

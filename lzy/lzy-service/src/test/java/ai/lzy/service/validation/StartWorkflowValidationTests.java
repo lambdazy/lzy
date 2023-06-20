@@ -21,7 +21,6 @@ import java.sql.SQLException;
 import static ai.lzy.service.IamUtils.authorize;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
-@Ignore
 public class StartWorkflowValidationTests implements ValidationTests<LWFS.StartWorkflowRequest> {
     private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
     private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();

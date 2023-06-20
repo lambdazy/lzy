@@ -30,6 +30,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
@@ -227,9 +228,18 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         }
 
         if (channels.isEmpty()) {
-            LOG.error("Execution with id='{}' have no channels", executionId);
-            response.onError(Status.INVALID_ARGUMENT.withDescription("Cannot found any channel associated with " +
-                "passed execution").asRuntimeException());
+            LOG.warn("Execution with id='{}' have no channels", executionId);
+            response.onNext(
+                Operation.createCompleted(
+                    UUID.randomUUID().toString(),
+                    "ChannelManager",
+                    operationDescription,
+                    idempotencyKey,
+                    null,
+                    Any.pack(LCMPS.ChannelDestroyAllMetadata.getDefaultInstance())
+                ).toProto()
+            );
+            response.onCompleted();
             return;
         }
 
@@ -337,7 +347,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                 channelDao.listChannels(executionId, Channel.LifeStatus.ALIVE));
         } catch (Exception e) {
             LOG.error("Get channels status of execution (executionId: {}) failed, "
-                      + "got exception: {}", executionId, e.getMessage(), e);
+                + "got exception: {}", executionId, e.getMessage(), e);
             response.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }

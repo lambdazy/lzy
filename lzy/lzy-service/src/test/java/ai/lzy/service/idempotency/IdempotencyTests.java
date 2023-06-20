@@ -60,6 +60,7 @@ public class IdempotencyTests extends ContextAwareTests {
 
     private void privateAbortWorkflow(String executionId) {
         var request = LWFS.AbortWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName)
             .setExecutionId(executionId)
             .setReason(reason)
             .build();
