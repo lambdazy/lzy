@@ -2,17 +2,17 @@ package ai.lzy.storage.yc;
 
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
+import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.storage.StorageService;
 import ai.lzy.storage.config.StorageConfig;
 import ai.lzy.storage.data.StorageDataSource;
-import ai.lzy.util.auth.YcIamClient;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.storage.LSS.*;
 import com.amazonaws.SdkClientException;
-import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
@@ -26,13 +26,25 @@ import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import yandex.cloud.api.iam.v1.*;
+import yandex.cloud.api.iam.v1.ServiceAccountOuterClass.ServiceAccount;
+import yandex.cloud.api.iam.v1.ServiceAccountServiceGrpc.ServiceAccountServiceBlockingStub;
+import yandex.cloud.api.iam.v1.ServiceAccountServiceOuterClass.CreateServiceAccountRequest;
+import yandex.cloud.api.iam.v1.awscompatibility.AccessKeyServiceGrpc;
+import yandex.cloud.api.iam.v1.awscompatibility.AccessKeyServiceGrpc.AccessKeyServiceBlockingStub;
+import yandex.cloud.api.iam.v1.awscompatibility.AccessKeyServiceOuterClass;
+import yandex.cloud.api.operation.OperationServiceGrpc;
+import yandex.cloud.api.operation.OperationServiceGrpc.OperationServiceBlockingStub;
+import yandex.cloud.sdk.ServiceFactory;
+import yandex.cloud.sdk.auth.Auth;
+import yandex.cloud.sdk.utils.OperationUtils;
 
-import java.io.IOException;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.time.Duration;
+import java.util.UUID;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
@@ -41,6 +53,8 @@ import static ai.lzy.util.grpc.ProtoConverter.toProto;
 @Requires(property = "storage.yc.enabled", value = "true")
 @Requires(property = "storage.s3.yc.enabled", value = "true")
 public class YandexCloudS3Storage implements StorageService {
+    private static final Duration YC_CALL_TIMEOUT = Duration.ofSeconds(30);
+    private static final Duration SA_TIMEOUT = Duration.ofSeconds(30);
     private static final Logger LOG = LogManager.getLogger(YandexCloudS3Storage.class);
 
     private final StorageConfig.S3Credentials.YcS3Credentials s3Creds;
@@ -48,6 +62,9 @@ public class YandexCloudS3Storage implements StorageService {
     private final StorageDataSource dataSource;
 
     private final OperationDao operationDao;
+    private final ServiceAccountServiceBlockingStub saClient;
+    private final OperationServiceBlockingStub operationService;
+    private final AccessKeyServiceBlockingStub keyService;
 
     public YandexCloudS3Storage(StorageConfig.S3Credentials.YcS3Credentials s3, StorageConfig.YcCredentials yc,
                                 StorageDataSource dataSource, @Named("StorageOperationDao") OperationDao operationDao)
@@ -56,6 +73,21 @@ public class YandexCloudS3Storage implements StorageService {
         this.ycCreds = yc;
         this.dataSource = dataSource;
         this.operationDao = operationDao;
+
+        var provider = Auth.computeEngineBuilder().build();
+
+        var factory = ServiceFactory.builder()
+            .credentialProvider(provider)
+            .endpoint(yc.getEndpoint())
+            .requestTimeout(YC_CALL_TIMEOUT)
+            .build();
+
+        this.saClient = factory.create(ServiceAccountServiceBlockingStub.class,
+            ServiceAccountServiceGrpc::newBlockingStub);
+        this.operationService = factory.create(OperationServiceBlockingStub.class,
+            OperationServiceGrpc::newBlockingStub);
+        this.keyService = factory.create(AccessKeyServiceBlockingStub.class,
+            AccessKeyServiceGrpc::newBlockingStub);
     }
 
     @Override
@@ -89,54 +121,18 @@ public class YandexCloudS3Storage implements StorageService {
             return;
         }
 
-        final String[] tokens = {/* service_account */ null, /* access_token */ null, /* secret_token */ null};
+        final CreatedServiceAccount sa;
+        String keyName = userId + bucketName;
 
-        // todo: ssokolvyak -- add with retries, but pull createServiceAccount call out from transaction
-        //  or make it idempotent
-        try (var transaction = TransactionHandle.create(dataSource)) {
-            DbOperation.execute(transaction, dataSource, conn -> {
-                try (var st = conn.prepareStatement("""
-                    select service_account, access_token, secret_token
-                    from yc_s3_credentials
-                    where user_id = ?
-                    for update"""))
-                {
-                    st.setString(1, request.getUserId());
+        if (operation.idempotencyKey() != null) {
+            keyName += operation.idempotencyKey().token();
+        }
 
-                    var rs = st.executeQuery();
-                    if (rs.next()) {
-                        tokens[0] = rs.getString("service_account");
-                        tokens[1] = rs.getString("access_token");
-                        tokens[2] = rs.getString("secret_token");
-                        return;
-                    }
-                }
+        var idempotencyKey = UUID.nameUUIDFromBytes(keyName.getBytes());
 
-                String[] newTokens;
-                try {
-                    newTokens = createServiceAccountForUser(request.getUserId(), request.getBucket());
-                } catch (Exception e) {
-                    throw new SQLException(e);
-                }
-
-                try (var st = conn.prepareStatement("""
-                    insert into yc_s3_credentials (user_id, service_account, access_token, secret_token)
-                    values (?, ?, ?, ?)"""))
-                {
-                    st.setString(1, request.getUserId());
-                    st.setString(2, newTokens[0]);
-                    st.setString(3, newTokens[1]);
-                    st.setString(4, newTokens[2]);
-                    st.executeUpdate();
-                }
-
-                tokens[0] = newTokens[0];
-                tokens[1] = newTokens[1];
-                tokens[2] = newTokens[2];
-            });
-
-            transaction.commit();
-        } catch (SQLException e) {
+        try {
+            sa = DbHelper.withRetries(LOG, () -> getOrCreateSa(userId, bucketName, idempotencyKey));
+        } catch (Exception e) {
             LOG.error("SQL error while creating bucket '{}' for '{}': {}",
                 request.getBucket(), request.getUserId(), e.getMessage(), e);
             safeDeleteBucket(request.getUserId(), request.getBucket(), client);
@@ -155,7 +151,7 @@ public class YandexCloudS3Storage implements StorageService {
 
         try {
             var acl = client.getBucketAcl(request.getBucket());
-            var grantee = new CanonicalGrantee(/* service_account */ tokens[0]);
+            var grantee = new CanonicalGrantee(/* service_account */ sa.id);
             acl.grantPermission(grantee, Permission.FullControl);
             client.setBucketAcl(request.getBucket(), acl);
         } catch (SdkClientException e) {
@@ -178,8 +174,8 @@ public class YandexCloudS3Storage implements StorageService {
         var response = Any.pack(CreateStorageResponse.newBuilder()
             .setS3(LMST.S3Credentials.newBuilder()
                 .setEndpoint(s3Creds.getEndpoint())
-                .setAccessToken(tokens[1])
-                .setSecretToken(tokens[2])
+                .setAccessToken(sa.keyId)
+                .setSecretToken(sa.keySecret)
                 .build())
             .build());
 
@@ -199,6 +195,52 @@ public class YandexCloudS3Storage implements StorageService {
             }
 
             responseObserver.onError(errorStatus.asRuntimeException());
+        }
+    }
+
+    private CreatedServiceAccount getOrCreateSa(String userId, String bucket,
+                                                 UUID idempotencyKey) throws SQLException
+    {
+        try (var tx = TransactionHandle.create(dataSource)) {
+            return DbOperation.execute(tx, dataSource, conn -> {
+                try (PreparedStatement st = conn.prepareStatement("""
+                select service_account, access_token, secret_token
+                from yc_s3_credentials
+                where user_id = ?
+                for update"""))
+                {
+                    st.setString(1, userId);
+
+                    var rs = st.executeQuery();
+                    if (rs.next()) {
+                        var saId = rs.getString("service_account");
+                        var keyId = rs.getString("access_token");
+                        var keySecret = rs.getString("secret_token");
+
+                        return new CreatedServiceAccount(saId, keyId, keySecret);
+                    }
+                }
+
+                CreatedServiceAccount newTokens;
+                try {
+                    newTokens = createServiceAccountForUser(userId, bucket, idempotencyKey);
+                } catch (Exception e) {
+                    throw new SQLException(e);
+                }
+
+                try (PreparedStatement st = conn.prepareStatement("""
+                insert into yc_s3_credentials (user_id, service_account, access_token, secret_token)
+                values (?, ?, ?, ?)"""))
+                {
+                    st.setString(1, userId);
+                    st.setString(2, newTokens.id());
+                    st.setString(3, newTokens.keyId());
+                    st.setString(4, newTokens.keySecret());
+                    st.executeUpdate();
+                }
+
+                return newTokens;
+            });
         }
     }
 
@@ -265,17 +307,41 @@ public class YandexCloudS3Storage implements StorageService {
         }
     }
 
-    private String[] createServiceAccountForUser(String userId, String bucket)
-        throws IOException, InterruptedException
+    /**
+     * Creates a service account for the user and returns its id and access key.
+     * This method is idempotent. It can create other keys for same idempotency key, but it is fine.
+     * YC requires UUID as idempotency key, so we use it.
+     */
+    private CreatedServiceAccount createServiceAccountForUser(String userId, String bucket, UUID idempotencyKey)
+        throws Exception
     {
-        CloseableHttpClient httpclient = HttpClients.createDefault();
+        var saCli = GrpcUtils.withIdempotencyKey(saClient, idempotencyKey.toString());
 
-        String serviceAccountId = YcIamClient.createServiceAccount(userId, RenewableToken.getToken(), httpclient,
-            ycCreds.getFolderId(), bucket);
+        var op = saCli.create(CreateServiceAccountRequest.newBuilder()
+            .setFolderId(ycCreds.getFolderId())
+            .setDescription("service account for user " + userId)
+            .setName(bucket)
+            .build());
+        var res = OperationUtils.wait(operationService, op, SA_TIMEOUT);
+        if (res.hasError()) {
+            LOG.error("Error while creating service account: {}", res.getError());
+            throw new Exception("Error while creating service account");
+        }
 
-        AWSCredentials credentials = YcIamClient.createStaticCredentials(serviceAccountId,
-            RenewableToken.getToken(), httpclient);
+        var sa = res.getResponse().unpack(ServiceAccount.class);
+        var saId = sa.getId();
 
-        return new String[] {serviceAccountId, credentials.getAWSAccessKeyId(), credentials.getAWSSecretKey()};
+        var key = keyService.create(AccessKeyServiceOuterClass.CreateAccessKeyRequest.newBuilder()
+            .setServiceAccountId(saId)
+            .setDescription("key for user" + userId)
+            .build());
+
+        return new CreatedServiceAccount(saId, key.getAccessKey().getId(), key.getSecret());
     }
+
+    private record CreatedServiceAccount(
+        String id,
+        String keyId,
+        String keySecret
+    ) { }
 }
