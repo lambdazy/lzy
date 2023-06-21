@@ -40,7 +40,6 @@ import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.auth.Auth;
 import yandex.cloud.sdk.auth.provider.CredentialProvider;
 
-import java.nio.file.Path;
 import java.time.Duration;
 
 @Factory
