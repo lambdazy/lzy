@@ -68,11 +68,8 @@ public class BeanFactory {
 
     @Singleton
     @Requires(property = "allocator.yc-credentials.enabled", value = "true")
-    public CredentialProvider credentialProvider(ServiceConfig.YcCredentialsConfig config) {
-        return Auth.apiKeyBuilder()
-            .fromFile(Path.of(config.getServiceAccountFile()))
-            .cloudIAMEndpoint(config.getIamEndpoint())
-            .build();
+    public CredentialProvider credentialProvider() {
+        return Auth.computeEngineBuilder().build();
     }
 
     @Singleton
