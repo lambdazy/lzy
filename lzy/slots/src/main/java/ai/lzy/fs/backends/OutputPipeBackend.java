@@ -1,4 +1,4 @@
-package ai.lzy.fs.backands;
+package ai.lzy.fs.backends;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
@@ -12,14 +12,14 @@ import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class OutputPipeBackand implements OutputSlotBackend {
-    public static final Logger LOG = LogManager.getLogger(OutputPipeBackand.class);
+public class OutputPipeBackend implements OutputSlotBackend {
+    public static final Logger LOG = LogManager.getLogger(OutputPipeBackend.class);
 
     private final Path pipePath;
     private final File storageFile;
     private final AtomicBoolean isReady = new AtomicBoolean(false);
 
-    public OutputPipeBackand(Path pipePath) throws IOException, InterruptedException {
+    public OutputPipeBackend(Path pipePath) throws IOException, InterruptedException {
         this.pipePath = pipePath;
         storageFile = File.createTempFile("storage", ".tmp");
 

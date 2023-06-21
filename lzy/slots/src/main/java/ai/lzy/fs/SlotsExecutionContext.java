@@ -1,7 +1,7 @@
 package ai.lzy.fs;
 
-import ai.lzy.fs.backands.FileInputBackend;
-import ai.lzy.fs.backands.OutputPipeBackand;
+import ai.lzy.fs.backends.FileInputBackend;
+import ai.lzy.fs.backends.OutputPipeBackend;
 import ai.lzy.fs.transfers.TransferFactory;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
@@ -56,7 +56,7 @@ public class SlotsExecutionContext {
 
                     slots.add(inputSlot);
                 } else {
-                    var backend = new OutputPipeBackand(fsPath);
+                    var backend = new OutputPipeBackend(fsPath);
                     var outputSlot = new OutputSlot(backend, desc.getName(), channelId, context);
 
                     slots.add(outputSlot);

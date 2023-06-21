@@ -1,6 +1,7 @@
 package ai.lzy.fs;
 
-import ai.lzy.fs.backands.InputSlotBackend;
+import ai.lzy.fs.backends.InputSlotBackend;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.v2.LSA;
@@ -73,7 +74,7 @@ public class InputSlot extends Thread implements Slot {
 
     @Override
     public synchronized void close() {
-        if (state.get().equals(State.CLOSED)) {
+        if (state.getAndSet(State.CLOSED).equals(State.CLOSED)) {
             return;
         }
 
@@ -82,7 +83,6 @@ public class InputSlot extends Thread implements Slot {
             ready.completeExceptionally(new IllegalStateException("Closed before ready"));
         }
 
-        setState(State.CLOSED);
         context.slotsService().unregister(this.slotId);
 
         try {
@@ -120,13 +120,13 @@ public class InputSlot extends Thread implements Slot {
     private void logic() throws Exception {
         context.slotsService().register(this); // Registering here before bind
 
-        var resp = context.channelManager().bind(LCMS.BindRequest.newBuilder()
+        var resp = GrpcUtils.withRetries(LOG, () -> context.channelManager().bind(LCMS.BindRequest.newBuilder()
             .setPeerId(slotId)
             .setExecutionId(context.executionId())
             .setChannelId(channelId)
             .setPeerUrl(context.apiUrl())
             .setRole(LCMS.BindRequest.Role.CONSUMER)
-            .build());
+            .build()));
 
         final String transferId;
         final LC.PeerDescription peerDescription;

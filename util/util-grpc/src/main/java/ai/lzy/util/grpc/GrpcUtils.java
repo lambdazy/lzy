@@ -9,17 +9,21 @@ import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.AbstractBlockingStub;
 import jakarta.annotation.Nullable;
+import org.apache.logging.log4j.Logger;
 
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 public final class GrpcUtils {
 
     public static final ServerInterceptor NO_AUTH = null;
     public static final Supplier<String>  NO_AUTH_TOKEN = null;
+    private static final RetryConfig      DEFAULT_RETRY_CONFIG = new RetryConfig(0, GrpcUtils::isRetryable,
+        Duration.ofMillis(100), 1);
 
     private static final List<ClientHeaderInterceptor.Entry<String>> COMMON_CLIENT_HEADERS = List.of(
         new ClientHeaderInterceptor.Entry<>(GrpcHeaders.X_REQUEST_ID, GrpcHeaders::getRequestId),
@@ -129,5 +133,60 @@ public final class GrpcUtils {
             case UNAVAILABLE, ABORTED, DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED -> true;
             default -> false;
         };
+    }
+
+    public static boolean isRetryable(Exception e) {
+        if (e instanceof StatusRuntimeException) {
+            return retryableStatusCode(((StatusRuntimeException) e).getStatus());
+        }
+        if (e instanceof StatusException) {
+            return retryableStatusCode(((StatusException) e).getStatus());
+        }
+        return false;
+    }
+
+    record RetryConfig(
+        int count,  // Number of retries, or 0 for infinity
+        Function<Exception, Boolean> isRetryableMapper,
+        Duration initialBackoff,
+        int backoffMultiplayer
+    ) {}
+
+    public static <T> T withRetries(Logger logger, RetryConfig config, Supplier<T> func) throws Exception {
+        int count = config.count;
+        var infinityRetry = count == 0;
+
+        while (true) {
+            try {
+                return func.get();
+            } catch (Exception e) {
+                logger.error("Error in grpc");
+
+                if (count > 0) {
+                    count--;
+                }
+
+                if (!config.isRetryableMapper.apply(e)) {
+                    logger.error("Got not retryable error while executing some grpc call: ", e);
+                    throw e;
+                }
+
+                if (count > 0 || infinityRetry) {
+                    logger.warn("Got retryable error while executing some grpc call, retrying it: ", e);
+                    continue;
+                }
+
+                logger.error("Got retryable error while executing some grpc call, but retry count exceeded: ", e);
+                throw e;
+            }
+        }
+    }
+
+    public static <T> T withRetries(Logger logger, Supplier<T> func) throws Exception {
+        return withRetries(logger, DEFAULT_RETRY_CONFIG, func);
+    }
+
+    public static void withRetries(Logger logger, Runnable func) throws Exception {
+        withRetries(logger, DEFAULT_RETRY_CONFIG, () -> {func.run(); return null;});
     }
 }

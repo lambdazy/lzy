@@ -1,6 +1,6 @@
 package ai.lzy.fs;
 
-import ai.lzy.fs.backands.OutputSlotBackend;
+import ai.lzy.fs.backends.OutputSlotBackend;
 import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.v2.LSA;

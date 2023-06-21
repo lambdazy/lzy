@@ -1,6 +1,6 @@
 package ai.lzy.fs;
 
-import ai.lzy.fs.backands.*;
+import ai.lzy.fs.backends.*;
 import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LC;
@@ -104,7 +104,7 @@ public class SlotsTest {
     public void testSimple() throws IOException, InterruptedException {
         var pipePath = Path.of("/tmp", "lzy", "test_simple-out");
 
-        var outBackand = new OutputPipeBackand(pipePath);
+        var outBackand = new OutputPipeBackend(pipePath);
         var outHandle = channelManagerMock.onBind("1");
 
         var outSlot = new OutputSlot(outBackand, "1", "chan", executionContext.context());
