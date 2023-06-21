@@ -1,23 +1,4 @@
-resource "kubernetes_secret" "allocator_sa_key" {
-  metadata {
-    name = "allocator-sa-key"
-  }
-  data = {
-    key = local.allocator-sa-key-json
-  }
-}
-
 locals {
-  allocator-sa-key-json = jsonencode({
-    "id" : yandex_iam_service_account_key.allocator-sa-key.id
-    "service_account_id" : yandex_iam_service_account_key.allocator-sa-key.service_account_id
-    "created_at" : yandex_iam_service_account_key.allocator-sa-key.created_at
-    "key_algorithm" : yandex_iam_service_account_key.allocator-sa-key.key_algorithm
-    "public_key" : yandex_iam_service_account_key.allocator-sa-key.public_key
-    "private_key" : yandex_iam_service_account_key.allocator-sa-key.private_key
-  })
-
-  user-clusters = [yandex_kubernetes_cluster.main.id]
   allocator-labels = {
     app                         = "allocator"
     "app.kubernetes.io/name"    = "allocator"
@@ -28,12 +9,29 @@ locals {
   allocator-image    = var.allocator-image
 }
 
+resource "random_password" "allocator_db_passwords" {
+  length  = 16
+  special = false
+}
+
+resource "kubernetes_secret" "allocator_db_secret" {
+  metadata {
+    name      = "db-secret-${local.allocator-k8s-name}"
+    namespace = "default"
+  }
+
+  data = {
+    username = local.allocator-k8s-name,
+    password = random_password.allocator_db_passwords.result,
+    db_host  = var.db-host
+    db_port  = 6432
+    db_name  = local.allocator-k8s-name
+  }
+
+  type = "Opaque"
+}
+
 resource "kubernetes_stateful_set" "allocator" {
-  depends_on = [
-    yandex_kubernetes_node_group.portals,
-    yandex_kubernetes_node_group.workers,
-    yandex_kubernetes_node_group.services
-  ]
   metadata {
     name   = local.allocator-k8s-name
     labels = local.allocator-labels
@@ -82,19 +80,19 @@ resource "kubernetes_stateful_set" "allocator" {
 
           env {
             name  = "ALLOCATOR_USER_CLUSTERS"
-            value = yandex_kubernetes_cluster.allocator_cluster.id
+            value = var.pool-cluster-id
           }
 
           env {
             name  = "ALLOCATOR_SERVICE_CLUSTERS"
-            value = yandex_kubernetes_cluster.main.id
+            value = var.service-cluster-id
           }
 
           env {
             name = "ALLOCATOR_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["allocator"].metadata[0].name
+                name = kubernetes_secret.allocator_db_secret.metadata[0].name
                 key  = "username"
               }
             }
@@ -103,7 +101,7 @@ resource "kubernetes_stateful_set" "allocator" {
             name = "ALLOCATOR_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["allocator"].metadata[0].name
+                name = kubernetes_secret.allocator_db_secret.metadata[0].name
                 key  = "password"
               }
             }
@@ -111,7 +109,7 @@ resource "kubernetes_stateful_set" "allocator" {
 
           env {
             name  = "ALLOCATOR_DATABASE_URL"
-            value = "jdbc:postgresql://${yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn}:6432/allocator"
+            value = "jdbc:postgresql://${kubernetes_secret.allocator_db_secret.data.db_host}:${kubernetes_secret.allocator_db_secret.data.db_port}/${kubernetes_secret.allocator_db_secret.data.db_name}"
           }
 
           env {
@@ -216,11 +214,6 @@ resource "kubernetes_stateful_set" "allocator" {
             name  = "K8S_CONTAINER_NAME"
             value = local.allocator-k8s-name
           }
-
-          volume_mount {
-            name       = "sa-key"
-            mount_path = "/tmp/sa-key/"
-          }
           volume_mount {
             name       = "varloglzy"
             mount_path = "/var/log/lzy"
@@ -242,16 +235,6 @@ resource "kubernetes_stateful_set" "allocator" {
           }
         }
 
-        volume {
-          name = "sa-key"
-          secret {
-            secret_name = kubernetes_secret.allocator_sa_key.metadata[0].name
-            items {
-              key  = "key"
-              path = "sa-key.json"
-            }
-          }
-        }
         volume {
           name = "unified-agent-config"
           config_map {
@@ -301,7 +284,7 @@ resource "kubernetes_service" "allocator_service" {
     labels = local.allocator-labels
     annotations = {
       "yandex.cloud/load-balancer-type" : "internal"
-      "yandex.cloud/subnet-id" : yandex_vpc_subnet.custom-subnet.id
+      "yandex.cloud/subnet-id" : var.custom-subnet-id
     }
   }
   spec {

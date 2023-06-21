@@ -1,7 +1,7 @@
 module "kafka" {
   count = var.enable_kafka ? 1 : 0
   source                       = "./kafka"
-  subnet_id                    = yandex_vpc_subnet.custom-subnet.id
+  subnet_id                    = var.custom-subnet-id
 }
 
 locals {

@@ -1,102 +1,109 @@
 locals {
-  graph-labels = {
-    app                         = "graph"
-    "app.kubernetes.io/name"    = "graph"
-    "app.kubernetes.io/part-of" = "graph-executor"
-    "lzy.ai/app"                = "graph"
+  whiteboard-labels = {
+    app                      = "whiteboard"
+    "app.kubernetes.io/name" = "whiteboard"
+    "lzy.ai/app"             = "whiteboard"
   }
-  graph-k8s-name = "graph"
-  graph-image    = var.graph-image
+  whiteboard-k8s-name = "whiteboard"
+  whiteboard-image    = var.whiteboard-image
 }
 
-resource "kubernetes_deployment" "graph-executor" {
+resource "random_password" "whiteboard_db_passwords" {
+  length  = 16
+  special = false
+}
+
+resource "kubernetes_secret" "whiteboard_db_secret" {
   metadata {
-    name   = local.graph-k8s-name
-    labels = local.graph-labels
+    name      = "db-secret-${local.whiteboard-k8s-name}"
+    namespace = "default"
+  }
+
+  data = {
+    username = local.whiteboard-k8s-name,
+    password = random_password.whiteboard_db_passwords.result,
+    db_host  = var.db-host
+    db_port  = 6432
+    db_name  = local.whiteboard-k8s-name
+  }
+
+  type = "Opaque"
+}
+
+resource "kubernetes_deployment" "whiteboard" {
+  metadata {
+    name   = local.whiteboard-k8s-name
+    labels = local.whiteboard-labels
   }
   spec {
     strategy {
       type = "Recreate"
     }
     selector {
-      match_labels = local.graph-labels
+      match_labels = local.whiteboard-labels
     }
     template {
       metadata {
-        name   = local.graph-k8s-name
-        labels = local.graph-labels
+        name   = local.whiteboard-k8s-name
+        labels = local.whiteboard-labels
       }
       spec {
         container {
-          name              = local.graph-k8s-name
-          image             = local.graph-image
+          name              = local.whiteboard-k8s-name
+          image             = local.whiteboard-image
           image_pull_policy = "Always"
           port {
-            container_port = local.graph-port
+            container_port = local.whiteboard-port
           }
+
           port {
-            container_port = local.graph-executor-metrics-port
+            container_port = local.whiteboard-metrics-port
           }
 
           env {
-            name  = "GRAPH_EXECUTOR_METRICS_PORT"
-            value = local.graph-executor-metrics-port
+            name  = "WHITEBOARD_METRICS_PORT"
+            value = local.whiteboard-metrics-port
           }
 
           env {
-            name  = "GRAPH_EXECUTOR_PORT"
-            value = local.graph-port
+            name  = "WHITEBOARD_ADDRESS"
+            value = "0.0.0.0:${local.whiteboard-port}"
           }
 
           env {
-            name  = "GRAPH_EXECUTOR_SCHEDULER_PORT"
-            value = local.scheduler-port
-          }
-
-          env {
-            name  = "GRAPH_EXECUTOR_SCHEDULER_HOST"
-            value = kubernetes_service.scheduler_service.spec[0].cluster_ip
-          }
-
-          env {
-            name  = "GRAPH_EXECUTOR_EXECUTORS_COUNT"
-            value = 10
-          }
-
-          env {
-            name = "GRAPH_EXECUTOR_DATABASE_USERNAME"
+            name = "WHITEBOARD_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["graph-executor"].metadata[0].name
+                name = kubernetes_secret.whiteboard_db_secret.metadata[0].name
                 key  = "username"
               }
             }
           }
           env {
-            name = "GRAPH_EXECUTOR_DATABASE_PASSWORD"
+            name = "WHITEBOARD_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["graph-executor"].metadata[0].name
+                name = kubernetes_secret.whiteboard_db_secret.metadata[0].name
                 key  = "password"
               }
             }
           }
 
           env {
-            name  = "GRAPH_EXECUTOR_DATABASE_URL"
-            value = "jdbc:postgresql://${yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn}:6432/graph-executor"
+            name  = "WHITEBOARD_DATABASE_URL"
+            value = "jdbc:postgresql://${kubernetes_secret.whiteboard_db_secret.data.db_host}:${kubernetes_secret.whiteboard_db_secret.data.db_port}/${kubernetes_secret.whiteboard_db_secret.data.db_name}"
           }
 
           env {
-            name  = "GRAPH_EXECUTOR_DATABASE_ENABLED"
+            name  = "WHITEBOARD_DATABASE_ENABLED"
             value = "true"
           }
           env {
-            name  = "GRAPH_EXECUTOR_IAM_ADDRESS"
+            name  = "WHITEBOARD_IAM_ADDRESS"
             value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
           }
           env {
-            name = "GRAPH_EXECUTOR_IAM_INTERNAL_USER_NAME"
+            name = "WHITEBOARD_IAM_INTERNAL_USER_NAME"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
@@ -105,7 +112,7 @@ resource "kubernetes_deployment" "graph-executor" {
             }
           }
           env {
-            name = "GRAPH_EXECUTOR_IAM_INTERNAL_USER_PRIVATE_KEY"
+            name = "WHITEBOARD_IAM_INTERNAL_USER_PRIVATE_KEY"
             value_from {
               secret_key_ref {
                 name = kubernetes_secret.iam_internal_user_data.metadata[0].name
@@ -113,6 +120,7 @@ resource "kubernetes_deployment" "graph-executor" {
               }
             }
           }
+
           env {
             name = "K8S_POD_NAME"
             value_from {
@@ -131,7 +139,7 @@ resource "kubernetes_deployment" "graph-executor" {
           }
           env {
             name  = "K8S_CONTAINER_NAME"
-            value = local.graph-k8s-name
+            value = local.whiteboard-k8s-name
           }
 
           volume_mount {
@@ -152,11 +160,10 @@ resource "kubernetes_deployment" "graph-executor" {
             mount_path = "/etc/yandex/unified_agent/conf.d/"
           }
         }
-
         volume {
           name = "unified-agent-config"
           config_map {
-            name = kubernetes_config_map.unified-agent-config["graph-executor"].metadata[0].name
+            name = kubernetes_config_map.unified-agent-config["whiteboard"].metadata[0].name
             items {
               key  = "config"
               path = "config.yml"
@@ -195,17 +202,18 @@ resource "kubernetes_deployment" "graph-executor" {
   }
 }
 
-resource "kubernetes_service" "graph_executor_service" {
+resource "kubernetes_service" "whiteboard_service" {
   metadata {
-    name   = "${local.graph-k8s-name}-load-balancer"
-    labels = local.graph-labels
+    name   = "${local.whiteboard-k8s-name}-load-balancer"
+    labels = local.whiteboard-labels
   }
   spec {
-    selector = local.graph-labels
+    selector         = local.whiteboard-labels
+    load_balancer_ip = var.whiteboard_public_ip
     port {
-      port        = local.graph-port
-      target_port = local.graph-port
+      port        = local.whiteboard-port
+      target_port = local.whiteboard-port
     }
-    type = "ClusterIP"
+    type = "LoadBalancer"
   }
 }
