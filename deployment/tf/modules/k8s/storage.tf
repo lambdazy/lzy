@@ -126,24 +126,14 @@ resource "kubernetes_deployment" "storage" {
             value = "true"
           }
 
-#          env {
-#            name  = "STORAGE_YC_SERVICE_ACCOUNT_ID"
-#            value = yandex_iam_service_account.admin-sa.id
-#          }
-#
-#          env {
-#            name  = "STORAGE_YC_KEY_ID"
-#            value = yandex_iam_service_account_key.admin-sa-key.id
-#          }
-#
-#          env {
-#            name  = "STORAGE_YC_PRIVATE_KEY"
-#            value = yandex_iam_service_account_key.admin-sa-key.private_key
-#          }
-
           env {
             name  = "STORAGE_YC_FOLDER_ID"
             value = var.folder_id
+          }
+
+          env {
+            name  = "STORAGE_YC_ENDPOINT"
+            value = var.yc-endpoint
           }
 
           env {
