@@ -54,9 +54,7 @@ class ContainerEnv:
 
 # Примеры реализаций классов
 
-```
-
-## 3) Удаленное окружение питона.
+## 1) Удаленное окружение питона.
 
 ```python
 # Просто перечисляем нужные библиотеки для установки
@@ -107,7 +105,7 @@ class OnlyLocalEnv(PythonEnv):
 
 ```
 
-## 4) Настройки контейнера
+## 2) Настройки контейнера
 
 ```python
 class DockerEnv(ContainerEnv):
@@ -156,7 +154,7 @@ class Env:
 ```python
 class AutoEnvExplorer:
     pypi_index_url: str
-    exclude_packages: str
+    exclude_packages: List[str]
 
     def get_local_packages_dirs(self) -> List[str]:
         pass
