@@ -239,6 +239,7 @@ public class YandexCloudS3Storage implements StorageService {
                     st.executeUpdate();
                 }
 
+                tx.commit();
                 return newTokens;
             });
         }
