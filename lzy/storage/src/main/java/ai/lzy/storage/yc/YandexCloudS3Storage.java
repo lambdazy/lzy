@@ -337,7 +337,7 @@ public class YandexCloudS3Storage implements StorageService {
             .setDescription("key for user" + userId)
             .build());
 
-        return new CreatedServiceAccount(saId, key.getAccessKey().getId(), key.getSecret());
+        return new CreatedServiceAccount(saId, key.getAccessKey().getKeyId(), key.getSecret());
     }
 
     private record CreatedServiceAccount(

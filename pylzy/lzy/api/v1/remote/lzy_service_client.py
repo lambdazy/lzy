@@ -301,10 +301,12 @@ class LzyServiceClient:
 
     @redefine_errors
     @retry(config=RETRY_CONFIG, action_name="get default storage")
-    async def get_or_create_storage(self) -> Optional[Storage]:
+    async def get_or_create_storage(self, idempotency_key: Optional[str] = None) -> Optional[Storage]:
         await self.__start()
+        metadata = metadata_with(idempotency_key) if idempotency_key else None
+
         resp: GetOrCreateDefaultStorageResponse = await self.__stub.GetOrCreateDefaultStorage(
-            GetOrCreateDefaultStorageRequest())
+            GetOrCreateDefaultStorageRequest(), metadata=metadata)
         if resp.HasField("storage"):
             grpc_creds: converter.storage_creds.grpc_STORAGE_CREDS
             if resp.storage.HasField("azure"):
