@@ -96,6 +96,36 @@ resource "yandex_resourcemanager_folder_iam_binding" "allocator-compute-admin" {
   ]
 }
 
+resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
+  folder_id = var.folder_id
+
+  role = "iam.serviceAccounts.admin"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
+  ]
+}
+
+resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
+  folder_id = var.folder_id
+
+  role = "iam.serviceAccounts.keyAdmin"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
+  ]
+}
+
+resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
+  folder_id = var.folder_id
+
+  role = "iam.serviceAccounts.accessKeyAdmin"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
+  ]
+}
+
 resource "yandex_iam_service_account_key" "service-node-sa-key" {
   service_account_id = yandex_iam_service_account.service-node-sa.id
   description        = "key for node"

@@ -105,7 +105,7 @@ class RemoteRuntime(Runtime):
 
     async def storage(self) -> Optional[Storage]:
         if not self.__storage:
-            self.__storage = await self.__lzy_client.get_or_create_storage()
+            self.__storage = await self.__lzy_client.get_or_create_storage(idempotency_key=self.__gen_rand_idempt_key())
         return self.__storage
 
     @staticmethod
@@ -119,6 +119,8 @@ class RemoteRuntime(Runtime):
             raise ValueError("No provided storage")
         if isinstance(storage.credentials, FSCredentials):
             raise ValueError("Local FS storage cannot be default for remote runtime")
+
+        _LOG.debug(f"Starting workflow {workflow.name} with storage {storage}")
 
         exec_id = await self.__lzy_client.start_workflow(workflow_name=workflow.name, storage=storage,
                                                          storage_name=storage_name,
