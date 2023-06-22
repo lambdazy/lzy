@@ -45,7 +45,7 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 public class OperationRunnersFactory {
     private static final Logger LOG = LogManager.getLogger(OperationRunnersFactory.class);
 
-    private final String instanceId;
+    private final LzyServiceConfig serviceConfig;
     private final Storage storage;
     private final WorkflowDao wfDao;
     private final ExecutionDao execDao;
@@ -92,7 +92,7 @@ public class OperationRunnersFactory {
                                    LzyServiceMetrics metrics, LzyServiceConfig config,
                                    @Named("LzyServiceIdGenerator") IdGenerator idGenerator)
     {
-        this.instanceId = config.getInstanceId();
+        this.serviceConfig = config;
         this.storage = storage;
         this.wfDao = wfDao;
         this.execDao = execDao;
@@ -131,7 +131,7 @@ public class OperationRunnersFactory {
                 .build());
 
         return StartExecution.builder()
-            .setInstanceId(instanceId)
+            .setServiceConfig(serviceConfig)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)
@@ -169,7 +169,7 @@ public class OperationRunnersFactory {
         StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
 
         return FinishExecution.builder()
-            .setInstanceId(instanceId)
+            .setServiceConfig(serviceConfig)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)
@@ -206,7 +206,7 @@ public class OperationRunnersFactory {
         StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
 
         return AbortExecution.builder()
-            .setInstanceId(instanceId)
+            .setServiceConfig(serviceConfig)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)
@@ -247,7 +247,7 @@ public class OperationRunnersFactory {
         ExecuteGraphState state = withRetries(LOG, () -> execOpsDao.getState(opId, null));
 
         return ExecuteGraph.builder()
-            .setInstanceId(instanceId)
+            .setServiceConfig(serviceConfig)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)

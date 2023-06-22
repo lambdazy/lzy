@@ -124,14 +124,15 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
         log().error("{} Fail ExecuteGraph operation: {}", logPrefix(), status.getDescription());
 
         boolean[] success = {false};
-        var abortOp = Operation.create(userId(), "Abort execution: execId='%s'".formatted(execId()), null, null, null);
+        var abortOp = Operation.create(userId(), "Abort execution: execId='%s'".formatted(execId()),
+            serviceCfg().getOperations().getAbortWorkflowTimeout(), null, null);
         try {
             withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(storage())) {
                     success[0] = Objects.equals(wfDao().getExecutionId(userId(), wfName(), tx), execId());
                     if (success[0]) {
                         wfDao().setActiveExecutionId(userId(), wfName(), null, tx);
-                        execOpsDao().createAbortOp(abortOp.id(), instanceId(), execId(), tx);
+                        execOpsDao().createAbortOp(abortOp.id(), serviceCfg().getInstanceId(), execId(), tx);
                         operationsDao().create(abortOp, tx);
                         execDao().setFinishStatus(execId(), Status.INTERNAL.withDescription("error on execute graph"),
                             tx);

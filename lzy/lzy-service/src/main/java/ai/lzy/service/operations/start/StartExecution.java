@@ -8,6 +8,7 @@ import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.service.config.AllocatorSessionSpec;
 import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.StartExecutionState;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.service.operations.ExecutionOperationRunner;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
@@ -70,6 +71,8 @@ public final class StartExecution extends ExecutionOperationRunner {
     }
 
     private StepResult complete() {
+        InjectedFailures.failStartExecutionCompletion();
+
         var response = Any.pack(LWFS.StartWorkflowResponse.newBuilder().setExecutionId(execId()).build());
         try {
             withRetries(log(), () -> {
@@ -88,7 +91,6 @@ public final class StartExecution extends ExecutionOperationRunner {
             return sqlError ? StepResult.RESTART : StepResult.FINISH;
         }
 
-        metrics().activeExecutions.labels(userId()).inc();
         return StepResult.FINISH;
     }
 
@@ -97,14 +99,15 @@ public final class StartExecution extends ExecutionOperationRunner {
         log().error("{} Fail StartWorkflow operation: {}", logPrefix(), status.getDescription());
 
         boolean[] success = {false};
-        var abortOp = Operation.create(userId(), "Abort execution: execId='%s'".formatted(execId()), null, null, null);
+        var abortOp = Operation.create(userId(), "Abort execution: execId='%s'".formatted(execId()),
+            serviceCfg().getOperations().getAbortWorkflowTimeout(), null, null);
         try {
             withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(storage())) {
                     success[0] = Objects.equals(wfDao().getExecutionId(userId(), wfName(), tx), execId());
                     if (success[0]) {
                         wfDao().setActiveExecutionId(userId(), wfName(), null, tx);
-                        execOpsDao().createAbortOp(abortOp.id(), instanceId(), execId(), tx);
+                        execOpsDao().createAbortOp(abortOp.id(), serviceCfg().getInstanceId(), execId(), tx);
                         operationsDao().create(abortOp, tx);
                         execDao().setFinishStatus(execId(), Status.INTERNAL.withDescription("error on start"), tx);
                     }
