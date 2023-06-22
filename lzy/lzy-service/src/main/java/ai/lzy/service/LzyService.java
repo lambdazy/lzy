@@ -100,7 +100,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var newExecId = Objects.requireNonNull(GrpcHeaders.getExecutionId());
 
         var checkOpResultDelay = Duration.ofMillis(300);
-        var startOpTimeout = serviceCfg().getWaitAllocationTimeout().plus(Duration.ofSeconds(10));
+        var startOpTimeout = serviceCfg().getOperations().getStartWorkflowTimeout();
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
             StartWorkflowResponse.class, checkOpResultDelay, startOpTimeout, "Request to start workflow: %s"
@@ -127,7 +127,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
             if (oldExecId != null) {
                 stopOp = Operation.create(userId, "Stop execution: execId='%s'".formatted(oldExecId),
-                    Duration.ofMinutes(1), null, null);
+                    serviceCfg().getOperations().getAbortWorkflowTimeout(), null, null);
                 opsDao().create(stopOp, tx);
                 execOpsDao().createStopOp(stopOp.id(), serviceCfg().getInstanceId(), oldExecId, tx);
             }
@@ -204,7 +204,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var reason = request.getReason();
 
         var checkOpResultDelay = Duration.ofMillis(300);
-        var opTimeout = Duration.ofSeconds(10);
+        var opTimeout = serviceCfg().getOperations().getFinishWorkflowTimeout();
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
             FinishWorkflowResponse.class, checkOpResultDelay, opTimeout, "Request to finish workflow: %s"
@@ -313,7 +313,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var reason = request.getReason();
 
         var checkOpResultDelay = Duration.ofMillis(300);
-        var opTimeout = Duration.ofSeconds(10);
+        var opTimeout = serviceCfg().getOperations().getAbortWorkflowTimeout();
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
             AbortWorkflowResponse.class, checkOpResultDelay, opTimeout, "Request to abort workflow: %s"
@@ -419,7 +419,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var execId = request.getExecutionId();
 
         var checkOpResultDelay = Duration.ofMillis(300);
-        var opTimeout = Duration.ofSeconds(10);
+        var opTimeout = serviceCfg().getOperations().getExecuteGraphTimeout();
         Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOpResult(opsDao(), idempotencyKey, responseObserver,
             ExecuteGraphResponse.class, checkOpResultDelay, opTimeout, "Request to execute graph: %s"

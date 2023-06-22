@@ -8,6 +8,7 @@ import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.BeanFactory;
 import ai.lzy.service.LzyServiceMetrics;
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
@@ -18,7 +19,7 @@ import ai.lzy.v1.AllocatorGrpc.AllocatorBlockingStub;
 import io.grpc.Status;
 
 public abstract class ExecutionOperationRunner extends OperationRunnerBase {
-    private final String instanceId;
+    private final LzyServiceConfig serviceConfig;
 
     private final ExecutionStepContext stepCtx;
     private final LzyServiceMetrics metrics;
@@ -33,7 +34,7 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
 
     protected ExecutionOperationRunner(ExecutionOperationRunnerBuilder<?> builder) {
         super(builder.id, builder.description, builder.storage, builder.operationsDao, builder.executor);
-        this.instanceId = builder.instanceId;
+        this.serviceConfig = builder.serviceConfig;
         this.stepCtx = new ExecutionStepContext(builder.id, builder.userId, builder.wfName, builder.execId,
             builder.storage, builder.wfDao, builder.execDao, builder.graphDao, builder.execOpsDao,
             builder.internalUserCredentials, builder.idempotencyKey,
@@ -54,8 +55,8 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
         return stepCtx;
     }
 
-    protected String instanceId() {
-        return instanceId;
+    protected LzyServiceConfig serviceCfg() {
+        return serviceConfig;
     }
 
     protected String userId() {
@@ -119,7 +120,7 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
     }
 
     protected abstract static class ExecutionOperationRunnerBuilder<T extends ExecutionOperationRunnerBuilder<T>> {
-        private String instanceId;
+        private LzyServiceConfig serviceConfig;
         private String id;
         private String description;
         private String idempotencyKey;
@@ -144,8 +145,8 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
 
         public abstract ExecutionOperationRunner build();
 
-        public T setInstanceId(String id) {
-            this.instanceId = id;
+        public T setServiceConfig(LzyServiceConfig serviceConfig) {
+            this.serviceConfig = serviceConfig;
             return self();
         }
 
