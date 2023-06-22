@@ -1,7 +1,7 @@
 В чем у нас проблема:
-1) У нас растет количество параметров окружения: добавили exclude_packages, pip_index_url, а уже видно, что это не конец: будут additional_index_url, будут disk_io, network_policy, и проч.
-2) Вместе с ними растет количество несовместимых друг с другом комбинаций параметров, усложняется валидация, ад, смерть. Сейчас уже сложно сказать, как именно работает опция local_paths, например.
-3) У нас абсолюбно неявная механика мерджа параметров окружения с разных уровней: операция, воркфлоу, лизи. Например, local_modules_paths, libraries и env_variables объединяются с разных уровней, но при этом остальные опции - перезаписываются. Также часть параметров можно установить только на workflow, что тоже не слишком очевидно.
+1) У нас растет количество параметров окружения: добавили `exclude_packages`, `pip_index_url`, а уже видно, что это не конец: будут `additional_index_url`, будут `disk_io`, `network_policy`, и проч.
+2) Вместе с ними растет количество несовместимых друг с другом комбинаций параметров, усложняется валидация, ад, смерть. Сейчас уже сложно сказать, как именно работает опция `local_paths`, например.
+3) У нас абсолюбно неявная механика мерджа параметров окружения с разных уровней: операция, воркфлоу, лизи. Например, `local_modules_paths`, `libraries` и `env_variables` объединяются с разных уровней, но при этом остальные опции - перезаписываются. Также часть параметров можно установить только на workflow, что тоже не слишком очевидно.
 
 Отсюда хочется получить стройную, непротиворечивую, а главное понятную и документированную систему описывания параметров окружения, которая будет решать проблему несовместимости параметров посредством разных реализаций, нежели plain валидацией, которую еще нужно обмазывать тестами.
 
@@ -40,14 +40,14 @@ class Provisioning:
 
 class PythonEnv:
     python_version: str
-    local_modules_dirs: List[str]
+    local_modules_paths: List[str]
     pypi_packages: Dict[str, str]
     pip_index_url: str
 
 
 class ContainerEnv:
     @abstractproperty
-    def container_type(self) -> str:
+    def container_type(self) -> ContainerTypeEnum:
         # now we support only docker, so somewhere will be `if container_env.container_type != 'docker': raise`
 
 ```
@@ -58,15 +58,15 @@ class ContainerEnv:
 
 ```python
 # Просто перечисляем нужные библиотеки для установки
-class SimpleLibrariesEnv(PythonEnv):
+class ManualPythonEnv(PythonEnv):
     python_version: str
     pypi_index_url: str
     pypi_packages: Dict[str, str]
-    local_modules_dirs: List[str]
+    local_modules_paths: List[str]
 
 
 # То, что есть сейчас
-class AutoLibrariesEnv(PythonEnv):
+class AutoPythonEnv(PythonEnv):
     #: and we can document
     python_version: str = field(defaultfactory=...)
 
@@ -166,6 +166,7 @@ class AutoEnvExplorer:
 При этом пользователь нигде явно его не задает, кроме как:
 
 
+```python
 class AutoPythonEnv:
     pypi_index_url: str
     additional_pypi_libraries: Dict[str, str]
@@ -187,6 +188,7 @@ class AutoPythonEnv:
     @property
     def local_modules_dirs(self):
         return self.auto_env_explorer.get_local_packages_dirs()
+```
 
 
 # Про пользовательский интерфейс настройки наших *Env-ов.
@@ -257,10 +259,21 @@ def foo():
 
 lzy = lzy.with_provisioning(cpu_count=5)
 
-with lzy.workflow('123').with_files_env(
-    AutoLibrariesEnv, pypi_index_url='foo', additional_pypi_libraries=['...']
+with lzy.workflow('123').with_python_env(
+    AutoPythonEnv, pypi_index_url='foo', additional_pypi_libraries=['...']
 ) as wf:
-    result = foo.with_container(...)()  # диковато выглядит
+    result = foo.with_container(...)()  # выглядит стремно
+
+
+foo_overrided = foo.with_python_env(...)  # но можно вынести в отдельный стейтмент
+foo_overrided = Provisioning(...)(foo)  # а можно так, хотя тоже стремно
+
+# вероятно, вариант с foo_overrided = foo.with_python_env(...)
+# выглядит лучше всего и будет помещен в документацию
+
+with lzy.workflow(...) as wf:
+   result = foo_overrided()  # но так выглядит лучше
+
 ```
 
 Другие варианты сложного форматирования (нужно будет выбрать один и показывать его как пример в доках):
@@ -378,7 +391,7 @@ with lzy.workflow("name") as wf, Provisioning(cpu_count=2):
 lzy.env.environment
 lzy.env.python.base
 lzy.env.python.auto
-lzy.env.python.easy
+lzy.env.python.manual
 lzy.env.python.local
 lzy.env.container.base
 lzy.env.container.docker
