@@ -17,7 +17,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public class OutputSlot extends Thread implements Slot {
+public class OutputSlot extends Thread implements Slot, ExecutionCompanion {
     private static final ThreadGroup OUTPUT_SLOTS_TG = new ThreadGroup("OutputSlots");
     private static final Logger LOG = LogManager.getLogger(OutputSlot.class);
 
@@ -66,13 +66,11 @@ public class OutputSlot extends Thread implements Slot {
     }
 
     @Override
-    public CompletableFuture<Void> beforeExecution() {
-        return CompletableFuture.completedFuture(null);
-    }
+    public void beforeExecution() {}
 
     @Override
-    public CompletableFuture<Void> afterExecution() {
-        return completeFuture;
+    public void afterExecution() throws Exception {
+        completeFuture.get();
     }
 
     @Override

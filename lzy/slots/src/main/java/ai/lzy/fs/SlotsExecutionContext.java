@@ -29,18 +29,18 @@ public class SlotsExecutionContext {
 
     public SlotsExecutionContext(Path fsRoot, List<LMS.Slot> slotDescriptions, Map<String, String> slotToChannelMapping,
                                  LzyChannelManagerBlockingStub channelManager, String executionId,
-                                 String slotsApiAddress, Supplier<String> jwt, SlotsService slotsService)
+                                 String slotsApiAddress, Supplier<String> tokenSupplier, SlotsService slotsService)
     {
         this.fsRoot = fsRoot;
         this.slotDescriptions = slotDescriptions;
         this.slotToChannelMapping = slotToChannelMapping;
 
-        var transferFactory = new TransferFactory(storageClientFactory, jwt);
+        var transferFactory = new TransferFactory(storageClientFactory, tokenSupplier);
 
         context = new SlotsContext(channelManager, transferFactory, slotsApiAddress, slotsService, executionId, this);
     }
 
-    private final List<Slot> slots = Collections.synchronizedList(new ArrayList<>());
+    private final List<ExecutionCompanion> companions = new ArrayList<>();
 
     public void beforeExecution() throws Exception {
         try {
@@ -54,22 +54,18 @@ public class SlotsExecutionContext {
                     var backend = new FileInputBackend(fsPath);
                     var inputSlot = new InputSlot(backend, desc.getName(), channelId, context);
 
-                    slots.add(inputSlot);
+                    companions.add(inputSlot);
                 } else {
                     var backend = new OutputPipeBackend(fsPath);
                     var outputSlot = new OutputSlot(backend, desc.getName(), channelId, context);
 
-                    slots.add(outputSlot);
+                    companions.add(outputSlot);
                 }
             }
 
-            var futures = new ArrayList<CompletableFuture<Void>>();
-
-            for (var slot : slots) {
-                futures.add(slot.beforeExecution());
+            for (var slot : companions) {
+                slot.beforeExecution();
             }
-
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
         } catch (Exception e) {
             LOG.error("Failed to initialize slots", e);
             close();
@@ -79,13 +75,9 @@ public class SlotsExecutionContext {
 
     public void afterExecution() throws Exception {
         try {
-            var futures = new ArrayList<CompletableFuture<Void>>();
-
-            for (var slot : slots) {
-                futures.add(slot.afterExecution());
+            for (var slot : companions) {
+                slot.afterExecution();
             }
-
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).get();
         } catch (Exception e) {
             LOG.error("Failed to finalize slots", e);
             close();
@@ -94,13 +86,13 @@ public class SlotsExecutionContext {
     }
 
     public synchronized void close() {
-        for (var slot: slots) {
+        for (var slot: companions) {
             slot.close();
         }
     }
 
-    public synchronized void addSlot(Slot slot) {
-        slots.add(slot);
+    synchronized void add(ExecutionCompanion companion) {
+        companions.add(companion);
     }
 
     @VisibleForTesting

@@ -1,12 +1,14 @@
 package ai.lzy.fs;
 
 import ai.lzy.fs.backends.InputSlotBackend;
+import ai.lzy.fs.transfers.InputTransfer;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.v2.LSA;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,7 +16,7 @@ import java.nio.channels.SeekableByteChannel;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class InputSlot extends Thread implements Slot {
+public class InputSlot extends Thread implements Slot, ExecutionCompanion {
     private static final Logger LOG = LogManager.getLogger(InputSlot.class);
 
     private final InputSlotBackend backend;
@@ -41,14 +43,12 @@ public class InputSlot extends Thread implements Slot {
     }
 
     @Override
-    public CompletableFuture<Void> beforeExecution() {
-        return ready;
+    public void beforeExecution() throws Exception {
+        ready.get();
     }
 
     @Override
-    public CompletableFuture<Void> afterExecution() {
-        return CompletableFuture.completedFuture(null);
-    }
+    public void afterExecution() {}
 
     @Override
     public synchronized void startTransfer(LC.PeerDescription peer, String transferId) {
@@ -73,40 +73,12 @@ public class InputSlot extends Thread implements Slot {
     }
 
     @Override
-    public synchronized void close() {
+    public void close() {
         if (state.getAndSet(State.CLOSED).equals(State.CLOSED)) {
             return;
         }
 
-        if (!ready.isDone()) {
-            LOG.error("{} Closed before ready", logPrefix);
-            ready.completeExceptionally(new IllegalStateException("Closed before ready"));
-        }
-
-        context.slotsService().unregister(this.slotId);
-
-        try {
-            context.channelManager().unbind(LCMS.UnbindRequest.newBuilder()
-                .setChannelId(channelId)
-                .setPeerId(slotId)
-                .build());
-        } catch (Exception e) {
-            LOG.error("{} Error while unbinding: ", logPrefix, e);
-            // Ignoring this error
-        }
-
-        if (Thread.currentThread().equals(this)) {
-            // Not joining to itself
-            return;
-        }
-
         this.interrupt();
-
-        try {
-            this.join(100);
-        } catch (Exception e) {
-            LOG.error("{} Error while joining: ", logPrefix, e);
-        }
     }
 
     public enum State {
@@ -117,22 +89,20 @@ public class InputSlot extends Thread implements Slot {
         CLOSED  // Slot is closed, by error or from outside
     }
 
-    private void logic() throws Exception {
+    private void runImpl() throws Exception {
         context.slotsService().register(this); // Registering here before bind
 
-        var resp = GrpcUtils.withRetries(LOG, () -> context.channelManager().bind(LCMS.BindRequest.newBuilder()
-            .setPeerId(slotId)
-            .setExecutionId(context.executionId())
-            .setChannelId(channelId)
-            .setPeerUrl(context.apiUrl())
-            .setRole(LCMS.BindRequest.Role.CONSUMER)
-            .build()));
+        var resp = bind();
+
+        if (resp == null || state.get().equals(State.CLOSED)) {
+            return;  // run method will clear all resources
+        }
 
         final String transferId;
         final LC.PeerDescription peerDescription;
 
         if (!resp.hasPeer()) {
-            setState(State.WAITING_FOR_PEER);
+            state.set(State.WAITING_FOR_PEER);
             var req = waitForPeer.get();
             transferId = req.transferId;
             peerDescription = req.peerDescription;
@@ -141,34 +111,74 @@ public class InputSlot extends Thread implements Slot {
             peerDescription = resp.getPeer();
         }
 
-        setState(State.DOWNLOADING);
+        state.set(State.DOWNLOADING);
         context.slotsService().unregister(this.slotId); // Got peer, unregistering
 
         download(peerDescription, transferId);
-        setState(State.READY);
+        state.set(State.READY);
         ready.complete(null);
 
         // Creating new output slot for this channel
         var outputBackand = backend.toOutput();
         var slot = new OutputSlot(outputBackand, slotId + "-out", channelId, context);
-        context.executionContext().addSlot(slot);
+        context.executionContext().add(slot);
+    }
 
-        close();
+    /**
+     * returns null if slot was closed
+     */
+    @Nullable
+    private LCMS.BindResponse bind() throws Exception {
+        return GrpcUtils.withRetries(LOG, () -> {
+            if (state.get().equals(State.CLOSED)) {
+                return null;
+            }
+
+            return context.channelManager().bind(LCMS.BindRequest.newBuilder()
+                .setPeerId(slotId)
+                .setExecutionId(context.executionId())
+                .setChannelId(channelId)
+                .setPeerUrl(context.apiUrl())
+                .setRole(LCMS.BindRequest.Role.CONSUMER)
+                .build());
+        });
+    }
+
+    private void clear() {
+        try {
+            backend.close();
+        } catch (Exception e) {
+            LOG.error("{} Error while closing backend: ", logPrefix, e);
+        }
+
+        state.set(State.CLOSED);
+        context.slotsService().unregister(this.slotId);
+
+        if (!ready.isDone()) {
+            LOG.error("{} Closed before ready", logPrefix);
+            ready.completeExceptionally(new IllegalStateException("Closed before ready"));
+        }
+
+        try {
+            context.channelManager().unbind(LCMS.UnbindRequest.newBuilder()
+                .setChannelId(channelId)
+                .setPeerId(slotId)
+                .build());
+        } catch (Exception e) {
+            LOG.error("{} Error while unbinding: ", logPrefix, e);
+            // Ignoring this error
+        }
     }
 
     @Override
     public void run() {
         try {
-            logic();
+            runImpl();
         } catch (Exception e) {
             LOG.error("{} Error while running slot: ", logPrefix, e);
-            close();
+        } finally {
+            clear();
         }
-    }
-
-    private synchronized void setState(State state) {
-        this.state.set(state);
-        this.notifyAll();
     }
 
     private void download(LC.PeerDescription initPeer, String initTransferId) throws Exception {
@@ -176,38 +186,18 @@ public class InputSlot extends Thread implements Slot {
         var peer = initPeer;
         var transfer = context.transferFactory().input(peer, offset);
         var transferId = initTransferId;
-        SeekableByteChannel backendStream = null;
+        var failed = false;
+        SeekableByteChannel backendStream = backend.openChannel();
 
         while (true) {
-            try {
-                if (backendStream == null) {  // reopening stream, if closed
-                    backendStream = backend.openChannel();
-                }
+            if (failed) {
+                failed = false;
 
-                var read = transfer.readInto(backendStream);
-
-                if (read == -1) {
-                    transfer.close();
-                    backendStream.close();
-                    context.channelManager().transferCompleted(LCMS.TransferCompletedRequest.newBuilder()
-                        .setTransferId(transferId)
-                        .setChannelId(channelId)
-                        .build());
-                    return;
-
-                } else {
-                    offset += read;
-                }
-            } catch (Exception e) {
-                LOG.error("Cannot complete transfer to {}: ", peer.getPeerId(), e);
-                // Closing old stream. It will be reopened on next iteration
-                if (backendStream != null) {
-                    backendStream.close();
-                }
-                backendStream = null;
+                // Reopening channel
+                backendStream.close();
+                backendStream = backend.openChannel();
 
                 transfer.close();
-
                 var newPeerResp = context.channelManager()
                     .transferFailed(LCMS.TransferFailedRequest.newBuilder()
                         .setTransferId(transferId)
@@ -215,18 +205,44 @@ public class InputSlot extends Thread implements Slot {
                         .build());
 
                 if (!newPeerResp.hasNewPeer()) {
-                    LOG.error("Cannot get data from any peer");
+                    LOG.error("({}) Cannot get peer from channel manager", logPrefix);
 
-                    throw Status.INTERNAL
-                        .withDescription("Cannot get data from any peer")
-                        .asException();
+                    throw new IllegalStateException("Cannot get data from any peer");
                 }
 
                 peer = newPeerResp.getNewPeer();
 
                 transfer = context.transferFactory().input(peer, offset);
                 transferId = newPeerResp.getNewTransferId();
+            }
 
+            final int read;
+
+            try {
+                read = transfer.readInto(backendStream);
+            } catch (InputTransfer.ReadException e) {
+                // Some error while reading from peer, marking it as bad
+                LOG.error("({}) Error while reading from peer {}: ", logPrefix, peer.getPeerId(), e);
+                failed = true;
+                continue;
+            } catch (Exception e) {
+                // Some error on backend side
+                // Failing this slot
+                LOG.error("({}) Error while reading into backend: ", logPrefix, e);
+                throw e;
+            }
+
+            if (read == -1) {
+                transfer.close();
+                backendStream.close();
+                context.channelManager().transferCompleted(LCMS.TransferCompletedRequest.newBuilder()
+                    .setTransferId(transferId)
+                    .setChannelId(channelId)
+                    .build());
+                return;
+
+            } else {
+                offset += read;
             }
         }
     }
