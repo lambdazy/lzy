@@ -1,5 +1,3 @@
-
-
 locals {
   whiteboard-labels = {
     app                      = "whiteboard"
@@ -8,6 +6,28 @@ locals {
   }
   whiteboard-k8s-name = "whiteboard"
   whiteboard-image    = var.whiteboard-image
+}
+
+resource "random_password" "whiteboard_db_passwords" {
+  length  = 16
+  special = false
+}
+
+resource "kubernetes_secret" "whiteboard_db_secret" {
+  metadata {
+    name      = "db-secret-${local.whiteboard-k8s-name}"
+    namespace = "default"
+  }
+
+  data = {
+    username = local.whiteboard-k8s-name,
+    password = random_password.whiteboard_db_passwords.result,
+    db_host  = var.db-host
+    db_port  = 6432
+    db_name  = local.whiteboard-k8s-name
+  }
+
+  type = "Opaque"
 }
 
 resource "kubernetes_deployment" "whiteboard" {
@@ -54,7 +74,7 @@ resource "kubernetes_deployment" "whiteboard" {
             name = "WHITEBOARD_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["whiteboard"].metadata[0].name
+                name = kubernetes_secret.whiteboard_db_secret.metadata[0].name
                 key  = "username"
               }
             }
@@ -63,7 +83,7 @@ resource "kubernetes_deployment" "whiteboard" {
             name = "WHITEBOARD_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["whiteboard"].metadata[0].name
+                name = kubernetes_secret.whiteboard_db_secret.metadata[0].name
                 key  = "password"
               }
             }
@@ -71,7 +91,7 @@ resource "kubernetes_deployment" "whiteboard" {
 
           env {
             name  = "WHITEBOARD_DATABASE_URL"
-            value = "jdbc:postgresql://${yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn}:6432/whiteboard"
+            value = "jdbc:postgresql://${kubernetes_secret.whiteboard_db_secret.data.db_host}:${kubernetes_secret.whiteboard_db_secret.data.db_port}/${kubernetes_secret.whiteboard_db_secret.data.db_name}"
           }
 
           env {
@@ -189,7 +209,7 @@ resource "kubernetes_service" "whiteboard_service" {
   }
   spec {
     selector         = local.whiteboard-labels
-    load_balancer_ip = yandex_vpc_address.whiteboard_public_ip.external_ipv4_address[0].address
+    load_balancer_ip = var.whiteboard_public_ip
     port {
       port        = local.whiteboard-port
       target_port = local.whiteboard-port

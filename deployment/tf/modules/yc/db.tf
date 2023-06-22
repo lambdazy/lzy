@@ -1,22 +1,3 @@
-locals {
-  services = {
-    iam             = "iam"
-    whiteboard      = "whiteboard"
-    allocator       = "allocator"
-    channel-manager = "channel-manager"
-    lzy-service     = "lzy-service"
-    scheduler       = "scheduler"
-    graph-executor  = "graph-executor"
-    storage         = "storage"
-  }
-}
-
-resource "random_password" "db_passwords" {
-  for_each = local.services
-  length   = 16
-  special  = false
-}
-
 resource "yandex_mdb_postgresql_cluster" "lzy_postgresql_cluster" {
   name                = "lzy-postgresql-cluster"
   environment         = "PRODUCTION"
@@ -47,45 +28,26 @@ resource "yandex_mdb_postgresql_cluster" "lzy_postgresql_cluster" {
     }
   }
 
-  dynamic "user" {
-    for_each = local.services
-    content {
-      conn_limit = 30
-      name       = user.value
-      password   = random_password.db_passwords[user.key].result
-      permission {
-        database_name = user.value
-      }
-    }
-  }
-  dynamic "database" {
-    for_each = local.services
-    content {
-      name  = database.value
-      owner = database.value
-    }
-  }
-
   host {
     zone      = "ru-central1-a"
     subnet_id = yandex_vpc_subnet.custom-subnet.id
   }
 }
 
-resource "kubernetes_secret" "db_secret" {
-  for_each = local.services
-  metadata {
-    name      = "db-secret-${each.value}"
-    namespace = "default"
-  }
+resource "yandex_mdb_postgresql_database" "lzy_dbs" {
+  for_each = module.k8s_deployment.db_data
 
-  data = {
-    username = each.value,
-    password = random_password.db_passwords[each.key].result,
-    db_host  = yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn
-    db_port  = 6432
-    db_name  = each.value
-  }
+  cluster_id = yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.id
+  name       = each.key
+  owner      = each.key
+  depends_on = [yandex_mdb_postgresql_user.lzy_users]
+}
 
-  type = "Opaque"
+resource "yandex_mdb_postgresql_user" "lzy_users" {
+  for_each = module.k8s_deployment.db_data
+
+  cluster_id = yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.id
+  name       = each.key
+  password   = each.value
+  conn_limit = 30
 }

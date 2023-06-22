@@ -769,17 +769,22 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         final String userId = currentSubject().id();
         final String bucketName = StorageUtils.createInternalBucketName(userId);
 
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+
+        var client = idempotencyKey == null
+            ? storagesGrpcClient()
+            : withIdempotencyKey(storagesGrpcClient(), idempotencyKey.token() + "_create_storage");
+
         LOG.info("Get storage credentials for bucket {}", bucketName);
         final LMST.StorageConfig storageConfig;
         try {
             LOG.info("Creating new temporary storage bucket if it does not exist: { bucketName: {}, userId: {} }",
                 bucketName, userId);
-            LongRunning.Operation createOp =
-                withIdempotencyKey(storagesGrpcClient(), userId + "_" + bucketName)
-                    .createStorage(LSS.CreateStorageRequest.newBuilder()
-                        .setUserId(userId)
-                        .setBucket(bucketName)
-                        .build());
+
+            LongRunning.Operation createOp = client.createStorage(LSS.CreateStorageRequest.newBuilder()
+                .setUserId(userId)
+                .setBucket(bucketName)
+                .build());
 
             createOp = awaitOperationDone(storagesOpsGrpcClient(), createOp.getId(),
                 serviceCfg().getStorage().getBucketCreationTimeout());

@@ -1,9 +1,3 @@
-variable "lzy-service-image" {
-  type = string
-}
-variable "portal_image" {
-  type = string
-}
 
 locals {
   lzy-service-labels = {
@@ -14,6 +8,28 @@ locals {
   }
   lzy-service-k8s-name = "lzy-service"
   lzy-service-image    = var.lzy-service-image
+}
+
+resource "random_password" "lzy_service_db_passwords" {
+  length  = 16
+  special = false
+}
+
+resource "kubernetes_secret" "lzy_service_db_secret" {
+  metadata {
+    name      = "db-secret-${local.lzy-service-k8s-name}"
+    namespace = "default"
+  }
+
+  data = {
+    username = local.lzy-service-k8s-name,
+    password = random_password.lzy_service_db_passwords.result,
+    db_host  = var.db-host
+    db_port  = 6432
+    db_name  = local.lzy-service-k8s-name
+  }
+
+  type = "Opaque"
 }
 
 
@@ -139,7 +155,7 @@ resource "kubernetes_deployment" "lzy-service" {
             name = "LZY_SERVICE_DATABASE_USERNAME"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["lzy-service"].metadata[0].name
+                name = kubernetes_secret.lzy_service_db_secret.metadata[0].name
                 key  = "username"
               }
             }
@@ -148,7 +164,7 @@ resource "kubernetes_deployment" "lzy-service" {
             name = "LZY_SERVICE_DATABASE_PASSWORD"
             value_from {
               secret_key_ref {
-                name = kubernetes_secret.db_secret["lzy-service"].metadata[0].name
+                name = kubernetes_secret.lzy_service_db_secret.metadata[0].name
                 key  = "password"
               }
             }
@@ -156,7 +172,7 @@ resource "kubernetes_deployment" "lzy-service" {
 
           env {
             name  = "LZY_SERVICE_DATABASE_URL"
-            value = "jdbc:postgresql://${yandex_mdb_postgresql_cluster.lzy_postgresql_cluster.host[0].fqdn}:6432/lzy-service"
+            value = "jdbc:postgresql://${kubernetes_secret.lzy_service_db_secret.data.db_host}:${kubernetes_secret.lzy_service_db_secret.data.db_port}/${kubernetes_secret.lzy_service_db_secret.data.db_name}"
           }
 
           env {
@@ -241,6 +257,23 @@ resource "kubernetes_deployment" "lzy-service" {
               name = "LZY_SERVICE_S3_SINK_ADDRESS"
               value = "${kubernetes_service.s3_sink_service[0].spec[0].cluster_ip}:${local.s3-sink-port}"
             }
+          }
+
+          env {
+            name = "LZY_SERVICE_OPERATIONS_START_WORKFLOW_TIMEOUT"
+            value = "10s"
+          }
+          env {
+            name = "LZY_SERVICE_OPERATIONS_FINISH_WORKFLOW_TIMEOUT"
+            value = "10s"
+          }
+          env {
+            name = "LZY_SERVICE_OPERATIONS_ABORT_WORKFLOW_TIMEOUT"
+            value = "10s"
+          }
+          env {
+            name = "LZY_SERVICE_OPERATIONS_EXECUTE_GRAPH_TIMEOUT"
+            value = "10s"
           }
 
           volume_mount {
@@ -360,7 +393,7 @@ resource "kubernetes_service" "lzy_service" {
     annotations = {}
   }
   spec {
-    load_balancer_ip = yandex_vpc_address.workflow_public_ip.external_ipv4_address[0].address
+    load_balancer_ip = var.workflow_public_ip
     selector         = local.lzy-service-labels
     port {
       port        = local.lzy-service-port

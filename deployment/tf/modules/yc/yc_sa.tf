@@ -3,9 +3,14 @@ resource "yandex_iam_service_account" "admin-sa" {
   description = "service account to manage Lzy K8s"
 }
 
-resource "yandex_iam_service_account" "node-sa" {
+resource "yandex_iam_service_account" "service-node-sa" {
   name        = "${var.installation_name}-k8s-lzy-node-sa"
   description = "service account for kuber nodes"
+}
+
+resource "yandex_iam_service_account" "pool-node-sa" {
+  name        = "${var.installation_name}-k8s-sa"
+  description = "service account to manage Lzy K8s"
 }
 
 resource "yandex_resourcemanager_folder_iam_binding" "puller" {
@@ -14,7 +19,8 @@ resource "yandex_resourcemanager_folder_iam_binding" "puller" {
   role = "container-registry.images.puller"
 
   members = [
-    "serviceAccount:${yandex_iam_service_account.node-sa.id}",
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
+    "serviceAccount:${yandex_iam_service_account.pool-node-sa.id}",
   ]
 }
 
@@ -24,7 +30,8 @@ resource "yandex_resourcemanager_folder_iam_binding" "monitoring-editor" {
   role = "monitoring.editor"
 
   members = [
-    "serviceAccount:${yandex_iam_service_account.node-sa.id}",
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
+    "serviceAccount:${yandex_iam_service_account.pool-node-sa.id}",
   ]
 }
 
@@ -34,7 +41,8 @@ resource "yandex_resourcemanager_folder_iam_binding" "logging-writer" {
   role = "logging.writer"
 
   members = [
-    "serviceAccount:${yandex_iam_service_account.node-sa.id}",
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
+    "serviceAccount:${yandex_iam_service_account.pool-node-sa.id}",
   ]
 }
 
@@ -58,18 +66,13 @@ resource "yandex_resourcemanager_folder_iam_binding" "s3-admin" {
   ]
 }
 
-resource "yandex_iam_service_account" "allocator-sa" {
-  name        = "${var.installation_name}-k8s-sa"
-  description = "service account to manage Lzy K8s"
-}
-
 resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
   folder_id = var.folder_id
 
   role = "k8s.admin"
 
   members = [
-    "serviceAccount:${yandex_iam_service_account.allocator-sa.id}",
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
   ]
 }
 
@@ -79,7 +82,7 @@ resource "yandex_resourcemanager_folder_iam_binding" "allocator-cluster-admin" {
   role = "k8s.cluster-api.cluster-admin"
 
   members = [
-    "serviceAccount:${yandex_iam_service_account.allocator-sa.id}",
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
   ]
 }
 
@@ -89,25 +92,49 @@ resource "yandex_resourcemanager_folder_iam_binding" "allocator-compute-admin" {
   role = "compute.admin"
 
   members = [
-    "serviceAccount:${yandex_iam_service_account.allocator-sa.id}",
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
   ]
 }
 
-resource "yandex_iam_service_account_key" "allocator-sa-key" {
-  service_account_id = yandex_iam_service_account.allocator-sa.id
-  description        = "key for allocator"
-  key_algorithm      = "RSA_4096"
+resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
+  folder_id = var.folder_id
+
+  role = "iam.serviceAccounts.admin"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
+  ]
 }
 
-resource "yandex_iam_service_account_key" "node-sa-key" {
-  service_account_id = yandex_iam_service_account.node-sa.id
+resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
+  folder_id = var.folder_id
+
+  role = "iam.serviceAccounts.keyAdmin"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
+  ]
+}
+
+resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
+  folder_id = var.folder_id
+
+  role = "iam.serviceAccounts.accessKeyAdmin"
+
+  members = [
+    "serviceAccount:${yandex_iam_service_account.service-node-sa.id}",
+  ]
+}
+
+resource "yandex_iam_service_account_key" "service-node-sa-key" {
+  service_account_id = yandex_iam_service_account.service-node-sa.id
   description        = "key for node"
   key_algorithm      = "RSA_4096"
 }
 
-resource "yandex_iam_service_account_key" "admin-sa-key" {
-  service_account_id = yandex_iam_service_account.admin-sa.id
-  description        = "key for storage"
+resource "yandex_iam_service_account_key" "pool-node-sa-key" {
+  service_account_id = yandex_iam_service_account.pool-node-sa.id
+  description        = "key for node"
   key_algorithm      = "RSA_4096"
 }
 

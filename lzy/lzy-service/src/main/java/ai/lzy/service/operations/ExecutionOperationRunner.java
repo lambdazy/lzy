@@ -151,8 +151,8 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
 
         public abstract ExecutionOperationRunner build();
 
-        public T setServiceConfig(LzyServiceConfig cfg) {
-            this.serviceConfig = cfg;
+        public T setServiceConfig(LzyServiceConfig serviceConfig) {
+            this.serviceConfig = serviceConfig;
             return self();
         }
 
