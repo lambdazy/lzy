@@ -1,10 +1,10 @@
+/*
 package ai.lzy.service.gc;
 
 import ai.lzy.model.db.DbHelper;
-import ai.lzy.service.CleanExecutionCompanion;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.data.dao.ExecutionDao;
-import ai.lzy.service.data.dao.GcDao;
+import ai.lzy.service.dao.ExecutionDao;
+import ai.lzy.service.dao.GcDao;
 import jakarta.annotation.PreDestroy;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -118,3 +118,4 @@ public class GarbageCollector extends TimerTask {
         }
     }
 }
+*/

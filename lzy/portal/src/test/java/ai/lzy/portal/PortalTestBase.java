@@ -89,7 +89,7 @@ import java.util.concurrent.locks.LockSupport;
 import static ai.lzy.channelmanager.ProtoConverter.makeChannelStatusCommand;
 import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 import static ai.lzy.channelmanager.ProtoConverter.makeDestroyChannelCommand;
-import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;

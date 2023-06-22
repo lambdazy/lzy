@@ -34,7 +34,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServi
 # noinspection PyPackageRequirements
 from google.protobuf.any_pb2 import Any
 # noinspection PyUnresolvedReferences
-from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, WorkflowServiceClient, Provisioning
+from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, Provisioning
 from lzy.api.v1.runtime import ProgressStep
 from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnvProvider, PyEnv

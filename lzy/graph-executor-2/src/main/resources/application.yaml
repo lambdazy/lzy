@@ -1,0 +1,9 @@
+graph-executor-2:
+  instance-id: "single-graph-executor"
+  user-limit: 16
+  workflow-limit: 4
+
+  database:
+    min-pool-size: 3
+    max-pool-size: 5
+    enabled: true

@@ -2,6 +2,9 @@
 
 echo "Clean up"
 
+# tox envs
+rm -rvf .tox
+
 # linter and test outputs
 rm -rvf .mypy_cache test_output
 

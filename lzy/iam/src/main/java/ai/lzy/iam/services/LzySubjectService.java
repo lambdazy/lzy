@@ -17,6 +17,7 @@ import ai.lzy.v1.iam.LSS;
 import ai.lzy.v1.iam.LzySubjectServiceGrpc;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -24,7 +25,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
 
+import static ai.lzy.iam.BeanFactory.TEST_ENV_NAME;
+
 @Singleton
+@Requires(notEnv = TEST_ENV_NAME)
 public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceImplBase {
     public static final Logger LOG = LogManager.getLogger(LzySubjectService.class);
 
@@ -72,7 +76,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     public void removeSubject(LSS.RemoveSubjectRequest request, StreamObserver<LSS.RemoveSubjectResponse> response) {
         try {
             if (internalAccess()) {
-                subjectService.removeSubject(ProtoConverter.to(request.getSubject()));
+                subjectService.removeSubject(request.getSubjectId());
                 response.onNext(LSS.RemoveSubjectResponse.getDefaultInstance());
                 response.onCompleted();
                 return;
@@ -89,7 +93,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     public void getSubject(LSS.GetSubjectRequest request, StreamObserver<IAM.Subject> response) {
         try {
             if (internalAccess()) {
-                Subject subject = subjectService.subject(request.getId());
+                Subject subject = subjectService.subject(request.getSubjectId());
                 response.onNext(ProtoConverter.from(subject));
                 response.onCompleted();
             }
@@ -105,7 +109,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
         try {
             if (internalAccess()) {
                 subjectService.addCredentials(
-                    ProtoConverter.to(request.getSubject()),
+                    request.getSubjectId(),
                     ProtoConverter.to(request.getCredentials()));
                 response.onNext(LSS.AddCredentialsResponse.getDefaultInstance());
                 response.onCompleted();
@@ -125,10 +129,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     {
         try {
             if (internalAccess()) {
-                subjectService.removeCredentials(
-                    ProtoConverter.to(request.getSubject()),
-                    request.getCredentialsName()
-                );
+                subjectService.removeCredentials(request.getSubjectId(), request.getCredentialsName());
                 response.onNext(LSS.RemoveCredentialsResponse.getDefaultInstance());
                 response.onCompleted();
                 return;
@@ -147,7 +148,7 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     {
         try {
             if (internalAccess()) {
-                var subjectCredentials = subjectService.listCredentials(ProtoConverter.to(request.getSubject()));
+                var subjectCredentials = subjectService.listCredentials(request.getSubjectId());
 
                 response.onNext(
                     LSS.ListCredentialsResponse.newBuilder()
@@ -172,7 +173,9 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
         try {
             if (internalAccess()) {
                 var subject = subjectService.findSubject(
-                    request.getProviderUserId(), request.getAuthProvider(), request.getSubjectType());
+                    request.getProviderUserId(),
+                    AuthProvider.fromProto(request.getAuthProvider()),
+                    SubjectType.valueOf(request.getSubjectType()));
 
                 if (subject == null) {
                     responseObserver.onError(Status.NOT_FOUND.withDescription("Subject not found").asException());
@@ -196,8 +199,8 @@ public class LzySubjectService extends LzySubjectServiceGrpc.LzySubjectServiceIm
     private boolean internalAccess() {
         var currentSubject = Objects.requireNonNull(AuthenticationContext.current()).getSubject();
 
-        if (!accessClient.hasResourcePermission(
-                currentSubject, Root.INSTANCE.resourceId(), AuthPermission.INTERNAL_AUTHORIZE))
+        if (!accessClient.hasResourcePermission(currentSubject, Root.INSTANCE.resourceId(),
+            AuthPermission.INTERNAL_AUTHORIZE))
         {
             LOG.error("Not INTERNAL user::{} try to create subjects", currentSubject.id());
             throw new AuthPermissionDeniedException("");

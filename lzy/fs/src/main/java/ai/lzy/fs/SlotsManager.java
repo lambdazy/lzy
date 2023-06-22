@@ -35,7 +35,7 @@ import java.util.stream.Stream;
 
 import static ai.lzy.channelmanager.ProtoConverter.makeBindSlotCommand;
 import static ai.lzy.channelmanager.ProtoConverter.makeUnbindSlotCommand;
-import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
+import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static ai.lzy.model.UriScheme.LzyFs;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static ai.lzy.v1.common.LMS.SlotStatus.State.DESTROYED;

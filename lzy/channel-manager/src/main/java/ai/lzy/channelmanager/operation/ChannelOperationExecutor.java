@@ -4,25 +4,23 @@ import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.PreDestroy;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.List;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
+@Singleton
 public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
 
     private static final Logger LOG = LogManager.getLogger(ChannelOperationExecutor.class);
 
-    // for micronaut
-    private final ChannelManagerDataSource dataSource;
 
-    public ChannelOperationExecutor(ChannelManagerDataSource dataSource, ChannelManagerConfig config) {
+    public ChannelOperationExecutor(ChannelManagerConfig config, ChannelManagerDataSource storage) {
         super(config.getExecutorThreadsCount(), new ExecutorThreadFactory());
         this.setKeepAliveTime(1, TimeUnit.MINUTES);
         this.setMaximumPoolSize(20);
-        this.dataSource = dataSource;
     }
 
     @Override
@@ -47,22 +45,19 @@ public class ChannelOperationExecutor extends ScheduledThreadPoolExecutor {
     @Override
     @PreDestroy
     public void shutdown() {
-        LOG.info("Shutdown executor, tasks in queue: {}, running tasks: {}",
-            getQueue().size(), getActiveCount());
+        LOG.info("Shutdown executor, tasks in queue: {}, running tasks: {}", getQueue().size(), getActiveCount());
         super.shutdown();
 
         try {
-            //noinspection ResultOfMethodCallIgnored
-            awaitTermination(1, TimeUnit.MINUTES);
+            if (!awaitTermination(1, TimeUnit.MINUTES)) {
+                shutdownNow();
+            }
         } catch (InterruptedException e) {
             LOG.error("Shutdown executor interrupted, tasks in queue: {}, running tasks: {}",
                 getQueue().size(), getActiveCount());
+        } finally {
+            shutdownNow();
         }
-    }
-
-    @Override
-    public List<Runnable> shutdownNow() {
-        return super.shutdownNow();
     }
 
     private static class ExecutorThreadFactory implements ThreadFactory {

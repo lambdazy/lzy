@@ -28,7 +28,6 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
     private final ManagedChannel allocatorChannel;
     private final LongRunningServiceGrpc.LongRunningServiceBlockingStub opStub;
 
-
     protected AwaitAllocation(JobService jobService, TaskStateSerializer serializer,
                               JobsOperationDao opDao, ApplicationContext context, ServiceConfig config)
     {
@@ -36,7 +35,7 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
         allocatorChannel = GrpcUtils.newGrpcChannel(config.getAllocatorAddress(), LongRunningServiceGrpc.SERVICE_NAME);
         var token = config.getIam().createRenewableToken();
         opStub = GrpcUtils.newBlockingClient(LongRunningServiceGrpc.newBlockingStub(allocatorChannel),
-            "allocatorOpStub", () -> token.get().token());
+            "Scheduler", () -> token.get().token());
     }
 
     @Override
@@ -98,6 +97,7 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
             }
 
             return state.copy()
+                .fromCache(vmDesc.getFromCache())
                 .workerHost(address.getValue())
                 .workerPort(Integer.valueOf(apiPort))
                 .build();
@@ -113,7 +113,6 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
 
     @Override
     protected TaskState clear(TaskState state, String operationId) {
-
         if (state.allocatorOperationId() != null) {
             try {
                 opStub.cancel(LongRunning.CancelOperationRequest.newBuilder()
@@ -136,5 +135,4 @@ public class AwaitAllocation extends WorkflowJobProvider<TaskState> {
         allocatorChannel.shutdownNow();
         allocatorChannel.awaitTermination(1, TimeUnit.SECONDS);
     }
-
 }

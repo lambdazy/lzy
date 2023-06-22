@@ -8,7 +8,10 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.iam.resources.impl.Whiteboard;
 import ai.lzy.iam.resources.impl.Workflow;
-import ai.lzy.iam.resources.subjects.*;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.CredentialsType;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.SubjectType;
 import ai.lzy.v1.iam.IAM;
 
 public class ProtoConverter {
@@ -35,11 +38,8 @@ public class ProtoConverter {
 
     public static Subject to(IAM.Subject subject) {
         var subjectType = SubjectType.valueOf(subject.getType());
-        return switch (subjectType) {
-            case USER -> new User(subject.getId());
-            case WORKER -> new Worker(subject.getId());
-            case EXTERNAL -> new External(subject.getId(), subject.getDetails());
-        };
+        var authProvider = AuthProvider.fromProto(subject.getAuthProvider());
+        return Subject.of(subject.getId(), subjectType, authProvider, subject.getProviderId(), subject.getMetaMap());
     }
 
     public static SubjectCredentials to(IAM.Credentials credentials) {
@@ -74,20 +74,13 @@ public class ProtoConverter {
     }
 
     public static IAM.Subject from(Subject subject) {
-        var builder = IAM.Subject.newBuilder()
-            .setId(subject.id());
-
-        if (subject instanceof User) {
-            builder.setType(SubjectType.USER.name());
-        } else if (subject instanceof Worker) {
-            builder.setType(SubjectType.WORKER.name());
-        } else if (subject instanceof External external) {
-            builder.setType(SubjectType.EXTERNAL.name());
-            builder.setDetails(external.details());
-        } else {
-            throw new RuntimeException("Unknown subject type " + subject.getClass());
-        }
-        return builder.build();
+        return IAM.Subject.newBuilder()
+            .setId(subject.id())
+            .setType(subject.type().name())
+            .setAuthProvider(subject.provider().toProto())
+            .setProviderId(subject.providerId())
+            .putAllMeta(subject.meta())
+            .build();
     }
 
     public static IAM.Credentials from(SubjectCredentials credentials) {

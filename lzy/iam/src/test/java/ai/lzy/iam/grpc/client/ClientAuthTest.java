@@ -80,7 +80,7 @@ public class ClientAuthTest {
                 keys.privateKey()));
         Assert.assertEquals(subject, subject2);
 
-        subjectClient.removeCredentials(subject, "main");
+        subjectClient.removeCredentials(subject.id(), "main");
         try {
             authClient.authenticate(
                 JwtUtils.credentials(login, AuthProvider.GITHUB.name(), Date.from(Instant.now()), JwtUtils.afterDays(1),

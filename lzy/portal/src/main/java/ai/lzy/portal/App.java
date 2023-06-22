@@ -8,6 +8,7 @@ import com.google.common.net.HostAndPort;
 import io.grpc.Server;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.runtime.Micronaut;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -61,8 +62,10 @@ public class App {
         mainServer.start();
     }
 
+    @PreDestroy
     public void stop() {
         LOG.info("Stop portal main application: {}", config.toSafeString());
+        allocatorAgent.shutdown();
         mainServer.shutdownNow();
         context.stop();
     }

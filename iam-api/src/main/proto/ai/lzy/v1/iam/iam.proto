@@ -17,7 +17,9 @@ message Resource {
 message Subject {
   string id = 1;
   string type = 2;
-  google.protobuf.Any details = 3;
+  AuthProvider auth_provider = 3;
+  string provider_id = 4;
+  map<string, string> meta = 5;
 }
 
 message Credentials {
@@ -52,4 +54,5 @@ enum AuthProvider {
   AUTH_PROVIDER_UNSPECIFIED = 0;
   INTERNAL = 1;
   GITHUB = 2;
+  EXTERNAL = 3;
 }

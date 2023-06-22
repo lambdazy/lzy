@@ -58,98 +58,113 @@ public class AfterAllocation extends WorkflowJobProvider<TaskState> {
 
     @Override
     protected TaskState exec(TaskState task, String operationId) throws JobProviderException {
-        var iamChannel = newGrpcChannel(authConfig.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
-        var subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
-        var abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
+        var workerPrivateKey = "";
 
-        RsaUtils.RsaKeys iamKeys;
-        try {
-            iamKeys = RsaUtils.generateRsaKeys();
-        } catch (Exception e) {
-            logger.error("Cannot generate RSA keys: {}", e.getMessage());
+        if (!Boolean.TRUE.equals(task.vmFromCache())) {
+            var iamChannel = newGrpcChannel(authConfig.getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
+            var subjectClient = new SubjectServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
+            var abClient = new AccessBindingServiceGrpcClient(SchedulerApi.APP, iamChannel, credentials::get);
 
-            // TODO: delete VM
-
-            fail(com.google.rpc.Status.newBuilder()
-                .setCode(Code.INTERNAL.getNumber())
-                .setMessage("Cannot generate keys")
-                .build());
-            return null;
-        }
-
-        try {
-            Subject subj;
-
+            RsaUtils.RsaKeys iamKeys;
             try {
-                subj = subjectClient.createSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER,
-                    new SubjectCredentials("main", iamKeys.publicKey(), CredentialsType.PUBLIC_KEY));
-            } catch (AuthUniqueViolationException e) {
-                subj = subjectClient.findSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER);
+                iamKeys = RsaUtils.generateRsaKeys();
+            } catch (Exception e) {
+                logger.error("Cannot generate RSA keys: {}", e.getMessage());
 
-                try {
-                    subjectClient.addCredentials(subj, SubjectCredentials.publicKey("worker_key", iamKeys.publicKey()));
-                } catch (AuthUniqueViolationException ex) {
-                    // already added
-                }
+                // TODO: delete VM
 
-            } catch (AuthException e) {
-                logger.error("Error while finding subject for vm {}:", task.vmId(), e);
                 fail(com.google.rpc.Status.newBuilder()
-                    .setCode(Status.Code.INTERNAL.value())
-                    .setMessage("Error in iam")
+                    .setCode(Code.INTERNAL.getNumber())
+                    .setMessage("Cannot generate keys")
                     .build());
                 return null;
             }
 
+            workerPrivateKey = iamKeys.privateKey();
 
             try {
-                abClient.setAccessBindings(new Workflow(task.userId() + "/" + task.workflowName()),
-                    List.of(new AccessBinding(Role.LZY_WORKER, subj)));
-            } catch (StatusRuntimeException e) {
-                if (!e.getStatus().getCode().equals(Status.Code.ALREADY_EXISTS)) {
-                    throw e;
-                }
-            } catch (AuthUniqueViolationException e) {
-                // Skipping already exists, it can be from cache
-            }
+                Subject subj;
 
-            var address = Objects.requireNonNull(task.workerHost());
-            var port = Objects.requireNonNull(task.workerPort());
+                try {
+                    subj = subjectClient.createSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER,
+                        new SubjectCredentials("main", iamKeys.publicKey(), CredentialsType.PUBLIC_KEY));
+                } catch (AuthUniqueViolationException e) {
+                    subj = subjectClient.findSubject(AuthProvider.INTERNAL, task.vmId(), SubjectType.WORKER);
 
-            var workerChannel = newGrpcChannel(HostAndPort.fromParts(address, port), WorkerApiGrpc.SERVICE_NAME);
-            var client = newBlockingClient(
-                WorkerApiGrpc.newBlockingStub(workerChannel), "Scheduler", () -> credentials.get().token());
+                    boolean done = false;
+                    for (int i = 0; i < 1000 /* 1000 retries is enough for all ;) */; ++i) {
+                        try {
+                            subjectClient.addCredentials(
+                                subj.id(), SubjectCredentials.publicKey("main-" + i, iamKeys.publicKey()));
+                            done = true;
+                            break;
+                        } catch (AuthUniqueViolationException ex) {
+                            // (uid, key-name) already exists, try another key name
+                            logger.error("Credentials for ({}, main-{}) already exist, try next...", task.vmId(), i);
+                        }
+                    }
 
-            client.init(LWS.InitRequest.newBuilder()
-                .setUserId(task.userId())
-                .setWorkflowName(task.workflowName())
-                .setWorkerSubjectName(task.vmId())
-                .setWorkerPrivateKey(iamKeys.privateKey())
-                .build());
-
-            var operation = withIdempotencyKey(client, task.id())
-                .execute(
-                    LWS.ExecuteRequest.newBuilder()
-                        .setTaskId(task.id())
-                        .setExecutionId(task.executionId())
-                        .setWorkflowName(task.workflowName())
-                        .setUserId(task.userId())
-                        .setTaskDesc(task.description())
+                    if (!done) {
+                        throw new RuntimeException("Cannot add credentials to the Worker " + task.vmId());
+                    }
+                } catch (AuthException e) {
+                    logger.error("Error while finding subject for vm {}:", task.vmId(), e);
+                    fail(com.google.rpc.Status.newBuilder()
+                        .setCode(Status.Code.INTERNAL.value())
+                        .setMessage("Error in iam")
                         .build());
+                    return null;
+                }
 
-            try {
-                workerChannel.shutdownNow();
-                workerChannel.awaitTermination(1, TimeUnit.SECONDS);
-            } catch (Exception e) {
-                // ignored
+                try {
+                    abClient.setAccessBindings(new Workflow(task.userId() + "/" + task.workflowName()),
+                        List.of(new AccessBinding(Role.LZY_WORKER, subj)));
+                } catch (StatusRuntimeException e) {
+                    if (!e.getStatus().getCode().equals(Status.Code.ALREADY_EXISTS)) {
+                        throw e;
+                    }
+                } catch (AuthUniqueViolationException e) {
+                    // Skipping already exists, it can be from cache
+                }
+            } finally {
+                iamChannel.shutdown();
             }
-
-            return task.copy()
-                .workerOperationId(operation.getId())
-                .build();
-        } finally {
-            iamChannel.shutdown();
         }
+
+        var address = Objects.requireNonNull(task.workerHost());
+        var port = Objects.requireNonNull(task.workerPort());
+
+        var workerChannel = newGrpcChannel(HostAndPort.fromParts(address, port), WorkerApiGrpc.SERVICE_NAME);
+        var client = newBlockingClient(
+            WorkerApiGrpc.newBlockingStub(workerChannel), "Scheduler", () -> credentials.get().token());
+
+        client.init(LWS.InitRequest.newBuilder()
+            .setUserId(task.userId())
+            .setWorkflowName(task.workflowName())
+            .setWorkerSubjectName(task.vmId())
+            .setWorkerPrivateKey(workerPrivateKey)
+            .build());
+
+        var operation = withIdempotencyKey(client, task.id())
+            .execute(
+                LWS.ExecuteRequest.newBuilder()
+                    .setTaskId(task.id())
+                    .setExecutionId(task.executionId())
+                    .setWorkflowName(task.workflowName())
+                    .setUserId(task.userId())
+                    .setTaskDesc(task.description())
+                    .build());
+
+        try {
+            workerChannel.shutdownNow();
+            workerChannel.awaitTermination(1, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            // ignored
+        }
+
+        return task.copy()
+            .workerOperationId(operation.getId())
+            .build();
     }
 
     @Override

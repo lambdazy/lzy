@@ -4,6 +4,7 @@ import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.utils.TokenParser;
+import ai.lzy.logs.LogContextKey;
 import ai.lzy.util.auth.credentials.Credentials;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.OttCredentials;
@@ -84,7 +85,7 @@ public class AuthServerInterceptor implements ServerInterceptor {
                     throw new IllegalArgumentException("Authorization header is missing");
                 } else {
                     Context context = Context.current().withValue(AuthenticationContext.KEY, authContext);
-                    var serverCall = new GrpcServerCall<>(call, authContext.getSubject().str());
+                    var serverCall = new GrpcServerCall<>(call, authContext.getSubject().toString());
                     return Contexts.interceptCall(context, serverCall, headers, next);
                 }
             }
@@ -123,13 +124,13 @@ public class AuthServerInterceptor implements ServerInterceptor {
     private static class GrpcServerCall<M, R> extends ForwardingServerCall.SimpleForwardingServerCall<M, R> {
         private GrpcServerCall(ServerCall<M, R> serverCall, String subject) {
             super(serverCall);
-            ThreadContext.put("subj", subject);
+            ThreadContext.put(LogContextKey.SUBJECT, subject);
         }
 
         @Override
         public void close(Status status, Metadata trailers) {
             super.close(status, trailers);
-            ThreadContext.remove("subj");
+            ThreadContext.remove(LogContextKey.SUBJECT);
         }
     }
 }

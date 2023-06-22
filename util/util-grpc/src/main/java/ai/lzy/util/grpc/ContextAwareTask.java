@@ -1,6 +1,8 @@
 package ai.lzy.util.grpc;
 
+import ai.lzy.logs.LogContextKey;
 import io.grpc.Context;
+import io.grpc.Metadata;
 import lombok.Lombok;
 import org.apache.logging.log4j.CloseableThreadContext;
 import org.apache.logging.log4j.ThreadContext;
@@ -16,10 +18,9 @@ public abstract class ContextAwareTask implements Runnable {
     public ContextAwareTask() {
         logContext = ThreadContext.getContext();
         grpcContext = Context.current().fork();
-        if (!logContext.containsKey("rid")) {
-            var reqid = Optional.ofNullable(GrpcHeaders.getRequestId()).orElse("unknown");
-            logContext.put("rid", reqid);
-        }
+
+        emplace(LogContextKey.REQUEST_ID, GrpcHeaders.X_REQUEST_ID);
+        emplace(LogContextKey.EXECUTION_ID, GrpcHeaders.X_EXECUTION_ID);
     }
 
     public final void run() {
@@ -39,5 +40,13 @@ public abstract class ContextAwareTask implements Runnable {
 
     protected Map<String, String> prepareLogContext() {
         return new HashMap<>();
+    }
+
+    protected final void emplace(String logKey, Metadata.Key<String> grpcHeader) {
+        logContext.computeIfAbsent(logKey, x -> fromHeader(grpcHeader));
+    }
+
+    protected static String fromHeader(Metadata.Key<String> header) {
+        return Optional.ofNullable(GrpcHeaders.getHeader(header)).orElse("unknown");
     }
 }

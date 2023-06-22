@@ -31,18 +31,18 @@ message CreateSubjectRequest {
 }
 
 message RemoveSubjectRequest {
-  Subject subject = 1;
+  string subject_id = 1;
 }
 
 message RemoveSubjectResponse {
 }
 
 message GetSubjectRequest {
-  string id = 1;
+  string subject_id = 1;
 }
 
 message AddCredentialsRequest {
-  Subject subject = 1;
+  string subject_id = 1;
   Credentials credentials = 2;
 }
 
@@ -50,7 +50,7 @@ message AddCredentialsResponse {
 }
 
 message RemoveCredentialsRequest {
-  Subject subject = 1;
+  string subject_id = 1;
   string credentials_name = 2;
 }
 
@@ -58,7 +58,7 @@ message RemoveCredentialsResponse {
 }
 
 message ListCredentialsRequest {
-  Subject subject = 1;
+  string subject_id = 1;
 }
 
 message ListCredentialsResponse {
@@ -67,7 +67,7 @@ message ListCredentialsResponse {
 
 message FindSubjectRequest {
   string provider_user_id = 1;
-  string auth_provider = 2;
+  AuthProvider auth_provider = 2;
   string subject_type = 3;
 }
 
