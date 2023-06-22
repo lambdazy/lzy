@@ -755,7 +755,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         var client = idempotencyKey == null
             ? storagesGrpcClient()
-            : withIdempotencyKey(storagesGrpcClient(), idempotencyKey.token());
+            : withIdempotencyKey(storagesGrpcClient(), idempotencyKey.token() + "_create_storage");
 
         LOG.info("Get storage credentials for bucket {}", bucketName);
         final LMST.StorageConfig storageConfig;
