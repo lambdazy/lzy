@@ -259,6 +259,23 @@ resource "kubernetes_deployment" "lzy-service" {
             }
           }
 
+          env {
+            name = "LZY_SERVICE_OPERATIONS_START_WORKFLOW_TIMEOUT"
+            value = "10s"
+          }
+          env {
+            name = "LZY_SERVICE_OPERATIONS_FINISH_WORKFLOW_TIMEOUT"
+            value = "10s"
+          }
+          env {
+            name = "LZY_SERVICE_OPERATIONS_ABORT_WORKFLOW_TIMEOUT"
+            value = "10s"
+          }
+          env {
+            name = "LZY_SERVICE_OPERATIONS_EXECUTE_GRAPH_TIMEOUT"
+            value = "10s"
+          }
+
           volume_mount {
             name       = "varloglzy"
             mount_path = "/var/log/lzy"

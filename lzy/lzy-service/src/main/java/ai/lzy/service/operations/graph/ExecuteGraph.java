@@ -124,7 +124,8 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
         log().error("{} Fail ExecuteGraph operation: {}", logPrefix(), status.getDescription());
 
         boolean[] success = {false};
-        var stopOp = Operation.create(userId(), "Stop execution: execId='%s'".formatted(execId()), null, null, null);
+        var stopOp = Operation.create(userId(), "Stop execution: execId='%s'".formatted(execId()),
+            serviceCfg().getOperations().getAbortWorkflowTimeout(), null, null);
         try {
             withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(storage())) {
@@ -132,7 +133,7 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
                     if (success[0]) {
                         wfDao().setActiveExecutionId(userId(), wfName(), null, tx);
                         operationsDao().create(stopOp, tx);
-                        execOpsDao().createStopOp(stopOp.id(), instanceId(), execId(), tx);
+                        execOpsDao().createStopOp(stopOp.id(), serviceCfg().getInstanceId(), execId(), tx);
                     }
                     execOpsDao().deleteOp(id(), tx);
                     failOperation(status, tx);
