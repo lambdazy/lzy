@@ -104,8 +104,8 @@ public final class StartExecution extends ExecutionOperationRunner {
                     success[0] = Objects.equals(wfDao().getExecutionId(userId(), wfName(), tx), execId());
                     if (success[0]) {
                         wfDao().setActiveExecutionId(userId(), wfName(), null, tx);
-                        execOpsDao().createStopOp(stopOp.id(), instanceId(), execId(), tx);
                         operationsDao().create(stopOp, tx);
+                        execOpsDao().createStopOp(stopOp.id(), instanceId(), execId(), tx);
                     }
                     execOpsDao().deleteOp(id(), tx);
                     failOperation(status, tx);
