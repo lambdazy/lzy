@@ -225,9 +225,4 @@ resource "kubernetes_service" "channel_manager_service" {
     }
     type = "LoadBalancer"
   }
-  depends_on = [
-    kubernetes_service.lzy_service,
-    kubernetes_service.whiteboard_service,
-    kubernetes_service.lzy_backoffice,
-  ]
 }

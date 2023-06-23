@@ -1,9 +1,8 @@
 locals {
   backoffice-labels = {
-    app                        = "lzy-backoffice"
-    "app.kubernetes.io/name"   = "lzy-backoffice"
-    "lzy.ai/app"               = "backoffice"
-    "yandex.cloud/yandex-only" = "true"
+    app                      = "lzy-backoffice"
+    "app.kubernetes.io/name" = "lzy-backoffice"
+    "lzy.ai/app"             = "backoffice"
   }
 
   backoffice-k8s-name         = "lzy-backoffice"
@@ -293,8 +292,7 @@ resource "kubernetes_service" "lzy_backoffice" {
   }
   spec {
     load_balancer_ip = var.backoffice_public_ip
-    ip_families      = ["IPv4", "IPv6"]
-    ip_family_policy = "PreferDualStack"
+    ip_families      = ["IPv6"]
     type             = "LoadBalancer"
     selector         = local.backoffice-labels
     port {

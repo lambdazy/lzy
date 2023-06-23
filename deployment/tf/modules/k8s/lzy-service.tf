@@ -4,7 +4,6 @@ locals {
     "app.kubernetes.io/name"    = "lzy-service"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "lzy-service"
-    "yandex.cloud/yandex-only"  = "true"
   }
   lzy-service-k8s-name = "lzy-service"
   lzy-service-image    = var.lzy-service-image
@@ -378,8 +377,7 @@ resource "kubernetes_service" "lzy_service" {
   spec {
     load_balancer_ip = var.workflow_public_ip
     selector         = local.lzy-service-labels
-    ip_families      = ["IPv4", "IPv6"]
-    ip_family_policy = "PreferDualStack"
+    ip_families      = ["IPv6"]
     port {
       port        = local.lzy-service-port
       target_port = local.lzy-service-port
