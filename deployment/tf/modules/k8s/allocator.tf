@@ -302,4 +302,9 @@ resource "kubernetes_service" "allocator_service" {
     external_traffic_policy = "Local"
     type = "LoadBalancer"
   }
+  depends_on = [
+    kubernetes_service.lzy_service,
+    kubernetes_service.whiteboard_service,
+    kubernetes_service.lzy_backoffice,
+  ]
 }

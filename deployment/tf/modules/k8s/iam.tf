@@ -237,4 +237,9 @@ resource "kubernetes_service" "iam" {
     }
     type = "LoadBalancer"
   }
+  depends_on = [
+    kubernetes_service.lzy_service,
+    kubernetes_service.whiteboard_service,
+    kubernetes_service.lzy_backoffice,
+  ]
 }
