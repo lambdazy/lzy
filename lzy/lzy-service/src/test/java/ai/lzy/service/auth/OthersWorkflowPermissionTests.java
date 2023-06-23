@@ -195,6 +195,6 @@ public class OthersWorkflowPermissionTests {
         var sre = assertThrows(StatusRuntimeException.class, () ->
             lzyServiceTestContext.privateGrpcClient().abortWorkflow(request)
         );
-        assertSame(Status.UNAVAILABLE.getCode(), sre.getStatus().getCode());
+        assertSame(Status.UNAUTHENTICATED.getCode(), sre.getStatus().getCode());
     }
 }

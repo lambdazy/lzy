@@ -14,9 +14,9 @@ import java.util.function.Consumer;
 
 @SuppressWarnings("OverloadMethodsDeclarationOrder")
 public class OperationDaoDecorator implements OperationDao {
-    private volatile Consumer<Operation> onCreate;
-    private volatile Consumer<String> onComplete;
-    private volatile Consumer<String> onFail;
+    private volatile Consumer<Operation> onCreate = op -> {};
+    private volatile Consumer<String> onComplete = id -> {};
+    private volatile Consumer<String> onFail = id -> {};
 
     private final OperationDao delegate;
 
