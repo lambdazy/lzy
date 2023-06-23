@@ -40,6 +40,10 @@ public class LzyServiceTestContext {
         return HostAndPort.fromString(serviceConfig.getAddress());
     }
 
+    public LzyServiceConfig serviceConfig() {
+        return lzyMicronautContext.getBean(LzyServiceConfig.class);
+    }
+
     public LzyWorkflowServiceBlockingStub grpcClient() {
         return newBlockingClient(LzyWorkflowServiceGrpc.newBlockingStub(grpcChannel), GRPC_CLIENT_NAME, null);
     }

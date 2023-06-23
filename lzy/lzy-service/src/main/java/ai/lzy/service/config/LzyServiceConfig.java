@@ -83,9 +83,9 @@ public class LzyServiceConfig {
     @Getter
     @Setter
     public static final class OperationsConfig {
-        private Duration startWorkflowTimeout;
-        private Duration finishWorkflowTimeout;
-        private Duration abortWorkflowTimeout;
-        private Duration executeGraphTimeout;
+        private volatile Duration startWorkflowTimeout;
+        private volatile Duration finishWorkflowTimeout;
+        private volatile Duration abortWorkflowTimeout;
+        private volatile Duration executeGraphTimeout;
     }
 }

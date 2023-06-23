@@ -7,6 +7,8 @@ import ai.lzy.graph.test.BaseTestWithGraphExecutor;
 import ai.lzy.graph.test.GraphExecutorDecorator;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.iam.test.LzySubjectServiceDecorator;
+import ai.lzy.longrunning.dao.OperationDaoDecorator;
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.test.LzyServiceTestContext;
 import ai.lzy.storage.test.BaseTestWithStorage;
 import ai.lzy.v1.workflow.LzyWorkflowPrivateServiceGrpc.LzyWorkflowPrivateServiceBlockingStub;
@@ -79,15 +81,23 @@ public abstract class ContextAwareTests {
         );
     }
 
-    public AllocatorServiceDecorator allocator() {
+    protected LzyServiceConfig serviceConfig() {
+        return lzyServiceTestContext.serviceConfig();
+    }
+
+    protected OperationDaoDecorator lzyServiceOps() {
+        return lzyServiceTestContext.operationsDao();
+    }
+
+    protected AllocatorServiceDecorator allocator() {
         return allocatorTestContext.allocator();
     }
 
-    public LzySubjectServiceDecorator iamSubjectsService() {
+    protected LzySubjectServiceDecorator iamSubjectsService() {
         return iamTestContext.subjectsService();
     }
 
-    public GraphExecutorDecorator graphExecutor() {
+    protected GraphExecutorDecorator graphExecutor() {
         return graphExecutorTestContext.getGraphExecutor();
     }
 }
