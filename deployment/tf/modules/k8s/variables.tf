@@ -142,3 +142,33 @@ variable "s3_sink_enabled" {
 variable "s3-sink-image" {
   type = string
 }
+
+variable "lzy_service_ip_families" {
+  type = list(string)
+  default = ["IPv4"]
+}
+
+variable "lzy_backoffice_ip_families" {
+  type = list(string)
+  default = ["IPv4"]
+}
+
+variable "whiteboard_service_ip_families" {
+  type = list(string)
+  default = ["IPv4"]
+}
+
+variable "allocator_service_ip_families" {
+  type = list(string)
+  default = ["IPv4"]
+}
+
+variable "channel_manager_service_ip_families" {
+  type = list(string)
+  default = ["IPv4"]
+}
+
+variable "iam_ip_families" {
+  type = list(string)
+  default = ["IPv4"]
+}
