@@ -219,6 +219,7 @@ resource "kubernetes_service" "channel_manager_service" {
   }
   spec {
     selector = local.channel-manager-labels
+    ip_families = var.channel_manager_service_ip_families
     port {
       port        = local.channel-manager-port
       target_port = local.channel-manager-port

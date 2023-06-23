@@ -231,6 +231,7 @@ resource "kubernetes_service" "iam" {
   }
   spec {
     selector = local.iam-labels
+    ip_families = var.iam_ip_families
     port {
       port        = local.iam-port
       target_port = local.iam-port

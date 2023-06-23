@@ -289,6 +289,7 @@ resource "kubernetes_service" "allocator_service" {
   }
   spec {
     selector = local.allocator-labels
+    ip_families      = var.allocator_service_ip_families
     port {
       name        = "main-grpc"
       port        = local.allocator-port
