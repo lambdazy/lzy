@@ -3,7 +3,6 @@ package ai.lzy.service;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AllowSubjectOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.longrunning.OperationsService;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.util.ClientVersionInterceptor;
@@ -40,7 +39,6 @@ public class App {
     public App(LzyServiceConfig config, LzyService lzyService, LzyPrivateService lzyPrivateService,
                @Named("IamServiceChannel") ManagedChannel iamChannel,
                @Named("LzyServiceAuthInterceptor") AuthServerInterceptor authInterceptor,
-               @Named("LzyServiceOperationService") OperationsService operationService,
                @Named("LzyServiceMetricReporter") MetricReporter metricReporter,
                ClientVersionInterceptor clientVersionInterceptor)
     {
@@ -51,8 +49,7 @@ public class App {
             clientVersionInterceptor,
             authInterceptor,
             ServerInterceptors.intercept(lzyService, new ExecutionIdInterceptor()),
-            ServerInterceptors.intercept(lzyPrivateService, internalOnly),
-            operationService.bindService());
+            ServerInterceptors.intercept(lzyPrivateService, internalOnly));
     }
 
     public void start() throws IOException {
