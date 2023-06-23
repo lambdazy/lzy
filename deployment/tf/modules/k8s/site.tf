@@ -1,8 +1,9 @@
 locals {
   backoffice-labels = {
-    app                      = "lzy-backoffice"
-    "app.kubernetes.io/name" = "lzy-backoffice"
-    "lzy.ai/app"             = "backoffice"
+    app                        = "lzy-backoffice"
+    "app.kubernetes.io/name"   = "lzy-backoffice"
+    "lzy.ai/app"               = "backoffice"
+    "yandex.cloud/yandex-only" = "true"
   }
 
   backoffice-k8s-name         = "lzy-backoffice"
@@ -165,7 +166,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             "-Dmicronaut.ssl.enabled=true",
             "-Dsite.hostname=https://${local.github-redirect-address}:8443",
             "-Dmicronaut.server.dual-protocol=true"
-            ] : [
+          ] : [
             "-Dmicronaut.env.deduction=true",
             "-Dmicronaut.ssl.enabled=false",
             "-Dsite.hostname=http://${var.backoffice_public_ip}:8080",
@@ -292,7 +293,7 @@ resource "kubernetes_service" "lzy_backoffice" {
   }
   spec {
     load_balancer_ip = var.backoffice_public_ip
-    ip_families = ["IPv4", "IPv6"]
+    ip_families      = ["IPv4", "IPv6"]
     ip_family_policy = "PreferDualStack"
     type             = "LoadBalancer"
     selector         = local.backoffice-labels

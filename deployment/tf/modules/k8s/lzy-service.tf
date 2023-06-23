@@ -1,10 +1,10 @@
-
 locals {
   lzy-service-labels = {
     app                         = "lzy-service"
     "app.kubernetes.io/name"    = "lzy-service"
     "app.kubernetes.io/part-of" = "lzy"
     "lzy.ai/app"                = "lzy-service"
+    "yandex.cloud/yandex-only"  = "true"
   }
   lzy-service-k8s-name = "lzy-service"
   lzy-service-image    = var.lzy-service-image
@@ -254,7 +254,7 @@ resource "kubernetes_deployment" "lzy-service" {
             for_each = var.s3_sink_enabled ? [1] : []
 
             content {
-              name = "LZY_SERVICE_S3_SINK_ADDRESS"
+              name  = "LZY_SERVICE_S3_SINK_ADDRESS"
               value = "${kubernetes_service.s3_sink_service[0].spec[0].cluster_ip}:${local.s3-sink-port}"
             }
           }
@@ -378,7 +378,7 @@ resource "kubernetes_service" "lzy_service" {
   spec {
     load_balancer_ip = var.workflow_public_ip
     selector         = local.lzy-service-labels
-    ip_families = ["IPv4", "IPv6"]
+    ip_families      = ["IPv4", "IPv6"]
     ip_family_policy = "PreferDualStack"
     port {
       port        = local.lzy-service-port

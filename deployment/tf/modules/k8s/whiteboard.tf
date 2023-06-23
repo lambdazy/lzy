@@ -1,8 +1,9 @@
 locals {
   whiteboard-labels = {
-    app                      = "whiteboard"
-    "app.kubernetes.io/name" = "whiteboard"
-    "lzy.ai/app"             = "whiteboard"
+    app                        = "whiteboard"
+    "app.kubernetes.io/name"   = "whiteboard"
+    "lzy.ai/app"               = "whiteboard"
+    "yandex.cloud/yandex-only" = "true"
   }
   whiteboard-k8s-name = "whiteboard"
   whiteboard-image    = var.whiteboard-image
@@ -210,7 +211,7 @@ resource "kubernetes_service" "whiteboard_service" {
   spec {
     selector         = local.whiteboard-labels
     load_balancer_ip = var.whiteboard_public_ip
-    ip_families = ["IPv4", "IPv6"]
+    ip_families      = ["IPv4", "IPv6"]
     ip_family_policy = "PreferDualStack"
     port {
       port        = local.whiteboard-port
