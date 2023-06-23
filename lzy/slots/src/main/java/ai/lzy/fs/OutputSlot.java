@@ -88,7 +88,13 @@ public class OutputSlot extends Thread implements Slot, ExecutionCompanion {
                 .build());
 
             if (res.hasPeer()) {
-                try (var transfer = context.transferFactory().output(res.getPeer())) {
+                var transfer = context.transferFactory().output(res.getPeer());
+                if (transfer == null) {
+                    LOG.error("({}) Cannot create transfer for peer {}", logPrefix, res.getPeer());
+
+                }
+
+                try (transfer) {
                     transfer.readFrom(backend.readFromOffset(0));
 
                     context.channelManager().transferCompleted(LCMS.TransferCompletedRequest.newBuilder()
