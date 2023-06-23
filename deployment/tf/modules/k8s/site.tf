@@ -292,6 +292,7 @@ resource "kubernetes_service" "lzy_backoffice" {
   }
   spec {
     load_balancer_ip = var.backoffice_public_ip
+    ip_families = ["IPv4", "IPv6"]
     type             = "LoadBalancer"
     selector         = local.backoffice-labels
     port {

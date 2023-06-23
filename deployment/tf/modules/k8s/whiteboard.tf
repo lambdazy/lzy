@@ -210,6 +210,7 @@ resource "kubernetes_service" "whiteboard_service" {
   spec {
     selector         = local.whiteboard-labels
     load_balancer_ip = var.whiteboard_public_ip
+    ip_families = ["IPv4", "IPv6"]
     port {
       port        = local.whiteboard-port
       target_port = local.whiteboard-port

@@ -378,6 +378,7 @@ resource "kubernetes_service" "lzy_service" {
   spec {
     load_balancer_ip = var.workflow_public_ip
     selector         = local.lzy-service-labels
+    ip_families = ["IPv4", "IPv6"]
     port {
       port        = local.lzy-service-port
       target_port = local.lzy-service-port
