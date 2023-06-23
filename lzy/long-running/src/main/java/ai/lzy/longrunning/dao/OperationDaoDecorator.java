@@ -12,6 +12,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.function.Consumer;
 
+@SuppressWarnings("OverloadMethodsDeclarationOrder")
 public class OperationDaoDecorator implements OperationDao {
     private volatile Consumer<Operation> onCreate;
     private volatile Consumer<String> onComplete;
