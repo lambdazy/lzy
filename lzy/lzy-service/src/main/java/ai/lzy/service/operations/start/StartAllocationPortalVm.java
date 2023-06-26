@@ -92,10 +92,9 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
             return StepResult.RESTART;
         }
 
-        setPortalVmId(allocateMetadata.getVmId());
-
+        var portalVmId = allocateMetadata.getVmId();
         try {
-            withRetries(log(), () -> execDao().updateAllocateOperationData(execId(), op.getId(), portalVmId(), null));
+            withRetries(log(), () -> execDao().updateAllocateOperationData(execId(), op.getId(), portalVmId, null));
         } catch (Exception e) {
             Runnable dropAllocVm = () -> {
                 try {
@@ -111,9 +110,9 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
                     withIdempotencyKey(allocClient, idempotencyKey() + "_free_portal_vm");
                 try {
                     //noinspection ResultOfMethodCallIgnored
-                    freeVmAllocClient.free(VmAllocatorApi.FreeRequest.newBuilder().setVmId(portalVmId()).build());
+                    freeVmAllocClient.free(VmAllocatorApi.FreeRequest.newBuilder().setVmId(portalVmId).build());
                 } catch (StatusRuntimeException sre) {
-                    log().warn("{} Cannot free portal VM with id='{}' after error {}: ", logPrefix(), portalVmId(),
+                    log().warn("{} Cannot free portal VM with id='{}' after error {}: ", logPrefix(), portalVmId,
                         e.getMessage(), sre);
                 }
             };
@@ -123,6 +122,7 @@ final class StartAllocationPortalVm extends StartExecutionContextAwareStep
                 .asRuntimeException());
         }
 
+        setPortalVmId(portalVmId);
         log().debug("{} Allocator is successfully requested for portal VM, vmId='{}', allocOpId='{}'", logPrefix(),
             portalVmId(), op.getId());
 

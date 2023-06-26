@@ -17,7 +17,7 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import ai.lzy.model.grpc.ProtoConverter;
 import ai.lzy.v1.slots.LSA;
-import ai.lzy.v1.workflow.LWFPS;
+import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowPrivateServiceGrpc;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -88,7 +88,7 @@ public abstract class ChannelAction implements Runnable {
         }
     }
 
-    protected void failOperation(String executionId, Status status) {
+    protected void failOperation(String wfName, String executionId, Status status) {
         operationStopped = true;
         try {
             withRetries(LOG, () -> {
@@ -108,14 +108,16 @@ public abstract class ChannelAction implements Runnable {
 
         try {
             //noinspection ResultOfMethodCallIgnored
-            workflowPrivateApi.abortExecution(LWFPS.AbortExecutionRequest.newBuilder()
+            workflowPrivateApi.abortWorkflow(LWFS.AbortWorkflowRequest.newBuilder()
+                .setWorkflowName(wfName)
                 .setExecutionId(executionId)
                 .setReason(status.getDescription())
                 .build());
-            LOG.info("Sent request abortExecution {} about failed operation {}", executionId, operationId);
+            LOG.info("Sent request abortWorkflow with name='{}' and execId='{}' about failed operation {}", wfName,
+                executionId, operationId);
         } catch (Exception e) {
-            LOG.error("Cannot send request abortExecution {} about failed operation {}, got exception: {}",
-                executionId, operationId, e.getMessage());
+            LOG.error("Cannot send request abortWorkflow with name='{}' and execId='{}' about failed operation {}, " +
+                "got exception: {}", wfName, executionId, operationId, e.getMessage());
         }
     }
 

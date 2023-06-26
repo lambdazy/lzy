@@ -141,8 +141,6 @@ final class CreateKafkaTopic extends StartExecutionContextAwareStep implements S
                 Status.INTERNAL.withDescription("Cannot create kafka topic").asRuntimeException());
         }
 
-        log().debug("{} Kafka topic with name='{}' successfully created...", logPrefix(), kafkaTopicName);
-
         return StepResult.CONTINUE;
     }
 }

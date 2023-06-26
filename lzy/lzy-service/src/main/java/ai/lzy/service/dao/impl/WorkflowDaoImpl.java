@@ -36,7 +36,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
     private static final String QUERY_UPDATE_ACTIVE_EXECUTION_TO_NULL = """
         UPDATE workflows SET active_execution_id = NULL, modified_at = ?
-        WHERE active_execution_id = ?""";
+        WHERE workflow_name = ? AND active_execution_id = ?""";
 
     private final LzyServiceStorage storage;
 
@@ -101,36 +101,33 @@ public class WorkflowDaoImpl implements WorkflowDao {
     public String getExecutionId(String userId, String wfName, @Nullable TransactionHandle transaction)
         throws SQLException
     {
-        String[] activeExecId = {null};
-        DbOperation.execute(transaction, storage, connection -> {
+        return DbOperation.execute(transaction, storage, connection -> {
             try (var st = connection.prepareStatement(QUERY_SELECT_WORKFLOW)) {
                 st.setString(1, userId);
                 st.setString(2, wfName);
                 var rs = st.executeQuery();
                 if (rs.next()) {
-                    activeExecId[0] = rs.getString("active_execution_id");
+                    return rs.getString("active_execution_id");
                 } else {
                     throw new NotFoundException("Cannot found workflow with name='%s'".formatted(wfName));
                 }
             }
         });
-        return activeExecId[0];
     }
 
     @Override
-    public boolean setActiveExecutionIdToNull(String brokenExecId, @Nullable TransactionHandle transaction)
-        throws SQLException
+    public boolean setActiveExecutionIdToNull(String wfName, String activeExecId,
+                                              @Nullable TransactionHandle transaction) throws SQLException
     {
-        LOG.debug("Try to deactivate workflow with broken execution: { brokenExecId: {} }", brokenExecId);
-        boolean[] result = {false};
-        DbOperation.execute(transaction, storage, connection -> {
+        LOG.debug("Try to deactivate workflow with broken execution: { brokenExecId: {} }", activeExecId);
+        return DbOperation.execute(transaction, storage, connection -> {
             try (var st = connection.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION_TO_NULL)) {
                 st.setTimestamp(1, Timestamp.from(Instant.now()));
-                st.setString(2, brokenExecId);
-                result[0] = st.executeUpdate() > 0;
+                st.setString(2, wfName);
+                st.setString(3, activeExecId);
+                return st.executeUpdate() > 0;
             }
         });
-        return result[0];
     }
 
     @Override

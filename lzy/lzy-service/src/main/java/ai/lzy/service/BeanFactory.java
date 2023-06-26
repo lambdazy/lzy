@@ -7,7 +7,6 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationsExecutor;
-import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoDecorator;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
@@ -280,12 +279,6 @@ public class BeanFactory {
             .register();
 
         return new OperationsExecutor(5, 20, errors::inc, e -> e instanceof InjectedFailures.TerminateException);
-    }
-
-    @Singleton
-    @Named("LzyServiceOperationService")
-    public OperationsService operationsService(@Named("LzyServiceOperationDao") OperationDao operationDao) {
-        return new OperationsService(operationDao);
     }
 
     @Singleton

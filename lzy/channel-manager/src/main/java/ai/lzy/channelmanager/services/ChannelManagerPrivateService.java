@@ -30,6 +30,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static ai.lzy.channelmanager.grpc.ProtoConverter.toProto;
@@ -161,7 +162,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
         final ChannelOperation channelOperation = channelOperationManager.newDestroyOperation(
-            operation.id(), startedAt, deadline, channel.getExecutionId(), List.of(channelId)
+            operation.id(), startedAt, deadline, channel.getWorkflowName(), channel.getExecutionId(), List.of(channelId)
         );
 
         try {
@@ -217,15 +218,33 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
             return;
         }
 
-        final List<String> channelsToDestroy;
+        final List<Channel> channels;
         try {
-            final List<Channel> channels = withRetries(LOG, () -> channelDao.listChannels(executionId));
-            channelsToDestroy = channels.stream().map(Channel::getId).collect(Collectors.toList());
+            channels = withRetries(LOG, () -> channelDao.listChannels(executionId));
         } catch (Exception e) {
             LOG.error(operationDescription + " failed, got exception: {}", e.getMessage(), e);
             response.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }
+
+        if (channels.isEmpty()) {
+            LOG.warn("Execution with id='{}' have no channels", executionId);
+            response.onNext(
+                Operation.createCompleted(
+                    UUID.randomUUID().toString(),
+                    "ChannelManager",
+                    operationDescription,
+                    idempotencyKey,
+                    null,
+                    Any.pack(LCMPS.ChannelDestroyAllMetadata.getDefaultInstance())
+                ).toProto()
+            );
+            response.onCompleted();
+            return;
+        }
+
+        final List<String> channelsToDestroy = channels.stream().map(Channel::getId).collect(Collectors.toList());
+        final String wfName = channels.get(0).getWorkflowName();
 
         final Operation operation = Operation.create("ChannelManager", operationDescription, /* deadline */ null,
             idempotencyKey, Any.pack(LCMPS.ChannelDestroyAllMetadata.getDefaultInstance()));
@@ -233,7 +252,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
         final ChannelOperation channelOperation = channelOperationManager.newDestroyOperation(
-            operation.id(), startedAt, deadline, executionId, channelsToDestroy
+            operation.id(), startedAt, deadline, wfName, executionId, channelsToDestroy
         );
 
         try {
@@ -328,7 +347,7 @@ public class ChannelManagerPrivateService extends LzyChannelManagerPrivateGrpc.L
                 channelDao.listChannels(executionId, Channel.LifeStatus.ALIVE));
         } catch (Exception e) {
             LOG.error("Get channels status of execution (executionId: {}) failed, "
-                      + "got exception: {}", executionId, e.getMessage(), e);
+                + "got exception: {}", executionId, e.getMessage(), e);
             response.onError(Status.INTERNAL.withCause(e).asException());
             return;
         }

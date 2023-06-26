@@ -2,11 +2,17 @@ package ai.lzy.service.dao;
 
 import ai.lzy.v1.graph.GraphExecutor.TaskDesc;
 import ai.lzy.v1.workflow.LWF;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import jakarta.annotation.Nullable;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 import java.util.Map;
 
+@JsonSerialize
+@JsonDeserialize
+@NoArgsConstructor
 public final class ExecuteGraphState {
     // from ExecuteGraphRequest
     public LWF.Graph request;

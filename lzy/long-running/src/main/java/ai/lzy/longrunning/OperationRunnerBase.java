@@ -88,6 +88,11 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
                 log.error("{} Terminated by InjectedFailure exception: {}", logPrefix, e.getMessage());
             } else {
                 log.error("{} Terminated by exception: {}", logPrefix, e.getMessage(), e);
+                try {
+                    failOperation(Status.INTERNAL.withDescription(e.getMessage()), null);
+                } catch (SQLException ex) {
+                    log.error("{} Cannot fail operation with error: {}", logPrefix, e.getMessage(), e);
+                }
                 throw e;
             }
         }
