@@ -1,6 +1,7 @@
 package ai.lzy.fs;
 
 import ai.lzy.fs.backends.*;
+import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LC;
@@ -37,8 +38,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SlotsTest {
+    private static final int s3MockPort = FreePortFinder.find(1000, 2000);
+    private static final int serverPort = FreePortFinder.find(2000, 3000);
     private static final String FS_ROOT = "/tmp/lzy_fs_test";
-    private static final String ADDRESS = "localhost:1234";
+    private static final String ADDRESS = "localhost:" + serverPort;
+    private static final String S3_ADDRESS = "http://localhost:" + s3MockPort;
     private static final String EXECUTION_ID = "execution-id";
 
     private static SlotsService slotsService;
@@ -50,7 +54,7 @@ public class SlotsTest {
 
     @ClassRule
     public static S3MockRule s3MockRule = S3MockRule.builder()
-        .withHttpPort(12345)
+        .withHttpPort(s3MockPort)
         .silent()
         .build();
     private static AmazonS3 s3Client;
@@ -62,7 +66,7 @@ public class SlotsTest {
         slotsService = new SlotsService();
 
         server = ServerBuilder
-            .forPort(1234)
+            .forPort(serverPort)
             .addService(channelManagerMock)
             .addService(slotsService)
             .build();
@@ -83,7 +87,7 @@ public class SlotsTest {
         s3Client = AmazonS3ClientBuilder.standard()
             .withPathStyleAccessEnabled(true)
             .withEndpointConfiguration(
-                new AwsClientBuilder.EndpointConfiguration("http://localhost:12345", "us-west-1"))
+                new AwsClientBuilder.EndpointConfiguration("http://localhost:" + s3MockPort, "us-west-1"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
     }
@@ -108,7 +112,7 @@ public class SlotsTest {
         var outHandle = channelManagerMock.onBind("1");
 
         var outSlot = new OutputSlot(outBackand, "1", "chan", executionContext.context());
-        executionContext.addSlot(outSlot);
+        executionContext.add(outSlot);
         var beforeFut = outSlot.beforeExecution();
 
         Files.write(pipePath, "Hello".getBytes(), StandardOpenOption.WRITE);
@@ -135,7 +139,7 @@ public class SlotsTest {
         var inBackend = new FileInputBackend(Path.of("/tmp", "lzy", "test_simple-in"));
 
         var inSlot = new InputSlot(inBackend, "2", "chan", executionContext.context());
-        executionContext.addSlot(inSlot);
+        executionContext.add(inSlot);
         var inBeforeFut = inSlot.beforeExecution();
 
         var inReq = inHandle.get();
@@ -234,7 +238,6 @@ public class SlotsTest {
         outBind.get();
         outBind.complete(LCMS.BindResponse.getDefaultInstance());
 
-        var transferFailedHandle = channelManagerMock.onTransferFailed("transfer-id");
         slotsStub.startTransfer(LSA.StartTransferRequest.newBuilder()
             .setSlotId("1")
             .setTransferId("transfer-id")
@@ -246,9 +249,6 @@ public class SlotsTest {
                 .build())
             .build()
         );
-
-        transferFailedHandle.get();
-        transferFailedHandle.complete(LCMS.TransferFailedResponse.getDefaultInstance());
 
         Assert.assertThrows(ExecutionException.class, () -> inSlot.beforeExecution().get());
     }
@@ -293,9 +293,9 @@ public class SlotsTest {
     @Test
     public void testInputRestart() throws ExecutionException, InterruptedException {
         var inBack = new InMemBackand(new byte[1024]);
-        inBack.failOpen.set(true);
 
         var outBack = new InMemBackand("Hello".getBytes());
+        outBack.failRead.set(true);
 
         var inBind = channelManagerMock.onBind("1");
         var outBind = channelManagerMock.onBind("2");
@@ -323,7 +323,7 @@ public class SlotsTest {
         );
 
         transferFailedHandle.get();
-        inBack.failOpen.set(false);
+        outBack.failRead.set(false);
 
         var transferCompletedHandle = channelManagerMock.onTransferCompleted("transfer-id");
         transferFailedHandle.complete(LCMS.TransferFailedResponse.newBuilder()
@@ -361,7 +361,7 @@ public class SlotsTest {
             .setPeer(LC.PeerDescription.newBuilder()
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
-                        .setEndpoint("http://localhost:12345")
+                        .setEndpoint(S3_ADDRESS)
                         .build())
                     .setStorageUri("s3://bucket-read/key1")
                     .build())
@@ -393,7 +393,7 @@ public class SlotsTest {
             .setPeer(LC.PeerDescription.newBuilder()
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
-                        .setEndpoint("http://localhost:12345")
+                        .setEndpoint(S3_ADDRESS)
                         .build())
                     .setStorageUri("s3://bucket-write/key1")
                     .build())
@@ -423,7 +423,7 @@ public class SlotsTest {
             .setPeer(LC.PeerDescription.newBuilder()
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
-                        .setEndpoint("http://localhost:12345")
+                        .setEndpoint(S3_ADDRESS)
                         .build())
                     .setStorageUri("s3://lolkek/key1")
                     .build())
@@ -451,7 +451,7 @@ public class SlotsTest {
             .setPeer(LC.PeerDescription.newBuilder()
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
-                        .setEndpoint("http://localhost:12345")
+                        .setEndpoint(S3_ADDRESS)
                         .build())
                     .setStorageUri("s3://lolkek/key1")
                     .build())
@@ -488,7 +488,7 @@ public class SlotsTest {
             .setPeer(LC.PeerDescription.newBuilder()
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
-                        .setEndpoint("http://localhost:12345")
+                        .setEndpoint(S3_ADDRESS)
                         .build())
                     .setStorageUri("s3://bucket-execution-context/key1")
                     .build())
@@ -501,7 +501,7 @@ public class SlotsTest {
             .setPeer(LC.PeerDescription.newBuilder()
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
-                        .setEndpoint("http://localhost:12345")
+                        .setEndpoint(S3_ADDRESS)
                         .build())
                     .setStorageUri("s3://bucket-execution-context/key2")
                     .build())
@@ -514,7 +514,7 @@ public class SlotsTest {
             .setPeer(LC.PeerDescription.newBuilder()
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
-                        .setEndpoint("http://localhost:12345")
+                        .setEndpoint(S3_ADDRESS)
                         .build())
                     .setStorageUri("s3://bucket-execution-context/key3")
                     .build())

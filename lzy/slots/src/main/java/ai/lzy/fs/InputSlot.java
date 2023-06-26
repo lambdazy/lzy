@@ -43,19 +43,21 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
     }
 
     @Override
-    public void beforeExecution() throws Exception {
-        ready.get();
+    public CompletableFuture<Void> beforeExecution() {
+        return ready;
     }
 
     @Override
-    public void afterExecution() {}
+    public CompletableFuture<Void> afterExecution() {
+        return CompletableFuture.completedFuture(null);
+    }
 
     @Override
     public synchronized void startTransfer(LC.PeerDescription peer, String transferId) {
         if (waitForPeer.isDone()) {
             LOG.error("{} Transfer is already started in this slot", logPrefix);
 
-            throw Status.FAILED_PRECONDITION.asRuntimeException();
+            throw new IllegalStateException("Transfer is already started in this slot");
         }
 
         var req = new StartTransferRequest(transferId, peer);

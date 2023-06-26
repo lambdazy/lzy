@@ -5,7 +5,6 @@ import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.common.LMST;
 
-import java.io.IOException;
 import java.net.URI;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
@@ -30,12 +29,12 @@ public class StorageInputTransfer implements InputTransfer {
     }
 
     @Override
-    public int readInto(SeekableByteChannel sink) throws ReadException, IOException {
+    public int readInto(SeekableByteChannel sink) throws ReadException {
         try {
             client.read(URI.create(peer.getStoragePeer().getStorageUri()), Channels.newOutputStream(sink));
             sink.close();
-        } catch (InterruptedException e) {
-            throw new ReadException("Interrupted while reading", e);
+        } catch (Exception e) {
+            throw new ReadException("Error while reading from s3", e);
         }
 
         return -1;

@@ -187,6 +187,9 @@ public final class GrpcUtils {
     }
 
     public static void withRetries(Logger logger, Runnable func) throws Exception {
-        withRetries(logger, DEFAULT_RETRY_CONFIG, () -> {func.run(); return null;});
+        withRetries(logger, DEFAULT_RETRY_CONFIG, () -> {
+            func.run();
+            return null;
+        });
     }
 }

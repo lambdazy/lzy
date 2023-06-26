@@ -19,7 +19,6 @@ public class FileInputBackend implements InputSlotBackend {
             if (!path.getParent().toFile().exists()) {
                 Files.createDirectories(path.getParent());
             }
-            Files.createDirectories(path.getParent());
             path.toFile().createNewFile();
         } else {
             path.toFile().delete();

@@ -1,12 +1,13 @@
 package ai.lzy.fs;
 
 import ai.lzy.fs.backends.OutputSlotBackend;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.v2.LSA;
 import com.google.protobuf.ByteString;
-import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,7 +18,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public class OutputSlot extends Thread implements Slot, ExecutionCompanion {
+public class OutputSlot implements Slot, ExecutionCompanion {
     private static final ThreadGroup OUTPUT_SLOTS_TG = new ThreadGroup("OutputSlots");
     private static final Logger LOG = LogManager.getLogger(OutputSlot.class);
 
@@ -32,8 +33,6 @@ public class OutputSlot extends Thread implements Slot, ExecutionCompanion {
     public OutputSlot(OutputSlotBackend backend, String slotId, String channelId,
                       SlotsContext context)
     {
-        super(OUTPUT_SLOTS_TG, "OutputSlot(slotId: %s, channelId: %s)".formatted(slotId, channelId));
-
         this.backend = backend;
         this.slotId = slotId;
         this.channelId = channelId;
@@ -41,15 +40,16 @@ public class OutputSlot extends Thread implements Slot, ExecutionCompanion {
 
         this.logPrefix = "OutputSlot(slotId: %s, channelId: %s)".formatted(slotId, channelId);
 
-        this.start();
+        var thread = new PrepareThread();
+        thread.start();
+
+        runningThreads.add(thread);
     }
 
 
     @Override
     public void startTransfer(LC.PeerDescription peer, String transferId) {
-        throw Status.UNIMPLEMENTED
-            .withDescription("Start transfer is not supported for output slot")
-            .asRuntimeException();
+        throw new NotImplementedException("Cannot start transfer in output slot");
     }
 
     @Override
@@ -66,100 +66,13 @@ public class OutputSlot extends Thread implements Slot, ExecutionCompanion {
     }
 
     @Override
-    public void beforeExecution() {}
-
-    @Override
-    public void afterExecution() throws Exception {
-        completeFuture.get();
+    public CompletableFuture<Void> beforeExecution() {
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
-    public void run() {
-        try {
-            backend.waitCompleted();
-
-            context.slotsService().register(OutputSlot.this);  // Enabling request from outside
-            var res = context.channelManager().bind(LCMS.BindRequest.newBuilder()
-                .setRole(LCMS.BindRequest.Role.PRODUCER)
-                .setPeerId(slotId)
-                .setExecutionId(context.executionId())
-                .setChannelId(channelId)
-                .setPeerUrl(context.apiUrl())
-                .build());
-
-            if (res.hasPeer()) {
-                var transfer = context.transferFactory().output(res.getPeer());
-                if (transfer == null) {
-                    LOG.error("({}) Cannot create transfer for peer {}", logPrefix, res.getPeer());
-
-                }
-
-                try (transfer) {
-                    transfer.readFrom(backend.readFromOffset(0));
-
-                    context.channelManager().transferCompleted(LCMS.TransferCompletedRequest.newBuilder()
-                        .setTransferId(res.getTransferId())
-                        .setChannelId(channelId)
-                        .build());
-                } catch (Exception e) {
-                    LOG.error("{} Error while transferring data to peer {}: ", logPrefix,
-                        res.getPeer().getPeerId(), e);
-
-                    context.channelManager().transferFailed(LCMS.TransferFailedRequest.newBuilder()
-                        .setTransferId(res.getTransferId())
-                        .setChannelId(channelId)
-                        .build());
-
-                    throw e;
-                }
-
-                completeFuture.complete(null);
-            }
-
-
-        } catch (Exception e) {
-            LOG.error("{} Error while binding output slot: ", logPrefix, e);
-            close();
-        }
-    }
-
-    private class ReadThread extends Thread {
-        private final long offset;
-        private final StreamObserver<LSA.ReadDataChunk> responseObserver;
-
-        private ReadThread(long offset, StreamObserver<LSA.ReadDataChunk> responseObserver) {
-            super(OUTPUT_SLOTS_TG, "ReadThread(offset: %d, from_slot: %s)".formatted(offset, slotId));
-            this.offset = offset;
-            this.responseObserver = responseObserver;
-        }
-
-        @Override
-        public void run() {
-            try {
-                var source = backend.readFromOffset(offset);
-
-                var buffer = ByteBuffer.allocate(4096); // 4KB
-                var channel = Channels.newChannel(source);
-
-                while (channel.read(buffer) != -1) {
-                    var chunk = LSA.ReadDataChunk.newBuilder()
-                        .setChunk(ByteString.copyFrom(buffer.flip()))
-                        .build();
-
-                    responseObserver.onNext(chunk);
-
-                    buffer.clear();
-                }
-
-                responseObserver.onNext(LSA.ReadDataChunk
-                    .newBuilder()
-                    .setControl(LSA.ReadDataChunk.Control.EOS)
-                    .build());
-                responseObserver.onCompleted();
-            } catch (Exception e) {
-                responseObserver.onError(e);
-            }
-        }
+    public CompletableFuture<Void> afterExecution() {
+        return completeFuture;
     }
 
     @Override
@@ -201,16 +114,117 @@ public class OutputSlot extends Thread implements Slot, ExecutionCompanion {
 
             thread.stop();  // Force stop if not closed by interrupt
         }
+    }
 
-        if (Thread.currentThread().equals(this)) {
-            return;  // Not joining itself
+    private class PrepareThread extends Thread {
+        PrepareThread() {
+            super(OUTPUT_SLOTS_TG, "PrepareOutputSlot(slotId: %s, channelId: %s)".formatted(slotId, channelId));
         }
 
-        this.interrupt();
-        try {
-            this.join(100);
-        } catch (InterruptedException e) {
-            LOG.error("{} Error while waiting for thread to join: ", logPrefix, e);
+        @Override
+        public void run() {
+            try {
+                runImpl();
+            } catch (Exception e) {
+                LOG.error("{} Error while binding output slot: ", logPrefix, e);
+                completeFuture.completeExceptionally(e);
+            }
+        }
+
+        private void runImpl() throws Exception {
+            backend.waitCompleted();
+
+            context.slotsService().register(OutputSlot.this);  // Enabling request from outside
+
+            var res = bind();
+
+            if (res.hasPeer()) {
+                var transfer = context.transferFactory().output(res.getPeer());
+
+                if (transfer == null) {
+                    LOG.error("({}) Cannot create transfer for peer {}", logPrefix, res.getPeer());
+                    failTransfer(res.getTransferId());
+                    throw new IllegalStateException("Cannot create transfer for peer " + res.getPeer());
+                }
+
+                try (transfer) {
+                    transfer.readFrom(backend.readFromOffset(0));
+                    completeTransfer(res.getTransferId());
+
+                } catch (Exception e) {
+                    LOG.error("{} Error while transferring data to peer {}: ", logPrefix,
+                        res.getPeer().getPeerId(), e);
+
+                    failTransfer(res.getTransferId());
+                    throw e;
+                }
+
+                completeFuture.complete(null);
+            }
+        }
+    }
+
+    private void failTransfer(String transferId) {
+        context.channelManager().transferFailed(LCMS.TransferFailedRequest.newBuilder()
+            .setTransferId(transferId)
+            .setChannelId(channelId)
+            .build());
+    }
+
+    private LCMS.BindResponse bind() throws Exception {
+        return GrpcUtils.withRetries(LOG, () -> context.channelManager().bind(LCMS.BindRequest.newBuilder()
+            .setRole(LCMS.BindRequest.Role.PRODUCER)
+            .setPeerId(slotId)
+            .setExecutionId(context.executionId())
+            .setChannelId(channelId)
+            .setPeerUrl(context.apiUrl())
+            .build()));
+    }
+
+    private void completeTransfer(String transferId) throws Exception {
+        GrpcUtils.withRetries(LOG, () -> context.channelManager().transferCompleted(
+            LCMS.TransferCompletedRequest.newBuilder()
+                .setTransferId(transferId)
+                .setChannelId(channelId)
+                .build()));
+    }
+
+    private class ReadThread extends Thread {
+        private final long offset;
+        private final StreamObserver<LSA.ReadDataChunk> responseObserver;
+
+        private ReadThread(long offset, StreamObserver<LSA.ReadDataChunk> responseObserver) {
+            super(OUTPUT_SLOTS_TG, "ReadThread(offset: %d, from_slot: %s)".formatted(offset, slotId));
+            this.offset = offset;
+            this.responseObserver = responseObserver;
+        }
+
+        @Override
+        public void run() {
+            try {
+                var source = backend.readFromOffset(offset);
+
+                var buffer = ByteBuffer.allocate(4096); // 4KB
+                var channel = Channels.newChannel(source);
+
+                while (channel.read(buffer) != -1) {
+                    var chunk = LSA.ReadDataChunk.newBuilder()
+                        .setChunk(ByteString.copyFrom(buffer.flip()))
+                        .build();
+
+                    responseObserver.onNext(chunk);
+
+                    buffer.clear();
+                }
+
+                responseObserver.onNext(LSA.ReadDataChunk
+                    .newBuilder()
+                    .setControl(LSA.ReadDataChunk.Control.EOS)
+                    .build());
+                responseObserver.onCompleted();
+            } catch (Exception e) {
+                responseObserver.onError(e);
+            }
         }
     }
 }

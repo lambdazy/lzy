@@ -1,15 +1,17 @@
 package ai.lzy.fs;
 
+import java.util.concurrent.CompletableFuture;
+
 interface ExecutionCompanion {
     /**
      * Prepare companion for execution
      */
-    void beforeExecution() throws Exception;
+    CompletableFuture<Void> beforeExecution();
 
     /**
      * Finalize companion after execution
      */
-    void afterExecution() throws Exception;
+    CompletableFuture<Void> afterExecution();
 
     /**
      * Close companion. It must clean up all resources and fail all pending operations

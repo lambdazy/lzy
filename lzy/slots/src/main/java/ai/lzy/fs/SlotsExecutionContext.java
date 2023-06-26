@@ -12,7 +12,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -63,9 +62,15 @@ public class SlotsExecutionContext {
                 }
             }
 
-            for (var slot : companions) {
-                slot.beforeExecution();
+            var futures = new ArrayList<CompletableFuture<Void>>();
+
+            synchronized (this) {
+                for (var slot : companions) {
+                    futures.add(slot.beforeExecution());
+                }
             }
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         } catch (Exception e) {
             LOG.error("Failed to initialize slots", e);
             close();
@@ -75,9 +80,15 @@ public class SlotsExecutionContext {
 
     public void afterExecution() throws Exception {
         try {
-            for (var slot : companions) {
-                slot.afterExecution();
+            var futures = new ArrayList<CompletableFuture<Void>>();
+
+            synchronized (this) {
+                for (var slot : companions) {
+                    futures.add(slot.afterExecution());
+                }
             }
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
         } catch (Exception e) {
             LOG.error("Failed to finalize slots", e);
             close();
