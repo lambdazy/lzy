@@ -2,7 +2,7 @@ package ai.lzy.fs;
 
 import java.util.concurrent.CompletableFuture;
 
-interface ExecutionCompanion {
+interface SlotInternal {
     /**
      * Prepare companion for execution
      */

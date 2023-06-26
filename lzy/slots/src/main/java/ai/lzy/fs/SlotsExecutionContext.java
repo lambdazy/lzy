@@ -39,7 +39,7 @@ public class SlotsExecutionContext {
         context = new SlotsContext(channelManager, transferFactory, slotsApiAddress, slotsService, executionId, this);
     }
 
-    private final List<ExecutionCompanion> companions = new ArrayList<>();
+    private final List<SlotInternal> companions = new ArrayList<>();
 
     public void beforeExecution() throws Exception {
         try {
@@ -48,8 +48,7 @@ public class SlotsExecutionContext {
 
                 var fsPath = fsRoot.resolve(desc.getName());
 
-                if (desc.getDirection().equals(LMS.Slot.Direction.INPUT)) {
-
+                if (desc.getDirection() == LMS.Slot.Direction.INPUT) {
                     var backend = new FileInputBackend(fsPath);
                     var inputSlot = new InputSlot(backend, desc.getName(), channelId, context);
 
@@ -78,7 +77,7 @@ public class SlotsExecutionContext {
         }
     }
 
-    public void afterExecution() throws Exception {
+    public void afterExecution() {
         try {
             var futures = new ArrayList<CompletableFuture<Void>>();
 
@@ -102,7 +101,7 @@ public class SlotsExecutionContext {
         }
     }
 
-    synchronized void add(ExecutionCompanion companion) {
+    synchronized void add(SlotInternal companion) {
         companions.add(companion);
     }
 

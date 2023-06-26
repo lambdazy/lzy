@@ -16,10 +16,11 @@ import java.nio.channels.SeekableByteChannel;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class InputSlot extends Thread implements Slot, ExecutionCompanion {
+public class InputSlot extends Thread implements Slot, SlotInternal {
     private static final Logger LOG = LogManager.getLogger(InputSlot.class);
+    private static final ThreadGroup INPUT_SLOT_GROUP = new ThreadGroup("InputSlot");
 
-    private final InputSlotBackend backend;
+    private final InputSlotBackend backEnd;
     private final String slotId;
     private final String channelId;
     private final String logPrefix;
@@ -30,10 +31,12 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
     private final CompletableFuture<StartTransferRequest> waitForPeer = new CompletableFuture<>();
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
 
-    public InputSlot(InputSlotBackend backend, String slotId, String channelId,
+    public InputSlot(InputSlotBackend backEnd, String slotId, String channelId,
                      SlotsContext context)
     {
-        this.backend = backend;
+        super(INPUT_SLOT_GROUP, "InputSlot(slotId: %s, channelId: %s) ".formatted(slotId, channelId));
+
+        this.backEnd = backEnd;
         this.slotId = slotId;
         this.channelId = channelId;
         this.context = context;
@@ -76,7 +79,7 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
 
     @Override
     public void close() {
-        if (state.getAndSet(State.CLOSED).equals(State.CLOSED)) {
+        if (state.getAndSet(State.CLOSED) == State.CLOSED) {
             return;
         }
 
@@ -93,10 +96,12 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
 
     private void runImpl() throws Exception {
         context.slotsService().register(this); // Registering here before bind
+        LOG.info("{} Registered in slots service, binding", logPrefix);
 
         var resp = bind();
 
-        if (resp == null || state.get().equals(State.CLOSED)) {
+        if (resp == null || state.get() == State.CLOSED) {
+            LOG.error("{} Bind failed or slot already closed, failing", logPrefix);
             return;  // run method will clear all resources
         }
 
@@ -104,6 +109,7 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
         final LC.PeerDescription peerDescription;
 
         if (!resp.hasPeer()) {
+            LOG.info("{} Bind call does not have peer, waiting for it", logPrefix);
             state.set(State.WAITING_FOR_PEER);
             var req = waitForPeer.get();
             transferId = req.transferId;
@@ -113,6 +119,8 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
             peerDescription = resp.getPeer();
         }
 
+        LOG.info("{} Got peer {} with transfer {}, starting download", logPrefix, peerDescription, transferId);
+
         state.set(State.DOWNLOADING);
         context.slotsService().unregister(this.slotId); // Got peer, unregistering
 
@@ -120,8 +128,10 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
         state.set(State.READY);
         ready.complete(null);
 
+        LOG.info("{} Download finished, slot is ready", logPrefix);
+
         // Creating new output slot for this channel
-        var outputBackand = backend.toOutput();
+        var outputBackand = backEnd.toOutput();
         var slot = new OutputSlot(outputBackand, slotId + "-out", channelId, context);
         context.executionContext().add(slot);
     }
@@ -148,7 +158,7 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
 
     private void clear() {
         try {
-            backend.close();
+            backEnd.close();
         } catch (Exception e) {
             LOG.error("{} Error while closing backend: ", logPrefix, e);
         }
@@ -189,7 +199,7 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
         var transfer = context.transferFactory().input(peer, offset);
         var transferId = initTransferId;
         var failed = false;
-        SeekableByteChannel backendStream = backend.openChannel();
+        SeekableByteChannel backendStream = backEnd.openChannel();
 
         while (true) {
             if (failed) {
@@ -197,7 +207,7 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
 
                 // Reopening channel
                 backendStream.close();
-                backendStream = backend.openChannel();
+                backendStream = backEnd.openChannel();
 
                 transfer.close();
                 var newPeerResp = context.channelManager()
@@ -214,6 +224,7 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
 
                 peer = newPeerResp.getNewPeer();
 
+                LOG.info("({}) Got new peer {}", logPrefix, peer.getPeerId());
                 transfer = context.transferFactory().input(peer, offset);
                 transferId = newPeerResp.getNewTransferId();
             }

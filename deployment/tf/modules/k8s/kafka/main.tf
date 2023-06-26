@@ -49,7 +49,7 @@ resource "kubectl_manifest" "kafka" {
     username: local.kafka_admin_username
   })
 
-  depends_on = [helm_release.strimzi_operator, kubernetes_config_map.kafka_config_map]
+  depends_on = [helm_release.strimzi_operator]
 }
 
 resource "kubernetes_secret" "admin_password" {

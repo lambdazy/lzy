@@ -5,7 +5,7 @@ import ai.lzy.v1.slots.v2.LSA;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.NotImplementedException;
 
-public interface Slot {
+interface Slot {
     /**
      * Start transfer from the given peer
      * Throws NotImplementedException if the slot is not capable of starting transfer

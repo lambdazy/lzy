@@ -18,7 +18,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
-public class OutputSlot implements Slot, ExecutionCompanion {
+public class OutputSlot implements Slot, SlotInternal {
     private static final ThreadGroup OUTPUT_SLOTS_TG = new ThreadGroup("OutputSlots");
     private static final Logger LOG = LogManager.getLogger(OutputSlot.class);
 
@@ -54,6 +54,7 @@ public class OutputSlot implements Slot, ExecutionCompanion {
 
     @Override
     public void read(long offset, StreamObserver<LSA.ReadDataChunk> responseObserver) {
+        LOG.info("{} Read request for offset {}", logPrefix, offset);
         var thread = new ReadThread(offset, responseObserver);
         thread.start();
 
@@ -77,6 +78,7 @@ public class OutputSlot implements Slot, ExecutionCompanion {
 
     @Override
     public void close() {
+        LOG.info("{} Closing", logPrefix);
         // Failed, so no more requests from outside available
         context.slotsService().unregister(slotId);
 
@@ -101,6 +103,8 @@ public class OutputSlot implements Slot, ExecutionCompanion {
             // Error ignored
         }
 
+        LOG.info("{} All resources cleared, waiting for running threads", logPrefix);
+
         for (var thread : runningThreads) {
             thread.interrupt();
         }
@@ -114,6 +118,8 @@ public class OutputSlot implements Slot, ExecutionCompanion {
 
             thread.stop();  // Force stop if not closed by interrupt
         }
+
+        LOG.info("{} Closed", logPrefix);
     }
 
     private class PrepareThread extends Thread {
@@ -132,13 +138,17 @@ public class OutputSlot implements Slot, ExecutionCompanion {
         }
 
         private void runImpl() throws Exception {
+            LOG.info("{} Waiting for data", logPrefix);
+
             backend.waitCompleted();
+            context.slotsService().register(OutputSlot.this);  // Enable request from outside
 
-            context.slotsService().register(OutputSlot.this);  // Enabling request from outside
-
+            LOG.info("{} Data ready, binding", logPrefix);
             var res = bind();
 
             if (res.hasPeer()) {
+                LOG.info("{} Got peer in bind response, starting transfer {}",
+                    logPrefix, res.getPeer().getPeerId());
                 var transfer = context.transferFactory().output(res.getPeer());
 
                 if (transfer == null) {
@@ -150,7 +160,6 @@ public class OutputSlot implements Slot, ExecutionCompanion {
                 try (transfer) {
                     transfer.readFrom(backend.readFromOffset(0));
                     completeTransfer(res.getTransferId());
-
                 } catch (Exception e) {
                     LOG.error("{} Error while transferring data to peer {}: ", logPrefix,
                         res.getPeer().getPeerId(), e);
@@ -202,9 +211,10 @@ public class OutputSlot implements Slot, ExecutionCompanion {
         @Override
         public void run() {
             try {
+                LOG.info("{} Reading from offset {}", logPrefix, offset);
                 var source = backend.readFromOffset(offset);
 
-                var buffer = ByteBuffer.allocate(4096); // 4KB
+                var buffer = ByteBuffer.allocate(1024 * 1024); // 1MB
                 var channel = Channels.newChannel(source);
 
                 while (channel.read(buffer) != -1) {
@@ -217,12 +227,15 @@ public class OutputSlot implements Slot, ExecutionCompanion {
                     buffer.clear();
                 }
 
+                LOG.info("{} End of stream", logPrefix);
+
                 responseObserver.onNext(LSA.ReadDataChunk
                     .newBuilder()
                     .setControl(LSA.ReadDataChunk.Control.EOS)
                     .build());
                 responseObserver.onCompleted();
             } catch (Exception e) {
+                LOG.error("{} Error while reading from backend: ", logPrefix, e);
                 responseObserver.onError(e);
             }
         }
