@@ -179,6 +179,7 @@ public class RestoreOperations {
                         return List.of();
                     }
                     var mountsByVmId = deletingMounts.stream()
+                        .filter(d -> d.vmId() != null)
                         .collect(Collectors.groupingBy(DynamicMount::vmId));
 
                     var vms = allocationContext.vmDao().loadByIds(mountsByVmId.keySet(), tx);
@@ -191,6 +192,11 @@ public class RestoreOperations {
                             actionsToRun.add(action);
                         }
                     });
+                    deletingMounts.stream()
+                        .filter(d -> d.vmId() == null)
+                        .forEach(mount -> {
+                            actionsToRun.add(new UnmountDynamicDiskAction(null, mount, allocationContext));
+                        });
 
                     tx.commit();
 
