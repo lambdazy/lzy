@@ -66,7 +66,7 @@ resource "yandex_resourcemanager_folder_iam_binding" "s3-admin" {
   ]
 }
 
-resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
+resource "yandex_resourcemanager_folder_iam_binding" "k8s-admin" {
   folder_id = var.folder_id
 
   role = "k8s.admin"
@@ -106,7 +106,7 @@ resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
   ]
 }
 
-resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
+resource "yandex_resourcemanager_folder_iam_binding" "allocator-key-admin" {
   folder_id = var.folder_id
 
   role = "iam.serviceAccounts.keyAdmin"
@@ -116,7 +116,7 @@ resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
   ]
 }
 
-resource "yandex_resourcemanager_folder_iam_binding" "allocator-admin" {
+resource "yandex_resourcemanager_folder_iam_binding" "allocator-access-key-admin" {
   folder_id = var.folder_id
 
   role = "iam.serviceAccounts.accessKeyAdmin"
