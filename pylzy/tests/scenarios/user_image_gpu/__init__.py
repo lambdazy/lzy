@@ -31,7 +31,7 @@ def matrix_mult(a: List[List[float]], b: List[List[float]]) -> List[List[float]]
 if __name__ == "__main__":
     lzy = Lzy()
 
-    with lzy.workflow(name="wf", docker_image="lzydock/user-default:1.3.1", interactive=False):
+    with lzy.workflow(name="wf", docker_image="lzydock/user-default:1.14.0", interactive=False):
         a = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
         b = [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]
         result = matrix_mult(a, b)
