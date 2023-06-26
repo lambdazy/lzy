@@ -209,7 +209,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         } catch (InvalidConfigurationException e) {
             log().error("{} Failed to unmount volume", logPrefix(), e);
         } catch (KubernetesClientException e) {
-            log().error("{} Failed to unmount volume", logPrefix(), e);
+            log().error("{} Failed to unmount volume. Status: {}", logPrefix(), e.getCode(), e);
             if (KuberUtils.isNotRetryable(e)) {
                 return StepResult.CONTINUE;
             }
