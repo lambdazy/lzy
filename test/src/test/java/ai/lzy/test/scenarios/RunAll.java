@@ -19,7 +19,7 @@ public class RunAll {
     }
 
     @Test
-    public void testTwoExecutionOneWorkflow() throws InterruptedException {
+    public void test() throws InterruptedException {
         while (true) {
             Thread.sleep(1000);
         }
