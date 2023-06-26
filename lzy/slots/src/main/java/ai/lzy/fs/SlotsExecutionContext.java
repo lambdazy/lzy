@@ -61,15 +61,15 @@ public class SlotsExecutionContext {
                 }
             }
 
-            var futures = new ArrayList<CompletableFuture<Void>>();
+            final CompletableFuture<?>[] futures;
 
             synchronized (this) {
-                for (var slot : companions) {
-                    futures.add(slot.beforeExecution());
-                }
+                futures = companions.stream()
+                    .map(SlotInternal::beforeExecution)
+                    .toArray(CompletableFuture[]::new);
             }
 
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            CompletableFuture.allOf(futures).join();
         } catch (Exception e) {
             LOG.error("Failed to initialize slots", e);
             close();
@@ -79,15 +79,15 @@ public class SlotsExecutionContext {
 
     public void afterExecution() {
         try {
-            var futures = new ArrayList<CompletableFuture<Void>>();
+            final CompletableFuture<?>[] futures;
 
             synchronized (this) {
-                for (var slot : companions) {
-                    futures.add(slot.afterExecution());
-                }
+                futures = companions.stream()
+                    .map(SlotInternal::afterExecution)
+                    .toArray(CompletableFuture[]::new);
             }
 
-            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+            CompletableFuture.allOf(futures).join();
         } catch (Exception e) {
             LOG.error("Failed to finalize slots", e);
             close();
