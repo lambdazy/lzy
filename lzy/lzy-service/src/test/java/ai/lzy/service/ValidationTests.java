@@ -7,7 +7,6 @@ import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
 import com.google.protobuf.Message;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import org.junit.Ignore;
 import org.junit.function.ThrowingRunnable;
 
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
