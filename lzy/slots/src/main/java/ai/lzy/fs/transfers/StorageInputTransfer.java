@@ -29,7 +29,7 @@ public class StorageInputTransfer implements InputTransfer {
     }
 
     @Override
-    public int readInto(SeekableByteChannel sink) throws ReadException {
+    public int transferChunkTo(SeekableByteChannel sink) throws ReadException {
         try {
             client.read(URI.create(peer.getStoragePeer().getStorageUri()), Channels.newOutputStream(sink));
             sink.close();

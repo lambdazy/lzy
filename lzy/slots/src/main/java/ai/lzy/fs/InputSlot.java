@@ -221,7 +221,7 @@ public class InputSlot extends Thread implements Slot, ExecutionCompanion {
             final int read;
 
             try {
-                read = transfer.readInto(backendStream);
+                read = transfer.transferChunkTo(backendStream);
             } catch (InputTransfer.ReadException e) {
                 // Some error while reading from peer, marking it as bad
                 LOG.error("({}) Error while reading from peer {}: ", logPrefix, peer.getPeerId(), e);

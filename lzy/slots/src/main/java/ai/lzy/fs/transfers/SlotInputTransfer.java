@@ -36,7 +36,7 @@ public class SlotInputTransfer implements InputTransfer, AutoCloseable {
     }
 
     @Override
-    public int readInto(SeekableByteChannel outputStream) throws ReadException, IOException {
+    public int transferChunkTo(SeekableByteChannel outputStream) throws ReadException, IOException {
         LSA.ReadDataChunk chunk = null;
         boolean done = false;
 
