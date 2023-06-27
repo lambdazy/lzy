@@ -1,5 +1,6 @@
 package ai.lzy.util.grpc;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.ServerInterceptor;
@@ -15,13 +16,14 @@ import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 public final class GrpcUtils {
-
     public static final ServerInterceptor NO_AUTH = null;
     public static final Supplier<String>  NO_AUTH_TOKEN = null;
+    private static final AtomicBoolean    IS_RETRIES_ENABLED = new AtomicBoolean(true);
     private static final RetryConfig      DEFAULT_RETRY_CONFIG = new RetryConfig(0, GrpcUtils::isRetryable,
         Duration.ofMillis(100), 1);
 
@@ -169,7 +171,7 @@ public final class GrpcUtils {
                     throw e;
                 }
 
-                if (count > 0 || infinityRetry) {
+                if (IS_RETRIES_ENABLED.get() && (count > 0 || infinityRetry)) {
                     logger.warn("Got retryable error while executing some grpc call, retrying it: ", e);
                     continue;
                 }
@@ -189,5 +191,10 @@ public final class GrpcUtils {
             func.run();
             return null;
         });
+    }
+
+    @VisibleForTesting
+    public static void setIsRetriesEnabled(boolean enabled) {
+        IS_RETRIES_ENABLED.set(enabled);
     }
 }

@@ -2,6 +2,7 @@ package ai.lzy.fs;
 
 import ai.lzy.fs.backends.*;
 import ai.lzy.model.utils.FreePortFinder;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LC;
@@ -98,6 +99,8 @@ public class SlotsTest {
                 new AwsClientBuilder.EndpointConfiguration("http://localhost:" + s3MockPort, "us-west-1"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
+
+        GrpcUtils.setIsRetriesEnabled(false);
     }
 
     @AfterClass
