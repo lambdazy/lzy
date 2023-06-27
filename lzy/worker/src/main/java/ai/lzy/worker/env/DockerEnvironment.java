@@ -29,9 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class DockerEnvironment extends BaseEnvironment {
 
@@ -262,19 +260,14 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     private void prepareImage(String image, StreamQueue.LogHandle handle) throws Exception {
-        var msg = new AtomicReference<>("Pulling image " + image + " ...");
-        handle.logOut(msg.get());
+        handle.logOut("Pulling image {} ...", image);
         AtomicInteger pullingAttempt = new AtomicInteger(0);
         retry.executeCallable(() -> {
             LOG.info("Pulling image {}, attempt {}", image, pullingAttempt.incrementAndGet());
             final var pullingImage = client
                 .pullImageCmd(config.image())
                 .exec(new PullImageResultCallback());
-            while (!pullingImage.awaitCompletion(1, TimeUnit.SECONDS)) {
-                msg.set(msg.get() + '.');
-                handle.logOut(msg.get());
-            }
-            return null;
+            return pullingImage.awaitCompletion();
         });
         handle.logOut("Pulling image {} done", image);
     }
