@@ -6,10 +6,7 @@ import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequest;
 import ru.yandex.qe.s3.transfer.upload.UploadRequest;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.concurrent.ExecutionException;
@@ -23,18 +20,21 @@ public abstract class StorageClientWithTransmitter implements StorageClient {
 
     protected abstract DownloadRequest downloadRequest(URI uri);
 
-    protected abstract UploadRequest uploadRequest(URI uri, Path source);
+    protected abstract UploadRequest uploadRequest(URI uri, InputStream source);
 
     @Override
     public void read(URI uri, Path destination) throws InterruptedException, IOException {
         LOG.info("Download data from '%s' to '%s'".formatted(uri.toString(), destination.toAbsolutePath().toString()));
+        read(uri, new FileOutputStream(destination.toFile()));
+    }
+
+    @Override
+    public void read(URI uri, OutputStream destination) throws InterruptedException, IOException {
 
         var downloadRequest = downloadRequest(uri);
         var future = transmitter().downloadC(downloadRequest, data -> {
-            try (var source = new BufferedInputStream(data.getInputStream());
-                 var dest = new BufferedOutputStream(new FileOutputStream(destination.toFile())))
-            {
-                source.transferTo(dest);
+            try (var source = new BufferedInputStream(data.getInputStream())) {
+                source.transferTo(destination);
             }
         });
         try {
@@ -46,7 +46,12 @@ public abstract class StorageClientWithTransmitter implements StorageClient {
 
     @Override
     public void write(URI uri, Path source) throws InterruptedException, IOException {
-        LOG.info("Upload data from '%s' to '%s'".formatted(source.toAbsolutePath().toString(), uri.toString()));
+        write(uri, new FileInputStream(source.toFile()));
+    }
+
+    @Override
+    public void write(URI uri, InputStream source) throws InterruptedException, IOException {
+        LOG.info("Upload data from to '%s'".formatted(uri.toString()));
 
         var uploadRequest = uploadRequest(uri, source);
         var future = transmitter().upload(uploadRequest);
