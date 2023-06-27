@@ -1,7 +1,6 @@
 package ai.lzy.fs.backends;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.channels.ReadableByteChannel;
 
 public interface OutputSlotBackend {

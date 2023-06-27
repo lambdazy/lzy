@@ -22,6 +22,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
+import org.apache.commons.io.FileUtils;
 import org.junit.*;
 
 import java.io.ByteArrayInputStream;
@@ -97,14 +98,14 @@ public class SlotsTest {
                 new AwsClientBuilder.EndpointConfiguration("http://localhost:" + s3MockPort, "us-west-1"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
-        Files.createDirectories(Path.of("/tmp", "lzy"));
     }
 
     @AfterClass
-    public static void tearDown() throws InterruptedException {
+    public static void tearDown() throws InterruptedException, IOException {
         channel.shutdown();
         server.shutdown();
         server.awaitTermination();
+        FileUtils.deleteDirectory(Path.of(FS_ROOT).toFile());
     }
 
     @After
@@ -114,7 +115,8 @@ public class SlotsTest {
 
     @Test
     public void testSimple() throws IOException, InterruptedException {
-        var pipePath = Path.of("/tmp", "lzy", "test_simple-out");
+        var pipePath = Path.of(FS_ROOT,"test_simple-out");
+        var inPath = genPath("test_simple-in");
 
         var outBackend = new OutputPipeBackend(pipePath);
         var outHandle = channelManagerMock.onBind("1");
@@ -144,7 +146,7 @@ public class SlotsTest {
             .setTransferId("transfer-id")
             .build()
         );
-        var inBackend = new FileInputBackend(Path.of("/tmp", "lzy", "test_simple-in"));
+        var inBackend = new FileInputBackend(inPath);
 
         var inSlot = new InputSlot(inBackend, "2", "chan", executionContext.context());
         executionContext.add(inSlot);
@@ -159,7 +161,7 @@ public class SlotsTest {
 
         inBeforeFut.join();
 
-        Assert.assertEquals("Hello", Files.readString(Path.of("/tmp", "lzy", "test_simple-in")));
+        Assert.assertEquals("Hello", Files.readString(inPath));
 
         // Awaiting other side of output slot
         var bindRequest = bindHandle.get();
@@ -170,19 +172,19 @@ public class SlotsTest {
 
     @Test
     public void testCannotBind() throws IOException {
-        var path = Path.of("/tmp", "test_cannot_bind-out");
-        path.toFile().createNewFile();
-        var fileOutputBackend = new OutputFileBackend(path);
+        var inPath = genPath("test_cannot_bind-in");
+        var outPath = genPath("test_cannot_bind-out");
+        outPath.toFile().createNewFile();
+        var fileOutputBackend = new OutputFileBackend(outPath);
 
         var handle = channelManagerMock.onBind("1");
-        var slot = new OutputSlot(fileOutputBackend, "1", "chan", executionContext.context());
+        var outSlot = new OutputSlot(fileOutputBackend, "1", "chan", executionContext.context());
 
         handle.get();
         handle.completeExceptionally(new RuntimeException("Cannot bind"));
 
-        Assert.assertThrows(ExecutionException.class, () -> slot.afterExecution().get());
+        Assert.assertThrows(ExecutionException.class, () -> outSlot.afterExecution().get());
 
-        var inPath = Path.of("/tmp", "test_cannot_bind-in");
         var inHandle = channelManagerMock.onBind("2");
         var inSlot = new InputSlot(new FileInputBackend(inPath), "2", "chan", executionContext.context());
 
@@ -190,7 +192,9 @@ public class SlotsTest {
         inHandle.completeExceptionally(new RuntimeException("Cannot bind"));
 
         Assert.assertThrows(ExecutionException.class, () -> inSlot.beforeExecution().get());
+
         inSlot.close();
+        outSlot.close();
     }
 
     @Test
@@ -228,6 +232,7 @@ public class SlotsTest {
 
         inSlot.beforeExecution().get();
         Assert.assertTrue(new String(inBack.data, StandardCharsets.UTF_8).startsWith("Hello"));
+
         inSlot.close();
         outSlot.close();
     }
@@ -554,7 +559,7 @@ public class SlotsTest {
         transferHandle3.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
 
         var ctx = new SlotsExecutionContext(
-            Path.of("/tmp/lzy"),
+            Path.of(FS_ROOT),
             slots,
             Map.of(
                 "a/b/in", "chan",
@@ -571,9 +576,9 @@ public class SlotsTest {
         inHandle.get();
         transferHandle1.get();
 
-        Assert.assertEquals("Hello", Files.readString(Path.of("/tmp/lzy/a/b/in")));
+        Assert.assertEquals("Hello", Files.readString(Path.of(FS_ROOT, "a/b/in")));
 
-        Files.write(Path.of("/tmp/lzy/a/b/out"), "World".getBytes());
+        Files.write(Path.of(FS_ROOT, "a/b/out"), "World".getBytes());
         outHandle.get();
         transferHandle2.get();
         outHandle2.get();
@@ -589,8 +594,8 @@ public class SlotsTest {
 
     @Test
     public void testLargeData() throws Exception {
-        var inPath = Path.of("/tmp/lzy/test-large-data-in");
-        var outPath = Path.of("/tmp/lzy/test-large-data-out");
+        var inPath = genPath("test-large-data-in");
+        var outPath = genPath("test-large-data-out");
 
         if (Files.exists(outPath)) {
             Files.delete(outPath);
@@ -654,8 +659,8 @@ public class SlotsTest {
 
     @Test
     public void testLargeReadFromStorage() throws Exception {
-        var inPath = Path.of("/tmp/lzy/test-large-storage-in");
-        var dataPath = Path.of("/tmp/lzy/test-large-storage-data");
+        var inPath = genPath("test-large-storage-in");
+        var dataPath =genPath("test-large-storage-data");
 
         s3Client.createBucket("bucket-read-large");
 
@@ -713,14 +718,9 @@ public class SlotsTest {
 
     @Test
     public void testLargeWriteToStorage() throws Exception {
-        var inPath = Path.of("/tmp/lzy/test-large-storage-write-in");
-        var dataPath = Path.of("/tmp/lzy/test-large-storage-write-data");
+        var inPath = genPath("test-large-storage-write-in");
+        var dataPath = genPath("test-large-storage-write-data");
         s3Client.createBucket("bucket-write-large");
-
-        if (Files.exists(inPath)) {
-            Files.delete(inPath);
-        }
-        Files.createFile(inPath);
 
         var timeToGenData = System.currentTimeMillis();
         var rand = new Random();
@@ -911,5 +911,11 @@ public class SlotsTest {
         var url = new AmazonS3URI(uri);
 
         s3Client.putObject(url.getBucket(), url.getKey(), data);
+    }
+
+    public Path genPath(String name) throws IOException {
+        var path = Files.createTempFile(name, ".tmp");
+        path.toFile().deleteOnExit();
+        return path;
     }
 }
