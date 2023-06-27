@@ -22,6 +22,15 @@
 
 Just run `RunAllServices` configuration.
 
+#### Terminal
+Install jdk >= 17 and maven for your OS.
+
+Then run:
+``` bash
+    mvn install -DskipTests
+    cd test && mvn test -Dtest=RunAll
+```
+
 ### FAQ
 
 -   `Exception in thread "main" java.lang.UnsatisfiedLinkError: dlopen(libfuse.dylib, 9): image not found`:
