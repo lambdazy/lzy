@@ -6,38 +6,34 @@ import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 
 import ai.lzy.graph.GraphExecutorApi;
 import ai.lzy.graph.GraphExecutorApi2;
-import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.v1.longrunning.LongRunning;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
-import io.micronaut.inject.qualifiers.Qualifiers;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.Timeout;
+import io.zonky.test.db.postgres.junit5.EmbeddedPostgresExtension;
+import io.zonky.test.db.postgres.junit5.PreparedDbExtension;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.RegisterExtension;
+
 
 public class GraphExecutorTest {
-    @Rule
-    public Timeout globalTimeout = Timeout.seconds(10);
-    @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    @RegisterExtension
+    public static PreparedDbExtension db = EmbeddedPostgresExtension.preparedDatabase(ds -> {});
 
-    private ApplicationContext context;
-    private OperationDao operationDao;
-    private GraphExecutorApi api;
+    private static GraphExecutorApi api;
 
-    @Before
-    public void setUp() {
-        context = ApplicationContext.run(preparePostgresConfig("graph-executor-2", db.getConnectionInfo()), "test-mock");
+    @BeforeAll
+    public static void setUp() {
+        ApplicationContext context =
+            ApplicationContext.run(preparePostgresConfig("graph-executor-2", db.getConnectionInfo()), "test-mock");
         api = context.getBean(GraphExecutorApi.class);
-        operationDao = context.getBean(OperationDao.class, Qualifiers.byName("GraphExecutorOperationDao"));
     }
 
     @Test
-    public void test() {
+    @Timeout(5)
+    public void simpleTest() throws Exception {
         GraphExecutorApi2.GraphExecuteRequest request = GraphExecutorApi2.GraphExecuteRequest.newBuilder()
             .setExecutionId("1")
             .setWorkflowName("workflow1")
@@ -48,7 +44,24 @@ public class GraphExecutorTest {
                     .build()
             ))
             .build();
+        LongRunning.Operation op = getResult(request);
+        Assertions.assertNotNull(op);
+    }
+
+    @Test
+    @Timeout(5)
+    public void errorOnValidationTest() {
+        GraphExecutorApi2.GraphExecuteRequest request = GraphExecutorApi2.GraphExecuteRequest.newBuilder()
+            .setExecutionId("1")
+            .setWorkflowName("workflow1")
+            .setUserId("2")
+            .build();
+        Assertions.assertThrows(Exception.class, () -> getResult(request));
+    }
+
+    public LongRunning.Operation getResult(GraphExecutorApi2.GraphExecuteRequest request) throws Exception {
         final LongRunning.Operation[] op = new LongRunning.Operation[1];
+        final Throwable[] ex = new Throwable[1];
         api.execute(request, new StreamObserver<>() {
             @Override
             public void onNext(LongRunning.Operation operation) {
@@ -57,7 +70,7 @@ public class GraphExecutorTest {
 
             @Override
             public void onError(Throwable throwable) {
-
+                ex[0] = throwable;
             }
 
             @Override
@@ -65,6 +78,11 @@ public class GraphExecutorTest {
 
             }
         });
-        Assert.assertNotNull(op[0]);
+
+        if (ex[0] != null) {
+            throw new Exception(ex[0]);
+        }
+
+        return op[0];
     }
 }
