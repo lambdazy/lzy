@@ -7,6 +7,8 @@ import ai.lzy.v1.common.LMST;
 
 import java.io.InputStream;
 import java.net.URI;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 
 public class StorageOutputTransfer implements OutputTransfer {
     private final LC.PeerDescription peer;
@@ -26,11 +28,11 @@ public class StorageOutputTransfer implements OutputTransfer {
     }
 
     @Override
-    public void readFrom(InputStream source) {
+    public void readFrom(ReadableByteChannel source) {
         try {
             var uri = URI.create(peer.getStoragePeer().getStorageUri());
 
-            client.write(uri, source);
+            client.write(uri, Channels.newInputStream(source));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

@@ -6,6 +6,7 @@ import ai.lzy.v1.channel.v2.LCMS;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.v2.LSA;
 import com.google.protobuf.ByteString;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
@@ -124,7 +125,7 @@ public class OutputSlot implements Slot, SlotInternal {
 
     private class PrepareThread extends Thread {
         PrepareThread() {
-            super(OUTPUT_SLOTS_TG, "PrepareOutputSlot(slotId: %s, channelId: %s)".formatted(slotId, channelId));
+            super(OUTPUT_SLOTS_TG, "prepare-output-slot-%s".formatted(slotId));
         }
 
         @Override
@@ -215,9 +216,8 @@ public class OutputSlot implements Slot, SlotInternal {
                 var source = backend.readFromOffset(offset);
 
                 var buffer = ByteBuffer.allocate(1024 * 1024); // 1MB
-                var channel = Channels.newChannel(source);
 
-                while (channel.read(buffer) != -1) {
+                while (source.read(buffer) != -1) {
                     var chunk = LSA.ReadDataChunk.newBuilder()
                         .setChunk(ByteString.copyFrom(buffer.flip()))
                         .build();
@@ -236,7 +236,7 @@ public class OutputSlot implements Slot, SlotInternal {
                 responseObserver.onCompleted();
             } catch (Exception e) {
                 LOG.error("{} Error while reading from backend: ", logPrefix, e);
-                responseObserver.onError(e);
+                responseObserver.onError(Status.INTERNAL.asException());
             }
         }
     }

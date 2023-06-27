@@ -16,6 +16,7 @@ import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.AmazonS3URI;
+import com.amazonaws.services.s3.model.GetObjectRequest;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
@@ -26,16 +27,22 @@ import org.junit.*;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class SlotsTest {
     private static final int s3MockPort = FreePortFinder.find(1000, 2000);
@@ -90,6 +97,7 @@ public class SlotsTest {
                 new AwsClientBuilder.EndpointConfiguration("http://localhost:" + s3MockPort, "us-west-1"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
+        Files.createDirectories(Path.of("/tmp", "lzy"));
     }
 
     @AfterClass
@@ -108,10 +116,10 @@ public class SlotsTest {
     public void testSimple() throws IOException, InterruptedException {
         var pipePath = Path.of("/tmp", "lzy", "test_simple-out");
 
-        var outBackand = new OutputPipeBackend(pipePath);
+        var outBackend = new OutputPipeBackend(pipePath);
         var outHandle = channelManagerMock.onBind("1");
 
-        var outSlot = new OutputSlot(outBackand, "1", "chan", executionContext.context());
+        var outSlot = new OutputSlot(outBackend, "1", "chan", executionContext.context());
         executionContext.add(outSlot);
         var beforeFut = outSlot.beforeExecution();
 
@@ -156,6 +164,8 @@ public class SlotsTest {
         // Awaiting other side of output slot
         var bindRequest = bindHandle.get();
         bindHandle.complete(LCMS.BindResponse.getDefaultInstance());
+        inSlot.close();
+        outSlot.close();
     }
 
     @Test
@@ -180,12 +190,13 @@ public class SlotsTest {
         inHandle.completeExceptionally(new RuntimeException("Cannot bind"));
 
         Assert.assertThrows(ExecutionException.class, () -> inSlot.beforeExecution().get());
+        inSlot.close();
     }
 
     @Test
     public void testConnect() throws Exception {
-        var inBack = new InMemBackand(new byte[1024]);
-        var outBack = new InMemBackand("Hello".getBytes());
+        var inBack = new InMemBackend(new byte[1024]);
+        var outBack = new InMemBackend("Hello".getBytes());
 
         var inBind = channelManagerMock.onBind("1");
         var outBind = channelManagerMock.onBind("2");
@@ -217,14 +228,16 @@ public class SlotsTest {
 
         inSlot.beforeExecution().get();
         Assert.assertTrue(new String(inBack.data, StandardCharsets.UTF_8).startsWith("Hello"));
+        inSlot.close();
+        outSlot.close();
     }
 
     @Test
     public void testFailOnInputBackend() {
-        var inBack = new InMemBackand(new byte[1024]);
+        var inBack = new InMemBackend(new byte[1024]);
         inBack.failOpen.set(true);
 
-        var outBack = new InMemBackand("Hello".getBytes());
+        var outBack = new InMemBackend("Hello".getBytes());
 
         var inBind = channelManagerMock.onBind("1");
         var outBind = channelManagerMock.onBind("2");
@@ -251,12 +264,14 @@ public class SlotsTest {
         );
 
         Assert.assertThrows(ExecutionException.class, () -> inSlot.beforeExecution().get());
+        inSlot.close();
+        outSlot.close();
     }
 
     @Test
-    public void testFailOnOutputBackand() {
-        var inBack = new InMemBackand(new byte[1024]);
-        var outBack = new InMemBackand("Hello".getBytes());
+    public void testFailOnOutputBackend() {
+        var inBack = new InMemBackend(new byte[1024]);
+        var outBack = new InMemBackend("Hello".getBytes());
         outBack.failRead.set(true);
 
         var inBind = channelManagerMock.onBind("1");
@@ -288,13 +303,15 @@ public class SlotsTest {
         transferFailedHandle.complete(LCMS.TransferFailedResponse.getDefaultInstance());
 
         Assert.assertThrows(ExecutionException.class, () -> inSlot.beforeExecution().get());
+        inSlot.close();
+        outSlot.close();
     }
 
     @Test
     public void testInputRestart() throws ExecutionException, InterruptedException {
-        var inBack = new InMemBackand(new byte[1024]);
+        var inBack = new InMemBackend(new byte[1024]);
 
-        var outBack = new InMemBackand("Hello".getBytes());
+        var outBack = new InMemBackend("Hello".getBytes());
         outBack.failRead.set(true);
 
         var inBind = channelManagerMock.onBind("1");
@@ -342,6 +359,8 @@ public class SlotsTest {
         inSlot.beforeExecution().get();
 
         Assert.assertTrue(new String(inBack.data, StandardCharsets.UTF_8).startsWith("Hello"));
+        inSlot.close();
+        outSlot.close();
     }
 
     @Test
@@ -349,7 +368,7 @@ public class SlotsTest {
         s3Client.createBucket("bucket-read");
         writeToS3("s3://bucket-read/key1", "Hello");
 
-        var inBack = new InMemBackand(new byte[1024]);
+        var inBack = new InMemBackend(new byte[1024]);
         var inHandle = channelManagerMock.onBind("1");
         var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
 
@@ -375,13 +394,14 @@ public class SlotsTest {
         inSlot.beforeExecution().get();
 
         Assert.assertTrue(new String(inBack.data, StandardCharsets.UTF_8).startsWith("Hello"));
+        inSlot.close();
     }
 
     @Test
     public void testWriteToStorage() throws ExecutionException, InterruptedException, IOException {
         s3Client.createBucket("bucket-write");
 
-        var outBack = new InMemBackand("Hello".getBytes());
+        var outBack = new InMemBackend("Hello".getBytes());
         var outHandle = channelManagerMock.onBind("1");
         var outSlot = new OutputSlot(outBack, "1", "chan", executionContext.context());
 
@@ -407,11 +427,12 @@ public class SlotsTest {
         outSlot.afterExecution().get();
 
         Assert.assertEquals("Hello", readFromS3("s3://bucket-write/key1"));
+        outSlot.close();
     }
 
     @Test
     public void testReadFromStorageFail() throws ExecutionException, InterruptedException {
-        var inBack = new InMemBackand(new byte[1024]);
+        var inBack = new InMemBackend(new byte[1024]);
         var inHandle = channelManagerMock.onBind("1");
         var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
 
@@ -435,11 +456,12 @@ public class SlotsTest {
         transferHandle.complete(LCMS.TransferFailedResponse.getDefaultInstance());
 
         Assert.assertThrows(ExecutionException.class, () -> inSlot.beforeExecution().get());
+        inSlot.close();
     }
 
     @Test
     public void testWriteToStorageFail() {
-        var outBack = new InMemBackand("Hello".getBytes());
+        var outBack = new InMemBackend("Hello".getBytes());
         var outHandle = channelManagerMock.onBind("1");
         var outSlot = new OutputSlot(outBack, "1", "chan", executionContext.context());
 
@@ -463,6 +485,7 @@ public class SlotsTest {
         transferHandle.complete(LCMS.TransferFailedResponse.getDefaultInstance());
 
         Assert.assertThrows(ExecutionException.class, () -> outSlot.afterExecution().get());
+        outSlot.close();
     }
 
     @Test
@@ -564,13 +587,246 @@ public class SlotsTest {
         ctx.close();
     }
 
-    private static class InMemBackand implements OutputSlotBackend, InputSlotBackend {
+    @Test
+    public void testLargeData() throws Exception {
+        var inPath = Path.of("/tmp/lzy/test-large-data-in");
+        var outPath = Path.of("/tmp/lzy/test-large-data-out");
+
+        if (Files.exists(outPath)) {
+            Files.delete(outPath);
+        }
+
+        Files.createFile(outPath);
+
+        var inBack = new FileInputBackend(inPath);
+        var outBack = new OutputFileBackend(outPath);
+
+        var genDataTime = System.currentTimeMillis();
+        var rand = new Random();
+        var data = new byte[1024 * 1024];  // 1 Mb
+
+        // Writing random data of size 1 Gb
+        for (int i = 0; i < 1024; i++) {
+            rand.nextBytes(data);
+            Files.write(outPath, data, StandardOpenOption.APPEND);
+        }
+        System.out.println("Data generated in " + (System.currentTimeMillis() - genDataTime) + " ms");
+
+        var time = System.currentTimeMillis();
+        var inBind = channelManagerMock.onBind("1");
+        var outBind = channelManagerMock.onBind("2");
+
+        var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
+        var outSlot = new OutputSlot(outBack, "2", "chan", executionContext.context());
+
+
+        outBind.get();
+        outBind.complete(LCMS.BindResponse.getDefaultInstance());
+
+        var transferCompletedHandle = channelManagerMock.onTransferCompleted("transfer-id");
+
+        inBind.get();
+        inBind.complete(LCMS.BindResponse.newBuilder()
+            .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("2")
+                .setSlotPeer(LC.PeerDescription.SlotPeer.newBuilder()
+                    .setPeerUrl(ADDRESS)
+                    .build())
+                .build())
+            .setTransferId("transfer-id")
+            .build());
+
+        transferCompletedHandle.get();
+        transferCompletedHandle.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
+
+        inSlot.beforeExecution().get();
+
+        System.out.println("Data read in " + (System.currentTimeMillis() - time) + " ms");
+
+        Assert.assertEquals(-1, Files.mismatch(inPath, outPath));
+
+        Files.delete(inPath);
+        Files.delete(outPath);
+
+        inSlot.close();
+        outSlot.close();
+    }
+
+    @Test
+    public void testLargeReadFromStorage() throws Exception {
+        var inPath = Path.of("/tmp/lzy/test-large-storage-in");
+        var dataPath = Path.of("/tmp/lzy/test-large-storage-data");
+
+        s3Client.createBucket("bucket-read-large");
+
+        if (Files.exists(dataPath)) {
+            Files.delete(dataPath);
+        }
+        Files.createFile(dataPath);
+
+        var timeToGenData = System.currentTimeMillis();
+        var rand = new Random();
+        var data = new byte[1024 * 1024];  // 1 Mb
+        // Writing random data of size 1 Gb
+        for (int i = 0; i < 1024; i++) {
+            rand.nextBytes(data);
+            Files.write(dataPath, data, StandardOpenOption.APPEND);
+        }
+        System.out.println("Time to generate data: " + (System.currentTimeMillis() - timeToGenData));
+
+        var time = System.currentTimeMillis();
+        s3Client.putObject("bucket-read-large", "key", dataPath.toFile());
+        System.out.println("Time to upload: " + (System.currentTimeMillis() - time));
+
+        var timeToRead = System.currentTimeMillis();
+        var inBack = new FileInputBackend(inPath);
+
+        var inBind = channelManagerMock.onBind("1");
+        var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
+
+        var transferCompletedHandle = channelManagerMock.onTransferCompleted("transfer-id");
+
+        inBind.get();
+        inBind.complete(LCMS.BindResponse.newBuilder()
+            .setPeer(LC.PeerDescription.newBuilder()
+                .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
+                    .setS3(LMST.S3Credentials.newBuilder()
+                        .setEndpoint(S3_ADDRESS)
+                        .build())
+                    .setStorageUri("s3://bucket-read-large/key")
+                    .build())
+                .build())
+            .setTransferId("transfer-id")
+            .build());
+
+        transferCompletedHandle.get();
+        transferCompletedHandle.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
+
+        inSlot.beforeExecution().get();
+        System.out.println("Time to read: " + (System.currentTimeMillis() - timeToRead));
+
+        Assert.assertEquals(-1, Files.mismatch(inPath, dataPath));
+
+        Files.delete(inPath);
+        Files.delete(dataPath);
+    }
+
+    @Test
+    public void testLargeWriteToStorage() throws Exception {
+        var inPath = Path.of("/tmp/lzy/test-large-storage-write-in");
+        var dataPath = Path.of("/tmp/lzy/test-large-storage-write-data");
+        s3Client.createBucket("bucket-write-large");
+
+        if (Files.exists(inPath)) {
+            Files.delete(inPath);
+        }
+        Files.createFile(inPath);
+
+        var timeToGenData = System.currentTimeMillis();
+        var rand = new Random();
+        var data = new byte[1024 * 1024];  // 1 Mb
+        // Writing random data of size 1 Gb
+        for (int i = 0; i < 1024; i++) {
+            rand.nextBytes(data);
+            Files.write(inPath, data, StandardOpenOption.APPEND);
+        }
+        System.out.println("Time to generate data: " + (System.currentTimeMillis() - timeToGenData));
+
+        var outBack = new OutputFileBackend(inPath);
+
+        var outBind = channelManagerMock.onBind("1");
+        var outSlot = new OutputSlot(outBack, "1", "chan", executionContext.context());
+
+        outBind.get();
+        var transferCompletedHandle = channelManagerMock.onTransferCompleted("transfer-id");
+        outBind.complete(LCMS.BindResponse.newBuilder()
+            .setPeer(LC.PeerDescription.newBuilder()
+                .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
+                    .setS3(LMST.S3Credentials.newBuilder()
+                        .setEndpoint(S3_ADDRESS)
+                        .build())
+                    .setStorageUri("s3://bucket-write-large/key")
+                    .build())
+                .build())
+            .setTransferId("transfer-id")
+            .build());
+
+        transferCompletedHandle.get();
+        transferCompletedHandle.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
+
+        s3Client.getObject(new GetObjectRequest("bucket-write-large", "key"), dataPath.toFile());
+        Assert.assertEquals(-1, Files.mismatch(inPath, dataPath));
+        outSlot.close();
+    }
+
+    @Test
+    public void testRestoreReadFromOffset() throws Exception {
+        var data = new byte[1024 * 1024 * 2];  // 2 Mb
+        var rand = new Random();
+        rand.nextBytes(data);
+
+        var inBack = new InMemBackend(new byte[1024 * 1024 * 2]);
+        var outBack = new InMemBackend(data);
+
+        outBack.failAfter.set(1024 * 1024);  // Fail after first chunk
+
+        var inBind = channelManagerMock.onBind("1");
+        var outBind = channelManagerMock.onBind("2");
+
+        var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
+        var outSlot = new OutputSlot(outBack, "2", "chan", executionContext.context());
+
+        var transferFailedHandle = channelManagerMock.onTransferFailed("transfer-id1");
+
+        inBind.get();
+        inBind.complete(LCMS.BindResponse.newBuilder()
+            .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("2")
+                .setSlotPeer(LC.PeerDescription.SlotPeer.newBuilder()
+                    .setPeerUrl(ADDRESS)
+                    .build())
+                .build())
+            .setTransferId("transfer-id1")
+            .build());
+
+        outBind.get();
+        outBind.complete(LCMS.BindResponse.getDefaultInstance());
+
+        transferFailedHandle.get();
+
+        Assert.assertTrue(Arrays.equals(Arrays.copyOfRange(data, 0, 1024 * 1024),
+            Arrays.copyOfRange(inBack.data, 0, 1024 * 1024)));  // Assert that first chunk was written
+
+        outBack.failAfter.set(-1);
+
+        var transferCompletedHandle = channelManagerMock.onTransferCompleted("transfer-id2");
+        transferFailedHandle.complete(LCMS.TransferFailedResponse.newBuilder()
+            .setNewPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("2")
+                .setSlotPeer(LC.PeerDescription.SlotPeer.newBuilder()
+                    .setPeerUrl(ADDRESS)
+                    .build())
+                .build())
+            .setNewTransferId("transfer-id2")
+            .build());
+
+        transferCompletedHandle.get();
+        transferCompletedHandle.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
+
+        inSlot.beforeExecution().get();
+        Assert.assertTrue(Arrays.equals(data, inBack.data));
+        inSlot.close();
+        outSlot.close();
+    }
+
+    private static class InMemBackend implements OutputSlotBackend, InputSlotBackend {
         private final byte[] data;
         private final AtomicBoolean failOpen = new AtomicBoolean(false);
         private final AtomicBoolean failRead = new AtomicBoolean(false);
         private final AtomicBoolean failWaitCompleted = new AtomicBoolean(false);
+        private final AtomicLong failAfter = new AtomicLong(-1);
 
-        public InMemBackand(byte[] data) {
+        public InMemBackend(byte[] data) {
             this.data = data;
         }
 
@@ -595,18 +851,51 @@ public class SlotsTest {
         }
 
         @Override
-        public InputStream readFromOffset(long offset) throws IOException {
+        public ReadableByteChannel readFromOffset(long offset) throws IOException {
             if (failRead.get()) {
                 throw new IOException("Cannot read");
             }
+
             var stream = new ByteArrayInputStream(data);
             stream.skip(offset);
-            return stream;
+
+            return new FailingInputStream(stream, Math.max(0, failAfter.get() - offset));
         }
 
         @Override
         public void close() throws IOException {
 
+        }
+    }
+
+    private static class FailingInputStream implements ReadableByteChannel {
+        private final ReadableByteChannel inner;
+        private final long failAfter;
+        private long position = 0;
+
+        public FailingInputStream(InputStream inner, long failAfter) {
+            this.inner = Channels.newChannel(inner);
+            this.failAfter = failAfter;
+        }
+
+        @Override
+        public int read(ByteBuffer dst) throws IOException {
+            if (failAfter > 0 && position >= failAfter) {
+                throw new IOException("Cannot read");
+            }
+            var res = inner.read(dst);
+            position += res;
+            return res;
+        }
+
+        @Override
+        public boolean isOpen() {
+            return true;
+        }
+
+        @Override
+        public void close() throws IOException {
+            inner.close();
         }
     }
 

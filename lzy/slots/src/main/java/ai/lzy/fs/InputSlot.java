@@ -20,7 +20,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
     private static final Logger LOG = LogManager.getLogger(InputSlot.class);
     private static final ThreadGroup INPUT_SLOT_GROUP = new ThreadGroup("InputSlot");
 
-    private final InputSlotBackend backEnd;
+    private final InputSlotBackend backend;
     private final String slotId;
     private final String channelId;
     private final String logPrefix;
@@ -31,12 +31,12 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
     private final CompletableFuture<StartTransferRequest> waitForPeer = new CompletableFuture<>();
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
 
-    public InputSlot(InputSlotBackend backEnd, String slotId, String channelId,
+    public InputSlot(InputSlotBackend backend, String slotId, String channelId,
                      SlotsContext context)
     {
-        super(INPUT_SLOT_GROUP, "InputSlot(slotId: %s, channelId: %s) ".formatted(slotId, channelId));
+        super(INPUT_SLOT_GROUP, "input-slot-%s ".formatted(slotId));
 
-        this.backEnd = backEnd;
+        this.backend = backend;
         this.slotId = slotId;
         this.channelId = channelId;
         this.context = context;
@@ -90,7 +90,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
         BINDING,  // Binding slot to channel
         WAITING_FOR_PEER,  // Bind call does not have peer, waiting for it
         DOWNLOADING,  // Loading data from peer
-        READY,  // Data is ready to be read from backand
+        READY,  // Data is ready to be read from backend
         CLOSED  // Slot is closed, by error or from outside
     }
 
@@ -131,8 +131,8 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
         LOG.info("{} Download finished, slot is ready", logPrefix);
 
         // Creating new output slot for this channel
-        var outputBackand = backEnd.toOutput();
-        var slot = new OutputSlot(outputBackand, slotId + "-out", channelId, context);
+        var outputBackend = backend.toOutput();
+        var slot = new OutputSlot(outputBackend, slotId + "-out", channelId, context);
         context.executionContext().add(slot);
     }
 
@@ -158,7 +158,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
 
     private void clear() {
         try {
-            backEnd.close();
+            backend.close();
         } catch (Exception e) {
             LOG.error("{} Error while closing backend: ", logPrefix, e);
         }
@@ -194,12 +194,12 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
     }
 
     private void download(LC.PeerDescription initPeer, String initTransferId) throws Exception {
-        int offset = 0;
+        long offset = 0;
         var peer = initPeer;
         var transfer = context.transferFactory().input(peer, offset);
         var transferId = initTransferId;
         var failed = false;
-        SeekableByteChannel backendStream = backEnd.openChannel();
+        SeekableByteChannel backendStream = backend.openChannel();
 
         while (true) {
             if (failed) {
@@ -207,7 +207,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
 
                 // Reopening channel
                 backendStream.close();
-                backendStream = backEnd.openChannel();
+                backendStream = backend.openChannel();
 
                 transfer.close();
                 var newPeerResp = context.channelManager()

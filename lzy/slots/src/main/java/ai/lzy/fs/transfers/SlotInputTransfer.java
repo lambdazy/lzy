@@ -1,5 +1,6 @@
 package ai.lzy.fs.transfers;
 
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.v2.LSA;
 import ai.lzy.v1.slots.v2.LzySlotsApiGrpc;
@@ -23,16 +24,17 @@ public class SlotInputTransfer implements InputTransfer, AutoCloseable {
     private final LC.PeerDescription peer;
     private final ManagedChannel channel;
     private final LzySlotsApiGrpc.LzySlotsApiBlockingStub stub;
-    private int currentOffset;
+    private long currentOffset;
     private Iterator<LSA.ReadDataChunk> stream;
     private int remainingRetries = 15;
 
-    public SlotInputTransfer(LC.PeerDescription peer, int offset, Supplier<String> jwt) {
+    public SlotInputTransfer(LC.PeerDescription peer, long offset, Supplier<String> jwt) {
         this.peer = peer;
         this.currentOffset = offset;
 
         this.channel = newGrpcChannel(peer.getSlotPeer().getPeerUrl(), LzySlotsApiGrpc.SERVICE_NAME);
         this.stub = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(channel), "SlotsApi", jwt);
+        LOG.info("Created SlotInputTransfer for peer {} at offset {}", peer.getPeerId(), offset);
     }
 
     @Override
@@ -62,7 +64,19 @@ public class SlotInputTransfer implements InputTransfer, AutoCloseable {
             } catch (StatusRuntimeException e) {
                 LOG.warn("Error while reading from slot peer {}, will be retried... ", peer.getPeerId(), e);
 
+                if (!GrpcUtils.retryableStatusCode(e.getStatus())) {
+                    LOG.error("Error is not retryable, will not retry", e);
+                    throw new ReadException("Cannot read from slot peer " + peer.getPeerId(), e);
+                }
+
                 remainingRetries--;
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ex) {
+                    LOG.warn("Interrupted while waiting for retry", ex);
+                    throw new IOException("Interrupted while waiting for retry", ex);
+                }
+
                 if (remainingRetries == 0) {
                     throw new ReadException("Cannot read from slot peer " + peer.getPeerId(), e);
                 }

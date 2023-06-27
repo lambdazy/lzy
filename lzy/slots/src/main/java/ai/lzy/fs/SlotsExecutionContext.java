@@ -39,7 +39,7 @@ public class SlotsExecutionContext {
         context = new SlotsContext(channelManager, transferFactory, slotsApiAddress, slotsService, executionId, this);
     }
 
-    private final List<SlotInternal> companions = new ArrayList<>();
+    private final List<SlotInternal> slots = new ArrayList<>();
 
     public void beforeExecution() throws Exception {
         try {
@@ -52,19 +52,19 @@ public class SlotsExecutionContext {
                     var backend = new FileInputBackend(fsPath);
                     var inputSlot = new InputSlot(backend, desc.getName(), channelId, context);
 
-                    companions.add(inputSlot);
+                    slots.add(inputSlot);
                 } else {
                     var backend = new OutputPipeBackend(fsPath);
                     var outputSlot = new OutputSlot(backend, desc.getName(), channelId, context);
 
-                    companions.add(outputSlot);
+                    slots.add(outputSlot);
                 }
             }
 
             final CompletableFuture<?>[] futures;
 
             synchronized (this) {
-                futures = companions.stream()
+                futures = slots.stream()
                     .map(SlotInternal::beforeExecution)
                     .toArray(CompletableFuture[]::new);
             }
@@ -82,7 +82,7 @@ public class SlotsExecutionContext {
             final CompletableFuture<?>[] futures;
 
             synchronized (this) {
-                futures = companions.stream()
+                futures = slots.stream()
                     .map(SlotInternal::afterExecution)
                     .toArray(CompletableFuture[]::new);
             }
@@ -96,13 +96,13 @@ public class SlotsExecutionContext {
     }
 
     public synchronized void close() {
-        for (var slot: companions) {
+        for (var slot: slots) {
             slot.close();
         }
     }
 
     synchronized void add(SlotInternal companion) {
-        companions.add(companion);
+        slots.add(companion);
     }
 
     @VisibleForTesting

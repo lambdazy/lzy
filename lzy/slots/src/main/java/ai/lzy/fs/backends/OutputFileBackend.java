@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
@@ -22,10 +23,10 @@ public class OutputFileBackend implements OutputSlotBackend {
     public void waitCompleted() {}  // Already completed
 
     @Override
-    public InputStream readFromOffset(long offset) throws IOException {
+    public ReadableByteChannel readFromOffset(long offset) throws IOException {
         var channel = FileChannel.open(path, StandardOpenOption.READ);
         channel.position(offset);
-        return Channels.newInputStream(channel);
+        return channel;
     }
 
     @Override

@@ -2,6 +2,7 @@ package ai.lzy.fs.backends;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.channels.ReadableByteChannel;
 
 public interface OutputSlotBackend {
     /**
@@ -10,7 +11,7 @@ public interface OutputSlotBackend {
      */
     void waitCompleted() throws IOException;
 
-    InputStream readFromOffset(long offset) throws IOException;
+    ReadableByteChannel readFromOffset(long offset) throws IOException;
 
     void close() throws IOException;
 }

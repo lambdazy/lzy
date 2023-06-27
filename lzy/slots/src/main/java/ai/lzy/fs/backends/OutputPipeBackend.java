@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.*;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -49,13 +50,12 @@ public class OutputPipeBackend implements OutputSlotBackend {
     }
 
     @Override
-    public InputStream readFromOffset(long offset) throws IOException {
+    public ReadableByteChannel readFromOffset(long offset) throws IOException {
         assert isReady.get();  // Must be called only after data is ready
 
-        var fd = FileChannel.open(storageFile.toPath(), StandardOpenOption.READ);
-
-        fd.position(offset);
-        return Channels.newInputStream(fd);
+        var channel = FileChannel.open(storageFile.toPath(), StandardOpenOption.READ);
+        channel.position(offset);
+        return channel;
     }
 
     @Override

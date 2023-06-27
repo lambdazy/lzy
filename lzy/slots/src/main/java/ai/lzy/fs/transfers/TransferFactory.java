@@ -23,7 +23,7 @@ public class TransferFactory {
 
         return null;
     }
-    public InputTransfer input(LC.PeerDescription peer, int offset) {
+    public InputTransfer input(LC.PeerDescription peer, long offset) {
         if (peer.hasStoragePeer()) {
             return new StorageInputTransfer(peer, clientFactory);
         } else {

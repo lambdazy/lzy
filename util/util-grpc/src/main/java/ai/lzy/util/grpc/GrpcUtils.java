@@ -160,8 +160,6 @@ public final class GrpcUtils {
             try {
                 return func.get();
             } catch (Exception e) {
-                logger.error("Error in grpc");
-
                 if (count > 0) {
                     count--;
                 }
