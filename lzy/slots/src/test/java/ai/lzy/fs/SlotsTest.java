@@ -794,8 +794,8 @@ public class SlotsTest {
 
         transferFailedHandle.get();
 
-        Assert.assertTrue(Arrays.equals(Arrays.copyOfRange(data, 0, 1024 * 1024),
-            Arrays.copyOfRange(inBack.data, 0, 1024 * 1024)));  // Assert that first chunk was written
+        Assert.assertArrayEquals(Arrays.copyOfRange(data, 0, 1024 * 1024),
+            Arrays.copyOfRange(inBack.data, 0, 1024 * 1024));  // Assert that first chunk was written
 
         outBack.failAfter.set(-1);
 
@@ -814,7 +814,7 @@ public class SlotsTest {
         transferCompletedHandle.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
 
         inSlot.beforeExecution().get();
-        Assert.assertTrue(Arrays.equals(data, inBack.data));
+        Assert.assertArrayEquals(data, inBack.data);
         inSlot.close();
         outSlot.close();
     }
