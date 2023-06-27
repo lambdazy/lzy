@@ -85,7 +85,7 @@ public class GraphDaoTest {
             null, null, null);
         dao.create(graph, null);
 
-        GraphState updatedGraph = graph.copyFromThis()
+        GraphState updatedGraph = graph.toBuilder()
             .errorDescription(errorDescr)
             .failedTaskId("id")
             .failedTaskName("name")

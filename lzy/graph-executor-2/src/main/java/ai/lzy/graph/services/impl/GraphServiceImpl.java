@@ -1,5 +1,6 @@
 package ai.lzy.graph.services.impl;
 
+import ai.lzy.common.IdGenerator;
 import ai.lzy.graph.GraphExecutorApi2;
 import ai.lzy.graph.algo.Algorithms;
 import ai.lzy.graph.config.ServiceConfig;
@@ -33,26 +34,29 @@ public class GraphServiceImpl implements GraphService {
     private final TaskDao taskDao;
     private final OperationDao operationDao;
     private final GraphExecutorDataSource storage;
+    private final IdGenerator idGenerator;
     private final Map<String, GraphState> graphs = new ConcurrentHashMap<>();
 
     @Inject
     public GraphServiceImpl(ServiceConfig config, TaskService taskService, GraphDao graphDao,
                             @Named("GraphExecutorOperationDao") OperationDao operationDao,
-                            TaskDao taskDao, GraphExecutorDataSource storage)
+                            TaskDao taskDao, GraphExecutorDataSource storage,
+                            @Named("GraphExecutorIdGenerator") IdGenerator idGenerator)
     {
         this.taskService = taskService;
         this.graphDao = graphDao;
         this.operationDao = operationDao;
         this.taskDao = taskDao;
         this.storage = storage;
+        this.idGenerator = idGenerator;
 
         taskService.init(this::handleTaskCompleted);
         restoreGraphs(config.getInstanceId());
     }
 
     @Override
-    public void buildGraph(GraphExecutorApi2.GraphExecuteRequest request, Operation op) throws Exception {
-        final String graphId = UUID.randomUUID().toString();
+    public void runGraph(GraphExecutorApi2.GraphExecuteRequest request, Operation op) throws Exception {
+        final String graphId = idGenerator.generate();
         final GraphState graph = GraphState.fromProto(request, graphId, op.id());
         final List<String> channels = request.getChannelsList()
             .stream()

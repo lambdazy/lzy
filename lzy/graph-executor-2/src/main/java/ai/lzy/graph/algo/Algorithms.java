@@ -88,16 +88,15 @@ public class Algorithms {
     private static boolean isCyclicUtil(Map<String, TaskState> taskMap, TaskState task,
                                         Set<TaskState> visited, Set<TaskState> stack)
     {
-        if (stack.contains(task)) {
+        if (!stack.add(task)) {
             return true;
         }
 
-        if (visited.contains(task)) {
+        if (!visited.add(task)) {
+            stack.remove(task);
             return false;
         }
 
-        visited.add(task);
-        stack.add(task);
         for (String childId: task.tasksDependedFrom()) {
             if (isCyclicUtil(taskMap, taskMap.get(childId), visited, stack)) {
                 return true;

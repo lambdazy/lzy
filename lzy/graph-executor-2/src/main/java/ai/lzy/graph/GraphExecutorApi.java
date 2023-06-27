@@ -73,7 +73,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             /* meta */ null);
 
         try {
-            graphService.buildGraph(request, op);
+            graphService.runGraph(request, op);
         } catch (Exception e) {
             if (idempotencyKey != null &&
                 handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, responseObserver, LOG))

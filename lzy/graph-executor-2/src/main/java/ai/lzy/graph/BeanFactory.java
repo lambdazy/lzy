@@ -1,5 +1,7 @@
 package ai.lzy.graph;
 
+import ai.lzy.common.IdGenerator;
+import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.impl.GraphExecutorDataSource;
 import ai.lzy.graph.model.debug.InjectedFailures;
@@ -50,5 +52,11 @@ public class BeanFactory {
             .register();
 
         return new OperationsExecutor(5, 20, errors::inc, e -> e instanceof InjectedFailures.TerminateException);
+    }
+
+    @Singleton
+    @Named("GraphExecutorIdGenerator")
+    public IdGenerator idGenerator() {
+        return new RandomIdGenerator();
     }
 }

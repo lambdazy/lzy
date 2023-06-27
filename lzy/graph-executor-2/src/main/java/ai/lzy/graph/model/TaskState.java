@@ -4,13 +4,14 @@ import ai.lzy.graph.GraphExecutorApi2;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import lombok.Builder;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+@Builder(toBuilder = true)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize
 @JsonDeserialize
@@ -32,7 +33,7 @@ public record TaskState(
     }
 
     public static TaskState fromProto(GraphExecutorApi2.GraphExecuteRequest.TaskDesc taskDesc, GraphState graphState) {
-        List<TaskSlotDescription.Slot> slots = taskDesc.getOperation().getSlotsList().stream()
+        var slots = taskDesc.getOperation().getSlotsList().stream()
             .map(slot -> new TaskSlotDescription.Slot(
                 slot.getName(),
                 TaskSlotDescription.Slot.Media.valueOf(slot.getMedia().name()),
@@ -43,9 +44,9 @@ public record TaskState(
                 slot.getContentType().getMetadataMap()
             ))
             .toList();
-        Map<String, String> slotAssignments = taskDesc.getSlotAssignmentsList().stream()
+        var slotAssignments = taskDesc.getSlotAssignmentsList().stream()
             .collect(Collectors.toMap(t -> t.getSlotName(), t -> t.getChannelId()));
-        TaskSlotDescription taskSlotDescription = new TaskSlotDescription(
+        var taskSlotDescription = new TaskSlotDescription(
             taskDesc.getOperation().getName(),
             taskDesc.getOperation().getDescription(),
             taskDesc.getOperation().getRequirements().getPoolLabel(),
@@ -71,8 +72,8 @@ public record TaskState(
             graphState.userId(),
             null,
             taskSlotDescription,
-            Collections.emptyList(),
-            Collections.emptyList()
+            new ArrayList<>(),
+            new ArrayList<>()
         );
     }
 

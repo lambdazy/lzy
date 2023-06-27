@@ -38,7 +38,7 @@ public class TaskServiceImpl implements TaskService {
     private final Map<String, Integer> limitByWorkflow = new ConcurrentHashMap<>();
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
 
-    private Consumer<TaskState> taskOnComplete;
+    private volatile Consumer<TaskState> taskOnComplete;
 
     @Inject
     public TaskServiceImpl(ServiceConfig config, TaskDao taskDao,

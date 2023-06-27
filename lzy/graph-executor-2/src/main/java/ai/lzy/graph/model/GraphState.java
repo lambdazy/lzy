@@ -13,7 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-@Builder
+@Builder(toBuilder = true)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize
 @JsonDeserialize
@@ -39,29 +39,15 @@ public record GraphState(
             .map(key -> "%s = {%s}".formatted(key, String.join(", ", tasks.get(key))))
             .collect(Collectors.joining("\n"));
 
-        return String.format("""
-                GraphState{
-                    executionId: %s,
-                    id: %s,
-                    status: %s,
-                    errorDescription: %s,
-                    tasks: %s,
-                """, executionId, id, status, errorDescription, taskDescr
-            );
-    }
-
-    public GraphStateBuilder copyFromThis() {
-        return new GraphStateBuilder()
-            .id(id)
-            .operationId(operationId)
-            .status(status)
-            .executionId(executionId)
-            .workflowName(workflowName)
-            .userId(userId)
-            .tasks(tasks)
-            .errorDescription(errorDescription)
-            .failedTaskId(failedTaskId)
-            .failedTaskName(failedTaskName);
+        return """
+            GraphState {
+                executionId: %s,
+                id: %s,
+                status: %s,
+                errorDescription: %s,
+                tasks: %s
+            }"""
+            .formatted(executionId, id, status, errorDescription, taskDescr);
     }
 
     public static GraphState fromProto(GraphExecutorApi2.GraphExecuteRequest graphDesc,
@@ -102,7 +88,7 @@ public record GraphState(
                     .build()
             );
             case EXECUTING -> {
-                final List<GraphExecutorApi2.TaskExecutionStatus> statuses = new ArrayList<>();
+                final var statuses = new ArrayList<GraphExecutorApi2.TaskExecutionStatus>();
                 for (var task: tasks.get(Status.EXECUTING)) {
                     statuses.add(taskProtos.get(task));
                 }
