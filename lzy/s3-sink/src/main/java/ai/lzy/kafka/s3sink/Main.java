@@ -1,11 +1,13 @@
 package ai.lzy.kafka.s3sink;
 
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.util.grpc.GrpcUtils;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
+import io.grpc.ServerInterceptors;
 import io.micronaut.context.ApplicationContext;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
@@ -26,9 +28,10 @@ public class Main {
     {
 
         var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient("S3Sink", iamChannel));
+        var internalOnly = new AllowInternalUserOnlyInterceptor("S3Sink", iamChannel);
 
         server = GrpcUtils.newGrpcServer(HostAndPort.fromString(config.getAddress()), auth)
-            .addService(sinkService)
+            .addService(ServerInterceptors.intercept(sinkService, internalOnly))
             .build();
 
         try {

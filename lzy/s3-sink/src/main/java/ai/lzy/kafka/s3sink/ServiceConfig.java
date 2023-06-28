@@ -7,11 +7,17 @@ import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Duration;
+
 @Getter
 @Setter
 @ConfigurationProperties("s3-sink")
 public class ServiceConfig {
     private String address;
+
+    private Duration completeJobTimeout = Duration.ofSeconds(10);
+    private Duration uploadPollInterval = Duration.ofMillis(300);
+    private Duration kafkaPollInterval = Duration.ofMillis(300);
 
     @ConfigurationBuilder("kafka")
     private final KafkaConfig kafka = new KafkaConfig();
