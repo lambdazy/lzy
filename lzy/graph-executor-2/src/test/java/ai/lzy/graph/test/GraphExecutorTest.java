@@ -1,38 +1,46 @@
 package ai.lzy.graph.test;
 
-import java.util.List;
-
-import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
-
 import ai.lzy.graph.GraphExecutorApi;
 import ai.lzy.graph.GraphExecutorApi2;
 import ai.lzy.v1.longrunning.LongRunning;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.ApplicationContext;
-import io.zonky.test.db.postgres.junit5.EmbeddedPostgresExtension;
-import io.zonky.test.db.postgres.junit5.PreparedDbExtension;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.api.extension.RegisterExtension;
+import io.prometheus.client.CollectorRegistry;
+import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
+import io.zonky.test.db.postgres.junit.PreparedDbRule;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.Timeout;
 
+import java.util.List;
+
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 
 public class GraphExecutorTest {
-    @RegisterExtension
-    public static PreparedDbExtension db = EmbeddedPostgresExtension.preparedDatabase(ds -> {});
+    @Rule
+    public Timeout globalTimeout = Timeout.seconds(10);
+    @Rule
+    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
-    private static GraphExecutorApi api;
+    private ApplicationContext context;
+    private GraphExecutorApi api;
 
-    @BeforeAll
-    public static void setUp() {
-        ApplicationContext context =
-            ApplicationContext.run(preparePostgresConfig("graph-executor-2", db.getConnectionInfo()), "test-mock");
+    @Before
+    public void setUp() {
+        CollectorRegistry.defaultRegistry.clear();
+        context = ApplicationContext.run(preparePostgresConfig("graph-executor-2", db.getConnectionInfo()), "test-mock");
         api = context.getBean(GraphExecutorApi.class);
     }
 
+    @After
+    public void after() {
+        context.stop();
+    }
+
     @Test
-    @Timeout(5)
     public void simpleTest() throws Exception {
         GraphExecutorApi2.GraphExecuteRequest request = GraphExecutorApi2.GraphExecuteRequest.newBuilder()
             .setExecutionId("1")
@@ -45,18 +53,17 @@ public class GraphExecutorTest {
             ))
             .build();
         LongRunning.Operation op = getResult(request);
-        Assertions.assertNotNull(op);
+        Assert.assertNotNull(op);
     }
 
     @Test
-    @Timeout(5)
     public void errorOnValidationTest() {
         GraphExecutorApi2.GraphExecuteRequest request = GraphExecutorApi2.GraphExecuteRequest.newBuilder()
             .setExecutionId("1")
             .setWorkflowName("workflow1")
             .setUserId("2")
             .build();
-        Assertions.assertThrows(Exception.class, () -> getResult(request));
+        Assert.assertThrows(Exception.class, () -> getResult(request));
     }
 
     public LongRunning.Operation getResult(GraphExecutorApi2.GraphExecuteRequest request) throws Exception {

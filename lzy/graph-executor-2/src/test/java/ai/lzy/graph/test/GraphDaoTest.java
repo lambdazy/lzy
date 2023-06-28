@@ -1,11 +1,5 @@
 package ai.lzy.graph.test;
 
-import java.sql.SQLException;
-import java.util.Collections;
-import java.util.List;
-
-import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
-
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.GraphDao;
 import ai.lzy.graph.db.impl.GraphDaoImpl;
@@ -22,6 +16,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.Timeout;
 
+import java.sql.SQLException;
+import java.util.Collections;
+import java.util.List;
+
+import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
+
 public class GraphDaoTest {
 
     @Rule
@@ -35,18 +35,14 @@ public class GraphDaoTest {
     private Operation operation;
 
     @Before
-    public void setUp() {
+    public void setUp() throws SQLException {
         context = ApplicationContext.run(preparePostgresConfig("graph-executor-2", db.getConnectionInfo()));
         dao = context.getBean(GraphDaoImpl.class);
         config = context.getBean(ServiceConfig.class);
 
         var opDao = context.getBean(OperationDao.class);
         operation = Operation.create("user1", "Execute graph", null, null, null);
-        try {
-            opDao.create(operation, null);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        opDao.create(operation, null);
     }
 
     @After

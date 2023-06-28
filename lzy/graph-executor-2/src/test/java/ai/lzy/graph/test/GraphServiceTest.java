@@ -15,13 +15,13 @@ import ai.lzy.graph.services.impl.GraphServiceImpl;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
+import org.junit.Before;
+import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 
 public class GraphServiceTest {
@@ -38,7 +38,7 @@ public class GraphServiceTest {
     private final ArgumentCaptor<GraphState> graphCaptor = ArgumentCaptor.forClass(GraphState.class);
     private final ArgumentCaptor<List<TaskState>> tasksCaptor = ArgumentCaptor.forClass(List.class);
 
-    @BeforeEach
+    @Before
     public void setUp() {
         graphService = new GraphServiceImpl(config, taskService, graphDao, operationDao, taskDao, storage, idGenerator);
     }

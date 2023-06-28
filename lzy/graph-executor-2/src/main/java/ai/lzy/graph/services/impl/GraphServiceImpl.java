@@ -68,12 +68,14 @@ public class GraphServiceImpl implements GraphService {
 
         Algorithms.buildTaskDependents(graph, tasks, channels);
 
-        try (var tx = TransactionHandle.create(storage)) {
-            withRetries(LOG, () -> operationDao.create(op, tx));
-            withRetries(LOG, () -> graphDao.create(graph, tx));
-            withRetries(LOG, () -> taskDao.createTasks(tasks, tx));
-            tx.commit();
-        }
+        withRetries(LOG, () -> {
+            try (var tx = TransactionHandle.create(storage)) {
+                operationDao.create(op, tx);
+                graphDao.create(graph, tx);
+                taskDao.createTasks(tasks, tx);
+                tx.commit();
+            }
+        });
         graphs.put(graphId, graph);
         taskService.addTasks(tasks);
     }
