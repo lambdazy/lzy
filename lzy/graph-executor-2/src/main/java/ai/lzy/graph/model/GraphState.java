@@ -4,11 +4,16 @@ import ai.lzy.graph.GraphExecutorApi2;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import lombok.Builder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
+@Builder(toBuilder = true)
 @JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
 @JsonSerialize
 @JsonDeserialize
@@ -16,7 +21,7 @@ public record GraphState(
     String id,
     String operationId,
     Status status,
-    String workflowId,
+    String executionId,
     String workflowName,
     String userId,
     Map<Status, List<String>> tasks,
@@ -28,10 +33,46 @@ public record GraphState(
         WAITING, EXECUTING, COMPLETED, FAILED
     }
 
-    public GraphExecutorApi2.GraphExecuteResponse toProto() {
+    @Override
+    public String toString() {
+        String taskDescr = tasks.keySet().stream()
+            .map(key -> "%s = {%s}".formatted(key, String.join(", ", tasks.get(key))))
+            .collect(Collectors.joining("\n"));
+
+        return """
+            GraphState {
+                executionId: %s,
+                id: %s,
+                status: %s,
+                errorDescription: %s,
+                tasks: %s
+            }"""
+            .formatted(executionId, id, status, errorDescription, taskDescr);
+    }
+
+    public static GraphState fromProto(GraphExecutorApi2.GraphExecuteRequest graphDesc,
+                                       String graphId, String operationId)
+    {
+        return new GraphState(
+            graphId,
+            operationId,
+            Status.WAITING,
+            graphDesc.getExecutionId(),
+            graphDesc.getWorkflowName(),
+            graphDesc.getUserId(),
+            new HashMap<>(),
+            null,
+            null,
+            null
+        );
+    }
+
+    public GraphExecutorApi2.GraphExecuteResponse toProto(
+        Map<String, GraphExecutorApi2.TaskExecutionStatus> taskProtos)
+    {
         var builder = GraphExecutorApi2.GraphExecuteResponse.newBuilder()
             .setGraphId(id)
-            .setWorkflowId(workflowId);
+            .setWorkflowId(executionId);
         switch (status) {
             case WAITING -> builder.setWaiting(
                 GraphExecutorApi2.GraphExecuteResponse.Waiting.newBuilder().build()
@@ -47,9 +88,9 @@ public record GraphState(
                     .build()
             );
             case EXECUTING -> {
-                final List<GraphExecutorApi2.TaskExecutionStatus> statuses = new ArrayList<>();
+                final var statuses = new ArrayList<GraphExecutorApi2.TaskExecutionStatus>();
                 for (var task: tasks.get(Status.EXECUTING)) {
-                    // Add info about task
+                    statuses.add(taskProtos.get(task));
                 }
                 builder.setExecuting(
                     GraphExecutorApi2.GraphExecuteResponse.Executing.newBuilder()
@@ -59,6 +100,23 @@ public record GraphState(
             }
         }
         return builder.build();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        GraphState that = (GraphState) o;
+        return id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
     }
 }
 
