@@ -50,6 +50,7 @@ public class Job {
     @Nullable
     private Iterator<ConsumerRecord<String, byte[]>> resultsStream = null;
     private final Map<String, StreamUploadDesc> streams = new HashMap<>();
+    private int emptyRetries = 0;
 
     public record JobStatus(
         boolean completed,
@@ -122,6 +123,12 @@ public class Job {
             var completed = false;
             if (Instant.now().isBefore(deadlineTime)) {
                 completed = streams.values().stream().allMatch(StreamUploadDesc::completed);
+                LOG.info("{} Attempt to finish job {}, known streams: {}, completed: {}, empty retries: {}",
+                    this, id, streams.size(), completed, emptyRetries);
+                if (completed && streams.isEmpty() && emptyRetries < 5) {
+                    ++emptyRetries;
+                    return JobStatus.restartAfter(config.getKafkaPollInterval());
+                }
             } else {
                 var activeStreams = streams.values().stream().filter(s -> !s.completed()).count();
                 LOG.info("{} S3 deadline uploading reached. Got {} uncompleted streams out of {}. Terminate...",
@@ -283,11 +290,11 @@ public class Job {
 
             try {
                 var resp = storageClient.createMultipartUpload(
-                        CreateMultipartUploadRequest.builder()
-                            .bucket(bucket)
-                            .key(key)
-                            .contentType(MediaType.TEXT_PLAIN)
-                            .build())
+                    CreateMultipartUploadRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .build())
                     .get();
                 uploadId = resp.uploadId();
 
