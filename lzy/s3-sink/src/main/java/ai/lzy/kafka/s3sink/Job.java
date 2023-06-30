@@ -127,12 +127,12 @@ public class Job {
                     this, id, streams.size(), completed, emptyRetries);
                 if (completed && streams.isEmpty() && emptyRetries < 5) {
                     ++emptyRetries;
-                    return JobStatus.restartAfter(config.getKafkaPollInterval());
+                    completed = false;
                 }
             } else {
                 var activeStreams = streams.values().stream().filter(s -> !s.completed()).count();
-                LOG.info("{} S3 deadline uploading reached. Got {} uncompleted streams out of {}. Terminate...",
-                    this, activeStreams, streams.size());
+                LOG.info("{} S3 deadline uploading job {} reached. Got {} uncompleted streams out of {}. Terminate...",
+                    this, id, activeStreams, streams.size());
                 streams.values().forEach(s -> s.complete("deadline"));
                 completed = true;
             }
