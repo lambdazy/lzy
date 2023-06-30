@@ -3,7 +3,6 @@ package ai.lzy.kafka.s3sink;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.kafka.KafkaS3Sink;
 import com.amazonaws.services.s3.AmazonS3URI;
-import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import io.micronaut.http.MediaType;
 import jakarta.annotation.Nullable;
@@ -26,7 +25,11 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -234,11 +237,6 @@ public class Job {
         return "(topic: %s, storage: %s)".formatted(request.getTopicName(), request.getStoragePrefixUri());
     }
 
-    @VisibleForTesting
-    public Map<String, StreamUploadDesc> streams() {
-        return Collections.unmodifiableMap(streams);
-    }
-
     @FunctionalInterface
     private interface Func {
         void run() throws Exception;
@@ -260,7 +258,7 @@ public class Job {
         private int partNumber = 1;
         private State state = State.CollectingData;
         private ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
-        private List<CompletedPart> completedParts = new ArrayList<>();
+        private final List<CompletedPart> completedParts = new ArrayList<>();
         @Nullable
         private CompletableFuture<UploadPartResponse> uploadAwaitable = null;
         @Nullable
