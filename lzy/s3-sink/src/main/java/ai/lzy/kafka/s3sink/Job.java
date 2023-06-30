@@ -50,19 +50,18 @@ public class Job {
 
     public record JobStatus(
         boolean completed,
-        @Nullable Status error,  // Can be not set if not completed
         Duration restartAfter
     ) {
         private static JobStatus restartAfter(Duration delay) {
-            return new JobStatus(false, null, delay);
+            return new JobStatus(false, delay);
         }
 
         private static JobStatus continue_() {
-            return new JobStatus(false, null, Duration.ZERO);
+            return new JobStatus(false, Duration.ZERO);
         }
 
         private static JobStatus complete() {
-            return new JobStatus(true, null, Duration.ZERO);
+            return new JobStatus(true, Duration.ZERO);
         }
     }
 
