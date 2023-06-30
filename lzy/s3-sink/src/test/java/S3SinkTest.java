@@ -152,7 +152,8 @@ public class S3SinkTest {
         var taskId = generateTaskId();
         s3Client.createBucket("idempotent-start");
 
-        writeToKafka(taskId, topic, "Some simple data", /* eos */ true);
+        writeToKafka(taskId, topic, "out", "stdout data", /* eos */ true);
+        writeToKafka(taskId, topic, "err", "stderr data", /* eos */ true);
 
         var req = KafkaS3Sink.StartRequest.newBuilder()
             .setS3(LMST.S3Credentials.newBuilder()
@@ -178,10 +179,13 @@ public class S3SinkTest {
         fut.get();
 
         var keys = listS3(req.getStoragePrefixUri());
-        Assert.assertEquals(1, keys.size());
+        Assert.assertEquals(2, keys.size());
+        Assert.assertEquals("execution/%s.err".formatted(taskId), keys.get(0));
+        Assert.assertEquals("execution/%s.out".formatted(taskId), keys.get(1));
 
-        Assert.assertEquals("Some simple data", readFromS3("s3://idempotent-start/" + keys.get(0)));
-        Assert.assertEquals(16, (long) metrics.uploadedBytes.get());
+        Assert.assertEquals("stdout data", readFromS3("s3://idempotent-start/execution/%s.out".formatted(taskId)));
+        Assert.assertEquals("stderr data", readFromS3("s3://idempotent-start/execution/%s.err".formatted(taskId)));
+        Assert.assertEquals(22, (long) metrics.uploadedBytes.get());
     }
 
     @Test
@@ -303,7 +307,7 @@ public class S3SinkTest {
         for (int j = 0; j < 10; j++) {  // Generating 10 messages for every job
             for (int i = 0; i < jobsCount; i++) {
                 msgFutures.addAll(
-                    writeToKafkaAsync(ids.get(i), "parallel_" + i, "Some simple data %d/%d".formatted(i, j), j == 9));
+                    writeToKafkaAsync(ids.get(i), "parallel_" + i, "out", "Some simple data %d/%d".formatted(i, j), j == 9));
             }
         }
 
@@ -334,13 +338,19 @@ public class S3SinkTest {
     }
 
     public void writeToKafka(String taskId, String topic, String data, boolean eos) throws Exception {
-        for (var f : writeToKafkaAsync(taskId, topic, data, eos)) {
+        writeToKafka(taskId, topic, "out", data, eos);
+    }
+
+    public void writeToKafka(String taskId, String topic, String stream, String data, boolean eos) throws Exception {
+        for (var f : writeToKafkaAsync(taskId, topic, stream, data, eos)) {
             f.get();
         }
     }
 
-    public List<Future<RecordMetadata>> writeToKafkaAsync(String taskId, String topic, String data, boolean eos) {
-        var streamNameHeader = new RecordHeader("stream", "out".getBytes(StandardCharsets.US_ASCII));
+    public List<Future<RecordMetadata>> writeToKafkaAsync(String taskId, String topic, String stream, String data,
+                                                          boolean eos)
+    {
+        var streamNameHeader = new RecordHeader("stream", stream.getBytes(StandardCharsets.US_ASCII));
 
         var fut1 = producer.send(new ProducerRecord<>(topic, 0, taskId, data.getBytes(), List.of(streamNameHeader)));
         if (!eos) {
@@ -358,6 +368,7 @@ public class S3SinkTest {
         Assert.assertFalse(objects.isTruncated());
         return objects.getObjectSummaries().stream()
             .map(S3ObjectSummary::getKey)
+            .sorted()
             .toList();
     }
 
