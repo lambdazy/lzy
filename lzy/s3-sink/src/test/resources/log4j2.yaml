@@ -32,3 +32,24 @@ Configuration:
 
       - name: "state.change.logger"
         level: error
+
+      - name: "org.eclipse"
+        level: error
+
+      - name: "org.springframework"
+        level: error
+
+      - name: "com.adobe.testing"
+        level: error
+
+      - name: "io.micronaut"
+        level: error
+
+      - name: "com.mchange"
+        level: error
+
+      - name: "org.flywaydb"
+        level: error
+
+      - name: "ai.lzy.iam"
+        level: error
