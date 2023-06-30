@@ -15,9 +15,9 @@ import java.time.Duration;
 public class ServiceConfig {
     private String address;
 
-    private Duration completeJobTimeout = Duration.ofSeconds(20);
+    private Duration completeJobTimeout = Duration.ofMinutes(5);
     private Duration uploadPollInterval = Duration.ofSeconds(3);
-    private Duration kafkaPollInterval = Duration.ofMillis(300);
+    private Duration kafkaPollInterval = Duration.ofMillis(100);
 
     @ConfigurationBuilder("kafka")
     private final KafkaConfig kafka = new KafkaConfig();
