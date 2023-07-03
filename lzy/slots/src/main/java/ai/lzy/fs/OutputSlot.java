@@ -167,9 +167,10 @@ public class OutputSlot implements Slot, SlotInternal {
                     failTransfer(res.getTransferId());
                     throw e;
                 }
-
-                completeFuture.complete(null);
             }
+
+            LOG.info("{} Slot is ready", logPrefix);
+            completeFuture.complete(null);
         }
     }
 
