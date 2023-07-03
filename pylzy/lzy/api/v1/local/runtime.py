@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Tuple, Type, c
 from lzy.proxy.result import Result
 
 from lzy.api.v1.exceptions import LzyExecutionException
-from lzy.api.v1.startup import ProcessingRequest
+from lzy.api.v1.startup import ProcessingRequest, MAIN_PID_ENV_VAR
 from lzy.api.v1.utils.pickle import pickle
 from lzy.logs.config import get_logging_config, COLOURS, get_syslog_color, RESET_COLOR
 from lzy.storage.api import AsyncStorageClient, Storage
@@ -132,13 +132,17 @@ class LocalRuntime(Runtime):
 
             directory = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
             command = [
-                "python",
+                sys.executable,
                 "-u",
                 directory + "/startup.py",
                 pickle(request)
             ]
 
             env_vars = os.environ.copy()
+            # In case of nested workflows running in local runtime, we have to drop main pid, otherwise nested workflows
+            # will inherit main pid from first workflow.
+            if MAIN_PID_ENV_VAR in env_vars:
+                del env_vars[MAIN_PID_ENV_VAR]
             env_vars["LZY_MOUNT"] = folder
             main_module = sys.modules['__main__']
             if hasattr(main_module, '__file__'):
