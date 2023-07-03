@@ -32,7 +32,6 @@ build_image channel-manager lzy/channel-manager
 build_image graph-executor lzy/graph-executor
 build_image iam lzy/iam
 build_image lzy-service lzy/lzy-service
-build_image portal lzy/portal
 build_image scheduler lzy/scheduler
 build_image storage lzy/storage
 build_image whiteboard lzy/whiteboard
