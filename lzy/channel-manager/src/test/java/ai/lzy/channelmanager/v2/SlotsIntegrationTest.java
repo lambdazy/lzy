@@ -8,6 +8,7 @@ import ai.lzy.fs.SlotsService;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.v2.LCMPS;
 import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
 import ai.lzy.v1.channel.v2.LzyChannelManagerPrivateGrpc;
@@ -78,6 +79,8 @@ public class SlotsIntegrationTest {
 
     @BeforeClass
     public static void before() throws Exception {
+        GrpcUtils.setIsRetriesEnabled(false);
+
         var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
         iamTestContext.setUp(iamDbConfig);
 
