@@ -61,8 +61,8 @@ public class Slots {
 
     public synchronized SlotsExecutionContext context(
         String executionId, List<LMS.Slot> slots,
-        Map<String, String> slotToChannelMapping
-    ) {
+        Map<String, String> slotToChannelMapping)
+    {
         var context = new SlotsExecutionContext(fsRoot, slots, slotToChannelMapping, channelManager, executionId,
             slotsApiAddress.toString(), tokenSupplier, slotsService);
 

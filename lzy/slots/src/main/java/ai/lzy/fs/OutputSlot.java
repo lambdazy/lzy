@@ -169,7 +169,8 @@ public class OutputSlot implements Slot, SlotInternal {
                 }
             }
 
-            LOG.info("{} Slot is ready", logPrefix);completeFuture.complete(null);
+            LOG.info("{} Slot is ready", logPrefix);
+            completeFuture.complete(null);
         }
     }
 
