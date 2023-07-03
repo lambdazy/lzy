@@ -27,11 +27,6 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>fs</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
             <artifactId>graph-executor</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -43,11 +38,6 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>lzy-service</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>portal</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
