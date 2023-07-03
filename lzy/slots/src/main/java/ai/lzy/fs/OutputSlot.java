@@ -2,9 +2,9 @@ package ai.lzy.fs;
 
 import ai.lzy.fs.backends.OutputSlotBackend;
 import ai.lzy.util.grpc.GrpcUtils;
-import ai.lzy.v1.channel.v2.LCMS;
+import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.common.LC;
-import ai.lzy.v1.slots.v2.LSA;
+import ai.lzy.v1.slots.LSA;
 import com.google.protobuf.ByteString;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -169,8 +169,7 @@ public class OutputSlot implements Slot, SlotInternal {
                 }
             }
 
-            LOG.info("{} Slot is ready", logPrefix);
-            completeFuture.complete(null);
+            LOG.info("{} Slot is ready", logPrefix);completeFuture.complete(null);
         }
     }
 

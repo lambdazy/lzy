@@ -9,6 +9,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -55,7 +56,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
         String[] oldExecId = {null};
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (var selectSt = connection.prepareStatement(QUERY_SELECT_WORKFLOW + " FOR UPDATE",
+            try (PreparedStatement selectSt = connection.prepareStatement(QUERY_SELECT_WORKFLOW + " FOR UPDATE",
                 ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
             {
                 selectSt.setString(1, userId);
@@ -70,7 +71,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
                     rs.updateTimestamp("modified_at", now);
                     rs.updateRow();
                 } else {
-                    try (var insertSt = connection.prepareStatement(QUERY_INSERT_WORKFLOW)) {
+                    try (PreparedStatement insertSt = connection.prepareStatement(QUERY_INSERT_WORKFLOW)) {
                         insertSt.setString(1, wfName);
                         insertSt.setString(2, userId);
                         insertSt.setTimestamp(3, now);
@@ -102,7 +103,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
         throws SQLException
     {
         return DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_SELECT_WORKFLOW)) {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_SELECT_WORKFLOW)) {
                 st.setString(1, userId);
                 st.setString(2, wfName);
                 var rs = st.executeQuery();
@@ -121,7 +122,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     {
         LOG.debug("Try to deactivate workflow with broken execution: { brokenExecId: {} }", activeExecId);
         return DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION_TO_NULL)) {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION_TO_NULL)) {
                 st.setTimestamp(1, Timestamp.from(Instant.now()));
                 st.setString(2, wfName);
                 st.setString(3, activeExecId);

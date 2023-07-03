@@ -1,7 +1,7 @@
 package ai.lzy.fs;
 
-import ai.lzy.v1.channel.v2.LCMS.*;
-import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LCMS.*;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.tuple.Pair;
 

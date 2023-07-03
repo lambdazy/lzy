@@ -1,16 +1,13 @@
 package ai.lzy.service.operations;
 
 import ai.lzy.common.IdGenerator;
-import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.BeanFactory;
 import ai.lzy.service.LzyServiceMetrics;
-import ai.lzy.service.config.AllocatorSessionSpec;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.*;
 import ai.lzy.service.dao.impl.LzyServiceStorage;
 import ai.lzy.service.kafka.KafkaLogsListeners;
@@ -24,20 +21,16 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.v1.AllocatorGrpc.AllocatorBlockingStub;
-import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmPoolServiceGrpc.VmPoolServiceBlockingStub;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
-import com.google.protobuf.util.Durations;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.time.Duration;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
@@ -60,10 +53,8 @@ public class OperationRunnersFactory {
     private final BeanFactory.S3SinkClient s3SinkClient;
     private final LongRunningServiceBlockingStub allocOpClient;
     private final SubjectServiceGrpcClient subjectClient;
-    private final AccessBindingServiceGrpcClient abClient;
     private final GraphExecutorBlockingStub graphsClient;
     private final LzyChannelManagerPrivateBlockingStub channelManagerClient;
-    private final LongRunningServiceBlockingStub channelManagerOpClient;
     private final RenewableJwt internalUserCredentials;
 
     private final StorageClientFactory storageClientFactory;
@@ -80,7 +71,6 @@ public class OperationRunnersFactory {
                                    @Named("LzyServiceAllocatorGrpcClient") AllocatorBlockingStub allocClient,
                                    @Named("LzyServiceAllocOpsGrpcClient") LongRunningServiceBlockingStub allocOpClient,
                                    @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
-                                   @Named("LzyServiceAccessBindingClient") AccessBindingServiceGrpcClient abClient,
                                    @Named("LzyServiceGraphExecutorGrpcClient") GraphExecutorBlockingStub graphsClient,
                                    @Named("LzyServicePrivateChannelsGrpcClient")
                                        LzyChannelManagerPrivateBlockingStub channelManagerClient,
@@ -106,10 +96,8 @@ public class OperationRunnersFactory {
         this.s3SinkClient = s3SinkClient;
         this.allocOpClient = allocOpClient;
         this.subjectClient = subjectClient;
-        this.abClient = abClient;
         this.graphsClient = graphsClient;
         this.channelManagerClient = channelManagerClient;
-        this.channelManagerOpClient = channelManagerOpClient;
         this.internalUserCredentials = internalUserCredentials;
         this.storageClientFactory = storageClientFactory;
         this.metrics = metrics;
@@ -119,16 +107,10 @@ public class OperationRunnersFactory {
     }
 
     public StartExecution createStartExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                  String userId, String wfName, String execId,
-                                                  Duration allocateVmCacheTimeout, PortalServiceSpec portalServiceSpec)
+                                                  String userId, String wfName, String execId)
         throws Exception
     {
         LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
-
-        var allocatorSessionSpec = new AllocatorSessionSpec(userId, "session for exec with id=" + execId,
-            VmAllocatorApi.CachePolicy.newBuilder()
-                .setIdleTimeout(Durations.fromSeconds(allocateVmCacheTimeout.getSeconds()))
-                .build());
 
         return StartExecution.builder()
             .setServiceConfig(serviceConfig)
@@ -145,14 +127,10 @@ public class OperationRunnersFactory {
             .setExecOpsDao(execOpsDao)
             .setExecutor(executor)
             .setState(StartExecutionState.initial())
-            .setAllocatorSessionSpec(allocatorSessionSpec)
-            .setPortalVmSpec(portalServiceSpec)
             .setStorageCfg(storageConfig)
             .setIdempotencyKey(idempotencyKey)
-            .setAbClient(abClient)
             .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
-            .setAllocOpClient(allocOpClient)
             .setKafkaClient(kafkaAdminClient)
             .setS3SinkClient(s3SinkClient)
             .setIdGenerator(idGenerator)
@@ -185,7 +163,6 @@ public class OperationRunnersFactory {
             .setState(state)
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
-            .setChannelsOpClient(channelManagerOpClient)
             .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
             .setAllocOpClient(allocOpClient)
@@ -240,7 +217,6 @@ public class OperationRunnersFactory {
                                                    String userId, String wfName, String execId) throws Exception
     {
         ExecutionDao.ExecuteGraphData execGraphData = withRetries(LOG, () -> execDao.loadExecGraphData(execId, null));
-        LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
 
         StorageClient storageClient = storageClientFactory.provider(execGraphData.storageConfig()).get();
 
@@ -268,7 +244,6 @@ public class OperationRunnersFactory {
             .setAllocClient(allocClient)
             .setGraphsClient(graphsClient)
             .setChannelsClient(channelManagerClient)
-            .setStorageConfig(storageConfig)
             .setStorageClient(storageClient)
             .setVmPoolClient(vmPoolClient)
             .setKafkaClient(kafkaAdminClient)

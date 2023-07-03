@@ -114,10 +114,6 @@ variable "workers_nodegroups_definition" {
   }
 }
 
-variable "portals_pool_size" {
-  type = number
-}
-
 variable "domain_name" {
   type     = string
   default  = "lzy.ai"

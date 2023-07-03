@@ -1,7 +1,7 @@
 package ai.lzy.fs;
 
 import ai.lzy.v1.common.LC;
-import ai.lzy.v1.slots.v2.LSA;
+import ai.lzy.v1.slots.LSA;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.NotImplementedException;
 

@@ -3,13 +3,13 @@ package ai.lzy.fs;
 import ai.lzy.fs.backends.*;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.util.grpc.GrpcUtils;
-import ai.lzy.v1.channel.v2.LCMS;
-import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc;
+import ai.lzy.v1.channel.LCMS;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMST;
-import ai.lzy.v1.slots.v2.LSA;
-import ai.lzy.v1.slots.v2.LzySlotsApiGrpc;
+import ai.lzy.v1.slots.LSA;
+import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.adobe.testing.s3mock.junit4.S3MockRule;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -866,9 +866,7 @@ public class SlotsTest {
         }
 
         @Override
-        public void close() throws IOException {
-
-        }
+        public void close() throws IOException {}
     }
 
     private static class FailingInputStream implements ReadableByteChannel {

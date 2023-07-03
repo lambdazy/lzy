@@ -1,8 +1,8 @@
 package ai.lzy.channelmanager.test;
 
-import ai.lzy.channelmanager.ChannelManagerApp;
+import ai.lzy.channelmanager.ChannelManagerMain;
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
-import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
+import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -61,7 +61,7 @@ public class BaseTestWithChannelManager {
 
         config = context.getBean(ChannelManagerConfig.class);
 
-        ChannelManagerApp app = context.getBean(ChannelManagerApp.class);
+        var app = context.getBean(ChannelManagerMain.class);
         app.start();
 
         channel = null;

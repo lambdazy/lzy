@@ -54,7 +54,7 @@ public abstract class TestContextConfigurator {
         allocatorTestContext.setUp(new HashMap<>() {
             {
                 put("allocator.thread-allocator.enabled", true);
-                put("allocator.thread-allocator.vm-class-name", "ai.lzy.portal.App");
+                put("allocator.thread-allocator.vm-class-name", "ai.lzy.worker.Worker");
                 put("allocator.iam.address", iamTestContext.getAddress());
                 putAll(preparePostgresConfig("allocator", allocatorDbConn));
             }

@@ -1,17 +1,13 @@
 package ai.lzy.service.operations.start;
 
-import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
-import ai.lzy.service.config.AllocatorSessionSpec;
-import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.StartExecutionState;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.service.operations.ExecutionOperationRunner;
 import ai.lzy.v1.common.LMST;
-import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.protobuf.Any;
 import io.grpc.Status;
@@ -24,11 +20,7 @@ import java.util.function.Supplier;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 public final class StartExecution extends ExecutionOperationRunner {
-    private final AccessBindingServiceGrpcClient abClient;
-    private final LongRunningServiceBlockingStub allocOpClient;
     private final LMST.StorageConfig storageConfig;
-    private final AllocatorSessionSpec allocatorSessionSpec;
-    private final PortalServiceSpec portalServiceSpec;
     private final StartExecutionState state;
 
     private final List<Supplier<StepResult>> steps;
@@ -37,12 +29,7 @@ public final class StartExecution extends ExecutionOperationRunner {
         super(builder);
         this.storageConfig = builder.storageConfig;
         this.state = builder.state;
-        this.allocatorSessionSpec = builder.allocatorSessionSpec;
-        this.portalServiceSpec = builder.portalServiceSpec;
-        this.abClient = builder.abClient;
-        this.allocOpClient = builder.allocOpClient;
-        this.steps = List.of(createKafkaTopic(), createAllocatorSession(), createPortalSubject(),
-            startAllocationPortalVm(), waitAllocationPortalVm(), StartExecution.this::complete);
+        this.steps = List.of(createKafkaTopic(), StartExecution.this::complete);
     }
 
     @Override
@@ -52,22 +39,6 @@ public final class StartExecution extends ExecutionOperationRunner {
 
     private Supplier<StepResult> createKafkaTopic() {
         return new CreateKafkaTopic(stepCtx(), state, storageConfig, kafkaClient(), s3SinkClient());
-    }
-
-    private Supplier<StepResult> createAllocatorSession() {
-        return new CreateAllocatorSession(stepCtx(), state, allocatorSessionSpec, allocClient());
-    }
-
-    private Supplier<StepResult> createPortalSubject() {
-        return new CreatePortalSubject(stepCtx(), state, portalServiceSpec, subjClient(), abClient);
-    }
-
-    private Supplier<StepResult> startAllocationPortalVm() {
-        return new StartAllocationPortalVm(stepCtx(), state, portalServiceSpec, allocClient(), allocOpClient);
-    }
-
-    private Supplier<StepResult> waitAllocationPortalVm() {
-        return new WaitAllocationPortalVm(stepCtx(), state, allocClient(), allocOpClient);
     }
 
     private StepResult complete() {
@@ -149,11 +120,7 @@ public final class StartExecution extends ExecutionOperationRunner {
 
     public static final class StartExecutionBuilder extends ExecutionOperationRunnerBuilder<StartExecutionBuilder> {
         private LMST.StorageConfig storageConfig;
-        private AllocatorSessionSpec allocatorSessionSpec;
-        private PortalServiceSpec portalServiceSpec;
         private StartExecutionState state;
-        private AccessBindingServiceGrpcClient abClient;
-        private LongRunningServiceBlockingStub allocOpClient;
 
         public StartExecutionBuilder setStorageCfg(LMST.StorageConfig storageConfig) {
             this.storageConfig = storageConfig;
@@ -162,26 +129,6 @@ public final class StartExecution extends ExecutionOperationRunner {
 
         public StartExecutionBuilder setState(StartExecutionState state) {
             this.state = state;
-            return this;
-        }
-
-        public StartExecutionBuilder setAllocatorSessionSpec(AllocatorSessionSpec allocatorSessionSpec) {
-            this.allocatorSessionSpec = allocatorSessionSpec;
-            return this;
-        }
-
-        public StartExecutionBuilder setPortalVmSpec(PortalServiceSpec portalServiceSpec) {
-            this.portalServiceSpec = portalServiceSpec;
-            return this;
-        }
-
-        public StartExecutionBuilder setAbClient(AccessBindingServiceGrpcClient abClient) {
-            this.abClient = abClient;
-            return this;
-        }
-
-        public StartExecutionBuilder setAllocOpClient(LongRunningServiceBlockingStub allocOpClient) {
-            this.allocOpClient = allocOpClient;
             return this;
         }
 

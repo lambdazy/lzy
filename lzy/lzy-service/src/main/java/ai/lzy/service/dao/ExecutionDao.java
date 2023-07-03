@@ -5,7 +5,6 @@ import ai.lzy.v1.common.LMST;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import com.google.common.net.HostAndPort;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
 
@@ -20,38 +19,12 @@ public interface ExecutionDao {
     void setKafkaTopicDesc(String execId, @Nullable KafkaTopicDesc topicDesc, @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    void updateAllocatorSession(String execId, String allocSessionId, @Nullable TransactionHandle transaction)
-        throws SQLException;
-
-    void updateAllocateOperationData(String execId, String allocVmOpId, String vmId,
-                                     @Nullable TransactionHandle transaction) throws SQLException;
-
-    void updatePortalAddresses(String execId, String apiAddress, String fsAddress,
-                               @Nullable TransactionHandle transaction)
-        throws SQLException;
-
-    void updatePortalId(String execId, String portalId, @Nullable TransactionHandle transaction) throws SQLException;
-
-    void updatePortalSubjectId(String execId, String subjectId, @Nullable TransactionHandle transaction)
-        throws SQLException;
-
     void setFinishStatus(String execId, Status status, @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable
     KafkaTopicDesc getKafkaTopicDesc(String execId, @Nullable TransactionHandle transaction) throws SQLException;
 
     LMST.StorageConfig getStorageConfig(String execId, @Nullable TransactionHandle transaction) throws SQLException;
-
-    PortalDescription getPortalDescription(String execId, @Nullable TransactionHandle transaction) throws SQLException;
-
-    @Nullable
-    default String getPortalVmAddress(String execId, @Nullable TransactionHandle transaction) throws SQLException {
-        var desc = getPortalDescription(execId, transaction);
-        if (desc != null) {
-            return desc.vmAddress().toString();
-        }
-        return null;
-    }
 
     StopExecutionState loadStopExecState(String execId, @Nullable TransactionHandle transaction) throws SQLException;
 
@@ -68,15 +41,6 @@ public interface ExecutionDao {
         String password,  // TODO: encrypt
         String topicName,
         @Nullable String sinkJobId
-    ) {}
-
-    record PortalDescription(
-        @Nullable String portalId,
-        @Nullable String subjectId,
-        @Nullable String allocatorSessionId,
-        @Nullable String vmId,
-        @Nullable HostAndPort vmAddress,
-        @Nullable HostAndPort fsAddress
     ) {}
 
     record ExecuteGraphData(

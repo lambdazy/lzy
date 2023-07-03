@@ -12,6 +12,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -102,7 +103,7 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
     {
         LOG.debug("Create abort execution operation in storage: { opId: {}, execId: {} }", opId, execId);
         DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_INSERT_OPERATION)) {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_INSERT_OPERATION)) {
                 st.setString(1, opId);
                 st.setString(2, OpType.ABORT_EXECUTION.name());
                 st.setString(3, instanceId);
@@ -119,7 +120,7 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
     {
         LOG.debug("Create execute graph operation in storage: { opId: {}, execId: {} }", opId, execId);
         DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_INSERT_OPERATION)) {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_INSERT_OPERATION)) {
                 st.setString(1, opId);
                 st.setString(2, OpType.EXECUTE_GRAPH.toString());
                 st.setString(3, instanceId);
@@ -226,7 +227,7 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
     {
         return DbOperation.execute(transaction, storage, connection -> {
             var result = new ArrayList<String>();
-            try (var st = connection.prepareStatement(QUERY_SELECT_EXEC_OPERATIONS)) {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_SELECT_EXEC_OPERATIONS)) {
                 st.setString(1, execId);
                 var rs = st.executeQuery();
                 while (rs.next()) {

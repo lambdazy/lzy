@@ -7,7 +7,6 @@ import ai.lzy.service.dao.StopExecutionState;
 import ai.lzy.v1.common.LMST;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.net.HostAndPort;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
@@ -83,10 +82,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     private static final String QUERY_SELECT_STOP_EXECUTION_DATA = """
         SELECT
             kafka_topic_json,
-            allocator_session_id,
-            portal_subject_id,
-            portal_vm_id,
-            portal_vm_address
+            allocator_session_id
         FROM workflow_executions
         WHERE execution_id = ?""";
 
@@ -172,101 +168,13 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public void updateAllocatorSession(String execId, String allocSessionId, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        LOG.debug("Update execution data: { execId: {}, newAllocatorSessionId: {} }", execId, allocSessionId);
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {
-                st.setString(1, allocSessionId);
-                st.setString(2, execId);
-                if (st.executeUpdate() < 1) {
-                    LOG.error("Cannot update allocator session id for unknown execution: { execId: {} }", execId);
-                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
-                }
-            }
-        });
-    }
-
-    @Override
-    public void updateAllocateOperationData(String execId, String allocVmOpId, String vmId,
-                                            @Nullable TransactionHandle transaction) throws SQLException
-    {
-        LOG.debug("Update execution data: { execId: {}, newAllocVmOpId: {}, newVmId: {} }", execId, allocVmOpId, vmId);
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_UPDATE_ALLOCATE_OPERATION_DATA)) {
-                st.setString(1, allocVmOpId);
-                st.setString(2, vmId);
-                st.setString(3, execId);
-                if (st.executeUpdate() < 1) {
-                    LOG.error("Cannot update allocate operation data for unknown execution: { execId: {} }", execId);
-                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
-                }
-            }
-        });
-    }
-
-    @Override
-    public void updatePortalAddresses(String execId, String apiAddress, String fsAddress,
-                                      @Nullable TransactionHandle transaction) throws SQLException
-    {
-        LOG.debug("Update execution data: { execId: {}, newApiAddr: {}, newFsAddr: {} }", execId, apiAddress,
-            fsAddress);
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_UPDATE_PORTAL_ADDRESSES)) {
-                st.setString(1, apiAddress);
-                st.setString(2, fsAddress);
-                st.setString(3, execId);
-                if (st.executeUpdate() < 1) {
-                    LOG.error("Cannot update portal addresses for unknown execution: { execId: {} }", execId);
-                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
-                }
-            }
-        });
-    }
-
-    @Override
-    public void updatePortalId(String execId, String portalId, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        LOG.debug("Update execution data: { execId: {}, newPortalId: {} }", execId, portalId);
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_UPDATE_PORTAL_ID)) {
-                st.setString(1, portalId);
-                st.setString(2, execId);
-                if (st.executeUpdate() < 1) {
-                    LOG.error("Cannot update portal id for unknown execution: { execId: {} }", execId);
-                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
-                }
-            }
-        });
-    }
-
-    @Override
-    public void updatePortalSubjectId(String execId, String subjectId, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        LOG.debug("Update execution data: { execId: {}, newIamSubjectId: {} }", execId, subjectId);
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_UPDATE_PORTAL_SUBJECT_ID)) {
-                st.setString(1, subjectId);
-                st.setString(2, execId);
-                if (st.executeUpdate() < 1) {
-                    LOG.error("Cannot update portal iam subject id for unknown execution: { execId: {} }", execId);
-                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
-                }
-            }
-        });
-    }
-
-    @Override
     public void setFinishStatus(String execId, Status status, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         LOG.debug("Update execution data: { execId: {}, finishStatus: {} }", execId, status.toString());
 
         DbOperation.execute(transaction, storage, conn -> {
-            try (var st = conn.prepareStatement(QUERY_SELECT_FOR_UPDATE_FINISH_DATA,
+            try (PreparedStatement st = conn.prepareStatement(QUERY_SELECT_FOR_UPDATE_FINISH_DATA,
                 ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
             {
                 st.setString(1, execId);
@@ -356,42 +264,13 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
-    public PortalDescription getPortalDescription(String execId, @Nullable TransactionHandle transaction)
-        throws SQLException
-    {
-        return DbOperation.execute(transaction, storage, con -> {
-            try (var st = con.prepareStatement(QUERY_SELECT_PORTAL_METADATA)) {
-                st.setString(1, execId);
-                var rs = st.executeQuery();
-
-                if (rs.next()) {
-                    var allocateSessionId = rs.getString(1);
-                    var vmId = rs.getString(2);
-                    var vmAddress = rs.getString(3) == null ? null :
-                        HostAndPort.fromString(rs.getString(3));
-                    var fsAddress = rs.getString(4) == null ? null :
-                        HostAndPort.fromString(rs.getString(4));
-                    var portalId = rs.getString(5);
-                    var portalSubjectId = rs.getString(6);
-
-                    return new PortalDescription(portalId, portalSubjectId, allocateSessionId, vmId, vmAddress,
-                        fsAddress);
-                } else {
-                    LOG.error("Cannot get portal description for unknown execution: { execId : {} }", execId);
-                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
-                }
-            }
-        });
-    }
-
-    @Override
     public StopExecutionState loadStopExecState(String execId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         StopExecutionState result = new StopExecutionState();
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_SELECT_STOP_EXECUTION_DATA)) {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_SELECT_STOP_EXECUTION_DATA)) {
                 st.setString(1, execId);
                 var rs = st.executeQuery();
                 if (rs.next()) {
@@ -399,10 +278,6 @@ public class ExecutionDaoImpl implements ExecutionDao {
                     if (kafkaJson != null) {
                         result.kafkaTopicDesc = objectMapper.readValue(kafkaJson, KafkaTopicDesc.class);
                     }
-                    result.allocatorSessionId = rs.getString(2);
-                    result.portalSubjectId = rs.getString(3);
-                    result.portalVmId = rs.getString(4);
-                    result.portalApiAddress = rs.getString(5);
                 } else {
                     LOG.error("Cannot get stop execution data for unknown execution: { execId : {} }", execId);
                     throw new RuntimeException("Execution with id='%s' not found".formatted(execId));

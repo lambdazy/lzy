@@ -1,15 +1,12 @@
 package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
-import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
-import ai.lzy.channelmanager.lock.GrainedLock;
 import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.clients.SubjectServiceClient;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
@@ -21,17 +18,6 @@ import jakarta.inject.Singleton;
 
 @Factory
 public class BeanFactory {
-    @Singleton
-    public GrainedLock lockManager(ChannelManagerConfig config) {
-        return new GrainedLock(config.getLockBucketsCount());
-    }
-
-    @Singleton
-    @Named("ChannelManagerOperationDao")
-    public OperationDao operationDao(ChannelManagerDataSource dataSource) {
-        return new OperationDaoImpl(dataSource);
-    }
-
     @Singleton
     @Named("ChannelManagerOperationService")
     public OperationsService operationService(@Named("ChannelManagerOperationDao") OperationDao operationDao) {
@@ -57,7 +43,7 @@ public class BeanFactory {
         @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
         @Named("ChannelManagerIamToken") RenewableJwt iamToken)
     {
-        return new AccessServiceGrpcClient(ChannelManagerApp.APP, iamChannel, iamToken::get);
+        return new AccessServiceGrpcClient("ChannelManager", iamChannel, iamToken::get);
     }
 
     @Singleton
@@ -66,7 +52,7 @@ public class BeanFactory {
         @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
         @Named("ChannelManagerIamToken") RenewableJwt iamToken)
     {
-        return new SubjectServiceGrpcClient(ChannelManagerApp.APP, iamChannel, iamToken::get);
+        return new SubjectServiceGrpcClient("ChannelManager", iamChannel, iamToken::get);
     }
 
     @Bean(preDestroy = "shutdown")

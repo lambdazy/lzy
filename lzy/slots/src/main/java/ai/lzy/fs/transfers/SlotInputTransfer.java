@@ -2,8 +2,8 @@ package ai.lzy.fs.transfers;
 
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.common.LC;
-import ai.lzy.v1.slots.v2.LSA;
-import ai.lzy.v1.slots.v2.LzySlotsApiGrpc;
+import ai.lzy.v1.slots.LSA;
+import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;

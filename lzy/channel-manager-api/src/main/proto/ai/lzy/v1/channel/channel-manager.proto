@@ -2,63 +2,94 @@ syntax = "proto3";
 
 package ai.lzy.v1.channel;
 
-import "ai/lzy/v1/common/slot.proto";
 import "ai/lzy/v1/long-running/operation.proto";
 import "ai/lzy/v1/long-running/option.proto";
-import "ai/lzy/v1/channel/channel.proto";
+import "ai/lzy/v1/common/channel.proto";
+import "ai/lzy/v1/common/data-scheme.proto";
 
 option java_outer_classname = "LCMS";
 option java_package = "ai.lzy.v1.channel";
 
 service LzyChannelManager {
 
-  rpc Bind (BindRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      response: "BindResponse"
-      metadata: "BindMetadata"
-    };
-  }
+  rpc Bind (BindRequest) returns (BindResponse) {}
 
-  rpc Unbind (UnbindRequest) returns (ai.lzy.v1.longrunning.Operation) {
-    option (ai.lzy.v1.operation) = {
-      response: "UnbindResponse"
-      metadata: "UnbindMetadata"
-    };
-  }
+  rpc Unbind (UnbindRequest) returns (UnbindResponse) {}
+
+  rpc TransferCompleted (TransferCompletedRequest) returns (TransferCompletedResponse);
+
+  rpc TransferFailed (TransferFailedRequest) returns (TransferFailedResponse);
 
   rpc GetChannelsStatus (GetChannelsStatusRequest) returns (GetChannelsStatusResponse);
 
 }
 
+// =========== Bind ==============
+
 message BindRequest {
-  ai.lzy.v1.common.SlotInstance slotInstance = 1;
-  SlotOwner slotOwner = 2;
+  string execution_id = 1;
+  string channel_id   = 2;   // Id of channel to bind to
 
-  enum SlotOwner {
+  string peer_id      = 3;
+  string peer_url     = 4;   // URL of slots api to connect to
+  Role role           = 5;
+
+  enum Role {
     UNSPECIFIED = 0;
-    WORKER = 1;
-    PORTAL = 2;
+    CONSUMER = 1;
+    PRODUCER = 2;
   }
-
 }
 
-message BindResponse {}
+message BindResponse {
+  // Data scheme of channel. Data of slot can be validated with this scheme
+  common.DataScheme data_scheme              = 1;
 
-message BindMetadata {}
+  // Peer and transfer_id like in StartTransfer call in slots api
+  // If set, bound slot must start this new transfer
+  /* optional */ common.PeerDescription peer = 2;
+  /* optional */ string transfer_id          = 3;
+}
+
+// =========== Unbind ==============
 
 message UnbindRequest {
-  string slotUri = 1;
+  string peer_id = 1;
+  string channel_id = 2;
 }
 
 message UnbindResponse {}
 
-message UnbindMetadata {}
+// =========== GetChannelsStatus ==============
 
 message GetChannelsStatusRequest {
-  string executionId = 1;
-  repeated string channelIds = 2;
+  string execution_id = 1;
+  repeated string channel_ids = 2;
 }
 
 message GetChannelsStatusResponse {
-  repeated Channel channels = 1;
+  repeated common.ChannelStatus channels = 1;
+}
+
+// =========== TransferCompleted ==============
+
+message TransferCompletedRequest {
+  string transfer_id  = 1;
+  string channel_id   = 2;
+}
+
+message TransferCompletedResponse {}
+
+
+// =========== TransferFailed ==============
+
+message TransferFailedRequest {
+  string transfer_id = 1;
+  string channel_id  = 2;
+  string description = 3;  // Error description for logging
+}
+
+message TransferFailedResponse {
+  /* optional */ string new_transfer_id          = 1;  // New transfer id to start
+  /* optional */ common.PeerDescription new_peer = 2;  // New peer to start transfer with
 }

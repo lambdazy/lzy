@@ -4,7 +4,7 @@ import ai.lzy.fs.backends.FileInputBackend;
 import ai.lzy.fs.backends.OutputPipeBackend;
 import ai.lzy.fs.transfers.TransferFactory;
 import ai.lzy.storage.StorageClientFactory;
-import ai.lzy.v1.channel.v2.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
+import ai.lzy.v1.channel.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
 import ai.lzy.v1.common.LMS;
 import com.google.common.annotations.VisibleForTesting;
 import org.apache.logging.log4j.LogManager;
@@ -46,7 +46,7 @@ public class SlotsExecutionContext {
             for (LMS.Slot desc : slotDescriptions) {
                 String channelId = slotToChannelMapping.get(desc.getName());  // Name here is slot path on lzy fs.
 
-                var fsPath = fsRoot.resolve(desc.getName());
+                var fsPath = Path.of(fsRoot.toString(), desc.getName());
 
                 if (desc.getDirection() == LMS.Slot.Direction.INPUT) {
                     var backend = new FileInputBackend(fsPath);

@@ -1,9 +1,9 @@
 package ai.lzy.fs;
 
-import ai.lzy.v1.slots.v2.LSA;
-import ai.lzy.v1.slots.v2.LSA.StartTransferRequest;
-import ai.lzy.v1.slots.v2.LSA.StartTransferResponse;
-import ai.lzy.v1.slots.v2.LzySlotsApiGrpc;
+import ai.lzy.v1.slots.LSA;
+import ai.lzy.v1.slots.LSA.StartTransferRequest;
+import ai.lzy.v1.slots.LSA.StartTransferResponse;
+import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 import org.apache.logging.log4j.LogManager;

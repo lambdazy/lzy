@@ -61,39 +61,12 @@ abstract class ExecuteGraphContextAwareStep extends ExecutionContextAwareStep {
     }
 
     @Nullable
-    protected Map<String, String> volatileChannelsNames() {
-        return state.portalOutputSlotUri2channelName;
-    }
-
-    protected void setVolatileChannelsNames(Map<String, String> channelName2slotUri) {
-        state.portalOutputSlotUri2channelName = channelName2slotUri;
-    }
-
-    @Nullable
     protected Map<String, String> channels() {
         return state.slotUri2channelId;
     }
 
     protected void setChannels(Map<String, String> slotUri2channelId) {
         state.slotUri2channelId = slotUri2channelId;
-    }
-
-    @Nullable
-    protected List<String> portalInputSlotsNames() {
-        return state.portalInputSlotsNames;
-    }
-
-    protected void setPortalInputSlotsNames(List<String> slotsNames) {
-        state.portalInputSlotsNames = slotsNames;
-    }
-
-    @Nullable
-    protected Map<String, String> portalSlotsNames() {
-        return state.portalSlotUri2slotName;
-    }
-
-    protected void setPortalSlotsNames(Map<String, String> slotsNames) {
-        state.portalSlotUri2slotName = slotsNames;
     }
 
     @Nullable
