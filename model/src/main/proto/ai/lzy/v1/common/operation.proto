@@ -10,21 +10,12 @@ option java_outer_classname = "LMO";
 option java_package = "ai.lzy.v1.common";
 
 message Operation {
-  message StdSlotDesc {
-    string name = 1;
-    string channelId = 2;
-  }
-
   EnvSpec env = 1;
   Requirements requirements = 2;
   string command = 3;
   repeated Slot slots = 4;
   string description = 5;
   string name = 6;
-
-  // Std slots for stderr and stdout. Optional
-  /* optional */ StdSlotDesc stdout = 7;
-  /* optional */ StdSlotDesc stderr = 8;
 
   // Kafka topic to write logs to
   /* optional */ KafkaTopicDescription kafka_topic = 9;
