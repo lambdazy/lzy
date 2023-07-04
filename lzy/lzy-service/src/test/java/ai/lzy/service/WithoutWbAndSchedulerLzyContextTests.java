@@ -9,7 +9,6 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.test.IamContextImpl;
 import ai.lzy.iam.test.LzySubjectServiceDecorator;
 import ai.lzy.longrunning.dao.OperationDaoDecorator;
-import ai.lzy.scheduler.test.SchedulerContextImpl;
 import ai.lzy.service.test.LzyServiceContextImpl;
 import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.storage.test.StorageContextImpl;
@@ -62,6 +61,7 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
     private ManagedChannel lzyServiceGrpcChannel;
 
     protected LzyWorkflowServiceBlockingStub lzyClient;
+    protected LzyWorkflowPrivateServiceBlockingStub unauthLzyPrivateClient;
     protected LzyWorkflowPrivateServiceBlockingStub lzyPrivateClient;
     protected SubjectServiceGrpcClient iamClient;
 
@@ -145,10 +145,9 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             LzyWorkflowServiceGrpc.SERVICE_NAME, LzyWorkflowPrivateServiceGrpc.SERVICE_NAME);
 
         lzyClient = newBlockingClient(LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceGrpcChannel), CLIENT_NAME, null);
-        lzyPrivateClient = newBlockingClient(
-            LzyWorkflowPrivateServiceGrpc.newBlockingStub(lzyServiceGrpcChannel), CLIENT_NAME,
-            () -> internalUserCredentials.get().token()
-        );
+        unauthLzyPrivateClient = LzyWorkflowPrivateServiceGrpc.newBlockingStub(lzyServiceGrpcChannel);
+        lzyPrivateClient = newBlockingClient(unauthLzyPrivateClient, CLIENT_NAME,
+            () -> internalUserCredentials.get().token());
     }
 
     @After

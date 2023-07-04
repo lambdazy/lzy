@@ -142,7 +142,7 @@ public class OthersWorkflowPermissionTests extends WithoutWbAndSchedulerLzyConte
 
         //noinspection ResultOfMethodCallIgnored
         var sre = assertThrows(StatusRuntimeException.class, () ->
-            lzyServiceTestContext.privateGrpcClient().abortWorkflow(request)
+            withIdempotencyKey(unauthLzyPrivateClient, "abort_wf_" + workflowName).abortWorkflow(request)
         );
         assertSame(Status.UNAUTHENTICATED.getCode(), sre.getStatus().getCode());
     }
