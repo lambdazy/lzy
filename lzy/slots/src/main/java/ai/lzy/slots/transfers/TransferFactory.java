@@ -1,4 +1,4 @@
-package ai.lzy.fs.transfers;
+package ai.lzy.slots.transfers;
 
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.common.LC;

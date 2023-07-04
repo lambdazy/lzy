@@ -75,9 +75,8 @@ public class AllowSubjectOnlyInterceptor implements ServerInterceptor {
         }
     }
 
-    public static AllowSubjectOnlyInterceptor allowOnlyWithPermissions(
-        Map<AuthResource, AuthPermission> permissions,
-        String clientName, Channel iamChannel)
+    public static AllowSubjectOnlyInterceptor withPermissions(Map<AuthResource, AuthPermission> permissions,
+                                                              String clientName, Channel iamChannel)
     {
         var client = new AccessServiceGrpcClient(clientName, iamChannel, () -> new JwtCredentials("stub"));
 

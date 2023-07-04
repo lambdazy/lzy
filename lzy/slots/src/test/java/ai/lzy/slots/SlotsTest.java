@@ -1,6 +1,6 @@
-package ai.lzy.fs;
+package ai.lzy.slots;
 
-import ai.lzy.fs.backends.*;
+import ai.lzy.slots.backends.*;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LCMS;

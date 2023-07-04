@@ -1,4 +1,4 @@
-package ai.lzy.fs;
+package ai.lzy.slots;
 
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.LSA;

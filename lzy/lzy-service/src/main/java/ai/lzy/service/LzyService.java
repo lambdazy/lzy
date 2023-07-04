@@ -76,7 +76,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 var actionRunner = switch (op.type()) {
                     case START_EXECUTION -> opRunnersFactory().createStartExecOpRunner(
                         op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(),
-                        op.execId());
+                        op.execId(), serviceCfg().getAllocatorVmCacheTimeout());
                     case FINISH_EXECUTION -> opRunnersFactory().createFinishExecOpRunner(
                         op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(), op.execId());
                     case ABORT_EXECUTION -> opRunnersFactory().createAbortExecOpRunner(
@@ -162,7 +162,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         try {
             LOG.info("Schedule action to start execution: { userId: {}, wfName: {} }", userId, wfName);
             var opRunner = opRunnersFactory().createStartExecOpRunner(startOp.id(), startOp.description(), idk, userId,
-                wfName, newExecId);
+                wfName, newExecId, serviceCfg().getAllocatorVmCacheTimeout());
             opsExecutor().startNew(opRunner);
         } catch (Exception e) {
             LOG.error("Cannot schedule action to start new workflow execution: { userId: {}, wfName: {}, error: {} } ",

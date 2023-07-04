@@ -1,4 +1,4 @@
-package ai.lzy.fs.backends;
+package ai.lzy.slots.backends;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;

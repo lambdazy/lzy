@@ -1,6 +1,6 @@
-package ai.lzy.fs;
+package ai.lzy.slots;
 
-import ai.lzy.fs.transfers.TransferFactory;
+import ai.lzy.slots.transfers.TransferFactory;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
 
 public record SlotsContext(

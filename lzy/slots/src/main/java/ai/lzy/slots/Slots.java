@@ -1,4 +1,4 @@
-package ai.lzy.fs;
+package ai.lzy.slots;
 
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowSubjectOnlyInterceptor;
@@ -26,18 +26,18 @@ public class Slots {
     private final Path fsRoot;
     private final SlotsService slotsService;
     private final List<SlotsExecutionContext> contexts = new ArrayList<>();  // Guarded by this
-    private final Supplier<String> tokenSupplier;
+    private final Supplier<String> token;
     private final LzyChannelManagerBlockingStub channelManager;
     private final ManagedChannel channelManagerChannel;
     private final HostAndPort slotsApiAddress;
     private final Server server;
 
-    public Slots(Path fsRoot, Supplier<String> tokenSupplier, HostAndPort slotsApiAddress,
-          HostAndPort channelManagerAddress, String serviceName, ManagedChannel iamChannel,
-          String workflowName, String ownerId) throws IOException
+    public Slots(Path fsRoot, Supplier<String> token, HostAndPort slotsApiAddress,
+                 HostAndPort channelManagerAddress, String serviceName, ManagedChannel iamChannel,
+                 String workflowName, String ownerId) throws IOException
     {
         this.fsRoot = fsRoot;
-        this.tokenSupplier = tokenSupplier;
+        this.token = token;
         this.slotsApiAddress = slotsApiAddress;
 
         if (!fsRoot.toFile().exists()) {
@@ -46,14 +46,14 @@ public class Slots {
 
         channelManagerChannel = GrpcUtils.newGrpcChannel(channelManagerAddress, LzyChannelManagerGrpc.SERVICE_NAME);
         channelManager = GrpcUtils.newBlockingClient(
-            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel), serviceName, tokenSupplier);
+            LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel), serviceName, token);
 
         slotsService = new SlotsService();
 
         final var authInterceptor = new AuthServerInterceptor(
             new AuthenticateServiceGrpcClient(serviceName, iamChannel));
 
-        var interceptor = AllowSubjectOnlyInterceptor.allowOnlyWithPermissions(
+        var interceptor = AllowSubjectOnlyInterceptor.withPermissions(
             Map.of(new Workflow(ownerId + "/" + workflowName), AuthPermission.WORKFLOW_RUN),
             serviceName, iamChannel);
 
@@ -64,12 +64,11 @@ public class Slots {
         server.start();
     }
 
-    public synchronized SlotsExecutionContext context(
-        String executionId, List<LMS.Slot> slots,
-        Map<String, String> slotToChannelMapping)
+    public synchronized SlotsExecutionContext context(String executionId, List<LMS.Slot> slots,
+                                                      Map<String, String> slotToChannelMapping)
     {
         var context = new SlotsExecutionContext(fsRoot, slots, slotToChannelMapping, channelManager, executionId,
-            slotsApiAddress.toString(), tokenSupplier, slotsService);
+            slotsApiAddress.toString(), token, slotsService);
 
         contexts.add(context);
 

@@ -24,6 +24,8 @@ import static ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.SERVICE_NAME;
 
 @Singleton
 public class ChannelManagerMain {
+    public static final String APP = "ChannelManager";
+
     private static final Logger LOG = LogManager.getLogger(ChannelManagerMain.class);
 
     private final Server server;

@@ -1,12 +1,12 @@
 package ai.lzy.worker;
 
-import ai.lzy.fs.Slots;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.logs.LogContextKey;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.ReturnCodes;
+import ai.lzy.slots.Slots;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.ProtoPrinter;

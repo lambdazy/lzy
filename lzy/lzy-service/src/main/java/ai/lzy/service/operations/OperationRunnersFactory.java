@@ -1,12 +1,12 @@
 package ai.lzy.service.operations;
 
 import ai.lzy.common.IdGenerator;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.BeanFactory;
 import ai.lzy.service.LzyServiceMetrics;
+import ai.lzy.service.config.AllocatorSessionSpec;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.dao.*;
 import ai.lzy.service.dao.impl.LzyServiceStorage;
@@ -21,16 +21,20 @@ import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.v1.AllocatorGrpc.AllocatorBlockingStub;
+import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmPoolServiceGrpc.VmPoolServiceBlockingStub;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
+import com.google.protobuf.util.Durations;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.time.Duration;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
@@ -52,7 +56,6 @@ public class OperationRunnersFactory {
     private final AllocatorBlockingStub allocClient;
     private final BeanFactory.S3SinkClient s3SinkClient;
     private final LongRunningServiceBlockingStub allocOpClient;
-    private final SubjectServiceGrpcClient subjectClient;
     private final GraphExecutorBlockingStub graphsClient;
     private final LzyChannelManagerPrivateBlockingStub channelManagerClient;
     private final RenewableJwt internalUserCredentials;
@@ -70,12 +73,9 @@ public class OperationRunnersFactory {
                                    KafkaLogsListeners kafkaLogsListeners, BeanFactory.S3SinkClient s3SinkClient,
                                    @Named("LzyServiceAllocatorGrpcClient") AllocatorBlockingStub allocClient,
                                    @Named("LzyServiceAllocOpsGrpcClient") LongRunningServiceBlockingStub allocOpClient,
-                                   @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
                                    @Named("LzyServiceGraphExecutorGrpcClient") GraphExecutorBlockingStub graphsClient,
                                    @Named("LzyServicePrivateChannelsGrpcClient")
                                        LzyChannelManagerPrivateBlockingStub channelManagerClient,
-                                   @Named("LzyServiceChannelManagerOpsGrpcClient")
-                                       LongRunningServiceBlockingStub channelManagerOpClient,
                                    @Named("LzyServiceStorageClientFactory") StorageClientFactory storageClientFactory,
                                    @Named("LzyServiceVmPoolGrpcClient") VmPoolServiceBlockingStub vmPoolClient,
                                    @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
@@ -95,7 +95,6 @@ public class OperationRunnersFactory {
         this.allocClient = allocClient;
         this.s3SinkClient = s3SinkClient;
         this.allocOpClient = allocOpClient;
-        this.subjectClient = subjectClient;
         this.graphsClient = graphsClient;
         this.channelManagerClient = channelManagerClient;
         this.internalUserCredentials = internalUserCredentials;
@@ -107,10 +106,16 @@ public class OperationRunnersFactory {
     }
 
     public StartExecution createStartExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                  String userId, String wfName, String execId)
+                                                  String userId, String wfName, String execId,
+                                                  Duration allocateVmCacheTimeout)
         throws Exception
     {
         LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
+
+        var allocatorSessionSpec = new AllocatorSessionSpec(userId, "session for exec with id=" + execId,
+            VmAllocatorApi.CachePolicy.newBuilder()
+                .setIdleTimeout(Durations.fromSeconds(allocateVmCacheTimeout.getSeconds()))
+                .build());
 
         return StartExecution.builder()
             .setServiceConfig(serviceConfig)
@@ -127,9 +132,9 @@ public class OperationRunnersFactory {
             .setExecOpsDao(execOpsDao)
             .setExecutor(executor)
             .setState(StartExecutionState.initial())
+            .setAllocatorSessionSpec(allocatorSessionSpec)
             .setStorageCfg(storageConfig)
             .setIdempotencyKey(idempotencyKey)
-            .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
             .setKafkaClient(kafkaAdminClient)
             .setS3SinkClient(s3SinkClient)
@@ -163,7 +168,6 @@ public class OperationRunnersFactory {
             .setState(state)
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
-            .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
             .setAllocOpClient(allocOpClient)
             .setKafkaClient(kafkaAdminClient)
@@ -200,7 +204,6 @@ public class OperationRunnersFactory {
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
             .setGraphClient(graphsClient)
-            .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
             .setAllocOpClient(allocOpClient)
             .setKafkaClient(kafkaAdminClient)
@@ -240,7 +243,6 @@ public class OperationRunnersFactory {
             .setKafkaTopicDesc(execGraphData.kafkaTopicDesc())
             .setKafkaConfig(kafkaConfig)
             .setIdempotencyKey(idempotencyKey)
-            .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
             .setGraphsClient(graphsClient)
             .setChannelsClient(channelManagerClient)

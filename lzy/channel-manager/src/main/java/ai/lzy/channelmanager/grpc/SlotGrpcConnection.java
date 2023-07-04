@@ -1,5 +1,6 @@
 package ai.lzy.channelmanager.grpc;
 
+import ai.lzy.channelmanager.ChannelManagerMain;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import ai.lzy.v1.slots.LzySlotsApiGrpc.LzySlotsApiBlockingStub;
@@ -20,7 +21,7 @@ public class SlotGrpcConnection {
         this.channel = newGrpcChannel(address, LzySlotsApiGrpc.SERVICE_NAME);
         this.slotsApi = newBlockingClient(
             ai.lzy.v1.slots.LzySlotsApiGrpc.newBlockingStub(channel),
-            "ChannelManager", () -> credentials.get().token());
+            ChannelManagerMain.APP, () -> credentials.get().token());
     }
 
     public LzySlotsApiBlockingStub SlotsApi() {

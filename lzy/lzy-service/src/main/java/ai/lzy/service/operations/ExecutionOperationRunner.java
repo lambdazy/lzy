@@ -1,7 +1,6 @@
 package ai.lzy.service.operations;
 
 import ai.lzy.common.IdGenerator;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -28,7 +27,6 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
     private final BeanFactory.S3SinkClient s3SinkClient;
     private final KafkaAdminClient kafkaClient;
     private final AllocatorBlockingStub allocClient;
-    private final SubjectServiceGrpcClient subjClient;
 
     private final OperationsExecutor executor;
     private final OperationRunnersFactory opRunnersFactory;
@@ -44,7 +42,6 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
         this.metrics = builder.metrics;
         this.s3SinkClient = builder.s3SinkClient;
         this.kafkaClient = builder.kafkaClient;
-        this.subjClient = builder.subjClient;
         this.allocClient = builder.allocClient;
         this.executor = builder.executor;
         this.opRunnersFactory = builder.opRunnersFactory;
@@ -108,10 +105,6 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
         return allocClient;
     }
 
-    protected SubjectServiceGrpcClient subjClient() {
-        return subjClient;
-    }
-
     protected OperationsExecutor opsExecutor() {
         return executor;
     }
@@ -146,7 +139,6 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
         private BeanFactory.S3SinkClient s3SinkClient;
         private KafkaAdminClient kafkaClient;
         private AllocatorBlockingStub allocClient;
-        private SubjectServiceGrpcClient subjClient;
         private OperationRunnersFactory opRunnersFactory;
 
         public abstract ExecutionOperationRunner build();
@@ -243,11 +235,6 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
 
         public T setKafkaClient(KafkaAdminClient kafkaClient) {
             this.kafkaClient = kafkaClient;
-            return self();
-        }
-
-        public T setSubjClient(SubjectServiceGrpcClient subjClient) {
-            this.subjClient = subjClient;
             return self();
         }
 

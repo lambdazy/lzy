@@ -1,4 +1,4 @@
-package ai.lzy.fs.transfers;
+package ai.lzy.slots.transfers;
 
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;

@@ -23,6 +23,13 @@ public final class FinishExecution extends StopExecution {
         return new DestroyChannels(stepCtx(), state(), channelsClient());
     }
 
+    private Supplier<StepResult> deleteAllocSession() {
+        return new DeleteAllocatorSession(stepCtx(), state(), allocClient());
+    }
+
+    private Supplier<StepResult> waitDeleteAllocSession() {
+        return new WaitDeleteAllocatorSession(stepCtx(), state(), allocOpClient());
+    }
 
     private Supplier<StepResult> deleteKafkaTopic() {
         return new DeleteKafkaTopic(stepCtx(), state(), kafkaClient(), kafkaLogsListeners(), s3SinkClient());

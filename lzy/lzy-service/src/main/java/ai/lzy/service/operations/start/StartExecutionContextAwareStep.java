@@ -24,6 +24,15 @@ abstract class StartExecutionContextAwareStep extends ExecutionContextAwareStep 
         return state.kafkaTopicDesc;
     }
 
+    @Nullable
+    protected String allocatorSessionId() {
+        return state.allocatorSessionId;
+    }
+
+    protected void setAllocatorSessionId(String allocatorSessionId) {
+        state.allocatorSessionId = allocatorSessionId;
+    }
+
     protected void setKafkaTopicDesc(KafkaTopicDesc kafkaTopicDesc) {
         state.kafkaTopicDesc = kafkaTopicDesc;
     }

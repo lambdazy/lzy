@@ -2,8 +2,8 @@ package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.test.InjectedFailures;
-import ai.lzy.fs.SlotsExecutionContext;
-import ai.lzy.fs.SlotsService;
+import ai.lzy.slots.SlotsExecutionContext;
+import ai.lzy.slots.SlotsService;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.util.auth.credentials.RenewableJwt;

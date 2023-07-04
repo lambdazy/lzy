@@ -43,7 +43,7 @@ public class BeanFactory {
         @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
         @Named("ChannelManagerIamToken") RenewableJwt iamToken)
     {
-        return new AccessServiceGrpcClient("ChannelManager", iamChannel, iamToken::get);
+        return new AccessServiceGrpcClient(ChannelManagerMain.APP, iamChannel, iamToken::get);
     }
 
     @Singleton
@@ -52,7 +52,7 @@ public class BeanFactory {
         @Named("ChannelManagerIamGrpcChannel") ManagedChannel iamChannel,
         @Named("ChannelManagerIamToken") RenewableJwt iamToken)
     {
-        return new SubjectServiceGrpcClient("ChannelManager", iamChannel, iamToken::get);
+        return new SubjectServiceGrpcClient(ChannelManagerMain.APP, iamChannel, iamToken::get);
     }
 
     @Bean(preDestroy = "shutdown")

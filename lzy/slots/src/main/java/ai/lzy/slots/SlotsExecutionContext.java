@@ -1,8 +1,8 @@
-package ai.lzy.fs;
+package ai.lzy.slots;
 
-import ai.lzy.fs.backends.FileInputBackend;
-import ai.lzy.fs.backends.OutputPipeBackend;
-import ai.lzy.fs.transfers.TransferFactory;
+import ai.lzy.slots.backends.FileInputBackend;
+import ai.lzy.slots.backends.OutputPipeBackend;
+import ai.lzy.slots.transfers.TransferFactory;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
 import ai.lzy.v1.common.LMS;

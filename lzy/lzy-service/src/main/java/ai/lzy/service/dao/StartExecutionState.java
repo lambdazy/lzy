@@ -6,18 +6,17 @@ import jakarta.annotation.Nullable;
 public final class StartExecutionState {
     @Nullable
     public KafkaTopicDesc kafkaTopicDesc;
+    @Nullable
+    public String allocatorSessionId;
 
     public static StartExecutionState initial() {
         return new StartExecutionState();
     }
 
-    public static StartExecutionState of(@Nullable KafkaTopicDesc kafkaTopicDesc) {
-        return new StartExecutionState(kafkaTopicDesc);
-    }
-
     private StartExecutionState() {}
 
-    public StartExecutionState(@Nullable KafkaTopicDesc kafkaTopicDesc) {
+    public StartExecutionState(@Nullable KafkaTopicDesc kafkaTopicDesc, @Nullable String allocatorSessionId) {
         this.kafkaTopicDesc = kafkaTopicDesc;
+        this.allocatorSessionId = allocatorSessionId;
     }
 }

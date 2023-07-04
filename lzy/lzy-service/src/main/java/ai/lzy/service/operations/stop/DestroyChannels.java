@@ -31,6 +31,7 @@ final class DestroyChannels extends StopExecutionContextAwareStep implements Sup
         try {
             destroyAllChannelsClient.destroyAll(LCMPS.DestroyAllRequest.newBuilder()
                 .setExecutionId(execId()).build());
+            log().debug("{} Channels destroyed", logPrefix());
 
             return StepResult.CONTINUE;
         } catch (StatusRuntimeException sre) {

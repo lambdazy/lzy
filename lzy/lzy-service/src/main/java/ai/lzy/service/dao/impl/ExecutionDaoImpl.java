@@ -13,7 +13,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -42,22 +41,6 @@ public class ExecutionDaoImpl implements ExecutionDao {
         SET allocator_session_id = ?
         WHERE execution_id = ?""";
 
-    private static final String QUERY_UPDATE_ALLOCATE_OPERATION_DATA = """
-        UPDATE workflow_executions
-        SET allocate_op_id = ?, portal_vm_id = ?
-        WHERE execution_id = ?""";
-
-    private static final String QUERY_UPDATE_PORTAL_ADDRESSES = """
-        UPDATE workflow_executions
-        SET portal_vm_address = ?, portal_fs_address = ?
-        WHERE execution_id = ?""";
-
-    private static final String QUERY_UPDATE_PORTAL_ID = """
-        UPDATE workflow_executions SET portal_id = ? WHERE execution_id = ?""";
-
-    private static final String QUERY_UPDATE_PORTAL_SUBJECT_ID = """
-        UPDATE workflow_executions SET portal_subject_id = ? WHERE execution_id = ?""";
-
     private static final String QUERY_SELECT_FOR_UPDATE_FINISH_DATA = """
         SELECT execution_id, finished_at, finished_with_error, finished_error_code
         FROM workflow_executions
@@ -65,17 +48,6 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     private static final String QUERY_SELECT_STORAGE_CREDENTIALS = """
         SELECT storage_credentials
-        FROM workflow_executions
-        WHERE execution_id = ?""";
-
-    private static final String QUERY_SELECT_PORTAL_METADATA = """
-        SELECT
-          allocator_session_id,
-          portal_vm_id,
-          portal_vm_address,
-          portal_fs_address,
-          portal_id,
-          portal_subject_id
         FROM workflow_executions
         WHERE execution_id = ?""";
 
@@ -150,7 +122,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
     {
         LOG.debug("Update execution data: { execId: {}, newKafkaDesc: {} }", execId, String.valueOf(topicDesc));
         DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement stmt = con.prepareStatement(QUERY_UPDATE_KAFKA_TOPIC)) {
+            try (var stmt = con.prepareStatement(QUERY_UPDATE_KAFKA_TOPIC)) {
                 stmt.setString(1, objectMapper.writeValueAsString(topicDesc));
                 stmt.setString(2, execId);
                 var res = stmt.executeUpdate();
@@ -168,13 +140,30 @@ public class ExecutionDaoImpl implements ExecutionDao {
     }
 
     @Override
+    public void updateAllocatorSession(String execId, String allocSessionId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        LOG.debug("Update execution data: { execId: {}, newAllocatorSessionId: {} }", execId, allocSessionId);
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {
+                st.setString(1, allocSessionId);
+                st.setString(2, execId);
+                if (st.executeUpdate() < 1) {
+                    LOG.error("Cannot update allocator session id for unknown execution: { execId: {} }", execId);
+                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
+                }
+            }
+        });
+    }
+
+    @Override
     public void setFinishStatus(String execId, Status status, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         LOG.debug("Update execution data: { execId: {}, finishStatus: {} }", execId, status.toString());
 
         DbOperation.execute(transaction, storage, conn -> {
-            try (PreparedStatement st = conn.prepareStatement(QUERY_SELECT_FOR_UPDATE_FINISH_DATA,
+            try (var st = conn.prepareStatement(QUERY_SELECT_FOR_UPDATE_FINISH_DATA,
                 ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
             {
                 st.setString(1, execId);
@@ -206,7 +195,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         throws SQLException
     {
         return DbOperation.execute(transaction, storage, con -> {
-            try (PreparedStatement stmt = con.prepareStatement(QUERY_SELECT_KAFKA_TOPIC)) {
+            try (var stmt = con.prepareStatement(QUERY_SELECT_KAFKA_TOPIC)) {
                 stmt.setString(1, execId);
                 var qs = stmt.executeQuery();
 
@@ -270,7 +259,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         StopExecutionState result = new StopExecutionState();
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (PreparedStatement st = connection.prepareStatement(QUERY_SELECT_STOP_EXECUTION_DATA)) {
+            try (var st = connection.prepareStatement(QUERY_SELECT_STOP_EXECUTION_DATA)) {
                 st.setString(1, execId);
                 var rs = st.executeQuery();
                 if (rs.next()) {
@@ -278,6 +267,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
                     if (kafkaJson != null) {
                         result.kafkaTopicDesc = objectMapper.readValue(kafkaJson, KafkaTopicDesc.class);
                     }
+                    result.allocatorSessionId = rs.getString(2);
                 } else {
                     LOG.error("Cannot get stop execution data for unknown execution: { execId : {} }", execId);
                     throw new RuntimeException("Execution with id='%s' not found".formatted(execId));

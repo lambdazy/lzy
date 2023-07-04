@@ -4,6 +4,7 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import ai.lzy.service.config.AllocatorSessionSpec;
 import ai.lzy.service.dao.StartExecutionState;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.service.operations.ExecutionOperationRunner;
@@ -21,6 +22,7 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 
 public final class StartExecution extends ExecutionOperationRunner {
     private final LMST.StorageConfig storageConfig;
+    private final AllocatorSessionSpec allocatorSessionSpec;
     private final StartExecutionState state;
 
     private final List<Supplier<StepResult>> steps;
@@ -30,6 +32,7 @@ public final class StartExecution extends ExecutionOperationRunner {
         this.storageConfig = builder.storageConfig;
         this.state = builder.state;
         this.steps = List.of(createKafkaTopic(), StartExecution.this::complete);
+        this.allocatorSessionSpec = builder.allocatorSessionSpec;
     }
 
     @Override
@@ -39,6 +42,10 @@ public final class StartExecution extends ExecutionOperationRunner {
 
     private Supplier<StepResult> createKafkaTopic() {
         return new CreateKafkaTopic(stepCtx(), state, storageConfig, kafkaClient(), s3SinkClient());
+    }
+
+    private Supplier<StepResult> createAllocatorSession() {
+        return new CreateAllocatorSession(stepCtx(), state, allocatorSessionSpec, allocClient());
     }
 
     private StepResult complete() {
@@ -120,6 +127,7 @@ public final class StartExecution extends ExecutionOperationRunner {
 
     public static final class StartExecutionBuilder extends ExecutionOperationRunnerBuilder<StartExecutionBuilder> {
         private LMST.StorageConfig storageConfig;
+        private AllocatorSessionSpec allocatorSessionSpec;
         private StartExecutionState state;
 
         public StartExecutionBuilder setStorageCfg(LMST.StorageConfig storageConfig) {
@@ -129,6 +137,11 @@ public final class StartExecution extends ExecutionOperationRunner {
 
         public StartExecutionBuilder setState(StartExecutionState state) {
             this.state = state;
+            return this;
+        }
+
+        public StartExecutionBuilder setAllocatorSessionSpec(AllocatorSessionSpec allocatorSessionSpec) {
+            this.allocatorSessionSpec = allocatorSessionSpec;
             return this;
         }
 

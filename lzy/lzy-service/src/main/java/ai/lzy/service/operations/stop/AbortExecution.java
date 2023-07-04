@@ -27,6 +27,14 @@ public final class AbortExecution extends StopExecution {
         return new StopGraphs(stepCtx(), state(), graphClient);
     }
 
+    private Supplier<StepResult> deleteAllocSession() {
+        return new DeleteAllocatorSession(stepCtx(), state(), allocClient());
+    }
+
+    private Supplier<StepResult> waitDeleteAllocSession() {
+        return new WaitDeleteAllocatorSession(stepCtx(), state(), allocOpClient());
+    }
+
     private Supplier<StepResult> destroyChannels() {
         return new DestroyChannels(stepCtx(), state(), channelsClient());
     }

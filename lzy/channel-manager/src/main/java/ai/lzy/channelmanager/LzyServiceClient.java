@@ -25,7 +25,7 @@ public class LzyServiceClient {
     {
         this.channelDao = channelDao;
         this.lzyServiceBlockingStub = newBlockingClient(LzyWorkflowServiceGrpc.newBlockingStub(lzyServiceChannel),
-            "ChannelManager", () -> token.get().token());
+            ChannelManagerMain.APP, () -> token.get().token());
     }
 
     /**

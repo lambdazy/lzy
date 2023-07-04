@@ -29,27 +29,11 @@ public class LzyServiceConfig {
     private Duration gcPeriod;
     private Duration gcLeaderPeriod;
 
-    private StartupPortalConfig portal;
-
     @Nullable
     private String s3SinkAddress = null;  // If not set, not using s3 sink
 
     @ConfigurationBuilder("kafka")
     private final KafkaConfig kafka = new KafkaConfig();
-
-    @Getter
-    @Setter
-    @ConfigurationProperties("portal")
-    public static final class StartupPortalConfig {
-        private int portalApiPort;
-        private int slotsApiPort;
-        private String dockerImage;
-        private String poolLabel;
-        private String poolZone;
-        private int workersPoolSize = 10;
-        private int downloadsPoolSize = 5;
-        private int chunksPoolSize = 5;
-    }
 
     @ConfigurationBuilder("iam")
     private final IamClientConfiguration iam = new IamClientConfiguration();

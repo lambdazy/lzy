@@ -1,7 +1,7 @@
-package ai.lzy.fs;
+package ai.lzy.slots;
 
-import ai.lzy.fs.backends.InputSlotBackend;
-import ai.lzy.fs.transfers.InputTransfer;
+import ai.lzy.slots.backends.InputSlotBackend;
+import ai.lzy.slots.transfers.InputTransfer;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.common.LC;

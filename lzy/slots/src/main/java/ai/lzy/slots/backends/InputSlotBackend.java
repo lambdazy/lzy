@@ -1,4 +1,4 @@
-package ai.lzy.fs.backends;
+package ai.lzy.slots.backends;
 
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;

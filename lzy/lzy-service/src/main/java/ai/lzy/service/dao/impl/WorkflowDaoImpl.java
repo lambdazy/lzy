@@ -56,7 +56,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
         String[] oldExecId = {null};
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (PreparedStatement selectSt = connection.prepareStatement(QUERY_SELECT_WORKFLOW + " FOR UPDATE",
+            try (var selectSt = connection.prepareStatement(QUERY_SELECT_WORKFLOW + " FOR UPDATE",
                 ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_UPDATABLE))
             {
                 selectSt.setString(1, userId);
@@ -103,7 +103,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
         throws SQLException
     {
         return DbOperation.execute(transaction, storage, connection -> {
-            try (PreparedStatement st = connection.prepareStatement(QUERY_SELECT_WORKFLOW)) {
+            try (var st = connection.prepareStatement(QUERY_SELECT_WORKFLOW)) {
                 st.setString(1, userId);
                 st.setString(2, wfName);
                 var rs = st.executeQuery();
@@ -122,7 +122,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
     {
         LOG.debug("Try to deactivate workflow with broken execution: { brokenExecId: {} }", activeExecId);
         return DbOperation.execute(transaction, storage, connection -> {
-            try (PreparedStatement st = connection.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION_TO_NULL)) {
+            try (var st = connection.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION_TO_NULL)) {
                 st.setTimestamp(1, Timestamp.from(Instant.now()));
                 st.setString(2, wfName);
                 st.setString(3, activeExecId);

@@ -1,4 +1,4 @@
-package ai.lzy.fs.transfers;
+package ai.lzy.slots.transfers;
 
 import java.nio.channels.ReadableByteChannel;
 

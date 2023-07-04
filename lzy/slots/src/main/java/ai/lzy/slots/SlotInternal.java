@@ -1,4 +1,4 @@
-package ai.lzy.fs;
+package ai.lzy.slots;
 
 import java.util.concurrent.CompletableFuture;
 

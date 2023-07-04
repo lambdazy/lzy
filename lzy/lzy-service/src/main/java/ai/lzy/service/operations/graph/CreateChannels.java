@@ -41,7 +41,7 @@ final class CreateChannels extends ExecuteGraphContextAwareStep implements Suppl
         log().info("{} Create channels for slots with data...", logPrefix());
 
         Map<Boolean, List<Data>> dataPartitionBySupplier = dataFlowGraph().getDataflow().stream()
-            .collect(Collectors.partitioningBy(data -> data.supplier() != null));
+            .collect(Collectors.partitioningBy(data -> data.producer() != null));
 
         List<Data> tasksOutput = dataPartitionBySupplier.get(true);
         List<Data> dataFromStorage = dataPartitionBySupplier.get(false);
@@ -49,7 +49,6 @@ final class CreateChannels extends ExecuteGraphContextAwareStep implements Suppl
         log().debug("{} Request to create channels for data...", logPrefix());
 
         final Map<String, String> slotUri2channelId = new HashMap<>();
-
         final LMST.StorageConfig storageConfig;
 
         try {
@@ -75,35 +74,35 @@ final class CreateChannels extends ExecuteGraphContextAwareStep implements Suppl
         try {
             for (var data : tasksOutput) {
                 var idempotentChannelsClient = (idempotencyKey() == null) ? channelsClient :
-                    withIdempotencyKey(channelsClient, idempotencyKey() + "_" + data.slotUri());
+                    withIdempotencyKey(channelsClient, idempotencyKey() + "_" + data.storageUri());
 
                 var res = idempotentChannelsClient.getOrCreate(
                     createRequestBuilder
                     .setConsumer(storagePeerBuilder
-                        .setStorageUri(data.slotUri())
+                        .setStorageUri(data.storageUri())
                         .build())
                     .build());
 
-                slotUri2channelId.put(data.slotUri(), res.getChannelId());
+                slotUri2channelId.put(data.storageUri(), res.getChannelId());
             }
 
             for (var data: dataFromStorage) {
                 var idempotentChannelsClient = (idempotencyKey() == null) ? channelsClient :
-                    withIdempotencyKey(channelsClient, idempotencyKey() + "_" + data.slotUri());
+                    withIdempotencyKey(channelsClient, idempotencyKey() + "_" + data.storageUri());
 
                 var res = idempotentChannelsClient.getOrCreate(
                     createRequestBuilder
                     .setProducer(storagePeerBuilder
-                        .setStorageUri(data.slotUri())
+                        .setStorageUri(data.storageUri())
                         .build())
                     .build());
 
-                slotUri2channelId.put(data.slotUri(), res.getChannelId());
+                slotUri2channelId.put(data.storageUri(), res.getChannelId());
             }
 
 
         } catch (StatusRuntimeException sre) {
-            return retryableFail(sre, "Cannot create channels for data from portal or graph task output slots", sre);
+            return retryableFail(sre, "Cannot create channels for slots", sre);
         }
 
         log().debug("{} Channel successfully created. Save data to dao...", logPrefix());
