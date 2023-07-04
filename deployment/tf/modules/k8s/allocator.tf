@@ -59,7 +59,7 @@ resource "kubernetes_stateful_set" "allocator" {
           }
 
           env {
-            name = "MICRONAUT_SERVER_HOST"
+            name  = "MICRONAUT_SERVER_HOST"
             value = "0.0.0.0"
           }
 
@@ -280,15 +280,16 @@ resource "kubernetes_stateful_set" "allocator" {
 
 resource "kubernetes_service" "allocator_service" {
   metadata {
-    name   = "${local.allocator-k8s-name}-load-balancer"
-    labels = local.allocator-labels
+    name        = "${local.allocator-k8s-name}-load-balancer"
+    labels      = local.allocator-labels
     annotations = {
       "yandex.cloud/load-balancer-type" : "internal"
       "yandex.cloud/subnet-id" : var.custom-subnet-id
     }
   }
   spec {
-    selector = local.allocator-labels
+    selector    = local.allocator-labels
+    ip_families = var.allocator_service_ip_families
     port {
       name        = "main-grpc"
       port        = local.allocator-port
@@ -300,6 +301,6 @@ resource "kubernetes_service" "allocator_service" {
       target_port = local.allocator-http-port
     }
     external_traffic_policy = "Local"
-    type = "LoadBalancer"
+    type                    = "LoadBalancer"
   }
 }

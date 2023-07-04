@@ -67,12 +67,13 @@ public class IdempotencyTests extends WithoutWbAndSchedulerLzyContextTests {
     }
 
     private void privateAbortWorkflow(String executionId) {
-        var request = LWFPS.AbortExecutionRequest.newBuilder()
+        var request = LWFS.AbortWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName)
             .setExecutionId(executionId)
             .setReason(reason)
             .build();
         //noinspection ResultOfMethodCallIgnored
-        withIdempotencyKey(lzyPrivateClient, stopWfIdk).abortExecution(request);
+        withIdempotencyKey(lzyPrivateClient, stopWfIdk).abortWorkflow(request);
     }
 
     private String executeGraph(String executionId, LMST.StorageConfig storage) {

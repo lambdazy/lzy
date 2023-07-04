@@ -13,6 +13,7 @@ import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.dao.WorkflowDao;
+import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.v1.AllocatorGrpc.AllocatorBlockingStub;
@@ -117,6 +118,11 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
 
     protected OperationRunnersFactory opRunnersFactory() {
         return opRunnersFactory;
+    }
+
+    @Override
+    protected boolean isInjectedError(Error e) {
+        return e instanceof InjectedFailures.TerminateException;
     }
 
     protected abstract static class ExecutionOperationRunnerBuilder<T extends ExecutionOperationRunnerBuilder<T>> {

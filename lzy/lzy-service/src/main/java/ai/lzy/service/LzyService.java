@@ -4,7 +4,10 @@ import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.service.dao.ExecutionOperationsDao;
+import ai.lzy.service.dao.ExecutionOperationsDao.ExecutionOpState;
+import ai.lzy.service.dao.ExecutionOperationsDao.OpType;
 import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.util.ProtoConverter;
 import ai.lzy.service.util.StorageUtils;
@@ -40,9 +43,7 @@ import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
 import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static ai.lzy.util.grpc.ProtoPrinter.safePrinter;
 import static ai.lzy.v1.portal.LzyPortalGrpc.newBlockingStub;
@@ -57,34 +58,45 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
     public LzyService(LzyServiceContext serviceContext) {
         this.serviceContext = serviceContext;
-    }
-
-    /*@VisibleForTesting
-    public void testRestart() {
         restartNotCompletedOps();
     }
 
     private void restartNotCompletedOps() {
-        try {
-            var execGraphStates = graphDao.loadNotCompletedOpStates(instanceId, null);
-            if (!execGraphStates.isEmpty()) {
-                LOG.warn("Found {} not completed operations on lzy-service {}", execGraphStates.size(), instanceId);
+        var serviceInstanceId = serviceCfg().getInstanceId();
 
-                var activeExecutions = new HashSet<String>();
-                execGraphStates.forEach(state -> {
-                    if (activeExecutions.add(state.getExecutionId())) {
-                        metrics.activeExecutions.labels(state.getUserId()).inc();
-                    }
-                    workersPool.submit(() -> graphExecutionService.executeGraph(state));
-                });
-            } else {
-                LOG.info("Not completed lzy-service operations weren't found.");
+        List<ExecutionOpState> uncompletedOps;
+        try {
+            uncompletedOps = withRetries(LOG, () -> execOpsDao().listUncompletedOps(serviceInstanceId, null));
+        } catch (Exception e) {
+            LOG.error("Lzy service instance with id='{}' cannot load uncompleted operation from dao: {}",
+                serviceInstanceId, e.getMessage(), e);
+            throw new RuntimeException("Cannot start lzy service instance", e);
+        }
+
+        LOG.debug("Lzy service instance with id='{}' found {} uncompleted operations", serviceInstanceId,
+            uncompletedOps.size());
+
+        for (var op : uncompletedOps) {
+            try {
+                var actionRunner = switch (op.type()) {
+                    case START_EXECUTION -> opRunnersFactory().createStartExecOpRunner(
+                        op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(),
+                        op.execId(), serviceCfg().getAllocatorVmCacheTimeout(), portalVmSpec());
+                    case FINISH_EXECUTION -> opRunnersFactory().createFinishExecOpRunner(
+                        op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(), op.execId());
+                    case ABORT_EXECUTION -> opRunnersFactory().createAbortExecOpRunner(
+                        op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(), op.execId());
+                    case EXECUTE_GRAPH -> opRunnersFactory().createExecuteGraphOpRunner(
+                        op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(), op.execId());
+                };
+                opsExecutor().startNew(actionRunner);
+            } catch (Exception e) {
+                LOG.error("Lzy service instance with id='{}' cannot reschedule some uncompleted operation: {}",
+                    serviceInstanceId, e.getMessage(), e);
+                throw new RuntimeException("Cannot start lzy service instance", e);
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
         }
     }
-    */
 
     @Override
     public LzyServiceContext lzyServiceCtx() {
@@ -118,7 +130,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         Operation startOp = Operation.create(userId, ("Start workflow execution: userId='%s', wfName='%s', " +
             "newActiveExecId=%s").formatted(userId, wfName, newExecId), startOpTimeout, idempotencyKey, null);
-        Operation stopOp = null;
+        Operation abortOp = null;
         String oldExecId;
 
         try (var tx = TransactionHandle.create(storage())) {
@@ -126,10 +138,12 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             oldExecId = wfDao().upsert(userId, wfName, newExecId, tx);
 
             if (oldExecId != null) {
-                stopOp = Operation.create(userId, "Stop execution: execId='%s'".formatted(oldExecId),
-                    serviceCfg().getOperations().getAbortWorkflowTimeout(), null, null);
-                opsDao().create(stopOp, tx);
-                execOpsDao().createStopOp(stopOp.id(), serviceCfg().getInstanceId(), oldExecId, tx);
+                abortOp = Operation.create(userId, "Abort previous execution: userId='%s', wfName='%s', execId='%s'"
+                    .formatted(userId, wfName, oldExecId), serviceCfg().getOperations().getAbortWorkflowTimeout(),
+                    null, null);
+                opsDao().create(abortOp, tx);
+                execOpsDao().createAbortOp(abortOp.id(), serviceCfg().getInstanceId(), oldExecId, tx);
+                execDao().setFinishStatus(oldExecId, Status.CANCELLED.withDescription("by new started execution"), tx);
             }
 
             opsDao().create(startOp, tx);
@@ -162,15 +176,16 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
         try {
-            if (stopOp != null) {
-                LOG.info("Schedule action to abort previous execution: { userId: {}, wfName: {} }", userId, wfName);
-                var opRunner = opRunnersFactory().createAbortWorkflowOpRunner(stopOp.id(), stopOp.description(), idk,
-                    userId, wfName, oldExecId, Status.CANCELLED.withDescription("by new started execution"));
+            if (abortOp != null) {
+                LOG.info("Schedule action to abort previous execution: { userId: {}, wfName: {}, prevExecId: {} }",
+                    userId, wfName, oldExecId);
+                var opRunner = opRunnersFactory().createAbortExecOpRunner(abortOp.id(), abortOp.description(),
+                    idk, userId, wfName, oldExecId);
                 opsExecutor().startNew(opRunner);
             }
         } catch (Exception e) {
-            LOG.error("Cannot schedule action to finish previous active execution: { userId: {}, wfName: {}," +
-                " error: {} }", userId, wfName, e.getMessage(), e);
+            LOG.error("Cannot schedule action to abort previous active execution: { userId: {}, wfName: {}, " +
+                "prevExecId: {}, error: {} }", userId, wfName, oldExecId, e.getMessage(), e);
             responseObserver.onError(Status.INTERNAL.withDescription("Cannot start workflow").asRuntimeException());
             return;
         }
@@ -239,7 +254,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     }
 
                     opsDao().create(op, tx);
-                    execOpsDao().createStopOp(op.id(), serviceCfg().getInstanceId(), execId, tx);
+                    execOpsDao().createFinishOp(op.id(), serviceCfg().getInstanceId(), execId, tx);
+                    execDao().setFinishStatus(execId, Status.OK.withDescription(reason), tx);
 
                     tx.commit();
                 }
@@ -273,7 +289,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         try {
             LOG.info("Schedule action to finish execution: { wfName: {}, execId: {} }", wfName, execId);
             var opRunner = opRunnersFactory().createFinishExecOpRunner(op.id(), op.description(), idk, userId, wfName,
-                execId, Status.OK.withDescription(reason));
+                execId);
             opsExecutor().startNew(opRunner);
         } catch (Exception e) {
             LOG.error("Cannot schedule action to finish workflow: { wfName: {}, execId: {}, error: {} }", wfName,
@@ -348,7 +364,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     }
 
                     opsDao().create(op, tx);
-                    execOpsDao().createStopOp(op.id(), serviceCfg().getInstanceId(), execId, tx);
+                    execOpsDao().createAbortOp(op.id(), serviceCfg().getInstanceId(), execId, tx);
+                    execDao().setFinishStatus(execId, Status.CANCELLED.withDescription(reason), tx);
 
                     tx.commit();
                 }
@@ -382,8 +399,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var idk = idempotencyKey != null ? idempotencyKey.token() : null;
         try {
             LOG.info("Schedule action to abort workflow: { wfName: {}, execId: {} }", wfName, execId);
-            var opRunner = opRunnersFactory().createAbortWorkflowOpRunner(op.id(), op.description(), idk, userId,
-                wfName, execId, Status.CANCELLED.withDescription(reason));
+            var opRunner = opRunnersFactory().createAbortExecOpRunner(op.id(), op.description(), idk, userId,
+                wfName, execId);
             opsExecutor().startNew(opRunner);
         } catch (Exception e) {
             LOG.error("Cannot schedule action to abort workflow: { wfName: {}, execId: {} }", wfName, execId);
@@ -444,16 +461,17 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             }
 
             for (ExecutionOperationsDao.OpInfo opInfo : execOpsDao().listOpsInfo(execId, tx)) {
-                if (opInfo.type() == ExecutionOperationsDao.OpType.START_EXECUTION) {
+                if (opInfo.type() == OpType.START_EXECUTION) {
                     throw new IllegalStateException("Execution with id='%s' is not started yet".formatted(execId));
                 }
-                if (opInfo.type() == ExecutionOperationsDao.OpType.STOP_EXECUTION) {
+                if (OpType.isStop(opInfo.type())) {
                     throw new IllegalStateException("Execution with id='%s' is being stopped".formatted(execId));
                 }
             }
 
             opsDao().create(op, tx);
-            execOpsDao().createExecGraphOp(op.id(), serviceCfg().getInstanceId(), execId, tx);
+            execOpsDao().createExecGraphOp(op.id(), serviceCfg().getInstanceId(), execId,
+                new ExecuteGraphState(request.getGraph()), tx);
             tx.commit();
         } catch (NotFoundException nfe) {
             LOG.error("Cannot execute graph: { execId: {}, error: {} }", execId, nfe.getMessage(), nfe);
@@ -479,8 +497,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         var idk = idempotencyKey != null ? idempotencyKey.token() : null;
         try {
             LOG.info("Schedule action to execute graph: { execId: {} }", execId);
-            var opRunner = opRunnersFactory().createExecuteGraphOpRunner(op.id(), op.description(), idk, userId,
-                wfName, execId, request);
+            var opRunner = opRunnersFactory().createExecuteGraphOpRunner(op.id(), op.description(), idk, userId, wfName,
+                execId);
             opsExecutor().startNew(opRunner);
         } catch (Exception e) {
             LOG.error("Cannot schedule action to execute graph: { execId: {}, error: {} }", execId, e.getMessage(), e);

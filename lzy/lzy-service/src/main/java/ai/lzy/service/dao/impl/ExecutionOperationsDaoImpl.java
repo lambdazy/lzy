@@ -22,8 +22,8 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
     private static final Logger LOG = LogManager.getLogger(ExecutionOperationsDaoImpl.class);
 
     private static final String QUERY_INSERT_OPERATION = """
-        INSERT INTO execution_operations (op_id, op_type, service_instance_id, execution_id)
-        VALUES (?, ?, ?, ?)""";
+        INSERT INTO execution_operations (op_id, op_type, service_instance_id, execution_id, state_json)
+        VALUES (?, ?, ?, ?, ?)""";
 
     private static final String QUERY_SELECT_EXEC_OPERATIONS = """
         SELECT op_id, op_type, execution_id FROM execution_operations WHERE execution_id = ?""";
@@ -36,6 +36,23 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
 
     private static final String QUERY_UPDATE_EXECUTE_GRAPH_OP_STATE = """
         UPDATE execution_operations SET state_json = ? WHERE op_id = ?""";
+
+    private static final String QUERY_SELECT_EXECUTE_GRAPH_OP_STATE = """
+        SELECT state_json FROM execution_operations WHERE op_id = ?""";
+
+    private static final String QUERY_SELECT_UNCOMPLETED_OPERATIONS = """
+        SELECT e_op.op_type as op_type, o.id as id, o.description as desc, 
+               o.idempotency_key as idk, e.user_id as user_id,
+               wf.workflow_name as wf_name, e.execution_id as exec_id,
+               e_op.state_json as state_json
+        FROM execution_operations e_op 
+        JOIN operation o 
+        ON e_op.op_id = o.id
+        JOIN workflow_executions e
+        ON e_op.execution_id = e.execution_id
+        JOIN workflows wf
+        ON wf.active_execution_id = e.execution_id
+        WHERE e_op.service_instance_id = ?""";
 
     private final LzyServiceStorage storage;
     private final ObjectMapper objectMapper;
@@ -56,29 +73,48 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
                 st.setString(2, OpType.START_EXECUTION.toString());
                 st.setString(3, instanceId);
                 st.setString(4, execId);
+                st.setString(5, null);
                 st.executeUpdate();
             }
         });
     }
 
     @Override
-    public void createStopOp(String opId, String instanceId, String execId, @Nullable TransactionHandle transaction)
+    public void createFinishOp(String opId, String instanceId, String execId, @Nullable TransactionHandle transaction)
         throws SQLException
     {
-        LOG.debug("Create stop execution operation in storage: { opId: {}, execId: {} }", opId, execId);
+        LOG.debug("Create finish execution operation in storage: { opId: {}, execId: {} }", opId, execId);
         DbOperation.execute(transaction, storage, connection -> {
             try (var st = connection.prepareStatement(QUERY_INSERT_OPERATION)) {
                 st.setString(1, opId);
-                st.setString(2, OpType.STOP_EXECUTION.toString());
+                st.setString(2, OpType.FINISH_EXECUTION.name());
                 st.setString(3, instanceId);
                 st.setString(4, execId);
+                st.setString(5, null);
                 st.executeUpdate();
             }
         });
     }
 
     @Override
-    public void createExecGraphOp(String opId, String instanceId, String execId,
+    public void createAbortOp(String opId, String instanceId, String execId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        LOG.debug("Create abort execution operation in storage: { opId: {}, execId: {} }", opId, execId);
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_INSERT_OPERATION)) {
+                st.setString(1, opId);
+                st.setString(2, OpType.ABORT_EXECUTION.name());
+                st.setString(3, instanceId);
+                st.setString(4, execId);
+                st.setString(5, null);
+                st.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void createExecGraphOp(String opId, String instanceId, String execId, ExecuteGraphState state,
                                   @Nullable TransactionHandle transaction) throws SQLException
     {
         LOG.debug("Create execute graph operation in storage: { opId: {}, execId: {} }", opId, execId);
@@ -88,7 +124,12 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
                 st.setString(2, OpType.EXECUTE_GRAPH.toString());
                 st.setString(3, instanceId);
                 st.setString(4, execId);
+                st.setString(5, objectMapper.writeValueAsString(state));
                 st.executeUpdate();
+            } catch (JsonProcessingException e) {
+                var mes = "Cannot dump value of graph execution state";
+                LOG.error(mes + ": {}", e.getMessage());
+                throw new RuntimeException(mes, e);
             }
         });
     }
@@ -145,9 +186,29 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
     }
 
     @Override
+    public ExecuteGraphState getState(String opId, @Nullable TransactionHandle transaction) throws SQLException {
+        return DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_SELECT_EXECUTE_GRAPH_OP_STATE)) {
+                st.setString(1, opId);
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    return objectMapper.readValue(rs.getString("state_json"), ExecuteGraphState.class);
+                } else {
+                    LOG.error("Cannot get graph execution state for unknown operation: { opId: {} }", opId);
+                    throw new RuntimeException("ExecGraph operation with id='%s' not found".formatted(opId));
+                }
+            } catch (JsonProcessingException e) {
+                var mes = "Cannot parse value of graph execution state";
+                LOG.error(mes + ": {}", e.getMessage());
+                throw new RuntimeException(mes, e);
+            }
+        });
+    }
+
+    @Override
     public List<OpInfo> listOpsInfo(String execId, @Nullable TransactionHandle transaction) throws SQLException {
-        final var result = new ArrayList<OpInfo>();
-        DbOperation.execute(transaction, storage, connection -> {
+        return DbOperation.execute(transaction, storage, connection -> {
+            var result = new ArrayList<OpInfo>();
             try (var st = connection.prepareStatement(QUERY_SELECT_EXEC_OPERATIONS)) {
                 st.setString(1, execId);
                 var rs = st.executeQuery();
@@ -155,24 +216,53 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
                     result.add(new OpInfo(rs.getString("op_id"), OpType.valueOf(rs.getString("op_type"))));
                 }
             }
+            return result;
         });
-        return result;
     }
 
     @Override
-    public List<String> listOpsIdsToCancel(String execId, TransactionHandle transaction) throws SQLException {
-        final var result = new ArrayList<String>();
-        DbOperation.execute(transaction, storage, connection -> {
+    public List<String> listOpsIdsToCancel(String execId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        return DbOperation.execute(transaction, storage, connection -> {
+            var result = new ArrayList<String>();
             try (var st = connection.prepareStatement(QUERY_SELECT_EXEC_OPERATIONS)) {
                 st.setString(1, execId);
                 var rs = st.executeQuery();
                 while (rs.next()) {
-                    if (OpType.valueOf(rs.getString("op_type")) != OpType.STOP_EXECUTION) {
+                    var type = OpType.valueOf(rs.getString("op_type"));
+                    if (!OpType.isStop(type)) {
                         result.add(rs.getString("op_id"));
                     }
                 }
             }
+            return result;
         });
-        return result;
+    }
+
+    @Override
+    public List<ExecutionOpState> listUncompletedOps(String instanceId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        return DbOperation.execute(transaction, storage, connection -> {
+            var result = new ArrayList<ExecutionOpState>();
+            try (var st = connection.prepareStatement(QUERY_SELECT_UNCOMPLETED_OPERATIONS)) {
+                st.setString(1, instanceId);
+                var rs = st.executeQuery();
+                while (rs.next()) {
+                    var type = OpType.valueOf(rs.getString("op_type"));
+                    var opId = rs.getString("id");
+                    var desc = rs.getString("desc");
+                    var idk = rs.getString("idk");
+                    var userId = rs.getString("user_id");
+                    var wfName = rs.getString("wf_name");
+                    var execId = rs.getString("exec_id");
+
+                    result.add(new ExecutionOpState(type, opId, desc, idk, userId, wfName, execId));
+                }
+            }
+
+            return result;
+        });
     }
 }

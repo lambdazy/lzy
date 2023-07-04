@@ -22,11 +22,11 @@ public record TaskSlotDescription(
         String schemeContent,
         Map<String, String> metadata
     ) {
-        enum Media {
+        public enum Media {
             FILE, PIPE, ARG
         }
 
-        enum Direction {
+        public enum Direction {
             INPUT, OUTPUT
         }
     }

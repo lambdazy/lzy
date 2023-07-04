@@ -7,72 +7,37 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 
 public class InjectedFailures {
-    public static final List<AtomicReference<Supplier<Throwable>>> FAIL_LZY_SERVICE = List.of(
+    public static final List<AtomicReference<Supplier<Throwable>>> FAIL_START_WORKFLOW_OPERATION = List.of(
         new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
-        new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
-        new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
-        new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null),
-        new AtomicReference<>(null)
+        new AtomicReference<>(null), new AtomicReference<>(null), new AtomicReference<>(null)
     );
 
     public static void reset() {
-        FAIL_LZY_SERVICE.forEach(x -> x.set(null));
+        FAIL_START_WORKFLOW_OPERATION.forEach(x -> x.set(null));
     }
 
     public static void fail(int n) {
-        failImpl(FAIL_LZY_SERVICE.get(n));
+        failImpl(FAIL_START_WORKFLOW_OPERATION.get(n));
     }
 
-    public static void fail0() {
+    public static void failKafkaTopicStep() {
         fail(0);
     }
 
-    public static void fail1() {
+    public static void failCreateSessionStep() {
         fail(1);
     }
 
-    public static void fail2() {
+    public static void failCreatePortalIamSubjectStep() {
         fail(2);
     }
 
-    public static void fail3() {
+    public static void failAllocatePortalVmStep() {
         fail(3);
     }
 
-    public static void fail4() {
+    public static void failStartExecutionCompletion() {
         fail(4);
-    }
-
-    public static void fail5() {
-        fail(5);
-    }
-
-    public static void fail6() {
-        fail(6);
-    }
-
-    public static void fail7() {
-        fail(7);
-    }
-
-    public static void fail8() {
-        fail(8);
-    }
-
-    public static void fail9() {
-        fail(9);
-    }
-
-    public static void fail10() {
-        fail(10);
-    }
-
-    public static void fail11() {
-        fail(11);
-    }
-
-    public static void fail12() {
-        fail(12);
     }
 
     private static void failImpl(AtomicReference<Supplier<Throwable>> ref) {
@@ -88,8 +53,7 @@ public class InjectedFailures {
     }
 
     public static final class TerminateException extends Error {
-        public TerminateException() {
-        }
+        public TerminateException() {}
 
         public TerminateException(String message) {
             super(message);

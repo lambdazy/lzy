@@ -25,10 +25,10 @@ public class JobExecutor {
     private static final Logger LOG = LogManager.getLogger(JobExecutor.class);
     private static final int THREAD_POOL_SIZE = 10;
 
-    private static final ThreadGroup JobExecutorTG = new ThreadGroup("s3-sink-jobs");
+    private static final ThreadGroup JOB_EXECUTOR_TG = new ThreadGroup("s3-sink-jobs");
 
     private final ExecutorService threadPool = Executors.newFixedThreadPool(THREAD_POOL_SIZE,
-        r -> new Thread(JobExecutorTG, r, "s3-sink-worker"));
+        r -> new Thread(JOB_EXECUTOR_TG, r, "s3-sink-worker"));
     private final BlockingQueue<JobHandle> queue = new DelayQueue<>();
     private final Map<String, JobHandle> handles = new ConcurrentHashMap<>();
     private final AtomicBoolean shutdown = new AtomicBoolean(false);
@@ -36,13 +36,15 @@ public class JobExecutor {
     private final IdGenerator idGenerator = new RandomIdGenerator();
     private final KafkaHelper helper;
     private final S3SinkMetrics metrics;
+    private final ServiceConfig config;
 
     // For tests only
-    private final Map<String, CompletableFuture<Job.PollResult>> waiters = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<Job.JobStatus>> waiters = new ConcurrentHashMap<>();
 
-    public JobExecutor(@Named("S3SinkKafkaHelper") KafkaHelper helper, S3SinkMetrics metrics) {
+    public JobExecutor(@Named("S3SinkKafkaHelper") KafkaHelper helper, S3SinkMetrics metrics, ServiceConfig config) {
         this.helper = helper;
         this.metrics = metrics;
+        this.config = config;
 
         for (int i = 0; i < THREAD_POOL_SIZE; i++) {
             threadPool.submit(() -> {
@@ -73,7 +75,7 @@ public class JobExecutor {
             }
         }
 
-        var job = new Job(idGenerator.generate("s3sink-"), helper, req, metrics);
+        var job = new Job(idGenerator.generate("s3sink-"), helper, req, metrics, config);
 
         var handle = new JobHandle(job, token);
         handles.put(job.id(), handle);
@@ -107,9 +109,9 @@ public class JobExecutor {
         }
 
         public synchronized void run() {
-            final Job.PollResult res;
+            final Job.JobStatus res;
             try {
-                res = job.poll();
+                res = job.run();
             } catch (Exception e) {
                 LOG.error("Error while polling job {}: ", job, e);
                 return;  // Error logged, dropping job
@@ -123,14 +125,14 @@ public class JobExecutor {
                 }
 
                 var waiter = waiters.remove(job.id());
-                if (waiter != null)  {  // For tests only
+                if (waiter != null) {  // For tests only
                     waiter.complete(res);
                 }
 
-                return;  // Job is completed, dropping it
+                return;  // Job completed, drop it
             }
 
-            nextRun.set(Instant.now().plus(res.pollAfter()));
+            nextRun.set(Instant.now().plus(res.restartAfter()));
             queue.add(this);
         }
 
@@ -143,31 +145,17 @@ public class JobExecutor {
         public int compareTo(Delayed o) {
             return Long.compare(this.getDelay(TimeUnit.MILLISECONDS), o.getDelay(TimeUnit.MILLISECONDS));
         }
-
     }
 
     @VisibleForTesting
     @Nullable
-    public CompletableFuture<Job.PollResult> setupWaiter(String jobId) {
+    public CompletableFuture<Job.JobStatus> setupWaiter(String jobId) {
         if (!handles.containsKey(jobId)) {
             return null;
         }
 
-        var fut = new CompletableFuture<Job.PollResult>();
+        var fut = new CompletableFuture<Job.JobStatus>();
         waiters.put(jobId, fut);
         return fut;
-    }
-
-    @VisibleForTesting
-    public void addActiveStream(String jobId, String stream) {
-        while (!handles.containsKey(jobId)) {
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                // ignored
-            }
-        }
-
-        handles.get(jobId).job.addActiveStream(stream);
     }
 }

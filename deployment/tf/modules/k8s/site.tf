@@ -165,7 +165,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
             "-Dmicronaut.ssl.enabled=true",
             "-Dsite.hostname=https://${local.github-redirect-address}:8443",
             "-Dmicronaut.server.dual-protocol=true"
-            ] : [
+          ] : [
             "-Dmicronaut.env.deduction=true",
             "-Dmicronaut.ssl.enabled=false",
             "-Dsite.hostname=http://${var.backoffice_public_ip}:8080",
@@ -292,6 +292,7 @@ resource "kubernetes_service" "lzy_backoffice" {
   }
   spec {
     load_balancer_ip = var.backoffice_public_ip
+    ip_families      = var.lzy_backoffice_ip_families
     type             = "LoadBalancer"
     selector         = local.backoffice-labels
     port {

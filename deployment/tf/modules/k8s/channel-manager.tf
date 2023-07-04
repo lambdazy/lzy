@@ -210,15 +210,16 @@ resource "kubernetes_deployment" "channel-manager" {
 
 resource "kubernetes_service" "channel_manager_service" {
   metadata {
-    name   = "${local.channel-manager-k8s-name}-load-balancer"
-    labels = local.channel-manager-labels
+    name        = "${local.channel-manager-k8s-name}-load-balancer"
+    labels      = local.channel-manager-labels
     annotations = {
       "yandex.cloud/load-balancer-type" : "internal"
       "yandex.cloud/subnet-id" : var.custom-subnet-id
     }
   }
   spec {
-    selector = local.channel-manager-labels
+    selector    = local.channel-manager-labels
+    ip_families = var.channel_manager_service_ip_families
     port {
       port        = local.channel-manager-port
       target_port = local.channel-manager-port

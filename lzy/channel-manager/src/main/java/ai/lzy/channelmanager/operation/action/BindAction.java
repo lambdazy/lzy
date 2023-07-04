@@ -60,7 +60,7 @@ public class BindAction extends ChannelAction {
         if (deadline.isBefore(Instant.now())) {
             LOG.info("Async operation (operationId={}) stopped, deadline exceeded, channelId={}",
                 operationId, state.channelId());
-            this.failOperation(state.executionId(), Status.DEADLINE_EXCEEDED);
+            this.failOperation(state.wfName(), state.executionId(), Status.DEADLINE_EXCEEDED);
             return;
         }
 
@@ -75,7 +75,7 @@ public class BindAction extends ChannelAction {
                                       + " endpoint " + state.endpointUri()
                                       + " of channel " + state.channelId() + " not found";
                 LOG.error(errorMessage);
-                this.failOperation(state.executionId(), Status.CANCELLED.withDescription(errorMessage));
+                this.failOperation(state.wfName(), state.executionId(), Status.CANCELLED.withDescription(errorMessage));
                 return;
             }
 
@@ -130,11 +130,11 @@ public class BindAction extends ChannelAction {
             String errorMessage = "Async operation (operationId=" + operationId + ") cancelled "
                                   + "due to the graph state: " + e.getMessage();
             LOG.error(errorMessage);
-            this.failOperation(state.executionId(), Status.CANCELLED.withDescription(errorMessage));
+            this.failOperation(state.wfName(), state.executionId(), Status.CANCELLED.withDescription(errorMessage));
         } catch (Exception e) {
             String errorMessage = "Async operation (operationId=" + operationId + ") failed: " + e.getMessage();
             LOG.error(errorMessage);
-            this.failOperation(state.executionId(), Status.INTERNAL.withDescription(errorMessage));
+            this.failOperation(state.wfName(), state.executionId(), Status.INTERNAL.withDescription(errorMessage));
         }
 
     }
@@ -165,7 +165,7 @@ public class BindAction extends ChannelAction {
                 String errorMessage = "Async operation (operationId=" + operationId + ") cancelled,"
                                       + " channel " + state.channelId() + " not found";
                 LOG.error(errorMessage);
-                this.failOperation(state.executionId(), Status.CANCELLED.withDescription(errorMessage));
+                this.failOperation(state.wfName(), state.executionId(), Status.CANCELLED.withDescription(errorMessage));
                 return null;
             }
 
@@ -202,7 +202,7 @@ public class BindAction extends ChannelAction {
                 String errorMessage = "Async operation (operationId=" + operationId + ") cancelled,"
                                       + " channel " + state.channelId() + " not found";
                 LOG.error(errorMessage);
-                this.failOperation(state.executionId(), Status.CANCELLED.withDescription(errorMessage));
+                this.failOperation(state.wfName(), state.executionId(), Status.CANCELLED.withDescription(errorMessage));
                 return;
             }
 

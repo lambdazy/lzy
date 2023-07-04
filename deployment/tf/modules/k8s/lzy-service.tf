@@ -1,4 +1,3 @@
-
 locals {
   lzy-service-labels = {
     app                         = "lzy-service"
@@ -254,7 +253,7 @@ resource "kubernetes_deployment" "lzy-service" {
             for_each = var.s3_sink_enabled ? [1] : []
 
             content {
-              name = "LZY_SERVICE_S3_SINK_ADDRESS"
+              name  = "LZY_SERVICE_S3_SINK_ADDRESS"
               value = "${kubernetes_service.s3_sink_service[0].spec[0].cluster_ip}:${local.s3-sink-port}"
             }
           }
@@ -395,6 +394,7 @@ resource "kubernetes_service" "lzy_service" {
   spec {
     load_balancer_ip = var.workflow_public_ip
     selector         = local.lzy-service-labels
+    ip_families      = var.lzy_service_ip_families
     port {
       port        = local.lzy-service-port
       target_port = local.lzy-service-port

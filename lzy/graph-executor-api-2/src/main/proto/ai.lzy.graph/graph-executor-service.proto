@@ -6,10 +6,16 @@ option java_outer_classname = "GraphExecutorApi2";
 option java_package = "ai.lzy.graph";
 
 import "ai/lzy/v1/long-running/operation.proto";
+import "ai/lzy/v1/long-running/option.proto";
 import "ai/lzy/v1/common/operation.proto";
 
 service GraphExecutor {
-  rpc Execute (GraphExecuteRequest) returns (ai.lzy.v1.longrunning.Operation);
+  rpc Execute (GraphExecuteRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "GraphExecuteResponse"
+    };
+  }
 }
 
 message GraphExecuteRequest {

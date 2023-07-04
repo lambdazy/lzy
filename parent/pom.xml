@@ -118,6 +118,7 @@
         <embedded-postgres.version>2.0.1</embedded-postgres.version>
         <h2database.version>2.1.214</h2database.version>
         <junit.version>4.13.2</junit.version>
+        <hamcrest.version>2.2</hamcrest.version>
         <kubernetes-server-mock.version>6.0.0</kubernetes-server-mock.version>
         <mockito-core.version>3.5.15</mockito-core.version>
         <mockito-inline.version>3.6.28</mockito-inline.version>
@@ -707,6 +708,11 @@
                         <artifactId>logback-classic</artifactId>
                     </exclusion>
                 </exclusions>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-compress</artifactId>
+                <version>1.21</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

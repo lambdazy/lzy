@@ -139,7 +139,6 @@ public final class AllocateVmAction extends OperationRunnerBase {
         if (vm.spec().clusterType() == ClusterRegistry.ClusterType.System) {
             return StepResult.ALREADY_DONE;
         }
-
         if (mountPodAllocated) {
             return StepResult.ALREADY_DONE;
         }
@@ -167,7 +166,9 @@ public final class AllocateVmAction extends OperationRunnerBase {
         if (!allocationContext.mountConfig().isEnabled()) {
             return StepResult.ALREADY_DONE;
         }
-
+        if (vm.spec().clusterType() == ClusterRegistry.ClusterType.System) {
+            return StepResult.ALREADY_DONE;
+        }
         if (vm.instanceProperties().mountPodName() != null) {
             return StepResult.ALREADY_DONE;
         }

@@ -2,7 +2,6 @@ package ai.lzy.graph;
 
 import ai.lzy.graph.GraphExecutorApi2.*;
 import ai.lzy.graph.config.ServiceConfig;
-import ai.lzy.graph.model.DirectedGraph;
 import ai.lzy.graph.services.GraphService;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
@@ -66,16 +65,6 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             return;
         }
 
-        final DirectedGraph graph = graphService.buildGraph(request);
-        try {
-            graphService.validateGraph(graph);
-        } catch (Exception e) {
-            LOG.error("Graph did not pass validation: { graph: {}, error: {} }", graph, e.getMessage());
-            var errorStatus = Status.INVALID_ARGUMENT.withDescription(e.getMessage());
-            responseObserver.onError(errorStatus.asException());
-            return;
-        }
-
         var op = Operation.create(
             request.getUserId(),
             "Execute graph of execution: executionId='%s'".formatted(request.getExecutionId()),
@@ -84,7 +73,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
             /* meta */ null);
 
         try {
-            graphService.createTasks(graph);
+            graphService.runGraph(request, op);
         } catch (Exception e) {
             if (idempotencyKey != null &&
                 handleIdempotencyKeyConflict(idempotencyKey, e, operationDao, responseObserver, LOG))
@@ -92,7 +81,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                 return;
             }
 
-            LOG.error("Cannot create tasks for graph: { graph: {}, error: {} }", graph, e.getMessage());
+            LOG.error("Cannot execute graph: { request: {}, error: {} }", request, e.getMessage());
             var errorStatus = Status.INVALID_ARGUMENT.withDescription(e.getMessage());
             responseObserver.onError(errorStatus.asException());
             return;

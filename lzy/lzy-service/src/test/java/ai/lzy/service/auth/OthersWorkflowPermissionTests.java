@@ -131,4 +131,19 @@ public class OthersWorkflowPermissionTests extends WithoutWbAndSchedulerLzyConte
         var sre = assertThrows(StatusRuntimeException.class, () -> authGrpcClient2.getAvailablePools(request));
         assertSame(Status.INVALID_ARGUMENT.getCode(), sre.getStatus().getCode());
     }
+
+    @Test
+    public void privateAbortIsInternalOnly() {
+        var request = LWFS.AbortWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName)
+            .setExecutionId(executionId)
+            .setReason(reason)
+            .build();
+
+        //noinspection ResultOfMethodCallIgnored
+        var sre = assertThrows(StatusRuntimeException.class, () ->
+            lzyServiceTestContext.privateGrpcClient().abortWorkflow(request)
+        );
+        assertSame(Status.UNAUTHENTICATED.getCode(), sre.getStatus().getCode());
+    }
 }

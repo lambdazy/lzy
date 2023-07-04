@@ -11,6 +11,7 @@ import jakarta.annotation.Nullable;
 @JsonSerialize
 @JsonDeserialize
 public class BindActionState {
+    private final String wfName;
     private final String executionId;
     private final String channelId;
     private final String endpointUri;
@@ -21,12 +22,14 @@ public class BindActionState {
     private String connectOperationId;
 
     @JsonCreator
-    public BindActionState(@JsonProperty("executionId") String executionId,
+    public BindActionState(@JsonProperty("wfName") String wfName,
+                           @JsonProperty("executionId") String executionId,
                            @JsonProperty("channelId") String channelId,
                            @JsonProperty("endpointUri") String endpointUri,
                            @JsonProperty("connectingEndpointUri") @Nullable String connectingEndpointUri,
                            @JsonProperty("connectOperationId") @Nullable String connectOperationId)
     {
+        this.wfName = wfName;
         this.executionId = executionId;
         this.channelId = channelId;
         this.endpointUri = endpointUri;
@@ -35,8 +38,12 @@ public class BindActionState {
     }
 
     public static BindActionState copyOf(BindActionState other) {
-        return new BindActionState(other.executionId, other.channelId, other.endpointUri,
+        return new BindActionState(other.wfName, other.executionId, other.channelId, other.endpointUri,
             other.connectingEndpointUri(), other.connectOperationId());
+    }
+
+    public String wfName() {
+        return wfName;
     }
 
     public String executionId() {

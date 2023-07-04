@@ -10,14 +10,13 @@ import org.apache.logging.log4j.Logger;
 
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
-
+@SuppressWarnings("OverloadMethodsDeclarationOrder")
 public class OperationDaoDecorator implements OperationDao {
-    private final Queue<Runnable> onCreateEvents = new ConcurrentLinkedQueue<>();
-    private final AtomicInteger createCallsCounter = new AtomicInteger(0);
+    private volatile Consumer<Operation> onCreate = op -> {};
+    private volatile Consumer<String> onComplete = id -> {};
+    private volatile Consumer<String> onFail = id -> {};
 
     private final OperationDao delegate;
 
@@ -25,22 +24,42 @@ public class OperationDaoDecorator implements OperationDao {
         this.delegate = new OperationDaoImpl(storage);
     }
 
-    public void onCreate(Runnable action) {
-        onCreateEvents.add(action);
+    public void onCreate(Consumer<Operation> onCreate) {
+        this.onCreate = onCreate;
     }
 
-    public void onCreateCounter() {
-        onCreate(createCallsCounter::incrementAndGet);
+    public void onComplete(Consumer<String> onComplete) {
+        this.onComplete = onComplete;
     }
 
-    public int createCallsCount() {
-        return createCallsCounter.get();
+    public void onFail(Consumer<String> onFail) {
+        this.onFail = onFail;
     }
 
     @Override
     public void create(Operation operation, @Nullable TransactionHandle transaction) throws SQLException {
-        onCreateEvents.forEach(Runnable::run);
+        onCreate.accept(operation);
         delegate.create(operation, transaction);
+    }
+
+    @Override
+    public Operation complete(String id, @Nullable Any meta, Any response, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        onComplete.accept(id);
+        return delegate.complete(id, meta, response, transaction);
+    }
+
+    @Override
+    public Operation complete(String id, Any response, @Nullable TransactionHandle transaction) throws SQLException {
+        onComplete.accept(id);
+        return delegate.complete(id, response, transaction);
+    }
+
+    @Override
+    public Operation fail(String id, Status error, TransactionHandle transaction) throws SQLException {
+        onFail.accept(id);
+        return delegate.fail(id, error, transaction);
     }
 
     @Nullable
@@ -58,33 +77,15 @@ public class OperationDaoDecorator implements OperationDao {
     }
 
     @Override
-    public void update(String id, TransactionHandle transaction) throws SQLException {
+    public void update(String id, @Nullable TransactionHandle transaction) throws SQLException {
         delegate.update(id, transaction);
     }
-
-    @Override
-    public Operation complete(String id, @Nullable Any meta, Any response, TransactionHandle transaction)
-        throws SQLException
-    {
-        return delegate.complete(id, meta, response, transaction);
-    }
-
-    @Override
-    public Operation complete(String id, Any response, TransactionHandle transaction) throws SQLException {
-        return delegate.complete(id, response, transaction);
-    }
-
 
     @Override
     public Operation updateMeta(String id, @Nullable Any meta, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         return delegate.updateMeta(id, meta, transaction);
-    }
-
-    @Override
-    public Operation fail(String id, Status error, TransactionHandle transaction) throws SQLException {
-        return delegate.fail(id, error, transaction);
     }
 
     @Override

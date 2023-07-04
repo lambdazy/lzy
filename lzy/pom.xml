@@ -16,7 +16,7 @@
         <module>allocator-api</module>
         <module>channel-manager</module>
         <module>channel-manager-api</module>
-        <module>fs</module>
+        <module>slots</module>
         <module>graph-executor</module>
         <module>graph-executor-api</module>
         <module>iam</module>
@@ -38,6 +38,7 @@
         <module>s3-sink</module>
         <module>graph-executor-2</module>
         <module>graph-executor-api-2</module>
+        <module>fs</module>
     </modules>
 
     <build>
