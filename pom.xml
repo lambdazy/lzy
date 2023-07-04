@@ -24,6 +24,7 @@
         <module>util</module>
         <module>frontend</module>
         <module>whiteboard-api</module>
+        <module>test-context</module>
     </modules>
 
     <build>

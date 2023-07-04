@@ -14,7 +14,7 @@ public class GraphBuildingTests extends AbstractGraphExecutionTest {
     public void executeSimpleGraph() {
         var workflow = startWorkflow("workflow_1", "start_wf");
 
-        var graphId = withIdempotencyKey(authLzyGrpcClient, "execute_graph")
+        var graphId = withIdempotencyKey(authLzyClient, "execute_graph")
             .executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
                 .setWorkflowName("workflow_1")
                 .setExecutionId(workflow.getExecutionId())
@@ -31,7 +31,7 @@ public class GraphBuildingTests extends AbstractGraphExecutionTest {
     public void executeGraphWithoutOutputSlots() {
         var workflow = startWorkflow("workflow_1", "start_wf");
 
-        var graphId = withIdempotencyKey(authLzyGrpcClient, "execute_graph")
+        var graphId = withIdempotencyKey(authLzyClient, "execute_graph")
             .executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
                 .setWorkflowName("workflow_1")
                 .setExecutionId(workflow.getExecutionId())
@@ -51,7 +51,7 @@ public class GraphBuildingTests extends AbstractGraphExecutionTest {
 
         graphExecutor().setOnExecute(request -> countOfTasks.addAndGet(request.getTasksCount()));
 
-        var graphId = withIdempotencyKey(authLzyGrpcClient, "execute_graph")
+        var graphId = withIdempotencyKey(authLzyClient, "execute_graph")
             .executeGraph(LWFS.ExecuteGraphRequest.newBuilder()
                 .setWorkflowName("workflow_1")
                 .setExecutionId(workflow.getExecutionId())
@@ -71,21 +71,21 @@ public class GraphBuildingTests extends AbstractGraphExecutionTest {
 
         var graphs = producerAndConsumersGraphs();
 
-        var graphId1 = withIdempotencyKey(authLzyGrpcClient, "execute_graph_1").executeGraph(
+        var graphId1 = withIdempotencyKey(authLzyClient, "execute_graph_1").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(workflow.getExecutionId())
                 .setGraph(graphs.get(0))
                 .build()).getGraphId();
 
-        var graphId2 = withIdempotencyKey(authLzyGrpcClient, "execute_graph_2").executeGraph(
+        var graphId2 = withIdempotencyKey(authLzyClient, "execute_graph_2").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(workflow.getExecutionId())
                 .setGraph(graphs.get(1))
                 .build()).getGraphId();
 
-        var graphId3 = withIdempotencyKey(authLzyGrpcClient, "execute_graph_3").executeGraph(
+        var graphId3 = withIdempotencyKey(authLzyClient, "execute_graph_3").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(workflow.getExecutionId())
