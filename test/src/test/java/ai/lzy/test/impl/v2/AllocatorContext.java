@@ -103,19 +103,4 @@ public class AllocatorContext {
             super.close();
         }
     }
-
-    @Singleton
-    public static class PortalAllocatorContext extends AllocatorContext {
-
-        @Inject
-        public PortalAllocatorContext(IamContext iam) {
-            super(iam, "../lzy/portal/target/portal.jar", "ai.lzy.portal.App", 23911);
-        }
-
-        @Override
-        @PreDestroy
-        public void close() {
-            super.close();
-        }
-    }
 }
