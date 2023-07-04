@@ -12,7 +12,7 @@
     <artifactId>channel-manager</artifactId>
 
     <properties>
-        <exec.mainClass>ai.lzy.channelmanager.ChannelManagerApp</exec.mainClass>
+        <exec.mainClass>ai.lzy.channelmanager.ChannelManagerMain</exec.mainClass>
     </properties>
 
     <dependencies>

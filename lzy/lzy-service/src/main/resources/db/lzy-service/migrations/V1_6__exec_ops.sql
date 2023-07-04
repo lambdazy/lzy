@@ -18,6 +18,3 @@ CREATE TABLE execution_operations
 
     FOREIGN KEY (op_id) REFERENCES operation (id)
 );
-
-ALTER TABLE graphs DROP COLUMN portal_input_slots;
-
