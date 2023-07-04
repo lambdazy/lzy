@@ -15,6 +15,7 @@ import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +39,10 @@ public class Slots {
         this.fsRoot = fsRoot;
         this.tokenSupplier = tokenSupplier;
         this.slotsApiAddress = slotsApiAddress;
+
+        if (!fsRoot.toFile().exists()) {
+            Files.createDirectories(fsRoot);
+        }
 
         channelManagerChannel = GrpcUtils.newGrpcChannel(channelManagerAddress, LzyChannelManagerGrpc.SERVICE_NAME);
         channelManager = GrpcUtils.newBlockingClient(
