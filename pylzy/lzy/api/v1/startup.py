@@ -75,7 +75,6 @@ def write_data(path: str, typ: Type, data: Any, serializers: SerializerRegistry,
     with open(mount + path, "wb") as out_handle:
         ser.serialize(data, out_handle)
         out_handle.flush()
-        os.fsync(out_handle.fileno())
 
 
 def _get_main_pid() -> int:
