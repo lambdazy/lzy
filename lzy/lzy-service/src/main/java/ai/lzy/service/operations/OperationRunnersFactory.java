@@ -18,8 +18,6 @@ import ai.lzy.service.operations.graph.ExecuteGraph;
 import ai.lzy.service.operations.start.StartExecution;
 import ai.lzy.service.operations.stop.AbortExecution;
 import ai.lzy.service.operations.stop.FinishExecution;
-import ai.lzy.service.operations.stop.PrivateAbortExecution;
-import ai.lzy.service.operations.stop.PublicAbortExecution;
 import ai.lzy.storage.StorageClient;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -32,9 +30,7 @@ import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBl
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
-import ai.lzy.v1.workflow.LWFS;
 import com.google.protobuf.util.Durations;
-import io.grpc.Status;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -49,7 +45,7 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 public class OperationRunnersFactory {
     private static final Logger LOG = LogManager.getLogger(OperationRunnersFactory.class);
 
-    private final String instanceId;
+    private final LzyServiceConfig serviceConfig;
     private final Storage storage;
     private final WorkflowDao wfDao;
     private final ExecutionDao execDao;
@@ -96,7 +92,7 @@ public class OperationRunnersFactory {
                                    LzyServiceMetrics metrics, LzyServiceConfig config,
                                    @Named("LzyServiceIdGenerator") IdGenerator idGenerator)
     {
-        this.instanceId = config.getInstanceId();
+        this.serviceConfig = config;
         this.storage = storage;
         this.wfDao = wfDao;
         this.execDao = execDao;
@@ -135,7 +131,7 @@ public class OperationRunnersFactory {
                 .build());
 
         return StartExecution.builder()
-            .setInstanceId(instanceId)
+            .setServiceConfig(serviceConfig)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)
@@ -167,13 +163,13 @@ public class OperationRunnersFactory {
     }
 
     public FinishExecution createFinishExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                    String userId, String wfName, String execId, Status finishStatus)
+                                                    String userId, String wfName, String execId)
         throws Exception
     {
         StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
 
         return FinishExecution.builder()
-            .setInstanceId(instanceId)
+            .setServiceConfig(serviceConfig)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)
@@ -187,7 +183,6 @@ public class OperationRunnersFactory {
             .setExecOpsDao(execOpsDao)
             .setExecutor(executor)
             .setState(state)
-            .setFinishStatus(finishStatus)
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
             .setChannelsOpClient(channelManagerOpClient)
@@ -204,15 +199,14 @@ public class OperationRunnersFactory {
             .build();
     }
 
-    public AbortExecution createAbortExecutionOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                       @Nullable String userId, @Nullable String wfName,
-                                                       String execId, Status finishStatus)
+    public AbortExecution createAbortExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
+                                                  @Nullable String userId, String wfName, String execId)
         throws Exception
     {
         StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
 
-        return PrivateAbortExecution.builder()
-            .setInstanceId(instanceId)
+        return AbortExecution.builder()
+            .setServiceConfig(serviceConfig)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)
@@ -226,47 +220,6 @@ public class OperationRunnersFactory {
             .setExecOpsDao(execOpsDao)
             .setExecutor(executor)
             .setState(state)
-            .setFinishStatus(finishStatus)
-            .setIdempotencyKey(idempotencyKey)
-            .setChannelsClient(channelManagerClient)
-            .setGraphClient(graphsClient)
-            .setSubjClient(subjectClient)
-            .setAllocClient(allocClient)
-            .setAllocOpClient(allocOpClient)
-            .setKafkaClient(kafkaAdminClient)
-            .setKafkaLogsListeners(kafkaLogsListeners)
-            .setS3SinkClient(s3SinkClient)
-            .setIdGenerator(idGenerator)
-            .setMetrics(metrics)
-            .setInternalUserCredentials(internalUserCredentials)
-            .setOpRunnersFactory(this)
-            .build();
-    }
-
-
-    public AbortExecution createAbortWorkflowOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                      @Nullable String userId, @Nullable String wfName,
-                                                      String execId, Status finishStatus)
-        throws Exception
-    {
-        StopExecutionState state = withRetries(LOG, () -> execDao.loadStopExecState(execId, null));
-
-        return PublicAbortExecution.builder()
-            .setInstanceId(instanceId)
-            .setId(opId)
-            .setDescription(opDesc)
-            .setUserId(userId)
-            .setWfName(wfName)
-            .setExecId(execId)
-            .setStorage(storage)
-            .setWfDao(wfDao)
-            .setExecDao(execDao)
-            .setGraphDao(graphDao)
-            .setOperationsDao(opDao)
-            .setExecOpsDao(execOpsDao)
-            .setExecutor(executor)
-            .setState(state)
-            .setFinishStatus(finishStatus)
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
             .setGraphClient(graphsClient)
@@ -284,17 +237,17 @@ public class OperationRunnersFactory {
     }
 
     public ExecuteGraph createExecuteGraphOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
-                                                   String userId, String wfName, String execId,
-                                                   LWFS.ExecuteGraphRequest request) throws Exception
+                                                   String userId, String wfName, String execId) throws Exception
     {
         ExecutionDao.ExecuteGraphData execGraphData = withRetries(LOG, () -> execDao.loadExecGraphData(execId, null));
         LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
 
-        ExecuteGraphState state = new ExecuteGraphState(request.getGraph());
         StorageClient storageClient = storageClientFactory.provider(execGraphData.storageConfig()).get();
 
+        ExecuteGraphState state = withRetries(LOG, () -> execOpsDao.getState(opId, null));
+
         return ExecuteGraph.builder()
-            .setInstanceId(instanceId)
+            .setServiceConfig(serviceConfig)
             .setId(opId)
             .setDescription(opDesc)
             .setUserId(userId)

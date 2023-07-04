@@ -40,7 +40,6 @@ import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.auth.Auth;
 import yandex.cloud.sdk.auth.provider.CredentialProvider;
 
-import java.nio.file.Path;
 import java.time.Duration;
 
 @Factory
@@ -68,11 +67,8 @@ public class BeanFactory {
 
     @Singleton
     @Requires(property = "allocator.yc-credentials.enabled", value = "true")
-    public CredentialProvider credentialProvider(ServiceConfig.YcCredentialsConfig config) {
-        return Auth.apiKeyBuilder()
-            .fromFile(Path.of(config.getServiceAccountFile()))
-            .cloudIAMEndpoint(config.getIamEndpoint())
-            .build();
+    public CredentialProvider credentialProvider() {
+        return Auth.computeEngineBuilder().build();
     }
 
     @Singleton

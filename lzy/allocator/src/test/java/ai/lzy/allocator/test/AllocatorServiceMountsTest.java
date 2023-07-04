@@ -6,6 +6,7 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberMountHolderManager;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.*;
 import ai.lzy.allocator.model.Volume.AccessMode;
+import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.v1.VmAllocatorApi;
@@ -456,6 +457,16 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertEquals(2, mountPod.getSpec().getContainers().get(0).getVolumeMounts().size());
     }
 
+    @Test
+    public void vmShouldNotAllocateMountPodInSystemCluster() throws Exception {
+        var sessionId = createSession(Durations.fromDays(10));
+        var allocatedVm = allocateSystemVm(sessionId);
+        var vm = vmDao.get(allocatedVm.vmId(), null);
+        Assert.assertNotNull(vm);
+        var mountPodName = vm.instanceProperties().mountPodName();
+        Assert.assertNull(mountPodName);
+    }
+
     @NotNull
     private DynamicMount createReadyMount(Vm vm, String operationId) throws SQLException {
         return createReadyMount(vm, operationId, null);
@@ -543,6 +554,30 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var vmPod = vmPodFuture.get();
         var mountPod = getName(mountPodFuture.get());
         Assert.assertTrue(mountPod.startsWith(KuberMountHolderManager.MOUNT_HOLDER_POD_NAME_PREFIX));
+        registerVm(allocateMetadata.getVmId(), clusterId);
+
+        waitOpSuccess(operation);
+
+        return new AllocatedVm(allocateMetadata.getVmId(), getName(vmPod), operation.getId());
+    }
+
+    private AllocatedVm allocateSystemVm(String sessionId) throws Exception {
+        var vmPodFuture = mockCreatePod();
+        vmPodFuture.thenAccept(pod -> mockGetPodByName(getName(pod)));
+        var operation = authorizedAllocatorBlockingStub.allocate(
+            VmAllocatorApi.AllocateRequest.newBuilder()
+                .setSessionId(sessionId)
+                .setPoolLabel("S")
+                .setZone(ZONE)
+                .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.SYSTEM)
+                .addWorkload(VmAllocatorApi.AllocateRequest.Workload.newBuilder()
+                    .setName("workload")
+                    .build())
+                .build());
+        var allocateMetadata = operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        var clusterId = requireNonNull(clusterRegistry.findCluster("S", ZONE,
+            ClusterRegistry.ClusterType.System)).clusterId();
+        var vmPod = vmPodFuture.get();
         registerVm(allocateMetadata.getVmId(), clusterId);
 
         waitOpSuccess(operation);

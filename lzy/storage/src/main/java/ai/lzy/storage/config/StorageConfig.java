@@ -85,9 +85,7 @@ public class StorageConfig {
     @ConfigurationProperties("yc")
     public static class YcCredentials {
         private boolean enabled = false;
-        private String serviceAccountId;
-        private String keyId;
-        private String privateKey;
+        private String endpoint;
         private String folderId;
     }
 }

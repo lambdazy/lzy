@@ -60,6 +60,9 @@ public class LzyServiceConfig {
     @ConfigurationBuilder("storage")
     private final StorageClientConfiguration storage = new StorageClientConfiguration();
 
+    @ConfigurationBuilder("operations")
+    private final OperationsConfig operations = new OperationsConfig();
+
 
     public enum MetricsKind {
         Disabled,
@@ -75,5 +78,14 @@ public class LzyServiceConfig {
         private int port = 17080;
         private String loggerName = "LogMetricReporter";
         private String loggerLevel = "info";
+    }
+
+    @Getter
+    @Setter
+    public static final class OperationsConfig {
+        private volatile Duration startWorkflowTimeout;
+        private volatile Duration finishWorkflowTimeout;
+        private volatile Duration abortWorkflowTimeout;
+        private volatile Duration executeGraphTimeout;
     }
 }

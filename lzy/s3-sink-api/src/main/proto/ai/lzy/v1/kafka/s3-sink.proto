@@ -18,21 +18,24 @@ service S3SinkService {
   rpc Stop(StopRequest) returns (StopResponse);
 }
 
-// ================ Submit =================
 
 message StartRequest {
-  common.StorageConfig storage_config = 1;
-  string topic_name = 2;
+  string topic_name = 1;
+
+  string storage_prefix_uri = 2;
+
+  oneof credentials {
+    common.S3Credentials s3 = 10;
+  }
 }
 
 message StartResponse {
   string job_id = 1;
 }
 
-// ================ Complete =================
-
 message StopRequest {
   string job_id = 1;
 }
 
-message StopResponse {}
+message StopResponse {
+}

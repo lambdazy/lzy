@@ -79,24 +79,21 @@ final class CreateKafkaTopic extends StartExecutionContextAwareStep implements S
             if (s3SinkClient.enabled() && storageConfig.hasS3()) {
                 var storagePath = storageConfig.getUri().substring("s3://".length());  // Removing s3 prefix
 
-                var path = Path.of(storagePath)
+                var basePath = Path.of(storagePath)
                     .resolve("logs")
-                    .resolve(formatter.format(LocalDateTime.now()) + execId() + ".log");
-
-                var uri = "s3://" + path;
+                    .resolve(formatter.format(LocalDateTime.now()) + "_" + execId());
 
                 log().info("{} Starting remote job on s3-sink with topicName='{}', bucketUri='{}'", logPrefix(),
                     kafkaTopicName, storageConfig.getUri());
 
                 var s3SinkStub = (idempotencyKey() != null) ?
                     withIdempotencyKey(s3SinkClient.stub(), idempotencyKey() + "_start_sync") : s3SinkClient.stub();
-                var resp = s3SinkStub.start(KafkaS3Sink.StartRequest.newBuilder()
-                    .setTopicName(kafkaTopicName)
-                    .setStorageConfig(LMST.StorageConfig.newBuilder()
-                        .setUri(uri)
+                var resp = s3SinkStub.start(
+                    KafkaS3Sink.StartRequest.newBuilder()
+                        .setTopicName(kafkaTopicName)
+                        .setStoragePrefixUri("s3://" + basePath)
                         .setS3(storageConfig.getS3())
-                        .build())
-                    .build());
+                        .build());
 
                 s3sinkJobId[0] = resp.getJobId();
             }
@@ -140,8 +137,6 @@ final class CreateKafkaTopic extends StartExecutionContextAwareStep implements S
             return retryableFail(e, "Cannot create kafka topic with name='%s'".formatted(kafkaTopicName), dropKafka,
                 Status.INTERNAL.withDescription("Cannot create kafka topic").asRuntimeException());
         }
-
-        log().debug("{} Kafka topic with name='{}' successfully created...", logPrefix(), kafkaTopicName);
 
         return StepResult.CONTINUE;
     }

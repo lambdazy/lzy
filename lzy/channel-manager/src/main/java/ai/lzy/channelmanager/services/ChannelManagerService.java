@@ -126,7 +126,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
         final ChannelOperation channelOperation = channelOperationManager.newBindOperation(
-            operation.id(), startedAt, deadline, channel.getExecutionId(), channelId, slotUri
+            operation.id(), startedAt, deadline, workflowName, channel.getExecutionId(), channelId, slotUri
         );
 
         final var slotInstance = ProtoConverter.fromProto(request.getSlotInstance());
@@ -246,7 +246,7 @@ public class ChannelManagerService extends LzyChannelManagerGrpc.LzyChannelManag
         Instant startedAt = Instant.now();
         Instant deadline = startedAt.plusSeconds(30);
         final ChannelOperation channelOperation = channelOperationManager.newUnbindOperation(
-            operation.id(), startedAt, deadline, channel.getExecutionId(), channelId, slotUri
+            operation.id(), startedAt, deadline, workflowName, channel.getExecutionId(), channelId, slotUri
         );
 
         try {

@@ -23,7 +23,7 @@ resource "yandex_kubernetes_cluster" "allocator_cluster" {
       auto_upgrade = false
     }
   }
-  node_service_account_id = yandex_iam_service_account.node-sa.id
+  node_service_account_id = yandex_iam_service_account.pool-node-sa.id
   service_account_id      = yandex_iam_service_account.admin-sa.id
 }
 
@@ -82,7 +82,7 @@ resource "kubernetes_daemonset" "worker_cpu_fictive_containers" {
           }
           env {
             name  = "ALLOCATOR_IP"
-            value = kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]
+            value = module.k8s_deployment.allocator_address
           }
         }
         host_network = true
@@ -141,7 +141,7 @@ resource "kubernetes_daemonset" "worker_gpu_fictive_containers" {
           }
           env {
             name  = "ALLOCATOR_IP"
-            value = kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]
+            value = module.k8s_deployment.allocator_address
           }
         }
         host_network = true

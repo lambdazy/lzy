@@ -59,12 +59,13 @@ public class IdempotencyTests extends ContextAwareTests {
     }
 
     private void privateAbortWorkflow(String executionId) {
-        var request = LWFPS.AbortExecutionRequest.newBuilder()
+        var request = LWFS.AbortWorkflowRequest.newBuilder()
+            .setWorkflowName(workflowName)
             .setExecutionId(executionId)
             .setReason(reason)
             .build();
         //noinspection ResultOfMethodCallIgnored
-        withIdempotencyKey(authLzyPrivateGrpcClient, stopWfIdk).abortExecution(request);
+        withIdempotencyKey(authLzyPrivateGrpcClient, stopWfIdk).abortWorkflow(request);
     }
 
     private String executeGraph(String executionId, LMST.StorageConfig storage) {

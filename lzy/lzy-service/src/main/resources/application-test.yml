@@ -76,3 +76,8 @@ lzy-service:
   kafka:
     bootstrap-servers:
       - ""
+  operations:
+    start-workflow-timeout: 10s
+    finish-workflow-timeout: 10s
+    abort-workflow-timeout: 10s
+    execute-graph-timeout: 10s
