@@ -3,10 +3,13 @@ package ai.lzy.graph.services.impl;
 import ai.lzy.graph.GraphExecutorApi2;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.TaskDao;
+import ai.lzy.graph.db.impl.GraphExecutorDataSource;
 import ai.lzy.graph.model.TaskOperation;
 import ai.lzy.graph.model.TaskState;
+import ai.lzy.graph.services.AllocatorService;
 import ai.lzy.graph.services.TaskService;
 import ai.lzy.longrunning.OperationsExecutor;
+import ai.lzy.longrunning.dao.OperationDao;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -28,7 +31,10 @@ public class TaskServiceImpl implements TaskService {
     private static final Logger LOG = LogManager.getLogger(TaskServiceImpl.class);
 
     private final TaskDao taskDao;
+    private final GraphExecutorDataSource storage;
+    private final OperationDao operationDao;
     private final OperationsExecutor operationsExecutor;
+    private final AllocatorService allocatorService;
     private final ServiceConfig config;
 
     private final PriorityQueue<TaskState> readyTasks = new PriorityQueue<>(
@@ -42,10 +48,16 @@ public class TaskServiceImpl implements TaskService {
 
     @Inject
     public TaskServiceImpl(ServiceConfig config, TaskDao taskDao,
+                           GraphExecutorDataSource storage,
+                           AllocatorService allocatorService,
+                           @Named("GraphExecutorOperationDao") OperationDao operationDao,
                            @Named("GraphExecutorOperationsExecutor") OperationsExecutor operationsExecutor)
     {
         this.taskDao = taskDao;
         this.operationsExecutor = operationsExecutor;
+        this.storage = storage;
+        this.operationDao = operationDao;
+        this.allocatorService = allocatorService;
         this.config = config;
 
         restoreTasks(config.getInstanceId());
@@ -119,7 +131,10 @@ public class TaskServiceImpl implements TaskService {
                 LOG.warn("Found {} not completed task operations on instance '{}'", operationList.size(), instanceId);
                 for (var op : operationList) {
                     LOG.info("Restore {}", op);
-                    operationsExecutor.startNew(op.deferredAction());
+                    TaskState taskState = tasksById.get(op.taskId());
+                    ExecuteTaskAction executeTaskAction = new ExecuteTaskAction(op.taskId(), op, taskState, "",
+                        storage, operationDao, operationsExecutor, taskDao, allocatorService);
+                    operationsExecutor.startNew(executeTaskAction);
                 }
             });
         } catch (Exception e) {
@@ -132,7 +147,7 @@ public class TaskServiceImpl implements TaskService {
         while (true) {
             TaskState task = readyTasks.peek();
             if (task != null && limitByUser.get(task.userId()) < config.getUserLimit() &&
-                limitByWorkflow.get(task.workflowId()) < config.getWorkflowLimit())
+                limitByWorkflow.get(task.executionId()) < config.getWorkflowLimit())
             {
                 //create and execute task operation
             }

@@ -1,6 +1,7 @@
 package ai.lzy.graph.model;
 
 import ai.lzy.graph.GraphExecutorApi2;
+import ai.lzy.v1.common.LMO;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -18,13 +19,15 @@ import java.util.stream.Collectors;
 public record TaskState(
     String id,
     String name,
+    String operationId,
     String graphId,
     Status status,
-    String workflowId,
+    String executionId,
     String workflowName,
     String userId,
     String errorDescription,
     TaskSlotDescription taskSlotDescription,
+    String allocatorSession,
     List<String> tasksDependedOn, // tasks, on which this task is depended on
     List<String> tasksDependedFrom // tasks, that are depended from this task
 ) {
@@ -59,12 +62,14 @@ public record TaskState(
                 taskDesc.getOperation().getKafkaTopic().getUsername(),
                 taskDesc.getOperation().getKafkaTopic().getPassword(),
                 taskDesc.getOperation().getKafkaTopic().getTopic()
-            )
+            ),
+            taskDesc.getOperation().getRequirements()
         );
 
         return new TaskState(
             taskDesc.getId(),
             taskDesc.getOperation().getName(),
+            graphState.operationId(),
             graphState.id(),
             Status.WAITING,
             graphState.executionId(),
@@ -72,9 +77,14 @@ public record TaskState(
             graphState.userId(),
             null,
             taskSlotDescription,
+            null,
             new ArrayList<>(),
             new ArrayList<>()
         );
+    }
+
+    public LMO.TaskDesc toProto() {
+        return null;
     }
 
     @Override

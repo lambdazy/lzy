@@ -1,0 +1,2 @@
+ALTER TABLE task ADD COLUMN op_id         TEXT NOT NULL REFERENCES operation (id) ON DELETE CASCADE;
+ALTER TABLE task ADD COLUMN alloc_session TEXT NULL;
