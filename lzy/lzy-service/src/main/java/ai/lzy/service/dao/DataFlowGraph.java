@@ -246,7 +246,6 @@ public class DataFlowGraph {
                 List<String> consumerSlotNames = new ArrayList<>();
 
                 if (consumerSlotNamesAndOpIds != null) {
-                    consumerSlotNames = new ArrayList<>(consumerSlotNamesAndOpIds.size());
                     for (var consumerSlotNamesAndOpId : consumerSlotNamesAndOpIds) {
                         consumerSlotNames.add(consumerSlotNamesAndOpId.getKey());
                     }

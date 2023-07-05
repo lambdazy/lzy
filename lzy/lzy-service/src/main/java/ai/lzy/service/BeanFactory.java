@@ -2,9 +2,7 @@ package ai.lzy.service;
 
 import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
-import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -121,22 +119,6 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Named("LzySubjectServiceClient")
-    public SubjectServiceGrpcClient iamSubjectsGrpcClient(@Named("IamServiceChannel") ManagedChannel iamChannel,
-                                                          @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
-    {
-        return new SubjectServiceGrpcClient(APP, iamChannel, internalUserCreds::get);
-    }
-
-    @Singleton
-    @Named("LzyServiceAccessBindingClient")
-    public AccessBindingServiceGrpcClient iamAccessClient(@Named("IamServiceChannel") ManagedChannel iamChannel,
-                                                          @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
-    {
-        return new AccessBindingServiceGrpcClient(APP, iamChannel, internalUserCreds::get);
-    }
-
-    @Singleton
     @Named("LzyServiceAllocatorGrpcClient")
     public AllocatorBlockingStub allocatorGrpcClient(@Named("AllocatorServiceChannel") ManagedChannel grpcChannel,
                                                      @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
@@ -179,16 +161,6 @@ public class BeanFactory {
         @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
     {
         return newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(grpcChannel), APP,
-            () -> internalUserCreds.get().token());
-    }
-
-    @Singleton
-    @Named("LzyServiceChannelManagerOpsGrpcClient")
-    public LongRunningServiceBlockingStub channelManagerOpClient(
-        @Named("ChannelManagerServiceChannel") ManagedChannel grpcChannel,
-        @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
-    {
-        return newBlockingClient(LongRunningServiceGrpc.newBlockingStub(grpcChannel), APP,
             () -> internalUserCreds.get().token());
     }
 
