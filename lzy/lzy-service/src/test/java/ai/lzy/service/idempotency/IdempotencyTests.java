@@ -1,32 +1,40 @@
 package ai.lzy.service.idempotency;
 
 import ai.lzy.service.Graphs;
-import ai.lzy.service.ContextAwareTests;
+import ai.lzy.service.WithoutWbAndSchedulerLzyContextTests;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWFPS;
 import ai.lzy.v1.workflow.LWFS;
+import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
 import io.grpc.StatusRuntimeException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
+
+import static ai.lzy.service.IamUtils.authorize;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static org.junit.Assert.assertEquals;
 
-public class IdempotencyTests extends ContextAwareTests {
+public class IdempotencyTests extends WithoutWbAndSchedulerLzyContextTests {
     private static final String workflowName = "test-workflow";
     private static final String reason = "no-matter";
-
-    private static String executionId;
-    private static LMST.StorageConfig storage;
 
     private static final String startWfIdk = "start_workflow_" + workflowName;
     private static final String stopWfIdk = "stop_workflow_" + workflowName;
     private static final String execGraphIdk = "exec_graph_" + workflowName;
     private static final String stopGraphIdk = "stop_graph_" + workflowName;
 
+    private String executionId;
+    private LMST.StorageConfig storage;
+
+    private LzyWorkflowServiceBlockingStub authLzyClient;
+
     private LMST.StorageConfig createStorage() {
-        return authLzyGrpcClient.getOrCreateDefaultStorage(
+        return authLzyClient.getOrCreateDefaultStorage(
             LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
     }
 
@@ -35,7 +43,7 @@ public class IdempotencyTests extends ContextAwareTests {
             .setWorkflowName(workflowName)
             .setSnapshotStorage(storage)
             .build();
-        return withIdempotencyKey(authLzyGrpcClient, startWfIdk).startWorkflow(request).getExecutionId();
+        return withIdempotencyKey(authLzyClient, startWfIdk).startWorkflow(request).getExecutionId();
     }
 
     private void finishWorkflow(String executionId) {
@@ -45,7 +53,7 @@ public class IdempotencyTests extends ContextAwareTests {
             .setReason(reason)
             .build();
         //noinspection ResultOfMethodCallIgnored
-        withIdempotencyKey(authLzyGrpcClient, stopWfIdk).finishWorkflow(request);
+        withIdempotencyKey(authLzyClient, stopWfIdk).finishWorkflow(request);
     }
 
     private void abortWorkflow(String executionId) {
@@ -55,7 +63,7 @@ public class IdempotencyTests extends ContextAwareTests {
             .setReason(reason)
             .build();
         //noinspection ResultOfMethodCallIgnored
-        withIdempotencyKey(authLzyGrpcClient, stopWfIdk).abortWorkflow(request);
+        withIdempotencyKey(authLzyClient, stopWfIdk).abortWorkflow(request);
     }
 
     private void privateAbortWorkflow(String executionId) {
@@ -65,7 +73,7 @@ public class IdempotencyTests extends ContextAwareTests {
             .setReason(reason)
             .build();
         //noinspection ResultOfMethodCallIgnored
-        withIdempotencyKey(authLzyPrivateGrpcClient, stopWfIdk).abortWorkflow(request);
+        withIdempotencyKey(lzyPrivateClient, stopWfIdk).abortWorkflow(request);
     }
 
     private String executeGraph(String executionId, LMST.StorageConfig storage) {
@@ -74,7 +82,7 @@ public class IdempotencyTests extends ContextAwareTests {
             .setExecutionId(executionId)
             .setGraph(Graphs.simpleGraph(storage))
             .build();
-        return withIdempotencyKey(authLzyGrpcClient, execGraphIdk).executeGraph(request).getGraphId();
+        return withIdempotencyKey(authLzyClient, execGraphIdk).executeGraph(request).getGraphId();
     }
 
     private void stopGraph(String executionId, String graphId) {
@@ -84,17 +92,18 @@ public class IdempotencyTests extends ContextAwareTests {
             .setGraphId(graphId)
             .build();
         //noinspection ResultOfMethodCallIgnored
-        withIdempotencyKey(authLzyGrpcClient, stopGraphIdk).stopGraph(request);
+        withIdempotencyKey(authLzyClient, stopGraphIdk).stopGraph(request);
     }
 
     @Before
-    public void setUp() throws Exception {
+    public void before() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, InterruptedException {
+        authLzyClient = authorize(lzyClient, "test-user-1", iamClient);
         storage = createStorage();
         executionId = startWorkflow(storage);
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void after() {
         try {
             finishWorkflow(executionId);
         } catch (StatusRuntimeException sre) {

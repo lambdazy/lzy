@@ -1,23 +1,32 @@
 package ai.lzy.service.graph;
 
 import ai.lzy.service.Graphs;
-import ai.lzy.service.ContextAwareTests;
+import ai.lzy.service.WithoutWbAndSchedulerLzyContextTests;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.workflow.LWF.Graph;
 import ai.lzy.v1.workflow.LWFS;
+import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
+import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
 import org.junit.Before;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 
+import static ai.lzy.service.IamUtils.authorize;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
-public abstract class AbstractGraphExecutionTest extends ContextAwareTests {
+public abstract class AbstractGraphExecutionTest extends WithoutWbAndSchedulerLzyContextTests {
+    protected LzyWorkflowServiceBlockingStub authLzyClient;
     protected LMST.StorageConfig storageConfig;
 
     @Before
-    public void setUp() throws IOException, InterruptedException {
-        storageConfig = authLzyGrpcClient.getOrCreateDefaultStorage(
+    public final void beforeBase()
+        throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, InterruptedException
+    {
+        authLzyClient = authorize(lzyClient, "test-user-1", iamClient);
+        storageConfig = authLzyClient.getOrCreateDefaultStorage(
             LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build()).getStorage();
     }
 
@@ -26,7 +35,7 @@ public abstract class AbstractGraphExecutionTest extends ContextAwareTests {
             .setWorkflowName(workflowName)
             .setSnapshotStorage(storageConfig)
             .build();
-        return withIdempotencyKey(authLzyGrpcClient, idempotencyKey).startWorkflow(request);
+        return withIdempotencyKey(authLzyClient, idempotencyKey).startWorkflow(request);
     }
 
     protected void finishWorkflow(String workflowName, String executionId, String idempotencyKey) {
@@ -36,7 +45,7 @@ public abstract class AbstractGraphExecutionTest extends ContextAwareTests {
             .setReason("no-matter")
             .build();
         //noinspection ResultOfMethodCallIgnored
-        withIdempotencyKey(authLzyGrpcClient, idempotencyKey).finishWorkflow(request);
+        withIdempotencyKey(authLzyClient, idempotencyKey).finishWorkflow(request);
     }
 
     protected Graph emptyGraph() {

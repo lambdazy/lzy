@@ -1,5 +1,6 @@
 package ai.lzy.allocator.test;
 
+import ai.lzy.allocator.BeanFactory;
 import ai.lzy.allocator.alloc.AllocationContext;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
@@ -19,7 +20,7 @@ import jakarta.inject.Singleton;
 import java.util.function.Consumer;
 
 @Singleton
-@Requires(env = "test-mock")
+@Requires(env = BeanFactory.TEST_ENV_NAME)
 public class AllocatorServiceDecorator extends AllocatorService {
     private volatile Consumer<String> onCreateSession = sessionId -> {};
     private volatile Consumer<String> onDeleteSession = sessionId -> {};

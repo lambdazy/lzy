@@ -1,5 +1,6 @@
 package ai.lzy.channelmanager.test;
 
+import ai.lzy.channelmanager.BeanFactory;
 import ai.lzy.channelmanager.ChannelManagerApp;
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
@@ -56,7 +57,7 @@ public class BaseTestWithChannelManager {
             new FileInputStream("../channel-manager/src/main/resources/application-test.yml"));
         props.putAll(overrides);
 
-        context = ApplicationContext.run(PropertySource.of(props), "test-mock");
+        context = ApplicationContext.run(PropertySource.of(props), BeanFactory.TEST_ENV_NAME);
         context.getBean(ChannelManagerDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
 
         config = context.getBean(ChannelManagerConfig.class);

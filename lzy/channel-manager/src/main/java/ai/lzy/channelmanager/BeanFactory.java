@@ -21,6 +21,8 @@ import jakarta.inject.Singleton;
 
 @Factory
 public class BeanFactory {
+    public static final String TEST_ENV_NAME = "local-test";
+
     @Singleton
     public GrainedLock lockManager(ChannelManagerConfig config) {
         return new GrainedLock(config.getLockBucketsCount());
