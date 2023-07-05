@@ -196,7 +196,7 @@ public class CachedGraphExecutionTest {
 
         var secondOp = LWF.Operation.newBuilder()
             .setName("operation-2")
-            .setCommand("$LZY_MOUNT/sbin/cat $LZY_MOUNT/a > $LZY_MOUNT/b")
+            .setCommand("cat $LZY_MOUNT/a > $LZY_MOUNT/b")
             .addInputSlots(LWF.Operation.SlotDescription.newBuilder()
                 .setPath("/a")
                 .setStorageUri(buildSlotUri("snapshot_a_1", storageConfig))
