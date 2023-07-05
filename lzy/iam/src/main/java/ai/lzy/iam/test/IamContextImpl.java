@@ -4,6 +4,7 @@ import ai.lzy.iam.LzyIAM;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.iam.configs.InternalUserConfig;
 import ai.lzy.iam.configs.ServiceConfig;
+import ai.lzy.test.context.IamContext;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.env.PropertySource;

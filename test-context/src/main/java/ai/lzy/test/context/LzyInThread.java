@@ -24,7 +24,11 @@ public class LzyInThread {
                 var lzy = micronautCtx.getBean(LzyContext.class);
 
                 try {
-                    lzy.setUp();
+                    try {
+                        lzy.setUp();
+                    } catch (Exception e) {
+                        throw e;
+                    }
                     setupFlag.countDown();
                     lzy.awaitTermination();
                 } catch (InterruptedException e) {

@@ -1,6 +1,7 @@
 package ai.lzy.channelmanager.test;
 
 import ai.lzy.channelmanager.ChannelManagerApp;
+import ai.lzy.test.context.ChannelManagerContext;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.env.PropertySource;

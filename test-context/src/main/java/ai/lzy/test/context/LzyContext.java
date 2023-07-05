@@ -1,14 +1,6 @@
 package ai.lzy.test.context;
 
-import ai.lzy.allocator.test.AllocatorContext;
-import ai.lzy.channelmanager.test.ChannelManagerContext;
-import ai.lzy.graph.test.GraphExecutorContext;
-import ai.lzy.iam.test.IamContext;
-import ai.lzy.scheduler.test.SchedulerContext;
-import ai.lzy.service.test.LzyServiceContext;
-import ai.lzy.storage.test.StorageContext;
 import ai.lzy.test.context.config.LzyConfig;
-import ai.lzy.whiteboard.test.WhiteboardContext;
 import io.micronaut.runtime.Micronaut;
 import jakarta.inject.Singleton;
 
@@ -19,24 +11,22 @@ import java.util.concurrent.CountDownLatch;
 
 @Singleton
 public class LzyContext {
-    public static final String DUMMY_CONTEXT_NAME = "dummy";
-
     private final LzyConfig lzyConfig;
     private final IamContext iamCtx;
     private final AllocatorContext allocatorCtx;
     private final ChannelManagerContext channelManagerCtx;
     private final GraphExecutorContext graphExecutorCtx;
     private final SchedulerContext schedulerCtx;
-    private final StorageContext storageCtx;
-    private final WhiteboardContext whiteboardCtx;
+    private final StorageServiceContext storageCtx;
+    private final WhiteboardServiceContext whiteboardCtx;
     private final LzyServiceContext lzyServiceCtx;
 
     private CountDownLatch running;
 
     public LzyContext(LzyConfig lzyConfig, IamContext iamCtx, AllocatorContext allocatorCtx,
                       ChannelManagerContext channelManagerCtx, GraphExecutorContext graphExecutorCtx,
-                      SchedulerContext schedulerCtx, StorageContext storageCtx,
-                      WhiteboardContext whiteboardCtx, LzyServiceContext lzyServiceCtx)
+                      SchedulerContext schedulerCtx, StorageServiceContext storageCtx,
+                      WhiteboardServiceContext whiteboardCtx, LzyServiceContext lzyServiceCtx)
     {
 
         this.lzyConfig = lzyConfig;
@@ -98,7 +88,13 @@ public class LzyContext {
         var config = lzyConfig.getConfigs().getLzyServiceConfig() != null ?
             Path.of(lzyConfig.getConfigs().getLzyServiceConfig()) : null;
 
-        lzyServiceCtx.setUp(config, runtimeConfig, toArray(lzyConfig.getEnvironments().getLzyServiceEnvironments()));
+        var envs = lzyConfig.getEnvironments().getLzyServiceEnvironments();
+
+        if (envs != null) {
+            lzyServiceCtx.setUp(config, runtimeConfig, toArray(envs));
+        } else {
+            lzyServiceCtx.setUp(config, runtimeConfig);
+        }
     }
 
     private void setUpWhiteboardService() throws Exception {
@@ -114,7 +110,13 @@ public class LzyContext {
         var config = lzyConfig.getConfigs().getWhiteboardConfig() != null ?
             Path.of(lzyConfig.getConfigs().getWhiteboardConfig()) : null;
 
-        whiteboardCtx.setUp(config, runtimeConfig, toArray(lzyConfig.getEnvironments().getWhiteboardEnvironments()));
+        var envs = lzyConfig.getEnvironments().getWhiteboardEnvironments();
+
+        if (envs != null) {
+            whiteboardCtx.setUp(config, runtimeConfig, toArray(envs));
+        } else {
+            whiteboardCtx.setUp(config, runtimeConfig);
+        }
     }
 
     private void setUpStorageService() throws Exception {
@@ -130,7 +132,13 @@ public class LzyContext {
         var config = lzyConfig.getConfigs().getStorageConfig() != null ?
             Path.of(lzyConfig.getConfigs().getStorageConfig()) : null;
 
-        storageCtx.setUp(config, runtimeConfig, toArray(lzyConfig.getEnvironments().getStorageEnvironments()));
+        var envs = lzyConfig.getEnvironments().getStorageEnvironments();
+
+        if (envs != null) {
+            storageCtx.setUp(config, runtimeConfig, toArray(envs));
+        } else {
+            storageCtx.setUp(config, runtimeConfig);
+        }
     }
 
     private void setUpScheduler() throws Exception {
@@ -150,7 +158,13 @@ public class LzyContext {
         var config = lzyConfig.getConfigs().getSchedulerConfig() != null ?
             Path.of(lzyConfig.getConfigs().getSchedulerConfig()) : null;
 
-        schedulerCtx.setUp(config, runtimeConfig, toArray(lzyConfig.getEnvironments().getSchedulerEnvironments()));
+        var envs = lzyConfig.getEnvironments().getSchedulerEnvironments();
+
+        if (envs != null) {
+            schedulerCtx.setUp(config, runtimeConfig, toArray(envs));
+        } else {
+            schedulerCtx.setUp(config, runtimeConfig);
+        }
     }
 
     private void setUpGraphExecutor() throws Exception {
@@ -168,8 +182,13 @@ public class LzyContext {
         var config = lzyConfig.getConfigs().getGraphExecutorConfig() != null ?
             Path.of(lzyConfig.getConfigs().getGraphExecutorConfig()) : null;
 
-        graphExecutorCtx.setUp(config, runtimeConfig,
-            toArray(lzyConfig.getEnvironments().getGraphExecutorEnvironments()));
+        var envs = lzyConfig.getEnvironments().getGraphExecutorEnvironments();
+
+        if (envs != null) {
+            graphExecutorCtx.setUp(config, runtimeConfig, toArray(envs));
+        } else {
+            graphExecutorCtx.setUp(config, runtimeConfig);
+        }
     }
 
     private void setUpChannelManager() throws Exception {
@@ -189,8 +208,13 @@ public class LzyContext {
         var config = lzyConfig.getConfigs().getChannelManagerConfig() != null ?
             Path.of(lzyConfig.getConfigs().getChannelManagerConfig()) : null;
 
-        channelManagerCtx.setUp(config, runtimeConfig,
-            toArray(lzyConfig.getEnvironments().getChannelManagerEnvironments()));
+        var envs = lzyConfig.getEnvironments().getChannelManagerEnvironments();
+
+        if (envs != null) {
+            channelManagerCtx.setUp(config, runtimeConfig, toArray(envs));
+        } else {
+            channelManagerCtx.setUp(config, runtimeConfig);
+        }
     }
 
     private void setUpAllocator() throws Exception {
@@ -208,7 +232,13 @@ public class LzyContext {
         var config = lzyConfig.getConfigs().getAllocatorConfig() != null ?
             Path.of(lzyConfig.getConfigs().getAllocatorConfig()) : null;
 
-        allocatorCtx.setUp(config, runtimeConfig, toArray(lzyConfig.getEnvironments().getAllocatorEnvironments()));
+        var envs = lzyConfig.getEnvironments().getAllocatorEnvironments();
+
+        if (envs != null) {
+            allocatorCtx.setUp(config, runtimeConfig, toArray(envs));
+        } else {
+            allocatorCtx.setUp(config, runtimeConfig);
+        }
     }
 
     private void setUpIam() throws Exception {
@@ -223,7 +253,13 @@ public class LzyContext {
         var config = lzyConfig.getConfigs().getIamConfig() != null ?
             Path.of(lzyConfig.getConfigs().getIamConfig()) : null;
 
-        iamCtx.setUp(config, runtimeConfig, toArray(lzyConfig.getEnvironments().getIamEnvironments()));
+        var envs = lzyConfig.getEnvironments().getIamEnvironments();
+
+        if (envs != null) {
+            iamCtx.setUp(config, runtimeConfig, toArray(envs));
+        } else {
+            iamCtx.setUp(config, runtimeConfig);
+        }
     }
 
     public static void main(String[] args) throws Exception {

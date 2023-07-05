@@ -1,6 +1,7 @@
 package ai.lzy.scheduler.test;
 
 import ai.lzy.scheduler.SchedulerApi;
+import ai.lzy.test.context.SchedulerContext;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.env.PropertySource;

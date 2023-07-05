@@ -2,6 +2,7 @@ package ai.lzy.service.test;
 
 import ai.lzy.longrunning.dao.OperationDaoDecorator;
 import ai.lzy.service.App;
+import ai.lzy.test.context.LzyServiceContext;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.env.PropertySource;

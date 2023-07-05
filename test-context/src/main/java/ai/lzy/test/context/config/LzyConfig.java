@@ -1,7 +1,6 @@
 package ai.lzy.test.context.config;
 
 import ai.lzy.test.GrpcUtils;
-import ai.lzy.test.context.LzyContext;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import lombok.Getter;
 import lombok.Setter;
@@ -275,38 +274,6 @@ public class LzyConfig {
             }
 
             public Environments build() {
-                if (iamEnvironments == null) {
-                    iamEnvironments = new ArrayList<>();
-                    iamEnvironments.add(LzyContext.DUMMY_CONTEXT_NAME);
-                }
-                if (allocatorEnvironments == null) {
-                    allocatorEnvironments = new ArrayList<>();
-                    allocatorEnvironments.add(LzyContext.DUMMY_CONTEXT_NAME);
-                }
-                if (channelManagerEnvironments == null) {
-                    channelManagerEnvironments = new ArrayList<>();
-                    channelManagerEnvironments.add(LzyContext.DUMMY_CONTEXT_NAME);
-                }
-                if (graphExecutorEnvironments == null) {
-                    graphExecutorEnvironments = new ArrayList<>();
-                    graphExecutorEnvironments.add(LzyContext.DUMMY_CONTEXT_NAME);
-                }
-                if (schedulerEnvironments == null) {
-                    schedulerEnvironments = new ArrayList<>();
-                    schedulerEnvironments.add(LzyContext.DUMMY_CONTEXT_NAME);
-                }
-                if (storageEnvironments == null) {
-                    storageEnvironments = new ArrayList<>();
-                    storageEnvironments.add(LzyContext.DUMMY_CONTEXT_NAME);
-                }
-                if (whiteboardEnvironments == null) {
-                    whiteboardEnvironments = new ArrayList<>();
-                    whiteboardEnvironments.add(LzyContext.DUMMY_CONTEXT_NAME);
-                }
-                if (lzyServiceEnvironments == null) {
-                    lzyServiceEnvironments = new ArrayList<>();
-                    lzyServiceEnvironments.add(LzyContext.DUMMY_CONTEXT_NAME);
-                }
                 return new Environments(this);
             }
         }

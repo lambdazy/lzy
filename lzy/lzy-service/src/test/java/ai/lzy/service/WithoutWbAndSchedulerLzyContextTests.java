@@ -12,7 +12,6 @@ import ai.lzy.longrunning.dao.OperationDaoDecorator;
 import ai.lzy.service.test.LzyServiceContextImpl;
 import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.storage.test.StorageContextImpl;
-import ai.lzy.test.context.LzyContext;
 import ai.lzy.test.context.LzyInThread;
 import ai.lzy.test.context.config.LzyConfig;
 import ai.lzy.util.grpc.RequestIdInterceptor;
@@ -124,8 +123,7 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             ChannelManagerContextImpl.ENV_NAME,
             GraphExecutorContextImpl.ENV_NAME,
             StorageContextImpl.ENV_NAME,
-            LzyServiceContextImpl.ENV_NAME,
-            LzyContext.DUMMY_CONTEXT_NAME);
+            LzyServiceContextImpl.ENV_NAME);
         lzy.setUp(new ArrayList<>() {
             {
                 addAll(configs.asCmdArgs());

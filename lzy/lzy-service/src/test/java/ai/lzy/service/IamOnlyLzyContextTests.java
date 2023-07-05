@@ -78,7 +78,7 @@ public abstract class IamOnlyLzyContextTests {
                 addAll(ports.asCmdArgs());
                 addAll(database.asCmdArg());
             }
-        }, List.of(IamContextImpl.ENV_NAME, LzyServiceContextImpl.ENV_NAME, LzyContext.DUMMY_CONTEXT_NAME));
+        }, List.of(IamContextImpl.ENV_NAME, LzyServiceContextImpl.ENV_NAME));
 
         var internalUserCredentials = lzy.micronautContext().getBean(IamContextImpl.class).clientConfig()
             .createRenewableToken();
