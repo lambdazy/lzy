@@ -223,7 +223,7 @@ public class LzyContext {
         runtimeConfig.put(allocatorPrefix + "port", lzyConfig.getPorts().getAllocatorPort());
         runtimeConfig.put(allocatorPrefix + "iam.address", "localhost:" + lzyConfig.getPorts().getIamPort());
         runtimeConfig.put("allocator.thread-allocator.enabled", true);
-        runtimeConfig.put("allocator.thread-allocator.vm-class-name", "ai.lzy.portal.App");
+        runtimeConfig.put("allocator.thread-allocator.vm-class-name", "ai.lzy.worker.Worker");
         runtimeConfig.put(allocatorPrefix + LzyConfig.Database.DB_ENABLED, true);
         runtimeConfig.put(allocatorPrefix + LzyConfig.Database.DB_URL, lzyConfig.getDatabase().getAllocatorDbUrl());
         runtimeConfig.put(allocatorPrefix + LzyConfig.Database.DB_USERNAME, LzyConfig.Database.POSTGRES_USERNAME);
