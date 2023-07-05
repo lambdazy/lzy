@@ -4,7 +4,6 @@ import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.test.IamContextImpl;
 import ai.lzy.service.test.LzyServiceContextImpl;
 import ai.lzy.service.util.ClientVersionInterceptor;
-import ai.lzy.test.context.LzyContext;
 import ai.lzy.test.context.LzyInThread;
 import ai.lzy.test.context.config.LzyConfig;
 import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
@@ -60,8 +59,8 @@ public abstract class IamOnlyLzyContextTests {
             .build();
 
         var environments = LzyConfig.Environments.builder()
-            .addIamEnvironment("local-test")
-            .addLzyServiceEnvironment(BeanFactory.TEST_ENV_NAME)
+            .addIamEnvironment(ai.lzy.iam.BeanFactory.TEST_ENV_NAME)
+            .addLzyServiceEnvironment(ai.lzy.service.BeanFactory.TEST_ENV_NAME)
             .build();
 
         var ports = LzyConfig.Ports.findFree();

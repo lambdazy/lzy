@@ -1,6 +1,7 @@
 package ai.lzy.test.impl.v2;
 
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.graph.BeanFactory;
 import ai.lzy.graph.test.GraphExecutorDecorator;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -48,7 +49,7 @@ public class GraphExecutorContext  {
                 "graph-executor.iam.address", iam.address()
         )));
 
-        this.context = ApplicationContext.run(opts, "ge-mock");
+        this.context = ApplicationContext.run(opts, BeanFactory.GRAPH_EXEC_DECORATOR_ENV_NAME);
         graphExecutor = context.getBean(GraphExecutorDecorator.class);
         try {
             graphExecutor.start();

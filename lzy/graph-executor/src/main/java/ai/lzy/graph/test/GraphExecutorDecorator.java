@@ -1,5 +1,6 @@
 package ai.lzy.graph.test;
 
+import ai.lzy.graph.BeanFactory;
 import ai.lzy.graph.GraphExecutorApi;
 import ai.lzy.graph.algo.GraphBuilder;
 import ai.lzy.graph.api.SchedulerApi;
@@ -20,7 +21,7 @@ import lombok.Setter;
 import java.util.function.Consumer;
 
 @Singleton
-@Requires(env = "ge-mock")
+@Requires(env = BeanFactory.GRAPH_EXEC_DECORATOR_ENV_NAME)
 @Primary
 @Setter
 public class GraphExecutorDecorator extends GraphExecutorApi {

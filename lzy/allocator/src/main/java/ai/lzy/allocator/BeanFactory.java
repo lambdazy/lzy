@@ -44,7 +44,7 @@ import java.time.Duration;
 
 @Factory
 public class BeanFactory {
-
+    public static final String TEST_ENV_NAME = "local-test";
     private static final Duration YC_CALL_TIMEOUT = Duration.ofSeconds(30);
 
     @Singleton

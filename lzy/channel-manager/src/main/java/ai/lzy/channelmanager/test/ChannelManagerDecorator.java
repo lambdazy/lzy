@@ -1,5 +1,6 @@
 package ai.lzy.channelmanager.test;
 
+import ai.lzy.channelmanager.BeanFactory;
 import ai.lzy.channelmanager.dao.ChannelDao;
 import ai.lzy.channelmanager.dao.ChannelManagerDataSource;
 import ai.lzy.channelmanager.dao.ChannelOperationDao;
@@ -20,7 +21,7 @@ import lombok.Setter;
 import java.util.function.Consumer;
 
 @Singleton
-@Requires(env = "test-mock")
+@Requires(env = BeanFactory.TEST_ENV_NAME)
 @Primary
 @Setter
 public class ChannelManagerDecorator extends ChannelManagerPrivateService {

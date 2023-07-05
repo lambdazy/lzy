@@ -1,5 +1,6 @@
 package ai.lzy.graph.test;
 
+import ai.lzy.graph.BeanFactory;
 import ai.lzy.graph.api.SchedulerApi;
 import ai.lzy.graph.model.TaskDescription;
 import ai.lzy.v1.scheduler.Scheduler.TaskStatus;
@@ -15,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Singleton
 @Primary
-@Requires(env = "scheduler-mock")
+@Requires(env = BeanFactory.TEST_ENV_NAME)
 public class SchedulerApiMock implements SchedulerApi {
     private final Map<String, TaskStatus> statusByTaskId = new ConcurrentHashMap<>();
     private final Set<String> exceptions = ConcurrentHashMap.newKeySet();

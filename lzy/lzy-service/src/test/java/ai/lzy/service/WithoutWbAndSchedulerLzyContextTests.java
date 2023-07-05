@@ -98,12 +98,12 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             .build();
 
         var environments = LzyConfig.Environments.builder()
-            .addIamEnvironment("local-test")
-            .addAllocatorEnvironment("test-mock")
-            .addChannelManagerEnvironment("test-mock")
-            .addGraphExecutorEnvironment("ge-mock")
-            .addGraphExecutorEnvironment("scheduler-mock")
-            .addLzyServiceEnvironment("local-tests")
+            .addIamEnvironment(ai.lzy.iam.BeanFactory.TEST_ENV_NAME)
+            .addAllocatorEnvironment(ai.lzy.allocator.BeanFactory.TEST_ENV_NAME)
+            .addChannelManagerEnvironment(ai.lzy.channelmanager.BeanFactory.TEST_ENV_NAME)
+            .addGraphExecutorEnvironment(ai.lzy.graph.BeanFactory.TEST_ENV_NAME)
+            .addGraphExecutorEnvironment(ai.lzy.graph.BeanFactory.GRAPH_EXEC_DECORATOR_ENV_NAME)
+            .addLzyServiceEnvironment(ai.lzy.service.BeanFactory.TEST_ENV_NAME)
             .build();
 
         var ports = LzyConfig.Ports.findFree();
