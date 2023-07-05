@@ -48,7 +48,7 @@ public class GraphExecutorContext  {
                 "graph-executor.iam.address", iam.address()
         )));
 
-        this.context = ApplicationContext.run(opts, "graph-executor-decorator");
+        this.context = ApplicationContext.run(opts, "ge-mock");
         graphExecutor = context.getBean(GraphExecutorDecorator.class);
         try {
             graphExecutor.start();

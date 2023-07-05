@@ -102,7 +102,8 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             .addIamEnvironment("local-test")
             .addAllocatorEnvironment("test-mock")
             .addChannelManagerEnvironment("test-mock")
-            .addGraphExecutorEnvironment("test-mock")
+            .addGraphExecutorEnvironment("ge-mock")
+            .addGraphExecutorEnvironment("scheduler-mock")
             .addLzyServiceEnvironment("local-tests")
             .build();
 

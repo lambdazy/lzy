@@ -193,7 +193,7 @@ public class LzyConfig {
         }
 
         private static String asCmdArg(Collection<String> collection) {
-            return String.join(", ", collection);
+            return String.join(",", collection);
         }
 
         public static Builder builder() {

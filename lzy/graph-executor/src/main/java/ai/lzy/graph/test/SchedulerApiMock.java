@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @Singleton
 @Primary
-@Requires(env = "test-mock")
+@Requires(env = "scheduler-mock")
 public class SchedulerApiMock implements SchedulerApi {
     private final Map<String, TaskStatus> statusByTaskId = new ConcurrentHashMap<>();
     private final Set<String> exceptions = ConcurrentHashMap.newKeySet();

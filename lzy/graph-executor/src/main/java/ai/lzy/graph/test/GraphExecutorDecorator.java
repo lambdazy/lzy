@@ -20,7 +20,7 @@ import lombok.Setter;
 import java.util.function.Consumer;
 
 @Singleton
-@Requires(env = "test-mock")
+@Requires(env = "ge-mock")
 @Primary
 @Setter
 public class GraphExecutorDecorator extends GraphExecutorApi {
