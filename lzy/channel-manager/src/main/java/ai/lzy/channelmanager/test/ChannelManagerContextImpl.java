@@ -1,6 +1,6 @@
 package ai.lzy.channelmanager.test;
 
-import ai.lzy.channelmanager.ChannelManagerApp;
+import ai.lzy.channelmanager.ChannelManagerMain;
 import ai.lzy.test.context.ChannelManagerContext;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Requires;
@@ -12,7 +12,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.channelmanager.test.ChannelManagerContextImpl.ENV_NAME;
 
@@ -22,7 +21,7 @@ public class ChannelManagerContextImpl implements ChannelManagerContext {
     public static final String ENV_NAME = "common_channel_manager_test";
 
     private ApplicationContext micronautContext;
-    private ChannelManagerApp channelManagerApp;
+    private ChannelManagerMain channelManagerApp;
 
     @Override
     public void setUp(Path config, Map<String, Object> runtimeConfig, String... environments) throws IOException {
@@ -32,19 +31,17 @@ public class ChannelManagerContextImpl implements ChannelManagerContext {
             micronautContext = ApplicationContext.run(PropertySource.of(actualConfig), environments);
         }
 
-        channelManagerApp = micronautContext.getBean(ChannelManagerApp.class);
+        channelManagerApp = micronautContext.getBean(ChannelManagerMain.class);
         channelManagerApp.start();
     }
 
     @Override
     public void tearDown() {
-        channelManagerApp.shutdown();
         try {
-            channelManagerApp.awaitTermination(5, TimeUnit.SECONDS);
+            channelManagerApp.close();
         } catch (InterruptedException e) {
             // intentionally blank
         } finally {
-            channelManagerApp.shutdownNow();
             micronautContext.stop();
         }
     }
