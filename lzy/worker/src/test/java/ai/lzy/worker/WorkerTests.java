@@ -325,9 +325,14 @@ public class WorkerTests {
                 worker.workerApiOpStub(internalUser).get(GetOperationRequest.newBuilder().setOperationId("1").build()));
             Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
 
-            // SlotsApi available for worker in same workflow
+            // SlotsApi control plane unavailable for worker
             e = assertThrows(StatusRuntimeException.class, () ->
                 worker.slotsApiStub(null).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
+            Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
+
+            // SlotsApi data plane available for worker
+            e = assertThrows(StatusRuntimeException.class, () ->
+                worker.slotsApiStub(null).read(LSA.ReadDataRequest.getDefaultInstance()).next());
             Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
 
             // SlotsApi available for internal user

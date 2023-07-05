@@ -11,7 +11,8 @@ public final class FinishExecution extends StopExecution {
 
     private FinishExecution(FinishExecutionBuilder builder) {
         super(builder);
-        this.steps = List.of(destroyChannels(), deleteKafkaTopic(), this::complete);
+        this.steps = List.of(destroyChannels(), deleteKafkaTopic(),
+            /*deleteAllocSession(), waitDeleteAllocSession(), */ this::complete);
     }
 
     @Override

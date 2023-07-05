@@ -1,7 +1,9 @@
 package ai.lzy.slots;
 
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.interceptors.AllowSubjectOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
+import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
@@ -9,6 +11,7 @@ import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
 import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -53,12 +56,18 @@ public class Slots {
         final var authInterceptor = new AuthServerInterceptor(
             new AuthenticateServiceGrpcClient(serviceName, iamChannel));
 
-        var interceptor = AllowSubjectOnlyInterceptor.withPermissions(
-            Map.of(new Workflow(ownerId + "/" + workflowName), AuthPermission.WORKFLOW_RUN),
-            serviceName, iamChannel);
+        var accessClient = new AccessServiceGrpcClient(serviceName, iamChannel);
+        var internalOnlyInterceptor = new AllowInternalUserOnlyInterceptor(accessClient);
+        var accessInterceptor = new AccessServerInterceptor(accessClient);
+
+        accessInterceptor.configure(new Workflow(ownerId + "/" + workflowName), AuthPermission.WORKFLOW_RUN);
+
 
         server = GrpcUtils.newGrpcServer(slotsApiAddress, authInterceptor)
-            .addService(ServerInterceptors.intercept(slotsService, interceptor))
+            .addService(ServerInterceptors.intercept(
+                slotsService,
+                accessInterceptor,
+                internalOnlyInterceptor.ignoreMethods(LzySlotsApiGrpc.getReadMethod())))
             .build();
 
         server.start();
