@@ -1,5 +1,6 @@
 package ai.lzy.allocator.services;
 
+import ai.lzy.allocator.BeanFactory;
 import ai.lzy.allocator.alloc.AllocateVmAction;
 import ai.lzy.allocator.alloc.AllocationContext;
 import ai.lzy.allocator.alloc.DeleteSessionAction;
@@ -67,7 +68,7 @@ import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
 @Singleton
-@Requires(notEnv = "test-mock")
+@Requires(notEnv = BeanFactory.TEST_ENV_NAME)
 public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorService.class);
 

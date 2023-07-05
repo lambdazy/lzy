@@ -1,94 +1,43 @@
 package ai.lzy.service.auth;
 
-import ai.lzy.allocator.test.BaseTestWithAllocator;
-import ai.lzy.channelmanager.test.BaseTestWithChannelManager;
-import ai.lzy.graph.test.BaseTestWithGraphExecutor;
-import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.service.TestContextConfigurator;
-import ai.lzy.service.ValidationTests;
-import ai.lzy.service.test.LzyServiceTestContext;
-import ai.lzy.storage.test.BaseTestWithStorage;
+import ai.lzy.service.WithoutWbAndSchedulerLzyContextTests;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.ClassRule;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
-import java.sql.SQLException;
+import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
+import java.security.spec.InvalidKeySpecException;
 
 import static ai.lzy.service.IamUtils.authorize;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 
-public class OthersWorkflowPermissionTests {
-    private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
-    private static final BaseTestWithStorage storageTestContext = new BaseTestWithStorage();
-    private static final BaseTestWithChannelManager channelManagerTestContext = new BaseTestWithChannelManager();
-    private static final BaseTestWithGraphExecutor graphExecutorTestContext = new BaseTestWithGraphExecutor();
-    private static final BaseTestWithAllocator allocatorTestContext = new BaseTestWithAllocator();
-    private static final LzyServiceTestContext lzyServiceTestContext = new LzyServiceTestContext();
-
-    @ClassRule
-    public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @ClassRule
-    public static PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @ClassRule
-    public static PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @ClassRule
-    public static PreparedDbRule graphExecutorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @ClassRule
-    public static PreparedDbRule allocatorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @ClassRule
-    public static PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-
+public class OthersWorkflowPermissionTests extends WithoutWbAndSchedulerLzyContextTests {
     private static final String workflowName = "test-workflow";
-    private static String executionId;
     private static final String graphId = "test-graph-id";
     private static final String reason = "no-matter";
+    private String executionId;
 
-    private static LzyWorkflowServiceBlockingStub authGrpcClient1;
-    private static LzyWorkflowServiceBlockingStub authGrpcClient2;
+    private LzyWorkflowServiceBlockingStub authGrpcClient1;
+    private LzyWorkflowServiceBlockingStub authGrpcClient2;
 
-    @BeforeClass
-    public static void beforeClass() throws Exception {
-        TestContextConfigurator.setUp(
-            iamTestContext, iamDb.getConnectionInfo(),
-            storageTestContext, storageDb.getConnectionInfo(),
-            channelManagerTestContext, channelManagerDb.getConnectionInfo(),
-            graphExecutorTestContext, graphExecutorDb.getConnectionInfo(),
-            allocatorTestContext, allocatorDb.getConnectionInfo(),
-            lzyServiceTestContext, lzyServiceDb.getConnectionInfo()
-        );
-
-        authGrpcClient1 = authorize(
-            lzyServiceTestContext.grpcClient(), "test-user-1", iamTestContext.iamSubjectsClient()
-        );
-        authGrpcClient2 = authorize(
-            lzyServiceTestContext.grpcClient(), "test-user-2", iamTestContext.iamSubjectsClient()
-        );
-
-        executionId = ValidationTests.startWorkflow(authGrpcClient1, workflowName);
+    @Before
+    public void before() throws IOException, NoSuchAlgorithmException, InvalidKeySpecException, InterruptedException {
+        authGrpcClient1 = authorize(lzyClient, "test-user-1", iamClient);
+        authGrpcClient2 = authorize(lzyClient, "test-user-2", iamClient);
+        executionId = startWorkflow(authGrpcClient1, workflowName);
     }
 
-    @AfterClass
-    public static void afterClass() throws SQLException, InterruptedException {
-        ValidationTests.finishWorkflow(authGrpcClient1, workflowName, executionId);
-
-        TestContextConfigurator.tearDown(
-            iamTestContext,
-            storageTestContext,
-            channelManagerTestContext,
-            graphExecutorTestContext,
-            allocatorTestContext,
-            lzyServiceTestContext
-        );
+    @After
+    public void after() {
+        finishWorkflow(authGrpcClient1, workflowName, executionId);
     }
 
     @Test
@@ -193,7 +142,7 @@ public class OthersWorkflowPermissionTests {
 
         //noinspection ResultOfMethodCallIgnored
         var sre = assertThrows(StatusRuntimeException.class, () ->
-            lzyServiceTestContext.privateGrpcClient().abortWorkflow(request)
+            withIdempotencyKey(unauthLzyPrivateClient, "abort_wf_" + workflowName).abortWorkflow(request)
         );
         assertSame(Status.UNAUTHENTICATED.getCode(), sre.getStatus().getCode());
     }

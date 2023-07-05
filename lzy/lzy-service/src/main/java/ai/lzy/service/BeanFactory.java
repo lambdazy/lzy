@@ -56,7 +56,7 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Factory
 public class BeanFactory {
-    public static final String TEST_ENV_NAME = "local-tests";
+    public static final String TEST_ENV_NAME = "local-test";
 
     @Bean(preDestroy = "shutdown")
     @Singleton

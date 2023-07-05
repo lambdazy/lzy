@@ -18,6 +18,8 @@ import jakarta.inject.Singleton;
 
 @Factory
 public class BeanFactory {
+    public static final String TEST_ENV_NAME = "local-test";
+
     @Singleton
     @Named("ChannelManagerOperationService")
     public OperationsService operationService(@Named("ChannelManagerOperationDao") OperationDao operationDao) {

@@ -16,6 +16,8 @@ import jakarta.inject.Singleton;
 
 @Factory
 public class BeanFactory {
+    public static final String TEST_ENV_NAME = "local-test";
+    public static final String GRAPH_EXEC_DECORATOR_ENV_NAME = "ge-decorator";
 
     @Bean(preDestroy = "shutdown")
     @Singleton
