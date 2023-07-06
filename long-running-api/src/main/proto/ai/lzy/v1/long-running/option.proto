@@ -6,7 +6,7 @@ import "google/protobuf/descriptor.proto";
 
 option java_package = "ai.lzy.v1.longrunning";
 
-extend google.protobuf.MethodOptions { OperationOption operation = 87334; }
+extend google.protobuf.MethodOptions { OperationOption operation = 97334; }
 
 // Operation is annotation for rpc that returns longrunning operation, describes
 // message types that will be returned in metadata [google.protobuf.Any], and
