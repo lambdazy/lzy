@@ -53,11 +53,6 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>portal</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
             <artifactId>storage</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -100,6 +95,12 @@
             <groupId>ai.lzy</groupId>
             <artifactId>s3-sink-api</artifactId>
             <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>worker</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
         </dependency>
 
         <!-- other external deps -->

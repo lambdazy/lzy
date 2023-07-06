@@ -22,8 +22,6 @@
         <module>iam</module>
         <module>long-running</module>
         <module>lzy-service</module>
-        <module>portal</module>
-        <module>portal-api</module>
         <module>scheduler</module>
         <module>scheduler-api</module>
         <module>worker</module>
@@ -38,7 +36,6 @@
         <module>s3-sink</module>
         <module>graph-executor-2</module>
         <module>graph-executor-api-2</module>
-        <module>fs</module>
     </modules>
 
     <build>

@@ -178,7 +178,7 @@ public class DataFlowGraph {
         var stringBuilder = new StringBuilder("digraph {");
 
         for (var data : dataflow) {
-            var slotUri = data.slotUri;
+            var slotUri = data.storageUri;
             var in = findSupplierOperationIdBy(slotUri);
 
             if (data.consumers != null) {
@@ -211,7 +211,7 @@ public class DataFlowGraph {
 
     private String findSupplierOperationIdBy(String slotUri) {
         if (danglingInputSlots.containsKey(slotUri)) {
-            return "portal";
+            return "storage";
         }
 
         int operationId = dataSuppliers.get(slotUri).getValue();
@@ -228,13 +228,13 @@ public class DataFlowGraph {
     }
 
     /**
-     * Returns data which transfer through channel from some output slot. The data are identified by slot uri.
+     * Returns data which transfer through channel. The data are identified by slot uri.
      *
-     * @param slotUri   -- uri which identifies data from some output slot
-     * @param supplier  -- the output slot name, null if data do not present in output
-     * @param consumers -- names of input slots which consumes data by slot uri
+     * @param storageUri -- uri which identifies data
+     * @param producer   -- the producer slot id, null if data has only storage producer
+     * @param consumers  -- ids of input slots which consumes data by slot uri
      */
-    public record Data(String slotUri, @Nullable String supplier, @Nullable List<String> consumers) {}
+    public record Data(String storageUri, @Nullable String producer, List<String> consumers) {}
 
     private List<Data> calculateDataFlow() {
         var dataFromOutput = dataSuppliers.entrySet().stream()
@@ -243,10 +243,9 @@ public class DataFlowGraph {
                 var supplierSlotName = pair.getValue().getKey();
                 var consumerSlotNamesAndOpIds = dataConsumers.get(supplierSlotUri);
 
-                List<String> consumerSlotNames = null;
+                List<String> consumerSlotNames = new ArrayList<>();
 
                 if (consumerSlotNamesAndOpIds != null) {
-                    consumerSlotNames = new ArrayList<>(consumerSlotNamesAndOpIds.size());
                     for (var consumerSlotNamesAndOpId : consumerSlotNamesAndOpIds) {
                         consumerSlotNames.add(consumerSlotNamesAndOpId.getKey());
                     }

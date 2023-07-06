@@ -24,10 +24,6 @@ abstract class StartExecutionContextAwareStep extends ExecutionContextAwareStep 
         return state.kafkaTopicDesc;
     }
 
-    protected void setKafkaTopicDesc(KafkaTopicDesc kafkaTopicDesc) {
-        state.kafkaTopicDesc = kafkaTopicDesc;
-    }
-
     @Nullable
     protected String allocatorSessionId() {
         return state.allocatorSessionId;
@@ -37,48 +33,7 @@ abstract class StartExecutionContextAwareStep extends ExecutionContextAwareStep 
         state.allocatorSessionId = allocatorSessionId;
     }
 
-    @Nullable
-    protected String portalId() {
-        return state.portalId;
-    }
-
-    protected void setPortalId(String portalId) {
-        state.portalId = portalId;
-    }
-
-    @Nullable
-    protected String portalSubjectId() {
-        return state.portalSubjectId;
-    }
-
-    protected void setPortalSubjectId(String portalSubjectId) {
-        state.portalSubjectId = portalSubjectId;
-    }
-
-    @Nullable
-    protected String allocateVmOpId() {
-        return state.allocateVmOpId;
-    }
-
-    protected void setAllocateVmOpId(String allocateVmOpId) {
-        state.allocateVmOpId = allocateVmOpId;
-    }
-
-    @Nullable
-    protected String portalVmId() {
-        return state.portalVmId;
-    }
-
-    protected void setPortalVmId(String portalVmId) {
-        state.portalVmId = portalVmId;
-    }
-
-    @Nullable
-    protected String portalApiAddress() {
-        return state.portalApiAddress;
-    }
-
-    protected void setPortalApiAddress(String portalApiAddress) {
-        state.portalApiAddress = portalApiAddress;
+    protected void setKafkaTopicDesc(KafkaTopicDesc kafkaTopicDesc) {
+        state.kafkaTopicDesc = kafkaTopicDesc;
     }
 }

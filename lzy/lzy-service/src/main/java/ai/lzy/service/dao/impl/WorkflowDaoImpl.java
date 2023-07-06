@@ -9,6 +9,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -70,7 +71,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
                     rs.updateTimestamp("modified_at", now);
                     rs.updateRow();
                 } else {
-                    try (var insertSt = connection.prepareStatement(QUERY_INSERT_WORKFLOW)) {
+                    try (PreparedStatement insertSt = connection.prepareStatement(QUERY_INSERT_WORKFLOW)) {
                         insertSt.setString(1, wfName);
                         insertSt.setString(2, userId);
                         insertSt.setTimestamp(3, now);

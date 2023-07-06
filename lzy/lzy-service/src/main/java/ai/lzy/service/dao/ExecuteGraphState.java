@@ -23,13 +23,7 @@ public final class ExecuteGraphState {
     @Nullable
     public DataFlowGraph dataFlowGraph;
     @Nullable
-    public Map<String, String> portalOutputSlotUri2channelName;
-    @Nullable
     public Map<String, String> slotUri2channelId;
-    @Nullable
-    public List<String> portalInputSlotsNames;
-    @Nullable
-    public Map<String, String> portalSlotUri2slotName;
     @Nullable
     public List<TaskDesc> tasks;
     @Nullable
@@ -47,9 +41,7 @@ public final class ExecuteGraphState {
             ", operationsToExecute=" + operationsToExecute +
             ", vmPoolZone='" + vmPoolZone + '\'' +
             ", dataFlowGraph=" + dataFlowGraph +
-            ", portalOutputSlotUri2channelName=" + portalOutputSlotUri2channelName +
             ", slotUri2channelId=" + slotUri2channelId +
-            ", portalSlotUri2slotName=" + portalSlotUri2slotName +
             ", tasks=" + tasks +
             ", graphId='" + graphId + '\'' +
             '}';

@@ -1,6 +1,6 @@
 package ai.lzy.test.impl.v2;
 
-import ai.lzy.channelmanager.ChannelManagerApp;
+import ai.lzy.channelmanager.ChannelManagerMain;
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
@@ -13,7 +13,6 @@ import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -27,7 +26,7 @@ public class ChannelManagerContext {
 
     private final HostAndPort address;
     private final ApplicationContext context;
-    private final ChannelManagerApp channelManager;
+    private final ChannelManagerMain channelManager;
 
     private final ManagedChannel channel;
     private final LzyChannelManagerGrpc.LzyChannelManagerBlockingStub client;
@@ -55,12 +54,8 @@ public class ChannelManagerContext {
         this.context = ApplicationContext.run(opts);
         final var config = context.getBean(ChannelManagerConfig.class);
 
-        this.channelManager = context.getBean(ChannelManagerApp.class);
-        try {
-            channelManager.start();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+        this.channelManager = context.getBean(ChannelManagerMain.class);
+        channelManager.start();
 
         final var internalUserCredentials = config.getIam().createRenewableToken();
         channel = newGrpcChannel(

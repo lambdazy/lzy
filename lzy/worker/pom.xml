@@ -30,7 +30,7 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>fs</artifactId>
+            <artifactId>slots</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

@@ -28,14 +28,6 @@ public class InjectedFailures {
         fail(1);
     }
 
-    public static void failCreatePortalIamSubjectStep() {
-        fail(2);
-    }
-
-    public static void failAllocatePortalVmStep() {
-        fail(3);
-    }
-
     public static void failStartExecutionCompletion() {
         fail(4);
     }

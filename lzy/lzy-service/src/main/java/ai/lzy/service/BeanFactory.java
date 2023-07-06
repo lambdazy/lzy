@@ -2,9 +2,7 @@ package ai.lzy.service;
 
 import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
-import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -14,14 +12,11 @@ import ai.lzy.metrics.DummyMetricReporter;
 import ai.lzy.metrics.LogMetricReporter;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.PrometheusMetricReporter;
-import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.impl.LzyServiceStorage;
 import ai.lzy.service.debug.InjectedFailures;
 import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
-import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.util.kafka.NoopKafkaAdminClient;
 import ai.lzy.util.kafka.ScramKafkaAdminClient;
@@ -55,8 +50,6 @@ import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.Level;
 
-import java.io.IOException;
-
 import static ai.lzy.service.LzyService.APP;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -64,17 +57,6 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 @Factory
 public class BeanFactory {
     public static final String TEST_ENV_NAME = "local-test";
-
-    @Singleton
-    @Requires(notEnv = TEST_ENV_NAME)
-    public PortalServiceSpec portalVmSpec(LzyServiceConfig serviceCfg) throws IOException, InterruptedException {
-        return new PortalServiceSpec(serviceCfg.getPortal().getPoolZone(), serviceCfg.getPortal().getPoolLabel(),
-            serviceCfg.getPortal().getDockerImage(), RsaUtils.generateRsaKeys(),
-            serviceCfg.getPortal().getPortalApiPort(), serviceCfg.getPortal().getSlotsApiPort(),
-            serviceCfg.getPortal().getWorkersPoolSize(), serviceCfg.getPortal().getDownloadsPoolSize(),
-            serviceCfg.getPortal().getChunksPoolSize(), serviceCfg.getChannelManagerAddress(),
-            serviceCfg.getIam().getAddress(), serviceCfg.getWhiteboardAddress());
-    }
 
     @Bean(preDestroy = "shutdown")
     @Singleton
@@ -137,22 +119,6 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Named("LzySubjectServiceClient")
-    public SubjectServiceGrpcClient iamSubjectsGrpcClient(@Named("IamServiceChannel") ManagedChannel iamChannel,
-                                                          @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
-    {
-        return new SubjectServiceGrpcClient(APP, iamChannel, internalUserCreds::get);
-    }
-
-    @Singleton
-    @Named("LzyServiceAccessBindingClient")
-    public AccessBindingServiceGrpcClient iamAccessClient(@Named("IamServiceChannel") ManagedChannel iamChannel,
-                                                          @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
-    {
-        return new AccessBindingServiceGrpcClient(APP, iamChannel, internalUserCreds::get);
-    }
-
-    @Singleton
     @Named("LzyServiceAllocatorGrpcClient")
     public AllocatorBlockingStub allocatorGrpcClient(@Named("AllocatorServiceChannel") ManagedChannel grpcChannel,
                                                      @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
@@ -195,16 +161,6 @@ public class BeanFactory {
         @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
     {
         return newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(grpcChannel), APP,
-            () -> internalUserCreds.get().token());
-    }
-
-    @Singleton
-    @Named("LzyServiceChannelManagerOpsGrpcClient")
-    public LongRunningServiceBlockingStub channelManagerOpClient(
-        @Named("ChannelManagerServiceChannel") ManagedChannel grpcChannel,
-        @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
-    {
-        return newBlockingClient(LongRunningServiceGrpc.newBlockingStub(grpcChannel), APP,
             () -> internalUserCreds.get().token());
     }
 
@@ -323,19 +279,6 @@ public class BeanFactory {
                 channel.shutdownNow();
             }
         }
-    }
-
-    @Bean
-    @Requires(env = TEST_ENV_NAME)
-    public PortalServiceSpec portalVmSpecForTests(LzyServiceConfig serviceCfg)
-        throws IOException, InterruptedException
-    {
-        return new PortalServiceSpec(serviceCfg.getPortal().getPoolZone(), serviceCfg.getPortal().getPoolLabel(),
-            serviceCfg.getPortal().getDockerImage(), RsaUtils.generateRsaKeys(),
-            FreePortFinder.find(10001, 11000), FreePortFinder.find(11001, 12000),
-            serviceCfg.getPortal().getWorkersPoolSize(), serviceCfg.getPortal().getDownloadsPoolSize(),
-            serviceCfg.getPortal().getChunksPoolSize(), serviceCfg.getChannelManagerAddress(),
-            serviceCfg.getIam().getAddress(), serviceCfg.getWhiteboardAddress());
     }
 
     @Singleton

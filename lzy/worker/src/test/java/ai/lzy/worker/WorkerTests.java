@@ -210,12 +210,6 @@ public class WorkerTests {
             return newBlockingClient(slotsApiStub, "x", () -> creds);
         }
 
-        LongRunningServiceGrpc.LongRunningServiceBlockingStub slotsApiOpStub(@Nullable String token) {
-            slotsApiChannel.resetConnectBackoff();
-            var creds = token != null ? token : jwt.get().token();
-            return newBlockingClient(slotsApiOpStub, "x", () -> creds);
-        }
-
         @Override
         public void close() {
             worker.stop();
@@ -288,24 +282,14 @@ public class WorkerTests {
         var hackerCreds = createWorkerCreds("hacker-worker", "hacker-user", "wf");
 
         try (var worker = startWorker("uid", "wf")) {
-            // SlotsApi Ops unavailable for any worker
-            var e = assertThrows(StatusRuntimeException.class, () ->
-                worker.slotsApiOpStub(null).get(GetOperationRequest.getDefaultInstance()));
-            Assert.assertEquals(e.toString(), Status.Code.UNAVAILABLE, e.getStatus().getCode());
-
-            // SlotsApi Ops unavailable for internal user
-            e = assertThrows(StatusRuntimeException.class, () ->
-                worker.slotsApiOpStub(internalUser).get(GetOperationRequest.getDefaultInstance()));
-            Assert.assertEquals(e.toString(), Status.Code.UNAVAILABLE, e.getStatus().getCode());
-
             // SlotsApi unavailable for any worker
-            e = assertThrows(StatusRuntimeException.class, () ->
-                worker.slotsApiStub(null).createSlot(LSA.CreateSlotRequest.getDefaultInstance()));
+            var e = assertThrows(StatusRuntimeException.class, () ->
+                worker.slotsApiStub(null).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
             Assert.assertEquals(e.toString(), Status.Code.UNAVAILABLE, e.getStatus().getCode());
 
             // SlotsApi unavailable for internal user
             e = assertThrows(StatusRuntimeException.class, () ->
-                worker.slotsApiStub(internalUser).createSlot(LSA.CreateSlotRequest.getDefaultInstance()));
+                worker.slotsApiStub(internalUser).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
             Assert.assertEquals(e.toString(), Status.Code.UNAVAILABLE, e.getStatus().getCode());
 
             // WorkerApi Ops unavailable for any worker
@@ -336,25 +320,25 @@ public class WorkerTests {
                 resp.writeTo(System.err);
             }
 
-            // SlotsApi Ops unavailable for worker
-            e = assertThrows(StatusRuntimeException.class, () ->
-                worker.slotsApiOpStub(null).get(GetOperationRequest.getDefaultInstance()));
-            Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
-
-            // SlotsApi Ops available for internal user
+            // Worker Ops available for internal user
             e = assertThrows(StatusRuntimeException.class, () ->
                 worker.workerApiOpStub(internalUser).get(GetOperationRequest.newBuilder().setOperationId("1").build()));
             Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
 
-            // SlotsApi unavailable for worker
+            // SlotsApi control plane unavailable for worker
             e = assertThrows(StatusRuntimeException.class, () ->
-                worker.slotsApiStub(null).createSlot(LSA.CreateSlotRequest.getDefaultInstance()));
+                worker.slotsApiStub(null).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
             Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
+
+            // SlotsApi data plane available for worker
+            e = assertThrows(StatusRuntimeException.class, () ->
+                worker.slotsApiStub(null).read(LSA.ReadDataRequest.getDefaultInstance()).next());
+            Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
 
             // SlotsApi available for internal user
             e = assertThrows(StatusRuntimeException.class, () ->
-                worker.slotsApiStub(internalUser).createSlot(LSA.CreateSlotRequest.getDefaultInstance()));
-            Assert.assertEquals(e.toString(), Status.Code.UNKNOWN, e.getStatus().getCode());
+                worker.slotsApiStub(internalUser).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
+            Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
 
             // hacker attempts
             {
@@ -362,17 +346,12 @@ public class WorkerTests {
 
                 // no SlotsApi control plane
                 e = assertThrows(StatusRuntimeException.class, () ->
-                    worker.slotsApiStub(hackerToken).createSlot(LSA.CreateSlotRequest.getDefaultInstance()));
+                    worker.slotsApiStub(hackerToken).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
                 Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
 
                 // no SlotsApi data plane
                 e = assertThrows(StatusRuntimeException.class, () ->
-                    worker.slotsApiStub(hackerToken).openOutputSlot(LSA.SlotDataRequest.getDefaultInstance()).next());
-                Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
-
-                // no SlotsApi Ops plane
-                e = assertThrows(StatusRuntimeException.class, () ->
-                    worker.slotsApiOpStub(hackerToken).get(LongRunning.GetOperationRequest.getDefaultInstance()));
+                    worker.slotsApiStub(hackerToken).read(LSA.ReadDataRequest.getDefaultInstance()).next());
                 Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
             }
 

@@ -1,8 +1,6 @@
 package ai.lzy.service.operations;
 
 import ai.lzy.common.IdGenerator;
-import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
@@ -10,7 +8,6 @@ import ai.lzy.service.BeanFactory;
 import ai.lzy.service.LzyServiceMetrics;
 import ai.lzy.service.config.AllocatorSessionSpec;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.*;
 import ai.lzy.service.dao.impl.LzyServiceStorage;
 import ai.lzy.service.kafka.KafkaLogsListeners;
@@ -59,11 +56,8 @@ public class OperationRunnersFactory {
     private final AllocatorBlockingStub allocClient;
     private final BeanFactory.S3SinkClient s3SinkClient;
     private final LongRunningServiceBlockingStub allocOpClient;
-    private final SubjectServiceGrpcClient subjectClient;
-    private final AccessBindingServiceGrpcClient abClient;
     private final GraphExecutorBlockingStub graphsClient;
     private final LzyChannelManagerPrivateBlockingStub channelManagerClient;
-    private final LongRunningServiceBlockingStub channelManagerOpClient;
     private final RenewableJwt internalUserCredentials;
 
     private final StorageClientFactory storageClientFactory;
@@ -79,13 +73,9 @@ public class OperationRunnersFactory {
                                    KafkaLogsListeners kafkaLogsListeners, BeanFactory.S3SinkClient s3SinkClient,
                                    @Named("LzyServiceAllocatorGrpcClient") AllocatorBlockingStub allocClient,
                                    @Named("LzyServiceAllocOpsGrpcClient") LongRunningServiceBlockingStub allocOpClient,
-                                   @Named("LzySubjectServiceClient") SubjectServiceGrpcClient subjectClient,
-                                   @Named("LzyServiceAccessBindingClient") AccessBindingServiceGrpcClient abClient,
                                    @Named("LzyServiceGraphExecutorGrpcClient") GraphExecutorBlockingStub graphsClient,
                                    @Named("LzyServicePrivateChannelsGrpcClient")
                                        LzyChannelManagerPrivateBlockingStub channelManagerClient,
-                                   @Named("LzyServiceChannelManagerOpsGrpcClient")
-                                       LongRunningServiceBlockingStub channelManagerOpClient,
                                    @Named("LzyServiceStorageClientFactory") StorageClientFactory storageClientFactory,
                                    @Named("LzyServiceVmPoolGrpcClient") VmPoolServiceBlockingStub vmPoolClient,
                                    @Named("LzyServiceIamToken") RenewableJwt internalUserCredentials,
@@ -105,11 +95,8 @@ public class OperationRunnersFactory {
         this.allocClient = allocClient;
         this.s3SinkClient = s3SinkClient;
         this.allocOpClient = allocOpClient;
-        this.subjectClient = subjectClient;
-        this.abClient = abClient;
         this.graphsClient = graphsClient;
         this.channelManagerClient = channelManagerClient;
-        this.channelManagerOpClient = channelManagerOpClient;
         this.internalUserCredentials = internalUserCredentials;
         this.storageClientFactory = storageClientFactory;
         this.metrics = metrics;
@@ -120,7 +107,7 @@ public class OperationRunnersFactory {
 
     public StartExecution createStartExecOpRunner(String opId, String opDesc, @Nullable String idempotencyKey,
                                                   String userId, String wfName, String execId,
-                                                  Duration allocateVmCacheTimeout, PortalServiceSpec portalServiceSpec)
+                                                  Duration allocateVmCacheTimeout)
         throws Exception
     {
         LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
@@ -146,13 +133,9 @@ public class OperationRunnersFactory {
             .setExecutor(executor)
             .setState(StartExecutionState.initial())
             .setAllocatorSessionSpec(allocatorSessionSpec)
-            .setPortalVmSpec(portalServiceSpec)
             .setStorageCfg(storageConfig)
             .setIdempotencyKey(idempotencyKey)
-            .setAbClient(abClient)
-            .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
-            .setAllocOpClient(allocOpClient)
             .setKafkaClient(kafkaAdminClient)
             .setS3SinkClient(s3SinkClient)
             .setIdGenerator(idGenerator)
@@ -185,8 +168,6 @@ public class OperationRunnersFactory {
             .setState(state)
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
-            .setChannelsOpClient(channelManagerOpClient)
-            .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
             .setAllocOpClient(allocOpClient)
             .setKafkaClient(kafkaAdminClient)
@@ -223,7 +204,6 @@ public class OperationRunnersFactory {
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
             .setGraphClient(graphsClient)
-            .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
             .setAllocOpClient(allocOpClient)
             .setKafkaClient(kafkaAdminClient)
@@ -240,7 +220,6 @@ public class OperationRunnersFactory {
                                                    String userId, String wfName, String execId) throws Exception
     {
         ExecutionDao.ExecuteGraphData execGraphData = withRetries(LOG, () -> execDao.loadExecGraphData(execId, null));
-        LMST.StorageConfig storageConfig = withRetries(LOG, () -> execDao.getStorageConfig(execId, null));
 
         StorageClient storageClient = storageClientFactory.provider(execGraphData.storageConfig()).get();
 
@@ -264,11 +243,9 @@ public class OperationRunnersFactory {
             .setKafkaTopicDesc(execGraphData.kafkaTopicDesc())
             .setKafkaConfig(kafkaConfig)
             .setIdempotencyKey(idempotencyKey)
-            .setSubjClient(subjectClient)
             .setAllocClient(allocClient)
             .setGraphsClient(graphsClient)
             .setChannelsClient(channelManagerClient)
-            .setStorageConfig(storageConfig)
             .setStorageClient(storageClient)
             .setVmPoolClient(vmPoolClient)
             .setKafkaClient(kafkaAdminClient)

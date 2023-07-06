@@ -5,7 +5,6 @@ import ai.lzy.service.App;
 import ai.lzy.service.BeanFactory;
 import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.test.impl.Utils;
-import ai.lzy.test.impl.v2.AllocatorContext.PortalAllocatorContext;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
@@ -36,7 +35,7 @@ public class WorkflowContext {
     @Inject
     public WorkflowContext(
         GraphExecutorContext graph,
-        PortalAllocatorContext allocator,
+        AllocatorContext.WorkerAllocatorContext allocator,
         ChannelManagerContext channel,
         IamContext iam,
         StorageContext storage,

@@ -30,8 +30,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ThreadVmAllocator implements VmAllocator {
     private static final Logger LOG = LogManager.getLogger(ThreadVmAllocator.class);
 
-    public static final String PORTAL_POOL_LABEL = "portals";
-
     private final Method vmMain;
     private final ConcurrentHashMap<String, Thread> vmThreads = new ConcurrentHashMap<>();
     private final ServiceConfig cfg;
@@ -81,29 +79,19 @@ public class ThreadVmAllocator implements VmAllocator {
         var env = workload.env();
 
         var startupArgs = new ArrayList<>(workload.args());
-        if (poolLabel.contentEquals(PORTAL_POOL_LABEL)) {
-            startupArgs.addAll(List.of(
-                "-portal.vm-id=" + vmId,
-                "-portal.allocator-address=" + cfg.getAddress(),
-                "-portal.allocator-heartbeat-period=" + cfg.getHeartbeatTimeout().dividedBy(2).toString(),
-                "-portal.host=localhost",
-                "-portal.allocator-token=" + vmOtt));
-            if (env.containsKey("LZY_PORTAL_PKEY")) {
-                startupArgs.add("-portal.iam-private-key=" + env.get("LZY_PORTAL_PKEY"));
-            }
-        } else {
-            startupArgs.addAll(List.of(
-                "--vm-id", vmId,
-                "--allocator-address", cfg.getAddress(),
-                "--allocator-heartbeat-period", cfg.getHeartbeatTimeout().dividedBy(2).toString(),
-                "--host", "localhost"
-            ));
-            startupArgs.add("--allocator-token");
-            startupArgs.add('"' + vmOtt + '"');
-            if (env.containsKey("LZY_WORKER_PKEY")) {
-                startupArgs.add("--iam-token");
-                startupArgs.add('"' + env.get("LZY_WORKER_PKEY") + '"');
-            }
+        startupArgs.addAll(List.of(
+            "--vm-id", vmId,
+            "--allocator-address", cfg.getAddress(),
+            "--allocator-heartbeat-period", cfg.getHeartbeatTimeout().dividedBy(2).toString(),
+            "--host", "localhost"
+        ));
+
+        startupArgs.add("--allocator-token");
+        startupArgs.add('"' + vmOtt + '"');
+
+        if (env.containsKey("LZY_WORKER_PKEY")) {
+            startupArgs.add("--iam-token");
+            startupArgs.add('"' + env.get("LZY_WORKER_PKEY") + '"');
         }
 
         Thread vm = startThreadVm("vm-" + vmId, startupArgs);
@@ -118,10 +106,10 @@ public class ThreadVmAllocator implements VmAllocator {
                 try {
                     vmMain.invoke(null, (Object) args.toArray(new String[0]));
                 } catch (InvocationTargetException e) {
-                    LOG.error("Error while invocation of worker/portal method 'execute': " +
+                    LOG.error("Error while invocation of worker method 'execute': " +
                         e.getTargetException().getMessage(), e.getTargetException());
                 } catch (IllegalAccessException e) {
-                    LOG.error("Error while invocation of worker/portal method 'execute': " + e.getMessage(), e);
+                    LOG.error("Error while invocation of worker method 'execute': " + e.getMessage(), e);
                 }
             }
         };

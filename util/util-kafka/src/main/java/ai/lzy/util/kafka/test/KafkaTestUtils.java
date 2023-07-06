@@ -61,7 +61,7 @@ public class KafkaTestUtils {
         var values = new ArrayBlockingQueue<>(100);
 
         var props = new KafkaHelper(KafkaConfig.of(bootstrapServer)).toProperties();
-        props.put("group.id", "portal-test-" + UUID.randomUUID());
+        props.put("group.id", "kafka-test-" + UUID.randomUUID());
 
         var thread = new Thread(() -> {
             try (var consumer = new KafkaConsumer<String, byte[]>(props)) {

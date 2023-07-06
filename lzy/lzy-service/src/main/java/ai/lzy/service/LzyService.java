@@ -8,7 +8,6 @@ import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.ExecutionOperationsDao.ExecutionOpState;
 import ai.lzy.service.dao.ExecutionOperationsDao.OpType;
-import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.util.ProtoConverter;
 import ai.lzy.service.util.StorageUtils;
 import ai.lzy.util.grpc.GrpcHeaders;
@@ -16,8 +15,6 @@ import ai.lzy.v1.VmPoolServiceApi;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutorApi;
 import ai.lzy.v1.longrunning.LongRunning;
-import ai.lzy.v1.portal.LzyPortalApi;
-import ai.lzy.v1.portal.LzyPortalGrpc;
 import ai.lzy.v1.storage.LSS;
 import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
@@ -35,7 +32,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.iam.grpc.context.AuthenticationContext.currentSubject;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
@@ -46,7 +42,6 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.GrpcUtils.*;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static ai.lzy.util.grpc.ProtoPrinter.safePrinter;
-import static ai.lzy.v1.portal.LzyPortalGrpc.newBlockingStub;
 import static ai.lzy.v1.workflow.LWFS.*;
 
 @Singleton
@@ -81,7 +76,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                 var actionRunner = switch (op.type()) {
                     case START_EXECUTION -> opRunnersFactory().createStartExecOpRunner(
                         op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(),
-                        op.execId(), serviceCfg().getAllocatorVmCacheTimeout(), portalVmSpec());
+                        op.execId(), serviceCfg().getAllocatorVmCacheTimeout());
                     case FINISH_EXECUTION -> opRunnersFactory().createFinishExecOpRunner(
                         op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(), op.execId());
                     case ABORT_EXECUTION -> opRunnersFactory().createAbortExecOpRunner(
@@ -167,7 +162,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
         try {
             LOG.info("Schedule action to start execution: { userId: {}, wfName: {} }", userId, wfName);
             var opRunner = opRunnersFactory().createStartExecOpRunner(startOp.id(), startOp.description(), idk, userId,
-                wfName, newExecId, serviceCfg().getAllocatorVmCacheTimeout(), portalVmSpec());
+                wfName, newExecId, serviceCfg().getAllocatorVmCacheTimeout());
             opsExecutor().startNew(opRunner);
         } catch (Exception e) {
             LOG.error("Cannot schedule action to start new workflow execution: { userId: {}, wfName: {}, error: {} } ",
@@ -593,80 +588,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     .addAllOperationsCompleted(completedTaskIds)
                     .addAllOperationsWaiting(waitingTaskIds));
             }
-            case COMPLETED -> {
-                String portalVmAddress;
-                try {
-                    portalVmAddress = withRetries(LOG, () -> execDao().getPortalVmAddress(execId, null));
-                } catch (Exception e) {
-                    LOG.error("Cannot get portal address for execution: { execId: {}, error: {} }", execId,
-                        e.getMessage(), e);
-                    responseObserver.onError(Status.INTERNAL.withDescription("Cannot request portal")
-                        .asRuntimeException());
-                    return;
-                }
-
-                var grpcChannel = newGrpcChannel(portalVmAddress, LzyPortalGrpc.SERVICE_NAME);
-                try {
-                    var portalClient = newBlockingClient(newBlockingStub(grpcChannel), APP,
-                        () -> internalUserCredentials().get().token());
-
-                    LzyPortalApi.PortalStatusResponse status;
-                    GraphDao.GraphDescription desc;
-
-                    try {
-                        desc = withRetries(LOG, () -> graphDao().get(graphId, execId));
-
-                        status = portalClient.status(LzyPortalApi.PortalStatusRequest.newBuilder()
-                            .addAllSlotNames(desc.portalInputSlotNames())
-                            .build());
-                    } catch (StatusRuntimeException e) {
-                        LOG.error("Exception while getting status of portal", e);
-                        responseObserver.onError(e);
-                        return;
-                    } catch (Exception e) {
-                        LOG.error("Exception while getting status of portal", e);
-                        responseObserver.onError(Status.INTERNAL.asException());
-                        return;
-                    }
-                    var allSynced = true;
-                    var hasFailed = false;
-
-                    for (var s : status.getSlotsList()) {
-                        if (s.getSnapshotStatus() == LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.NOT_IN_SNAPSHOT) {
-                            continue;
-                        }
-                        if (s.getSnapshotStatus() != LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.SYNCED) {
-                            allSynced = false;
-                        }
-                        if (s.getSnapshotStatus() == LzyPortalApi.PortalSlotStatus.SnapshotSlotStatus.FAILED) {
-                            LOG.error(
-                                "Portal slot <{}> of graph <{}> of execution <{}> is failed to sync data with storage",
-                                s.getSlot().getName(), graphId, execId
-                            );
-                            hasFailed = true;
-                        }
-                    }
-
-                    if (hasFailed) {
-                        graphStatusResponse.setFailed(LWFS.GraphStatusResponse.Failed.newBuilder()
-                            .setDescription("Error while loading data to external storage")
-                            .build());
-                    } else if (allSynced) {
-                        graphStatusResponse.setCompleted(LWFS.GraphStatusResponse.Completed.getDefaultInstance());
-                    } else {
-                        graphStatusResponse.setExecuting(LWFS.GraphStatusResponse.Executing.getDefaultInstance());
-                    }
-                } finally {
-                    grpcChannel.shutdown();
-                    try {
-                        grpcChannel.awaitTermination(5, TimeUnit.SECONDS);
-                    } catch (InterruptedException e) {
-                        // intentionally blank
-                    } finally {
-                        grpcChannel.shutdownNow();
-                    }
-                }
-            }
+            case COMPLETED -> graphStatusResponse.setCompleted(LWFS.GraphStatusResponse.Completed.getDefaultInstance());
             case FAILED -> graphStatusResponse.setFailed(LWFS.GraphStatusResponse.Failed.newBuilder()
                 .setDescription(graphStatus.getStatus().getFailed().getDescription())
                 .setFailedTaskId(graphStatus.getStatus().getFailed().getFailedTaskId())

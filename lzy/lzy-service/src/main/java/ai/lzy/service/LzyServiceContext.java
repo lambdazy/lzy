@@ -4,7 +4,6 @@ import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.config.PortalServiceSpec;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
@@ -43,7 +42,4 @@ public record LzyServiceContext(
     @Named("LzyServiceStorageOpsGrpcClient") LongRunningServiceBlockingStub storagesOpsGrpcClient
 )
 {
-    public PortalServiceSpec portalServiceSpec() {
-        return micronautCtx.getBean(PortalServiceSpec.class);
-    }
 }

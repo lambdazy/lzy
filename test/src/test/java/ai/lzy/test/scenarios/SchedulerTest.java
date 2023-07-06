@@ -3,24 +3,25 @@ package ai.lzy.test.scenarios;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
-import ai.lzy.test.impl.v2.AllocatorContext;
-import ai.lzy.test.impl.v2.ChannelManagerContext;
-import ai.lzy.test.impl.v2.GraphExecutorContext;
-import ai.lzy.test.impl.v2.IamContext;
+import ai.lzy.test.impl.v2.*;
 import ai.lzy.util.grpc.JsonUtils;
-import ai.lzy.v1.common.LMD;
-import ai.lzy.v1.common.LME;
-import ai.lzy.v1.common.LMO;
-import ai.lzy.v1.common.LMS;
+import ai.lzy.v1.channel.LCMPS;
+import ai.lzy.v1.common.*;
 import ai.lzy.v1.graph.GraphExecutor;
 import ai.lzy.v1.graph.GraphExecutor.ChannelDesc;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphExecuteRequest;
 import ai.lzy.v1.graph.GraphExecutorApi.GraphStatusRequest;
 import ai.lzy.worker.WorkerApiImpl;
+import com.amazonaws.auth.AWSStaticCredentialsProvider;
+import com.amazonaws.auth.AnonymousAWSCredentials;
+import com.amazonaws.client.builder.AwsClientBuilder;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import jakarta.annotation.Nonnull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -28,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import static ai.lzy.channelmanager.ProtoConverter.makeCreateChannelCommand;
 import static ai.lzy.v1.common.LMS.Slot.Direction.INPUT;
 import static ai.lzy.v1.common.LMS.Slot.Direction.OUTPUT;
 
@@ -47,6 +47,23 @@ public class SchedulerTest {
     @Rule
     public final ContextRule<ChannelManagerContext> channelManager
         = new ContextRule<>(ctx, ChannelManagerContext.class);
+
+    @Rule
+    public final ContextRule<StorageContext> storage = new ContextRule<>(ctx, StorageContext.class);
+
+    private AmazonS3 s3Client;
+
+    @Before
+    public void setUp() {
+        s3Client = AmazonS3ClientBuilder.standard()
+            .withPathStyleAccessEnabled(true)
+            .withEndpointConfiguration(
+                new AwsClientBuilder.EndpointConfiguration("http://localhost:18081", "us-west-1"))
+            .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
+            .build();
+
+        s3Client.createBucket("scheduler-test-bucket");
+    }
 
     @Test(timeout = 240_000)
     public void testGE() throws Exception {
@@ -119,7 +136,18 @@ public class SchedulerTest {
     @Nonnull
     private String buildChannel(String channelName) {
         final var client = channelManager.context().privateClient();
-        final var response = client.create(makeCreateChannelCommand("Semjon.Semjonych", "wf", "wf_id", channelName));
+        final var response = client.getOrCreate(
+            LCMPS.GetOrCreateRequest.newBuilder()
+                .setExecutionId("wf_id")
+                .setUserId("Semjon.Semjonych")
+                .setWorkflowName("wf")
+                .setConsumer(LC.PeerDescription.StoragePeer.newBuilder()
+                    .setStorageUri("s3://scheduler-test-bucket/" + channelName)
+                    .setS3(LMST.S3Credentials.newBuilder()
+                        .setEndpoint("http://localhost:18081")
+                        .build())
+                    .build())
+                .build());
         return response.getChannelId();
     }
 

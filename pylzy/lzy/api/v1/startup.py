@@ -73,11 +73,8 @@ def write_data(path: str, typ: Type, data: Any, serializers: SerializerRegistry,
     name = path.split('/')[-1]
     logger.info(f"Writing {name} with serializer {type(ser)}")
     with open(mount + path, "wb") as out_handle:
-        out_handle.seek(0)
-        out_handle.flush()
         ser.serialize(data, out_handle)
         out_handle.flush()
-        os.fsync(out_handle.fileno())
 
 
 def _get_main_pid() -> int:

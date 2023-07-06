@@ -12,7 +12,6 @@ import ai.lzy.storage.StorageClient;
 import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.v1.VmPoolServiceGrpc.VmPoolServiceBlockingStub;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
-import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
 import ai.lzy.v1.workflow.LWFS;
 import com.google.protobuf.Any;
@@ -31,7 +30,6 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
     private final VmPoolServiceBlockingStub vmPoolClient;
     private final LzyChannelManagerPrivateBlockingStub channelsClient;
     private final GraphExecutorBlockingStub graphsClient;
-    private final LMST.StorageConfig storageConfig;
     private final StorageClient storageClient;
     private final ExecuteGraphState state;
 
@@ -45,10 +43,9 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
         this.channelsClient = builder.channelsClient;
         this.graphsClient = builder.graphsClient;
         this.storageClient = builder.storageClient;
-        this.storageConfig = builder.storageConfig;
         this.state = builder.state;
         this.steps = List.of(checkCache(), findZone(), buildDataflowGraph(), createChannels(),
-            createPortalSlots(), buildTasks(), executeGraph(), this::complete);
+            buildTasks(), executeGraph(), this::complete);
     }
 
     @Override
@@ -72,10 +69,6 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
         return new CreateChannels(stepCtx(), state, channelsClient);
     }
 
-    private Supplier<StepResult> createPortalSlots() {
-        return new CreatePortalSlots(stepCtx(), state, storageConfig);
-    }
-
     private Supplier<StepResult> buildTasks() {
         return new BuildTasks(stepCtx(), state, kafkaConfig, kafkaTopicDesc);
     }
@@ -87,7 +80,7 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
     private StepResult complete() {
         try {
             if (state.graphId != null) {
-                var graphDesc = new GraphDao.GraphDescription(state.graphId, execId(), state.portalInputSlotsNames);
+                var graphDesc = new GraphDao.GraphDescription(state.graphId, execId());
                 var response = Any.pack(LWFS.ExecuteGraphResponse.newBuilder().setGraphId(state.graphId).build());
                 withRetries(log(), () -> {
                     try (var tx = TransactionHandle.create(storage())) {
@@ -174,7 +167,6 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
     }
 
     public static final class ExecuteGraphBuilder extends ExecutionOperationRunnerBuilder<ExecuteGraphBuilder> {
-        private LMST.StorageConfig storageConfig;
         private KafkaConfig kafkaConfig;
         private ExecutionDao.KafkaTopicDesc kafkaTopicDesc;
         private VmPoolServiceBlockingStub vmPoolClient;
@@ -182,11 +174,6 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
         private GraphExecutorBlockingStub graphsClient;
         private StorageClient storageClient;
         private ExecuteGraphState state;
-
-        public ExecuteGraphBuilder setStorageConfig(LMST.StorageConfig storageConfig) {
-            this.storageConfig = storageConfig;
-            return this;
-        }
 
         public ExecuteGraphBuilder setKafkaConfig(KafkaConfig kafkaConfig) {
             this.kafkaConfig = kafkaConfig;
