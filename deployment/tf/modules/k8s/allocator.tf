@@ -304,3 +304,24 @@ resource "kubernetes_service" "allocator_service" {
     type                    = "LoadBalancer"
   }
 }
+
+resource "kubernetes_service" "allocator_service_cluster_ip" {
+  metadata {
+    name        = "${local.allocator-k8s-name}-cluster-ip"
+    labels      = local.allocator-labels
+  }
+  spec {
+    selector    = local.allocator-labels
+    port {
+      name        = "main-grpc"
+      port        = local.allocator-port
+      target_port = local.allocator-port
+    }
+    port {
+      name        = "http"
+      port        = local.allocator-http-port
+      target_port = local.allocator-http-port
+    }
+    type                    = "ClusterIP"
+  }
+}
