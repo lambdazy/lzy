@@ -40,7 +40,7 @@ class NoContainer(Protocol):
     pass
 
 
-class SupportedContainerTypes(Enum):
+class ContainerTypes(Enum):
     NoContainer = NoContainer
     Docker = DockerProtocol
 
@@ -52,12 +52,12 @@ class ContainerMeta(ABCMeta):
         if len(bases) == 1 and Deconstructible in bases and name == 'BaseContainer':
             return
 
-        container_type: Optional[SupportedContainerTypes] = getattr(cls, 'container_type', None)
+        container_type: Optional[ContainerTypes] = getattr(cls, 'container_type', None)
 
-        if not container_type or not isinstance(container_type, SupportedContainerTypes):
+        if not container_type or not isinstance(container_type, ContainerTypes):
             raise TypeError(
                 'all of BaseContainer subclasses must have container_type attribute '
-                f'with {SupportedContainerTypes} type'
+                f'with {ContainerTypes} type'
             )
 
         expected_protocol = container_type.value
@@ -72,7 +72,7 @@ class ContainerMeta(ABCMeta):
 
 
 class BaseContainer(Deconstructible, metaclass=ContainerMeta):
-    container_type: ClassVar[SupportedContainerTypes]
+    container_type: ClassVar[ContainerTypes]
 
     def __call__(self, subject: WithEnvironmentType) -> WithEnvironmentType:
         return subject.with_container(self)

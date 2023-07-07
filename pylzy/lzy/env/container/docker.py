@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional, ClassVar
 
-from .base import BaseContainer, DockerPullPolicy, SupportedContainerTypes
+from .base import BaseContainer, DockerPullPolicy, ContainerTypes
 
 
 @dataclass
 class DockerContainer(BaseContainer):
-    container_type: ClassVar[SupportedContainerTypes] = SupportedContainerTypes.Docker
+    container_type: ClassVar[ContainerTypes] = ContainerTypes.Docker
 
     image_url: str
     pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS
