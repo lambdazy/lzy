@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .base import BasePythonEnv, ModulePathsList, PackagesDict, PythonVersion
+from .base import BasePythonEnv, ModulePathsList, PackagesDict
 
 
 @dataclass
 class ManualPythonEnv(BasePythonEnv):
-    python_version: PythonVersion
+    python_version: str
     local_module_paths: ModulePathsList
     pypi_packages: PackagesDict
     pypi_index_url: str
 
-    def get_python_version(self) -> PythonVersion:
+    def get_python_version(self) -> str:
         return self.python_version
 
     def get_local_module_paths(self) -> ModulePathsList:
