@@ -7,6 +7,7 @@ import ai.lzy.allocator.alloc.DeleteSessionAction;
 import ai.lzy.allocator.alloc.MountDynamicDiskAction;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
+import ai.lzy.allocator.alloc.impl.kuber.NetworkPolicyManager;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.model.CachePolicy;
@@ -81,13 +82,15 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final ServiceConfig.CacheLimits cacheConfig;
     private final ServiceConfig.MountConfig mountConfig;
     private final IdGenerator idGenerator;
+    private final NetworkPolicyManager networkPolicyManager;
 
     @Inject
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
                             ServiceConfig config, ServiceConfig.CacheLimits cacheConfig,
                             ServiceConfig.MountConfig mountConfig,
-                            @Named("AllocatorIdGenerator") IdGenerator idGenerator)
+                            @Named("AllocatorIdGenerator") IdGenerator idGenerator,
+                            NetworkPolicyManager networkPolicyManager)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
@@ -98,7 +101,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         this.cacheConfig = cacheConfig;
         this.mountConfig = mountConfig;
         this.idGenerator = idGenerator;
-
+        this.networkPolicyManager = networkPolicyManager;
     }
 
     @PreDestroy
@@ -119,6 +122,15 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         final var operationId = idGenerator.generate("create-session-");
         final var sessionId = idGenerator.generate("sid-");
+        try {
+            networkPolicyManager.createNetworkPolicy(sessionId, List.of());
+        } catch (Exception ex) {
+            allocationContext.metrics().createSessionError.inc();
+
+            LOG.error("Cannot create session: {}", ex.getMessage(), ex);
+            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(ex.getMessage()).asException());
+            return;
+        }
 
         final var response = CreateSessionResponse.newBuilder()
             .setSessionId(sessionId)

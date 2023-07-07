@@ -1,5 +1,6 @@
 package ai.lzy.allocator.configs;
 
+import ai.lzy.allocator.alloc.impl.kuber.NetworkPolicyManager;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
 import ai.lzy.tunnel.service.ValidationUtils;
@@ -27,6 +28,7 @@ public class ServiceConfig {
     private Duration heartbeatTimeout;
     private List<String> serviceClusters = new ArrayList<>();
     private List<String> userClusters = new ArrayList<>();
+    private List<NetworkPolicyManager.PolicyRule> serviceCidrs = new ArrayList<>();
 
     public String getAddress() {
         String ipv6Host = hosts.stream().filter(ValidationUtils::validateIpV6).findFirst().orElse(null);

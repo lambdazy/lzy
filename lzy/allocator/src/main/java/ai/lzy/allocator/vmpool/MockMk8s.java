@@ -1,13 +1,13 @@
 package ai.lzy.allocator.vmpool;
 
 import ai.lzy.common.IdGenerator;
-import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -33,11 +33,11 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
         labelsToClusters = Map.of(
             "S", new ClusterDescription(
                 idGenerator.generate("S-"),
-                HostAndPort.fromString("localhost:1256"),
+                "localhost:1256",
                 "", ClusterType.User),
             "M", new ClusterDescription(
                 idGenerator.generate("M-"),
-                HostAndPort.fromString("localhost:1256"),
+                "localhost:1256",
                 "", ClusterType.User)
         );
 
@@ -59,6 +59,12 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
     @Override
     public String getClusterPodsCidr(String clusterId) {
         return "10.20.0.0/16";
+    }
+
+    @Override
+    public List<ClusterDescription> listClusters(ClusterType clusterType) {
+        return idsToClusters.values().stream().filter(clusterDescription -> clusterDescription.type() == clusterType)
+            .toList();
     }
 
     @Override

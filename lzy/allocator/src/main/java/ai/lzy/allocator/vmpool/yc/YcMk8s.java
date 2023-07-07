@@ -27,10 +27,7 @@ import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass.ListNodeGroupsRequest;
 import yandex.cloud.sdk.ServiceFactory;
 import yandex.cloud.sdk.grpc.interceptors.RequestIdInterceptor;
 
-import java.util.HashSet;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static yandex.cloud.api.k8s.v1.ClusterOuterClass.Cluster;
@@ -53,12 +50,14 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     private record ClusterDesc(
         String clusterId,
         String folderId,
-        HostAndPort masterInternalAddress,
-        HostAndPort masterExternalAddress,
+        String masterInternalAddress,
+        String masterExternalAddress,
         String masterCert,
         String clusterIpv4CidrBlock,
         ClusterType type
-    ) {}
+    )
+    {
+    }
 
     private final Map<String, ClusterDesc> clusters = new ConcurrentHashMap<>();
 
@@ -106,10 +105,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             return poolSpec;
         }
         poolSpec = userPools.get(poolLabel);
-        if (poolSpec != null) {
-            return poolSpec;
-        }
-        return null;
+        return poolSpec;
     }
 
     @Override
@@ -135,7 +131,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         if (desc == null) {
             return null;
         }
-        return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert, desc.type);
+        return toClusterDescription(desc);
     }
 
     @Override
@@ -144,7 +140,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         if (desc == null) {
             throw new NoSuchElementException("cluster with id " + clusterId + " not found");
         }
-        return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert, desc.type);
+        return toClusterDescription(desc);
     }
 
     @Override
@@ -156,7 +152,22 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         return desc.clusterIpv4CidrBlock();
     }
 
+    @Override
+    public List<ClusterDescription> listClusters(ClusterType clusterType) {
+        return clusters.values().stream()
+            .filter(c -> c.type() == clusterType)
+            .map(this::toClusterDescription)
+            .toList();
+    }
+
     // TODO: getters for YC-specific data
+
+    private ClusterDescription toClusterDescription(ClusterDesc desc) {
+        var hostAndPort =
+            desc.masterExternalAddress().isEmpty() ? desc.masterInternalAddress() :
+                desc.masterExternalAddress();
+        return new ClusterDescription(desc.clusterId(), hostAndPort, desc.masterCert(), desc.type());
+    }
 
     private void resolveCluster(String clusterId, boolean system) {
         LOG.debug("Resolve {} cluster {}...", ct(system), clusterId);
@@ -240,18 +251,15 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         var clusterId = cluster.getId();
         var master = cluster.getMaster();
         var masterCert = master.getMasterAuth().getClusterCaCertificate();
-        var masterInternalAddress = master.hasZonalMaster()
-            ? master.getZonalMaster().getInternalV4Address()
-            : master.getRegionalMaster().getInternalV4Address();
-        var masterExternalAddress = master.hasZonalMaster()
-            ? master.getZonalMaster().getExternalV4Address()
-            : master.getRegionalMaster().getExternalV4Address();
+        var masterInternalAddress = master.getEndpoints().getInternalV4Endpoint();
+        var masterExternalAddress = master.getEndpoints().getExternalV6Endpoint().isEmpty() ?
+            master.getEndpoints().getExternalV4Endpoint() : master.getEndpoints().getExternalV6Endpoint();
 
         var clusterNewDesc = new ClusterDesc(
             clusterId,
             cluster.getFolderId(),
-            HostAndPort.fromString(masterInternalAddress),
-            HostAndPort.fromString(masterExternalAddress),
+            masterInternalAddress,
+            masterExternalAddress,
             masterCert,
             cluster.getIpAllocationPolicy().getClusterIpv4CidrBlock(),
             system ? ClusterType.System : ClusterType.User);

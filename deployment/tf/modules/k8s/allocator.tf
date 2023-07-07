@@ -7,6 +7,9 @@ locals {
   }
   allocator-k8s-name = "allocator"
   allocator-image    = var.allocator-image
+
+  cidrs_list    = [for c in var.allocator_service_cidrs : '{"cidr": ${c}, "ports": [${local.allocator-port}, ${local.allocator-http-port}, ${local.whiteboard-port}, ${local.scheduler-port}, ${local.lzy-service-port}, ${local.fluent-bit-port}]}']
+  cidrs = '[${join(", ", local.cidrs_list)}]'
 }
 
 resource "random_password" "allocator_db_passwords" {
@@ -193,6 +196,10 @@ resource "kubernetes_stateful_set" "allocator" {
               }
             }
           }
+          env {
+            name  = "ALLOCATOR_SERVICE_CIDRS"
+            value = local.cidrs
+          }
 
           env {
             name = "K8S_POD_NAME"
@@ -307,11 +314,11 @@ resource "kubernetes_service" "allocator_service" {
 
 resource "kubernetes_service" "allocator_service_cluster_ip" {
   metadata {
-    name        = "${local.allocator-k8s-name}-cluster-ip"
-    labels      = local.allocator-labels
+    name   = "${local.allocator-k8s-name}-cluster-ip"
+    labels = local.allocator-labels
   }
   spec {
-    selector    = local.allocator-labels
+    selector = local.allocator-labels
     port {
       name        = "main-grpc"
       port        = local.allocator-port
@@ -322,6 +329,6 @@ resource "kubernetes_service" "allocator_service_cluster_ip" {
       port        = local.allocator-http-port
       target_port = local.allocator-http-port
     }
-    type                    = "ClusterIP"
+    type = "ClusterIP"
   }
 }
