@@ -26,6 +26,9 @@ NotSpecified = NotSpecifiedType()
 EnvironmentField = Union[NotSpecifiedType, T]
 
 
+# NB: you may say that val must be EnvironmentField type, but
+# mypy doesn't working correctly in this case (at least on 3.7),
+# I think it wants to see T in this line on both sides
 def is_specified(val: Union[NotSpecifiedType, T]) -> TypeGuard[T]:
     return val is not NotSpecified
 
