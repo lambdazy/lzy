@@ -1,6 +1,8 @@
-package ai.lzy.worker.env;
+package ai.lzy.env.aux;
 
-import ai.lzy.v1.common.LME;
+import ai.lzy.env.base.BaseEnvironment;
+import ai.lzy.env.Environment;
+import ai.lzy.env.EnvironmentInstallationException;
 import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.Logger;
 
@@ -11,6 +13,7 @@ import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Map;
 import java.util.UUID;
 
 public interface AuxEnvironment extends Environment {
@@ -21,7 +24,7 @@ public interface AuxEnvironment extends Environment {
         base().close();
     }
 
-    static Path installLocalModules(LME.PythonEnv env, String localModulesPathPrefix, Logger log)
+    static Path installLocalModules(Map<String, String> localModules, String localModulesPathPrefix, Logger log)
         throws EnvironmentInstallationException, IOException
     {
         Path localModulesPath = Path.of(localModulesPathPrefix, UUID.randomUUID().toString());
@@ -36,9 +39,9 @@ public interface AuxEnvironment extends Environment {
         var localModulesAbsolutePath = localModulesPath.toAbsolutePath();
 
         log.debug("Created directory to download local modules into");
-        for (var entry : env.getLocalModulesList()) {
-            String name = entry.getName();
-            String url = entry.getUri();
+        for (var entry : localModules.entrySet()) {
+            String name = entry.getKey();
+            String url = entry.getValue();
             log.debug(
                 "Installing local module with name " + name + " and url " + url);
 

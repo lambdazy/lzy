@@ -1,15 +1,18 @@
-package ai.lzy.worker.env;
+package ai.lzy.env.base;
+
+import jakarta.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-public record BaseEnvConfig(
+public record DockerEnvDescription(
     String image,
     List<MountDescription> mounts,
     boolean needGpu,
-    List<String> envVars  // In format <NAME>=<value>
+    List<String> envVars,  // In format <NAME>=<value>
+    @Nullable ContainerRegistryCredentials credentials  // Credentials to pull images with
 ) {
 
     public static Builder newBuilder() {
@@ -35,6 +38,7 @@ public record BaseEnvConfig(
         boolean gpu = false;
         List<MountDescription> mounts = new ArrayList<>();
         List<String> envVars = new ArrayList<>();
+        ContainerRegistryCredentials credentials = null;
 
         public Builder withImage(String name) {
             this.image = name;
@@ -61,10 +65,20 @@ public record BaseEnvConfig(
             return this;
         }
 
-        public BaseEnvConfig build() {
-            return new BaseEnvConfig(image, mounts, gpu, envVars);
+        public Builder withCredentials(ContainerRegistryCredentials credentials) {
+            this.credentials = credentials;
+            return this;
+        }
+
+        public DockerEnvDescription build() {
+            return new DockerEnvDescription(image, mounts, gpu, envVars, credentials);
         }
 
     }
 
+    public record ContainerRegistryCredentials(
+        String url,
+        String username,
+        String password
+    ) { }
 }

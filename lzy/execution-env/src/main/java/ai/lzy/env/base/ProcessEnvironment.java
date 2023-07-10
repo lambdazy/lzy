@@ -1,6 +1,7 @@
-package ai.lzy.worker.env;
+package ai.lzy.env.base;
 
-import ai.lzy.worker.StreamQueue;
+import ai.lzy.env.Environment;
+import ai.lzy.env.LogHandle;
 import jakarta.annotation.Nullable;
 
 import java.io.IOException;
@@ -26,15 +27,15 @@ public class ProcessEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public void install(StreamQueue.LogHandle logHandle) {}
+    public void install(LogHandle logHandle) {}
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) {
+    public Environment.LzyProcess runProcess(String[] command, String[] envp) {
         envp = inheritEnvp(envp);
 
         try {
             final Process exec = Runtime.getRuntime().exec(command, envp);
-            return new LzyProcess() {
+            return new Environment.LzyProcess() {
                 @Override
                 public OutputStream in() {
                     return exec.getOutputStream();
