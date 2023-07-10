@@ -32,7 +32,7 @@ public class EnvTest {
     public void testBashEnv() throws EnvironmentInstallationException {
         var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .build(), LogHandle.empty());
+            .build(), LogHandle.empty(), "");
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof ProcessEnvironment);
@@ -43,7 +43,7 @@ public class EnvTest {
         var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .putEnv("LOL", "kek")
-            .build(), LogHandle.empty());
+            .build(), LogHandle.empty(), "");
 
         var proc = env.runProcess("echo $LOL");
         Assert.assertEquals(0, proc.waitFor());
@@ -60,7 +60,7 @@ public class EnvTest {
         var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
             .setDockerImage("ubuntu:latest")
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .build(), LogHandle.empty());
+            .build(), LogHandle.empty(), "");
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof DockerEnvironment);
@@ -85,7 +85,7 @@ public class EnvTest {
                       - pylzy==1.0.0
                       - serialzy>=1.0.0""")
                 .build())
-            .build(), LogHandle.empty());
+            .build(), LogHandle.empty(), "");
 
         EnvironmentFactory.installEnv(true);
 
