@@ -57,7 +57,7 @@ module "k8s_deployment" {
   node-sa-static-key-secret-key = yandex_iam_service_account_static_access_key.admin-sa-static-key.secret_key
   pool-cluster-id               = yandex_kubernetes_cluster.allocator_cluster.id
   service-cluster-id            = yandex_kubernetes_cluster.main.id
-  allocator_service_cidrs       = [yandex_vpc_subnet.custom-subnet.v4_cidr_blocks]
+  allocator_service_cidrs       = yandex_vpc_subnet.custom-subnet.v4_cidr_blocks
 
   providers = {
     kubernetes = kubernetes
