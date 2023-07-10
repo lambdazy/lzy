@@ -2,27 +2,43 @@ import hashlib
 import os
 from io import BytesIO
 from pathlib import Path
-from typing import Union, List
+from typing import Union, List, BinaryIO
 from zipfile import ZipFile
 
 
-def zip_module(path: Union[str, Path], zipfile: ZipFile):
-    path = Path(path)
-    relative_to = path.parent
+def zip_module(module_path: str, zip_fileobj: BinaryIO):
+    with ZipFile(zip_fileobj.name, 'w') as z:
+        _zip_module(module_path, z)
+
+    zip_fileobj.seek(0)
+
+
+def _zip_module(module_path: Union[str, Path], zip_file: ZipFile):
+    module_path = Path(module_path)
+    relative_to = module_path.parent
 
     paths: List[Path] = []
-    if path.is_dir():
-        for root, _, files in os.walk(path):
+    if module_path.is_dir():
+        for root, _, files in os.walk(module_path):
             paths.extend(Path(root) / filename for filename in files)
     else:
-        paths.append(path)
+        paths.append(module_path)
 
     for path_at_fs in paths:
         path_to_write = path_at_fs.relative_to(relative_to)
-        zipfile.write(path_at_fs, path_to_write)
+        zip_file.write(path_at_fs, path_to_write)
 
 
-def fileobj_hash(fileobj: BytesIO) -> str:
+# used as library function in external packages
+def fileobj_hash_bytes(fileobj: BytesIO) -> bytes:
+    return _fileobj_hash(fileobj).digest()
+
+
+def fileobj_hash_str(fileobj: BytesIO) -> str:
+    return _fileobj_hash(fileobj).hexdigest()
+
+
+def _fileobj_hash(fileobj: BytesIO):
     buf_size = 65_536  # 64kb
 
     md5 = hashlib.md5()
@@ -32,4 +48,5 @@ def fileobj_hash(fileobj: BytesIO) -> str:
         if not data:
             break
         md5.update(data)
-    return md5.hexdigest()
+
+    return md5
