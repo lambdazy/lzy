@@ -146,10 +146,6 @@ resource "kubernetes_stateful_set" "allocator" {
             value = "true"
           }
           env {
-            name  = "ALLOCATOR_KUBER_NETWORK_POLICY_MANAGER_ENABLED"
-            value = "true"
-          }
-          env {
             name  = "ALLOCATOR_YC_CREDENTIALS_SERVICE_ACCOUNT_FILE"
             value = "/tmp/sa-key/sa-key.json"
           }
@@ -195,6 +191,10 @@ resource "kubernetes_stateful_set" "allocator" {
                 field_path = "metadata.name"
               }
             }
+          }
+          env {
+            name  = "ALLOCATOR_POLICY_ENABLED"
+            value = "true"
           }
           env {
             name  = "ALLOCATOR_SERVICE_CIDRS"

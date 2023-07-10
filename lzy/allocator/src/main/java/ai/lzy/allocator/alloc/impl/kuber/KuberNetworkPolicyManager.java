@@ -4,6 +4,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.networking.v1.*;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NAMESPACE_VALUE
 
 @Singleton
 @Slf4j
+@Requires(property = "allocator.policy.enabled", value = "true")
 public class KuberNetworkPolicyManager implements NetworkPolicyManager {
 
     private static final String NAME_PREFIX = "np-for-";
