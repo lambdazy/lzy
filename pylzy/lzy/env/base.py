@@ -55,3 +55,27 @@ class Deconstructible(ABC):
         right: Dict[str, Any] = dict(self.deconstruct(), **kwargs)
 
         return type(self)(**right)
+
+    def __eq__(self, other) -> bool:
+        if type(self) is not type(other):
+            return False
+
+        return self.deconstruct() == other.deconstruct()  # type: ignore
+
+    def __lt__(self, other) -> bool:
+        assert isinstance(other, Deconstructible)
+
+        left = tuple(self.deconstruct().items())
+        right = tuple(other.deconstruct().items())
+
+        return left < right
+
+    def __ne__(self, other) -> bool:
+        return not self == other
+
+    def __repr__(self) -> str:
+        args = (f'{k}={v!r}' for k, v in self.deconstruct().items())
+        return "{name}({args})".format(
+            name=self.__class__.__name__,
+            args=', '.join(args),
+        )
