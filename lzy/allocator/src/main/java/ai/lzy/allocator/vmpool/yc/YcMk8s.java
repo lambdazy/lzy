@@ -7,7 +7,6 @@ import ai.lzy.allocator.vmpool.CpuTypes;
 import ai.lzy.allocator.vmpool.GpuTypes;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.allocator.vmpool.VmPoolSpec;
-import com.google.common.net.HostAndPort;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.scheduling.annotation.Scheduled;
