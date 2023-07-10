@@ -8,8 +8,8 @@ locals {
   allocator-k8s-name = "allocator"
   allocator-image    = var.allocator-image
 
-  cidrs_list    = [for c in var.allocator_service_cidrs : '{"cidr": ${c}, "ports": [${local.allocator-port}, ${local.allocator-http-port}, ${local.whiteboard-port}, ${local.scheduler-port}, ${local.lzy-service-port}, ${local.fluent-bit-port}]}']
-  cidrs = '[${join(", ", local.cidrs_list)}]'
+  cidrs_list    = [for c in var.allocator_service_cidrs : "{\"cidr\": ${c}, \"ports\": [${local.allocator-port}, ${local.allocator-http-port}, ${local.whiteboard-port}, ${local.scheduler-port}, ${local.lzy-service-port}, ${local.fluent-bit-port}]}"]
+  cidrs = "[${join(", ", local.cidrs_list)}]"
 }
 
 resource "random_password" "allocator_db_passwords" {
