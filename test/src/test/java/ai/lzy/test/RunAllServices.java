@@ -1,7 +1,7 @@
 package ai.lzy.test;
 
 import ai.lzy.test.impl.v2.PythonContext;
-import ai.lzy.worker.env.CondaEnvironment;
+import ai.lzy.env.aux.CondaEnvironment;
 
 public class RunAllServices {
     public static void main(String[] args) {

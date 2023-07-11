@@ -1,6 +1,7 @@
 package ai.lzy.worker.env;
 
 
+import ai.lzy.env.aux.CondaPackageRegistry;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

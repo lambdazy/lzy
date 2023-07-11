@@ -1,15 +1,12 @@
 package ai.lzy.worker;
 
+import ai.lzy.env.LogHandle;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMO.KafkaTopicDescription;
-import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
-import lombok.SneakyThrows;
-import org.apache.commons.io.IOUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.header.internals.RecordHeaders;
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.message.FormattedMessage;
 
@@ -238,6 +235,18 @@ public class StreamQueue extends Thread {
             this.errQueue = errQueue;
         }
 
+        public static LogHandle fromTopicDesc(Logger logger, String taskId, KafkaTopicDescription topicDesc,
+                                              KafkaHelper helper)
+        {
+            var outQueue = new StreamQueue(topicDesc, logger, taskId, "out", helper);
+            outQueue.start();
+
+            var errQueue = new StreamQueue(topicDesc, logger, taskId, "err", helper);
+            errQueue.start();
+
+            return new LogHandleImpl(outQueue, errQueue, logger);
+        }
+
         @Override
         public void logOut(String pattern, Object... values) {
             var formatted  = PREFIX + new FormattedMessage(pattern, values) + "\n";
@@ -281,59 +290,4 @@ public class StreamQueue extends Thread {
         }
     }
 
-    public interface LogHandle extends AutoCloseable {
-        void logOut(String pattern, Object... values);
-
-        CompletableFuture<Void> logOut(InputStream stream);
-
-        void logErr(String pattern, Object... values);
-
-        CompletableFuture<Void> logErr(InputStream stream);
-
-        static LogHandle fromTopicDesc(Logger logger, String taskId, KafkaTopicDescription topicDesc,
-                                       KafkaHelper helper)
-        {
-            var outQueue = new StreamQueue(topicDesc, logger, taskId, "out", helper);
-            outQueue.start();
-
-            var errQueue = new StreamQueue(topicDesc, logger, taskId, "err", helper);
-            errQueue.start();
-
-            return new LogHandleImpl(outQueue, errQueue, logger);
-        }
-
-        void close();
-
-        @VisibleForTesting
-        static LogHandle empty() {
-            return new LogHandle() {
-                private static final Logger LOG = LogManager.getLogger(LogHandle.class);
-
-                @Override
-                public void close() {}
-
-                @Override
-                public void logOut(String pattern, Object... values) {}
-
-                @SneakyThrows
-                @Override
-                public CompletableFuture<Void> logOut(InputStream stream) {
-                    var res = IOUtils.toString(stream, StandardCharsets.UTF_8);
-                    LOG.info(res);
-                    return CompletableFuture.completedFuture(null);
-                }
-
-                @Override
-                public void logErr(String pattern, Object... values) {}
-
-                @SneakyThrows
-                @Override
-                public CompletableFuture<Void> logErr(InputStream stream) {
-                    var res = IOUtils.toString(stream, StandardCharsets.UTF_8);
-                    LOG.error(res);
-                    return CompletableFuture.completedFuture(null);
-                }
-            };
-        }
-    }
 }

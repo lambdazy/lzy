@@ -1,6 +1,7 @@
-package ai.lzy.worker.env;
+package ai.lzy.env.aux;
 
-import ai.lzy.worker.StreamQueue;
+import ai.lzy.env.base.BaseEnvironment;
+import ai.lzy.env.LogHandle;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -42,7 +43,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public void install(StreamQueue.LogHandle logHandle) {}
+    public void install(LogHandle logHandle) {}
 
     @Override
     public LzyProcess runProcess(String[] command, @Nullable String[] envp) {

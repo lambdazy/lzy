@@ -1,7 +1,8 @@
-package ai.lzy.worker.env;
+package ai.lzy.env.base;
 
-import ai.lzy.v1.common.LME;
-import ai.lzy.worker.StreamQueue;
+import ai.lzy.env.EnvironmentInstallationException;
+import ai.lzy.env.LogHandle;
+import ai.lzy.env.base.DockerEnvDescription.ContainerRegistryCredentials;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.ExecCreateCmd;
@@ -38,13 +39,13 @@ public class DockerEnvironment extends BaseEnvironment {
 
     @Nullable
     public String containerId = null;
-    private final BaseEnvConfig config;
+    private final DockerEnvDescription config;
     private final DockerClient client;
     private final Retry retry;
 
-    public DockerEnvironment(BaseEnvConfig config, DockerClient client) {
+    public DockerEnvironment(DockerEnvDescription config) {
         this.config = config;
-        this.client = client;
+        this.client = generateClient(config.credentials());
         var retryConfig = new RetryConfig.Builder<>()
             .maxAttempts(3)
             .intervalFunction(IntervalFunction.ofExponentialBackoff(1000))
@@ -54,7 +55,7 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public void install(StreamQueue.LogHandle handle) throws EnvironmentInstallationException {
+    public void install(LogHandle handle) throws EnvironmentInstallationException {
         if (containerId != null) {
             handle.logOut("Using already running container from cache");
             LOG.info("Using already running container from cache; containerId: {}", containerId);
@@ -255,11 +256,7 @@ public class DockerEnvironment extends BaseEnvironment {
         }
     }
 
-    public BaseEnvConfig config() {
-        return config;
-    }
-
-    private void prepareImage(String image, StreamQueue.LogHandle handle) throws Exception {
+    private void prepareImage(String image, LogHandle handle) throws Exception {
         handle.logOut("Pulling image {} ...", image);
         AtomicInteger pullingAttempt = new AtomicInteger(0);
         retry.executeCallable(() -> {
@@ -272,12 +269,12 @@ public class DockerEnvironment extends BaseEnvironment {
         handle.logOut("Pulling image {} done", image);
     }
 
-    public static DockerClient generateClient(@Nullable LME.DockerCredentials credentials) {
+    private static DockerClient generateClient(@Nullable ContainerRegistryCredentials credentials) {
         if (credentials != null) {
             return DockerClientBuilder.getInstance(new DefaultDockerClientConfig.Builder()
-                .withRegistryUrl(credentials.getRegistryName())
-                .withRegistryUsername(credentials.getUsername())
-                .withRegistryPassword(credentials.getPassword())
+                .withRegistryUrl(credentials.url())
+                .withRegistryUsername(credentials.username())
+                .withRegistryPassword(credentials.password())
                 .build()
             ).build();
         } else {
