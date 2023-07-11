@@ -18,7 +18,6 @@ import org.apache.logging.log4j.Logger;
 import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.MOUNT_HOLDER_POD_TEMPLATE_PATH;
@@ -31,6 +30,7 @@ public class KuberMountHolderManager implements MountHolderManager {
     public static final String NAMESPACE_VALUE = "default";
     public static final String MOUNT_HOLDER_POD_NAME_PREFIX = "lzy-mount-holder-";
     public static final String HOST_VOLUME_NAME = "base-volume";
+    public static final String MOUNT_HOLDER_APP_LABEL = "mount-holder";
 
     private final ClusterRegistry clusterRegistry;
     private final KuberClientFactory factory;
@@ -50,11 +50,11 @@ public class KuberMountHolderManager implements MountHolderManager {
     }
 
     @Override
-    public ClusterPod allocateMountHolder(Vm.Spec mountToVm, List<DynamicMount> mounts) {
+    public ClusterPod allocateMountHolder(Vm.Spec mountToVm, List<DynamicMount> mounts, String suffix) {
         final var cluster = getCluster(mountToVm.poolLabel(), mountToVm.zone());
 
         String vmId = mountToVm.vmId();
-        String podName = mountHolderName(vmId);
+        String podName = mountHolderName(vmId, suffix);
 
         try (final var client = factory.build(cluster)) {
             var mountHolderPodBuilder = new PodSpecBuilder(podName, MOUNT_HOLDER_POD_TEMPLATE_PATH, client, config);
@@ -66,7 +66,10 @@ public class KuberMountHolderManager implements MountHolderManager {
                 .withHostVolumes(List.of(hostVolume))
                 .withPodAffinity(KuberLabels.LZY_VM_ID_LABEL, "In", vmId)
                 .withLabels(Map.of(
-                    KuberLabels.LZY_POD_SESSION_ID_LABEL, mountToVm.sessionId()
+                    KuberLabels.LZY_POD_SESSION_ID_LABEL, mountToVm.sessionId(),
+                    KuberLabels.LZY_VM_ID_LABEL, vmId,
+                    KuberLabels.LZY_APP_LABEL, MOUNT_HOLDER_APP_LABEL,
+                    KuberLabels.LZY_POD_NAME_LABEL, podName
                 ))
                 .withDynamicVolumes(mounts)
                 .build();
@@ -87,12 +90,6 @@ public class KuberMountHolderManager implements MountHolderManager {
 
             return new ClusterPod(cluster.clusterId(), podName);
         }
-    }
-
-    @Override
-    public ClusterPod recreateWith(Vm.Spec vm, ClusterPod currentPod, List<DynamicMount> mounts) {
-        deallocateMountHolder(currentPod);
-        return allocateMountHolder(vm, mounts);
     }
 
     @Override
@@ -122,6 +119,33 @@ public class KuberMountHolderManager implements MountHolderManager {
                 return;
             }
             throw e;
+        }
+    }
+
+    @Override
+    public void deallocateOtherMountPods(String vmId, ClusterPod podToKeep) {
+        var cluster = getCluster(podToKeep.clusterId());
+        try (final var client = factory.build(cluster)) {
+            client.pods().inNamespace(NAMESPACE_VALUE)
+                .withLabels(Map.of(
+                    KuberLabels.LZY_VM_ID_LABEL, vmId,
+                    KuberLabels.LZY_APP_LABEL, MOUNT_HOLDER_APP_LABEL
+                ))
+                .withLabelNotIn(KuberLabels.LZY_POD_NAME_LABEL, podToKeep.podName())
+                .delete();
+        }
+    }
+
+    @Override
+    public void deallocateAllMountPods(Vm.Spec vmSpec) {
+        var cluster = getCluster(vmSpec.poolLabel(), vmSpec.zone());
+        try (final var client = factory.build(cluster)) {
+            client.pods().inNamespace(NAMESPACE_VALUE)
+                .withLabels(Map.of(
+                    KuberLabels.LZY_VM_ID_LABEL, vmSpec.vmId(),
+                    KuberLabels.LZY_APP_LABEL, MOUNT_HOLDER_APP_LABEL
+                ))
+                .delete();
         }
     }
 
@@ -176,8 +200,12 @@ public class KuberMountHolderManager implements MountHolderManager {
     }
 
     @Nonnull
-    private String mountHolderName(String vmId) {
-        return idGenerator.generate(MOUNT_HOLDER_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT) + "-");
+    private String mountHolderName(String vmId, String suffix) {
+        var base = MOUNT_HOLDER_POD_NAME_PREFIX + vmId;
+        if (!suffix.isBlank()) {
+            return base + "-" + suffix;
+        }
+        return base;
     }
 
 }

@@ -9,11 +9,13 @@ import java.util.List;
 
 public interface MountHolderManager {
 
-    ClusterPod allocateMountHolder(Vm.Spec mountToVm, List<DynamicMount> mounts);
-
-    ClusterPod recreateWith(Vm.Spec vm, ClusterPod currentPod, List<DynamicMount> mounts);
+    ClusterPod allocateMountHolder(Vm.Spec mountToVm, List<DynamicMount> mounts, String suffix);
 
     void deallocateMountHolder(ClusterPod clusterPod);
+
+    void deallocateOtherMountPods(String vmId, ClusterPod podToKeep);
+
+    void deallocateAllMountPods(Vm.Spec vmSpec);
 
     PodPhase checkPodPhase(ClusterPod clusterPod);
 }

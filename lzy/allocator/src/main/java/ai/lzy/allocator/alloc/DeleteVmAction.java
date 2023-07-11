@@ -1,15 +1,15 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
-import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
-import ai.lzy.allocator.util.AllocatorUtils;
+import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.model.db.TransactionHandle;
 import com.google.protobuf.Any;
 import com.google.protobuf.Empty;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 
 import java.sql.SQLException;
 import java.time.Instant;
@@ -207,29 +207,19 @@ public final class DeleteVmAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        var mountPodName = vm.instanceProperties().mountPodName();
-        if (mountPodName == null) {
-            return StepResult.ALREADY_DONE;
-        }
-
         if (mountPodDeleted) {
             return StepResult.ALREADY_DONE;
         }
 
-        var clusterId = AllocatorUtils.getClusterId(vm);
-        if (clusterId == null) {
-            log().warn("{} Cluster id isn't found for vm {}", logPrefix(), vm.vmId());
-            return StepResult.ALREADY_DONE;
-        }
-
-        log().info("{} Trying to deallocate mount pod...", logPrefix());
-
-        var mountPod = ClusterPod.of(clusterId, mountPodName);
+        log().info("{} Trying to deallocate mount pods...", logPrefix());
         try {
-            allocationContext.mountHolderManager().deallocateMountHolder(mountPod);
+            allocationContext.mountHolderManager().deallocateAllMountPods(vm.spec());
             mountPodDeleted = true;
-        } catch (Exception e) {
-            log().error("{} Error while deallocating mount pod: {}", logPrefix(), e.getMessage(), e);
+        } catch (KubernetesClientException e) {
+            log().error("{} Error while deallocating mount pods: {}", logPrefix(), e.getMessage(), e);
+            if (KuberUtils.isNotRetryable(e)) {
+                return StepResult.CONTINUE;
+            }
             return StepResult.RESTART;
         }
         return StepResult.CONTINUE;

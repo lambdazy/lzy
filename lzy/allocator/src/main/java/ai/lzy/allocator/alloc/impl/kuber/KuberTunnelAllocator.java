@@ -83,7 +83,9 @@ public class KuberTunnelAllocator implements TunnelAllocator {
                 // not to be allocated with pod form another session
                 .withPodAntiAffinity(KuberLabels.LZY_POD_SESSION_ID_LABEL, "NotIn", vmSpec.sessionId())
                 .withLabels(Map.of(
-                    KuberLabels.LZY_POD_SESSION_ID_LABEL, vmSpec.sessionId()
+                    KuberLabels.LZY_POD_SESSION_ID_LABEL, vmSpec.sessionId(),
+                    KuberLabels.LZY_VM_ID_LABEL, vmSpec.vmId(),
+                    KuberLabels.LZY_APP_LABEL, TUNNEL_POD_APP_LABEL_VALUE
                 ))
                 .withLoggingVolume()
                 .build();

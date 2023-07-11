@@ -59,7 +59,7 @@ public class KuberVolumeManager implements VolumeManager {
             resourceName = diskVolumeDescription.name();
             storageClass = storageProvider.resolveDiskStorageClass(diskVolumeDescription.storageClass());
             var readOnly = accessMode == Volume.AccessMode.READ_ONLY_MANY;
-            volumeName += "-" + (readOnly ? "ro" : "rw");
+            volumeName = generateDiskVolumeName(diskId, readOnly);
 
             LOG.info("Creating persistent volume '{}' with description {}", volumeName, diskVolumeDescription);
             volume = new PersistentVolumeBuilder()
@@ -131,6 +131,11 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.error("Could not create volume {}: {}", result, e.getMessage(), e);
             throw e;
         }
+    }
+
+    private static String generateDiskVolumeName(String diskId, boolean readOnly) {
+        var accessModeSuffix = readOnly ? "ro" : "rw";
+        return "vm-volume-" + diskId + "-" + accessModeSuffix;
     }
 
     @Override
@@ -245,19 +250,7 @@ public class KuberVolumeManager implements VolumeManager {
 
     @Override
     public void deleteClaim(String clusterId, String volumeClaimName) {
-        var cluster = getClusterOrThrow(clusterId);
-        try (var client = kuberClientFactory.build(cluster)) {
-            LOG.info("Deleting volume claim {}", volumeClaimName);
-            client.persistentVolumeClaims().inNamespace(DEFAULT_NAMESPACE).withName(volumeClaimName).delete();
-            LOG.info("Volume claim {} successfully deleted", volumeClaimName);
-        } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
-                LOG.warn("Persistent volume claim {} not found", volumeClaimName);
-                return;
-            }
-            LOG.error("Cannot delete persistent volume claim {}: {}", volumeClaimName, e.getMessage(), e);
-            throw e;
-        }
+        LOG.info("Skipping persistent volume claim {} deletion", volumeClaimName);
     }
 
     @Nonnull

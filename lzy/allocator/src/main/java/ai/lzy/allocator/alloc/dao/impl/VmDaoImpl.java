@@ -24,11 +24,7 @@ import jakarta.inject.Singleton;
 
 import java.net.Inet6Address;
 import java.net.UnknownHostException;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
+import java.sql.*;
 import java.time.Instant;
 import java.util.*;
 
@@ -45,7 +41,7 @@ public class VmDaoImpl implements VmDao {
         "status";
 
     private static final String INSTANCE_FIELDS =
-        "tunnel_pod_name, mount_pod_name, endpoints";
+        "tunnel_pod_name, mount_pod_name, endpoints, next_mount_pod_id";
 
     private static final String ALLOCATION_START_FIELDS =
         "allocation_op_id, allocation_started_at, allocation_deadline, allocation_worker, allocation_reqid, vm_ott";
@@ -147,7 +143,7 @@ public class VmDaoImpl implements VmDao {
 
     private static final String QUERY_SET_MOUNT_POD_NAME = """
         UPDATE vm
-        SET mount_pod_name = ?
+        SET mount_pod_name = ?, next_mount_pod_id = next_mount_pod_id + 1
         WHERE id = ?""";
 
     private static final String QUERY_SET_ENDPOINTS = """
@@ -216,6 +212,11 @@ public class VmDaoImpl implements VmDao {
         WHERE id in %s
         """;
 
+    private static final String SELECT_NEXT_MOUNT_POD_ID = """
+        SELECT next_mount_pod_id
+        FROM vm
+        WHERE id = ?
+        """;
 
     private final Storage storage;
     private final ObjectMapper objectMapper;
@@ -498,7 +499,9 @@ public class VmDaoImpl implements VmDao {
     }
 
     @Override
-    public void setMountPod(String vmId, String mountPodName, TransactionHandle tx) throws SQLException {
+    public void setMountPodAndIncrementNextId(String vmId, String mountPodName, TransactionHandle tx)
+        throws SQLException
+    {
         DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement s = con.prepareStatement(QUERY_SET_MOUNT_POD_NAME)) {
                 s.setString(1, mountPodName);
@@ -731,6 +734,18 @@ public class VmDaoImpl implements VmDao {
         });
     }
 
+    @Nullable
+    @Override
+    public Long getNextMountPodId(String vmId, @Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, conn -> {
+            try (PreparedStatement st = conn.prepareStatement(SELECT_NEXT_MOUNT_POD_ID)) {
+                st.setString(1, vmId);
+                var rs = st.executeQuery();
+                return rs.next() ? rs.getLong(1) : null;
+            }
+        });
+    }
+
     private Vm readVm(ResultSet rs) throws SQLException, JsonProcessingException {
         int idx = 0;
 
@@ -767,6 +782,7 @@ public class VmDaoImpl implements VmDao {
         final var tunnelPodName = rs.getString(++idx);
         final var mountPodName = rs.getString(++idx);
         final var endpoints = objectMapper.readValue(rs.getString(++idx), new TypeReference<List<Vm.Endpoint>>() {});
+        final var nextMountPodId = rs.getLong(++idx);
 
         // allocate state
         final var allocationOpId = rs.getString(++idx);
@@ -844,7 +860,7 @@ public class VmDaoImpl implements VmDao {
             new Vm.Spec(id, sessionId, poolLabel, zone, initWorkloads, workloads, volumeRequests, tunnelSettings,
                 clusterType),
             vmStatus,
-            new Vm.InstanceProperties(tunnelPodName, mountPodName, endpoints),
+            new Vm.InstanceProperties(tunnelPodName, mountPodName, endpoints, nextMountPodId),
             new Vm.AllocateState(allocationOpId, allocationStartedAt, allocationDeadline, allocationWorker,
                 allocationReqid, vmOtt, allocatorMeta, volumeClaims),
             runState,
