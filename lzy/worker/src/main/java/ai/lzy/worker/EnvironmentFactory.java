@@ -107,7 +107,8 @@ public class EnvironmentFactory {
                 createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
             }
         } else {
-            baseEnv = localProcessEnv.withEnv(env.getEnvMap());
+            baseEnv = localProcessEnv.withEnv(env.getEnvMap())
+                .withEnv(Map.of("LZY_MOUNT", lzyMount));
         }
 
         if (INSTALL_ENV.get()) {
@@ -172,7 +173,7 @@ public class EnvironmentFactory {
             }
 
         } else if (env.hasProcessEnv()) {
-            auxEnv = new SimpleBashEnvironment(taskId, baseEnv, Map.of("LZY_MOUNT", lzyMount));
+            auxEnv = new SimpleBashEnvironment(taskId, baseEnv, Map.of());
         } else {
             LOG.error("Error while creating env: undefined env");
             throw Status.UNIMPLEMENTED.withDescription("Provided unsupported env")
