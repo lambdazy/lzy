@@ -82,7 +82,34 @@ public class GraphServiceImpl implements GraphService {
 
     @Override
     public void handleTaskCompleted(TaskState task) {
+        GraphState graphState = graphs.get(task.graphId());
 
+        if (task.status() == TaskState.Status.COMPLETED) {
+            List<String> waitingList = graphState.tasks().get(GraphState.Status.WAITING);
+            List<String> completed = graphState.tasks().get(GraphState.Status.COMPLETED);
+            waitingList.remove(task.id());
+            completed.add(task.id());
+
+            if (waitingList.isEmpty()) {
+                graphState = graphState.toBuilder()
+                    .status(GraphState.Status.COMPLETED)
+                    .build();
+            }
+        } else {
+            graphState = graphState.toBuilder()
+                .status(GraphState.Status.FAILED)
+                .failedTaskId(task.id())
+                .failedTaskName(task.name())
+                .errorDescription(task.errorDescription())
+                .build();
+        }
+        GraphState finalGraphState = graphState;
+        try {
+            withRetries(LOG, () -> graphDao.update(finalGraphState, null));
+        } catch (Exception e) {
+            LOG.error("Cannot update graph {} status", graphState.id());
+            throw new RuntimeException(e);
+        }
     }
 
     private void restoreGraphs(String instanceId) {

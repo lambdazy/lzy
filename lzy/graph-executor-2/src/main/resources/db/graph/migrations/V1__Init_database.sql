@@ -42,6 +42,7 @@ CREATE TABLE graph
 
 CREATE TABLE task (
     id                    TEXT                          NOT NULL PRIMARY KEY,
+    op_id                 TEXT                          NOT NULL REFERENCES operation (id) ON DELETE CASCADE,
     task_name             TEXT                          NOT NULL,
     graph_id              TEXT                          NOT NULL REFERENCES graph (id) ON DELETE CASCADE,
     status                status default 'WAITING'      NOT NULL,
@@ -50,7 +51,8 @@ CREATE TABLE task (
     user_id               TEXT                          NOT NULL,
     task_description      TEXT                          NULL,
     error_description     TEXT                          NULL,
-    owner_instance_id     TEXT                          NOT NULL
+    owner_instance_id     TEXT                          NOT NULL,
+    alloc_session         TEXT                          NULL
 );
 
 CREATE TABLE task_dependency (

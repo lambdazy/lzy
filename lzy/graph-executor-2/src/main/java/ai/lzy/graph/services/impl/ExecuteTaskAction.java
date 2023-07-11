@@ -29,6 +29,7 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -39,22 +40,24 @@ public class ExecuteTaskAction extends OperationRunnerBase {
     private final Storage storage;
     private final TaskDao taskDao;
     private final OperationDao operationDao;
+    private final Consumer<TaskState> taskOnComplete;
 
     private TaskOperation taskOp;
     private TaskState task;
 
     public ExecuteTaskAction(String id, TaskOperation taskOp, TaskState task, String descr, Storage storage,
                              OperationDao operationsDao, OperationsExecutor executor, TaskDao taskDao,
-                             AllocatorService allocatorService)
+                             AllocatorService allocatorService, Consumer<TaskState> taskOnComplete)
     {
         super(id, descr, storage, operationsDao, executor);
         this.allocatorService = allocatorService;
         this.storage = storage;
-
-        this.taskOp = taskOp;
         this.taskDao = taskDao;
         this.operationDao = operationsDao;
+        this.taskOnComplete = taskOnComplete;
+
         this.task = task;
+        this.taskOp = taskOp;
     }
 
     @Override
@@ -73,6 +76,7 @@ public class ExecuteTaskAction extends OperationRunnerBase {
 
     @Override
     protected void notifyFinished() {
+        taskOnComplete.accept(task);
     }
 
     private StepResult allocate() {
@@ -259,6 +263,12 @@ public class ExecuteTaskAction extends OperationRunnerBase {
                     .build()
                 )
                 .build();
+            task = task.toBuilder()
+                .status(TaskState.Status.COMPLETED)
+                .build();
+            taskOp = taskOp.toBuilder()
+                .status(TaskOperation.Status.COMPLETED)
+                .build();
         } else {
             status = builder
                 .setError(GraphExecutorApi2.TaskExecutionStatus.Error.newBuilder()
@@ -267,11 +277,24 @@ public class ExecuteTaskAction extends OperationRunnerBase {
                     .build()
                 )
                 .build();
+            task = task.toBuilder()
+                .status(TaskState.Status.FAILED)
+                .errorDescription(resp.getDescription())
+                .build();
+            taskOp = taskOp.toBuilder()
+                .status(TaskOperation.Status.FAILED)
+                .errorDescription(resp.getDescription())
+                .build();
         }
 
         try {
             DbHelper.withRetries(log(), () -> {
-                operationDao.complete(taskOp.id(), Any.pack(status), null);
+                try (var tx = TransactionHandle.create(storage)) {
+                    operationDao.complete(taskOp.id(), Any.pack(status), tx);
+                    taskDao.updateTask(task, tx);
+                    taskDao.updateTaskOperation(taskOp, tx);
+                    tx.commit();
+                }
             });
         } catch (Exception e) {
             log().error("Sql exception while updating response for task {}", taskOp.id(), e);
