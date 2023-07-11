@@ -44,12 +44,12 @@ from lzy.api.v1.runtime import (
     Runtime,
 )
 from lzy.api.v1.startup import ProcessingRequest
-from lzy.api.v1.utils.files import fileobj_hash_str, zip_module
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_syslog_color
 from lzy.storage.api import Storage, FSCredentials
 from lzy.utils.grpc import retry, RetryConfig
+from lzy.utils.files import fileobj_hash_str, zip_module
 from lzy.utils.format import pretty_protobuf
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))

@@ -2,7 +2,7 @@ import hashlib
 import os
 from io import BytesIO
 from pathlib import Path
-from typing import Union, List, BinaryIO
+from typing import Any, Union, List, BinaryIO
 from zipfile import ZipFile
 
 
@@ -38,7 +38,7 @@ def fileobj_hash_str(fileobj: BytesIO) -> str:
     return _fileobj_hash(fileobj).hexdigest()
 
 
-def _fileobj_hash(fileobj: BytesIO):
+def _fileobj_hash(fileobj: BytesIO) -> Any:
     buf_size = 65_536  # 64kb
 
     md5 = hashlib.md5()
