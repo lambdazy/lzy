@@ -13,16 +13,16 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class ProcessEnvironment extends BaseEnvironment {
-    private List<String> env = new ArrayList<>();
+    private final List<String> env = new ArrayList<>();
 
     public ProcessEnvironment() {
         super();
     }
 
     public ProcessEnvironment withEnv(Map<String, String> env) {
-        this.env = env.entrySet().stream()
-            .map(e -> e.getKey() + "=" + e.getValue())
-            .toList();
+        for (var e: env.entrySet()) {
+            this.env.add(e.getKey() + "=" + e.getValue());
+        }
         return this;
     }
 
