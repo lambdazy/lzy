@@ -31,11 +31,11 @@ def _zip_module(module_path: Union[str, Path], zip_file: ZipFile):
 
 # used as library function in external packages
 def fileobj_hash_bytes(fileobj: BytesIO) -> bytes:
-    return _fileobj_hash(fileobj).digest()
+    return _fileobj_hash(fileobj).digest()  # type: ignore[no-any-return]
 
 
 def fileobj_hash_str(fileobj: BytesIO) -> str:
-    return _fileobj_hash(fileobj).hexdigest()
+    return _fileobj_hash(fileobj).hexdigest()  # type: ignore[no-any-return]
 
 
 def _fileobj_hash(fileobj: BytesIO) -> Any:

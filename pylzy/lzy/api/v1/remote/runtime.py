@@ -243,7 +243,7 @@ class RemoteRuntime(Runtime):
         for local_module in module_paths:
 
             with tempfile.NamedTemporaryFile("rb") as archive:
-                zip_module(local_module, archive)
+                zip_module(local_module, archive)  # type: ignore[arg-type]
 
                 file = cast(BytesIO, archive.file)
                 key = os.path.join(
