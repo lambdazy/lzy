@@ -8,7 +8,7 @@ locals {
   allocator-k8s-name = "allocator"
   allocator-image    = var.allocator-image
 
-  cidrs_list    = [for c in var.allocator_service_cidrs : "{\"cidr\": ${c}, \"ports\": [${local.allocator-port}, ${local.allocator-http-port}, ${local.whiteboard-port}, ${local.scheduler-port}, ${local.lzy-service-port}, ${local.fluent-bit-port}]}"]
+  cidrs_list    = [for c in var.allocator_service_cidrs : "{\"cidr\": \"${c}\", \"ports\": [${local.allocator-port}, ${local.allocator-http-port}, ${local.whiteboard-port}, ${local.scheduler-port}, ${local.lzy-service-port}, ${local.fluent-bit-port}]}"]
   cidrs = "[${join(", ", local.cidrs_list)}]"
 }
 
@@ -73,7 +73,7 @@ resource "kubernetes_stateful_set" "allocator" {
 
           env {
             name  = "ALLOCATOR_HOSTS"
-            value = "[${join(",", [kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]])}]"
+            value = join(",", [kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]])
           }
 
           env {

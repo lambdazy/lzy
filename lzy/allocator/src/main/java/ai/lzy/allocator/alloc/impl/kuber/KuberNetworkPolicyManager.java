@@ -32,7 +32,7 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
     {
         this.clientFactory = clientFactory;
         this.clusterRegistry = clusterRegistry;
-        this.whitelist = config.getServiceCidrs();
+        this.whitelist = config.getServiceCidrs().stream().toList();
     }
 
     @Override

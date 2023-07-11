@@ -12,9 +12,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Getter
 @Setter
@@ -28,7 +26,7 @@ public class ServiceConfig {
     private Duration heartbeatTimeout;
     private List<String> serviceClusters = new ArrayList<>();
     private List<String> userClusters = new ArrayList<>();
-    private List<NetworkPolicyManager.PolicyRule> serviceCidrs = new ArrayList<>();
+    private Set<NetworkPolicyManager.PolicyRule> serviceCidrs = new HashSet<>();
 
     public String getAddress() {
         String ipv6Host = hosts.stream().filter(ValidationUtils::validateIpV6).findFirst().orElse(null);

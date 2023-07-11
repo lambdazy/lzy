@@ -7,20 +7,20 @@ import io.micronaut.core.convert.ConversionContext;
 import io.micronaut.core.convert.TypeConverter;
 import jakarta.inject.Singleton;
 
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 @Singleton
-public class NetworkPolicyRuleConverter implements TypeConverter<String, List<PolicyRule>> {
+public class NetworkPolicyRuleConverter implements TypeConverter<String, Set<PolicyRule>> {
     @Override
-    public Optional<List<PolicyRule>> convert(String object,
-                                              Class<List<PolicyRule>> targetType,
+    public Optional<Set<PolicyRule>> convert(String object,
+                                              Class<Set<PolicyRule>> targetType,
                                               ConversionContext context)
     {
         var mapper = new ObjectMapper();
         try {
-            List<PolicyRule> rule =
-                mapper.readValue(object, mapper.getTypeFactory().constructCollectionType(List.class, PolicyRule.class));
+            Set<PolicyRule> rule =
+                mapper.readValue(object, mapper.getTypeFactory().constructCollectionType(Set.class, PolicyRule.class));
             return Optional.of(rule);
         } catch (JsonProcessingException e) {
             return Optional.empty();
