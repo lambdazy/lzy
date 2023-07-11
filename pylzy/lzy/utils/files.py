@@ -1,19 +1,19 @@
+import _hashlib
 import hashlib
 import os
-from io import BytesIO
 from pathlib import Path
-from typing import Any, Union, List, BinaryIO
+from typing import Union, List, BinaryIO
 from zipfile import ZipFile
 
 
-def zip_module(module_path: str, zip_fileobj: BinaryIO):
+def zip_module(module_path: Union[str, Path], zip_fileobj: BinaryIO) -> None:
     with ZipFile(zip_fileobj.name, 'w') as z:
         _zip_module(module_path, z)
 
     zip_fileobj.seek(0)
 
 
-def _zip_module(module_path: Union[str, Path], zip_file: ZipFile):
+def _zip_module(module_path: Union[str, Path], zip_file: ZipFile) -> None:
     module_path = Path(module_path)
     relative_to = module_path.parent
 
@@ -30,15 +30,15 @@ def _zip_module(module_path: Union[str, Path], zip_file: ZipFile):
 
 
 # used as library function in external packages
-def fileobj_hash_bytes(fileobj: BytesIO) -> bytes:
-    return _fileobj_hash(fileobj).digest()  # type: ignore[no-any-return]
+def fileobj_hash_bytes(fileobj: BinaryIO) -> bytes:
+    return _fileobj_hash(fileobj).digest()
 
 
-def fileobj_hash_str(fileobj: BytesIO) -> str:
-    return _fileobj_hash(fileobj).hexdigest()  # type: ignore[no-any-return]
+def fileobj_hash_str(fileobj: BinaryIO) -> str:
+    return _fileobj_hash(fileobj).hexdigest()
 
 
-def _fileobj_hash(fileobj: BytesIO) -> Any:
+def _fileobj_hash(fileobj: BinaryIO) -> _hashlib.HASH:
     buf_size = 65_536  # 64kb
 
     md5 = hashlib.md5()
