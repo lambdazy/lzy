@@ -1,8 +1,7 @@
-import _hashlib
 import hashlib
 import os
 from pathlib import Path
-from typing import Union, List, BinaryIO
+from typing import Any, Union, List, BinaryIO
 from zipfile import ZipFile
 
 
@@ -31,14 +30,14 @@ def _zip_module(module_path: Union[str, Path], zip_file: ZipFile) -> None:
 
 # used as library function in external packages
 def fileobj_hash_bytes(fileobj: BinaryIO) -> bytes:
-    return _fileobj_hash(fileobj).digest()
+    return _fileobj_hash(fileobj).digest()  # type: ignore[no-any-return]
 
 
 def fileobj_hash_str(fileobj: BinaryIO) -> str:
-    return _fileobj_hash(fileobj).hexdigest()
+    return _fileobj_hash(fileobj).hexdigest()  # type: ignore[no-any-return]
 
 
-def _fileobj_hash(fileobj: BinaryIO) -> _hashlib.HASH:
+def _fileobj_hash(fileobj: BinaryIO) -> Any:
     buf_size = 65_536  # 64kb
 
     md5 = hashlib.md5()
