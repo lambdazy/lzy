@@ -5,23 +5,23 @@ from typing import Any, Union, List, BinaryIO
 from zipfile import ZipFile
 
 
-def zip_module(module_path: Union[str, Path], zip_fileobj: BinaryIO) -> None:
+def zip_path(path: Union[str, Path], zip_fileobj: BinaryIO) -> None:
     with ZipFile(zip_fileobj.name, 'w') as z:
-        _zip_module(module_path, z)
+        _zip_path(path, z)
 
     zip_fileobj.seek(0)
 
 
-def _zip_module(module_path: Union[str, Path], zip_file: ZipFile) -> None:
-    module_path = Path(module_path)
-    relative_to = module_path.parent
+def _zip_path(path: Union[str, Path], zip_file: ZipFile) -> None:
+    path = Path(path)
+    relative_to = path.parent
 
     paths: List[Path] = []
-    if module_path.is_dir():
-        for root, _, files in os.walk(module_path):
+    if path.is_dir():
+        for root, _, files in os.walk(path):
             paths.extend(Path(root) / filename for filename in files)
     else:
-        paths.append(module_path)
+        paths.append(path)
 
     for path_at_fs in paths:
         path_to_write = path_at_fs.relative_to(relative_to)

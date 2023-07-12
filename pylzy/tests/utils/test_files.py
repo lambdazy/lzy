@@ -1,7 +1,7 @@
-from lzy.utils.files import zip_module, fileobj_hash_str, fileobj_hash_bytes
+from lzy.utils.files import zip_path, fileobj_hash_str, fileobj_hash_bytes
 
 
-def test_zip_module(tmp_path):
+def test_zip_path(tmp_path):
     f = tmp_path / 'file.txt'
     f.write_text('import os')
 
@@ -9,7 +9,7 @@ def test_zip_module(tmp_path):
     ar.touch()
 
     with open(ar, 'rb') as ar_f:
-        zip_module(f, ar_f)
+        zip_path(f, ar_f)
         # zipped content may differ depend on test env, so we just check zip file header
         assert ar_f.read()[:4] == b'PK\x03\x04'
 

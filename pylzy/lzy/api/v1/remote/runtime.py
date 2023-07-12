@@ -49,7 +49,7 @@ from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_syslog_color
 from lzy.storage.api import Storage, FSCredentials
 from lzy.utils.grpc import retry, RetryConfig
-from lzy.utils.files import fileobj_hash_str, zip_module
+from lzy.utils.files import fileobj_hash_str, zip_path
 from lzy.utils.format import pretty_protobuf
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
@@ -243,7 +243,7 @@ class RemoteRuntime(Runtime):
         for local_module in module_paths:
 
             with tempfile.NamedTemporaryFile("rb") as archive:
-                zip_module(local_module, archive)
+                zip_path(local_module, archive)
 
                 file = cast(BytesIO, archive.file)
                 key = os.path.join(
