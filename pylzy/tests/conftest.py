@@ -3,6 +3,7 @@ import pathlib
 import pytest
 import google.protobuf.json_format
 from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
+from lzy.types import VmSpec
 
 
 @pytest.fixture(scope="module")
@@ -72,6 +73,11 @@ def vm_pool_specs(request, get_test_data_path):
 
 
 @pytest.fixture(scope='class')
+def vm_specs(vm_pool_specs):
+    return tuple(VmSpec.from_proto(p) for p in vm_pool_specs)
+
+
+@pytest.fixture(scope='class')
 def vm_pool_spec_large(request, vm_pool_specs):
     result = None
     for spec in vm_pool_specs:
@@ -83,6 +89,16 @@ def vm_pool_spec_large(request, vm_pool_specs):
 
 
 @pytest.fixture(scope='class')
+def vm_spec_large(request, vm_pool_specs):
+    result = None
+    for spec in vm_pool_specs:
+        if spec.poolSpecName == 'large':
+            return VmSpec.from_proto(spec)
+
+    assert False, "unreachable"
+
+
+@pytest.fixture(scope='class')
 def vm_pool_spec_small(request, vm_pool_specs):
     result = None
     for spec in vm_pool_specs:
@@ -91,6 +107,16 @@ def vm_pool_spec_small(request, vm_pool_specs):
             break
 
     return set_unittest_fixture(request, result)
+
+
+@pytest.fixture(scope='class')
+def vm_spec_small(request, vm_pool_specs):
+    result = None
+    for spec in vm_pool_specs:
+        if spec.poolSpecName == 'small':
+            return VmSpec.from_proto(spec)
+
+    assert False, "unreachable"
 
 
 @pytest.fixture(scope='session')

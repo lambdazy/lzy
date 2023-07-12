@@ -4,7 +4,7 @@ import sys
 
 from dataclasses import dataclass
 
-from typing_extensions import Self, Protocol, final
+from typing_extensions import Self, Protocol, final, runtime_checkable
 
 from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec as VmPoolSpecProto
 
@@ -20,6 +20,7 @@ class File(PlatformPath):
     pass
 
 
+@runtime_checkable
 class VmResources(Protocol):
     cpu_type: str
     cpu_count: int
