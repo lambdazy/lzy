@@ -1,5 +1,3 @@
-import pytest
-
 from lzy.env.environment import LzyEnvironment
 from lzy.env.container.docker import DockerContainer
 from lzy.env.container.no_container import NoContainer
