@@ -65,10 +65,10 @@ public class DeleteSessionAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(this::exec);
+        return List.of(this::removeVMs, this::removeNetPolicy, this::removeSession);
     }
 
-    private StepResult exec() {
+    private StepResult removeVMs() {
         List<Vm> vms;
         try {
             vms = withRetries(log(), () -> allocationContext.vmDao().getSessionVms(sessionId, null));
@@ -78,20 +78,7 @@ public class DeleteSessionAction extends OperationRunnerBase {
         }
 
         if (vms.isEmpty()) {
-            try {
-                withRetries(log(), () -> {
-                    try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                        completeOperation(null, Any.pack(Empty.getDefaultInstance()), tx);
-                        sessionDao.removeSession(sessionId, tx);
-                        tx.commit();
-                    }
-                });
-            } catch (Exception e) {
-                log().error("{} Cannot complete operation: {}", logPrefix(), e.getMessage(), e);
-                return StepResult.RESTART;
-            }
-            log().info("{} Operation completed", logPrefix());
-            return StepResult.FINISH;
+            return StepResult.CONTINUE;
         }
 
         for (var vm : vms) {
@@ -129,5 +116,32 @@ public class DeleteSessionAction extends OperationRunnerBase {
         }
 
         return StepResult.RESTART;
+    }
+
+    private StepResult removeNetPolicy() {
+        try {
+            allocationContext.networkPolicyManager().deleteNetworkPolicy(sessionId);
+        } catch (Exception e) {
+            log().error("Cannot remove net-policy {} : {}", sessionId, e.getMessage(), e);
+            return StepResult.RESTART;
+        }
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult removeSession() {
+        try {
+            withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    completeOperation(null, Any.pack(Empty.getDefaultInstance()), tx);
+                    sessionDao.removeSession(sessionId, tx);
+                    tx.commit();
+                }
+            });
+        } catch (Exception e) {
+            log().error("{} Cannot complete operation: {}", logPrefix(), e.getMessage(), e);
+            return StepResult.RESTART;
+        }
+        log().info("{} Operation completed", logPrefix());
+        return StepResult.FINISH;
     }
 }

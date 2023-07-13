@@ -5,7 +5,7 @@ import yandex.cloud.sdk.auth.provider.CredentialProvider;
 
 import java.time.Instant;
 
-public class TestCrerdProvider implements CredentialProvider {
+public class TestCredProvider implements CredentialProvider {
 
     @Override
     public IamToken get() {

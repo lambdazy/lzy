@@ -73,7 +73,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        kuber = new KuberClientFactoryImpl(new TestCrerdProvider()).build(clusterRegistry.getCluster(clusterId));
+        kuber = new KuberClientFactoryImpl(new TestCredProvider()).build(clusterRegistry.getCluster(clusterId));
 
         allocatorApp = context.getBean(AllocatorMain.class);
         allocatorApp.start();

@@ -65,7 +65,7 @@ public class VolumeManagerTest {
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        var kuberClientFactory = new KuberClientFactoryImpl(new TestCrerdProvider());
+        var kuberClientFactory = new KuberClientFactoryImpl(new TestCredProvider());
         volumeManager = new KuberVolumeManager(kuberClientFactory, clusterRegistry, storageProvider);
     }
 

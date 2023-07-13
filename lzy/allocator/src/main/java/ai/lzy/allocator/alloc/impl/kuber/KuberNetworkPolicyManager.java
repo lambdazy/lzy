@@ -4,6 +4,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.networking.v1.*;
+import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NAMESPACE_VALUE;
+import static ai.lzy.allocator.util.KuberUtils.isResourceAlreadyExist;
 
 @Singleton
 @Slf4j
@@ -74,6 +76,10 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
                         .resource(networkPolicySpec);
                     networkPolicy = resource.create();
                 } catch (Exception e) {
+                    if (isResourceAlreadyExist(e)) {
+                        log.warn("Session: {} already exists", sessionId);
+                        return;
+                    }
                     log.error("Failed to create network policy for session {}: {}", sessionId, e.getMessage(), e);
                     throw new RuntimeException(
                         "Failed to create network policy for session " + sessionId + ": " + e.getMessage(), e
@@ -113,11 +119,9 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
                         .inNamespace(NAMESPACE_VALUE)
                         .resource(networkPolicySpec)
                         .delete();
-                } catch (Exception e) {
+                } catch (KubernetesClientException e) {
                     log.error("Failed to delete network policy for session {}: {}", sessionId, e.getMessage(), e);
-                    throw new RuntimeException(
-                        "Failed to delete network policy for session " + sessionId + ": " + e.getMessage(), e
-                    );
+                    throw e;
                 }
                 log.debug("Deleted network policy in Kuber: {}", deleteStatusDetails);
             }

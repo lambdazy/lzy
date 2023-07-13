@@ -82,15 +82,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private final ServiceConfig.CacheLimits cacheConfig;
     private final ServiceConfig.MountConfig mountConfig;
     private final IdGenerator idGenerator;
-    private final NetworkPolicyManager networkPolicyManager;
 
     @Inject
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                             SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
                             ServiceConfig config, ServiceConfig.CacheLimits cacheConfig,
                             ServiceConfig.MountConfig mountConfig,
-                            @Named("AllocatorIdGenerator") IdGenerator idGenerator,
-                            NetworkPolicyManager networkPolicyManager)
+                            @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
@@ -101,7 +99,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         this.cacheConfig = cacheConfig;
         this.mountConfig = mountConfig;
         this.idGenerator = idGenerator;
-        this.networkPolicyManager = networkPolicyManager;
     }
 
     @PreDestroy
@@ -123,7 +120,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         final var operationId = idGenerator.generate("create-session-");
         final var sessionId = idGenerator.generate("sid-");
         try {
-            networkPolicyManager.createNetworkPolicy(sessionId, List.of());
+            allocationContext.networkPolicyManager().createNetworkPolicy(
+                sessionId,
+                request.getNetPolicyRulesList().stream().map(this::toPolicyRule).toList()
+            );
         } catch (Exception ex) {
             allocationContext.metrics().createSessionError.inc();
 
@@ -167,6 +167,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
             LOG.error("Cannot create session: {}", ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            try {
+                allocationContext.networkPolicyManager().deleteNetworkPolicy(sessionId);
+            } catch (Exception e) {
+                LOG.error("Cannot remove net-policy {} : {}", sessionId, e.getMessage(), e);
+            }
             return;
         }
 
@@ -1026,5 +1031,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT.withDescription("invalid storage_class")
                 .asRuntimeException();
         };
+    }
+
+    private NetworkPolicyManager.PolicyRule toPolicyRule(NetPolicyRule rule) {
+        return new NetworkPolicyManager.PolicyRule(rule.getCidr(), rule.getPortsList());
     }
 }
