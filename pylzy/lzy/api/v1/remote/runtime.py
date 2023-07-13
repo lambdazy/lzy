@@ -7,6 +7,7 @@ import uuid
 from asyncio import Task
 from io import BytesIO
 from typing import (
+    BinaryIO,
     Callable,
     Dict,
     Iterable,
@@ -243,7 +244,7 @@ class RemoteRuntime(Runtime):
         for local_module in module_paths:
 
             with tempfile.NamedTemporaryFile("rb") as archive:
-                zip_path(local_module, archive)
+                zip_path(local_module, cast(BinaryIO, archive))
 
                 file = cast(BytesIO, archive.file)
                 key = os.path.join(
