@@ -139,7 +139,6 @@ class Provisioning(BaseProvisioning):
                 continue
 
             score = score_function(provisioning_spec, vm_spec)
-            print(score, score_function, vm_spec)
             spec_scores.append((score, vm_spec))
             logger.debug("eligible spec %r have score %f", vm_spec, score)
 
