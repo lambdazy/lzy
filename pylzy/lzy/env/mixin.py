@@ -5,7 +5,7 @@ from typing import TypeVar
 from typing_extensions import Self
 
 from .base import Deconstructible
-from .environment import LzyEnvironment
+from .environment import LzyEnvironment, EnvVarsType
 from .container.base import BaseContainer
 from .provisioning.provisioning import Provisioning
 from .python.base import BasePythonEnv
@@ -17,6 +17,11 @@ class WithEnvironmentMixin(Deconstructible):
 
     def with_env(self, env: LzyEnvironment) -> Self:
         return self.with_fields(env=env)
+
+    def with_env_vars(self, env_vars: EnvVarsType) -> Self:
+        return self.with_env(
+            self.env.with_fields(env_vars=env_vars)
+        )
 
     def with_provisioning(self, provisioning: Provisioning) -> Self:
         return self.with_env(
