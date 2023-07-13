@@ -45,13 +45,13 @@ class LzyEnvironment(Deconstructible):
         if is_specified(self.provisioning) and is_specified(provisioning):
             new_provisioning = self.provisioning.combine(provisioning)
         else:
-            new_provisioning = self.provisioning or provisioning
+            new_provisioning = provisioning or self.provisioning
 
         return super().with_fields(
-            env_vars=self.env_vars or env_vars,
+            env_vars=env_vars or self.env_vars,
             provisioning=new_provisioning,
-            python_env=self.python_env or python_env,
-            container=self.container or container,
+            python_env=python_env or self.python_env,
+            container=container or self.container,
             **kwargs,
         )
 

@@ -7,3 +7,6 @@ from .base import BaseContainer, ContainerTypes
 
 class NoContainer(BaseContainer):
     container_type: ClassVar[ContainerTypes] = ContainerTypes.NoContainer
+
+    def deconstruct(self):
+        return {}

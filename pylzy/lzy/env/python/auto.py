@@ -29,7 +29,8 @@ class AutoPythonEnv(BasePythonEnv):
     _env_explorer: BaseExplorer = field(init=False)
 
     def __post_init__(self):
-        self._env_explorer = self.env_explorer_factory(self)
+        # because we are frozen
+        object.__setattr__(self, '_env_explorer', self.env_explorer_factory(self))
 
     def get_python_version(self) -> str:
         version_info: List[str] = [str(i) for i in sys.version_info[:3]]
