@@ -114,6 +114,16 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
                     .build();
                 final List<StatusDetails> deleteStatusDetails;
                 try {
+                    try {
+                        var get = client.network()
+                            .networkPolicies()
+                            .inNamespace(NAMESPACE_VALUE)
+                            .resource(networkPolicySpec)
+                            .get();
+                    } catch (KubernetesClientException e) {
+                        log.info("NetPolicy {} not found", sessionId);
+                        return;
+                    }
                     deleteStatusDetails = client.network()
                         .networkPolicies()
                         .inNamespace(NAMESPACE_VALUE)
