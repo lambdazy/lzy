@@ -4,7 +4,6 @@ import ai.lzy.allocator.BeanFactory;
 import ai.lzy.allocator.alloc.AllocationContext;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
-import ai.lzy.allocator.alloc.impl.kuber.NetworkPolicyManager;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.services.AllocatorService;
