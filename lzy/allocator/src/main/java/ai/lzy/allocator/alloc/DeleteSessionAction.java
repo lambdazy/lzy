@@ -12,14 +12,12 @@ import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
 import com.google.protobuf.Any;
 import com.google.protobuf.Empty;
-import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.grpc.Status;
 
 import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Supplier;
 
-import static ai.lzy.allocator.util.KuberUtils.isNotRetryable;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
