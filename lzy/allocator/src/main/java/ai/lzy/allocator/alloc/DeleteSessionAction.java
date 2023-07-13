@@ -1,6 +1,7 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.alloc.dao.SessionDao;
+import ai.lzy.allocator.exceptions.NetworkPolicyException;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
@@ -123,11 +124,18 @@ public class DeleteSessionAction extends OperationRunnerBase {
     private StepResult removeNetPolicy() {
         try {
             allocationContext.networkPolicyManager().deleteNetworkPolicy(sessionId);
-        } catch (Exception e) {
-            if (e instanceof KubernetesClientException && !isNotRetryable((KubernetesClientException) e)) {
+        } catch (NetworkPolicyException e) {
+            log().error("Cannot remove net-policy {} : {}", sessionId, e.getMessage(), e);
+            if (e.isRetryable()) {
                 return StepResult.RESTART;
             }
-            log().error("Cannot remove net-policy {} : {}", sessionId, e.getMessage(), e);
+            try {
+                withRetries(log(), () -> operationsDao()
+                    .fail(id(), toProto(Status.CANCELLED.withDescription("Session remove failed")), null));
+            } catch (Exception ex) {
+                log().error("Failed to abort session {} deletion", sessionId);
+                return StepResult.RESTART;
+            }
             return StepResult.FINISH;
         }
         return StepResult.CONTINUE;

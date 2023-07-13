@@ -1,6 +1,7 @@
 package ai.lzy.allocator.alloc.impl.kuber;
 
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.allocator.exceptions.NetworkPolicyException;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.api.model.networking.v1.*;
@@ -15,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NAMESPACE_VALUE;
+import static ai.lzy.allocator.util.KuberUtils.isNotRetryable;
 import static ai.lzy.allocator.util.KuberUtils.isResourceAlreadyExist;
 
 @Singleton
@@ -38,7 +40,7 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
     }
 
     @Override
-    public void createNetworkPolicy(String sessionId, List<PolicyRule> whitelistCIDRs) {
+    public void createNetworkPolicy(String sessionId, List<PolicyRule> whitelistCIDRs) throws NetworkPolicyException {
         var clusterDescriptions = clusterRegistry.listClusters(ClusterRegistry.ClusterType.User);
         clusterDescriptions.forEach(cluster -> {
             try (final var client = clientFactory.build(cluster)) {
@@ -70,19 +72,18 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
                     .build();
                 final NetworkPolicy networkPolicy;
                 try {
-                    var resource = client.network()
+                    networkPolicy = client.network()
                         .networkPolicies()
                         .inNamespace(NAMESPACE_VALUE)
-                        .resource(networkPolicySpec);
-                    networkPolicy = resource.create();
+                        .resource(networkPolicySpec).create();
                 } catch (Exception e) {
                     if (isResourceAlreadyExist(e)) {
                         log.warn("Session: {} already exists", sessionId);
                         return;
                     }
                     log.error("Failed to create network policy for session {}: {}", sessionId, e.getMessage(), e);
-                    throw new RuntimeException(
-                        "Failed to create network policy for session " + sessionId + ": " + e.getMessage(), e
+                    throw new NetworkPolicyException(
+                        "Failed to create network policy for session " + sessionId + ": " + e.getMessage(), false
                     );
                 }
                 log.debug("Created network policy in Kuber: {}", networkPolicy);
@@ -105,7 +106,7 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
     }
 
     @Override
-    public void deleteNetworkPolicy(String sessionId) {
+    public void deleteNetworkPolicy(String sessionId) throws NetworkPolicyException {
         var clusterDescriptions = clusterRegistry.listClusters(ClusterRegistry.ClusterType.User);
         clusterDescriptions.forEach(cluster -> {
             try (final var client = clientFactory.build(cluster)) {
@@ -131,7 +132,10 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
                         .delete();
                 } catch (KubernetesClientException e) {
                     log.error("Failed to delete network policy for session {}: {}", sessionId, e.getMessage(), e);
-                    throw e;
+                    if (isNotRetryable(e)) {
+                        throw new NetworkPolicyException(e.getMessage(), false);
+                    }
+                    throw new NetworkPolicyException(e.getMessage(), true);
                 }
                 log.debug("Deleted network policy in Kuber: {}", deleteStatusDetails);
             }
