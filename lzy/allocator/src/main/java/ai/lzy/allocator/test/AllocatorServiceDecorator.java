@@ -32,11 +32,10 @@ public class AllocatorServiceDecorator extends AllocatorService {
                                      SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
                                      ServiceConfig config, ServiceConfig.CacheLimits cacheLimits,
                                      ServiceConfig.MountConfig mountConfig,
-                                     @Named("AllocatorIdGenerator") IdGenerator idGenerator,
-                                     NetworkPolicyManager networkPolicyManager)
+                                     @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
         super(vmDao, operationsDao, sessionsDao, diskDao, allocationContext, config, cacheLimits, mountConfig,
-            idGenerator, networkPolicyManager);
+            idGenerator);
     }
 
     @Override
