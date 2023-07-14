@@ -32,7 +32,8 @@ public class KuberVolumeManager implements VolumeManager {
     private final StorageProvider storageProvider;
 
     public KuberVolumeManager(KuberClientFactory kuberClientFactory, ClusterRegistry clusterRegistry,
-                              StorageProvider storageProvider) {
+                              StorageProvider storageProvider)
+    {
         this.kuberClientFactory = kuberClientFactory;
         this.clusterRegistry = clusterRegistry;
         this.storageProvider = storageProvider;

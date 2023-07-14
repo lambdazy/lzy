@@ -30,11 +30,13 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     private boolean volumeClaimDeletionRequested = false;
     private boolean volumeDeletionRequested = false;
     private boolean volumeUnmounted = false;
+    @Nullable
     private boolean skipVolumeDeletion = false;
     private boolean volumeDeleted = false;
     private boolean volumeClaimDeleted = false;
     private ClusterPod updatedMountPod = null;
-    private List<DynamicMount> activeMounts;
+    @Nullable
+    private List<DynamicMount> activeMounts = null;
     @Nullable
     private Long nextId;
     private @Nullable String oldMountPod;
@@ -109,7 +111,10 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         if (nextId != null) {
             return StepResult.ALREADY_DONE;
         }
-        if (activeMounts.isEmpty()) {
+        if (!dynamicMount.mounted()) {
+            return StepResult.ALREADY_DONE;
+        }
+        if (activeMounts == null || activeMounts.isEmpty()) {
             return StepResult.ALREADY_DONE;
         }
 
@@ -132,7 +137,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         if (nextId == null) {
             return StepResult.ALREADY_DONE;
         }
-        if (activeMounts.isEmpty()) {
+        if (activeMounts == null || activeMounts.isEmpty()) {
             return StepResult.ALREADY_DONE;
         }
 
@@ -200,9 +205,6 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         if (!dynamicMount.mounted()) {
             return StepResult.ALREADY_DONE;
         }
-        if (updatedMountPod == null) {
-            return StepResult.ALREADY_DONE;
-        }
         if (Objects.equals(vm.instanceProperties().mountPodName(), updatedMountPod.podName())) {
             return StepResult.ALREADY_DONE;
         }
@@ -211,7 +213,12 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         try {
             withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                    allocationContext.vmDao().setMountPodAndIncrementNextId(vm.vmId(), updatedMountPod.podName(), tx);
+                    if (updatedMountPod == null) {
+                        allocationContext.vmDao().removeMountPod(vm.vmId(), tx);
+                    } else {
+                        allocationContext.vmDao().setMountPodAndIncrementNextId(vm.vmId(), updatedMountPod.podName(),
+                            tx);
+                    }
                     var mountedUpdate = DynamicMount.Update.builder()
                         .mounted(false)
                         .build();
@@ -231,16 +238,14 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         if (vmIsDeleting()) {
             return StepResult.ALREADY_DONE;
         }
-        if (!dynamicMount.mounted()) {
-            return StepResult.ALREADY_DONE;
-        }
-        if (oldMountPod == null) {
-            return StepResult.ALREADY_DONE;
-        }
 
-        log().info("{} Deleting old mount pod {}", logPrefix(), oldMountPod);
+        log().info("{} Deleting old mount pods", logPrefix());
         try {
-            allocationContext.mountHolderManager().deallocateOtherMountPods(vm.vmId(), updatedMountPod);
+            if (updatedMountPod != null) {
+                allocationContext.mountHolderManager().deallocateOtherMountPods(vm.vmId(), updatedMountPod);
+            } else {
+                allocationContext.mountHolderManager().deallocateAllMountPods(vm.spec());
+            }
         } catch (KubernetesClientException e) {
             log().error("{} Couldn't delete mount pod {} for {}", logPrefix(), oldMountPod, dynamicMount.id(), e);
             if (KuberUtils.isNotRetryable(e)) {

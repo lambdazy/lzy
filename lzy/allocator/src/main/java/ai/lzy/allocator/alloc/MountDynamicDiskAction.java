@@ -81,19 +81,16 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         }
     }
 
-    private UnmountDynamicDiskAction createUnmountActionInTx(Status status) throws Exception {
-        return withRetries(log(), () -> {
-            try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                var action = createUnmountAction(status, tx);
-                tx.commit();
-                return action;
-            }
-        });
-    }
-
     private void fail(Status status) {
         try {
-            unmountAction = createUnmountActionInTx(status);
+            unmountAction = withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    failOperation(status, tx);
+                    var action = createUnmountAction(tx);
+                    tx.commit();
+                    return action;
+                }
+            });
         } catch (Exception e) {
             log().error("{} Failed to create unmount action", logPrefix(), e);
         }
@@ -107,22 +104,21 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         return ctx;
     }
 
-    private UnmountDynamicDiskAction createUnmountAction(Status status, TransactionHandle tx)
+    private UnmountDynamicDiskAction createUnmountAction(TransactionHandle tx)
         throws SQLException
     {
-        failOperation(status, tx);
         return allocationContext.createUnmountAction(vm, dynamicMount, tx).getLeft();
     }
 
     @Override
     protected void onExpired(TransactionHandle tx) throws SQLException {
-        unmountAction = createUnmountAction(Status.DEADLINE_EXCEEDED, tx);
+        unmountAction = createUnmountAction(tx);
     }
 
     @Override
     protected void onCompletedOutside(Operation op, TransactionHandle tx) throws SQLException {
         if (op.error() != null) {
-            unmountAction = createUnmountAction(op.error(), tx);
+            unmountAction = createUnmountAction(tx);
         }
     }
 

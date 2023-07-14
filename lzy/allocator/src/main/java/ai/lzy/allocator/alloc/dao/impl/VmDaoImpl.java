@@ -146,6 +146,11 @@ public class VmDaoImpl implements VmDao {
         SET mount_pod_name = ?, next_mount_pod_id = next_mount_pod_id + 1
         WHERE id = ?""";
 
+    private static final String QUERY_REMOVE_MOUNT_POD_NAME = """
+        UPDATE vm
+        SET mount_pod_name = NULL
+        WHERE id = ?""";
+
     private static final String QUERY_SET_ENDPOINTS = """
         UPDATE vm
         SET endpoints = ?
@@ -506,6 +511,16 @@ public class VmDaoImpl implements VmDao {
             try (PreparedStatement s = con.prepareStatement(QUERY_SET_MOUNT_POD_NAME)) {
                 s.setString(1, mountPodName);
                 s.setString(2, vmId);
+                s.executeUpdate();
+            }
+        });
+    }
+
+    @Override
+    public void removeMountPod(String vmId, @Nullable TransactionHandle tx) throws SQLException {
+        DbOperation.execute(tx, storage, con -> {
+            try (PreparedStatement s = con.prepareStatement(QUERY_REMOVE_MOUNT_POD_NAME)) {
+                s.setString(1, vmId);
                 s.executeUpdate();
             }
         });
