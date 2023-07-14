@@ -27,10 +27,12 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     @Nullable
     private Vm vm;
     private boolean mountPodStarted = false;
-    private boolean volumeClaimDeleted = false;
-    private boolean volumeDeleted = false;
+    private boolean volumeClaimDeletionRequested = false;
+    private boolean volumeDeletionRequested = false;
     private boolean volumeUnmounted = false;
-    private boolean skipClaimDeletion = false;
+    private boolean skipVolumeDeletion = false;
+    private boolean volumeDeleted = false;
+    private boolean volumeClaimDeleted = false;
     private ClusterPod updatedMountPod = null;
     private List<DynamicMount> activeMounts;
     @Nullable
@@ -74,7 +76,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         return List.of(this::prepareActiveMounts, this::getNextMountPodId, this::createNewMountPod,
             this::waitForMountPod, this::updateVmMountPod, this::deleteOtherMountPods,
             this::unmountFromVM, this::countDynamicMounts, this::removeVolumeClaim, this::removeVolume,
-            this::deleteMount);
+            this::waitVolumeClaimDeletion, this::waitVolumeDeletion, this::deleteMount);
     }
 
     private StepResult prepareActiveMounts() {
@@ -282,7 +284,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
                 .countVolumeClaimUsages(dynamicMount.clusterId(), dynamicMount.volumeClaimName(), null));
 
             if (count > 1) {
-                skipClaimDeletion = true;
+                skipVolumeDeletion = true;
             }
         } catch (Exception e) {
             log().error("{} Failed to count mounts by volume claim", logPrefix(), e);
@@ -292,13 +294,13 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
 
 
     private StepResult removeVolumeClaim() {
-        if (volumeClaimDeleted || skipClaimDeletion) {
+        if (volumeClaimDeletionRequested || skipVolumeDeletion) {
             return StepResult.ALREADY_DONE;
         }
         log().info("{} Deleting volume claim {}", logPrefix(), dynamicMount.volumeClaimName());
         try {
             allocationContext.volumeManager().deleteClaim(dynamicMount.clusterId(), dynamicMount.volumeClaimName());
-            volumeClaimDeleted = true;
+            volumeClaimDeletionRequested = true;
         } catch (KubernetesClientException e) {
             log().error("{} Failed to delete volume claim {}", logPrefix(), dynamicMount.volumeClaimName(), e);
             if (KuberUtils.isNotRetryable(e)) {
@@ -311,20 +313,72 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     }
 
     private StepResult removeVolume() {
-        if (volumeDeleted) {
+        if (volumeDeletionRequested) {
             return StepResult.ALREADY_DONE;
         }
 
-        if (skipClaimDeletion) {
+        if (skipVolumeDeletion) {
             return StepResult.ALREADY_DONE;
         }
 
         log().info("{} Deleting volume {}", logPrefix(), dynamicMount.volumeName());
         try {
             allocationContext.volumeManager().delete(dynamicMount.clusterId(), dynamicMount.volumeName());
-            volumeDeleted = true;
+            volumeDeletionRequested = true;
         } catch (KubernetesClientException e) {
             log().error("{} Failed to delete volume {}", logPrefix(), dynamicMount.volumeName(), e);
+            if (KuberUtils.isNotRetryable(e)) {
+                return StepResult.CONTINUE;
+            }
+            return StepResult.RESTART;
+        }
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult waitVolumeClaimDeletion() {
+        if (skipVolumeDeletion) {
+            return StepResult.ALREADY_DONE;
+        }
+        if (volumeClaimDeleted) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        log().info("{} Waiting for volume claim {} to be deleted", logPrefix(), dynamicMount.volumeClaimName());
+        try {
+            var claim = allocationContext.volumeManager().getClaim(dynamicMount.clusterId(),
+                dynamicMount.volumeClaimName());
+            if (claim != null) {
+                return StepResult.RESTART;
+            }
+            volumeClaimDeleted = true;
+        } catch (KubernetesClientException e) {
+            log().error("{} Failed to wait for volume claim {} to be deleted", logPrefix(),
+                dynamicMount.volumeClaimName(), e);
+            if (KuberUtils.isNotRetryable(e)) {
+                return StepResult.CONTINUE;
+            }
+            return StepResult.RESTART;
+        }
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult waitVolumeDeletion() {
+        if (skipVolumeDeletion) {
+            return StepResult.ALREADY_DONE;
+        }
+        if (volumeDeleted) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        log().info("{} Waiting for volume {} to be deleted", logPrefix(), dynamicMount.volumeName());
+        try {
+            var volume = allocationContext.volumeManager().get(dynamicMount.clusterId(), dynamicMount.volumeName());
+            if (volume != null) {
+                return StepResult.RESTART;
+            }
+            volumeDeleted = true;
+        } catch (KubernetesClientException e) {
+            log().error("{} Failed to wait for volume {} to be deleted", logPrefix(), dynamicMount.volumeName(), e);
             if (KuberUtils.isNotRetryable(e)) {
                 return StepResult.CONTINUE;
             }

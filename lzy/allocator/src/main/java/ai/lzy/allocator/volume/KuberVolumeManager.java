@@ -245,12 +245,34 @@ public class KuberVolumeManager implements VolumeManager {
 
     @Override
     public void delete(String clusterId, String volumeName) {
-        LOG.info("Skipping persistent volume {} deletion", volumeName);
+        var cluster = getClusterOrThrow(clusterId);
+        try (var client = kuberClientFactory.build(cluster)) {
+            LOG.info("Deleting persistent volume {}", volumeName);
+            client.persistentVolumes().withName(volumeName).delete();
+        } catch (KubernetesClientException e) {
+            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                LOG.warn("Persistent volume {} not found", volumeName);
+                return;
+            }
+            LOG.error("Cannot delete persistent volume {}: {}", volumeName, e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Override
     public void deleteClaim(String clusterId, String volumeClaimName) {
-        LOG.info("Skipping persistent volume claim {} deletion", volumeClaimName);
+        var cluster = getClusterOrThrow(clusterId);
+        try (var client = kuberClientFactory.build(cluster)) {
+            LOG.info("Deleting volume claim {}", volumeClaimName);
+            client.persistentVolumeClaims().inNamespace(DEFAULT_NAMESPACE).withName(volumeClaimName).delete();
+        } catch (KubernetesClientException e) {
+            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+                LOG.warn("Persistent volume claim {} not found", volumeClaimName);
+                return;
+            }
+            LOG.error("Cannot delete persistent volume claim {}: {}", volumeClaimName, e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Nonnull
