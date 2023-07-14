@@ -60,7 +60,7 @@ public class KuberVolumeManager implements VolumeManager {
             resourceName = diskVolumeDescription.name();
             storageClass = storageProvider.resolveDiskStorageClass(diskVolumeDescription.storageClass());
             var readOnly = accessMode == Volume.AccessMode.READ_ONLY_MANY;
-            volumeName = generateDiskVolumeName(diskId, readOnly);
+            volumeName = generateDiskVolumeName(diskId);
 
             LOG.info("Creating persistent volume '{}' with description {}", volumeName, diskVolumeDescription);
             volume = new PersistentVolumeBuilder()
@@ -134,9 +134,8 @@ public class KuberVolumeManager implements VolumeManager {
         }
     }
 
-    private static String generateDiskVolumeName(String diskId, boolean readOnly) {
-        var accessModeSuffix = readOnly ? "ro" : "rw";
-        return "vm-volume-" + diskId + "-" + accessModeSuffix;
+    private static String generateDiskVolumeName(String diskId) {
+        return "vm-volume-" + diskId;
     }
 
     @Override

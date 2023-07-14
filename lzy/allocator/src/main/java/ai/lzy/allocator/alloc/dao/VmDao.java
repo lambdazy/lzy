@@ -49,10 +49,8 @@ public interface VmDao {
 
     void setTunnelPod(String vmId, String tunnelPodName, @Nullable TransactionHandle tx) throws SQLException;
 
-    void setMountPodAndIncrementNextId(String vmId, String mountPodName, @Nullable TransactionHandle tx)
+    void setMountPodAndIncrementNextId(String vmId, @Nullable String mountPodName, @Nullable TransactionHandle tx)
         throws SQLException;
-
-    void removeMountPod(String vmId, @Nullable TransactionHandle tx) throws SQLException;
 
     void setEndpoints(String vmId, List<Vm.Endpoint> endpoints, @Nullable TransactionHandle tx) throws SQLException;
 

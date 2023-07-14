@@ -30,10 +30,10 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     private boolean volumeClaimDeletionRequested = false;
     private boolean volumeDeletionRequested = false;
     private boolean volumeUnmounted = false;
-    @Nullable
     private boolean skipVolumeDeletion = false;
     private boolean volumeDeleted = false;
     private boolean volumeClaimDeleted = false;
+    @Nullable
     private ClusterPod updatedMountPod = null;
     @Nullable
     private List<DynamicMount> activeMounts = null;
@@ -205,20 +205,16 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         if (!dynamicMount.mounted()) {
             return StepResult.ALREADY_DONE;
         }
-        if (Objects.equals(vm.instanceProperties().mountPodName(), updatedMountPod.podName())) {
+        var podName = updatedMountPod != null ? updatedMountPod.podName() : null;
+        if (Objects.equals(vm.instanceProperties().mountPodName(), podName)) {
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Updating vm with new mount pod {}", logPrefix(), updatedMountPod.podName());
+        log().info("{} Updating vm with new mount pod {}", logPrefix(), podName);
         try {
             withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                    if (updatedMountPod == null) {
-                        allocationContext.vmDao().removeMountPod(vm.vmId(), tx);
-                    } else {
-                        allocationContext.vmDao().setMountPodAndIncrementNextId(vm.vmId(), updatedMountPod.podName(),
-                            tx);
-                    }
+                    allocationContext.vmDao().setMountPodAndIncrementNextId(vm.vmId(), podName, tx);
                     var mountedUpdate = DynamicMount.Update.builder()
                         .mounted(false)
                         .build();
@@ -227,9 +223,9 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
                 }
             });
             oldMountPod = vm.instanceProperties().mountPodName();
-            vm = vm.withMountPod(updatedMountPod.podName());
+            vm = vm.withMountPod(podName);
         } catch (Exception e) {
-            log().error("{} Failed to update vm with new mount pod {}", logPrefix(), updatedMountPod.podName(), e);
+            log().error("{} Failed to update vm with new mount pod {}", logPrefix(), podName, e);
         }
         return StepResult.CONTINUE;
     }
