@@ -15,6 +15,10 @@ public final class KuberUtils {
         return e instanceof KubernetesClientException ex && ex.getCode() == HttpURLConnection.HTTP_CONFLICT;
     }
 
+    public static boolean isResourceNotFound(Exception e) {
+        return e instanceof KubernetesClientException ex && ex.getCode() == HttpURLConnection.HTTP_NOT_FOUND;
+    }
+
     public static boolean isNotRetryable(KubernetesClientException e) {
         var code = e.getCode();
         if (code == HTTP_TOO_MANY_REQUESTS) {

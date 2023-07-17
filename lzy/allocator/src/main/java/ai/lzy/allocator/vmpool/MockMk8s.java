@@ -8,6 +8,7 @@ import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
+import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -34,11 +35,13 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
             "S", new ClusterDescription(
                 idGenerator.generate("S-"),
                 HostAndPort.fromString("localhost:1256"),
-                "", ClusterType.User),
+                "", ClusterType.User,
+                Map.of("s", PoolType.Cpu)),
             "M", new ClusterDescription(
                 idGenerator.generate("M-"),
                 HostAndPort.fromString("localhost:1256"),
-                "", ClusterType.User)
+                "", ClusterType.User,
+                Map.of("m", PoolType.Cpu))
         );
 
         idsToClusters = labelsToClusters.entrySet().stream()
@@ -54,6 +57,13 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
     @Override
     public ClusterDescription getCluster(String clusterId) {
         return idsToClusters.get(clusterId);
+    }
+
+    @Override
+    public Collection<ClusterDescription> getClusters() {
+        return idsToClusters.values().stream()
+            .map(x -> new ClusterDescription(x.clusterId(), x.masterAddress(), x.masterCert(), x.type(), x.pools()))
+            .toList();
     }
 
     @Override

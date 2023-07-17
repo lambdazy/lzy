@@ -4,6 +4,7 @@ import ai.lzy.allocator.alloc.AllocationContext;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.gc.GarbageCollector;
+import ai.lzy.allocator.services.AllocatorAdminService;
 import ai.lzy.allocator.services.AllocatorPrivateService;
 import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.allocator.services.DiskService;
@@ -50,9 +51,15 @@ public class AllocatorMain {
     private final MetricReporter metricReporter;
     private final AtomicBoolean terminated = new AtomicBoolean(false);
 
-    public AllocatorMain(@Named("AllocatorMetricReporter") MetricReporter metricReporter, AllocatorService allocator,
-                         AllocatorPrivateService allocatorPrivate, DiskService diskService,
-                         ServiceConfig config, GarbageCollector gc, VmPoolService vmPool, VmDao vmDao,
+    public AllocatorMain(@Named("AllocatorMetricReporter") MetricReporter metricReporter,
+                         AllocatorService allocator,
+                         AllocatorPrivateService allocatorPrivate,
+                         AllocatorAdminService allocatorAdmin,
+                         DiskService diskService,
+                         ServiceConfig config,
+                         GarbageCollector gc,
+                         VmPoolService vmPool,
+                         VmDao vmDao,
                          @Named("AllocatorOperationsService") OperationsService operationsService,
                          @Named("AllocatorAuthClient") AuthenticateService authClient,
                          @Named("AllocatorAccessClient") AccessClient accessClient,
@@ -86,9 +93,12 @@ public class AllocatorMain {
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(accessClient);
         var vmOttAuth = new VmOttAuthInterceptor(vmDao, AllocatorPrivateGrpc.getRegisterMethod());
+        var adminAuth = internalOnly;
+        //var adminAuth = new AccessServerInterceptor(accessClient, Root.INSTANCE, AuthPermission.UPDATE_IMAGES);
 
         builder.addService(ServerInterceptors.intercept(allocator, internalOnly));
         builder.addService(ServerInterceptors.intercept(allocatorPrivate, vmOttAuth));
+        builder.addService(ServerInterceptors.intercept(allocatorAdmin, adminAuth));
         builder.addService(ServerInterceptors.intercept(operationsService, internalOnly));
         builder.addService(ServerInterceptors.intercept(vmPool, internalOnly));
         builder.addService(ServerInterceptors.intercept(diskService, internalOnly));
