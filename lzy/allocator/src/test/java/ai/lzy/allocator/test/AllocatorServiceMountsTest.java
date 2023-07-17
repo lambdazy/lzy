@@ -30,6 +30,7 @@ import java.net.HttpURLConnection;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import static ai.lzy.allocator.test.http.RequestMatchers.containsPath;
@@ -240,7 +241,10 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
 
         var updatedVm = vmDao.get(vm.vmId(), null);
         var mountPod = updatedMountPod.get();
-        Assert.assertEquals(getName(mountPod), updatedVm.instanceProperties().mountPodName());
+        var mountPodName = getName(mountPod);
+        Assert.assertEquals(mountPodName, updatedVm.instanceProperties().mountPodName());
+        Assert.assertTrue(mountPodName.endsWith("0"));
+        Assert.assertEquals(1, updatedVm.instanceProperties().nextMountPodId());
 
         Assert.assertEquals(3, mountPod.getSpec().getVolumes().size());
         Assert.assertEquals(3, mountPod.getSpec().getContainers().get(0).getVolumeMounts().size());
@@ -422,13 +426,17 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             mockGetPod(pod);
         });
         mockDeletePods(200);
-        mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> Assert.fail("Should not delete volume claim"), 403);
-        mockDeleteResource(PERSISTENT_VOLUME_PATH, volumeName, () -> Assert.fail("Should not delete volume"), 403);
+        var volumeDeleted = new AtomicBoolean(false);
+        var volumeClaimDeleted = new AtomicBoolean(false);
+        mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> volumeClaimDeleted.set(true), 403);
+        mockDeleteResource(PERSISTENT_VOLUME_PATH, volumeName, () -> volumeDeleted.set(true), 403);
         mockUnmountCall();
         var unmountOp = unmountDisk(dynamicMount.id());
 
         waitOpSuccess(unmountOp);
 
+        Assert.assertFalse(volumeDeleted.get());
+        Assert.assertFalse(volumeClaimDeleted.get());
         var updatedVm = vmDao.get(vm.vmId(), null);
         var mountPod = updatedMountPod.get();
         Assert.assertEquals(getName(mountPod), updatedVm.instanceProperties().mountPodName());
@@ -450,6 +458,47 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertNull(mountPodName);
     }
 
+    @Test
+    public void unmountShouldRecreateMountPodWithNotMountedDisk() throws Exception {
+        var sessionId = createSession(Durations.fromDays(10));
+        var allocatedVm = allocateVm(sessionId);
+        var vm = vmDao.get(allocatedVm.vmId(), null);
+        Assert.assertNotNull(vm);
+        var dynamicMount = createReadyMount(vm, allocatedVm.allocationOpId());
+        var update = DynamicMount.Update.builder()
+            .mounted(false)
+            .build();
+        var mountPodName = "foobar-42";
+        vmDao.setMountPodAndIncrementNextId(vm.vmId(), mountPodName, null);
+        dynamicMount = dynamicMountDao.update(dynamicMount.id(), update, null);
+        Assert.assertNotNull(dynamicMount);
+
+        var mountPodCreated = new AtomicBoolean(false);
+        var otherPodsDeleted = new AtomicBoolean(false);
+        var volumeDeleted = new AtomicBoolean(false);
+        var volumeClaimDeleted = new AtomicBoolean(false);
+        mockCreatePod(pod -> mountPodCreated.set(true));
+        mockUnmountCall();
+        mockDeletePods(200, () -> otherPodsDeleted.set(true));
+        mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, dynamicMount.volumeClaimName(),
+            () -> volumeClaimDeleted.set(true), 200);
+        mockDeleteResource(PERSISTENT_VOLUME_PATH, dynamicMount.volumeName(), () -> volumeDeleted.set(true),
+            200);
+
+        var operation = unmountDisk(dynamicMount.id());
+        waitOpSuccess(operation);
+
+        Assert.assertFalse(mountPodCreated.get());
+        Assert.assertTrue(otherPodsDeleted.get());
+        Assert.assertTrue(volumeDeleted.get());
+        Assert.assertTrue(volumeClaimDeleted.get());
+        vm = vmDao.get(vm.vmId(), null);
+        Assert.assertNotNull(vm);
+        Assert.assertEquals(mountPodName, vm.instanceProperties().mountPodName());
+        dynamicMount = dynamicMountDao.get(dynamicMount.id(), false, null);
+        Assert.assertNull(dynamicMount);
+    }
+
     @NotNull
     private DynamicMount createReadyMount(Vm vm, String operationId) throws SQLException {
         return createReadyMount(vm, operationId, null);
@@ -469,6 +518,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             .state(DynamicMount.State.READY)
             .volumeClaimName("claim-volume-" + id)
             .volumeName("volume-" + id)
+            .mounted(true)
             .build();
         return dynamicMountDao.update(anotherMount.id(), update, null);
     }

@@ -404,8 +404,15 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     }
 
     protected void mockDeletePods(int responseCode) {
+        mockDeletePods(responseCode, () -> {});
+    }
+
+    protected void mockDeletePods(int responseCode, Runnable onDelete) {
         mockRequestDispatcher.addHandlerOneTime(startsWithPath(POD_PATH).and(method("DELETE")),
-            request -> new MockResponse().setBody(toJson(new StatusDetails())).setResponseCode(responseCode));
+            request ->  {
+                onDelete.run();
+                return new MockResponse().setBody(toJson(new StatusDetails())).setResponseCode(responseCode);
+            });
     }
 
     protected record AllocatedVm(
