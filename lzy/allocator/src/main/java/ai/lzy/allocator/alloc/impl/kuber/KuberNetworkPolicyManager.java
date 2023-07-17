@@ -86,7 +86,7 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
                         "Failed to create network policy for session " + sessionId + ": " + e.getMessage(), false
                     );
                 }
-                log.debug("Created network policy in Kuber: {}", networkPolicy);
+                log.info("Created network policy in Kuber: {}", networkPolicy);
             }
         });
     }
@@ -122,8 +122,12 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
                             .resource(networkPolicySpec)
                             .get();
                     } catch (KubernetesClientException e) {
-                        log.info("NetPolicy {} not found", sessionId);
-                        return;
+                        if (isNotRetryable(e)) {
+                            log.info("NetPolicy {} not found", sessionId);
+                            return;
+                        } else {
+                            throw new NetworkPolicyException(e.getMessage(), true);
+                        }
                     }
                     deleteStatusDetails = client.network()
                         .networkPolicies()
@@ -132,10 +136,7 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
                         .delete();
                 } catch (KubernetesClientException e) {
                     log.error("Failed to delete network policy for session {}: {}", sessionId, e.getMessage(), e);
-                    if (isNotRetryable(e)) {
-                        throw new NetworkPolicyException(e.getMessage(), false);
-                    }
-                    throw new NetworkPolicyException(e.getMessage(), true);
+                    throw new NetworkPolicyException(e.getMessage(), !isNotRetryable(e));
                 }
                 log.debug("Deleted network policy in Kuber: {}", deleteStatusDetails);
             }

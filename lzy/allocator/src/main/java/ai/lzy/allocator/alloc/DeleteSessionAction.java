@@ -79,7 +79,7 @@ public class DeleteSessionAction extends OperationRunnerBase {
         }
 
         if (vms.isEmpty()) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
 
         for (var vm : vms) {

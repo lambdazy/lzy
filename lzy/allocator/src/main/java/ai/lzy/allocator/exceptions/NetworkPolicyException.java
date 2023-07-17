@@ -10,11 +10,11 @@ public class NetworkPolicyException extends RuntimeException {
     }
 
     @Override
-    public synchronized Throwable fillInStackTrace() {
+    public Throwable fillInStackTrace() {
         return this;
     }
 
-    public synchronized boolean isRetryable() {
+    public boolean isRetryable() {
         return retryable;
     }
 }
