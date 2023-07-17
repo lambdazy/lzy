@@ -1,14 +1,13 @@
 package ai.lzy.graph.services.impl;
 
-import ai.lzy.common.IdGenerator;
 import ai.lzy.graph.GraphExecutorApi2;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.TaskDao;
 import ai.lzy.graph.db.impl.GraphExecutorDataSource;
-import ai.lzy.graph.model.TaskOperation;
 import ai.lzy.graph.model.TaskState;
 import ai.lzy.graph.services.AllocatorService;
 import ai.lzy.graph.services.TaskService;
+import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
@@ -19,7 +18,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
@@ -40,7 +38,6 @@ public class TaskServiceImpl implements TaskService {
     private final OperationsExecutor operationsExecutor;
     private final AllocatorService allocatorService;
     private final ServiceConfig config;
-    private final IdGenerator idGenerator;
 
     private final PriorityQueue<TaskState> readyTasks = new PriorityQueue<>(
         Comparator.comparingInt(task -> task.tasksDependedFrom().size()));
@@ -56,8 +53,7 @@ public class TaskServiceImpl implements TaskService {
                            GraphExecutorDataSource storage,
                            AllocatorService allocatorService,
                            @Named("GraphExecutorOperationDao") OperationDao operationDao,
-                           @Named("GraphExecutorOperationsExecutor") OperationsExecutor operationsExecutor,
-                           @Named("GraphExecutorIdGenerator") IdGenerator idGenerator)
+                           @Named("GraphExecutorOperationsExecutor") OperationsExecutor operationsExecutor)
     {
         this.taskDao = taskDao;
         this.operationsExecutor = operationsExecutor;
@@ -65,7 +61,6 @@ public class TaskServiceImpl implements TaskService {
         this.operationDao = operationDao;
         this.allocatorService = allocatorService;
         this.config = config;
-        this.idGenerator = idGenerator;
 
         restoreTasks(config.getInstanceId());
         executor.scheduleAtFixedRate(this::run, 1, 1, TimeUnit.SECONDS);
@@ -113,7 +108,6 @@ public class TaskServiceImpl implements TaskService {
         try {
             withRetries(LOG, () -> {
                 List<TaskState> taskList = taskDao.getTasksByInstance(instanceId);
-                List<TaskOperation> operationList = taskDao.getTasksOperationsByInstance(instanceId);
 
                 List<String> failedGraphs = taskList.stream()
                     .filter(task -> task.status() == TaskState.Status.FAILED)
@@ -130,6 +124,7 @@ public class TaskServiceImpl implements TaskService {
                     .filter(task -> task.status() == TaskState.Status.COMPLETED)
                     .toList();
                 Map<String, TaskState> tasksById = taskList.stream()
+                    .filter(task -> task.status() == TaskState.Status.WAITING)
                     .collect(Collectors.toMap(TaskState::id, task -> task));
 
                 for (var task: completedTasks) {
@@ -147,16 +142,14 @@ public class TaskServiceImpl implements TaskService {
                     .filter(task -> !task.tasksDependedOn().isEmpty())
                     .forEach(task -> waitingTasks.put(task.id(), task));
 
-                if (operationList.isEmpty()) {
-                    LOG.info("No active task operations found for instance '{}'", instanceId);
-                    return;
-                }
+                var statuses = Set.of(TaskState.Status.WAITING_ALLOCATION, TaskState.Status.ALLOCATING, TaskState.Status.EXECUTING);
+                List<TaskState> executingTasks = taskList.stream()
+                    .filter(task -> statuses.contains(task.status()))
+                    .toList();
 
-                LOG.warn("Found {} not completed task operations on instance '{}'", operationList.size(), instanceId);
-                for (var op : operationList) {
-                    LOG.info("Restore {}", op);
-                    TaskState taskState = tasksById.get(op.taskId());
-                    ExecuteTaskAction executeTaskAction = new ExecuteTaskAction(op.taskId(), op, taskState, "",
+                for (var task: executingTasks) {
+                    LOG.info("Restore execute action for task {}", task.id());
+                    ExecuteTaskAction executeTaskAction = new ExecuteTaskAction(task.executingState().opId(), task, "",
                         storage, operationDao, operationsExecutor, taskDao, allocatorService, this::completeTask);
                     operationsExecutor.startNew(executeTaskAction);
                 }
@@ -174,7 +167,7 @@ public class TaskServiceImpl implements TaskService {
                 LOG.warn("Can't execute another task {} for user {}", task.id(), task.userId());
                 break;
             }
-            if (limitByWorkflow.getOrDefault(task.executionId(), 0) < config.getWorkflowLimit()) {
+            if (limitByWorkflow.getOrDefault(task.executionId(), 0) >= config.getWorkflowLimit()) {
                 LOG.warn("Can't execute another task {} for workflow {}", task.id(), task.executionId());
                 break;
             }
@@ -182,22 +175,26 @@ public class TaskServiceImpl implements TaskService {
             limitByUser.merge(task.userId(), 1, Integer::sum);
             limitByWorkflow.merge(task.executionId(), 1, Integer::sum);
 
-            String taskOpId = idGenerator.generate();
-            TaskOperation taskOperation =
-                new TaskOperation(taskOpId, task.id(), Instant.now(), TaskOperation.Status.WAITING,
-                    null, TaskOperation.State.builder().build());
-            ExecuteTaskAction executeTaskAction = new ExecuteTaskAction(task.id(), taskOperation, task,
-                "", storage, operationDao, operationsExecutor, taskDao, allocatorService, this::completeTask);
+            var op = Operation.create(
+                task.userId(),
+                "Execute task '%s' of graph '%s'".formatted(task.id(), task.graphId()),
+                null, null, null);
+
+            ExecuteTaskAction executeTaskAction = new ExecuteTaskAction(op.id(), task, "",
+                storage, operationDao, operationsExecutor, taskDao, allocatorService, this::completeTask);
 
             TaskState finalTask = task.toBuilder()
-                .status(TaskState.Status.EXECUTING)
+                .status(TaskState.Status.WAITING_ALLOCATION)
+                .executingState(task.executingState().toBuilder()
+                    .opId(op.id())
+                    .build())
                 .build();
 
             try {
                 withRetries(LOG, () -> {
                     try (var tx = TransactionHandle.create(storage)) {
+                        operationDao.create(op, tx);
                         taskDao.updateTask(finalTask, tx);
-                        taskDao.createTaskOperation(taskOperation, tx);
                         tx.commit();
                     }
                 });
@@ -207,7 +204,8 @@ public class TaskServiceImpl implements TaskService {
             }
 
             operationsExecutor.startNew(executeTaskAction);
-            LOG.info("Created task operation {} for task {}", taskOpId, task.id());
+            LOG.info("Created task operation {} for task {}", op.id(), task.id());
+            readyTasks.poll();
             task = readyTasks.peek();
         }
     }

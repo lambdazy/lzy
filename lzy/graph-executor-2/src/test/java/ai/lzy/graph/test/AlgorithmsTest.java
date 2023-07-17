@@ -98,6 +98,7 @@ public class AlgorithmsTest {
         final TaskSlotDescription slotDescription = new TaskSlotDescription(taskId, "descr",
             "pool", "zone", "command", slots, slotToChannels, null, null);
         return new TaskState(taskId, taskId, "op1", "graph", TaskState.Status.WAITING, "w1",
-            "w1", "user1", null, slotDescription, "", new ArrayList<>(), new ArrayList<>());
+            "w1", "user1", null, slotDescription, "", null,
+            new ArrayList<>(), new ArrayList<>());
     }
 }

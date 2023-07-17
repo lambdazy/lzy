@@ -2,7 +2,6 @@ package ai.lzy.graph.services.impl;
 
 import ai.lzy.graph.GraphExecutorApi2;
 import ai.lzy.graph.db.TaskDao;
-import ai.lzy.graph.model.TaskOperation;
 import ai.lzy.graph.model.TaskState;
 import ai.lzy.graph.model.debug.InjectedFailures;
 import ai.lzy.graph.services.AllocatorService;
@@ -39,13 +38,10 @@ public class ExecuteTaskAction extends OperationRunnerBase {
     private final AllocatorService allocatorService;
     private final Storage storage;
     private final TaskDao taskDao;
-    private final OperationDao operationDao;
     private final Consumer<TaskState> taskOnComplete;
-
-    private TaskOperation taskOp;
     private TaskState task;
 
-    public ExecuteTaskAction(String id, TaskOperation taskOp, TaskState task, String descr, Storage storage,
+    public ExecuteTaskAction(String id, TaskState task, String descr, Storage storage,
                              OperationDao operationsDao, OperationsExecutor executor, TaskDao taskDao,
                              AllocatorService allocatorService, Consumer<TaskState> taskOnComplete)
     {
@@ -53,11 +49,9 @@ public class ExecuteTaskAction extends OperationRunnerBase {
         this.allocatorService = allocatorService;
         this.storage = storage;
         this.taskDao = taskDao;
-        this.operationDao = operationsDao;
         this.taskOnComplete = taskOnComplete;
 
         this.task = task;
-        this.taskOp = taskOp;
     }
 
     @Override
@@ -116,15 +110,15 @@ public class ExecuteTaskAction extends OperationRunnerBase {
             return tryFail(Status.INTERNAL.withDescription(e.getMessage()));
         }
 
-        var updatedState = taskOp.state().toBuilder()
+        var updatedState = task.executingState().toBuilder()
             .allocOperationId(allocationOp.getId())
             .vmId(vmId)
             .build();
-        return saveState(updatedState, TaskOperation.Status.ALLOCATING);
+        return saveState(updatedState, TaskState.Status.ALLOCATING);
     }
 
     private StepResult awaitAllocation() {
-        var vmDesc = allocatorService.getResponse(taskOp.state().allocOperationId());
+        var vmDesc = allocatorService.getResponse(task.executingState().allocOperationId());
         if (vmDesc == null) {
             return StepResult.RESTART;
         }
@@ -151,18 +145,18 @@ public class ExecuteTaskAction extends OperationRunnerBase {
             return tryFail(Status.INTERNAL.withDescription("Cannot allocate vm"));
         }
 
-        var updatedState = taskOp.state().toBuilder()
+        var updatedState = task.executingState().toBuilder()
             .fromCache(vmDesc.getFromCache())
             .workerHost(address.getValue())
             .workerPort(Integer.parseInt(apiPort))
             .build();
-        return saveState(updatedState, TaskOperation.Status.ALLOCATING);
+        return saveState(updatedState, TaskState.Status.ALLOCATING);
     }
 
     private StepResult executeOp() {
         var workerPrivateKey = "";
 
-        if (!Boolean.TRUE.equals(taskOp.state().fromCache())) {
+        if (!Boolean.TRUE.equals(task.executingState().fromCache())) {
             RsaUtils.RsaKeys iamKeys;
             try {
                 iamKeys = RsaUtils.generateRsaKeys();
@@ -173,7 +167,7 @@ public class ExecuteTaskAction extends OperationRunnerBase {
 
             workerPrivateKey = iamKeys.privateKey();
             try {
-                allocatorService.addCredentials(taskOp.state().vmId(), iamKeys.publicKey(),
+                allocatorService.addCredentials(task.executingState().vmId(), iamKeys.publicKey(),
                     task.userId() + "/" + task.workflowName());
             } catch (Exception e) {
                 log().error("Cannot create worker: {}", e.getMessage());
@@ -181,15 +175,15 @@ public class ExecuteTaskAction extends OperationRunnerBase {
             }
         }
 
-        var host = taskOp.state().workerHost();
-        var port = taskOp.state().workerPort();
+        var host = task.executingState().workerHost();
+        var port = task.executingState().workerPort();
 
         var client = allocatorService.createWorker(HostAndPort.fromParts(host, port));
 
         client.init(LWS.InitRequest.newBuilder()
             .setUserId(task.userId())
             .setWorkflowName(task.workflowName())
-            .setWorkerSubjectName(taskOp.state().vmId())
+            .setWorkerSubjectName(task.executingState().vmId())
             .setWorkerPrivateKey(workerPrivateKey)
             .build());
 
@@ -203,28 +197,28 @@ public class ExecuteTaskAction extends OperationRunnerBase {
                     .setTaskDesc(task.toProto())
                     .build());
 
-        var updatedState = taskOp.state().toBuilder()
+        var updatedState = task.executingState().toBuilder()
             .workerOperationId(operation.getId())
             .build();
-        return saveState(updatedState, TaskOperation.Status.EXECUTING);
+        return saveState(updatedState, TaskState.Status.EXECUTING);
     }
 
     private StepResult awaitExecution() {
-        var host = taskOp.state().workerHost();
-        var port = taskOp.state().workerPort();
+        var host = task.executingState().workerHost();
+        var port = task.executingState().workerPort();
         var addr = HostAndPort.fromParts(host, port);
 
         LongRunningServiceGrpc.LongRunningServiceBlockingStub client = allocatorService.getWorker(addr);
 
-        client = GrpcUtils.withIdempotencyKey(client, taskOp.id());
+        client = GrpcUtils.withIdempotencyKey(client, task.executingState().opId());
 
         final LongRunning.Operation op;
         try {
             op = client.get(LongRunning.GetOperationRequest.newBuilder()
-                .setOperationId(taskOp.state().workerOperationId())
+                .setOperationId(task.executingState().workerOperationId())
                 .build());
         } catch (StatusRuntimeException e) {
-            log().error("Error while getting execution status for task op {}: ", taskOp.id(), e);
+            log().error("Error while getting execution status for task {}: ", task.id(), e);
             return StepResult.RESTART;
         }
 
@@ -233,8 +227,8 @@ public class ExecuteTaskAction extends OperationRunnerBase {
         }
 
         if (op.hasError()) {
-            log().error("Task op {} execution failed: [{}] {}",
-                taskOp.id(), op.getError().getCode(), op.getError().getMessage());
+            log().error("Task {} execution failed: [{}] {}",
+                task.id(), op.getError().getCode(), op.getError().getMessage());
             return tryFail(Status.INTERNAL.withDescription(op.getError().getMessage()));
         }
 
@@ -242,13 +236,13 @@ public class ExecuteTaskAction extends OperationRunnerBase {
         try {
             resp = op.getResponse().unpack(LWS.ExecuteResponse.class);
         } catch (InvalidProtocolBufferException e) {
-            log().error("Error while unpacking response {} for task op {}: ",
-                JsonUtils.printRequest(op.getResponse()), taskOp.id(), e);
+            log().error("Error while unpacking response {} for task {}: ",
+                JsonUtils.printRequest(op.getResponse()), task.id(), e);
             return tryFail(Status.INTERNAL.withDescription(e.getMessage()));
         }
 
         final GraphExecutorApi2.TaskExecutionStatus.Builder builder = GraphExecutorApi2.TaskExecutionStatus.newBuilder()
-            .setTaskDescriptionId(taskOp.id())
+            .setTaskDescriptionId(task.executingState().opId())
             .setOperationName(task.taskSlotDescription().name())
             .setTaskId(task.id())
             .setWorkflowId(task.executionId());
@@ -266,9 +260,6 @@ public class ExecuteTaskAction extends OperationRunnerBase {
             task = task.toBuilder()
                 .status(TaskState.Status.COMPLETED)
                 .build();
-            taskOp = taskOp.toBuilder()
-                .status(TaskOperation.Status.COMPLETED)
-                .build();
         } else {
             status = builder
                 .setError(GraphExecutorApi2.TaskExecutionStatus.Error.newBuilder()
@@ -281,38 +272,33 @@ public class ExecuteTaskAction extends OperationRunnerBase {
                 .status(TaskState.Status.FAILED)
                 .errorDescription(resp.getDescription())
                 .build();
-            taskOp = taskOp.toBuilder()
-                .status(TaskOperation.Status.FAILED)
-                .errorDescription(resp.getDescription())
-                .build();
         }
 
         try {
             DbHelper.withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(storage)) {
-                    operationDao.complete(taskOp.id(), Any.pack(status), tx);
+                    completeOperation(null, Any.pack(status), tx);
                     taskDao.updateTask(task, tx);
-                    taskDao.updateTaskOperation(taskOp, tx);
                     tx.commit();
                 }
             });
         } catch (Exception e) {
-            log().error("Sql exception while updating response for task {}", taskOp.id(), e);
+            log().error("Sql exception while updating response for task {}", task.id(), e);
             return StepResult.RESTART;
         }
 
-        allocatorService.free(taskOp.state().vmId());
+        allocatorService.free(task.executingState().vmId());
         return StepResult.FINISH;
     }
 
-    private StepResult saveState(TaskOperation.State updatedState, TaskOperation.Status status) {
+    private StepResult saveState(TaskState.ExecutingState updatedState, TaskState.Status status) {
         try {
-            TaskOperation newOp = taskOp.toBuilder()
+            TaskState newTask = task.toBuilder()
                 .status(status)
-                .state(updatedState)
+                .executingState(updatedState)
                 .build();
-            withRetries(log(), () -> taskDao.updateTaskOperation(newOp, null));
-            taskOp = newOp;
+            withRetries(log(), () -> taskDao.updateTask(newTask, null));
+            task = newTask;
             return StepResult.CONTINUE;
         } catch (Exception e) {
             log().debug("{} Cannot save state, reschedule...", logPrefix());

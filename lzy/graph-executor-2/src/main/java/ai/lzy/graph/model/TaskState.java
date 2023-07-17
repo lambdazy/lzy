@@ -28,12 +28,24 @@ public record TaskState(
     String errorDescription,
     TaskSlotDescription taskSlotDescription,
     String allocatorSession,
+    ExecutingState executingState,
     List<String> tasksDependedOn, // tasks, on which this task is depended on
     List<String> tasksDependedFrom // tasks, that are depended from this task
 ) {
     public enum Status {
-        WAITING, EXECUTING, COMPLETED, FAILED
+        WAITING, WAITING_ALLOCATION, ALLOCATING, EXECUTING, COMPLETED, FAILED
     }
+
+    @Builder(toBuilder = true)
+    public record ExecutingState(
+        String opId,
+        String allocOperationId,
+        String vmId,
+        boolean fromCache,
+        String workerHost,
+        int workerPort,
+        String workerOperationId
+    ) {}
 
     public static TaskState fromProto(GraphExecutorApi2.GraphExecuteRequest.TaskDesc taskDesc, GraphState graphState) {
         var slots = taskDesc.getOperation().getSlotsList().stream()
@@ -78,6 +90,7 @@ public record TaskState(
             null,
             taskSlotDescription,
             null,
+            ExecutingState.builder().build(),
             new ArrayList<>(),
             new ArrayList<>()
         );
