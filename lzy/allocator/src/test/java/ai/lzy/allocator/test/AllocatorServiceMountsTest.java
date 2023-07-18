@@ -203,7 +203,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .build());
             mockGetPod(pod);
         });
-        mockDeletePods(200);
+        mockDeletePods(HttpURLConnection.HTTP_OK);
         var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
 
         waitOpSuccess(mountOp);
@@ -268,7 +268,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .build());
             mockGetPod(pod);
         });
-        mockDeletePods(200);
+        mockDeletePods(HttpURLConnection.HTTP_OK);
         var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1,
             VolumeApi.DiskVolumeType.AccessMode.READ_ONLY_MANY, VolumeApi.DiskVolumeType.StorageClass.SSD);
 
@@ -310,7 +310,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .build());
             mockGetPod(pod);
         });
-        mockDeletePods(200);
+        mockDeletePods(HttpURLConnection.HTTP_OK);
         var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
         waitOpSuccess(mountOp);
     }
@@ -377,9 +377,9 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             .build();
         dynamicMountDao.update(dynamicMount.id(), update, null);
 
-        mockDeletePods(200);
-        mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> {}, 200);
-        mockDeleteResource(PERSISTENT_VOLUME_PATH, volumeName, () -> {}, 200);
+        mockDeletePods(HttpURLConnection.HTTP_OK);
+        mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> {}, HttpURLConnection.HTTP_OK);
+        mockDeleteResource(PERSISTENT_VOLUME_PATH, volumeName, () -> {}, HttpURLConnection.HTTP_OK);
         mockUnmountCall();
         var unmountOp = unmountDisk(dynamicMount.id());
 
@@ -425,7 +425,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .build());
             mockGetPod(pod);
         });
-        mockDeletePods(200);
+        mockDeletePods(HttpURLConnection.HTTP_OK);
         var volumeDeleted = new AtomicBoolean(false);
         var volumeClaimDeleted = new AtomicBoolean(false);
         mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> volumeClaimDeleted.set(true), 403);
@@ -479,11 +479,11 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var volumeClaimDeleted = new AtomicBoolean(false);
         mockCreatePod(pod -> mountPodCreated.set(true));
         mockUnmountCall();
-        mockDeletePods(200, () -> otherPodsDeleted.set(true));
+        mockDeletePods(HttpURLConnection.HTTP_OK, () -> otherPodsDeleted.set(true));
         mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, dynamicMount.volumeClaimName(),
-            () -> volumeClaimDeleted.set(true), 200);
+            () -> volumeClaimDeleted.set(true), HttpURLConnection.HTTP_OK);
         mockDeleteResource(PERSISTENT_VOLUME_PATH, dynamicMount.volumeName(), () -> volumeDeleted.set(true),
-            200);
+            HttpURLConnection.HTTP_OK);
 
         var operation = unmountDisk(dynamicMount.id());
         waitOpSuccess(operation);

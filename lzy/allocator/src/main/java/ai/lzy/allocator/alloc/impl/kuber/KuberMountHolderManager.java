@@ -15,7 +15,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.HttpURLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +113,7 @@ public class KuberMountHolderManager implements MountHolderManager {
         try (final var client = factory.build(cluster)) {
             client.pods().inNamespace(NAMESPACE_VALUE).withName(clusterPod.podName()).delete();
         } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            if (KuberUtils.isResourceNotFound(e)) {
                 LOG.warn("Pod {} is not found", clusterPod.podName());
                 return;
             }
@@ -133,6 +132,12 @@ public class KuberMountHolderManager implements MountHolderManager {
                 ))
                 .withLabelNotIn(KuberLabels.LZY_POD_NAME_LABEL, podToKeep.podName())
                 .delete();
+        } catch (KubernetesClientException e) {
+            if (KuberUtils.isResourceNotFound(e)) {
+                LOG.warn("Pods for vm {} not found", vmId);
+                return;
+            }
+            throw e;
         }
     }
 
@@ -146,6 +151,12 @@ public class KuberMountHolderManager implements MountHolderManager {
                     KuberLabels.LZY_APP_LABEL, MOUNT_HOLDER_APP_LABEL
                 ))
                 .delete();
+        } catch (KubernetesClientException e) {
+            if (KuberUtils.isResourceNotFound(e)) {
+                LOG.warn("Pods for vm {} not found", vmSpec.vmId());
+                return;
+            }
+            throw e;
         }
     }
 

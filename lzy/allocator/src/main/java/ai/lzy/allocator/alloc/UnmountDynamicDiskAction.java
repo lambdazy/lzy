@@ -122,7 +122,6 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             nextId = withRetries(log(), () -> allocationContext.vmDao().getNextMountPodId(vm.vmId(), null));
         } catch (Exception e) {
             log().error("{} Couldn't get next mount id for vm", logPrefix(), e);
-            return StepResult.CONTINUE;
         }
         return StepResult.CONTINUE;
     }

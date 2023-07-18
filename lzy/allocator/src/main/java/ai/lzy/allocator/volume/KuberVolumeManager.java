@@ -13,7 +13,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.HttpURLConnection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -208,7 +207,7 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.info("Found volume={}", volume);
             return volume;
         } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            if (KuberUtils.isResourceNotFound(e)) {
                 LOG.error("Not found volume with name={}", volumeName);
                 return null;
             }
@@ -235,7 +234,7 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.info("Found {}", volumeClaim);
             return volumeClaim;
         } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            if (KuberUtils.isResourceNotFound(e)) {
                 LOG.error("Not found volumeClaim with name={}", volumeClaimName);
                 return null;
             }
@@ -250,7 +249,7 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.info("Deleting persistent volume {}", volumeName);
             client.persistentVolumes().withName(volumeName).delete();
         } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            if (KuberUtils.isResourceNotFound(e)) {
                 LOG.warn("Persistent volume {} not found", volumeName);
                 return;
             }
@@ -266,7 +265,7 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.info("Deleting volume claim {}", volumeClaimName);
             client.persistentVolumeClaims().inNamespace(DEFAULT_NAMESPACE).withName(volumeClaimName).delete();
         } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            if (KuberUtils.isResourceNotFound(e)) {
                 LOG.warn("Persistent volume claim {} not found", volumeClaimName);
                 return;
             }

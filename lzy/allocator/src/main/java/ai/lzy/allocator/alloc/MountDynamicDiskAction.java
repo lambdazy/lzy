@@ -200,7 +200,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
 
     private StepResult getNextMountPodId() {
         if (nextId != null) {
-            return StepResult.CONTINUE;
+            return StepResult.ALREADY_DONE;
         }
         try {
             nextId = withRetries(log(), () -> allocationContext.vmDao().getNextMountPodId(vm.vmId(), null));

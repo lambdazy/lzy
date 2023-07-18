@@ -5,8 +5,10 @@ import okhttp3.mockwebserver.Dispatcher;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.RecordedRequest;
 
+import java.net.HttpURLConnection;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
 public class MockHttpDispatcher extends Dispatcher {
@@ -28,7 +30,7 @@ public class MockHttpDispatcher extends Dispatcher {
                 return entry.handler().handle(recordedRequest);
             }
         }
-        return new MockResponse().setResponseCode(404);
+        return new MockResponse().setResponseCode(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
     public void addHandlerOneTime(Predicate<RecordedRequest> matcher, RequestHandler handler) {
@@ -50,7 +52,7 @@ public class MockHttpDispatcher extends Dispatcher {
         private final int limit;
         private final boolean unlimited;
 
-        private int count = 0;
+        private final AtomicInteger count = new AtomicInteger(0);
 
         private RequestHandlerEntry(
             Predicate<RecordedRequest> matcher,
@@ -74,11 +76,11 @@ public class MockHttpDispatcher extends Dispatcher {
         }
 
         public void increment() {
-            count++;
+            count.incrementAndGet();
         }
 
         public boolean isExhausted() {
-            return !unlimited && count >= limit;
+            return !unlimited && count.get() >= limit;
         }
 
         @Override
