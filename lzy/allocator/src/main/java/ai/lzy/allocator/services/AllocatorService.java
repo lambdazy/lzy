@@ -125,7 +125,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 sessionId,
                 request.getNetPolicyRulesList().stream().map(this::toPolicyRule).toList()
             );
-            LOG.info("Network policy for session: {} created", sessionId);
         } catch (Exception ex) {
             allocationContext.metrics().createSessionError.inc();
 

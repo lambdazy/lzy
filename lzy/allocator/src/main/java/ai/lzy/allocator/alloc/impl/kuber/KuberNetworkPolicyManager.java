@@ -37,11 +37,14 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
         this.clientFactory = clientFactory;
         this.clusterRegistry = clusterRegistry;
         this.whitelist = config.getServiceCidrs().stream().toList();
+        log.info("Network policy manager started with whitelist: {}", whitelist);
     }
 
     @Override
     public void createNetworkPolicy(String sessionId, List<PolicyRule> whitelistCIDRs) throws NetworkPolicyException {
         var clusterDescriptions = clusterRegistry.listClusters(ClusterRegistry.ClusterType.User);
+        log.info("Creating NetworkPolicy for session: {} at clusters: {} with rules: {}", sessionId,
+            clusterDescriptions.stream().map(ClusterRegistry.ClusterDescription::clusterId).toList(), whitelistCIDRs);
         clusterDescriptions.forEach(cluster -> {
             try (final var client = clientFactory.build(cluster)) {
                 LabelSelector sameSessionIdPodSelector = new LabelSelectorBuilder().withMatchLabels(
@@ -108,6 +111,8 @@ public class KuberNetworkPolicyManager implements NetworkPolicyManager {
     @Override
     public void deleteNetworkPolicy(String sessionId) throws NetworkPolicyException {
         var clusterDescriptions = clusterRegistry.listClusters(ClusterRegistry.ClusterType.User);
+        log.info("Deleting NetworkPolicy for session: {} at clusters: {}", sessionId,
+            clusterDescriptions.stream().map(ClusterRegistry.ClusterDescription::clusterId).toList());
         clusterDescriptions.forEach(cluster -> {
             try (final var client = clientFactory.build(cluster)) {
                 NetworkPolicy networkPolicySpec = new NetworkPolicyBuilder()
