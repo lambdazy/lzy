@@ -128,8 +128,7 @@ public class DeleteSessionAction extends OperationRunnerBase {
                 return StepResult.RESTART;
             }
             try {
-                withRetries(log(), () -> operationsDao()
-                    .fail(id(), toProto(Status.CANCELLED.withDescription("Session remove failed")), null));
+                this.failOperation(Status.CANCELLED.withDescription("Session remove failed"), null);
             } catch (Exception ex) {
                 log().error("Failed to abort session {} deletion", sessionId);
                 return StepResult.RESTART;
