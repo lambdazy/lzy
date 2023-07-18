@@ -11,10 +11,12 @@ public interface SchedulerApi {
      * @param userId workflow belongs to
      * @param workflowName name of workflow to execute task in
      * @param workflowId id of workflow to execute task in
+     * @param allocatorSessionId allocator session id
      * @param task descriptions of task to execute
      * @return status of task that was registered
      */
-    TaskStatus execute(String userId, String workflowName, String workflowId, TaskDescription task);
+    TaskStatus execute(String userId, String workflowName, String workflowId, String allocatorSessionId,
+                       TaskDescription task);
 
     /**
      * Get status of task by id

@@ -8,6 +8,7 @@ public record TaskState(
     String executionId,
     String workflowName,
     String userId,
+    String allocatorSessionId,
     LMO.TaskDesc description,
     @Nullable String vmId,
     @Nullable String allocatorOperationId,
@@ -33,6 +34,7 @@ public record TaskState(
         private final String executionId;
         private final String workflowName;
         private final String userId;
+        private final String allocatorSessionId;
         private final LMO.TaskDesc description;
         @Nullable
         private String vmId;
@@ -53,6 +55,7 @@ public record TaskState(
             this.executionId = prev.executionId;
             this.workflowName = prev.workflowName;
             this.userId = prev.userId;
+            this.allocatorSessionId = prev.allocatorSessionId;
             this.description = prev.description;
             this.vmId = prev.vmId;
             this.allocatorOperationId = prev.allocatorOperationId;
@@ -98,6 +101,7 @@ public record TaskState(
                 executionId,
                 workflowName,
                 userId,
+                allocatorSessionId,
                 description,
                 vmId,
                 allocatorOperationId,

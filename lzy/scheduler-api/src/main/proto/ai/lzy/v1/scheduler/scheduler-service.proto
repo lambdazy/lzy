@@ -23,6 +23,7 @@ message TaskScheduleRequest {
   string workflowName = 2;
   string userId = 3;
   ai.lzy.v1.common.TaskDesc task = 4;
+  string allocatorSessionId = 5;
 }
 message TaskScheduleResponse {
   TaskStatus status = 1;

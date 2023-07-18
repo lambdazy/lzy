@@ -31,8 +31,8 @@ public final class StartExecution extends ExecutionOperationRunner {
         super(builder);
         this.storageConfig = builder.storageConfig;
         this.state = builder.state;
-        this.steps = List.of(createKafkaTopic(), /*createAllocatorSession(),*/ StartExecution.this::complete);
         this.allocatorSessionSpec = builder.allocatorSessionSpec;
+        this.steps = List.of(createKafkaTopic(), createAllocatorSession(), StartExecution.this::complete);
     }
 
     @Override

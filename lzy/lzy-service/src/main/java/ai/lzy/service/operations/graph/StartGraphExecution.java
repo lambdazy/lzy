@@ -16,12 +16,14 @@ final class StartGraphExecution extends ExecuteGraphContextAwareStep
     implements Supplier<StepResult>, RetryableFailStep
 {
     private final GraphExecutorBlockingStub graphExecutorClient;
+    private final String allocatorSessionId;
 
     public StartGraphExecution(ExecutionStepContext stepCtx, ExecuteGraphState state,
-                               GraphExecutorBlockingStub graphExecutorClient)
+                               GraphExecutorBlockingStub graphExecutorClient, String allocatorSessionId)
     {
         super(stepCtx, state);
         this.graphExecutorClient = graphExecutorClient;
+        this.allocatorSessionId = allocatorSessionId;
     }
 
     @Override
@@ -31,8 +33,11 @@ final class StartGraphExecution extends ExecuteGraphContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
-        GraphExecuteRequest.Builder builder = GraphExecuteRequest.newBuilder().setUserId(userId())
-            .setWorkflowId(execId()).setWorkflowName(wfName())
+        GraphExecuteRequest.Builder builder = GraphExecuteRequest.newBuilder()
+            .setUserId(userId())
+            .setWorkflowId(execId())
+            .setWorkflowName(wfName())
+            .setAllocatorSessionId(allocatorSessionId)
             .setParentGraphId(request().getParentGraphId())
             .addAllTasks(tasks())
             .addAllChannels(channels().values().stream().map(channelId -> GraphExecutor.ChannelDesc.newBuilder()

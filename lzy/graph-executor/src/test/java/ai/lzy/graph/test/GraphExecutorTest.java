@@ -23,7 +23,11 @@ import io.micronaut.context.ApplicationContext;
 import io.micronaut.inject.qualifiers.Qualifiers;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import java.util.*;
@@ -358,7 +362,7 @@ public class GraphExecutorTest {
             this.graph = graph;
             this.queue = initQueue();
             this.queue.start();
-            state = this.queue.startGraph("", "changeMe", "uid", graph, null);
+            state = this.queue.startGraph("", "changeMe", "uid", "alloc_sid", graph, null);
         }
 
         public void awaitExecutingNow(String... taskIds) throws InterruptedException, DaoException {

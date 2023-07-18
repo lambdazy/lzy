@@ -136,8 +136,8 @@ public class BfsGraphProcessor implements GraphProcessor {
                 .stream()
                 .map(t -> {
                     LOG.info("Sending task {} from graph {} to scheduler", t.id(), graph.id());
-                    final Scheduler.TaskStatus progress =
-                        api.execute(graph.userId(), graph.workflowName(), graph.workflowId(), t);
+                    var progress = api.execute(
+                        graph.userId(), graph.workflowName(), graph.workflowId(), graph.allocatorSessionId(), t);
                     return new TaskExecution(progress.getTaskId(), t);
                 })
                 .collect(Collectors.toList());

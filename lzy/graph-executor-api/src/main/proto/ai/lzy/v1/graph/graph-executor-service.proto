@@ -23,6 +23,7 @@ message GraphExecuteRequest {
   repeated TaskDesc tasks = 4;
   string parentGraphId = 5;
   repeated ChannelDesc channels = 6;
+  string allocatorSessionId = 7;
 }
 message GraphExecuteResponse {
   GraphExecutionStatus status = 1;

@@ -232,6 +232,7 @@ public class OperationRunnersFactory {
             .setUserId(userId)
             .setWfName(wfName)
             .setExecId(execId)
+            .setAllocatorSessionId(execGraphData.allocatorSessionId())
             .setStorage(storage)
             .setWfDao(wfDao)
             .setExecDao(execDao)
