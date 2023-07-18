@@ -1,7 +1,9 @@
 package ai.lzy.graph.model;
 
 import ai.lzy.graph.GraphExecutorApi2;
+import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMO;
+import ai.lzy.v1.common.LMS;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
@@ -74,8 +76,7 @@ public record TaskState(
                 taskDesc.getOperation().getKafkaTopic().getUsername(),
                 taskDesc.getOperation().getKafkaTopic().getPassword(),
                 taskDesc.getOperation().getKafkaTopic().getTopic()
-            ),
-            taskDesc.getOperation().getRequirements()
+            )
         );
 
         return new TaskState(
@@ -97,7 +98,46 @@ public record TaskState(
     }
 
     public LMO.TaskDesc toProto() {
-        return null;
+        return LMO.TaskDesc.newBuilder()
+            .addAllSlotAssignments(
+                taskSlotDescription.slotsToChannelsAssignments().entrySet().stream()
+                    .map(e -> LMO.SlotToChannelAssignment.newBuilder()
+                        .setSlotName(e.getKey())
+                        .setChannelId(e.getValue())
+                        .build())
+                    .toList()
+            )
+            .setOperation(
+                LMO.Operation.newBuilder()
+                    .setName(taskSlotDescription.name())
+                    .setDescription(taskSlotDescription.description())
+                    .setCommand(taskSlotDescription.command())
+                    .setRequirements(LMO.Requirements.newBuilder()
+                        .setZone(taskSlotDescription.zone())
+                        .setPoolLabel(taskSlotDescription.poolLabel())
+                        .build())
+                    .setKafkaTopic(LMO.KafkaTopicDescription.newBuilder()
+                        .setUsername(taskSlotDescription.stdLogsKafkaTopic().username())
+                        .setPassword(taskSlotDescription.stdLogsKafkaTopic().password())
+                        .setTopic(taskSlotDescription.stdLogsKafkaTopic().topic())
+                        .addAllBootstrapServers(taskSlotDescription.stdLogsKafkaTopic().bootstrapServers())
+                        .build())
+                    .addAllSlots(taskSlotDescription.slots().stream()
+                        .map(slot -> LMS.Slot.newBuilder()
+                            .setName(slot.name())
+                            .setMedia(LMS.Slot.Media.valueOf(slot.media().name()))
+                            .setDirection(LMS.Slot.Direction.valueOf(slot.direction().name()))
+                            .setContentType(LMD.DataScheme.newBuilder()
+                                .setDataFormat(slot.dataFormat())
+                                .setSchemeFormat(slot.schemeContent())
+                                .setSchemeContent(slot.schemeContent())
+                                .putAllMetadata(slot.metadata())
+                                .build())
+                            .build())
+                        .toList())
+                    .build()
+            )
+            .build();
     }
 
     @Override

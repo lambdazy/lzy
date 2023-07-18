@@ -46,7 +46,7 @@ public class TaskServiceImpl implements TaskService {
     private final Map<String, Integer> limitByWorkflow = new ConcurrentHashMap<>();
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-    private volatile Consumer<TaskState> taskOnComplete;
+    private volatile Consumer<TaskState> taskOnStatusChanged;
 
     @Inject
     public TaskServiceImpl(ServiceConfig config, TaskDao taskDao,
@@ -67,8 +67,8 @@ public class TaskServiceImpl implements TaskService {
     }
 
     @Override
-    public void init(Consumer<TaskState> onComplete) {
-        this.taskOnComplete = onComplete;
+    public void init(Consumer<TaskState> taskOnStatusChanged) {
+        this.taskOnStatusChanged = taskOnStatusChanged;
     }
 
     @Override
@@ -95,7 +95,7 @@ public class TaskServiceImpl implements TaskService {
                 readyTasks.add(waitingTask);
             }
         }
-        taskOnComplete.accept(task);
+        taskOnStatusChanged.accept(task);
     }
 
     @Override
@@ -180,15 +180,15 @@ public class TaskServiceImpl implements TaskService {
                 "Execute task '%s' of graph '%s'".formatted(task.id(), task.graphId()),
                 null, null, null);
 
-            ExecuteTaskAction executeTaskAction = new ExecuteTaskAction(op.id(), task, "",
-                storage, operationDao, operationsExecutor, taskDao, allocatorService, this::completeTask);
-
             TaskState finalTask = task.toBuilder()
                 .status(TaskState.Status.WAITING_ALLOCATION)
                 .executingState(task.executingState().toBuilder()
                     .opId(op.id())
                     .build())
                 .build();
+
+            ExecuteTaskAction executeTaskAction = new ExecuteTaskAction(op.id(), finalTask, "",
+                storage, operationDao, operationsExecutor, taskDao, allocatorService, this::completeTask);
 
             try {
                 withRetries(LOG, () -> {
@@ -204,6 +204,7 @@ public class TaskServiceImpl implements TaskService {
             }
 
             operationsExecutor.startNew(executeTaskAction);
+            taskOnStatusChanged.accept(finalTask);
             LOG.info("Created task operation {} for task {}", op.id(), task.id());
             readyTasks.poll();
             task = readyTasks.peek();

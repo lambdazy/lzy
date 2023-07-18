@@ -1,7 +1,5 @@
 package ai.lzy.graph.model;
 
-import ai.lzy.v1.common.LMO;
-
 import java.util.List;
 import java.util.Map;
 
@@ -13,8 +11,7 @@ public record TaskSlotDescription(
     String command,
     List<Slot> slots,
     Map<String, String> slotsToChannelsAssignments,
-    KafkaTopicDescription stdLogsKafkaTopic,
-    LMO.Requirements requirements
+    KafkaTopicDescription stdLogsKafkaTopic
 ) {
     public record Slot(
         String name,

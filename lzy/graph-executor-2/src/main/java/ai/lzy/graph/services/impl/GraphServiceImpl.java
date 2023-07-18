@@ -22,6 +22,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
@@ -50,7 +51,7 @@ public class GraphServiceImpl implements GraphService {
         this.storage = storage;
         this.idGenerator = idGenerator;
 
-        taskService.init(this::handleTaskCompleted);
+        taskService.init(this::handleTaskStatusChanged);
         restoreGraphs(config.getInstanceId());
     }
 
@@ -67,6 +68,12 @@ public class GraphServiceImpl implements GraphService {
             .toList();
 
         Algorithms.buildTaskDependents(graph, tasks, channels);
+        graph.tasks().put(GraphState.Status.WAITING,
+            tasks.stream().map(TaskState::id).collect(Collectors.toCollection(ArrayList::new))
+        );
+        graph.tasks().put(GraphState.Status.EXECUTING, new ArrayList<>());
+        graph.tasks().put(GraphState.Status.COMPLETED, new ArrayList<>());
+        graph.tasks().put(GraphState.Status.FAILED, new ArrayList<>());
 
         withRetries(LOG, () -> {
             try (var tx = TransactionHandle.create(storage)) {
@@ -80,29 +87,44 @@ public class GraphServiceImpl implements GraphService {
         taskService.addTasks(tasks);
     }
 
-    @Override
-    public void handleTaskCompleted(TaskState task) {
+    private void handleTaskStatusChanged(TaskState task) {
         GraphState graphState = graphs.get(task.graphId());
 
-        if (task.status() == TaskState.Status.COMPLETED) {
-            List<String> waitingList = graphState.tasks().get(GraphState.Status.WAITING);
-            List<String> completed = graphState.tasks().get(GraphState.Status.COMPLETED);
-            waitingList.remove(task.id());
-            completed.add(task.id());
+        switch (task.status()) {
+            case COMPLETED -> {
+                List<String> waitingList = graphState.tasks().get(GraphState.Status.WAITING);
+                List<String> executingList = graphState.tasks().get(GraphState.Status.EXECUTING);
+                executingList.remove(task.id());
+                List<String> completed = graphState.tasks().get(GraphState.Status.COMPLETED);
+                completed.add(task.id());
 
-            if (waitingList.isEmpty()) {
+                if (waitingList.isEmpty() && executingList.isEmpty()) {
+                    graphState = graphState.toBuilder()
+                        .status(GraphState.Status.COMPLETED)
+                        .build();
+                }
+            }
+            case FAILED -> {
+                List<String> executingList = graphState.tasks().get(GraphState.Status.EXECUTING);
+                executingList.remove(task.id());
+                List<String> failed = graphState.tasks().get(GraphState.Status.FAILED);
+                failed.add(task.id());
+
                 graphState = graphState.toBuilder()
-                    .status(GraphState.Status.COMPLETED)
+                    .status(GraphState.Status.FAILED)
+                    .failedTaskId(task.id())
+                    .failedTaskName(task.name())
+                    .errorDescription(task.errorDescription())
                     .build();
             }
-        } else {
-            graphState = graphState.toBuilder()
-                .status(GraphState.Status.FAILED)
-                .failedTaskId(task.id())
-                .failedTaskName(task.name())
-                .errorDescription(task.errorDescription())
-                .build();
+            case WAITING_ALLOCATION, ALLOCATING, EXECUTING -> {
+                List<String> waitingList = graphState.tasks().get(GraphState.Status.WAITING);
+                waitingList.remove(task.id());
+                List<String> executing = graphState.tasks().get(GraphState.Status.EXECUTING);
+                executing.add(task.id());
+            }
         }
+
         GraphState finalGraphState = graphState;
         try {
             withRetries(LOG, () -> graphDao.update(finalGraphState, null));

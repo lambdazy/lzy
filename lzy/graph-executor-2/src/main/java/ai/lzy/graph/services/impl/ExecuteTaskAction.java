@@ -17,6 +17,7 @@ import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.worker.LWS;
@@ -98,7 +99,10 @@ public class ExecuteTaskAction extends OperationRunnerBase {
         }
 
         var allocationOp = allocatorService.allocate(task.userId(), task.workflowName(), session,
-            task.taskSlotDescription().requirements());
+            LMO.Requirements.newBuilder()
+                .setZone(task.taskSlotDescription().zone())
+                .setPoolLabel(task.taskSlotDescription().poolLabel())
+                .build());
 
         final String vmId;
         try {
