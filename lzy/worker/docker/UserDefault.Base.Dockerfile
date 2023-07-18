@@ -4,8 +4,14 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 ### deps
 RUN apt-get update && \
-    apt-get install -y wget sox libsndfile1 ffmpeg libgomp1 && \
+    apt-get install -y wget locales sox libsndfile1 ffmpeg libgomp1 && \
     rm -rf /var/lib/apt/lists/*
+
+### Set the locale
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
 
 ### conda setup
 ENV PATH="/root/miniconda3/bin:$PATH"

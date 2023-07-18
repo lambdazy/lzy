@@ -4,7 +4,7 @@ ENV DEBIAN_FRONTEND noninteractive
 
 ### deps
 RUN apt-get -y update && \
-    apt-get -y install fuse lsof procps curl bash tar wget && \
+    apt-get -y install fuse lsof procps curl bash tar wget locales && \
     rm -rf /var/lib/apt/lists/*
 
 RUN distribution=$(. /etc/os-release;echo $ID$VERSION_ID) \
@@ -17,6 +17,12 @@ RUN apt-get -y update && \
     apt-get -y install ca-certificates openssh-client iptables nvidia-container-toolkit \
                        sox libsndfile1 ffmpeg libgomp1 && \
     rm -rf /var/lib/apt/lists/*
+
+### Set the locale
+RUN locale-gen en_US.UTF-8
+ENV LANG en_US.UTF-8
+ENV LANGUAGE en_US:en
+ENV LC_ALL en_US.UTF-8
 
 ### dind installation, by https://github.com/cruizba/ubuntu-dind
 ENV DOCKER_CHANNEL=stable \
