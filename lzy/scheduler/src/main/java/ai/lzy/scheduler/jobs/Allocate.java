@@ -40,11 +40,11 @@ public class Allocate extends WorkflowJobProvider<TaskState> {
         try {
             session = DbHelper.withRetries(logger, () -> {
                 try (TransactionHandle tx = TransactionHandle.create(storage)) {
-                    var s = dao.getAllocatorSession(task.workflowName(), task.userId(), tx);
+                    var s = dao.getAllocatorSession(task.executionId(), task.userId(), tx);
 
                     if (s == null) {
                         s = allocator.createSession(task.userId(), task.workflowName(), operationId);
-                        dao.insertAllocatorSession(task.workflowName(), task.userId(), s, tx);
+                        dao.insertAllocatorSession(task.executionId(), task.userId(), s, tx);
                     }
 
                     tx.commit();
