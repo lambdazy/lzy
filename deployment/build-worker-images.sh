@@ -46,12 +46,18 @@ if [[ $BASE = true ]]; then
     -f docker/Worker.Base.Dockerfile .
   WORKER_BASE_TAG=$DOCKER_TAG
   IMAGES="$IMAGES $DOCKER_REGISTRY/worker-base:$DOCKER_TAG"
+  if [[ $LATEST == true ]]; then
+    IMAGES="$IMAGES $DOCKER_REGISTRY/worker-base:latest"
+  fi
 
-  echo "Building image user-default-base"
-  docker build -t "$DOCKER_REGISTRY/user-default-base:$DOCKER_TAG" \
-    -t "$DOCKER_REGISTRY/user-default-base:latest" -f docker/UserDefault.Base.Dockerfile .
-  USER_DEFAULT_BASE_TAG=$DOCKER_TAG
-  IMAGES="$IMAGES $DOCKER_REGISTRY/user-default-base:$DOCKER_TAG"
+#  echo "Building image user-default-base"
+#  docker build -t "$DOCKER_REGISTRY/user-default-base:$DOCKER_TAG" \
+#    -t "$DOCKER_REGISTRY/user-default-base:latest" -f docker/UserDefault.Base.Dockerfile .
+#  USER_DEFAULT_BASE_TAG=$DOCKER_TAG
+#  IMAGES="$IMAGES $DOCKER_REGISTRY/user-default-base:$DOCKER_TAG"
+#  if [[ $LATEST == true ]]; then
+#    IMAGES="$IMAGES $DOCKER_REGISTRY/user-default-base:latest"
+#  fi
 
   echo "Building image user-test-base"
   docker build -t "$DOCKER_REGISTRY/user-test-base:$DOCKER_TAG" \
@@ -59,7 +65,7 @@ if [[ $BASE = true ]]; then
   USER_TEST_BASE_TAG=$DOCKER_TAG
   IMAGES="$IMAGES $DOCKER_REGISTRY/user-test-base:$DOCKER_TAG"
   if [[ $LATEST == true ]]; then
-    IMAGES="$IMAGES $DOCKER_REGISTRY/worker-base:latest $DOCKER_REGISTRY/user-default-base:latest $DOCKER_REGISTRY/user-test-base:latest"
+    IMAGES="$IMAGES $DOCKER_REGISTRY/user-test-base:latest"
   fi
 else
   if [[ -z "$STORED_WORKER_BASE_TAG" ]]; then
@@ -68,14 +74,14 @@ else
     REMOTE_BASE_TAG="$STORED_WORKER_BASE_TAG"
   fi
   WORKER_BASE="$DOCKER_REGISTRY/worker-base:$REMOTE_BASE_TAG"
-  USER_DEFAULT_BASE="$DOCKER_REGISTRY/user-default-base:$REMOTE_BASE_TAG"
+#  USER_DEFAULT_BASE="$DOCKER_REGISTRY/user-default-base:$REMOTE_BASE_TAG"
   USER_TEST_BASE="$DOCKER_REGISTRY/user-test-base:$REMOTE_BASE_TAG"
 
   docker pull "$WORKER_BASE"
   WORKER_BASE_TAG="$(echo $WORKER_BASE | awk -F: '{print $2}')"
 
-  docker pull "$USER_DEFAULT_BASE"
-  USER_DEFAULT_BASE_TAG="$(echo $USER_DEFAULT_BASE | awk -F: '{print $2}')"
+#  docker pull "$USER_DEFAULT_BASE"
+#  USER_DEFAULT_BASE_TAG="$(echo $USER_DEFAULT_BASE | awk -F: '{print $2}')"
 
   docker pull "$USER_TEST_BASE"
   USER_TEST_BASE_TAG="$(echo $USER_TEST_BASE | awk -F: '{print $2}')"
@@ -89,10 +95,10 @@ docker build --build-arg "REGISTRY=$DOCKER_REGISTRY" --build-arg "WORKER_BASE_TA
   -t "$DOCKER_REGISTRY/worker:$DOCKER_TAG" -f docker/Worker.Dockerfile .
 IMAGES="$IMAGES $DOCKER_REGISTRY/worker:$DOCKER_TAG"
 
-echo "Building image user-default with base tag $USER_DEFAULT_BASE_TAG"
-docker build --build-arg "REGISTRY=$DOCKER_REGISTRY" --build-arg "USER_DEFAULT_BASE_TAG=$USER_DEFAULT_BASE_TAG" \
-  -t "$DOCKER_REGISTRY/user-default:$DOCKER_TAG" -f docker/UserDefault.Dockerfile .
-IMAGES="$IMAGES $DOCKER_REGISTRY/user-default:$DOCKER_TAG"
+#echo "Building image user-default with base tag $USER_DEFAULT_BASE_TAG"
+#docker build --build-arg "REGISTRY=$DOCKER_REGISTRY" --build-arg "USER_DEFAULT_BASE_TAG=$USER_DEFAULT_BASE_TAG" \
+#  -t "$DOCKER_REGISTRY/user-default:$DOCKER_TAG" -f docker/UserDefault.Dockerfile .
+#IMAGES="$IMAGES $DOCKER_REGISTRY/user-default:$DOCKER_TAG"
 
 echo "Building image user-test with base tag $USER_TEST_BASE_TAG"
 docker build --build-arg "REGISTRY=$DOCKER_REGISTRY" --build-arg "USER_TEST_BASE_TAG=$USER_TEST_BASE_TAG" \
