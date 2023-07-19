@@ -16,6 +16,7 @@ RUN locale-gen en_US.UTF-8
 ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
+RUN locale-gen --purge en_US.UTF-8
 
 SHELL ["/bin/bash", "-c"]
 
