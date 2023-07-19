@@ -23,7 +23,7 @@ public class KuberClientFactoryImpl implements KuberClientFactory {
     @Override
     public KubernetesClient build(ClusterRegistry.ClusterDescription credentials) {
         final var config = new ConfigBuilder()
-            .withMasterUrl(credentials.masterAddress().toString())
+            .withMasterUrl(credentials.masterAddress())
             .withCaCertData(credentials.masterCert())
             .withOauthTokenProvider(() -> credentialProvider.get().getToken())
             .withRequestRetryBackoffInterval(/* millis */ 500)

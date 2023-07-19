@@ -172,3 +172,7 @@ variable "iam_ip_families" {
   type = list(string)
   default = ["IPv4"]
 }
+
+variable "allocator_service_cidrs" {
+  type = list(string)
+}

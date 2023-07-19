@@ -68,3 +68,6 @@ Configuration:
 
       - name: io.micronaut.http
         level: info
+
+#      - name: GrpcServer
+#        level: debug
