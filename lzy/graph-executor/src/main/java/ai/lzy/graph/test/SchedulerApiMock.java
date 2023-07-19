@@ -38,7 +38,9 @@ public class SchedulerApiMock implements SchedulerApi {
     }
 
     @Override
-    public TaskStatus execute(String userId, String wfName, String workflowId, TaskDescription tasks) {
+    public TaskStatus execute(String userId, String wfName, String workflowId, String allocatorSessionId,
+                              TaskDescription tasks)
+    {
         String taskId = callback.call(workflowId, tasks, this);
         return status(workflowId, taskId);
     }

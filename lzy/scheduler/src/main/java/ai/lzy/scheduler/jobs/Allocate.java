@@ -1,7 +1,5 @@
 package ai.lzy.scheduler.jobs;
 
-import ai.lzy.model.db.DbHelper;
-import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.scheduler.JobService;
 import ai.lzy.scheduler.allocator.WorkersAllocator;
 import ai.lzy.scheduler.db.JobsOperationDao;
@@ -36,31 +34,7 @@ public class Allocate extends WorkflowJobProvider<TaskState> {
     @Override
     protected TaskState exec(TaskState task, String operationId) throws JobProviderException {
 
-        final String session;
-        try {
-            session = DbHelper.withRetries(logger, () -> {
-                try (TransactionHandle tx = TransactionHandle.create(storage)) {
-                    var s = dao.getAllocatorSession(task.workflowName(), task.userId(), tx);
-
-                    if (s == null) {
-                        s = allocator.createSession(task.userId(), task.workflowName(), operationId);
-                        dao.insertAllocatorSession(task.workflowName(), task.userId(), s, tx);
-                    }
-
-                    tx.commit();
-                    return s;
-                }
-            });
-        } catch (Exception e) {
-            logger.error("Error while generating session in op {}", operationId, e);
-            fail(Status.newBuilder()
-                .setCode(Code.INTERNAL.value())
-                .setMessage("Internal exception")
-                .build());
-            return null;
-        }
-
-        var allocationOp = allocator.allocate(task.userId(), task.workflowName(), session,
+        var allocationOp = allocator.allocate(task.userId(), task.workflowName(), task.allocatorSessionId(),
             task.description().getOperation().getRequirements());
 
         final String vmId;

@@ -25,6 +25,7 @@ import java.util.function.Supplier;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 public final class ExecuteGraph extends ExecutionOperationRunner {
+    private final String allocatorSessionId;
     private final KafkaConfig kafkaConfig;
     private final ExecutionDao.KafkaTopicDesc kafkaTopicDesc;
     private final VmPoolServiceBlockingStub vmPoolClient;
@@ -37,6 +38,8 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
 
     private ExecuteGraph(ExecuteGraphBuilder builder) {
         super(builder);
+        assert builder.allocatorSessionId != null;
+        this.allocatorSessionId = builder.allocatorSessionId;
         this.kafkaConfig = builder.kafkaConfig;
         this.kafkaTopicDesc = builder.kafkaTopicDesc;
         this.vmPoolClient = builder.vmPoolClient;
@@ -74,7 +77,7 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
     }
 
     private Supplier<StepResult> executeGraph() {
-        return new StartGraphExecution(stepCtx(), state, graphsClient);
+        return new StartGraphExecution(stepCtx(), state, graphsClient, allocatorSessionId);
     }
 
     private StepResult complete() {
@@ -167,6 +170,7 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
     }
 
     public static final class ExecuteGraphBuilder extends ExecutionOperationRunnerBuilder<ExecuteGraphBuilder> {
+        private String allocatorSessionId;
         private KafkaConfig kafkaConfig;
         private ExecutionDao.KafkaTopicDesc kafkaTopicDesc;
         private VmPoolServiceBlockingStub vmPoolClient;
@@ -174,6 +178,11 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
         private GraphExecutorBlockingStub graphsClient;
         private StorageClient storageClient;
         private ExecuteGraphState state;
+
+        public ExecuteGraphBuilder setAllocatorSessionId(String allocatorSessionId) {
+            this.allocatorSessionId = allocatorSessionId;
+            return this;
+        }
 
         public ExecuteGraphBuilder setKafkaConfig(KafkaConfig kafkaConfig) {
             this.kafkaConfig = kafkaConfig;

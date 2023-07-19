@@ -13,56 +13,13 @@ import java.util.List;
 @Singleton
 public class TaskDaoImpl implements TaskDao {
 
-    private static final String FIELDS = "id, execution_id, workflow_name, user_id, operation_id, operation_name";
+    private static final String FIELDS =
+        "id, execution_id, workflow_name, user_id, operation_id, operation_name, allocator_session_id";
 
     private final SchedulerDataSource storage;
 
     public TaskDaoImpl(SchedulerDataSource storage) {
         this.storage = storage;
-    }
-
-    @Nullable
-    @Override
-    public String getAllocatorSession(String workflowName, String userId,
-                                      @Nullable TransactionHandle tx) throws SQLException
-    {
-        return DbOperation.execute(tx, storage, con -> {
-            try (PreparedStatement ps = con.prepareStatement("""
-                SELECT allocator_session_id FROM workflow
-                WHERE name = ? AND user_id = ?
-                """))
-            {
-                ps.setString(1, workflowName);
-                ps.setString(2, userId);
-
-                var rs = ps.executeQuery();
-
-                if (!rs.next()) {
-                    return null;
-                }
-                return rs.getString(1);
-            }
-        });
-    }
-
-    @Override
-    public void insertAllocatorSession(String workflowName, String userId, String sessionId,
-                                       @Nullable TransactionHandle tx) throws SQLException
-    {
-        DbOperation.execute(tx, storage, con -> {
-            try (PreparedStatement ps = con.prepareStatement("""
-                INSERT INTO workflow (name, user_id, allocator_session_id)
-                VALUES (?, ?, ?)
-                ON CONFLICT DO NOTHING
-                """))
-            {
-                ps.setString(1, workflowName);
-                ps.setString(2, userId);
-                ps.setString(3, sessionId);
-
-                ps.execute();
-            }
-        });
     }
 
     @Nullable
@@ -89,8 +46,9 @@ public class TaskDaoImpl implements TaskDao {
                 var userId = rs.getString(4);
                 var operationId = rs.getString(5);
                 var opName = rs.getString(6);
+                var allocSid = rs.getString(7);
 
-                return new TaskDesc(taskId, executionId, workflowName, userId, operationId, opName);
+                return new TaskDesc(taskId, executionId, workflowName, userId, operationId, opName, allocSid);
             }
         });
     }
@@ -117,8 +75,9 @@ public class TaskDaoImpl implements TaskDao {
                 var workflowName = rs.getString(3);
                 var userId = rs.getString(4);
                 var opName = rs.getString(6);
+                var allocSid = rs.getString(7);
 
-                return new TaskDesc(id, execId, workflowName, userId, operationId, opName);
+                return new TaskDesc(id, execId, workflowName, userId, operationId, opName, allocSid);
             }
         });
     }
@@ -128,7 +87,7 @@ public class TaskDaoImpl implements TaskDao {
         DbOperation.execute(tx, storage, con -> {
             try (PreparedStatement ps = con.prepareStatement(String.format("""
                 INSERT INTO task (%s)
-                VALUES (?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, FIELDS)))
             {
                 ps.setString(1, desc.taskId());
@@ -137,6 +96,7 @@ public class TaskDaoImpl implements TaskDao {
                 ps.setString(4, desc.userId());
                 ps.setString(5, desc.operationId());
                 ps.setString(6, desc.operationName());
+                ps.setString(7, desc.allocatorSessionId());
 
                 ps.execute();
             }
@@ -163,8 +123,9 @@ public class TaskDaoImpl implements TaskDao {
                     var userId = rs.getString(4);
                     var operationId = rs.getString(5);
                     var opName = rs.getString(6);
+                    var allocSid = rs.getString(7);
 
-                    descList.add(new TaskDesc(id, executionId, workflowName, userId, operationId, opName));
+                    descList.add(new TaskDesc(id, executionId, workflowName, userId, operationId, opName, allocSid));
                 }
 
                 return descList;
@@ -194,8 +155,9 @@ public class TaskDaoImpl implements TaskDao {
                     var execId = rs.getString(2);
                     var operationId = rs.getString(5);
                     var operationName = rs.getString(6);
+                    var allocSid = rs.getString(7);
 
-                    descList.add(new TaskDesc(id, execId, wfName, userId, operationId, operationName));
+                    descList.add(new TaskDesc(id, execId, wfName, userId, operationId, operationName, allocSid));
                 }
 
                 return descList;

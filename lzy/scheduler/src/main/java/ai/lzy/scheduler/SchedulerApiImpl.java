@@ -46,7 +46,6 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
 
     @Override
     public void schedule(TaskScheduleRequest request, StreamObserver<TaskScheduleResponse> responseObserver) {
-
         var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
 
         if (idempotencyKey != null) {
@@ -85,6 +84,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             request.getWorkflowId(),
             request.getWorkflowName(),
             request.getUserId(),
+            request.getAllocatorSessionId(),
             request.getTask(),
             null,
             null,
@@ -108,7 +108,8 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             taskState.workflowName(),
             taskState.userId(),
             op.id(),
-            request.getTask().getOperation().getName()
+            request.getTask().getOperation().getName(),
+            taskState.allocatorSessionId()
         );
 
         try {

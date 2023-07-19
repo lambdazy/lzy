@@ -16,7 +16,7 @@ public final class AbortExecution extends StopExecution {
         super(builder);
         this.graphClient = builder.graphClient;
         this.steps = List.of(stopGraphs(), destroyChannels(),
-            /*deleteAllocSession(), waitDeleteAllocSession(), */ deleteKafkaTopic(), this::complete);
+            deleteAllocSession(), waitDeleteAllocSession(), deleteKafkaTopic(), this::complete);
     }
 
     @Override
