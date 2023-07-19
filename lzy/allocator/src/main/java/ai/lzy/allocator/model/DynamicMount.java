@@ -17,7 +17,8 @@ public record DynamicMount(
     String mountOperationId,
     @Nullable String unmountOperationId,
     State state,
-    String workerId
+    String workerId,
+    boolean mounted
 ) {
     public enum State {
         PENDING,
@@ -30,7 +31,7 @@ public record DynamicMount(
                                          String mountOperationId, String workerId)
     {
         return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, mountName, null, null,
-            volumeRequest, mountOperationId, null, State.PENDING, workerId);
+            volumeRequest, mountOperationId, null, State.PENDING, workerId, false);
     }
 
     public VmAllocatorApi.DynamicMount toProto() {
@@ -61,10 +62,12 @@ public record DynamicMount(
         @Nullable String volumeName,
         @Nullable String volumeClaimName,
         @Nullable State state,
-        @Nullable String unmountOperationId
+        @Nullable String unmountOperationId,
+        @Nullable Boolean mounted
     ) {
         public boolean isEmpty() {
-            return volumeName == null && volumeClaimName == null && state == null && unmountOperationId == null;
+            return volumeName == null && volumeClaimName == null && state == null && unmountOperationId == null &&
+                mounted == null;
         }
 
         public static Builder builder() {
@@ -76,6 +79,7 @@ public record DynamicMount(
             private String volumeClaimName;
             private State state;
             private String unmountOperationId;
+            private Boolean mounted;
 
             public Builder volumeName(String volumeName) {
                 this.volumeName = volumeName;
@@ -97,8 +101,13 @@ public record DynamicMount(
                 return this;
             }
 
+            public Builder mounted(Boolean mounted) {
+                this.mounted = mounted;
+                return this;
+            }
+
             public Update build() {
-                return new Update(volumeName, volumeClaimName, state, unmountOperationId);
+                return new Update(volumeName, volumeClaimName, state, unmountOperationId, mounted);
             }
         }
     }
