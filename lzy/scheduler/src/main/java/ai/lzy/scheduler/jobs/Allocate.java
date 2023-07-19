@@ -3,8 +3,6 @@ package ai.lzy.scheduler.jobs;
 import ai.lzy.scheduler.JobService;
 import ai.lzy.scheduler.allocator.WorkersAllocator;
 import ai.lzy.scheduler.db.JobsOperationDao;
-import ai.lzy.scheduler.db.SchedulerDataSource;
-import ai.lzy.scheduler.db.TaskDao;
 import ai.lzy.scheduler.models.TaskState;
 import ai.lzy.scheduler.providers.WorkflowJobProvider;
 import ai.lzy.v1.VmAllocatorApi;
@@ -18,17 +16,12 @@ import jakarta.inject.Singleton;
 @Singleton
 public class Allocate extends WorkflowJobProvider<TaskState> {
     private final WorkersAllocator allocator;
-    private final TaskDao dao;
-    private final SchedulerDataSource storage;
 
-    protected Allocate(
-        JobService jobService, TaskStateSerializer serializer, JobsOperationDao opDao, ApplicationContext context,
-        TaskDao dao, SchedulerDataSource storage, WorkersAllocator allocator)
+    protected Allocate(JobService jobService, TaskStateSerializer serializer, JobsOperationDao opDao,
+                       ApplicationContext context, WorkersAllocator allocator)
     {
         super(jobService, serializer, opDao, null, AwaitAllocation.class, context);
         this.allocator = allocator;
-        this.dao = dao;
-        this.storage = storage;
     }
 
     @Override
