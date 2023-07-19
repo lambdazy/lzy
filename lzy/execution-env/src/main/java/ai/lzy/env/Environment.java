@@ -1,6 +1,5 @@
-package ai.lzy.worker.env;
+package ai.lzy.env;
 
-import ai.lzy.worker.StreamQueue;
 import jakarta.annotation.Nullable;
 
 import java.io.InputStream;
@@ -12,7 +11,7 @@ public interface Environment extends AutoCloseable {
      * Install environment. Must be called before execution
      * Consumes stream queues to add stdout and stderr to
      */
-    void install(StreamQueue.LogHandle logHandle) throws EnvironmentInstallationException;
+    void install(LogHandle logHandle) throws EnvironmentInstallationException;
 
     default LzyProcess runProcess(String... command) {
         return runProcess(command, null);

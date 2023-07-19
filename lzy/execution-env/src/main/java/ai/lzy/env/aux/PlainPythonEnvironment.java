@@ -1,7 +1,8 @@
-package ai.lzy.worker.env;
+package ai.lzy.env.aux;
 
-import ai.lzy.v1.common.LME;
-import ai.lzy.worker.StreamQueue;
+import ai.lzy.env.base.BaseEnvironment;
+import ai.lzy.env.EnvironmentInstallationException;
+import ai.lzy.env.LogHandle;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -12,17 +13,19 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 public class PlainPythonEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(PlainPythonEnvironment.class);
 
     private final BaseEnvironment baseEnv;
-    private final LME.PythonEnv pythonEnv;
     private final String localModulesPathPrefix;
+    private final Map<String, String> localModules;
     private Path localModulesPath;
 
-    public PlainPythonEnvironment(BaseEnvironment baseEnv, LME.PythonEnv pythonEnv, String localModulesPathPrefix) {
-        this.pythonEnv = pythonEnv;
+    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules,
+                                  String localModulesPathPrefix) {
+        this.localModules = localModules;
         this.baseEnv = baseEnv;
         this.localModulesPathPrefix = localModulesPathPrefix;
     }
@@ -33,15 +36,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public void install(StreamQueue.LogHandle logHandle) throws EnvironmentInstallationException {
-        var sb = new StringBuilder();
-        sb.append("*WARNING* Using plain python environment instead of conda.");
-        sb.append(" Your packages will not be installed: \n");
-        for (var line : pythonEnv.getYaml().split("\n")) {
-            sb.append("  > ").append(line).append("\n");
-        }
-        logHandle.logErr(sb.toString());
-
+    public void install(LogHandle logHandle) throws EnvironmentInstallationException {
         var proc = baseEnv.runProcess("python", "--version");
         final int res;
 
@@ -75,7 +70,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
         logHandle.logErr("Using provided python with version \"{}\"", out);
 
         try {
-            this.localModulesPath = AuxEnvironment.installLocalModules(pythonEnv, localModulesPathPrefix, LOG);
+            this.localModulesPath = AuxEnvironment.installLocalModules(localModules, localModulesPathPrefix, LOG);
         } catch (IOException e) {
             LOG.error("Cannot install local modules", e);
             throw new EnvironmentInstallationException("Cannot install local modules: " + e.getMessage());

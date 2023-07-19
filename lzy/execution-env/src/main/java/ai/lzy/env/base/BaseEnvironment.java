@@ -1,4 +1,7 @@
-package ai.lzy.worker.env;
+package ai.lzy.env.base;
+
+import ai.lzy.env.Environment;
+import ai.lzy.env.aux.CondaPackageRegistry;
 
 public abstract class BaseEnvironment implements Environment {
 
@@ -8,8 +11,7 @@ public abstract class BaseEnvironment implements Environment {
         this.registry = new CondaPackageRegistry();
     }
 
-    final CondaPackageRegistry getPackageRegistry() {
+    public final CondaPackageRegistry getPackageRegistry() {
         return registry;
     }
-
 }

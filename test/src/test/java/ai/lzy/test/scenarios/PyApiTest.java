@@ -3,7 +3,7 @@ package ai.lzy.test.scenarios;
 import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
 import ai.lzy.test.impl.v2.PythonContext;
-import ai.lzy.worker.env.CondaEnvironment;
+import ai.lzy.env.aux.CondaEnvironment;
 import org.junit.ClassRule;
 import org.junit.Test;
 

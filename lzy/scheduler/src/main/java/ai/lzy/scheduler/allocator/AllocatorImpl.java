@@ -4,17 +4,13 @@ import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.scheduler.SchedulerApi;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.util.grpc.GrpcChannels;
-import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
-import ai.lzy.v1.VmAllocatorApi.CreateSessionRequest;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.Durations;
 import io.grpc.ManagedChannel;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
@@ -57,38 +53,6 @@ public class AllocatorImpl implements WorkersAllocator {
         GrpcChannels.awaitTermination(opChannel, java.time.Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(allocatorChannel, java.time.Duration.ofSeconds(10), getClass());
         GrpcChannels.awaitTermination(iamChannel, java.time.Duration.ofSeconds(10), getClass());
-    }
-
-    @Override
-    public String createSession(String userId, String workflowName, String idempotencyKey) {
-
-        var stub = GrpcUtils.withIdempotencyKey(allocator, idempotencyKey);
-
-        final var createSessionOp = stub.createSession(
-            CreateSessionRequest.newBuilder()
-                .setOwner(userId)
-                .setDescription("Worker allocation")
-                .setCachePolicy(
-                    VmAllocatorApi.CachePolicy.newBuilder()
-                        .setIdleTimeout(Durations.fromMinutes(10))
-                        .build())
-                .build());
-
-        if (!createSessionOp.getDone()) {
-            LOG.error("Unexpected create session operation state");
-            throw new RuntimeException("Unexpected create session operation state");
-        }
-
-        String sessionId;
-        try {
-            sessionId = createSessionOp.getResponse().unpack(VmAllocatorApi.CreateSessionResponse.class).getSessionId();
-        } catch (InvalidProtocolBufferException e) {
-            LOG.error("Cannot parse CreateSessionResponse", e);
-            throw new RuntimeException(e);
-        }
-
-        return sessionId;
-
     }
 
     @Override

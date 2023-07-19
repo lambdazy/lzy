@@ -111,7 +111,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         final GraphExecutionState graphExecution;
         try {
             graphExecution = queueManager.startGraph(request.getWorkflowId(), request.getWorkflowName(),
-                request.getUserId(), graph, op);
+                request.getUserId(), request.getAllocatorSessionId(), graph, op);
         } catch (StatusException e) {
             LOG.error("Error while adding start graph event from workflow <{}>", request.getWorkflowId(), e);
             responseObserver.onError(e);

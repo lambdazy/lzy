@@ -13,6 +13,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -70,7 +71,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         WHERE execution_id = ?""";
 
     private static final String QUERY_SELECT_EXEC_GRAPH_DATA = """
-        SELECT kafka_topic_json, storage_credentials
+        SELECT kafka_topic_json, storage_credentials, allocator_session_id
         FROM workflow_executions
         WHERE execution_id = ?""";
 
@@ -283,29 +284,37 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     @Override
     public ExecuteGraphData loadExecGraphData(String execId, TransactionHandle transaction) throws SQLException {
-        ExecuteGraphData[] result = {null};
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_SELECT_EXEC_GRAPH_DATA)) {
+        return DbOperation.execute(transaction, storage, connection -> {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_SELECT_EXEC_GRAPH_DATA)) {
                 st.setString(1, execId);
+
                 var rs = st.executeQuery();
                 if (rs.next()) {
                     var kafkaJson = rs.getString(1);
                     if (kafkaJson == null) {
                         LOG.error("Null kafka description for execution: { execId : {} }", execId);
-                        throw new RuntimeException("Null kafka description for execution with id='%s'".formatted(
-                            execId));
+                        throw new RuntimeException("Null kafka description for execution with id='%s'"
+                            .formatted(execId));
                     }
 
-                    var storageCfgJson = rs.getString("storage_credentials");
+                    var storageCfgJson = rs.getString(2);
                     if (storageCfgJson == null) {
                         LOG.error("Null storage credentials for execution: { execId : {} }", execId);
-                        throw new RuntimeException("Null storage credentials for execution with id='%s'".formatted(
-                            execId));
+                        throw new RuntimeException("Null storage credentials for execution with id='%s'"
+                            .formatted(execId));
                     }
 
-                    result[0] = new ExecuteGraphData(
+                    var allocatorSessionId = rs.getString(3);
+                    if (allocatorSessionId == null) {
+                        LOG.error("Null allocator session id for execution: { execId : {} }", execId);
+                        throw new RuntimeException("Null allocator session id for execution with id='%s'"
+                            .formatted(execId));
+                    }
+
+                    return new ExecuteGraphData(
                         objectMapper.readValue(storageCfgJson, LMST.StorageConfig.class),
-                        objectMapper.readValue(kafkaJson, KafkaTopicDesc.class)
+                        objectMapper.readValue(kafkaJson, KafkaTopicDesc.class),
+                        allocatorSessionId
                     );
                 } else {
                     LOG.error("Cannot get exec graph data for unknown execution: { execId : {} }", execId);
@@ -317,7 +326,6 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 throw new RuntimeException(mes, jpe);
             }
         });
-        return result[0];
     }
 
     @Override

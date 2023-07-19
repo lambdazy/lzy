@@ -39,11 +39,14 @@ public class SchedulerApiImpl implements SchedulerApi {
     }
 
     @Override
-    public TaskStatus execute(String userId, String workflowName, String workflowId, TaskDescription task) {
+    public TaskStatus execute(String userId, String workflowName, String workflowId, String allocatorSessionId,
+                              TaskDescription task)
+    {
         var res = stub.schedule(TaskScheduleRequest.newBuilder()
             .setUserId(userId)
             .setWorkflowName(workflowName)
             .setWorkflowId(workflowId)
+            .setAllocatorSessionId(allocatorSessionId)
             .setTask(LMO.TaskDesc.newBuilder()
                 .setOperation(task.operation())
                 .addAllSlotAssignments(task.slotsToChannelsAssignments().entrySet().stream()

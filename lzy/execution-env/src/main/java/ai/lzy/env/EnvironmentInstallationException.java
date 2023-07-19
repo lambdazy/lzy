@@ -1,4 +1,4 @@
-package ai.lzy.worker.env;
+package ai.lzy.env;
 
 public class EnvironmentInstallationException extends Exception {
     public EnvironmentInstallationException(String message) {

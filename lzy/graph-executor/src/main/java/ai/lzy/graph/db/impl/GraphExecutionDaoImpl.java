@@ -39,12 +39,13 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
 
     private static final String GRAPH_INSERT_FIELDS_LIST = """
         workflow_id, workflow_name, user_id, id, error_description, failed_task_id, failed_task_name, status,
-        graph_description_json, task_executions_json, current_execution_group_json, last_updated, acquired""";
+        graph_description_json, task_executions_json, current_execution_group_json, last_updated, acquired,
+        allocator_session_id""";
 
     private static final String GRAPH_SELECT_FIELDS_LIST = """
         workflow_id, workflow_name, user_id, id, error_description, failed_task_id, failed_task_name,
         status::text as status, graph_description_json, task_executions_json, current_execution_group_json,
-        last_updated, acquired""";
+        last_updated, acquired, allocator_session_id""";
 
     @Inject
     public GraphExecutionDaoImpl(GraphExecutorDataSource storage) {
@@ -53,36 +54,36 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
     }
 
     @Override
-    public GraphExecutionState create(String executionId, String workflowName, String userId,
+    public GraphExecutionState create(String executionId, String workflowName, String userId, String allocatorSessionId,
                                       GraphDescription description, @Nullable TransactionHandle transaction)
         throws SQLException
     {
         LOG.info("Save graph execution state: { executionId: {}, workflowName: {}, userId: {}, desc: {} }",
             executionId, workflowName, userId, description);
 
-        GraphExecutionState[] state = {null};
-
-        DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(
-                "INSERT INTO graph_execution_state (" + GRAPH_INSERT_FIELDS_LIST + ")"
-                    + "VALUES (?, ?, ?, ?, ?, ?, ?, ?::graph_execution_status, ?, ?, ?, ?, ?)"))
+        return DbOperation.execute(transaction, storage, connection -> {
+            try (PreparedStatement st = connection.prepareStatement("""
+                    INSERT INTO graph_execution_state (%s)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?::graph_execution_status, ?, ?, ?, ?, ?, ?)
+                    """.formatted(GRAPH_INSERT_FIELDS_LIST)))
             {
                 String id = UUID.randomUUID().toString();
-                state[0] = GraphExecutionState.builder()
+                var state = GraphExecutionState.builder()
                     .withWorkflowId(executionId)
                     .withWorkflowName(workflowName)
                     .withUserId(userId)
                     .withId(id)
                     .withDescription(description)
+                    .withAllocatorSessionId(allocatorSessionId)
                     .build();
-                setGraphFields(st, state[0]);
+                setGraphFields(st, state);
                 st.execute();
+
+                return state;
             } catch (JsonProcessingException e) {
                 throw new SQLException("Cannot dump values for graph fields", e);
             }
         });
-
-        return state[0];
     }
 
     @Nullable
@@ -238,9 +239,10 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
         final List<TaskExecution> executions = objectMapper.readValue(taskExecutionsJson, new TypeReference<>() {});
         final List<TaskExecution> currentExecutionGroup = objectMapper.readValue(
             currentExecutionGroupJson, new TypeReference<>() {});
+        final String allocatorSessionId = resultSet.getString("allocator_session_id");
         return new GraphExecutionState(
             workflowId, workflowName, userId, id, graph, executions,
-            currentExecutionGroup, status, errorDescription, failedTaskId, failedTaskName
+            currentExecutionGroup, status, errorDescription, failedTaskId, failedTaskName, allocatorSessionId
         );
     }
 
@@ -272,5 +274,6 @@ public class GraphExecutionDaoImpl implements GraphExecutionDao {
         st.setString(++count, objectMapper.writeValueAsString(state.currentExecutionGroup()));
         st.setTimestamp(++count, Timestamp.valueOf(LocalDateTime.now()));
         st.setBoolean(++count, false);
+        st.setString(++count, state.allocatorSessionId());
     }
 }

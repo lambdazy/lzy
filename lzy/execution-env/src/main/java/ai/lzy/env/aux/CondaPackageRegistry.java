@@ -1,4 +1,4 @@
-package ai.lzy.worker.env;
+package ai.lzy.env.aux;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;

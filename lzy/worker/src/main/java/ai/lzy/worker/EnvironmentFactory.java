@@ -1,8 +1,19 @@
-package ai.lzy.worker.env;
+package ai.lzy.worker;
 
+import ai.lzy.env.Environment;
+import ai.lzy.env.EnvironmentInstallationException;
+import ai.lzy.env.LogHandle;
+import ai.lzy.env.aux.AuxEnvironment;
+import ai.lzy.env.aux.CondaEnvironment;
+import ai.lzy.env.aux.PlainPythonEnvironment;
+import ai.lzy.env.aux.SimpleBashEnvironment;
+import ai.lzy.env.base.BaseEnvironment;
+import ai.lzy.env.base.DockerEnvDescription;
+import ai.lzy.env.base.DockerEnvDescription.ContainerRegistryCredentials;
+import ai.lzy.env.base.DockerEnvironment;
+import ai.lzy.env.base.ProcessEnvironment;
 import ai.lzy.v1.common.LME;
-import ai.lzy.worker.ServiceConfig;
-import ai.lzy.worker.StreamQueue;
+import ai.lzy.v1.common.LME.LocalModule;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import jakarta.inject.Singleton;
@@ -20,6 +31,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 @Singleton
 public class EnvironmentFactory {
@@ -39,7 +51,7 @@ public class EnvironmentFactory {
         this.hasGpu = config.getGpuCount() > 0;
     }
 
-    public AuxEnvironment create(String taskId, String fsRoot, LME.EnvSpec env, StreamQueue.LogHandle logHandle)
+    public AuxEnvironment create(String taskId, String fsRoot, LME.EnvSpec env, LogHandle logHandle, String lzyMount)
         throws EnvironmentInstallationException
     {
         //to mock environment in tests
@@ -56,15 +68,24 @@ public class EnvironmentFactory {
 
             var credentials = env.hasDockerCredentials() ? env.getDockerCredentials() : null;
 
-            var config = BaseEnvConfig.newBuilder()
+            var configBuilder = DockerEnvDescription.newBuilder()
                 .withGpu(hasGpu)
                 .withImage(image)
                 .addMount(RESOURCES_PATH, RESOURCES_PATH)
                 .addMount(LOCAL_MODULES_PATH, LOCAL_MODULES_PATH)
                 .addRsharedMount(fsRoot, fsRoot)
                 .withEnvVars(env.getEnvMap())
-                .withEnvVars(Map.of("LZY_INNER_CONTAINER", "true"))
-                .build();
+                .withEnvVars(Map.of(
+                    "LZY_INNER_CONTAINER", "true",
+                    "LZY_MOUNT", lzyMount
+                ));
+
+            if (credentials != null) {
+                configBuilder.withCredentials(new ContainerRegistryCredentials(
+                    credentials.getRegistryName(), credentials.getUsername(), credentials.getPassword()));
+            }
+
+            var config = configBuilder.build();
 
             var cachedEnv = createdContainers.get(image);
 
@@ -75,18 +96,19 @@ public class EnvironmentFactory {
                     } catch (Exception e) {
                         LOG.error("Cannot kill docker container {}", cachedEnv.containerId, e);
                     }
-                    baseEnv = new DockerEnvironment(config, DockerEnvironment.generateClient(credentials));
+                    baseEnv = new DockerEnvironment(config);
                     createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
                 } else {
                     baseEnv = cachedEnv;
                 }
 
             } else {
-                baseEnv = new DockerEnvironment(config, DockerEnvironment.generateClient(credentials));
+                baseEnv = new DockerEnvironment(config);
                 createdContainers.put(config.image(), (DockerEnvironment) baseEnv);
             }
         } else {
-            baseEnv = localProcessEnv.withEnv(env.getEnvMap());
+            baseEnv = localProcessEnv.withEnv(env.getEnvMap())
+                .withEnv(Map.of("LZY_MOUNT", lzyMount));
         }
 
         if (INSTALL_ENV.get()) {
@@ -121,8 +143,18 @@ public class EnvironmentFactory {
                     err = "";
                 }
 
+                var sb = new StringBuilder();
+                sb.append("*WARNING* Using plain python environment instead of conda.");
+                sb.append(" Your packages will not be installed: \n");
+                for (var line : env.getPyenv().getYaml().split("\n")) {
+                    sb.append("  > ").append(line).append("\n");
+                }
+                logHandle.logErr(sb.toString());
+
                 LOG.error("Cannot find conda in provided env, rc={}, env={}: {}", res, env, err);
-                auxEnv = new PlainPythonEnvironment(baseEnv, env.getPyenv(), LOCAL_MODULES_PATH);
+                auxEnv = new PlainPythonEnvironment(baseEnv, env.getPyenv().getLocalModulesList()
+                    .stream()
+                    .collect(Collectors.toMap(LocalModule::getName, LocalModule::getUri)), LOCAL_MODULES_PATH);
             } else {
                 final String out;
 
@@ -133,7 +165,11 @@ public class EnvironmentFactory {
                     LOG.error("Cannot find conda version", e);
                 }
 
-                auxEnv = new CondaEnvironment(baseEnv, env.getPyenv(), RESOURCES_PATH, LOCAL_MODULES_PATH);
+                auxEnv = new CondaEnvironment(baseEnv, env.getPyenv().getYaml(),
+                    env.getPyenv().getLocalModulesList()
+                        .stream()
+                        .collect(Collectors.toMap(LocalModule::getName, LocalModule::getUri)),
+                    RESOURCES_PATH, LOCAL_MODULES_PATH);
             }
 
         } else if (env.hasProcessEnv()) {

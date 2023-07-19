@@ -76,11 +76,6 @@ public class AllocatorMock implements WorkersAllocator {
     }
 
     @Override
-    public String createSession(String userId, String workflowName, String idempotencyKey) {
-        return "session-id";
-    }
-
-    @Override
     public void free(String vmId) {
         onDestroy.accept(vmId);
     }
