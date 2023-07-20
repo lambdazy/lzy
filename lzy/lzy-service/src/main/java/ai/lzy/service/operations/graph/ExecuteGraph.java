@@ -18,6 +18,7 @@ import com.google.protobuf.Any;
 import io.grpc.Status;
 
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -122,12 +123,13 @@ public final class ExecuteGraph extends ExecutionOperationRunner {
         boolean[] success = {false};
         var abortOp = Operation.create(userId(), "Abort execution: execId='%s'".formatted(execId()),
             serviceCfg().getOperations().getAbortWorkflowTimeout(), null, null);
+        var cacheAllocSessionDeadline = Instant.now().plus(serviceCfg().getAllocatorVmCacheTimeout());
         try {
             withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(storage())) {
                     success[0] = Objects.equals(wfDao().getExecutionId(userId(), wfName(), tx), execId());
                     if (success[0]) {
-                        wfDao().setActiveExecutionId(userId(), wfName(), null, tx);
+                        wfDao().resetActiveExecution(userId(), wfName(), cacheAllocSessionDeadline, tx);
                         operationsDao().create(abortOp, tx);
                         execOpsDao().createAbortOp(abortOp.id(), serviceCfg().getInstanceId(), execId(), tx);
                         execDao().setFinishStatus(execId(), Status.INTERNAL.withDescription("error on execute graph"),

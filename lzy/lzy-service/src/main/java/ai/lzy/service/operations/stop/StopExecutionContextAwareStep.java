@@ -26,22 +26,4 @@ public abstract class StopExecutionContextAwareStep extends ExecutionContextAwar
     protected void setKafkaTopicDesc(KafkaTopicDesc kafkaTopicDesc) {
         state.kafkaTopicDesc = kafkaTopicDesc;
     }
-
-    @Nullable
-    protected String allocatorSessionId() {
-        return state.allocatorSessionId;
-    }
-
-    protected void setAllocatorSessionId(String allocatorSessionId) {
-        state.allocatorSessionId = allocatorSessionId;
-    }
-
-    @Nullable
-    protected String deleteAllocSessionOpId() {
-        return state.deleteAllocSessionOpId;
-    }
-
-    protected void setDeleteAllocSessionOpId(String opId) {
-        state.deleteAllocSessionOpId = opId;
-    }
 }

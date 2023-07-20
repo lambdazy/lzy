@@ -3,6 +3,7 @@ package ai.lzy.service.operations;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
 import ai.lzy.model.db.Storage;
+import ai.lzy.service.dao.DeleteAllocatorSessionOperationsDao;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
@@ -24,6 +25,7 @@ public record ExecutionStepContext(
     ExecutionDao execDao,
     GraphDao graphDao,
     ExecutionOperationsDao execOpsDao,
+    DeleteAllocatorSessionOperationsDao deleteAllocatorSessionOpsDao,
     RenewableJwt internalUserCredentials,
     @Nullable String idempotencyKey,
     Function<StatusRuntimeException, StepResult> failAction,

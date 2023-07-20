@@ -11,8 +11,7 @@ public final class FinishExecution extends StopExecution {
 
     private FinishExecution(FinishExecutionBuilder builder) {
         super(builder);
-        this.steps = List.of(destroyChannels(), deleteKafkaTopic(),
-            deleteAllocSession(), waitDeleteAllocSession(), this::complete);
+        this.steps = List.of(destroyChannels(), deleteKafkaTopic(), this::complete);
     }
 
     @Override
@@ -22,14 +21,6 @@ public final class FinishExecution extends StopExecution {
 
     private Supplier<StepResult> destroyChannels() {
         return new DestroyChannels(stepCtx(), state(), channelsClient());
-    }
-
-    private Supplier<StepResult> deleteAllocSession() {
-        return new DeleteAllocatorSession(stepCtx(), state(), allocClient());
-    }
-
-    private Supplier<StepResult> waitDeleteAllocSession() {
-        return new WaitDeleteAllocatorSession(stepCtx(), state(), allocOpClient());
     }
 
     private Supplier<StepResult> deleteKafkaTopic() {

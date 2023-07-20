@@ -14,6 +14,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Singleton
 public class WorkflowDaoImpl implements WorkflowDao {
@@ -23,7 +25,8 @@ public class WorkflowDaoImpl implements WorkflowDao {
         SELECT 1 from workflows WHERE user_id = ? AND workflow_name = ?""";
 
     private static final String QUERY_SELECT_WORKFLOW = """
-        SELECT workflow_name, user_id, created_at, modified_at, active_execution_id
+        SELECT workflow_name, user_id, created_at, modified_at, active_execution_id,
+               allocator_session_id, allocator_session_deadline
         FROM workflows
         WHERE user_id = ? AND workflow_name = ?""";
 
@@ -31,12 +34,18 @@ public class WorkflowDaoImpl implements WorkflowDao {
         INSERT INTO workflows (workflow_name, user_id, created_at, modified_at, active_execution_id)
         VALUES (?, ?, ?, ?, ?)""";
 
-    private static final String QUERY_UPDATE_ACTIVE_EXECUTION = """
-        UPDATE workflows SET active_execution_id = ?, modified_at = ?
+    private static final String QUERY_RESET_ACTIVE_EXECUTION = """
+        UPDATE workflows
+        SET active_execution_id = NULL,
+            modified_at = ?,
+            allocator_session_deadline = ?
         WHERE user_id = ? AND workflow_name = ?""";
 
-    private static final String QUERY_UPDATE_ACTIVE_EXECUTION_TO_NULL = """
-        UPDATE workflows SET active_execution_id = NULL, modified_at = ?
+    private static final String QUERY_RESET_ACTIVE_EXECUTION_BY_ID = """
+        UPDATE workflows
+        SET active_execution_id = NULL,
+            modified_at = ?,
+            allocator_session_deadline = ?
         WHERE workflow_name = ? AND active_execution_id = ?""";
 
     private final LzyServiceStorage storage;
@@ -103,7 +112,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
         throws SQLException
     {
         return DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_SELECT_WORKFLOW)) {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_SELECT_WORKFLOW + forUpdate(transaction))) {
                 st.setString(1, userId);
                 st.setString(2, wfName);
                 var rs = st.executeQuery();
@@ -117,32 +126,36 @@ public class WorkflowDaoImpl implements WorkflowDao {
     }
 
     @Override
-    public boolean setActiveExecutionIdToNull(String wfName, String activeExecId,
-                                              @Nullable TransactionHandle transaction) throws SQLException
+    public boolean resetActiveExecutionById(String wfName, String activeExecId, Instant cacheSessionDeadline,
+                                            @Nullable TransactionHandle transaction) throws SQLException
     {
-        LOG.debug("Try to deactivate workflow with broken execution: { brokenExecId: {} }", activeExecId);
+        LOG.debug("Try to deactivate workflow with broken execution: { brokenExecId: {}, cacheSessionDeadline: {} }",
+            activeExecId, cacheSessionDeadline);
         return DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION_TO_NULL)) {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_RESET_ACTIVE_EXECUTION_BY_ID)) {
                 st.setTimestamp(1, Timestamp.from(Instant.now()));
-                st.setString(2, wfName);
-                st.setString(3, activeExecId);
+                st.setTimestamp(2, Timestamp.from(cacheSessionDeadline));
+                st.setString(3, wfName);
+                st.setString(4, activeExecId);
                 return st.executeUpdate() > 0;
             }
         });
     }
 
     @Override
-    public void setActiveExecutionId(String userId, String wfName, @Nullable String execId,
-                                     @Nullable TransactionHandle transaction) throws SQLException
+    public void resetActiveExecution(String userId, String wfName, Instant cacheSessionDeadline,
+                                     @Nullable TransactionHandle transaction)
+        throws SQLException
     {
-        LOG.debug("Update active execution of workflow: { userId: {}, wfName: {}, activeExecId: {} }", userId,
-            wfName, execId);
+        LOG.debug("Reset active execution of workflow: { userId: {}, wfName: {}, cacheSessionDeadline: {} }",
+            userId, wfName, cacheSessionDeadline);
         DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_UPDATE_ACTIVE_EXECUTION)) {
-                st.setString(1, execId);
-                st.setTimestamp(2, Timestamp.from(Instant.now()));
+            try (PreparedStatement st = connection.prepareStatement(QUERY_RESET_ACTIVE_EXECUTION)) {
+                st.setTimestamp(1, Timestamp.from(Instant.now()));
+                st.setTimestamp(2, Timestamp.from(cacheSessionDeadline));
                 st.setString(3, userId);
                 st.setString(4, wfName);
+
                 if (st.executeUpdate() < 1) {
                     LOG.error("Cannot update execution of unknown workflow: { userId: {}, wfName: {} }", userId,
                         wfName);
@@ -150,5 +163,136 @@ public class WorkflowDaoImpl implements WorkflowDao {
                 }
             }
         });
+    }
+
+    @Nullable
+    @Override
+    public String acquireCurrentAllocatorSession(String userId, String wfName) throws SQLException {
+        LOG.debug("Try to acquire current allocator session for { userId: {}, wfName: {} }", userId, wfName);
+
+        return DbOperation.execute(null, storage, connection -> {
+            try (PreparedStatement st = connection.prepareStatement("""
+                UPDATE workflows
+                SET allocator_session_deadline = NULL
+                WHERE user_id = ? AND workflow_name = ? AND allocator_session_id IS NOT NULL
+                RETURNING allocator_session_id
+                """))
+            {
+                st.setString(1, userId);
+                st.setString(2, wfName);
+
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    return rs.getString(1);
+                }
+
+                return null;
+            }
+        });
+    }
+
+    @Nullable
+    @Override
+    public String setAllocatorSessionId(String userId, String wfName, String sessionId) throws SQLException {
+        LOG.debug("Try to set allocator session for { userId: {}, wfName: {} } to {}", userId, wfName, sessionId);
+
+        try (var tx = TransactionHandle.create(storage);
+             var conn = tx.connect())
+        {
+            try (PreparedStatement st = conn.prepareStatement("""
+                UPDATE workflows
+                SET allocator_session_id = ?, allocator_session_deadline = NULL
+                WHERE user_id = ? AND workflow_name = ? AND allocator_session_id IS NULL
+                """))
+            {
+                st.setString(1, sessionId);
+                st.setString(2, userId);
+                st.setString(3, wfName);
+
+                var updated = st.executeUpdate();
+                if (updated == 1) {
+                    tx.commit();
+                    return null; // all is ok, new `sid` is set
+                }
+
+                assert updated == 0;
+            }
+
+            try (PreparedStatement st = conn.prepareStatement("""
+                SELECT allocator_session_id, allocator_session_deadline
+                FROM workflows
+                WHERE user_id = ? AND workflow_name = ?
+                """))
+            {
+                st.setString(1, userId);
+                st.setString(2, wfName);
+
+                var rs = st.executeQuery();
+                tx.commit();
+
+                if (rs.next()) {
+                    var actualAllocatorSessionId = rs.getString(1);
+                    var actualAllocatorSessionDeadline = rs.getTimestamp(2);
+
+                    assert actualAllocatorSessionDeadline == null;
+                    return actualAllocatorSessionId;
+                }
+
+                LOG.error("Smth went wrong, userId: {}, wf: {}", userId, wfName);
+                throw new RuntimeException("Smth went wrong");
+            }
+        }
+    }
+
+    @Override
+    public boolean cleanAllocatorSessionId(String userId, String wfName, String sessionId,
+                                           @Nullable TransactionHandle tx) throws SQLException
+    {
+        return DbOperation.execute(tx, storage, connection -> {
+            try (PreparedStatement st = connection.prepareStatement("""
+                UPDATE workflows
+                SET allocator_session_id = NULL, allocator_session_deadline = NULL
+                WHERE user_id = ? AND workflow_name = ? AND allocator_session_id = ?
+                  AND allocator_session_deadline IS NOT NULL AND allocator_session_deadline < ?"""))
+            {
+                st.setString(1, userId);
+                st.setString(2, wfName);
+                st.setString(3, sessionId);
+                st.setTimestamp(4, Timestamp.from(Instant.now()));
+                return st.executeUpdate() > 0;
+            }
+        });
+    }
+
+    @Override
+    public List<OutdatedAllocatorSession> listOutdatedAllocatorSessions(int limit) throws SQLException {
+        try (var conn = storage.connect();
+             PreparedStatement st = conn.prepareStatement("""
+                SELECT user_id, workflow_name, allocator_session_id
+                FROM workflows
+                WHERE allocator_session_id IS NOT NULL
+                  AND allocator_session_deadline IS NOT NULL
+                  AND allocator_session_deadline < ?
+                LIMIT
+                """ + limit))
+        {
+            st.setTimestamp(1, Timestamp.from(Instant.now()));
+            var rs = st.executeQuery();
+
+            var result = new ArrayList<OutdatedAllocatorSession>(limit);
+            while (rs.next()) {
+                result.add(new OutdatedAllocatorSession(
+                    rs.getString(1),
+                    rs.getString(2),
+                    rs.getString(3)
+                ));
+            }
+
+            return result;
+        }
+    }
+
+    private static String forUpdate(@Nullable TransactionHandle tx) {
+        return tx != null ? " FOR UPDATE" : "";
     }
 }

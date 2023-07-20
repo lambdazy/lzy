@@ -13,6 +13,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.protobuf.StatusProto;
+import jakarta.annotation.Nullable;
 
 import java.util.function.Supplier;
 
@@ -37,6 +38,21 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
     public StepResult get() {
         if (allocatorSessionId() != null) {
             log().debug("{} Allocator session already created, skip step...", logPrefix());
+            return StepResult.ALREADY_DONE;
+        }
+
+        String existingAllocSessionId;
+        try {
+            existingAllocSessionId = withRetries(log(), () ->
+                stepCtx().wfDao().acquireCurrentAllocatorSession(spec.userId(), wfName()));
+        } catch (Exception e) {
+            log().warn("DB error: {}", e.getMessage());
+            return StepResult.RESTART;
+        }
+
+        if (existingAllocSessionId != null) {
+            log().info("{} Reuse existing allocator session {}", logPrefix(), existingAllocSessionId);
+            setAllocatorSessionId(existingAllocSessionId);
             return StepResult.ALREADY_DONE;
         }
 
@@ -77,30 +93,38 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
             return failAction().apply(status);
         }
 
-        log().debug("{} Allocator session with id='{}' successfully created", logPrefix(), sessionId);
+        log().info("{} Allocator session with id='{}' successfully created", logPrefix(), sessionId);
 
         try {
-            withRetries(log(), () -> execDao().updateAllocatorSession(execId(), sessionId, null));
+            existingAllocSessionId = withRetries(log(), () ->
+                wfDao().setAllocatorSessionId(spec.userId(), wfName(), sessionId));
         } catch (Exception e) {
-            Runnable deleteSession = () -> {
-                try {
-                    var deleteSessionAllocClient = (idempotencyKey() == null) ? allocClient :
-                        withIdempotencyKey(allocClient, idempotencyKey() + "_delete_session");
-                    //noinspection ResultOfMethodCallIgnored
-                    deleteSessionAllocClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
-                        .setSessionId(sessionId).build());
-                } catch (StatusRuntimeException sre) {
-                    log().warn("{} Cannot delete allocator session with id='{}' after error {}: ", logPrefix(),
-                        sessionId, e.getMessage(), sre);
-                }
-            };
+            Runnable deleteSession = () -> deleteSession(sessionId, e.getMessage());
             return retryableFail(e, "Cannot save data about allocator session with id='%s'".formatted(sessionId),
                 deleteSession, Status.INTERNAL.withDescription("Cannot create allocator session").asRuntimeException());
+        }
+
+        if (existingAllocSessionId != null && !existingAllocSessionId.equals(sessionId)) {
+            log().info("{} Reuse existing allocator session {}", logPrefix(), existingAllocSessionId);
+            deleteSession(sessionId, null);
+            setAllocatorSessionId(existingAllocSessionId);
+            return StepResult.CONTINUE;
         }
 
         setAllocatorSessionId(sessionId);
         log().debug("{} Allocator session successfully created...", logPrefix());
 
         return StepResult.CONTINUE;
+    }
+
+    private void deleteSession(String sessionId, @Nullable String reason) {
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            allocClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
+                .setSessionId(sessionId).build());
+        } catch (StatusRuntimeException sre) {
+            log().warn("{} Cannot delete allocator session with id='{}' after error {}: ", logPrefix(),
+                sessionId, reason, sre);
+        }
     }
 }

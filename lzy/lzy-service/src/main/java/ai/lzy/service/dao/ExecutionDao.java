@@ -19,9 +19,6 @@ public interface ExecutionDao {
     void setKafkaTopicDesc(String execId, @Nullable KafkaTopicDesc topicDesc, @Nullable TransactionHandle transaction)
         throws SQLException;
 
-    void updateAllocatorSession(String execId, String allocSessionId, @Nullable TransactionHandle transaction)
-        throws SQLException;
-
     void setFinishStatus(String execId, Status status, @Nullable TransactionHandle transaction) throws SQLException;
 
     @Nullable

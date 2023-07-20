@@ -1,7 +1,7 @@
-package ai.lzy.service.operations.stop;
+package ai.lzy.service.operations.allocsession;
 
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
-import ai.lzy.service.dao.StopExecutionState;
+import ai.lzy.service.dao.DeleteAllocatorSessionState;
 import ai.lzy.service.operations.ExecutionStepContext;
 import ai.lzy.service.operations.RetryableFailStep;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -10,17 +10,18 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.function.Supplier;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
-final class WaitDeleteAllocatorSession extends StopExecutionContextAwareStep
+final class WaitDeleteAllocatorSessionStep extends DeleteAllocatorSessionContextAwareStep
     implements Supplier<StepResult>, RetryableFailStep
 {
     private final LongRunningServiceBlockingStub allocOpService;
 
-    public WaitDeleteAllocatorSession(ExecutionStepContext stepCtx, StopExecutionState state,
-                                      LongRunningServiceBlockingStub allocOpService)
+    public WaitDeleteAllocatorSessionStep(ExecutionStepContext stepCtx, DeleteAllocatorSessionState state,
+                                          LongRunningServiceBlockingStub allocOpService)
     {
         super(stepCtx, state);
         this.allocOpService = allocOpService;
@@ -28,21 +29,19 @@ final class WaitDeleteAllocatorSession extends StopExecutionContextAwareStep
 
     @Override
     public StepResult get() {
-        if (allocatorSessionId() == null) {
-            log().debug("{} Allocator session id is null, skip step...", logPrefix());
-            return StepResult.ALREADY_DONE;
-        }
+        var deleteOpId = deleteSessionOpId();
+        Objects.requireNonNull(deleteOpId, "%s %s failed, allocator op id is null"
+            .formatted(logPrefix(), getClass().getName()));
 
-        log().info("{} Test status of delete allocator session operation with id='{}'", logPrefix(),
-            deleteAllocSessionOpId());
+        log().info("{} Test status of delete allocator session operation with id='{}'", logPrefix(), deleteOpId);
 
         final LongRunning.Operation op;
         try {
             op = allocOpService.get(LongRunning.GetOperationRequest.newBuilder()
-                .setOperationId(deleteAllocSessionOpId()).build());
+                .setOperationId(deleteOpId).build());
         } catch (StatusRuntimeException sre) {
             return retryableFail(sre, "Error in AllocOpService::get call for operation with id='%s'".formatted(
-                deleteAllocSessionOpId()), sre);
+                deleteOpId), sre);
         }
 
         if (!op.getDone()) {
@@ -52,15 +51,13 @@ final class WaitDeleteAllocatorSession extends StopExecutionContextAwareStep
         }
 
         try {
-            withRetries(log(), () -> execDao().updateAllocatorSession(execId(), null, null));
+            withRetries(log(), () -> deleteAllocatorSessionOpsDao().delete(opId(), null));
         } catch (Exception e) {
             return retryableFail(e, "Cannot clean allocator session in dao", Status.INTERNAL.withDescription(
                 "Cannot delete allocator session").asRuntimeException());
         }
 
-        log().debug("{} Allocator session with id='{}' was successfully deleted", logPrefix(), allocatorSessionId());
-        setAllocatorSessionId(null);
-
+        log().debug("{} Allocator session with id='{}' was successfully deleted", logPrefix(), sessionId());
         return StepResult.CONTINUE;
     }
 }

@@ -1,11 +1,11 @@
-/*
 package ai.lzy.service.gc;
 
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.GcDao;
+import ai.lzy.service.operations.OperationRunnersFactory;
 import jakarta.annotation.PreDestroy;
+import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -14,38 +14,30 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.UUID;
 
-
+@Singleton
 public class GarbageCollector extends TimerTask {
     private static final Logger LOG = LogManager.getLogger(GarbageCollector.class);
     private static final long MIN_JITTER_PERIOD = 10;
     private static final long MAX_JITTER_PERIOD = 100;
+
     private final LzyServiceConfig config;
     private final GcDao gcDao;
-    private final ExecutionDao executionDao;
-
-    private final CleanExecutionCompanion cleanExecutionCompanion;
-
-
     private final String id;
     private final Timer timer = new Timer("gc-workflow-timer", true);
     private Timer taskTimer = null;
-
     private final long period;
+    private final OperationRunnersFactory operationRunnersFactory;
 
-    public GarbageCollector(LzyServiceConfig config, ExecutionDao executionDao,
-                            GcDao gcDao, CleanExecutionCompanion cleanExecutionCompanion)
-    {
+    public GarbageCollector(LzyServiceConfig config, GcDao gcDao, OperationRunnersFactory operationRunnersFactory) {
         this.config = config;
         this.gcDao = gcDao;
-        this.executionDao = executionDao;
-        this.cleanExecutionCompanion = cleanExecutionCompanion;
 
-        this.id = UUID.randomUUID().toString();
+        this.id = "LzyServiceGc-" + config.getInstanceId();
 
         this.period = config.getGcLeaderPeriod().toMillis() +
             (long) ((MAX_JITTER_PERIOD - MIN_JITTER_PERIOD) * Math.random() + MIN_JITTER_PERIOD);
+        this.operationRunnersFactory = operationRunnersFactory;
     }
 
     public void start() {
@@ -74,8 +66,7 @@ public class GarbageCollector extends TimerTask {
 
         long taskPeriod = config.getGcPeriod().toMillis();
         taskTimer = new Timer("gc-workflow-task-timer", true);
-        taskTimer.scheduleAtFixedRate(new GarbageCollectorTask(id, executionDao, cleanExecutionCompanion),
-            taskPeriod, taskPeriod);
+        taskTimer.scheduleAtFixedRate(new GarbageCollectorTask(id, operationRunnersFactory), taskPeriod, taskPeriod);
         long markPeriod = config.getGcLeaderPeriod().toMillis() / 2;
         taskTimer.scheduleAtFixedRate(new MarkGcValid(config.getGcLeaderPeriod()), markPeriod, markPeriod);
     }
@@ -118,4 +109,3 @@ public class GarbageCollector extends TimerTask {
         }
     }
 }
-*/
