@@ -55,6 +55,13 @@ def get_test_data_path():
     return getter
 
 
+@pytest.fixture(scope='function')
+def with_test_modules(get_test_data_path, monkeypatch):
+    with monkeypatch.context() as m:
+        m.syspath_prepend(get_test_data_path())
+        yield
+
+
 # scope='class' because we use it via @pytest.mark.usefixtures('vm_pool_specs')
 # on TestCase classes and somewhy it doesn't work with planned scope='session'
 @pytest.fixture(scope='class')

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import inspect
+import importlib.machinery
 import functools
 from typing import Dict, Any, Set, FrozenSet, List, Tuple, Optional, Iterable, Iterator
 from types import ModuleType
+
+from .utils import getmembers
 
 
 ModulesSet = Set[ModuleType]
@@ -20,7 +23,7 @@ def get_transitive_namespace_dependencies(namespace: Dict[str, Any]) -> ModulesF
 
     first_level_dependencies = _get_vars_dependencies(namespace.values())
 
-    result: ModulesSet = set()
+    result: ModulesSet = set(first_level_dependencies)
 
     for module in first_level_dependencies:
         module_dependencies = get_transitive_module_dependencies(module)
@@ -67,9 +70,17 @@ def get_direct_module_dependencies(module: ModuleType) -> ModulesFrozenSet:
     This function caches its results for performance optimization.
     """
 
-    members: List[Tuple[str, Any]] = inspect.getmembers(module)
+    # NB: we are using our getmembers instead of inspect.getmembers,
+    # because original one are raising TypeError in case of
+    # getmembers(torch.ops), and we are catching it in our clone
+    members: List[Tuple[str, Any]] = getmembers(module)
     members_vars: Iterator[Any] = (var for _, var in members)
-    return _get_vars_dependencies(members_vars)
+
+    result = _get_vars_dependencies(members_vars)
+
+    # module itself will likely be in _get_vars_dependencies result
+    # due to module can contain symbols which defined inside
+    return result - {module}
 
 
 def _get_vars_dependencies(vars_: Iterable[Any]) -> ModulesFrozenSet:
@@ -84,7 +95,10 @@ def _get_vars_dependencies(vars_: Iterable[Any]) -> ModulesFrozenSet:
     result: ModulesSet = set()
     for var in vars_:
         dependency: Optional[ModuleType] = inspect.getmodule(var)
-        if dependency:
-            result.add(dependency)
+
+        if not dependency:
+            continue
+
+        result.add(dependency)
 
     return frozenset(result)

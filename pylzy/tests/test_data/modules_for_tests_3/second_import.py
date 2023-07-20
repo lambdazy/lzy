@@ -1,0 +1,2 @@
+import modules_for_tests_3.empty as empty
+import modules_for_tests_3.two_dependencies as two_dependencies
