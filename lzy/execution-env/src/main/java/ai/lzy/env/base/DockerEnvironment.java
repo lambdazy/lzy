@@ -1,7 +1,7 @@
 package ai.lzy.env.base;
 
 import ai.lzy.env.EnvironmentInstallationException;
-import ai.lzy.env.LogHandle;
+import ai.lzy.env.logs.LogHandle;
 import ai.lzy.env.base.DockerEnvDescription.ContainerRegistryCredentials;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
