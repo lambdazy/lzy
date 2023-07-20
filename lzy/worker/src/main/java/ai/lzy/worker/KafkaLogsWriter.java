@@ -1,6 +1,5 @@
 package ai.lzy.worker;
 
-import ai.lzy.env.logs.LogHandle;
 import ai.lzy.env.logs.LogWriter;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMO;
@@ -11,7 +10,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 public class KafkaLogsWriter implements LogWriter {
     private final String taskId;

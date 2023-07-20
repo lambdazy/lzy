@@ -2,7 +2,6 @@ package ai.lzy.worker;
 
 import ai.lzy.env.Environment;
 import ai.lzy.env.EnvironmentInstallationException;
-import ai.lzy.env.logs.LogHandle;
 import ai.lzy.env.aux.AuxEnvironment;
 import ai.lzy.env.aux.CondaEnvironment;
 import ai.lzy.env.aux.PlainPythonEnvironment;
@@ -12,6 +11,7 @@ import ai.lzy.env.base.DockerEnvDescription;
 import ai.lzy.env.base.DockerEnvDescription.ContainerRegistryCredentials;
 import ai.lzy.env.base.DockerEnvironment;
 import ai.lzy.env.base.ProcessEnvironment;
+import ai.lzy.env.logs.LogHandle;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LME.LocalModule;
 import com.google.common.annotations.VisibleForTesting;
