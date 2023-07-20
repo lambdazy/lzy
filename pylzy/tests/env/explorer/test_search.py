@@ -1,6 +1,7 @@
 import builtins
 import inspect
 import typing
+import sys
 import yaml
 
 import pytest
@@ -56,7 +57,10 @@ def test_get_direct_module_dependencies(with_test_modules, loaders):
     def assert_dependencies(module, etalon):
         assert get_direct_module_dependencies(module) - loaders == etalon
 
-    assert_dependencies(level1, {level2, typing_extensions})
+    assert_dependencies(
+        level1,
+        {level2, typing_extensions if sys.version_info < (3, 10) else typing}
+    )
     assert_dependencies(level2,  {level3, typing})
     assert_dependencies(level2_nb, {level2})
     assert_dependencies(level3, {yaml})
