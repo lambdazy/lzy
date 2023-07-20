@@ -1,7 +1,7 @@
 package ai.lzy.env.aux;
 
 import ai.lzy.env.base.BaseEnvironment;
-import ai.lzy.env.LogHandle;
+import ai.lzy.env.logs.LogHandle;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,12 +14,10 @@ import java.util.Map;
 public class SimpleBashEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(SimpleBashEnvironment.class);
 
-    private final String taskId;
     private final BaseEnvironment baseEnv;
     private final List<String> envList;
 
-    public SimpleBashEnvironment(String taskId, BaseEnvironment baseEnv, Map<String, String> envList) {
-        this.taskId = taskId;
+    public SimpleBashEnvironment(BaseEnvironment baseEnv, Map<String, String> envList) {
         this.baseEnv = baseEnv;
         this.envList = envList.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).toList();
     }
@@ -30,7 +28,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
     }
 
     private LzyProcess execInEnv(String command, @Nullable String[] envp) {
-        LOG.info("[tid={}] Executing command `{}`", taskId, command);
+        LOG.info("Executing command `{}`", command);
         String[] bashCmd = new String[]{"bash", "-c", command};
 
         var env = new ArrayList<>(envList);

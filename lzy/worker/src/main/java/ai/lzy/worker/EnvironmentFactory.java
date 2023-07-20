@@ -2,7 +2,7 @@ package ai.lzy.worker;
 
 import ai.lzy.env.Environment;
 import ai.lzy.env.EnvironmentInstallationException;
-import ai.lzy.env.LogHandle;
+import ai.lzy.env.logs.LogHandle;
 import ai.lzy.env.aux.AuxEnvironment;
 import ai.lzy.env.aux.CondaEnvironment;
 import ai.lzy.env.aux.PlainPythonEnvironment;
@@ -51,7 +51,7 @@ public class EnvironmentFactory {
         this.hasGpu = config.getGpuCount() > 0;
     }
 
-    public AuxEnvironment create(String taskId, String fsRoot, LME.EnvSpec env, LogHandle logHandle, String lzyMount)
+    public AuxEnvironment create(String fsRoot, LME.EnvSpec env, LogHandle logHandle, String lzyMount)
         throws EnvironmentInstallationException
     {
         //to mock environment in tests
@@ -173,7 +173,7 @@ public class EnvironmentFactory {
             }
 
         } else if (env.hasProcessEnv()) {
-            auxEnv = new SimpleBashEnvironment(taskId, baseEnv, Map.of());
+            auxEnv = new SimpleBashEnvironment(baseEnv, Map.of());
         } else {
             LOG.error("Error while creating env: undefined env");
             throw Status.UNIMPLEMENTED.withDescription("Provided unsupported env")

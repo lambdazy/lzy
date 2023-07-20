@@ -1,7 +1,7 @@
 package ai.lzy.env.base;
 
 import ai.lzy.env.Environment;
-import ai.lzy.env.LogHandle;
+import ai.lzy.env.logs.LogHandle;
 import jakarta.annotation.Nullable;
 
 import java.io.IOException;
