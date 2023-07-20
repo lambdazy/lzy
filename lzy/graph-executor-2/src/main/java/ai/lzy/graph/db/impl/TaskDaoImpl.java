@@ -20,6 +20,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Singleton
@@ -31,7 +32,7 @@ public class TaskDaoImpl implements TaskDao {
         task_description, task_state, alloc_session, error_description, owner_instance_id""";
 
     private static final String TASK_SELECT_FIELDS_LIST = """
-        task.id, task.task_name, task.op_id, task.graph_id, task.status::text as task_status, task.workflow_id,
+        task.id, task.task_name, task.op_id, task.graph_id, task.status::text as status, task.workflow_id,
         task.workflow_name, task.user_id, task.task_description, task.task_state, task.alloc_session,
         task.error_description, task.owner_instance_id""";
 
@@ -235,8 +236,11 @@ public class TaskDaoImpl implements TaskDao {
 
         return new TaskState(taskId, taskName, opId, graphId, status, workflowId, workflowName,
             userId, errorDescription, taskSlotDescription, allocSession, taskOpExecutingState,
-            Arrays.stream(dependentsOn.split(",")).distinct().toList(),
-            Arrays.stream(dependentsFrom.split(",")).distinct().toList()
+            parseDependents(dependentsOn), parseDependents(dependentsFrom)
         );
+    }
+
+    private List<String> parseDependents(String str) {
+        return str == null ? Collections.emptyList() : Arrays.stream(str.split(",")).distinct().toList();
     }
 }

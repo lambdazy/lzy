@@ -9,7 +9,6 @@ import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.Storage;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
@@ -77,7 +76,7 @@ public class ExecuteTaskAction extends OperationRunnerBase {
     private StepResult allocate() {
         final String session;
         try {
-            session = DbHelper.withRetries(log(), () -> {
+            session = withRetries(log(), () -> {
                 try (TransactionHandle tx = TransactionHandle.create(storage)) {
                     var s = task.allocatorSession();
 
@@ -98,11 +97,19 @@ public class ExecuteTaskAction extends OperationRunnerBase {
             return tryFail(Status.INTERNAL.withDescription(e.getMessage()));
         }
 
-        var allocationOp = allocatorService.allocate(task.userId(), task.workflowName(), session,
-            LMO.Requirements.newBuilder()
-                .setZone(task.taskSlotDescription().zone())
-                .setPoolLabel(task.taskSlotDescription().poolLabel())
-                .build());
+        final LongRunning.Operation allocationOp;
+        try {
+            allocationOp = withRetries(log(), () ->
+                allocatorService.allocate(task.userId(), task.workflowName(), session,
+                    LMO.Requirements.newBuilder()
+                        .setZone(task.taskSlotDescription().zone())
+                        .setPoolLabel(task.taskSlotDescription().poolLabel())
+                        .build())
+            );
+        } catch (Exception e) {
+            log().error("Error while allocating for op {}", task.operationId(), e);
+            return tryFail(Status.INTERNAL.withDescription(e.getMessage()));
+        }
 
         final String vmId;
         try {
@@ -279,7 +286,7 @@ public class ExecuteTaskAction extends OperationRunnerBase {
         }
 
         try {
-            DbHelper.withRetries(log(), () -> {
+            withRetries(log(), () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     completeOperation(null, Any.pack(status), tx);
                     taskDao.updateTask(task, tx);
@@ -328,6 +335,16 @@ public class ExecuteTaskAction extends OperationRunnerBase {
 
     private void fail(Status status) throws Exception {
         log().error("{} Fail task operation: {}", logPrefix(), status.getDescription());
-        withRetries(log(), () -> failOperation(status, null));
+        task = task.toBuilder()
+            .status(TaskState.Status.FAILED)
+            .errorDescription(status.getDescription())
+            .build();
+        withRetries(log(), () -> {
+            try (var tx = TransactionHandle.create(storage)) {
+                failOperation(status, null);
+                taskDao.updateTask(task, tx);
+                tx.commit();
+            }
+        });
     }
 }

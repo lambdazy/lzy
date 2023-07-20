@@ -101,7 +101,12 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Nullable
     public GraphExecutorApi2.TaskExecutionStatus getTaskStatus(String taskId) {
-        return null;
+        try {
+            return taskDao.getTaskById(taskId).toProtoStatus();
+        } catch (Exception e) {
+            LOG.error("Couldn't find task {}", taskId);
+            return null;
+        }
     }
 
     private void restoreTasks(String instanceId) {

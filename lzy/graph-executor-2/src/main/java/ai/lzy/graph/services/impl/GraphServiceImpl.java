@@ -14,6 +14,7 @@ import ai.lzy.graph.services.TaskService;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
+import com.google.protobuf.Any;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -25,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
 public class GraphServiceImpl implements GraphService {
@@ -78,6 +80,7 @@ public class GraphServiceImpl implements GraphService {
         withRetries(LOG, () -> {
             try (var tx = TransactionHandle.create(storage)) {
                 operationDao.create(op, tx);
+                operationDao.updateMeta(op.id(), Any.pack(graph.toProto(Collections.emptyList())), tx);
                 graphDao.create(graph, tx);
                 taskDao.createTasks(tasks, tx);
                 tx.commit();
@@ -126,8 +129,29 @@ public class GraphServiceImpl implements GraphService {
         }
 
         GraphState finalGraphState = graphState;
+        var executingTasks = graphState.tasks().get(GraphState.Status.EXECUTING)
+            .stream()
+            .map(taskService::getTaskStatus)
+            .toList();
+        var msg = Any.pack(finalGraphState.toProto(executingTasks));
         try {
-            withRetries(LOG, () -> graphDao.update(finalGraphState, null));
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+
+                    if (finalGraphState.status() == GraphState.Status.COMPLETED) {
+                        operationDao.complete(finalGraphState.operationId(), msg, tx);
+                    } else if (finalGraphState.status() == GraphState.Status.FAILED) {
+                        var status = io.grpc.Status.INTERNAL.withDescription(finalGraphState.errorDescription());
+                        operationDao.updateMeta(finalGraphState.operationId(), msg, tx);
+                        operationDao.failOperation(finalGraphState.operationId(), toProto(status), tx, LOG);
+                    } else {
+                        operationDao.updateMeta(finalGraphState.operationId(), msg, tx);
+                    }
+
+                    graphDao.update(finalGraphState, null);
+                    tx.commit();
+                }
+            });
         } catch (Exception e) {
             LOG.error("Cannot update graph {} status", graphState.id());
             throw new RuntimeException(e);

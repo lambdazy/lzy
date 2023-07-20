@@ -140,6 +140,27 @@ public record TaskState(
             .build();
     }
 
+    public GraphExecutorApi2.TaskExecutionStatus toProtoStatus() {
+        GraphExecutorApi2.TaskExecutionStatus.Builder builder = GraphExecutorApi2.TaskExecutionStatus.newBuilder()
+            .setTaskDescriptionId(id)
+            .setTaskId(id)
+            .setOperationName(name)
+            .setWorkflowId(executionId);
+
+        switch (status) {
+            case COMPLETED -> builder.setSuccess(GraphExecutorApi2.TaskExecutionStatus.Success.newBuilder()
+                .setRc(0)
+                .setDescription("")
+                .build());
+            case FAILED -> builder.setError(GraphExecutorApi2.TaskExecutionStatus.Error.newBuilder()
+                .setRc(0)
+                .setDescription(errorDescription)
+                .build());
+            default -> builder.setExecuting(GraphExecutorApi2.TaskExecutionStatus.Executing.newBuilder().build());
+        }
+        return builder.build();
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
