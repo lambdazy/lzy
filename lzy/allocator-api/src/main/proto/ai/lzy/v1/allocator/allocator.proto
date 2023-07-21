@@ -77,6 +77,11 @@ message CreateSessionRequest {
   string description = 2;
   CachePolicy cache_policy = 3;
   repeated NetPolicyRule net_policy_rules = 4;
+
+  // If there is an active session with id `existing_session_id` that has not been deleted yet
+  // (but was scheduled for deletion), which configuration fits the ones specified in this request,
+  // then this session will be restored and reused.
+  /* optional */ string existing_session_id = 5;
 }
 message CreateSessionResponse {
   string session_id = 1;
@@ -86,6 +91,11 @@ message CreateSessionResponse {
 
 message DeleteSessionRequest {
   string session_id = 1;
+
+  // If delay is set, then we do not delete the session immediately,
+  // but postpone its deletion for a specified interval.
+  // During this interval the session can be restored via a `CreateSession` request.
+  /* optional */ google.protobuf.Duration delay = 2;
 }
 message DeleteSessionResponse {}
 
