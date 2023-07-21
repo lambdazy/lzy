@@ -11,7 +11,7 @@ public final class FinishExecution extends StopExecution {
 
     private FinishExecution(FinishExecutionBuilder builder) {
         super(builder);
-        this.steps = List.of(destroyChannels(), deleteKafkaTopic(), this::complete);
+        this.steps = List.of(destroyChannels(), deleteKafkaTopic(), scheduleAllocSessionRemoval(), this::complete);
     }
 
     @Override
@@ -25,6 +25,10 @@ public final class FinishExecution extends StopExecution {
 
     private Supplier<StepResult> deleteKafkaTopic() {
         return new DeleteKafkaTopic(stepCtx(), state(), kafkaClient(), kafkaLogsListeners(), s3SinkClient());
+    }
+
+    private Supplier<StepResult> scheduleAllocSessionRemoval() {
+        return new ScheduleAllocSessionRemoval(stepCtx(), state());
     }
 
     @Override

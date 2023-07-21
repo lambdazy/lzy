@@ -1,6 +1,7 @@
 package ai.lzy.test.impl.v2;
 
 import ai.lzy.allocator.AllocatorMain;
+import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.AllocatorGrpc;
@@ -87,6 +88,10 @@ public class AllocatorContext {
 
     public ApplicationContext context() {
         return context;
+    }
+
+    public SessionDao sessionDao() {
+        return context.getBean(SessionDao.class);
     }
 
     @Singleton

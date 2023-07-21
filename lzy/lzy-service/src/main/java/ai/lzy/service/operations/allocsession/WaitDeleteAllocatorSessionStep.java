@@ -6,14 +6,11 @@ import ai.lzy.service.operations.ExecutionStepContext;
 import ai.lzy.service.operations.RetryableFailStep;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
-import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 
 import java.time.Duration;
 import java.util.Objects;
 import java.util.function.Supplier;
-
-import static ai.lzy.model.db.DbHelper.withRetries;
 
 final class WaitDeleteAllocatorSessionStep extends DeleteAllocatorSessionContextAwareStep
     implements Supplier<StepResult>, RetryableFailStep
@@ -48,13 +45,6 @@ final class WaitDeleteAllocatorSessionStep extends DeleteAllocatorSessionContext
             log().debug("{} Delete allocator session operation with id='{}' not completed yet, reschedule...",
                 logPrefix(), op.getId());
             return StepResult.RESTART.after(Duration.ofMillis(500));
-        }
-
-        try {
-            withRetries(log(), () -> deleteAllocatorSessionOpsDao().delete(opId(), null));
-        } catch (Exception e) {
-            return retryableFail(e, "Cannot clean allocator session in dao", Status.INTERNAL.withDescription(
-                "Cannot delete allocator session").asRuntimeException());
         }
 
         log().debug("{} Allocator session with id='{}' was successfully deleted", logPrefix(), sessionId());

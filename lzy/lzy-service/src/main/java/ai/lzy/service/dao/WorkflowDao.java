@@ -21,11 +21,17 @@ public interface WorkflowDao {
     @Nullable
     String getExecutionId(String userId, String wfName, @Nullable TransactionHandle transaction) throws SQLException;
 
-    boolean resetActiveExecutionById(String wfName, String activeExecId, Instant cacheSessionDeadline,
-                                     @Nullable TransactionHandle transaction) throws SQLException;
+    record CleanActiveExecutionResult(
+        boolean success,
+        @Nullable
+        String allocSessionId
+    ) {}
 
-    void resetActiveExecution(String userId, String wfName, Instant cacheSessionDeadline,
-                              @Nullable TransactionHandle transaction) throws SQLException;
+    boolean cleanActiveExecutionById(String wfName, String activeExecId, @Nullable TransactionHandle transaction)
+        throws SQLException;
+
+    void cleanActiveExecution(String userId, String wfName, @Nullable TransactionHandle transaction)
+        throws SQLException;
 
     @Nullable
     String acquireCurrentAllocatorSession(String userId, String wfName) throws SQLException;
@@ -47,4 +53,16 @@ public interface WorkflowDao {
     ) {}
 
     List<OutdatedAllocatorSession> listOutdatedAllocatorSessions(int limit) throws SQLException;
+
+    record WorkflowDesc(
+        String userId,
+        String wfName,
+        @Nullable
+        String allocatorSessionId,
+        @Nullable
+        Instant allocatorSessionDeadline
+    ) {}
+
+    @Nullable
+    WorkflowDesc loadWorkflowDescForTests(String userId, String wfName) throws SQLException;
 }

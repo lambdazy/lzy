@@ -47,6 +47,9 @@ final class DeleteAllocatorSessionStep extends DeleteAllocatorSessionContextAwar
             log().debug("{} Allocator session with id='{}' requested to delete, operationId='{}'", logPrefix(),
                 sessionId(), deleteOpId);
         } catch (StatusRuntimeException sre) {
+            if (sre.getStatus().getCode() == Status.Code.NOT_FOUND) {
+                return StepResult.FINISH;
+            }
             return retryableFail(sre, "Error in AllocatorGrpcClient::deleteSession call", sre);
         }
 

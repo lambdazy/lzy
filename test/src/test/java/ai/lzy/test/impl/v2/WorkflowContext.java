@@ -3,6 +3,8 @@ package ai.lzy.test.impl.v2;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.service.App;
 import ai.lzy.service.BeanFactory;
+import ai.lzy.service.dao.WorkflowDao;
+import ai.lzy.service.gc.GarbageCollector;
 import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -54,7 +56,9 @@ public class WorkflowContext {
             "lzy-service.channel-manager-address", channel.address(),
             "lzy-service.address", address,
             "lzy-service.iam.address", iam.address(),
-            "lzy-service.storage.address", storage.address()
+            "lzy-service.storage.address", storage.address(),
+            "lzy-service.allocator-vm-cache-timeout", "2s",
+            "lzy-service.gc-period", "1s"
         ));
 
         ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(true);
@@ -62,7 +66,7 @@ public class WorkflowContext {
         ctx = ApplicationContext.run(opts, BeanFactory.TEST_ENV_NAME);
         main = ctx.getBean(App.class);
         try {
-            main.start();
+            main.start(false);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -89,6 +93,18 @@ public class WorkflowContext {
 
     public LongRunningServiceGrpc.LongRunningServiceBlockingStub opsStub() {
         return opsStub;
+    }
+
+    public WorkflowDao wfDao() {
+        return ctx.getBean(WorkflowDao.class);
+    }
+
+    public String internalUserName() {
+        return ctx.getBean(ServiceConfig.class).getIam().getInternalUserName();
+    }
+
+    public void startGc() {
+        ctx.getBean(GarbageCollector.class).start();
     }
 
     @PreDestroy

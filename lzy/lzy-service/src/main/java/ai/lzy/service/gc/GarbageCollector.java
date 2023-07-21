@@ -14,6 +14,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Singleton
 public class GarbageCollector extends TimerTask {
@@ -28,6 +29,7 @@ public class GarbageCollector extends TimerTask {
     private Timer taskTimer = null;
     private final long period;
     private final OperationRunnersFactory operationRunnersFactory;
+    private final AtomicBoolean started = new AtomicBoolean(false);
 
     public GarbageCollector(LzyServiceConfig config, GcDao gcDao, OperationRunnersFactory operationRunnersFactory) {
         this.config = config;
@@ -41,7 +43,9 @@ public class GarbageCollector extends TimerTask {
     }
 
     public void start() {
-        timer.scheduleAtFixedRate(this, period, period);
+        if (started.compareAndSet(false, true)) {
+            timer.scheduleAtFixedRate(this, period, period);
+        }
     }
 
     @Override
@@ -73,9 +77,11 @@ public class GarbageCollector extends TimerTask {
 
     @PreDestroy
     public void shutdown() {
-        LOG.info("Shutdown GC {}", id);
-        timer.cancel();
-        clearTasks();
+        if (started.compareAndSet(true, false)) {
+            LOG.info("Shutdown GC {}", id);
+            timer.cancel();
+            clearTasks();
+        }
     }
 
     private void clearTasks() {

@@ -86,7 +86,7 @@ public final class StartExecution extends ExecutionOperationRunner {
                 try (var tx = TransactionHandle.create(storage())) {
                     success[0] = Objects.equals(wfDao().getExecutionId(userId(), wfName(), tx), execId());
                     if (success[0]) {
-                        wfDao().resetActiveExecution(userId(), wfName(), cacheAllocSessionDeadline, tx);
+                        wfDao().cleanActiveExecution(userId(), wfName(), cacheAllocSessionDeadline, tx);
                         operationsDao().create(abortOp, tx);
                         execOpsDao().createAbortOp(abortOp.id(), serviceCfg().getInstanceId(), execId(), tx);
                         execDao().setFinishStatus(execId(), Status.INTERNAL.withDescription("error on start"), tx);

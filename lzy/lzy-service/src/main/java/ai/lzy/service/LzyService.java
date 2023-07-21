@@ -263,8 +263,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             idempotencyKey,
             /* meta */ null);
 
-        var cacheAllocSessionDeadline = Instant.now().plus(serviceCfg().getAllocatorVmCacheTimeout());
-
         try {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage())) {
@@ -272,7 +270,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                         throw new IllegalStateException("Execution with id='%s' is not an active".formatted(execId));
                     }
 
-                    wfDao().resetActiveExecution(userId, wfName, cacheAllocSessionDeadline, tx);
+                    wfDao().cleanActiveExecution(userId, wfName, tx);
 
                     var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                     if (!opsToCancel.isEmpty()) {
@@ -389,7 +387,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     if (!Objects.equals(wfDao().getExecutionId(userId, wfName, tx), execId)) {
                         throw new IllegalStateException("Execution with id='%s' is not an active".formatted(execId));
                     }
-                    wfDao().resetActiveExecution(userId, wfName, cacheAllocSessionDeadline, tx);
+                    wfDao().cleanActiveExecution(userId, wfName, cacheAllocSessionDeadline, tx);
 
                     var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                     if (!opsToCancel.isEmpty()) {

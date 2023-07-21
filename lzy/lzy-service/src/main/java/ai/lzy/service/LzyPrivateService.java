@@ -66,11 +66,10 @@ public class LzyPrivateService extends LzyWorkflowPrivateServiceImplBase impleme
 
         var op = Operation.create("channel-manager", ("Abort workflow with active execution: wfName='%s', " +
             "activeExecId='%s'").formatted(wfName, execId), opTimeout, idempotencyKey, null);
-        var cacheAllocSessionDeadline = Instant.now().plus(serviceCfg().getAllocatorVmCacheTimeout());
         try {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage())) {
-                    if (wfDao().resetActiveExecutionById(wfName, execId, cacheAllocSessionDeadline, tx)) {
+                    if (wfDao().cleanActiveExecutionById(wfName, execId, tx)) {
                         var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                         if (!opsToCancel.isEmpty()) {
                             execOpsDao().deleteOps(opsToCancel, tx);
