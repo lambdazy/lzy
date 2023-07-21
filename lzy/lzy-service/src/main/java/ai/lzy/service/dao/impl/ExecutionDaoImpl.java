@@ -53,9 +53,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         WHERE execution_id = ?""";
 
     private static final String QUERY_SELECT_STOP_EXECUTION_DATA = """
-        SELECT
-            kafka_topic_json,
-            allocator_session_id
+        SELECT kafka_topic_json, allocator_session_id
         FROM workflow_executions
         WHERE execution_id = ?""";
 
@@ -139,7 +137,6 @@ public class ExecutionDaoImpl implements ExecutionDao {
             }
         });
     }
-
     @Override
     public void updateAllocatorSession(String execId, String allocSessionId, @Nullable TransactionHandle transaction)
         throws SQLException
@@ -260,7 +257,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
         StopExecutionState result = new StopExecutionState();
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (var st = connection.prepareStatement(QUERY_SELECT_STOP_EXECUTION_DATA)) {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_SELECT_STOP_EXECUTION_DATA)) {
                 st.setString(1, execId);
                 var rs = st.executeQuery();
                 if (rs.next()) {

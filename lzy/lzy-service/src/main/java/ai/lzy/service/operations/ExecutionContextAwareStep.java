@@ -3,6 +3,7 @@ package ai.lzy.service.operations;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
 import ai.lzy.model.db.Storage;
+import ai.lzy.service.dao.DeleteAllocatorSessionOperationsDao;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
@@ -59,6 +60,10 @@ public abstract class ExecutionContextAwareStep implements FailContextAwareStep 
 
     protected ExecutionOperationsDao execOpsDao() {
         return stepCtx.execOpsDao();
+    }
+
+    protected DeleteAllocatorSessionOperationsDao deleteAllocatorSessionOpsDao() {
+        return stepCtx.deleteAllocatorSessionOpsDao();
     }
 
     protected RenewableJwt internalUserCredentials() {

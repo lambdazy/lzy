@@ -4,6 +4,7 @@ import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.dao.DeleteAllocatorSessionOperationsDao;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
@@ -30,6 +31,7 @@ public record LzyServiceContext(
     GraphDao graphDao,
     @Named("LzyServiceOperationDao") OperationDao opsDao,
     ExecutionOperationsDao execOpsDao,
+    DeleteAllocatorSessionOperationsDao deleteAllocSessionDao,
     @Named("LzyServiceOperationsExecutor") OperationsExecutor opsExecutor,
     OperationRunnersFactory opRunnersFactory,
     LzyServiceValidator validator,

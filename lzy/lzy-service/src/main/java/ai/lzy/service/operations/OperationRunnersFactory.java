@@ -11,6 +11,7 @@ import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.dao.*;
 import ai.lzy.service.dao.impl.LzyServiceStorage;
 import ai.lzy.service.kafka.KafkaLogsListeners;
+import ai.lzy.service.operations.allocsession.DeleteAllocatorSession;
 import ai.lzy.service.operations.graph.ExecuteGraph;
 import ai.lzy.service.operations.start.StartExecution;
 import ai.lzy.service.operations.stop.AbortExecution;
@@ -49,6 +50,7 @@ public class OperationRunnersFactory {
     private final GraphDao graphDao;
     private final OperationDao opDao;
     private final ExecutionOperationsDao execOpsDao;
+    private final DeleteAllocatorSessionOperationsDao deleteAllocSessionOpsDao;
     private final OperationsExecutor executor;
 
     private final KafkaAdminClient kafkaAdminClient;
@@ -69,7 +71,9 @@ public class OperationRunnersFactory {
     public OperationRunnersFactory(LzyServiceStorage storage, WorkflowDao wfDao, ExecutionDao execDao,
                                    @Named("LzyServiceOperationDao") OperationDao opDao, GraphDao graphDao,
                                    @Named("LzyServiceOperationsExecutor") OperationsExecutor executor,
-                                   ExecutionOperationsDao execOpsDao, KafkaAdminClient kafkaAdminClient,
+                                   ExecutionOperationsDao execOpsDao,
+                                   DeleteAllocatorSessionOperationsDao deleteAllocSessionOpsDao,
+                                   KafkaAdminClient kafkaAdminClient,
                                    KafkaLogsListeners kafkaLogsListeners, BeanFactory.S3SinkClient s3SinkClient,
                                    @Named("LzyServiceAllocatorGrpcClient") AllocatorBlockingStub allocClient,
                                    @Named("LzyServiceAllocOpsGrpcClient") LongRunningServiceBlockingStub allocOpClient,
@@ -89,6 +93,7 @@ public class OperationRunnersFactory {
         this.opDao = opDao;
         this.graphDao = graphDao;
         this.execOpsDao = execOpsDao;
+        this.deleteAllocSessionOpsDao = deleteAllocSessionOpsDao;
         this.executor = executor;
         this.kafkaAdminClient = kafkaAdminClient;
         this.kafkaLogsListeners = kafkaLogsListeners;
@@ -169,7 +174,6 @@ public class OperationRunnersFactory {
             .setIdempotencyKey(idempotencyKey)
             .setChannelsClient(channelManagerClient)
             .setAllocClient(allocClient)
-            .setAllocOpClient(allocOpClient)
             .setKafkaClient(kafkaAdminClient)
             .setKafkaLogsListeners(kafkaLogsListeners)
             .setS3SinkClient(s3SinkClient)
@@ -205,7 +209,6 @@ public class OperationRunnersFactory {
             .setChannelsClient(channelManagerClient)
             .setGraphClient(graphsClient)
             .setAllocClient(allocClient)
-            .setAllocOpClient(allocOpClient)
             .setKafkaClient(kafkaAdminClient)
             .setKafkaLogsListeners(kafkaLogsListeners)
             .setS3SinkClient(s3SinkClient)
@@ -256,5 +259,52 @@ public class OperationRunnersFactory {
             .setInternalUserCredentials(internalUserCredentials)
             .setOpRunnersFactory(this)
             .build();
+    }
+
+    public DeleteAllocatorSession createDeleteAllocatorSessionOpRunner(String opId, String opDesc,
+                                                                       @Nullable String idempotencyKey,
+                                                                       String sessionId, @Nullable String allocOpId)
+    {
+        return DeleteAllocatorSession.builder()
+            .setServiceConfig(serviceConfig)
+            .setId(opId)
+            .setDescription(opDesc)
+            .setState(new DeleteAllocatorSessionState(sessionId, allocOpId))
+            .setIdempotencyKey(idempotencyKey)
+            .setStorage(storage)
+            .setOperationsDao(opDao)
+            .setDeleteAllocatorSessionOpsDao(deleteAllocSessionOpsDao)
+            .setAllocClient(allocClient)
+            .setAllocOpClient(allocOpClient)
+            .setExecutor(executor)
+            .setIdGenerator(idGenerator)
+            .setMetrics(metrics)
+            .setInternalUserCredentials(internalUserCredentials)
+            .setOpRunnersFactory(this)
+            .build();
+    }
+
+    public LzyServiceConfig serviceConfig() {
+        return serviceConfig;
+    }
+
+    public Storage storage() {
+        return storage;
+    }
+
+    public WorkflowDao wfDao() {
+        return wfDao;
+    }
+
+    public OperationDao opDao() {
+        return opDao;
+    }
+
+    public DeleteAllocatorSessionOperationsDao deleteAllocSessionOpsDao() {
+        return deleteAllocSessionOpsDao;
+    }
+
+    public OperationsExecutor executor() {
+        return executor;
     }
 }

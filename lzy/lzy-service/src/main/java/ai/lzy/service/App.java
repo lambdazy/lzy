@@ -5,6 +5,7 @@ import ai.lzy.iam.grpc.interceptors.AllowSubjectOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.gc.GarbageCollector;
 import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.service.util.ExecutionIdInterceptor;
 import ai.lzy.util.grpc.GrpcHeadersServerInterceptor;
@@ -35,14 +36,17 @@ public class App {
 
     private final Server grpcServer;
     private final MetricReporter metricReporter;
+    private final GarbageCollector garbageCollector;
 
     public App(LzyServiceConfig config, LzyService lzyService, LzyPrivateService lzyPrivateService,
                @Named("IamServiceChannel") ManagedChannel iamChannel,
                @Named("LzyServiceAuthInterceptor") AuthServerInterceptor authInterceptor,
                @Named("LzyServiceMetricReporter") MetricReporter metricReporter,
-               ClientVersionInterceptor clientVersionInterceptor)
+               ClientVersionInterceptor clientVersionInterceptor,
+               GarbageCollector garbageCollector)
     {
         this.metricReporter = metricReporter;
+        this.garbageCollector = garbageCollector;
         final var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
         this.grpcServer = createServer(
             HostAndPort.fromString(config.getAddress()),
@@ -52,14 +56,18 @@ public class App {
             ServerInterceptors.intercept(lzyPrivateService, internalOnly));
     }
 
-    public void start() throws IOException {
+    public void start(boolean withGc) throws IOException {
         grpcServer.start();
         metricReporter.start();
         LOG.info("LzyServer started at {}",
             grpcServer.getListenSockets().stream().map(Object::toString).collect(Collectors.joining(", ")));
+        if (withGc) {
+            garbageCollector.start();
+        }
     }
 
     public void shutdown(boolean force) {
+        garbageCollector.shutdown();
         metricReporter.stop();
         if (force) {
             grpcServer.shutdownNow();
@@ -98,7 +106,7 @@ public class App {
     public static void main(String[] args) throws InterruptedException, IOException {
         try (var context = Micronaut.run(App.class, args)) {
             var main = context.getBean(App.class);
-            main.start();
+            main.start(true);
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 LOG.info("Stopping lzy service");
                 main.shutdown(false);

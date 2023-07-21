@@ -92,7 +92,7 @@ public class OutputSlot implements Slot, SlotInternal {
                 .setPeerId(slotId)
                 .build());
         } catch (Exception e) {
-            LOG.error("{} Error while unbinding output slot: ", logPrefix, e);
+            LOG.error("{} Error while unbinding output slot: {}", logPrefix, e.getMessage());
             // Error ignored
         }
 
