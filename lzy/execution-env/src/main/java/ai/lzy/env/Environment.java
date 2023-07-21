@@ -1,5 +1,6 @@
 package ai.lzy.env;
 
+import ai.lzy.env.logs.LogHandle;
 import jakarta.annotation.Nullable;
 
 import java.io.InputStream;

@@ -3,6 +3,7 @@ package ai.lzy.worker;
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.Execution;
 import ai.lzy.env.aux.AuxEnvironment;
+import ai.lzy.env.logs.LogHandle;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.logs.LogContextKey;
 import ai.lzy.longrunning.IdempotencyUtils;
@@ -93,13 +94,17 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             }
         }
 
-        try (final var logHandle = StreamQueue.LogHandleImpl.fromTopicDesc(LOG, tid, op.getKafkaTopic(), kafkaHelper)) {
+        final var logHandle = LogHandle.builder(LOG)
+            .withWriters(new KafkaLogsWriter(op.getKafkaTopic(), LOG, tid, kafkaHelper))
+            .build();
+
+        try (logHandle) {
             LOG.info("Configure worker...");
 
             final AuxEnvironment env;
 
             try {
-                env = envFactory.create(tid, config.getMountPoint(), op.getEnv(), logHandle, config.getMountPoint());
+                env = envFactory.create(config.getMountPoint(), op.getEnv(), logHandle, config.getMountPoint());
             } catch (EnvironmentInstallationException e) {
                 LOG.error("Unable to install environment", e);
 
