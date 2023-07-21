@@ -4,6 +4,7 @@ import ai.lzy.model.db.DbHelper;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.dao.GcDao;
 import ai.lzy.service.operations.OperationRunnersFactory;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -29,6 +30,8 @@ public class GarbageCollector extends TimerTask {
     private Timer taskTimer = null;
     private final long period;
     private final OperationRunnersFactory operationRunnersFactory;
+    @Nullable
+    private volatile GarbageCollectorInterceptor interceptor = null;
     private final AtomicBoolean started = new AtomicBoolean(false);
 
     public GarbageCollector(LzyServiceConfig config, GcDao gcDao, OperationRunnersFactory operationRunnersFactory) {
@@ -46,6 +49,10 @@ public class GarbageCollector extends TimerTask {
         if (started.compareAndSet(false, true)) {
             timer.scheduleAtFixedRate(this, period, period);
         }
+    }
+
+    public void setInterceptor(@Nullable GarbageCollectorInterceptor interceptor) {
+        this.interceptor = interceptor;
     }
 
     @Override
@@ -70,7 +77,8 @@ public class GarbageCollector extends TimerTask {
 
         long taskPeriod = config.getGcPeriod().toMillis();
         taskTimer = new Timer("gc-workflow-task-timer", true);
-        taskTimer.scheduleAtFixedRate(new GarbageCollectorTask(id, operationRunnersFactory), taskPeriod, taskPeriod);
+        taskTimer.scheduleAtFixedRate(
+            new GarbageCollectorTask(id, interceptor, operationRunnersFactory), taskPeriod, taskPeriod);
         long markPeriod = config.getGcLeaderPeriod().toMillis() / 2;
         taskTimer.scheduleAtFixedRate(new MarkGcValid(config.getGcLeaderPeriod()), markPeriod, markPeriod);
     }

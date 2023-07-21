@@ -5,6 +5,7 @@ import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.v1.AllocatorGrpc;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.worker.Worker;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -27,6 +28,7 @@ public class AllocatorContext {
     private final AllocatorMain main;
     private final ManagedChannel channel;
     private final AllocatorGrpc.AllocatorBlockingStub stub;
+    private final LongRunningServiceGrpc.LongRunningServiceBlockingStub opsStub;
 
     public AllocatorContext(IamContext iam, String jarPath, String executableClass, int port) {
 
@@ -61,6 +63,7 @@ public class AllocatorContext {
             .build();
 
         this.stub = AllocatorGrpc.newBlockingStub(channel);
+        this.opsStub = LongRunningServiceGrpc.newBlockingStub(channel);
     }
 
     public void close() {
@@ -84,6 +87,10 @@ public class AllocatorContext {
 
     public AllocatorGrpc.AllocatorBlockingStub stub() {
         return stub;
+    }
+
+    public LongRunningServiceGrpc.LongRunningServiceBlockingStub opsStub() {
+        return opsStub;
     }
 
     public ApplicationContext context() {

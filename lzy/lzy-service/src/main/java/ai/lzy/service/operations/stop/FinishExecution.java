@@ -28,7 +28,7 @@ public final class FinishExecution extends StopExecution {
     }
 
     private Supplier<StepResult> scheduleAllocSessionRemoval() {
-        return new ScheduleAllocSessionRemoval(stepCtx(), state());
+        return new ScheduleAllocSessionRemoval(stepCtx(), state(), serviceCfg().getAllocatorVmCacheTimeout());
     }
 
     @Override

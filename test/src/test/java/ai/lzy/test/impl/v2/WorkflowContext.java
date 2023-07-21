@@ -1,6 +1,7 @@
 package ai.lzy.test.impl.v2;
 
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.App;
 import ai.lzy.service.BeanFactory;
 import ai.lzy.service.dao.WorkflowDao;
@@ -14,6 +15,7 @@ import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -103,8 +105,12 @@ public class WorkflowContext {
         return ctx.getBean(ServiceConfig.class).getIam().getInternalUserName();
     }
 
-    public void startGc() {
-        ctx.getBean(GarbageCollector.class).start();
+    public GarbageCollector garbageCollector() {
+        return ctx.getBean(GarbageCollector.class);
+    }
+
+    public OperationDao operationDao() {
+        return ctx.getBean(OperationDao.class, Qualifiers.byName("LzyServiceOperationDao"));
     }
 
     @PreDestroy

@@ -271,6 +271,7 @@ public class OperationRunnersFactory {
             .setDescription(opDesc)
             .setState(new DeleteAllocatorSessionState(sessionId, allocOpId))
             .setIdempotencyKey(idempotencyKey)
+            .setStorage(storage)
             .setOperationsDao(opDao)
             .setDeleteAllocatorSessionOpsDao(deleteAllocSessionOpsDao)
             .setAllocClient(allocClient)

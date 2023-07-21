@@ -21,12 +21,6 @@ public interface WorkflowDao {
     @Nullable
     String getExecutionId(String userId, String wfName, @Nullable TransactionHandle transaction) throws SQLException;
 
-    record CleanActiveExecutionResult(
-        boolean success,
-        @Nullable
-        String allocSessionId
-    ) {}
-
     boolean cleanActiveExecutionById(String wfName, String activeExecId, @Nullable TransactionHandle transaction)
         throws SQLException;
 
@@ -36,12 +30,16 @@ public interface WorkflowDao {
     @Nullable
     String acquireCurrentAllocatorSession(String userId, String wfName) throws SQLException;
 
+    boolean releaseAllocatorSession(String userId, String wfName, String sessionId, Instant deadline)
+        throws SQLException;
+
     /**
      * @return existing allocator session or null
      *         If allocator session already exists this method do nothing and returns existing sid.
      */
     @Nullable
-    String setAllocatorSessionId(String userId, String wfName, String sessionId) throws SQLException;
+    String setAllocatorSessionId(String userId, String wfName, String sessionId, @Nullable TransactionHandle tx)
+        throws SQLException;
 
     boolean cleanAllocatorSessionId(String userId, String wfName, String sessionId, @Nullable TransactionHandle tx)
         throws SQLException;

@@ -3,7 +3,6 @@ ALTER TABLE workflows
     ADD COLUMN allocator_session_deadline TIMESTAMP NULL;
 
 ALTER TABLE workflow_executions
-    DROP COLUMN allocator_session_id,
     DROP COLUMN portal_vm_address;
 
 CREATE TABLE delete_allocator_session_operations
@@ -15,4 +14,3 @@ CREATE TABLE delete_allocator_session_operations
 
     FOREIGN KEY (op_id) REFERENCES operation (id)
 );
-

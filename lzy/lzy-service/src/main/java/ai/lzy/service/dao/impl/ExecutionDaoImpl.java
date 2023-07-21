@@ -37,6 +37,11 @@ public class ExecutionDaoImpl implements ExecutionDao {
         SET kafka_topic_json = ?
         WHERE execution_id = ?""";
 
+    private static final String QUERY_UPDATE_ALLOCATOR_SESSION = """
+        UPDATE workflow_executions
+        SET allocator_session_id = ?
+        WHERE execution_id = ?""";
+
     private static final String QUERY_SELECT_FOR_UPDATE_FINISH_DATA = """
         SELECT execution_id, finished_at, finished_with_error, finished_error_code
         FROM workflow_executions
@@ -44,6 +49,11 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     private static final String QUERY_SELECT_STORAGE_CREDENTIALS = """
         SELECT storage_credentials
+        FROM workflow_executions
+        WHERE execution_id = ?""";
+
+    private static final String QUERY_SELECT_STOP_EXECUTION_DATA = """
+        SELECT kafka_topic_json, allocator_session_id
         FROM workflow_executions
         WHERE execution_id = ?""";
 
@@ -60,7 +70,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
 
     private static final String QUERY_SELECT_EXEC_GRAPH_DATA = """
         SELECT kafka_topic_json, storage_credentials, allocator_session_id
-        FROM workflow_executions we JOIN workflows w on we.execution_id = w.active_execution_id
+        FROM workflow_executions
         WHERE execution_id = ?""";
 
     private final LzyServiceStorage storage;
@@ -124,6 +134,22 @@ public class ExecutionDaoImpl implements ExecutionDao {
                 var mes = "Cannot dump kafka topic desc";
                 LOG.error(mes + ": {}", e.getMessage());
                 throw new RuntimeException(mes, e);
+            }
+        });
+    }
+    @Override
+    public void updateAllocatorSession(String execId, String allocSessionId, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        LOG.debug("Update execution data: { execId: {}, newAllocatorSessionId: {} }", execId, allocSessionId);
+        DbOperation.execute(transaction, storage, connection -> {
+            try (var st = connection.prepareStatement(QUERY_UPDATE_ALLOCATOR_SESSION)) {
+                st.setString(1, allocSessionId);
+                st.setString(2, execId);
+                if (st.executeUpdate() < 1) {
+                    LOG.error("Cannot update allocator session id for unknown execution: { execId: {} }", execId);
+                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
+                }
             }
         });
     }
@@ -229,7 +255,27 @@ public class ExecutionDaoImpl implements ExecutionDao {
         throws SQLException
     {
         StopExecutionState result = new StopExecutionState();
-        result.kafkaTopicDesc = getKafkaTopicDesc(execId, transaction);
+
+        DbOperation.execute(transaction, storage, connection -> {
+            try (PreparedStatement st = connection.prepareStatement(QUERY_SELECT_STOP_EXECUTION_DATA)) {
+                st.setString(1, execId);
+                var rs = st.executeQuery();
+                if (rs.next()) {
+                    var kafkaJson = rs.getString(1);
+                    if (kafkaJson != null) {
+                        result.kafkaTopicDesc = objectMapper.readValue(kafkaJson, KafkaTopicDesc.class);
+                    }
+                    result.allocatorSessionId = rs.getString(2);
+                } else {
+                    LOG.error("Cannot get stop execution data for unknown execution: { execId : {} }", execId);
+                    throw new RuntimeException("Execution with id='%s' not found".formatted(execId));
+                }
+            } catch (JsonProcessingException jpe) {
+                var mes = "Cannot deserialize value of kafka topic";
+                LOG.error(mes + ": {}", jpe.getMessage());
+                throw new RuntimeException(mes, jpe);
+            }
+        });
         return result;
     }
 

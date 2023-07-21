@@ -1,6 +1,7 @@
 package ai.lzy.service.operations.start;
 
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.config.AllocatorSessionSpec;
 import ai.lzy.service.dao.StartExecutionState;
 import ai.lzy.service.operations.ExecutionStepContext;
@@ -46,12 +47,23 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
             existingAllocSessionId = withRetries(log(), () ->
                 stepCtx().wfDao().acquireCurrentAllocatorSession(spec.userId(), wfName()));
         } catch (Exception e) {
-            log().warn("DB error: {}", e.getMessage());
+            log().error("{} Cannot acquire allocator session for execution {}: {}",
+                logPrefix(), execId(), e.getMessage());
             return StepResult.RESTART;
         }
 
         if (existingAllocSessionId != null) {
             log().info("{} Reuse existing allocator session {}", logPrefix(), existingAllocSessionId);
+
+            var sid = existingAllocSessionId;
+            try {
+                withRetries(log(), () -> execDao().updateAllocatorSession(execId(), sid, null));
+            } catch (Exception e) {
+                log().error("{} Cannot store allocator session {} for execution {}: {}",
+                    logPrefix(), sid, execId(), e.getMessage());
+                return StepResult.RESTART;
+            }
+
             setAllocatorSessionId(existingAllocSessionId);
             return StepResult.ALREADY_DONE;
         }
@@ -68,6 +80,7 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
                     .setOwner(spec.userId())
                     .setDescription(spec.description())
                     .setCachePolicy(spec.cachePolicy())
+                    // no custom Network Policies yet
                     .build());
         } catch (StatusRuntimeException sre) {
             return retryableFail(sre, "Error in Allocator:createSession call", sre);
@@ -96,8 +109,15 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
         log().info("{} Allocator session with id='{}' successfully created", logPrefix(), sessionId);
 
         try {
-            existingAllocSessionId = withRetries(log(), () ->
-                wfDao().setAllocatorSessionId(spec.userId(), wfName(), sessionId));
+            existingAllocSessionId = withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(storage())) {
+                    var prevSid = wfDao().setAllocatorSessionId(spec.userId(), wfName(), sessionId, tx);
+                    var actualSid = prevSid != null ? prevSid : sessionId;
+                    execDao().updateAllocatorSession(execId(), actualSid, tx);
+                    tx.commit();
+                    return prevSid;
+                }
+            });
         } catch (Exception e) {
             Runnable deleteSession = () -> deleteSession(sessionId, e.getMessage());
             return retryableFail(e, "Cannot save data about allocator session with id='%s'".formatted(sessionId),
@@ -105,7 +125,8 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
         }
 
         if (existingAllocSessionId != null && !existingAllocSessionId.equals(sessionId)) {
-            log().info("{} Reuse existing allocator session {}", logPrefix(), existingAllocSessionId);
+            log().info("{} Reuse existing allocator session {}, drop created session {}",
+                logPrefix(), existingAllocSessionId, sessionId);
             deleteSession(sessionId, null);
             setAllocatorSessionId(existingAllocSessionId);
             return StepResult.CONTINUE;
