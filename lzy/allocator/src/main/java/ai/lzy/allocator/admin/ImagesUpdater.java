@@ -50,7 +50,7 @@ public class ImagesUpdater {
     }
 
     public void update(ActiveImages.Configuration conf) throws UpdateDaemonSetsException {
-        for (var cluster : clusterRegistry.getClusters()) {
+        for (var cluster : clusterRegistry.listClusters(null)) {
             if (cluster.type() == ClusterRegistry.ClusterType.User) {
                 updateCluster(cluster, conf);
             }
