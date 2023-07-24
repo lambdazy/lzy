@@ -115,6 +115,7 @@ public class DbAuthService implements AuthenticateService {
             LOG.error("No valid key: id={}, provider={}, credName={}", providerLogin, providerName, credName);
             throw new AuthPermissionDeniedException("Permission denied. Not found valid key.");
         } catch (SQLException e) {
+            LOG.error("AuthInternalExceprion {}: {}", e.getErrorCode(), e.getMessage(), e);
             throw new AuthInternalException(e);
         }
     }
