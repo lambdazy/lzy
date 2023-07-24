@@ -858,7 +858,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         }
 
         return new Workload(
-            idGenerator.generate("nfs-").toLowerCase(Locale.ROOT),
+            "nfs-client",
             config.getNfsClientImage(),
             Map.of(),
             List.of(String.join("; ", mountCommands)),
