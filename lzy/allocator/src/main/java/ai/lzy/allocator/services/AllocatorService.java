@@ -9,7 +9,6 @@ import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.impl.kuber.NetworkPolicyManager;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.model.CachePolicy;
 import ai.lzy.allocator.model.DynamicMount;
 import ai.lzy.allocator.model.*;
@@ -76,13 +75,13 @@ import static java.util.Optional.ofNullable;
 public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorService.class);
 
-    private static final String NFS_IMAGE = "lzydock/nfs-client:1.2";
     private static final String NFS_MOUNT_PATTERN = "until mount -t nfs -o %s %s:%s %s; do " +
         "sleep 1; echo \"nfs mount waiting\"; done";
+    private static final String NFS_HOST_PATH_PREFIX = "/host_shared/nfs/";
+    private static final String NFS_MOUNT_PATH_PREFIX = "/mnt/nfs/";
 
     private final VmDao vmDao;
     private final OperationDao operationsDao;
-    private final DiskDao diskDao;
     private final SessionDao sessionsDao;
     private final AllocationContext allocationContext;
     private final ServiceConfig config;
@@ -92,7 +91,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
     @Inject
     public AllocatorService(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
-                            SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
+                            SessionDao sessionsDao, AllocationContext allocationContext,
                             ServiceConfig config, ServiceConfig.CacheLimits cacheConfig,
                             ServiceConfig.MountConfig mountConfig,
                             @Named("AllocatorIdGenerator") IdGenerator idGenerator)
@@ -100,7 +99,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         this.vmDao = vmDao;
         this.operationsDao = operationsDao;
         this.sessionsDao = sessionsDao;
-        this.diskDao = diskDao;
         this.allocationContext = allocationContext;
         this.config = config;
         this.cacheConfig = cacheConfig;
@@ -319,12 +317,13 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         InjectedFailures.failAllocateVm10();
 
-        final List<VolumeRequest> volumes = new ArrayList<>();
+        final List<VolumeRequest> volumes;
         try {
-            volumes.addAll(prepareVolumeRequests(request.getVolumesList()));
+            volumes = prepareVolumeRequests(request.getVolumesList());
         } catch (StatusException e) {
             allocationContext.metrics().allocationError.inc();
             responseObserver.onError(e);
+            return;
         }
 
         workloads.add(prepareNfsWorkload(request.getVolumesList()));
@@ -848,7 +847,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 continue;
             }
             final var nfsVolume = volume.getNfsVolume();
-            final String mntPath = Path.of("/mnt/nfs/", nfsVolume.getShare()).toString();
+            final String mntPath = Path.of(NFS_MOUNT_PATH_PREFIX, nfsVolume.getShare()).toString();
             mounts.add(new VolumeMount(volume.getName().toLowerCase(Locale.ROOT),
                 mntPath, nfsVolume.getReadOnly(), VolumeMount.MountPropagation.BIDIRECTIONAL));
 
@@ -890,7 +889,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
                 case NFS_VOLUME -> { // nfsVolume as bidirectional hostPathVolume with nfs-client container
                     final var nfsVolume = volume.getNfsVolume();
-                    final String hostPath = Path.of("/host_shared/nfs/", nfsVolume.getShare()).toString();
+                    final String hostPath = Path.of(NFS_HOST_PATH_PREFIX, nfsVolume.getShare()).toString();
                     yield new VolumeRequest(idGenerator.generate("host-path-for-nfs-volume-").toLowerCase(Locale.ROOT),
                         new HostPathVolumeDescription(volume.getName(), hostPath, DIRECTORY_OR_CREATE));
                 }
