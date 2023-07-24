@@ -33,7 +33,7 @@ public class LzyServiceContextImpl implements LzyServiceContext {
         }
 
         lzyServiceApp = micronautContext.getBean(App.class);
-        lzyServiceApp.start();
+        lzyServiceApp.start(true);
     }
 
     @Override

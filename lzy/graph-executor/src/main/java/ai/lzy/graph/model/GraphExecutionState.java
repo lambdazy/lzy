@@ -22,23 +22,25 @@ import java.util.List;
 @JsonSerialize
 @JsonDeserialize
 public record GraphExecutionState(
-        String workflowId,
-        String workflowName,
-        String userId,
-        String id,
-        GraphDescription description,
-        List<TaskExecution> executions,
-        List<TaskExecution> currentExecutionGroup,
-        Status status,
-        String errorDescription,
-        String failedTaskId,
-        String failedTaskName
-) {
+    String workflowId,
+    String workflowName,
+    String userId,
+    String id,
+    GraphDescription description,
+    List<TaskExecution> executions,
+    List<TaskExecution> currentExecutionGroup,
+    Status status,
+    String errorDescription,
+    String failedTaskId,
+    String failedTaskName,
+    String allocatorSessionId
+)
+{
 
     private static final Logger LOG = LogManager.getLogger(GraphExecutionState.class);
 
     public enum Status {
-       WAITING, EXECUTING, COMPLETED, FAILED
+        WAITING, EXECUTING, COMPLETED, FAILED
     }
 
     public GraphExecutor.GraphExecutionStatus toGrpc(SchedulerApi schedulerApi) {
@@ -57,7 +59,7 @@ public record GraphExecutionState(
             );
             case EXECUTING -> {
                 final List<GraphExecutor.TaskExecutionStatus> statuses = new ArrayList<>();
-                for (var task: executions) {
+                for (var task : executions) {
                     final Scheduler.TaskStatus status;
                     try {
                         status = schedulerApi.status(workflowId, task.id());
@@ -102,16 +104,16 @@ public record GraphExecutionState(
                 .map(TaskDescription::id)
                 .toArray()
         );
-        return String.format("""
-                GraphExecutionState{
-                    workflowId: %s,
-                    id: %s,
-                    tasks: %s,
-                    currentExecutionGroup: %s,
-                    status: %s,
-                    errorDescription: %s
-                """, workflowId, id, tasks, execGroup, status, errorDescription
-            );
+        return """
+            GraphExecutionState{
+                workflowId: %s,
+                id: %s,
+                allocSession: %s
+                tasks: %s,
+                currentExecutionGroup: %s,
+                status: %s,
+                errorDescription: %s
+            """.formatted(workflowId, id, allocatorSessionId, tasks, execGroup, status, errorDescription);
     }
 
     public static GraphExecutionStateBuilder builder() {
@@ -128,7 +130,8 @@ public record GraphExecutionState(
             .withExecutions(executions)
             .withErrorDescription(errorDescription)
             .withCurrentExecutionGroup(currentExecutionGroup)
-            .withStatus(status);
+            .withStatus(status)
+            .withAllocatorSessionId(allocatorSessionId);
     }
 
     public static class GraphExecutionStateBuilder {
@@ -143,6 +146,7 @@ public record GraphExecutionState(
         private String errorDescription = null;
         private String failedTaskId = null;
         private String failedTaskName = null;
+        private String allocatorSessionId = null;
 
         public GraphExecutionStateBuilder withWorkflowId(String workflowId) {
             this.workflowId = workflowId;
@@ -199,14 +203,19 @@ public record GraphExecutionState(
             return this;
         }
 
+        public GraphExecutionStateBuilder withAllocatorSessionId(String allocatorSessionId) {
+            this.allocatorSessionId = allocatorSessionId;
+            return this;
+        }
+
         public GraphExecutionState build() {
-            if (workflowId == null || id == null || description == null) {
+            if (workflowId == null || id == null || description == null || allocatorSessionId == null) {
                 throw new NullPointerException(
                     "Cannot build GraphExecutionState with workflowId, id or description == null");
             }
             return new GraphExecutionState(
                 workflowId, workflowName, userId, id, description, executions, currentExecutionGroup,
-                status, errorDescription, failedTaskId, failedTaskName
+                status, errorDescription, failedTaskId, failedTaskName, allocatorSessionId
             );
         }
     }

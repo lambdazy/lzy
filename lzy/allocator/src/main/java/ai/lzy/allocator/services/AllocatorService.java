@@ -7,6 +7,7 @@ import ai.lzy.allocator.alloc.DeleteSessionAction;
 import ai.lzy.allocator.alloc.MountDynamicDiskAction;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
+import ai.lzy.allocator.alloc.impl.kuber.NetworkPolicyManager;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.model.CachePolicy;
@@ -98,7 +99,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         this.cacheConfig = cacheConfig;
         this.mountConfig = mountConfig;
         this.idGenerator = idGenerator;
-
     }
 
     @PreDestroy
@@ -119,6 +119,19 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         final var operationId = idGenerator.generate("create-session-");
         final var sessionId = idGenerator.generate("sid-");
+        LOG.info("Creating session: {}", sessionId);
+        try {
+            allocationContext.networkPolicyManager().createNetworkPolicy(
+                sessionId,
+                request.getNetPolicyRulesList().stream().map(this::toPolicyRule).toList()
+            );
+        } catch (Exception ex) {
+            allocationContext.metrics().createSessionError.inc();
+
+            LOG.error("Cannot create session: {}", ex.getMessage(), ex);
+            responseObserver.onError(Status.FAILED_PRECONDITION.withDescription(ex.getMessage()).asException());
+            return;
+        }
 
         final var response = CreateSessionResponse.newBuilder()
             .setSessionId(sessionId)
@@ -155,6 +168,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
             LOG.error("Cannot create session: {}", ex.getMessage(), ex);
             responseObserver.onError(Status.INTERNAL.withDescription(ex.getMessage()).asException());
+            try {
+                allocationContext.networkPolicyManager().deleteNetworkPolicy(sessionId);
+            } catch (Exception e) {
+                LOG.error("Cannot remove net-policy {} : {}", sessionId, e.getMessage(), e);
+            }
             return;
         }
 
@@ -1014,5 +1032,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT.withDescription("invalid storage_class")
                 .asRuntimeException();
         };
+    }
+
+    private NetworkPolicyManager.PolicyRule toPolicyRule(NetPolicyRule rule) {
+        return new NetworkPolicyManager.PolicyRule(rule.getCidr(), rule.getPortsList());
     }
 }

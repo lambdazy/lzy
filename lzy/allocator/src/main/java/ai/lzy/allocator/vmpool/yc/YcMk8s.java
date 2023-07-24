@@ -7,7 +7,6 @@ import ai.lzy.allocator.vmpool.CpuTypes;
 import ai.lzy.allocator.vmpool.GpuTypes;
 import ai.lzy.allocator.vmpool.VmPoolRegistry;
 import ai.lzy.allocator.vmpool.VmPoolSpec;
-import com.google.common.net.HostAndPort;
 import io.grpc.StatusRuntimeException;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.scheduling.annotation.Scheduled;
@@ -26,9 +25,9 @@ import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass;
 import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass.ListNodeGroupsRequest;
 import yandex.cloud.sdk.ServiceFactory;
 
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -51,8 +50,8 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     private record ClusterDesc(
         String clusterId,
         String folderId,
-        HostAndPort masterInternalAddress,
-        HostAndPort masterExternalAddress,
+        String masterInternalAddress,
+        String masterExternalAddress,
         String masterCert,
         String clusterIpv4CidrBlock,
         ClusterType type,
@@ -125,8 +124,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         if (desc == null) {
             return null;
         }
-        return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert, desc.type,
-            convertPools(desc.pools));
+        return toClusterDescription(desc);
     }
 
     @Override
@@ -140,10 +138,16 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     }
 
     @Override
-    public synchronized Collection<ClusterDescription> getClusters() {
+    public synchronized List<ClusterDescription> listClusters(@Nullable ClusterType clusterType) {
+        if (clusterType == null) {
+            return clusters.values().stream()
+                .map(x -> new ClusterDescription(x.clusterId, x.masterExternalAddress, x.masterCert, x.type,
+                    convertPools(x.pools)))
+                .toList();
+        }
         return clusters.values().stream()
-            .map(x -> new ClusterDescription(x.clusterId, x.masterExternalAddress, x.masterCert, x.type,
-                convertPools(x.pools)))
+            .filter(c -> c.type() == clusterType)
+            .map(YcMk8s::toClusterDescription)
             .toList();
     }
 
@@ -268,18 +272,15 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         var clusterId = cluster.getId();
         var master = cluster.getMaster();
         var masterCert = master.getMasterAuth().getClusterCaCertificate();
-        var masterInternalAddress = master.hasZonalMaster()
-            ? master.getZonalMaster().getInternalV4Address()
-            : master.getRegionalMaster().getInternalV4Address();
-        var masterExternalAddress = master.hasZonalMaster()
-            ? master.getZonalMaster().getExternalV4Address()
-            : master.getRegionalMaster().getExternalV4Address();
+        var masterInternalAddress = master.getEndpoints().getInternalV4Endpoint();
+        var masterExternalAddress = master.getEndpoints().getExternalV6Endpoint().isEmpty() ?
+            master.getEndpoints().getExternalV4Endpoint() : master.getEndpoints().getExternalV6Endpoint();
 
         return new ClusterDesc(
             clusterId,
             cluster.getFolderId(),
-            HostAndPort.fromString(masterInternalAddress),
-            HostAndPort.fromString(masterExternalAddress),
+            masterInternalAddress,
+            masterExternalAddress,
             masterCert,
             cluster.getIpAllocationPolicy().getClusterIpv4CidrBlock(),
             system ? ClusterType.System : ClusterType.User,
@@ -346,5 +347,13 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
                 Map.Entry::getKey,
                 kv -> kv.getValue().cpuCount() > 0 ? PoolType.Gpu : PoolType.Cpu
             ));
+    }
+
+    private static ClusterDescription toClusterDescription(ClusterDesc desc) {
+        var hostAndPort = desc.masterExternalAddress().isEmpty()
+            ? desc.masterInternalAddress()
+            : desc.masterExternalAddress();
+        return new ClusterDescription(desc.clusterId(), hostAndPort, desc.masterCert(), desc.type(),
+            convertPools(desc.pools()));
     }
 }

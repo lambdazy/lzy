@@ -23,7 +23,7 @@ import java.util.List;
 @Singleton
 public class DynamicMountDaoImpl implements DynamicMountDao {
     private static final String ALL_FIELDS = "id, vm_id, cluster_id, volume_request, mount_path, mount_name," +
-        " worker_id, mount_op_id, volume_name, volume_claim_name, mount_op_id, unmount_op_id, state";
+        " worker_id, mount_op_id, volume_name, volume_claim_name, mount_op_id, unmount_op_id, state, mounted";
 
     private static final String CREATE_DYNAMIC_MOUNT_QUERY = """
         INSERT INTO dynamic_mount (id, vm_id, cluster_id, volume_request, mount_path, mount_name,
@@ -239,6 +239,9 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
         if (update.state() != null) {
             sb.append("state = ?, ");
         }
+        if (update.mounted() != null) {
+            sb.append("mounted = ?, ");
+        }
         sb.setLength(sb.length() - 2);
         sb.append(" WHERE id = ? RETURNING ").append(ALL_FIELDS);
         return sb.toString();
@@ -260,6 +263,9 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
         if (update.state() != null) {
             s.setString(++idx, update.state().name());
         }
+        if (update.mounted() != null) {
+            s.setBoolean(++idx, update.mounted());
+        }
         s.setString(++idx, id);
     }
 
@@ -278,8 +284,9 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
             var volumeName = rs.getString("volume_name");
             var volumeClaimName = rs.getString("volume_claim_name");
             var state = DynamicMount.State.valueOf(rs.getString("state"));
+            var mounted = rs.getBoolean("mounted");
             return new DynamicMount(id, vmId, clusterId, mountPath, mountName, volumeName, volumeClaimName, volumeDesc,
-                mountOpId, unmountOpId, state, workerId);
+                mountOpId, unmountOpId, state, workerId, mounted);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Cannot read volume description", e);
         } catch (SQLException e) {

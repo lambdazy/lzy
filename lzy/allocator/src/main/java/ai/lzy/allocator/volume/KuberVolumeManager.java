@@ -16,7 +16,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.net.HttpURLConnection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -52,19 +51,20 @@ public class KuberVolumeManager implements VolumeManager {
         final String storageClass;
 
         var cluster = getClusterOrThrow(clusterId);
-        final String volumeName = volumeRequest.volumeId();
+        String volumeName = volumeRequest.volumeId();
 
         if (volumeRequest.volumeDescription() instanceof DiskVolumeDescription diskVolumeDescription) {
             diskId = diskVolumeDescription.diskId();
             diskSize = diskVolumeDescription.sizeGb();
-
-            LOG.info("Creating persistent volume '{}' for disk {} of size {}Gi", volumeName, diskId, diskSize);
 
             accessMode = Objects.requireNonNullElse(diskVolumeDescription.accessMode(),
                 Volume.AccessMode.READ_WRITE_ONCE);
             resourceName = diskVolumeDescription.name();
             storageClass = storageProvider.resolveDiskStorageClass(diskVolumeDescription.storageClass());
             var readOnly = accessMode == Volume.AccessMode.READ_ONLY_MANY;
+            volumeName = generateDiskVolumeName(diskId);
+
+            LOG.info("Creating persistent volume '{}' with description {}", volumeName, diskVolumeDescription);
             volume = new PersistentVolumeBuilder()
                 .withNewMetadata()
                     .withName(volumeName)
@@ -134,6 +134,10 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.error("Could not create volume {}: {}", result, e.getMessage(), e);
             throw e;
         }
+    }
+
+    private static String generateDiskVolumeName(String diskId) {
+        return "vm-volume-" + diskId;
     }
 
     @Override
@@ -206,7 +210,7 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.info("Found volume={}", volume);
             return volume;
         } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            if (KuberUtils.isResourceNotFound(e)) {
                 LOG.error("Not found volume with name={}", volumeName);
                 return null;
             }
@@ -233,7 +237,7 @@ public class KuberVolumeManager implements VolumeManager {
             LOG.info("Found {}", volumeClaim);
             return volumeClaim;
         } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            if (KuberUtils.isResourceNotFound(e)) {
                 LOG.error("Not found volumeClaim with name={}", volumeClaimName);
                 return null;
             }
@@ -247,9 +251,8 @@ public class KuberVolumeManager implements VolumeManager {
         try (var client = kuberClientFactory.build(cluster)) {
             LOG.info("Deleting persistent volume {}", volumeName);
             client.persistentVolumes().withName(volumeName).delete();
-            LOG.info("Persistent volume {} successfully deleted", volumeName);
         } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            if (KuberUtils.isResourceNotFound(e)) {
                 LOG.warn("Persistent volume {} not found", volumeName);
                 return;
             }
@@ -264,9 +267,8 @@ public class KuberVolumeManager implements VolumeManager {
         try (var client = kuberClientFactory.build(cluster)) {
             LOG.info("Deleting volume claim {}", volumeClaimName);
             client.persistentVolumeClaims().inNamespace(DEFAULT_NAMESPACE).withName(volumeClaimName).delete();
-            LOG.info("Volume claim {} successfully deleted", volumeClaimName);
         } catch (KubernetesClientException e) {
-            if (e.getCode() == HttpURLConnection.HTTP_NOT_FOUND) {
+            if (KuberUtils.isResourceNotFound(e)) {
                 LOG.warn("Persistent volume claim {} not found", volumeClaimName);
                 return;
             }

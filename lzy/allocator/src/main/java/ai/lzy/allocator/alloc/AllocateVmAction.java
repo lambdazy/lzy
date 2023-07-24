@@ -1,17 +1,13 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
-import ai.lzy.allocator.model.ClusterPod;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
-import ai.lzy.allocator.util.KuberUtils;
-import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.OperationRunnerBase;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
-import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.grpc.Status;
 import jakarta.annotation.Nullable;
 
@@ -35,8 +31,6 @@ public final class AllocateVmAction extends OperationRunnerBase {
     private boolean kuberRequestDone = false;
     @Nullable
     private DeleteVmAction deleteVmAction = null;
-    private boolean mountPodAllocated = false;
-    private ClusterPod mountHolder;
     @Nullable
     private Instant vmLastPollTimestamp = null;
 
@@ -58,7 +52,7 @@ public final class AllocateVmAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<OperationRunnerBase.StepResult>> steps() {
-        return List.of(this::allocateTunnel, this::allocateMountPod, this::setMountPod, this::allocateVm, this::waitVm);
+        return List.of(this::allocateTunnel, this::allocateVm, this::waitVm);
     }
 
     @Override
@@ -129,60 +123,6 @@ public final class AllocateVmAction extends OperationRunnerBase {
             return StepResult.RESTART;
         }
 
-        return StepResult.CONTINUE;
-    }
-
-    private StepResult allocateMountPod() {
-        if (!allocationContext.mountConfig().isEnabled()) {
-            return StepResult.ALREADY_DONE;
-        }
-        if (vm.spec().clusterType() == ClusterRegistry.ClusterType.System) {
-            return StepResult.ALREADY_DONE;
-        }
-        if (mountPodAllocated) {
-            return StepResult.ALREADY_DONE;
-        }
-
-        log().info("{} Allocating mount pod for VM {}", logPrefix(), vm.vmId());
-        try {
-            mountHolder = allocationContext.mountHolderManager().allocateMountHolder(vm.spec(), List.of());
-            mountPodAllocated = true;
-        } catch (KubernetesClientException e) {
-            log().error("{} Cannot allocate mount holder for vm {}: {}", logPrefix(), vm.vmId(), e.getMessage());
-            if (KuberUtils.isNotRetryable(e)) {
-                try {
-                    fail(Status.INTERNAL.withDescription(e.getMessage()));
-                } catch (Exception ex) {
-                    log().error("{} Cannot fail operation: {}", logPrefix(), ex.getMessage(), ex);
-                }
-                return StepResult.FINISH;
-            }
-            return StepResult.RESTART;
-        }
-        return StepResult.CONTINUE;
-    }
-
-    private StepResult setMountPod() {
-        if (!allocationContext.mountConfig().isEnabled()) {
-            return StepResult.ALREADY_DONE;
-        }
-        if (vm.spec().clusterType() == ClusterRegistry.ClusterType.System) {
-            return StepResult.ALREADY_DONE;
-        }
-        if (vm.instanceProperties().mountPodName() != null) {
-            return StepResult.ALREADY_DONE;
-        }
-
-        var pod = mountHolder.podName();
-        log().info("{} Setting mount pod name {} for VM", logPrefix(), pod);
-        try {
-            withRetries(log(), () -> allocationContext.vmDao().setMountPod(vm.vmId(), pod, null));
-        } catch (Exception e) {
-            log().error("{} Cannot save mount pod name {} for VM: {}. Retry later...",
-                logPrefix(), pod, e.getMessage());
-            return StepResult.RESTART;
-        }
-        vm = vm.withMountPod(pod);
         return StepResult.CONTINUE;
     }
 

@@ -1,9 +1,8 @@
 package ai.lzy.allocator.vmpool;
 
-import com.google.common.net.HostAndPort;
 import jakarta.annotation.Nullable;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 public interface ClusterRegistry {
@@ -23,13 +22,13 @@ public interface ClusterRegistry {
 
     ClusterDescription getCluster(String clusterId);
 
-    Collection<ClusterDescription> getClusters();
+    List<ClusterDescription> listClusters(@Nullable ClusterType clusterType);
 
     String getClusterPodsCidr(String clusterId);
 
     record ClusterDescription(
         String clusterId,
-        HostAndPort masterAddress,
+        String masterAddress,
         String masterCert,
         ClusterType type,
         Map<String, PoolType> pools

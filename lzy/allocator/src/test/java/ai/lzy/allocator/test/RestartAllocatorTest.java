@@ -5,22 +5,14 @@ import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.model.debug.InjectedFailures.TerminateException;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.util.Durations;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.client.utils.Serialization;
-import io.fabric8.mockwebserver.utils.ResponseProvider;
-import okhttp3.Headers;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static ai.lzy.allocator.test.Utils.waitOperation;
@@ -103,39 +95,7 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
 
     private void allocateVmFailImpl() throws Exception {
         final var failKuberAlloc = new AtomicBoolean(true);
-        final var createdPod = new CompletableFuture<String>();
-
-        kubernetesServer.expect()
-            .post().withPath(POD_PATH).andReply(new ResponseProvider<>() {
-                private Headers headers = new Headers.Builder().build();
-
-                @Override
-                public Object getBody(RecordedRequest request) {
-                    Assert.assertFalse(failKuberAlloc.get());
-                    final var pod = Serialization.unmarshal(
-                        new ByteArrayInputStream(request.getBody().readByteArray()), Pod.class, Map.of());
-                    createdPod.complete(pod.getMetadata().getName());
-                    return pod;
-                }
-
-                @Override
-                public int getStatusCode(RecordedRequest request) {
-                    Assert.assertFalse(failKuberAlloc.get());
-                    return HttpURLConnection.HTTP_CREATED;
-                }
-
-                @Override
-                public Headers getHeaders() {
-                    return headers;
-                }
-
-                @Override
-                public void setHeaders(Headers headers) {
-                    this.headers = headers;
-                }
-            })
-            .once();
-
+        final var createdPod = mockCreatePod();
         var sessionId = createSession(Durations.ZERO);
 
         failKuberAlloc.set(true);
@@ -165,7 +125,7 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
 
         allocatorCtx.getBean(RestoreOperations.class); //calls restore after construction
 
-        final String podName = createdPod.get();
+        final String podName = getName(createdPod.get());
         mockGetPodByName(podName);
 
         var clusterId = requireNonNull(clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId();

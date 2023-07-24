@@ -1,6 +1,7 @@
 package ai.lzy.service.operations.start;
 
 import ai.lzy.longrunning.OperationRunnerBase.StepResult;
+import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.service.config.AllocatorSessionSpec;
 import ai.lzy.service.dao.StartExecutionState;
 import ai.lzy.service.operations.ExecutionStepContext;
@@ -13,6 +14,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.protobuf.StatusProto;
+import jakarta.annotation.Nullable;
 
 import java.util.function.Supplier;
 
@@ -40,6 +42,32 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
             return StepResult.ALREADY_DONE;
         }
 
+        String existingAllocSessionId;
+        try {
+            existingAllocSessionId = withRetries(log(), () ->
+                stepCtx().wfDao().acquireCurrentAllocatorSession(spec.userId(), wfName()));
+        } catch (Exception e) {
+            log().error("{} Cannot acquire allocator session for execution {}: {}",
+                logPrefix(), execId(), e.getMessage());
+            return StepResult.RESTART;
+        }
+
+        if (existingAllocSessionId != null) {
+            log().info("{} Reuse existing allocator session {}", logPrefix(), existingAllocSessionId);
+
+            var sid = existingAllocSessionId;
+            try {
+                withRetries(log(), () -> execDao().updateAllocatorSession(execId(), sid, null));
+            } catch (Exception e) {
+                log().error("{} Cannot store allocator session {} for execution {}: {}",
+                    logPrefix(), sid, execId(), e.getMessage());
+                return StepResult.RESTART;
+            }
+
+            setAllocatorSessionId(existingAllocSessionId);
+            return StepResult.ALREADY_DONE;
+        }
+
         log().info("{} Create allocator session...", logPrefix());
 
         var createSessionAllocClient = (idempotencyKey() == null) ? allocClient :
@@ -52,6 +80,7 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
                     .setOwner(spec.userId())
                     .setDescription(spec.description())
                     .setCachePolicy(spec.cachePolicy())
+                    // no custom Network Policies yet
                     .build());
         } catch (StatusRuntimeException sre) {
             return retryableFail(sre, "Error in Allocator:createSession call", sre);
@@ -77,30 +106,46 @@ final class CreateAllocatorSession extends StartExecutionContextAwareStep
             return failAction().apply(status);
         }
 
-        log().debug("{} Allocator session with id='{}' successfully created", logPrefix(), sessionId);
+        log().info("{} Allocator session with id='{}' successfully created", logPrefix(), sessionId);
 
         try {
-            withRetries(log(), () -> execDao().updateAllocatorSession(execId(), sessionId, null));
-        } catch (Exception e) {
-            Runnable deleteSession = () -> {
-                try {
-                    var deleteSessionAllocClient = (idempotencyKey() == null) ? allocClient :
-                        withIdempotencyKey(allocClient, idempotencyKey() + "_delete_session");
-                    //noinspection ResultOfMethodCallIgnored
-                    deleteSessionAllocClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
-                        .setSessionId(sessionId).build());
-                } catch (StatusRuntimeException sre) {
-                    log().warn("{} Cannot delete allocator session with id='{}' after error {}: ", logPrefix(),
-                        sessionId, e.getMessage(), sre);
+            existingAllocSessionId = withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(storage())) {
+                    var prevSid = wfDao().setAllocatorSessionId(spec.userId(), wfName(), sessionId, tx);
+                    var actualSid = prevSid != null ? prevSid : sessionId;
+                    execDao().updateAllocatorSession(execId(), actualSid, tx);
+                    tx.commit();
+                    return prevSid;
                 }
-            };
+            });
+        } catch (Exception e) {
+            Runnable deleteSession = () -> deleteSession(sessionId, e.getMessage());
             return retryableFail(e, "Cannot save data about allocator session with id='%s'".formatted(sessionId),
                 deleteSession, Status.INTERNAL.withDescription("Cannot create allocator session").asRuntimeException());
+        }
+
+        if (existingAllocSessionId != null && !existingAllocSessionId.equals(sessionId)) {
+            log().info("{} Reuse existing allocator session {}, drop created session {}",
+                logPrefix(), existingAllocSessionId, sessionId);
+            deleteSession(sessionId, null);
+            setAllocatorSessionId(existingAllocSessionId);
+            return StepResult.CONTINUE;
         }
 
         setAllocatorSessionId(sessionId);
         log().debug("{} Allocator session successfully created...", logPrefix());
 
         return StepResult.CONTINUE;
+    }
+
+    private void deleteSession(String sessionId, @Nullable String reason) {
+        try {
+            //noinspection ResultOfMethodCallIgnored
+            allocClient.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
+                .setSessionId(sessionId).build());
+        } catch (StatusRuntimeException sre) {
+            log().warn("{} Cannot delete allocator session with id='{}' after error {}: ", logPrefix(),
+                sessionId, reason, sre);
+        }
     }
 }

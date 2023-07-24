@@ -1,6 +1,7 @@
 package ai.lzy.allocator.alloc;
 
 import ai.lzy.allocator.alloc.dao.SessionDao;
+import ai.lzy.allocator.exceptions.NetworkPolicyException;
 import ai.lzy.allocator.model.Session;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.debug.InjectedFailures;
@@ -65,10 +66,10 @@ public class DeleteSessionAction extends OperationRunnerBase {
 
     @Override
     protected List<Supplier<StepResult>> steps() {
-        return List.of(this::exec);
+        return List.of(this::removeVMs, this::removeNetPolicy, this::removeSession);
     }
 
-    private StepResult exec() {
+    private StepResult removeVMs() {
         List<Vm> vms;
         try {
             vms = withRetries(log(), () -> allocationContext.vmDao().getSessionVms(sessionId, null));
@@ -78,20 +79,7 @@ public class DeleteSessionAction extends OperationRunnerBase {
         }
 
         if (vms.isEmpty()) {
-            try {
-                withRetries(log(), () -> {
-                    try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                        completeOperation(null, Any.pack(Empty.getDefaultInstance()), tx);
-                        sessionDao.removeSession(sessionId, tx);
-                        tx.commit();
-                    }
-                });
-            } catch (Exception e) {
-                log().error("{} Cannot complete operation: {}", logPrefix(), e.getMessage(), e);
-                return StepResult.RESTART;
-            }
-            log().info("{} Operation completed", logPrefix());
-            return StepResult.FINISH;
+            return StepResult.ALREADY_DONE;
         }
 
         for (var vm : vms) {
@@ -129,5 +117,41 @@ public class DeleteSessionAction extends OperationRunnerBase {
         }
 
         return StepResult.RESTART;
+    }
+
+    private StepResult removeNetPolicy() {
+        try {
+            allocationContext.networkPolicyManager().deleteNetworkPolicy(sessionId);
+        } catch (NetworkPolicyException e) {
+            log().error("Cannot remove net-policy {} : {}", sessionId, e.getMessage(), e);
+            if (e.isRetryable()) {
+                return StepResult.RESTART;
+            }
+            try {
+                this.failOperation(Status.CANCELLED.withDescription("Session remove failed"), null);
+            } catch (Exception ex) {
+                log().error("Failed to abort session {} deletion", sessionId);
+                return StepResult.RESTART;
+            }
+            return StepResult.FINISH;
+        }
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult removeSession() {
+        try {
+            withRetries(log(), () -> {
+                try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                    completeOperation(null, Any.pack(Empty.getDefaultInstance()), tx);
+                    sessionDao.removeSession(sessionId, tx);
+                    tx.commit();
+                }
+            });
+        } catch (Exception e) {
+            log().error("{} Cannot complete operation: {}", logPrefix(), e.getMessage(), e);
+            return StepResult.RESTART;
+        }
+        log().info("{} Operation completed", logPrefix());
+        return StepResult.FINISH;
     }
 }

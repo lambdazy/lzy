@@ -9,12 +9,6 @@ import java.util.List;
 public interface TaskDao {
 
     @Nullable
-    String getAllocatorSession(String workflowName, String userId, @Nullable TransactionHandle tx) throws SQLException;
-
-    void insertAllocatorSession(String workflowName, String userId,
-                                String sessionId, @Nullable TransactionHandle tx) throws SQLException;
-
-    @Nullable
     TaskDesc getTaskDesc(String taskId, String executionId, @Nullable TransactionHandle tx) throws SQLException;
 
     @Nullable
@@ -32,6 +26,7 @@ public interface TaskDao {
         String workflowName,
         String userId,
         String operationId,
-        String operationName
+        String operationName,
+        String allocatorSessionId
     ) {}
 }

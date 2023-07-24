@@ -1,14 +1,13 @@
 package ai.lzy.allocator.vmpool;
 
 import ai.lzy.common.IdGenerator;
-import com.google.common.net.HostAndPort;
 import io.micronaut.context.annotation.Primary;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 
-import java.util.Collection;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -34,12 +33,12 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
         labelsToClusters = Map.of(
             "S", new ClusterDescription(
                 idGenerator.generate("S-"),
-                HostAndPort.fromString("localhost:1256"),
+                "localhost:1256",
                 "", ClusterType.User,
                 Map.of("s", PoolType.Cpu)),
             "M", new ClusterDescription(
                 idGenerator.generate("M-"),
-                HostAndPort.fromString("localhost:1256"),
+                "localhost:1256",
                 "", ClusterType.User,
                 Map.of("m", PoolType.Cpu))
         );
@@ -60,9 +59,15 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
     }
 
     @Override
-    public Collection<ClusterDescription> getClusters() {
+    public List<ClusterDescription> listClusters(@Nullable ClusterType clusterType) {
+        if (clusterType == null) {
+            return idsToClusters.values().stream()
+                .map(x -> new ClusterDescription(x.clusterId(), x.masterAddress(), x.masterCert(), x.type(), x.pools()))
+                .toList();
+        }
+
         return idsToClusters.values().stream()
-            .map(x -> new ClusterDescription(x.clusterId(), x.masterAddress(), x.masterCert(), x.type(), x.pools()))
+            .filter(x -> x.type() == clusterType)
             .toList();
     }
 
@@ -73,7 +78,7 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
 
     @Override
     public Map<String, VmPoolSpec> getSystemVmPools() {
-        return null;
+        return Map.of();
     }
 
     @Override

@@ -34,13 +34,11 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import yandex.cloud.sdk.Zone;
-import yandex.cloud.sdk.auth.IamToken;
 
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -79,8 +77,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        kuber = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX))
-            .build(clusterRegistry.getCluster(clusterId));
+        kuber = new KuberClientFactoryImpl(new TestCredProvider()).build(clusterRegistry.getCluster(clusterId));
 
         allocatorApp = context.getBean(AllocatorMain.class);
         allocatorApp.start();
@@ -120,7 +117,9 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         String stdout,
         String stderr,
         int exitCode
-    ) {}
+    )
+    {
+    }
 
     private ExecResult execInPod(String podName, String cmd) {
         var outputStream = new ByteArrayOutputStream();
@@ -247,7 +246,7 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
                 if (volumes.isEmpty()) {
                     return true;
                 }
-                for (var volume: volumes) {
+                for (var volume : volumes) {
                     final String requestedVolumeName = volume.getMetadata().getLabels()
                         .get(KuberVolumeManager.REQUESTED_VOLUME_NAME_LABEL);
                     if (requestedVolumeName.equals(volumeName)) {

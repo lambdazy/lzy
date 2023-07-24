@@ -10,8 +10,8 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface GraphExecutionDao {
-    GraphExecutionState create(String workflowId, String workflowName, String userId, GraphDescription description,
-                               @Nullable TransactionHandle transaction) throws SQLException;
+    GraphExecutionState create(String workflowId, String workflowName, String userId, String allocatorSessionId,
+                               GraphDescription description, @Nullable TransactionHandle tx) throws SQLException;
 
     @Nullable
     GraphExecutionState get(String workflowId, String graphExecutionId) throws DaoException;

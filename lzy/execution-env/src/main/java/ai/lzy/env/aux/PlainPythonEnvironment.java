@@ -1,8 +1,8 @@
 package ai.lzy.env.aux;
 
-import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.EnvironmentInstallationException;
-import ai.lzy.env.LogHandle;
+import ai.lzy.env.base.BaseEnvironment;
+import ai.lzy.env.logs.LogHandle;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

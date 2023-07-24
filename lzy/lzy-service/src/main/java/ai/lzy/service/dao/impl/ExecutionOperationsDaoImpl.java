@@ -41,17 +41,14 @@ public class ExecutionOperationsDaoImpl implements ExecutionOperationsDao {
         SELECT state_json FROM execution_operations WHERE op_id = ?""";
 
     private static final String QUERY_SELECT_UNCOMPLETED_OPERATIONS = """
-        SELECT e_op.op_type as op_type, o.id as id, o.description as desc, 
+        SELECT e_op.op_type as op_type, o.id as id, o.description as desc,
                o.idempotency_key as idk, e.user_id as user_id,
                wf.workflow_name as wf_name, e.execution_id as exec_id,
                e_op.state_json as state_json
-        FROM execution_operations e_op 
-        JOIN operation o 
-        ON e_op.op_id = o.id
-        JOIN workflow_executions e
-        ON e_op.execution_id = e.execution_id
-        JOIN workflows wf
-        ON wf.active_execution_id = e.execution_id
+        FROM execution_operations e_op
+        JOIN operation o ON e_op.op_id = o.id
+        JOIN workflow_executions e ON e_op.execution_id = e.execution_id
+        JOIN workflows wf ON wf.active_execution_id = e.execution_id
         WHERE e_op.service_instance_id = ?""";
 
     private final LzyServiceStorage storage;

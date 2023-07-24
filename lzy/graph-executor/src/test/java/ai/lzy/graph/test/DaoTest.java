@@ -8,7 +8,11 @@ import ai.lzy.model.db.exceptions.DaoException;
 import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import java.sql.SQLException;
@@ -46,11 +50,11 @@ public class DaoTest {
             .addEdge("2", "3")
             .addEdge("3", "1")
             .build();
-        GraphExecutionState s = dao.create("1", "changeMe", "userId", d, null);
+        GraphExecutionState s = dao.create("1", "changeMe", "userId", "allocSid", d, null);
         GraphExecutionState s2 = dao.get("1", s.id());
         Assert.assertEquals(s, s2);
 
-        GraphExecutionState s3 = dao.create("1", "changeMe", "userId", d, null);
+        GraphExecutionState s3 = dao.create("1", "changeMe", "userId", "allocSid", d, null);
         List<GraphExecutionState> list = dao.list("1");
         Assert.assertEquals(Set.of(s, s3), Set.copyOf(list));
 
