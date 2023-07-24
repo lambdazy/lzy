@@ -56,15 +56,18 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NODE_INSTANCE_ID_KEY;
 import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
+import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
+import static ai.lzy.v1.VolumeApi.Volume.VolumeTypeCase.NFS_VOLUME;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
@@ -72,6 +75,10 @@ import static java.util.Optional.ofNullable;
 @Requires(notEnv = BeanFactory.TEST_ENV_NAME)
 public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorService.class);
+
+    private static final String NFS_IMAGE = "lzydock/nfs-client:1.2";
+    private static final String NFS_MOUNT_PATTERN = "until mount -t nfs -o %s %s:%s %s; do " +
+        "sleep 1; echo \"nfs mount waiting\"; done";
 
     private final VmDao vmDao;
     private final OperationDao operationsDao;
@@ -288,7 +295,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         final var workloads = request.getWorkloadList().stream()
             .map(Workload::fromProto)
-            .toList();
+            .collect(Collectors.toList());
 
         final var initWorkloads = request.getInitWorkloadList().stream()
             .map(Workload::fromProto)
@@ -312,18 +319,27 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         InjectedFailures.failAllocateVm10();
 
+        final List<VolumeRequest> volumes = new ArrayList<>();
+        try {
+            volumes.addAll(prepareVolumeRequests(request.getVolumesList()));
+        } catch (StatusException e) {
+            allocationContext.metrics().allocationError.inc();
+            responseObserver.onError(e);
+        }
+
+        workloads.add(prepareNfsWorkload(request.getVolumesList()));
+
+        var clusterType = switch (request.getClusterType()) {
+            case USER -> ClusterRegistry.ClusterType.User;
+            case SYSTEM -> ClusterRegistry.ClusterType.System;
+            case UNRECOGNIZED, UNSPECIFIED -> throw Status.INVALID_ARGUMENT
+                .withDescription("Cluster type not specified").asRuntimeException();
+        };
+
         Runnable allocateCont = null;
         try {
             allocateCont = withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(allocationContext.storage())) {
-                    final var volumes = prepareVolumeRequests(request.getVolumesList(), tx);
-
-                    var clusterType = switch (request.getClusterType()) {
-                        case USER -> ClusterRegistry.ClusterType.User;
-                        case SYSTEM -> ClusterRegistry.ClusterType.System;
-                        case UNRECOGNIZED, UNSPECIFIED -> throw Status.INVALID_ARGUMENT
-                            .withDescription("Cluster type not specified").asRuntimeException();
-                    };
 
                     final var vmSpec = new Vm.Spec(
                         "VM ID Placeholder",
@@ -418,10 +434,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     responseObserver.onCompleted();
 
                     return cont;
-                } catch (StatusException e) {
-                    allocationContext.metrics().allocationError.inc();
-                    responseObserver.onError(e);
-                    return null;
                 }
             });
         } catch (Exception ex) {
@@ -827,25 +839,45 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription("unsupported volume type: " + type));
     }
 
-    private List<VolumeRequest> prepareVolumeRequests(List<VolumeApi.Volume> volumes, TransactionHandle transaction)
-        throws SQLException, StatusException
-    {
+    private Workload prepareNfsWorkload(List<VolumeApi.Volume> volumes) {
+        final List<VolumeMount> mounts = new ArrayList<>();
+        final List<String> mountCommands = new ArrayList<>();
+
+        for (var volume : volumes) {
+            if (!volume.getVolumeTypeCase().equals(NFS_VOLUME)) {
+                continue;
+            }
+            final var nfsVolume = volume.getNfsVolume();
+            final String mntPath = Path.of("/mnt/nfs/", nfsVolume.getShare()).toString();
+            mounts.add(new VolumeMount(volume.getName().toLowerCase(Locale.ROOT),
+                mntPath, nfsVolume.getReadOnly(), VolumeMount.MountPropagation.BIDIRECTIONAL));
+
+            final var mountCmd = String.format(NFS_MOUNT_PATTERN, String.join(",", nfsVolume.getMountOptionsList()),
+                nfsVolume.getServer(), nfsVolume.getShare(), mntPath);
+            mountCommands.add(mountCmd);
+        }
+
+        return new Workload(
+            idGenerator.generate("nfs-").toLowerCase(Locale.ROOT),
+            config.getNfsClientImage(),
+            Map.of(),
+            List.of(String.join("; ", mountCommands)),
+            Map.of(),
+            mounts
+        );
+    }
+
+    private List<VolumeRequest> prepareVolumeRequests(List<VolumeApi.Volume> volumes) throws StatusException {
         final var requests = new ArrayList<VolumeRequest>(volumes.size());
 
         for (var volume : volumes) {
             final var req = switch (volume.getVolumeTypeCase()) {
                 case DISK_VOLUME -> {
                     final var diskVolume = volume.getDiskVolume();
-                    final var disk = diskDao.get(diskVolume.getDiskId(), transaction);
-                    if (disk == null) {
-                        final String message = "Disk with id %s not found".formatted(diskVolume.getDiskId());
-                        LOG.error(message);
-                        throw Status.NOT_FOUND.withDescription(message).asException();
-                    }
                     var accessMode = validateAccessMode(diskVolume.getAccessMode());
                     var storageClass = validateStorageClass(diskVolume.getStorageClass());
                     yield new VolumeRequest(idGenerator.generate("disk-volume-").toLowerCase(Locale.ROOT),
-                        new DiskVolumeDescription(volume.getName(), diskVolume.getDiskId(), disk.spec().sizeGb(),
+                        new DiskVolumeDescription(volume.getName(), diskVolume.getDiskId(), diskVolume.getSizeGb(),
                             accessMode, storageClass));
                 }
 
@@ -856,11 +888,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         new HostPathVolumeDescription(volume.getName(), hostPathVolume.getPath(), hostPathType));
                 }
 
-                case NFS_VOLUME -> {
+                case NFS_VOLUME -> { // nfsVolume as bidirectional hostPathVolume with nfs-client container
                     final var nfsVolume = volume.getNfsVolume();
-                    yield new VolumeRequest(idGenerator.generate("nfs-volume-").toLowerCase(Locale.ROOT),
-                        new NFSVolumeDescription(volume.getName(), nfsVolume.getServer(),
-                            nfsVolume.getShare(), nfsVolume.getReadOnly(), nfsVolume.getMountOptionsList()));
+                    final String hostPath = Path.of("/host_shared/nfs/", nfsVolume.getShare()).toString();
+                    yield new VolumeRequest(idGenerator.generate("host-path-for-nfs-volume-").toLowerCase(Locale.ROOT),
+                        new HostPathVolumeDescription(volume.getName(), hostPath, DIRECTORY_OR_CREATE));
                 }
 
                 case VOLUMETYPE_NOT_SET -> {
