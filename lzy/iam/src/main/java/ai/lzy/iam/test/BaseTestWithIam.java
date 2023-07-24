@@ -9,6 +9,7 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.storage.db.InternalUserInserter;
 import ai.lzy.iam.storage.impl.DbSubjectService;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.v1.iam.LzyAccessBindingServiceGrpc;
@@ -107,5 +108,13 @@ public class BaseTestWithIam {
     public List<SubjectCredentials> listCredentials(String subjectId) {
         var subjectService = iamCtx.getBean(DbSubjectService.class);
         return subjectService.listCredentials(subjectId);
+    }
+
+    public Subject createAdminSubject(String name, String publicKey) {
+        try {
+            return iamCtx.getBean(InternalUserInserter.class).addAdminUser(name, publicKey);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

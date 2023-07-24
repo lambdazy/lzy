@@ -11,8 +11,11 @@ import ai.lzy.allocator.services.DiskService;
 import ai.lzy.allocator.services.VmPoolService;
 import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.clients.AuthenticateService;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.longrunning.OperationsService;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
@@ -93,8 +96,7 @@ public class AllocatorMain {
 
         var internalOnly = new AllowInternalUserOnlyInterceptor(accessClient);
         var vmOttAuth = new VmOttAuthInterceptor(vmDao, AllocatorPrivateGrpc.getRegisterMethod());
-        var adminAuth = internalOnly;
-        //var adminAuth = new AccessServerInterceptor(accessClient, Root.INSTANCE, AuthPermission.UPDATE_IMAGES);
+        var adminAuth = new AccessServerInterceptor(accessClient, Root.INSTANCE, AuthPermission.INTERNAL_UPDATE_IMAGES);
 
         builder.addService(ServerInterceptors.intercept(allocator, internalOnly));
         builder.addService(ServerInterceptors.intercept(allocatorPrivate, vmOttAuth));

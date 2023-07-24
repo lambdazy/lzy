@@ -15,6 +15,7 @@ public enum AuthPermission {
 
     // Internal permissions
     INTERNAL_AUTHORIZE("lzy.internal.authorize"),
+    INTERNAL_UPDATE_IMAGES("lzy.internal.update-images")
     ;
 
     private final String permission;

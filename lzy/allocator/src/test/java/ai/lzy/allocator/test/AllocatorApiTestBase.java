@@ -19,6 +19,7 @@ import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.OttHelper;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.DiskServiceGrpc;
@@ -107,6 +108,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected ObjectMapper objectMapper;
     protected MockWebServer mockWebServer;
     protected MockHttpDispatcher mockRequestDispatcher;
+    protected RenewableJwt internalUserCreds;
 
     protected void updateStartupProperties(Map<String, Object> props) {}
 
@@ -154,15 +156,15 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME, AllocatorPrivateGrpc.SERVICE_NAME,
             LongRunningServiceGrpc.SERVICE_NAME, DiskServiceGrpc.SERVICE_NAME);
 
-        var credentials = config.getIam().createRenewableToken();
+        internalUserCreds = config.getIam().createRenewableToken();
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
         privateAllocatorBlockingStub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "Test", null);
         operationServiceApiBlockingStub = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test",
-            () -> credentials.get().token());
+            () -> internalUserCreds.get().token());
         authorizedAllocatorBlockingStub = newBlockingClient(unauthorizedAllocatorBlockingStub, "Test",
-            () -> credentials.get().token());
+            () -> internalUserCreds.get().token());
         diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test",
-            () -> credentials.get().token());
+            () -> internalUserCreds.get().token());
 
         clusterRegistry = allocatorCtx.getBean(ClusterRegistry.class);
         operationsExecutor = allocatorCtx.getBean(OperationsExecutor.class,
