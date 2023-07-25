@@ -186,7 +186,11 @@ public class GarbageCollector {
 
             try {
                 var vms = allocationContext.vmDao().listExpiredVms(10);
-                LOG.info("Found {} Vms to clean", vms.size());
+                if (vms.isEmpty()) {
+                    LOG.debug("Found 0 Vms to clean");
+                } else {
+                    LOG.info("Found {} Vms to clean", vms.size());
+                }
                 var ops = vms.stream().map(this::cleanVm).filter(Objects::nonNull).toList();
 
                 if (waitOps) {
@@ -219,7 +223,10 @@ public class GarbageCollector {
                 // TODO: cleanup completed ops
             }
 
-            LOG.info("GC step takes {}ms", Duration.between(startTime, Instant.now()).toMillis());
+            elapsedTime = Duration.between(startTime, Instant.now());
+            if (elapsedTime.toMillis() > 50) {
+                LOG.info("GC step takes {}ms", elapsedTime.toMillis());
+            }
 
             cleanVmsFuture = schedule(this, config.getCleanupPeriod());
         }

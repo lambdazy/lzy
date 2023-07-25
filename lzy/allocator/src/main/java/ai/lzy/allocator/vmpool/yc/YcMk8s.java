@@ -56,7 +56,24 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         String clusterIpv4CidrBlock,
         ClusterType type,
         Map<String, VmPoolSpec> pools
-    ) {}
+    ) {
+        @Override
+        public String toString() {
+            var sb = new StringBuilder()
+                .append(type.name()).append(" cluster '").append(clusterId).append("'\n")
+                .append("  folder       : ").append(folderId).append('\n')
+                .append("  internal addr: ").append(masterInternalAddress).append('\n')
+                .append("  external addr: ").append(masterExternalAddress).append('\n')
+                .append("  ip4 CIDR     : ").append(clusterIpv4CidrBlock).append('\n')
+                .append("  pools        :").append('\n');
+
+            for (var pool : pools.entrySet()) {
+                sb.append("    ").append(pool.getKey()).append(": ").append(pool.getValue()).append('\n');
+            }
+
+            return sb.toString();
+        }
+    }
 
     // guarded by this
     private final Map<String, ClusterDesc> clusters = new HashMap<>();
@@ -232,6 +249,10 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         assert nodeGroupsResponse.getNextPageToken().isEmpty();
 
         var clusterDesc = createClusterDesc(cluster, system);
+
+        if (system) {
+            return clusterDesc;
+        }
 
         for (var nodeGroup : nodeGroupsResponse.getNodeGroupsList()) {
             if (!clusterId.equals(nodeGroup.getClusterId())) {
