@@ -41,6 +41,8 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
             .map(WorkerImage::of)
             .toList();
 
+        LOG.info("About to set new worker images: {}", request);
+
         try {
             withRetries(LOG, () -> adminDao.setWorkerImages(workers));
         } catch (Exception e) {
@@ -54,6 +56,8 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
 
     @Override
     public void setSyncImage(VmAllocatorAdminApi.SyncImage request, StreamObserver<ActiveImages> response) {
+        LOG.info("About to set new sync image: {}", request);
+
         try {
             withRetries(LOG, () -> adminDao.setSyncImage(SyncImage.of(request.getImage())));
         } catch (Exception e) {
@@ -67,6 +71,8 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
 
     @Override
     public void setJupyterlabImages(JupyterLabImages request, StreamObserver<ActiveImages> response) {
+        LOG.info("About to set new jupyter lab images: {}", request);
+
         var jls = request.getImagesList().stream()
             .map(x -> JupyterLabImage.of(x.getMainImage(), x.getAdditionalImagesList().toArray(new String[0])))
             .toList();
@@ -130,6 +136,7 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
     }
 
     private static void reply(StreamObserver<ActiveImages> response, ActiveImages conf) {
+        LOG.info("ActiveImages: {}", conf);
         response.onNext(conf);
         response.onCompleted();
     }

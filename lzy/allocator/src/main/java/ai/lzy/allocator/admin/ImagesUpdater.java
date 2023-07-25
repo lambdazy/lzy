@@ -67,7 +67,7 @@ public class ImagesUpdater {
                 createDaemonSetForCluster(cluster, configuration, kuberClient, pool.getKey(), pool.getValue());
             }
         } catch (Exception e) {
-            LOG.error("Cannot update cluster {}: {}", cluster.clusterId(), e.getMessage(), e);
+            LOG.error("Cannot update cluster {}: {}", cluster.clusterId(), e.getMessage());
             throw new UpdateDaemonSetsException(e.getMessage());
         }
     }
@@ -85,20 +85,20 @@ public class ImagesUpdater {
             ));
 
         var workers = configuration.workers();
+        args.put("workers", new ArrayList<>());
         for (int i = 0; i < workers.size(); i++) {
             var worker = workers.get(i);
-            var list = (List<Object>) args.computeIfAbsent("workers", x -> new ArrayList<>());
-            list.add(Map.of(
+            ((List<Object>) args.get("workers")).add(Map.of(
                 "name", poolName + "-" + i,
                 "image", worker.image()
             ));
         }
 
         var jupyterLabs = configuration.jupyterLabs();
+        args.put("jls", new ArrayList<>());
         for (int i = 0; i < jupyterLabs.size(); i++) {
             var jl = jupyterLabs.get(i);
-            var list = (List<Object>) args.computeIfAbsent("jls", x -> new ArrayList<>());
-            list.add(Map.of(
+            ((List<Object>) args.get("jls")).add(Map.of(
                 "name", poolName + "-" + i,
                 "main_image", jl.mainImage(),
                 "additional_images", Arrays.asList(jl.additionalImages())
@@ -131,7 +131,8 @@ public class ImagesUpdater {
                 .create();
             LOG.info("Daemonset {} successfully created", args);
         } catch (KubernetesClientException e) {
-            LOG.error("Cannot create daemonset with args {}: {}", args, e.getMessage(), e);
+            LOG.error("Cannot create daemonset with args {}: {}", args, e.getMessage());
+            throw e;
         }
     }
 
