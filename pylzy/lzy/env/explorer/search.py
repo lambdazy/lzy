@@ -3,6 +3,7 @@ from __future__ import annotations
 import inspect
 import importlib.machinery
 import functools
+import sys
 from typing import Dict, Any, Set, FrozenSet, List, Tuple, Optional, Iterable, Iterator
 from types import ModuleType
 
@@ -13,7 +14,7 @@ ModulesSet = Set[ModuleType]
 ModulesFrozenSet = FrozenSet[ModuleType]
 
 
-def get_transitive_namespace_dependencies(namespace: Dict[str, Any]) -> ModulesFrozenSet:
+def get_transitive_namespace_dependencies(namespace: Dict[str, Any], include_parents: bool = True) -> ModulesFrozenSet:
     """
     Calculates the transitive closure of a namespace in regards to imported modules.
 
@@ -26,22 +27,34 @@ def get_transitive_namespace_dependencies(namespace: Dict[str, Any]) -> ModulesF
     result: ModulesSet = set(first_level_dependencies)
 
     for module in first_level_dependencies:
-        module_dependencies = get_transitive_module_dependencies(module)
+        module_dependencies = get_transitive_module_dependencies(module, include_parents=include_parents)
         result.update(module_dependencies)
 
     return frozenset(result)
 
 
 @functools.lru_cache(maxsize=None)
-def get_transitive_module_dependencies(module: ModuleType) -> ModulesFrozenSet:
+def get_transitive_module_dependencies(module: ModuleType, include_parents: bool = True) -> ModulesFrozenSet:
     """
     Retrieve all transient dependencies of a module.
 
     This function caches the results to optimize performance on
     repeated calls with the same arguments.
+
     """
 
-    initial_dependencies = get_direct_module_dependencies(module)
+    # NB: we are adding include_parents argument mostly for tests, because
+    # with include_parents True it is too difficult to check how search algorithm
+    # searching dependencies, because with include_parents=True it will follow
+    # all modules of any package.
+
+    # NB: we a considering "parents" of module as a dependencies of this module:
+    # if we a using module `foo.bar`, in that case when we have imported foo.bar,
+    # some code inside foo/__init__.py might have been executed, so it could affect
+    # behaviour of `foo.bar`.
+
+    parent_dependencies = set(_get_parents(module)) if include_parents else set()
+    initial_dependencies = get_direct_module_dependencies(module) | parent_dependencies
 
     visited_modules: ModulesSet = set()
     stack = list(initial_dependencies)
@@ -52,7 +65,9 @@ def get_transitive_module_dependencies(module: ModuleType) -> ModulesFrozenSet:
             continue
 
         visited_modules.add(module)
-        dependencies = get_direct_module_dependencies(module)
+
+        parent_dependencies = set(_get_parents(module)) if include_parents else set()
+        dependencies = get_direct_module_dependencies(module) | parent_dependencies
 
         stack.extend(
             dep for dep in dependencies
@@ -102,3 +117,29 @@ def _get_vars_dependencies(vars_: Iterable[Any]) -> ModulesFrozenSet:
         result.add(dependency)
 
     return frozenset(result)
+
+
+def _get_parents(module: ModuleType) -> Iterator[ModuleType]:
+    """
+    Return the set of modules which hierarchically parents of given module
+    from python packages perspective.
+
+    """
+
+    name = module.__name__
+    parts = name.split('.')
+    parts.pop()
+
+    while parts:
+        parent_name = '.'.join(parts)
+
+        # it may be absent in strange cases, if someone playing with
+        # __name__, for example, symbol `torch.ops.pyops`
+        # have a __name__ = 'torch.ops.torch.ops' but there is
+        # no such key in sys.modules
+        parent = sys.modules.get(parent_name)
+
+        if parent:
+            yield parent
+
+        parts.pop()

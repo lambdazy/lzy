@@ -79,17 +79,27 @@ def test_get_direct_module_dependencies(with_test_modules, loaders):
 
 
 def test_get_transitive_module_dependencies(with_test_modules):
+    import modules_for_tests_3 as top
     import modules_for_tests_3.empty as empty
     import modules_for_tests_3.one_dependency as one_dependency
     import modules_for_tests_3.simple_class as simple_class
     import modules_for_tests_3.two_dependencies as two_dependencies
     import modules_for_tests_3.second_import as second_import
 
+    all_modules = {
+        empty,
+        one_dependency,
+        simple_class,
+        two_dependencies,
+        second_import,
+        top
+    }
+
     # on python 3.7 it have len == 388 XD
-    empty_deps = get_transitive_module_dependencies(empty)
+    empty_deps = get_transitive_module_dependencies(empty, include_parents=False)
 
     def assert_dependencies(module, etalon):
-        assert get_transitive_module_dependencies(module) - empty_deps == etalon
+        assert get_transitive_module_dependencies(module, include_parents=False) - empty_deps == etalon
 
     assert_dependencies(empty, set())
     assert_dependencies(simple_class, set())
@@ -97,18 +107,25 @@ def test_get_transitive_module_dependencies(with_test_modules):
     assert_dependencies(two_dependencies, {simple_class, one_dependency})
     assert_dependencies(second_import, {simple_class, one_dependency, two_dependencies, empty})
 
+    import empty_module as empty_module
+
+    empty_deps = get_transitive_module_dependencies(empty_module, include_parents=True)
+    for module in all_modules:
+        assert get_transitive_module_dependencies(module, include_parents=True) - empty_deps == all_modules
+
 
 def test_get_transitive_namespace_dependencies(with_test_modules):
+    import empty_module as empty_module
     import modules_for_tests_3.empty as empty
     import modules_for_tests_3.one_dependency as one_dependency
     import modules_for_tests_3.simple_class as simple_class
     import modules_for_tests_3.two_dependencies as two_dependencies
     import modules_for_tests_3.second_import as second_import
 
-    empty_deps = get_transitive_module_dependencies(empty)
+    empty_deps = get_transitive_module_dependencies(empty_module, include_parents=False)
 
     def assert_dependencies(namespace, etalon):
-        assert get_transitive_namespace_dependencies(namespace) - empty_deps == etalon
+        assert get_transitive_namespace_dependencies(namespace, include_parents=False) - empty_deps == etalon
 
     assert_dependencies({'foo': empty}, {empty})
     assert_dependencies({'foo': empty, 'bar': simple_class.SimpleClass}, {empty, simple_class})
