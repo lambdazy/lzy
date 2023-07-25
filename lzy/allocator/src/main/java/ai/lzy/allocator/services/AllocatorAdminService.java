@@ -88,7 +88,7 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
     }
 
     @Override
-    public void updateImages(Empty request, StreamObserver<Empty> response) {
+    public void updateImages(Empty request, StreamObserver<ActiveImages> response) {
         ai.lzy.allocator.model.ActiveImages.Configuration conf;
         try {
             conf = withRetries(LOG, adminDao::getImages);
@@ -108,8 +108,7 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
 
         try {
             imagesUpdater.update(conf);
-            response.onNext(Empty.getDefaultInstance());
-            response.onCompleted();
+            reply(response, toProto(conf));
         } catch (ImagesUpdater.UpdateDaemonSetsException e) {
             LOG.error("Cannot update images: {}", e.getMessage());
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
@@ -119,20 +118,23 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
     private void reply(StreamObserver<ActiveImages> response) {
         ActiveImages conf;
         try {
-            conf = loadActiveImages(adminDao);
+            var images = withRetries(LOG, adminDao::getImages);
+            conf = toProto(images);
         } catch (Exception e) {
             LOG.error("Cannot load active images", e);
             response.onError(Status.UNAVAILABLE.withDescription("Cannot load active images").asException());
             return;
         }
 
+        reply(response, conf);
+    }
+
+    private static void reply(StreamObserver<ActiveImages> response, ActiveImages conf) {
         response.onNext(conf);
         response.onCompleted();
     }
 
-    private static ActiveImages loadActiveImages(AdminDao adminDao) throws Exception {
-        var conf = withRetries(LOG, adminDao::getImages);
-
+    private static ActiveImages toProto(ai.lzy.allocator.model.ActiveImages.Configuration conf) {
         var workers = VmAllocatorAdminApi.WorkerImages.newBuilder();
         for (var worker : conf.workers()) {
             workers.addImages(worker.image());

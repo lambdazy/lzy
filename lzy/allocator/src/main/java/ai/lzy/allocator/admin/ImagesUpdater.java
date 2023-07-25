@@ -47,13 +47,13 @@ public class ImagesUpdater {
         var ftlConfig = new Configuration(Configuration.VERSION_2_3_22);
         ftlConfig.setClassLoaderForTemplateLoading(getClass().getClassLoader(), "/");
         daemonSetTemplate = ftlConfig.getTemplate(DAEMONSET_TEMPLATE);
+
+        logFictiveDaemonSets(kuberClientFactory, clusterRegistry);
     }
 
     public void update(ActiveImages.Configuration conf) throws UpdateDaemonSetsException {
-        for (var cluster : clusterRegistry.listClusters(null)) {
-            if (cluster.type() == ClusterRegistry.ClusterType.User) {
-                updateCluster(cluster, conf);
-            }
+        for (var cluster : clusterRegistry.listClusters(ClusterRegistry.ClusterType.User)) {
+            updateCluster(cluster, conf);
         }
     }
 
@@ -171,6 +171,47 @@ public class ImagesUpdater {
             }
             LOG.error("Cluster {} failure, cannot create {} namespace: {}", clusterId, FICTIVE_NS, e.getMessage(), e);
             throw new UpdateDaemonSetsException(e.getMessage());
+        }
+    }
+
+    private static void logFictiveDaemonSets(KuberClientFactory kuberClientFactory, ClusterRegistry clusterRegistry) {
+        for (var cluster : clusterRegistry.listClusters(ClusterRegistry.ClusterType.User)) {
+            try (var client = kuberClientFactory.build(cluster)) {
+                try {
+                    var daemonsets = client.apps().daemonSets()
+                        .inNamespace(FICTIVE_NS)
+                        .list();
+
+                    for (var ds : daemonsets.getItems()) {
+                        var sb = new StringBuilder();
+                        sb.append("User cluster '").append(cluster.clusterId()).append("' has fictive DaemonSet:\n");
+                        sb.append("  name            : ").append(ds.getMetadata().getName()).append('\n');
+                        sb.append("  created at      : ").append(ds.getMetadata().getCreationTimestamp()).append('\n');
+                        sb.append("  ready           : ").append(ds.getStatus().getNumberReady()).append('\n');
+                        sb.append("  available       : ").append(ds.getStatus().getNumberAvailable()).append('\n');
+                        sb.append("  selector        : ").append('\n');
+                        for (var selector : ds.getSpec().getTemplate().getSpec().getNodeSelector().entrySet()) {
+                            sb.append("    ").append(selector.getKey()).append(" : ")
+                                .append(selector.getValue()).append('\n');
+                        }
+                        sb.append("  init containers :").append('\n');
+                        for (var ic : ds.getSpec().getTemplate().getSpec().getInitContainers()) {
+                            sb.append("    * ").append(ic.getName()).append('\n');
+                            sb.append("      image: ").append(ic.getImage()).append('\n');
+                            sb.append("      cmd  : ").append(ic.getCommand()).append('\n');
+                        }
+                        for (var c : ds.getSpec().getTemplate().getSpec().getContainers()) {
+                            sb.append("    * ").append(c.getName()).append('\n');
+                            sb.append("      image: ").append(c.getImage()).append('\n');
+                            sb.append("      cmd  : ").append(c.getCommand()).append('\n');
+                        }
+
+                        LOG.info(sb);
+                    }
+                } catch (KubernetesClientException e) {
+                    LOG.error("Cannot list daemonsets in the {} namespace: {}", FICTIVE_NS, e.getMessage());
+                }
+            }
         }
     }
 

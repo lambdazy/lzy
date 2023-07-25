@@ -13,7 +13,7 @@ service AllocatorAdmin {
   rpc SetJupyterlabImages (JupyterLabImages) returns (ActiveImages);
   rpc GetActiveImages (google.protobuf.Empty) returns (ActiveImages);
 
-  rpc UpdateImages (google.protobuf.Empty) returns (google.protobuf.Empty);
+  rpc UpdateImages (google.protobuf.Empty) returns (ActiveImages);
 }
 
 message WorkerImages {
