@@ -1,6 +1,7 @@
 package ai.lzy.allocator.test;
 
 import ai.lzy.allocator.model.debug.InjectedFailures;
+import ai.lzy.allocator.test.http.RequestMatchers;
 import ai.lzy.allocator.volume.YcStorageProvider;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.OttHelper;
@@ -11,9 +12,14 @@ import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunning.Operation;
 import com.google.protobuf.util.Durations;
-import io.fabric8.kubernetes.api.model.*;
+import io.fabric8.kubernetes.api.model.PersistentVolume;
+import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.PersistentVolumeSpec;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
+import okhttp3.mockwebserver.MockResponse;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -89,10 +95,8 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     @Test
     public void allocateKuberErrorWhileCreate() throws Exception {
         //simulate kuber api error on pod creation
-        kubernetesServer.clearExpectations();
-        kubernetesServer.expect().post().withPath(POD_PATH)
-            .andReturn(HttpURLConnection.HTTP_INTERNAL_ERROR, new PodListBuilder().build())
-            .once();
+        mockRequestDispatcher.addHandlerOneTime(RequestMatchers.exactPath(POD_PATH),
+            request -> new MockResponse().setResponseCode(HttpURLConnection.HTTP_INTERNAL_ERROR));
 
         var sessionId = createSession(Durations.fromSeconds(100));
 
@@ -710,7 +714,8 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .addVolumes(VolumeApi.Volume.newBuilder()
                     .setName(volumeName)
                     .setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
-                        .setDiskId(disk.getDiskId()).build())
+                        .setDiskId(disk.getDiskId())
+                        .setSizeGb(disk.getSpec().getSizeGb()).build())
                     .build())
                 .build());
         var allocateMetadata = allocationStarted.getMetadata().unpack(AllocateMetadata.class);
@@ -734,20 +739,8 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         Assert.assertEquals(expectedDiskSize,
             persistentVolumeClaim.getSpec().getResources().getRequests().get(VOLUME_CAPACITY_STORAGE_KEY));
 
-        final CountDownLatch kuberRemoveResourceLatch = new CountDownLatch(3);
+        final CountDownLatch kuberRemoveResourceLatch = new CountDownLatch(1);
         mockDeletePodByName(podName, kuberRemoveResourceLatch::countDown, HttpURLConnection.HTTP_OK);
-        mockDeleteResource(
-            PERSISTENT_VOLUME_PATH,
-            persistentVolume.getMetadata().getName(),
-            kuberRemoveResourceLatch::countDown,
-            HttpURLConnection.HTTP_OK
-        );
-        mockDeleteResource(
-            PERSISTENT_VOLUME_CLAIM_PATH,
-            persistentVolumeClaim.getMetadata().getName(),
-            kuberRemoveResourceLatch::countDown,
-            HttpURLConnection.HTTP_OK
-        );
 
         String clusterId = requireNonNull(clusterRegistry.findCluster("S", ZONE, CLUSTER_TYPE)).clusterId();
         registerVm(allocateMetadata.getVmId(), clusterId);
@@ -760,43 +753,6 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         //noinspection ResultOfMethodCallIgnored
         diskServiceBlockingStub.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder().setDiskId(disk.getDiskId())
             .build());
-    }
-
-    @Test
-    public void runWithVolumeButNonExistingDisk() {
-        var sessionId = createSession(Durations.ZERO);
-
-        final String volumeName = "volumeName";
-        final String mountPath = "/mnt/volume";
-        final VolumeApi.Mount volumeMount = VolumeApi.Mount.newBuilder()
-            .setVolumeName(volumeName)
-            .setMountPath(mountPath)
-            .setReadOnly(false)
-            .setMountPropagation(VolumeApi.Mount.MountPropagation.NONE)
-            .build();
-
-        try {
-            Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(
-                AllocateRequest.newBuilder()
-                    .setSessionId(sessionId)
-                    .setPoolLabel("S")
-                    .setZone(ZONE)
-                    .setClusterType(AllocateRequest.ClusterType.USER)
-                    .addWorkload(AllocateRequest.Workload.newBuilder()
-                        .setName("workload")
-                        .addVolumeMounts(volumeMount)
-                        .build())
-                    .addVolumes(VolumeApi.Volume.newBuilder()
-                        .setName(volumeName)
-                        .setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
-                            .setDiskId("unknown-disk-id").build())
-                        .build())
-                    .build());
-            waitOpError(allocationStarted, Status.NOT_FOUND);
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(Status.NOT_FOUND.getCode(), e.getStatus().getCode());
-        }
     }
 
     @Test

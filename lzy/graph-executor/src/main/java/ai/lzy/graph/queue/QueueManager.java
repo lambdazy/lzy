@@ -106,7 +106,8 @@ public class QueueManager extends Thread {
         putIntoQueue(GraphExecutionKey.noop());
     }
 
-    public GraphExecutionState startGraph(String workflowId, String workflowName, String userId, GraphDescription graph,
+    public GraphExecutionState startGraph(String workflowId, String workflowName, String userId,
+                                          String allocatorSessionId, GraphDescription graph,
                                           @Nullable Operation operation) throws Exception
     {
         if (stopping.get()) {
@@ -117,12 +118,11 @@ public class QueueManager extends Thread {
 
         try (var tx = TransactionHandle.create(storage)) {
             if (operation != null) {
-                withRetries(LOG, () -> operationDao.create(operation, tx));
+                operationDao.create(operation, tx);
             }
 
-            state = withRetries(LOG, () -> dao.create(workflowId, workflowName, userId, graph, tx));
-            withRetries(LOG, () -> eventDao.add(QueueEvent.Type.START, state.workflowId(), state.id(),
-                "Starting graph", tx));
+            state = dao.create(workflowId, workflowName, userId, allocatorSessionId, graph, tx);
+            eventDao.add(QueueEvent.Type.START, state.workflowId(), state.id(), "Starting graph", tx);
 
             tx.commit();
         }

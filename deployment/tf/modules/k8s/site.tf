@@ -168,7 +168,7 @@ resource "kubernetes_deployment" "lzy_backoffice" {
           ] : [
             "-Dmicronaut.env.deduction=true",
             "-Dmicronaut.ssl.enabled=false",
-            "-Dsite.hostname=http://${var.backoffice_public_ip}:8080",
+            "-Dsite.hostname=http://${local.github-redirect-address}:8080",
             "-Dmicronaut.server.dual-protocol=false"
           ]
 

@@ -8,14 +8,11 @@ public final class StopExecutionState {
     public KafkaTopicDesc kafkaTopicDesc;
     @Nullable
     public String allocatorSessionId;
-    @Nullable
-    public String deleteAllocSessionOpId;
 
     public StopExecutionState() {}
 
-    public StopExecutionState(KafkaTopicDesc kafkaTopicDesc, String allocatorSessionId, String deleteAllocSessionOpId) {
+    public StopExecutionState(KafkaTopicDesc kafkaTopicDesc, String allocatorSessionId) {
         this.kafkaTopicDesc = kafkaTopicDesc;
         this.allocatorSessionId = allocatorSessionId;
-        this.deleteAllocSessionOpId = deleteAllocSessionOpId;
     }
 }

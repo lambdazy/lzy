@@ -48,6 +48,7 @@ public interface ExecutionDao {
 
     record ExecuteGraphData(
         LMST.StorageConfig storageConfig,
-        ExecutionDao.KafkaTopicDesc kafkaTopicDesc
+        ExecutionDao.KafkaTopicDesc kafkaTopicDesc,
+        String allocatorSessionId
     ) {}
 }

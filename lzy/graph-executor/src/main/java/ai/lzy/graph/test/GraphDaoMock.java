@@ -23,11 +23,11 @@ public class GraphDaoMock extends GraphExecutionDaoImpl {
     }
 
     @Override
-    public synchronized GraphExecutionState create(String executionId, String workflowName,
-                                                   String userId, GraphDescription description,
+    public synchronized GraphExecutionState create(String executionId, String workflowName, String userId,
+                                                   String allocatorSessionId, GraphDescription description,
                                                    @Nullable TransactionHandle transaction) throws SQLException
     {
-        var graph = super.create(executionId, workflowName, userId, description, transaction);
+        var graph = super.create(executionId, workflowName, userId, allocatorSessionId, description, transaction);
         this.notifyAll();
         return graph;
     }

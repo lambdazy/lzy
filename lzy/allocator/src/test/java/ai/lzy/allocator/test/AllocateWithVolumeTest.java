@@ -22,6 +22,7 @@ import jakarta.annotation.Nullable;
 import org.junit.Before;
 import org.junit.Ignore;
 import yandex.cloud.sdk.Zone;
+
 import yandex.cloud.sdk.auth.IamToken;
 
 import java.io.ByteArrayOutputStream;
@@ -47,7 +48,7 @@ public class AllocateWithVolumeTest extends IamOnlyAllocatorContextTests {
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        kuber = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX))
+        kuber = new KuberClientFactoryImpl(new TestCredProvider())
             .build(clusterRegistry.getCluster(clusterId));
     }
 

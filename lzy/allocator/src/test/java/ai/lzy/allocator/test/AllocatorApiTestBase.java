@@ -5,21 +5,33 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.alloc.impl.kuber.KuberTunnelAllocator;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.Vm;
+import ai.lzy.allocator.storage.AllocatorDataSource;
+import ai.lzy.allocator.test.http.MockHttpDispatcher;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.OttHelper;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorPrivateApi;
 import ai.lzy.v1.longrunning.LongRunning;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Duration;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
+import io.fabric8.kubernetes.client.Config;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.KubernetesClientBuilder;
+import io.fabric8.kubernetes.client.http.TlsVersion;
+import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
+import okio.Buffer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.After;
@@ -27,19 +39,19 @@ import org.junit.Assert;
 import org.junit.Before;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.net.HttpURLConnection;
-import java.net.InetAddress;
 import java.sql.SQLException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
+import static ai.lzy.allocator.test.http.RequestMatchers.*;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
@@ -56,12 +68,17 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
         .formatted(NAMESPACE_VALUE);
     protected static final ClusterRegistry.ClusterType CLUSTER_TYPE = ClusterRegistry.ClusterType.User;
 
-    protected KubernetesMockServer kubernetesServer;
+    protected ObjectMapper objectMapper;
+    protected MockWebServer mockWebServer;
+    protected MockHttpDispatcher mockRequestDispatcher;
 
     @Before
     public final void setUpKuberServer() {
-        kubernetesServer = new KubernetesMockServer(new MockWebServer(), new ConcurrentHashMap<>(), false);
-        kubernetesServer.init(InetAddress.getLoopbackAddress(), 0);
+        objectMapper = new ObjectMapper();
+        mockWebServer = new MockWebServer();
+        this.mockRequestDispatcher = new MockHttpDispatcher();
+        mockWebServer.setDispatcher(mockRequestDispatcher);
+        mockWebServer.start();
 
         final Node node = new NodeBuilder()
             .withSpec(new NodeSpecBuilder()
@@ -75,17 +92,58 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
                 .build())
             .build();
 
-        kubernetesServer.expect().get().withPath("/api/v1/nodes/node")
-            .andReturn(HttpURLConnection.HTTP_OK, node)
-            .always();
+        mockRequestDispatcher.addHandlerUnlimited(exactPath("/api/v1/nodes/node").and(method("GET")),
+            req -> new MockResponse()
+                .setResponseCode(HttpURLConnection.HTTP_OK)
+                .setBody(toJson(node)));
 
         ((MockKuberClientFactory) allocatorContext.getBean(KuberClientFactory.class)).setClientSupplier(
-            () -> kubernetesServer.createClient());
+            () -> prepareClient(mockWebServer));
+    }
+
+    private static KubernetesClient prepareClient(MockWebServer server) {
+        return new KubernetesClientBuilder()
+            .withConfig(new io.fabric8.kubernetes.client.ConfigBuilder(Config.empty())
+                .withMasterUrl("http://localhost:" + server.getPort())
+                .withTrustCerts(true)
+                .withTlsVersions(TlsVersion.TLS_1_2)
+                .withNamespace("test")
+                .withHttp2Disable(true)
+                .build())
+            .build();
+    }
+
+    protected String toJson(Object obj) {
+        try {
+            return objectMapper.writeValueAsString(obj);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected <T> T fromJson(String string, Class<T> valueType) {
+        try {
+            return objectMapper.readValue(string, valueType);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    protected <T> T fromJson(Buffer buffer, Class<T> valueType) {
+        try {
+            return objectMapper.readValue(buffer.readUtf8(), valueType);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @After
     public final void tearDownKuberServer() {
-        kubernetesServer.destroy();
+        try {
+            mockWebServer.shutdown();
+        } catch (IOException e) {
+            LOG.error("Failed to shutdown mockWebServer", e);
+        }
     }
 
     protected String createSession(com.google.protobuf.Duration idleTimeout) {
@@ -150,17 +208,13 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
 
     protected void mockGetPodByName(String podName) {
         final Pod pod = constructPod(podName);
-        kubernetesServer.expect().get()
-            .withPath(POD_PATH + "/" + podName)
-            .andReturn(HttpURLConnection.HTTP_OK, pod)
-            .always();
+        mockRequestDispatcher.addHandlerOneTime(exactPath(POD_PATH + "/" + podName).and(method("GET")),
+            request -> new MockResponse().setBody(toJson(pod)).setResponseCode(HttpURLConnection.HTTP_OK));
     }
 
     protected void mockGetPod(Pod pod) {
-        kubernetesServer.expect().get()
-            .withPath(POD_PATH + "/" + getName(pod))
-            .andReturn(HttpURLConnection.HTTP_OK, pod)
-            .once();
+        mockRequestDispatcher.addHandlerOneTime(exactPath(POD_PATH + "/" + getName(pod)).and(method("GET")),
+            request -> new MockResponse().setBody(toJson(pod)).setResponseCode(HttpURLConnection.HTTP_OK));
     }
 
     @Nonnull
@@ -222,34 +276,28 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
 
     protected <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath, int statusCode) {
         final var future = new CompletableFuture<T>();
-        kubernetesServer.expect().post()
-            .withPath(resourcePath)
-            .andReply(statusCode, (req) -> {
-                final var resource = Serialization.unmarshal(
-                    new ByteArrayInputStream(req.getBody().readByteArray()), resourceType, Map.of());
+        mockRequestDispatcher.addHandlerOneTime(exactPath(resourcePath).and(method("POST")),
+            request -> {
+                var resource = fromJson(request.getBody(), resourceType);
                 future.complete(resource);
-                return resource;
-            })
-            .once();
+                return new MockResponse().setBody(toJson(resource)).setResponseCode(statusCode);
+            });
         return future;
     }
 
     protected CompletableFuture<Pod> mockCreatePod(@Nullable Consumer<String> onAllocate) {
         final var future = new CompletableFuture<Pod>();
-        kubernetesServer.expect().post()
-            .withPath(POD_PATH)
-            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
-                final var pod = Serialization.unmarshal(
-                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
+        mockRequestDispatcher.addHandlerOneTime(exactPath(POD_PATH).and(method("POST")),
+            request -> {
+                var pod = fromJson(request.getBody(), Pod.class);
 
                 if (onAllocate != null) {
                     onAllocate.accept(pod.getMetadata().getName());
                 }
 
                 future.complete(pod);
-                return pod;
-            })
-            .once();
+                return new MockResponse().setBody(request.getBody()).setResponseCode(HttpURLConnection.HTTP_CREATED);
+            });
         return future;
     }
 
@@ -258,12 +306,11 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
     }
 
     protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete, int responseCode) {
-        kubernetesServer.expect().delete()
-            .withPath(resourcePath + "/" + resourceName)
-            .andReply(responseCode, (req) -> {
+        mockRequestDispatcher.addHandlerOneTime(exactPath(resourcePath + "/" + resourceName).and(method("DELETE")),
+            request -> {
                 onDelete.run();
-                return new StatusDetails();
-            }).once();
+                return new MockResponse().setBody(toJson(new StatusDetails())).setResponseCode(responseCode);
+            });
     }
 
     protected void mockDeletePodByName(String podName, int responseCode) {
@@ -272,13 +319,18 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
 
     protected void mockDeletePodByName(String podName, Runnable onDelete, int responseCode) {
         mockDeleteResource(POD_PATH, podName, onDelete, responseCode);
-        kubernetesServer.expect().delete()
-            // "lzy.ai/vm-id"=<VM id>
-            .withPath(POD_PATH + "/" + podName)
-            .andReply(responseCode, (req) -> {
+    }
+
+    protected void mockDeletePods(int responseCode) {
+        mockDeletePods(responseCode, () -> {});
+    }
+
+    protected void mockDeletePods(int responseCode, Runnable onDelete) {
+        mockRequestDispatcher.addHandlerOneTime(startsWithPath(POD_PATH).and(method("DELETE")),
+            request -> {
                 onDelete.run();
-                return new StatusDetails();
-            }).once();
+                return new MockResponse().setBody(toJson(new StatusDetails())).setResponseCode(responseCode);
+            });
     }
 
     protected record AllocatedVm(String vmId, String podName, String allocationOpId) {}
@@ -322,7 +374,7 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
         allocOp = waitOpSuccess(allocOp);
         Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
 
-        return new AllocatorApiTestBase.AllocatedVm(vmId, podName, allocOp.getId());
+        return new AllocatedVm(vmId, podName, allocOp.getId());
     }
 
     protected void freeVm(String vmId) {

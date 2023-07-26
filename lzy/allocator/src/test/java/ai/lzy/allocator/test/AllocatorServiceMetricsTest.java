@@ -5,6 +5,8 @@ import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.util.Durations;
 import io.fabric8.kubernetes.api.model.PodListBuilder;
 import io.grpc.Status;
+import okhttp3.mockwebserver.MockResponse;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -14,6 +16,7 @@ import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import static ai.lzy.allocator.test.http.RequestMatchers.exactPath;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
@@ -117,17 +120,15 @@ public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
     public void metrics4() {
         var latch = new CountDownLatch(1);
 
-        kubernetesServer.expect().post()
-            .withPath(POD_PATH)
-            .andReply(HttpURLConnection.HTTP_INTERNAL_ERROR, req -> {
-                try {
-                    latch.await();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                return new PodListBuilder().build();
-            })
-            .once();
+        mockRequestDispatcher.addHandlerOneTime(exactPath(POD_PATH), req -> {
+            try {
+                latch.await();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+            return new MockResponse().setBody(toJson(new PodListBuilder().build()))
+                .setResponseCode(HttpURLConnection.HTTP_INTERNAL_ERROR);
+        });
 
         var allocOp = authorizedAllocatorBlockingStub.allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()

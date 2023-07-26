@@ -67,10 +67,16 @@ message CachePolicy {
   google.protobuf.Duration idle_timeout = 1;
 }
 
+message NetPolicyRule {
+  string cidr = 1;
+  repeated int32 ports = 2;
+}
+
 message CreateSessionRequest {
   string owner = 1;
   string description = 2;
   CachePolicy cache_policy = 3;
+  repeated NetPolicyRule net_policy_rules = 4;
 }
 message CreateSessionResponse {
   string session_id = 1;

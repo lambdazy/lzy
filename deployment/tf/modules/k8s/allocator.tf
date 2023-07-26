@@ -7,6 +7,9 @@ locals {
   }
   allocator-k8s-name = "allocator"
   allocator-image    = var.allocator-image
+
+  cidrs_list    = [for c in var.allocator_service_cidrs : "{\"cidr\": \"${c}\", \"ports\": [9876, 9877, 9878]}"] //TODO use scheduler properties
+  cidrs = "[${join(", ", local.cidrs_list)}]"
 }
 
 resource "random_password" "allocator_db_passwords" {
@@ -143,10 +146,6 @@ resource "kubernetes_stateful_set" "allocator" {
             value = "true"
           }
           env {
-            name  = "ALLOCATOR_KUBER_NETWORK_POLICY_MANAGER_ENABLED"
-            value = "true"
-          }
-          env {
             name  = "ALLOCATOR_YC_CREDENTIALS_SERVICE_ACCOUNT_FILE"
             value = "/tmp/sa-key/sa-key.json"
           }
@@ -192,6 +191,14 @@ resource "kubernetes_stateful_set" "allocator" {
                 field_path = "metadata.name"
               }
             }
+          }
+          env {
+            name  = "ALLOCATOR_POLICY_ENABLED"
+            value = "true"
+          }
+          env {
+            name  = "ALLOCATOR_SERVICE_CIDRS"
+            value = local.cidrs
           }
 
           env {
@@ -302,5 +309,26 @@ resource "kubernetes_service" "allocator_service" {
     }
     external_traffic_policy = "Local"
     type                    = "LoadBalancer"
+  }
+}
+
+resource "kubernetes_service" "allocator_service_cluster_ip" {
+  metadata {
+    name   = "${local.allocator-k8s-name}-cluster-ip"
+    labels = local.allocator-labels
+  }
+  spec {
+    selector = local.allocator-labels
+    port {
+      name        = "main-grpc"
+      port        = local.allocator-port
+      target_port = local.allocator-port
+    }
+    port {
+      name        = "http"
+      port        = local.allocator-http-port
+      target_port = local.allocator-http-port
+    }
+    type = "ClusterIP"
   }
 }

@@ -29,7 +29,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
-import yandex.cloud.sdk.auth.IamToken;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -66,7 +65,7 @@ public class VolumeManagerTest {
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        var kuberClientFactory = new KuberClientFactoryImpl(() -> new IamToken("", Instant.MAX));
+        var kuberClientFactory = new KuberClientFactoryImpl(new TestCredProvider());
         volumeManager = new KuberVolumeManager(kuberClientFactory, clusterRegistry, storageProvider);
     }
 

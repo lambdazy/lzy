@@ -5,7 +5,6 @@ import ai.lzy.allocator.alloc.AllocationContext;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.disk.dao.DiskDao;
 import ai.lzy.allocator.services.AllocatorService;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -28,12 +27,12 @@ public class AllocatorServiceDecorator extends AllocatorService {
     private volatile Consumer<String> onFree = vmId -> {};
 
     public AllocatorServiceDecorator(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
-                                     SessionDao sessionsDao, DiskDao diskDao, AllocationContext allocationContext,
+                                     SessionDao sessionsDao, AllocationContext allocationContext,
                                      ServiceConfig config, ServiceConfig.CacheLimits cacheLimits,
                                      ServiceConfig.MountConfig mountConfig,
                                      @Named("AllocatorIdGenerator") IdGenerator idGenerator)
     {
-        super(vmDao, operationsDao, sessionsDao, diskDao, allocationContext, config, cacheLimits, mountConfig,
+        super(vmDao, operationsDao, sessionsDao, allocationContext, config, cacheLimits, mountConfig,
             idGenerator);
     }
 

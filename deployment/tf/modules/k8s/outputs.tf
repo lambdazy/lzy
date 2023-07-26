@@ -22,3 +22,7 @@ output "whiteboard_port" {
 output "lzy_service_port" {
   value = local.lzy-service-port
 }
+
+output "allocator_cluster_ip" {
+  value = kubernetes_service.allocator_service_cluster_ip.spec[0].cluster_ip
+}

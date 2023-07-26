@@ -1,5 +1,6 @@
 package ai.lzy.allocator.configs;
 
+import ai.lzy.allocator.alloc.impl.kuber.NetworkPolicyManager;
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
 import ai.lzy.tunnel.service.ValidationUtils;
@@ -11,9 +12,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Getter
 @Setter
@@ -27,6 +26,8 @@ public class ServiceConfig {
     private Duration heartbeatTimeout;
     private List<String> serviceClusters = new ArrayList<>();
     private List<String> userClusters = new ArrayList<>();
+    private Set<NetworkPolicyManager.PolicyRule> serviceCidrs = new HashSet<>();
+    private String nfsClientImage;
 
     public String getAddress() {
         String ipv6Host = hosts.stream().filter(ValidationUtils::validateIpV6).findFirst().orElse(null);

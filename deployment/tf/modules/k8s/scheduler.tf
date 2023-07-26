@@ -171,7 +171,7 @@ resource "kubernetes_deployment" "scheduler" {
 
           env {
             name  = "SCHEDULER_ALLOCATOR_ADDRESS"
-            value = "${kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.allocator-port}"
+            value = "${kubernetes_service.allocator_service_cluster_ip.spec[0].cluster_ip}:${local.allocator-port}"
           }
 
           env {

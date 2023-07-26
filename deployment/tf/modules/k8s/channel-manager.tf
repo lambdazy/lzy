@@ -121,11 +121,7 @@ resource "kubernetes_deployment" "channel-manager" {
           }
           env {
             name  = "CHANNEL_MANAGER_LZY_SERVICE_ADDRESS"
-            value = "${kubernetes_service.lzy_service.spec[0].cluster_ip}:${local.lzy-service-port}"
-          }
-          env {
-            name  = "CHANNEL_MANAGER_WHITEBOARD_ADDRESS"
-            value = "http://${kubernetes_service.whiteboard_service.spec[0].cluster_ip}:${local.whiteboard-port}"
+            value = "${kubernetes_service.lzy_service_cluster_ip.spec[0].cluster_ip}:${local.lzy-service-port}"
           }
           env {
             name = "K8S_POD_NAME"

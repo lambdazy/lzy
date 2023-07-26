@@ -1,8 +1,14 @@
 package ai.lzy.worker.env;
 
+import ai.lzy.env.*;
+import ai.lzy.env.aux.CondaEnvironment;
+import ai.lzy.env.aux.SimpleBashEnvironment;
+import ai.lzy.env.base.DockerEnvironment;
+import ai.lzy.env.base.ProcessEnvironment;
+import ai.lzy.env.logs.LogHandle;
 import ai.lzy.v1.common.LME;
+import ai.lzy.worker.EnvironmentFactory;
 import ai.lzy.worker.ServiceConfig;
-import ai.lzy.worker.StreamQueue;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -25,9 +31,9 @@ public class EnvTest {
 
     @Test
     public void testBashEnv() throws EnvironmentInstallationException {
-        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
+        var env = factory.create("", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .build(), StreamQueue.LogHandle.empty());
+            .build(), LogHandle.empty(), "");
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof ProcessEnvironment);
@@ -35,10 +41,10 @@ public class EnvTest {
 
     @Test
     public void testEnvVariables() throws Exception {
-        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
+        var env = factory.create("", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .putEnv("LOL", "kek")
-            .build(), StreamQueue.LogHandle.empty());
+            .build(), LogHandle.empty(), "");
 
         var proc = env.runProcess("echo $LOL");
         Assert.assertEquals(0, proc.waitFor());
@@ -52,10 +58,10 @@ public class EnvTest {
     @Test
     public void testDocker() throws EnvironmentInstallationException {
         EnvironmentFactory.installEnv(false);
-        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
+        var env = factory.create("", LME.EnvSpec.newBuilder()
             .setDockerImage("ubuntu:latest")
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .build(), StreamQueue.LogHandle.empty());
+            .build(), LogHandle.empty(), "");
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof DockerEnvironment);
@@ -66,7 +72,7 @@ public class EnvTest {
     public void testConda() throws EnvironmentInstallationException {
         EnvironmentFactory.installEnv(false);  // Do not actually install conda
 
-        var env = factory.create("tid1", "", LME.EnvSpec.newBuilder()
+        var env = factory.create("", LME.EnvSpec.newBuilder()
             .setPyenv(LME.PythonEnv.newBuilder()
                 .setName("py39")
                 .setYaml("""
@@ -80,7 +86,7 @@ public class EnvTest {
                       - pylzy==1.0.0
                       - serialzy>=1.0.0""")
                 .build())
-            .build(), StreamQueue.LogHandle.empty());
+            .build(), LogHandle.empty(), "");
 
         EnvironmentFactory.installEnv(true);
 

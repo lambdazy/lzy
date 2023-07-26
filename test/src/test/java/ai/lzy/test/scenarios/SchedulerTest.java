@@ -3,8 +3,14 @@ package ai.lzy.test.scenarios;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.test.ApplicationContextRule;
 import ai.lzy.test.ContextRule;
-import ai.lzy.test.impl.v2.*;
+import ai.lzy.test.impl.v2.AllocatorContext;
+import ai.lzy.test.impl.v2.ChannelManagerContext;
+import ai.lzy.test.impl.v2.GraphExecutorContext;
+import ai.lzy.test.impl.v2.IamContext;
+import ai.lzy.test.impl.v2.StorageContext;
+import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.JsonUtils;
+import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.common.*;
 import ai.lzy.v1.graph.GraphExecutor;
@@ -17,6 +23,7 @@ import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
+import com.google.protobuf.Duration;
 import jakarta.annotation.Nonnull;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -69,6 +76,23 @@ public class SchedulerTest {
     public void testGE() throws Exception {
         WorkerApiImpl.TEST_ENV = true;
 
+        var creds = ctx.getCtx().getBean(ServiceConfig.class).getIam()
+            .createRenewableToken();
+        var sid = ctx.getCtx().getBean(AllocatorContext.class).stub()
+            .withInterceptors(ClientHeaderInterceptor.authorization(() -> creds.get().token()))
+            .createSession(VmAllocatorApi.CreateSessionRequest.newBuilder()
+                .setOwner("user")
+                .setDescription("")
+                .setCachePolicy(VmAllocatorApi.CachePolicy.newBuilder()
+                    .setIdleTimeout(Duration.newBuilder()
+                        .setSeconds(1000)
+                        .build())
+                    .build())
+                .build())
+            .getResponse()
+            .unpack(VmAllocatorApi.CreateSessionResponse.class)
+            .getSessionId();
+
         var cacheLimits = ctx.getCtx().getBean(AllocatorContext.WorkerAllocatorContext.class).context()
             .getBean(ServiceConfig.CacheLimits.class);
         cacheLimits.setUserLimit(Integer.MAX_VALUE);
@@ -97,6 +121,7 @@ public class SchedulerTest {
             .setWorkflowId("wf_id")
             .setWorkflowName("wf")
             .setUserId("Semjon.Semjonych")
+            .setAllocatorSessionId(sid)
             .addChannels(ChannelDesc.newBuilder()
                 .setId(ch1)
                 .setDirect(ChannelDesc.DirectChannel.newBuilder().build())

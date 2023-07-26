@@ -1,7 +1,8 @@
 package ai.lzy.allocator.vmpool;
 
-import com.google.common.net.HostAndPort;
 import jakarta.annotation.Nullable;
+
+import java.util.List;
 
 public interface ClusterRegistry {
 
@@ -17,9 +18,11 @@ public interface ClusterRegistry {
 
     String getClusterPodsCidr(String clusterId);
 
+    List<ClusterDescription> listClusters(ClusterType clusterType);
+
     record ClusterDescription(
         String clusterId,
-        HostAndPort masterAddress,
+        String masterAddress,
         String masterCert,
         ClusterType type
     ) {}

@@ -1,8 +1,11 @@
 package ai.lzy.test.impl.v2;
 
 import ai.lzy.allocator.configs.ServiceConfig;
+import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.App;
 import ai.lzy.service.BeanFactory;
+import ai.lzy.service.dao.WorkflowDao;
+import ai.lzy.service.gc.GarbageCollector;
 import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.test.impl.Utils;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -12,6 +15,7 @@ import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
+import io.micronaut.inject.qualifiers.Qualifiers;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
@@ -54,7 +58,9 @@ public class WorkflowContext {
             "lzy-service.channel-manager-address", channel.address(),
             "lzy-service.address", address,
             "lzy-service.iam.address", iam.address(),
-            "lzy-service.storage.address", storage.address()
+            "lzy-service.storage.address", storage.address(),
+            "lzy-service.allocator-vm-cache-timeout", "2s",
+            "lzy-service.gc-period", "1s"
         ));
 
         ClientVersionInterceptor.DISABLE_VERSION_CHECK.set(true);
@@ -62,7 +68,7 @@ public class WorkflowContext {
         ctx = ApplicationContext.run(opts, BeanFactory.TEST_ENV_NAME);
         main = ctx.getBean(App.class);
         try {
-            main.start();
+            main.start(false);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
@@ -89,6 +95,22 @@ public class WorkflowContext {
 
     public LongRunningServiceGrpc.LongRunningServiceBlockingStub opsStub() {
         return opsStub;
+    }
+
+    public WorkflowDao wfDao() {
+        return ctx.getBean(WorkflowDao.class);
+    }
+
+    public String internalUserName() {
+        return ctx.getBean(ServiceConfig.class).getIam().getInternalUserName();
+    }
+
+    public GarbageCollector garbageCollector() {
+        return ctx.getBean(GarbageCollector.class);
+    }
+
+    public OperationDao operationDao() {
+        return ctx.getBean(OperationDao.class, Qualifiers.byName("LzyServiceOperationDao"));
     }
 
     @PreDestroy

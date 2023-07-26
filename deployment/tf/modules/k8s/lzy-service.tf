@@ -73,7 +73,7 @@ resource "kubernetes_deployment" "lzy-service" {
 
           env {
             name  = "LZY_SERVICE_ALLOCATOR_ADDRESS"
-            value = "${kubernetes_service.allocator_service.status[0].load_balancer[0].ingress[0]["ip"]}:${local.allocator-port}"
+            value = "${kubernetes_service.allocator_service_cluster_ip.spec[0].cluster_ip}:${local.allocator-port}"
           }
           env {
             name  = "LZY_SERVICE_ALLOCATOR_VM_CACHE_TIMEOUT"
@@ -180,7 +180,7 @@ resource "kubernetes_deployment" "lzy-service" {
           }
           env {
             name  = "LZY_SERVICE_IAM_ADDRESS"
-            value = "${kubernetes_service.iam.spec[0].cluster_ip}:${local.iam-port}"
+            value = "${kubernetes_service.iam.status[0].load_balancer[0].ingress[0]["ip"]}:${local.iam-port}"
           }
           env {
             name = "LZY_SERVICE_IAM_INTERNAL_USER_NAME"
@@ -264,11 +264,11 @@ resource "kubernetes_deployment" "lzy-service" {
           }
           env {
             name = "LZY_SERVICE_OPERATIONS_FINISH_WORKFLOW_TIMEOUT"
-            value = "10s"
+            value = "10m"
           }
           env {
             name = "LZY_SERVICE_OPERATIONS_ABORT_WORKFLOW_TIMEOUT"
-            value = "10s"
+            value = "10m"
           }
           env {
             name = "LZY_SERVICE_OPERATIONS_EXECUTE_GRAPH_TIMEOUT"
@@ -400,5 +400,20 @@ resource "kubernetes_service" "lzy_service" {
       target_port = local.lzy-service-port
     }
     type = "LoadBalancer"
+  }
+}
+
+resource "kubernetes_service" "lzy_service_cluster_ip" {
+  metadata {
+    name        = "${local.lzy-service-k8s-name}-cluster-ip"
+    labels      = local.lzy-service-labels
+  }
+  spec {
+    selector         = local.lzy-service-labels
+    port {
+      port        = local.lzy-service-port
+      target_port = local.lzy-service-port
+    }
+    type = "ClusterIP"
   }
 }

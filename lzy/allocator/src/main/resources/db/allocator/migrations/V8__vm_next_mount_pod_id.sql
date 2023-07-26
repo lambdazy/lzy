@@ -1,0 +1,5 @@
+ALTER TABLE vm
+    ADD COLUMN next_mount_pod_id BIGINT NOT NULL DEFAULT 0;
+
+ALTER TABLE dynamic_mount
+    ADD COLUMN mounted BOOLEAN NOT NULL DEFAULT FALSE;

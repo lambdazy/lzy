@@ -19,6 +19,8 @@ allocator:
 
   enable-http-debug: false
 
+  nfs-client-image: 'lzydock/nfs-client:1.2'
+
   yc-mk8s:
     period: 1m
 
@@ -92,3 +94,7 @@ allocator:
     any-session-pool-limit: 1
     session-pool-limit:
       portals: 1
+
+  service-cidrs:
+    - cidr: "xxx"
+      ports: []

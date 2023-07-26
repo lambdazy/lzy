@@ -5,6 +5,7 @@ import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.dao.DeleteAllocatorSessionOperationsDao;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
@@ -50,6 +51,10 @@ public interface ContextAwareService {
 
     default ExecutionOperationsDao execOpsDao() {
         return lzyServiceCtx().execOpsDao();
+    }
+
+    default DeleteAllocatorSessionOperationsDao deleteAllocSessionDao() {
+        return lzyServiceCtx().deleteAllocSessionDao();
     }
 
     default OperationsExecutor opsExecutor() {

@@ -4,6 +4,7 @@ import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.model.db.exceptions.NotFoundException;
+import ai.lzy.service.dao.DeleteAllocatorSessionOperationsDao;
 import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.ExecutionOperationsDao.ExecutionOpState;
@@ -39,7 +40,7 @@ import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOpResult;
 import static ai.lzy.longrunning.OperationGrpcServiceUtils.awaitOperationDone;
 import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.model.db.DbHelper.withRetries;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
 import static ai.lzy.util.grpc.ProtoPrinter.safePrinter;
 import static ai.lzy.v1.workflow.LWFS.*;
@@ -70,7 +71,6 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         LOG.debug("Lzy service instance with id='{}' found {} uncompleted operations", serviceInstanceId,
             uncompletedOps.size());
-
         for (var op : uncompletedOps) {
             try {
                 var actionRunner = switch (op.type()) {
@@ -84,6 +84,30 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     case EXECUTE_GRAPH -> opRunnersFactory().createExecuteGraphOpRunner(
                         op.opId(), op.opDesc(), op.idempotencyKey(), op.userId(), op.wfName(), op.execId());
                 };
+                opsExecutor().startNew(actionRunner);
+            } catch (Exception e) {
+                LOG.error("Lzy service instance with id='{}' cannot reschedule some uncompleted operation: {}",
+                    serviceInstanceId, e.getMessage(), e);
+                throw new RuntimeException("Cannot start lzy service instance", e);
+            }
+        }
+
+        List<DeleteAllocatorSessionOperationsDao.OpState> uncompletedDeleteAllocSessionOps;
+        try {
+            uncompletedDeleteAllocSessionOps = withRetries(LOG, () ->
+                deleteAllocSessionDao().list(serviceInstanceId, null));
+        } catch (Exception e) {
+            LOG.error("Lzy service instance '{}' cannot load uncompleted delete allocator session operations: {}",
+                serviceInstanceId, e.getMessage(), e);
+            throw new RuntimeException("Cannot start lzy service instance", e);
+        }
+
+        LOG.debug("Lzy service instance with id='{}' found {} uncompleted delete allocator session operations",
+            serviceInstanceId, uncompletedDeleteAllocSessionOps.size());
+        for (var op : uncompletedDeleteAllocSessionOps) {
+            try {
+                var actionRunner = opRunnersFactory().createDeleteAllocatorSessionOpRunner(
+                    op.opId(), op.opDesc(), op.idempotencyKey(), op.sessionId(), op.allocOpId());
                 opsExecutor().startNew(actionRunner);
             } catch (Exception e) {
                 LOG.error("Lzy service instance with id='{}' cannot reschedule some uncompleted operation: {}",
@@ -230,8 +254,13 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        var op = Operation.create(userId, ("Finish workflow with active execution: userId='%s', wfName='%s', " +
-            "activeExecId='%s'").formatted(userId, wfName, execId), opTimeout, idempotencyKey, null);
+        var op = Operation.create(
+            userId,
+            "Finish workflow with active execution: userId='%s', wfName='%s', activeExecId='%s'"
+                .formatted(userId, wfName, execId),
+            opTimeout,
+            idempotencyKey,
+            /* meta */ null);
 
         try {
             withRetries(LOG, () -> {
@@ -239,7 +268,8 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     if (!Objects.equals(wfDao().getExecutionId(userId, wfName, tx), execId)) {
                         throw new IllegalStateException("Execution with id='%s' is not an active".formatted(execId));
                     }
-                    wfDao().setActiveExecutionId(userId, wfName, null, tx);
+
+                    wfDao().cleanActiveExecution(userId, wfName, tx);
 
                     var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                     if (!opsToCancel.isEmpty()) {
@@ -340,8 +370,13 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
             return;
         }
 
-        var op = Operation.create(userId, ("Abort workflow with active execution: userId='%s', " +
-            "wfName='%s', activeExecId='%s'").formatted(userId, wfName, execId), opTimeout, idempotencyKey, null);
+        var op = Operation.create(
+            userId,
+            "Abort workflow with active execution: userId='%s', wfName='%s', activeExecId='%s'"
+                .formatted(userId, wfName, execId),
+            opTimeout,
+            idempotencyKey,
+            /* meta */ null);
 
         try {
             withRetries(LOG, () -> {
@@ -349,7 +384,7 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
                     if (!Objects.equals(wfDao().getExecutionId(userId, wfName, tx), execId)) {
                         throw new IllegalStateException("Execution with id='%s' is not an active".formatted(execId));
                     }
-                    wfDao().setActiveExecutionId(userId, wfName, null, tx);
+                    wfDao().cleanActiveExecution(userId, wfName, tx);
 
                     var opsToCancel = execOpsDao().listOpsIdsToCancel(execId, tx);
                     if (!opsToCancel.isEmpty()) {

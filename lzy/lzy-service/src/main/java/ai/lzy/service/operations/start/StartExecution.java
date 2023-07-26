@@ -31,8 +31,8 @@ public final class StartExecution extends ExecutionOperationRunner {
         super(builder);
         this.storageConfig = builder.storageConfig;
         this.state = builder.state;
-        this.steps = List.of(createKafkaTopic(), /*createAllocatorSession(),*/ StartExecution.this::complete);
         this.allocatorSessionSpec = builder.allocatorSessionSpec;
+        this.steps = List.of(createKafkaTopic(), createAllocatorSession(), StartExecution.this::complete);
     }
 
     @Override
@@ -84,7 +84,7 @@ public final class StartExecution extends ExecutionOperationRunner {
                 try (var tx = TransactionHandle.create(storage())) {
                     success[0] = Objects.equals(wfDao().getExecutionId(userId(), wfName(), tx), execId());
                     if (success[0]) {
-                        wfDao().setActiveExecutionId(userId(), wfName(), null, tx);
+                        wfDao().cleanActiveExecution(userId(), wfName(), tx);
                         operationsDao().create(abortOp, tx);
                         execOpsDao().createAbortOp(abortOp.id(), serviceCfg().getInstanceId(), execId(), tx);
                         execDao().setFinishStatus(execId(), Status.INTERNAL.withDescription("error on start"), tx);

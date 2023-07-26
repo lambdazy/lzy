@@ -8,6 +8,7 @@ import ai.lzy.model.db.Storage;
 import ai.lzy.service.BeanFactory;
 import ai.lzy.service.LzyServiceMetrics;
 import ai.lzy.service.config.LzyServiceConfig;
+import ai.lzy.service.dao.DeleteAllocatorSessionOperationsDao;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.ExecutionOperationsDao;
 import ai.lzy.service.dao.GraphDao;
@@ -36,7 +37,7 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
         this.serviceConfig = builder.serviceConfig;
         this.stepCtx = new ExecutionStepContext(builder.id, builder.userId, builder.wfName, builder.execId,
             builder.storage, builder.wfDao, builder.execDao, builder.graphDao, builder.execOpsDao,
-            builder.internalUserCredentials, builder.idempotencyKey,
+            builder.deleteAllocatorSessionOperationsDao, builder.internalUserCredentials, builder.idempotencyKey,
             sre -> fail(sre.getStatus()) ? StepResult.FINISH : StepResult.RESTART, log(), logPrefix(),
             builder.idGenerator);
         this.metrics = builder.metrics;
@@ -89,6 +90,10 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
         return stepCtx.execOpsDao();
     }
 
+    protected DeleteAllocatorSessionOperationsDao deleteAllocatorSessionOpsDao() {
+        return stepCtx.deleteAllocatorSessionOpsDao();
+    }
+
     protected LzyServiceMetrics metrics() {
         return metrics;
     }
@@ -132,6 +137,7 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
         private ExecutionDao execDao;
         private OperationDao operationsDao;
         private ExecutionOperationsDao execOpsDao;
+        private DeleteAllocatorSessionOperationsDao deleteAllocatorSessionOperationsDao;
         private RenewableJwt internalUserCredentials;
         private IdGenerator idGenerator;
         private OperationsExecutor executor;
@@ -205,6 +211,11 @@ public abstract class ExecutionOperationRunner extends OperationRunnerBase {
 
         public T setExecOpsDao(ExecutionOperationsDao execOpsDao) {
             this.execOpsDao = execOpsDao;
+            return self();
+        }
+
+        public T setDeleteAllocatorSessionOpsDao(DeleteAllocatorSessionOperationsDao dao) {
+            this.deleteAllocatorSessionOperationsDao = dao;
             return self();
         }
 

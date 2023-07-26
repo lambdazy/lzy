@@ -9,20 +9,14 @@ import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.TextFormat;
 import com.google.protobuf.util.Durations;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.client.utils.Serialization;
 import io.grpc.Status;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.sql.SQLException;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
@@ -99,17 +93,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
     }
 
     private AllocVm allocateImpl(BiFunction<String, LongRunning.Operation, Boolean> action) throws Exception {
-        final var createdPod = new CompletableFuture<String>();
-
-        kubernetesServer.expect().post()
-            .withPath(POD_PATH)
-            .andReply(HttpURLConnection.HTTP_CREATED, (req) -> {
-                final var pod = Serialization.unmarshal(
-                    new ByteArrayInputStream(req.getBody().readByteArray()), Pod.class, Map.of());
-                createdPod.complete(pod.getMetadata().getName());
-                return pod;
-            })
-            .once();
+        final var createdPod = mockCreatePod();
 
         var sessionId = createSession(Durations.ZERO);
 
@@ -150,7 +134,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
 
         Assert.fail();
 
-        final String podName = createdPod.get();
+        final String podName = getName(createdPod.get());
         mockGetPodByName(podName);
 
         var clusterId = requireNonNull(withGrpcContext(() ->

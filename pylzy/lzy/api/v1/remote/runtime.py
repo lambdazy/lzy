@@ -4,10 +4,10 @@ import os
 import sys
 import tempfile
 import uuid
-import zipfile
 from asyncio import Task
 from io import BytesIO
 from typing import (
+    BinaryIO,
     Callable,
     Dict,
     Iterable,
@@ -45,12 +45,12 @@ from lzy.api.v1.runtime import (
     Runtime,
 )
 from lzy.api.v1.startup import ProcessingRequest
-from lzy.api.v1.utils.files import fileobj_hash, zip_module
 from lzy.api.v1.utils.pickle import pickle
 from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_syslog_color
 from lzy.storage.api import Storage, FSCredentials
 from lzy.utils.grpc import retry, RetryConfig
+from lzy.utils.files import fileobj_hash_str, zip_path
 from lzy.utils.format import pretty_protobuf
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
@@ -244,15 +244,13 @@ class RemoteRuntime(Runtime):
         for local_module in module_paths:
 
             with tempfile.NamedTemporaryFile("rb") as archive:
-                with zipfile.ZipFile(archive.name, "w") as z:
-                    zip_module(local_module, z)
+                zip_path(local_module, cast(BinaryIO, archive))
 
-                archive.seek(0)
                 file = cast(BytesIO, archive.file)
                 key = os.path.join(
                     "lzy_local_modules",
                     os.path.basename(local_module),
-                    fileobj_hash(file),
+                    fileobj_hash_str(file),
                 )
                 file.seek(0)
                 client = self.__workflow.owner.storage_registry.default_client()

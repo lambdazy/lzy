@@ -7,7 +7,6 @@ import ai.lzy.service.dao.StopExecutionState;
 import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.service.operations.ExecutionOperationRunner;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;
-import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
 import com.google.protobuf.Any;
 import com.google.protobuf.Message;
 import io.grpc.Status;
@@ -18,24 +17,18 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 
 abstract class StopExecution extends ExecutionOperationRunner {
     private final KafkaLogsListeners kafkaLogsListeners;
-    private final LongRunningServiceBlockingStub allocOpClient;
     private final LzyChannelManagerPrivateBlockingStub channelsClient;
     private final StopExecutionState state;
 
     protected StopExecution(StopExecutionBuilder<?> builder) {
         super(builder);
         this.kafkaLogsListeners = builder.kafkaLogsListeners;
-        this.allocOpClient = builder.allocOpClient;
         this.channelsClient = builder.channelsClient;
         this.state = builder.state;
     }
 
     protected KafkaLogsListeners kafkaLogsListeners() {
         return kafkaLogsListeners;
-    }
-
-    protected LongRunningServiceBlockingStub allocOpClient() {
-        return allocOpClient;
     }
 
     protected LzyChannelManagerPrivateBlockingStub channelsClient() {
@@ -99,14 +92,8 @@ abstract class StopExecution extends ExecutionOperationRunner {
         extends ExecutionOperationRunnerBuilder<T>
     {
         private KafkaLogsListeners kafkaLogsListeners;
-        private LongRunningServiceBlockingStub allocOpClient;
         private LzyChannelManagerPrivateBlockingStub channelsClient;
         private StopExecutionState state;
-
-        public T setAllocOpClient(LongRunningServiceBlockingStub allocOpClient) {
-            this.allocOpClient = allocOpClient;
-            return self();
-        }
 
         public T setKafkaLogsListeners(KafkaLogsListeners kafkaLogsListeners) {
             this.kafkaLogsListeners = kafkaLogsListeners;

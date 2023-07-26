@@ -4,6 +4,7 @@ import ai.lzy.allocator.alloc.dao.DynamicMountDao;
 import ai.lzy.allocator.alloc.dao.SessionDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.impl.kuber.MountHolderManager;
+import ai.lzy.allocator.alloc.impl.kuber.NetworkPolicyManager;
 import ai.lzy.allocator.alloc.impl.kuber.TunnelAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.DynamicMount;
@@ -42,7 +43,8 @@ public record AllocationContext(
     MountHolderManager mountHolderManager,
     VolumeManager volumeManager,
     DynamicMountDao dynamicMountDao,
-    ServiceConfig.MountConfig mountConfig
+    ServiceConfig.MountConfig mountConfig,
+    NetworkPolicyManager networkPolicyManager
 ) {
     public void startNew(Runnable action) {
         executor.startNew(action);

@@ -1,5 +1,9 @@
 package ai.lzy.worker;
 
+import ai.lzy.env.EnvironmentInstallationException;
+import ai.lzy.env.Execution;
+import ai.lzy.env.aux.AuxEnvironment;
+import ai.lzy.env.logs.LogHandle;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.logs.LogContextKey;
 import ai.lzy.longrunning.IdempotencyUtils;
@@ -15,10 +19,6 @@ import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.worker.LWS;
 import ai.lzy.v1.worker.WorkerApiGrpc;
-import ai.lzy.worker.StreamQueue.LogHandle;
-import ai.lzy.worker.env.AuxEnvironment;
-import ai.lzy.worker.env.EnvironmentFactory;
-import ai.lzy.worker.env.EnvironmentInstallationException;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Status;
@@ -94,13 +94,17 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             }
         }
 
-        try (final var logHandle = LogHandle.fromTopicDesc(LOG, tid, op.getKafkaTopic(), kafkaHelper)) {
+        final var logHandle = LogHandle.builder(LOG)
+            .withWriters(new KafkaLogsWriter(op.getKafkaTopic(), LOG, tid, kafkaHelper))
+            .build();
+
+        try (logHandle) {
             LOG.info("Configure worker...");
 
             final AuxEnvironment env;
 
             try {
-                env = envFactory.create(tid, config.getMountPoint(), op.getEnv(), logHandle);
+                env = envFactory.create(config.getMountPoint(), op.getEnv(), logHandle, config.getMountPoint());
             } catch (EnvironmentInstallationException e) {
                 LOG.error("Unable to install environment", e);
 
@@ -121,7 +125,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             var slotsContext = slots.context(request.getExecutionId(), op.getSlotsList(), slotAssignments);
 
             try {
-                var exec = new Execution(tid, op.getCommand(), "", config.getMountPoint());
+                var exec = new Execution(op.getCommand(), "");
 
                 LOG.info("Waiting for slots...");
                 slotsContext.beforeExecution();
