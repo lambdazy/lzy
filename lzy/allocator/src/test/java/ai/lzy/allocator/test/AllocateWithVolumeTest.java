@@ -3,8 +3,6 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactoryImpl;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.test.IamOnlyAllocatorContextTests;
-import ai.lzy.allocator.test.Utils;
 import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.VmAllocatorApi;
@@ -23,12 +21,9 @@ import org.junit.Before;
 import org.junit.Ignore;
 import yandex.cloud.sdk.Zone;
 
-import yandex.cloud.sdk.auth.IamToken;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;

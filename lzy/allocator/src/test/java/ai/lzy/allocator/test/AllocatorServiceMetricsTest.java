@@ -6,7 +6,6 @@ import com.google.protobuf.util.Durations;
 import io.fabric8.kubernetes.api.model.PodListBuilder;
 import io.grpc.Status;
 import okhttp3.mockwebserver.MockResponse;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

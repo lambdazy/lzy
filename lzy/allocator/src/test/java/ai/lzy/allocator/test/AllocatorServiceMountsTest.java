@@ -4,7 +4,6 @@ import ai.lzy.allocator.alloc.dao.DynamicMountDao;
 import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.*;
-import ai.lzy.allocator.model.Volume.AccessMode;
 import ai.lzy.allocator.test.http.MockResponses;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.longrunning.Operation;

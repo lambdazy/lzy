@@ -3,7 +3,6 @@ package ai.lzy.allocator.test;
 import ai.lzy.allocator.disk.*;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.disk.impl.mock.MockDiskManager;
-import ai.lzy.allocator.test.IamOnlyAllocatorContextTests;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.DiskApi;
 import ai.lzy.v1.DiskServiceApi;

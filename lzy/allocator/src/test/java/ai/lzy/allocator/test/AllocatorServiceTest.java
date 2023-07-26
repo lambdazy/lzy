@@ -19,7 +19,6 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import okhttp3.mockwebserver.MockResponse;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 

@@ -6,12 +6,6 @@ import ai.lzy.allocator.model.debug.InjectedFailures.TerminateException;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.util.Durations;
 import org.junit.*;
-import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.client.utils.Serialization;
-import io.fabric8.mockwebserver.utils.ResponseProvider;
-import okhttp3.Headers;
-import okhttp3.mockwebserver.RecordedRequest;
-import org.junit.*;
 
 import java.io.IOException;
 import java.util.Map;

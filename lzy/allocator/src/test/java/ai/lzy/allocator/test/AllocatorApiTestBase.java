@@ -5,7 +5,6 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.alloc.impl.kuber.KuberTunnelAllocator;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.test.http.MockHttpDispatcher;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.test.TimeUtils;
@@ -13,18 +12,14 @@ import ai.lzy.util.auth.credentials.OttHelper;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorPrivateApi;
 import ai.lzy.v1.longrunning.LongRunning;
-import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.Duration;
 import io.fabric8.kubernetes.api.model.*;
-import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
-import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.kubernetes.client.Config;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.http.TlsVersion;
-import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nonnull;
@@ -38,7 +33,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.sql.SQLException;
@@ -73,7 +67,7 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
     protected MockHttpDispatcher mockRequestDispatcher;
 
     @Before
-    public final void setUpKuberServer() {
+    public final void setUpKuberServer() throws IOException {
         objectMapper = new ObjectMapper();
         mockWebServer = new MockWebServer();
         this.mockRequestDispatcher = new MockHttpDispatcher();
