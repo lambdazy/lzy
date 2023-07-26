@@ -42,6 +42,8 @@ public class GraphExecutorTest {
 
     @After
     public void after() {
+        AllocatorServiceMock.onAllocate = (a) -> {};
+        AllocatorServiceMock.onExecute = (a) -> true;
         context.stop();
     }
 
