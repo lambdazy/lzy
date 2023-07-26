@@ -31,7 +31,7 @@ public abstract class IamOnlyWhiteboardContextTests {
     @Rule
     public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
-    public PreparedDbRule whiteboardBb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
+    public PreparedDbRule whiteboardDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
     public LzyInThread lzy = new LzyInThread();
 
@@ -62,7 +62,7 @@ public abstract class IamOnlyWhiteboardContextTests {
 
         var database = LzyConfig.Database.builder()
             .setIamDbUrl(prepareDbUrl(iamDb.getConnectionInfo()))
-            .setWhiteboardDbUrl(prepareDbUrl(whiteboardBb.getConnectionInfo()))
+            .setWhiteboardDbUrl(prepareDbUrl(whiteboardDb.getConnectionInfo()))
             .build();
 
         lzy.setUp(configs, environments, ports, database, IamContextImpl.ENV_NAME,

@@ -32,6 +32,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.util.grpc.GrpcUtils.*;
@@ -88,12 +89,17 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
 
         var configs = LzyConfig.Configs.builder()
             .setIamConfig("../iam/src/main/resources/application-test.yml")
-            .setAllocatorConfig("../allocator/src/main/resources/application-local-test.yml")
+            .setAllocatorConfig("../allocator/src/main/resources/application-test.yml")
             .setChannelManagerConfig("../channel-manager/src/main/resources/application-test.yml")
             .setGraphExecutorConfig("../graph-executor/src/main/resources/application-test.yml")
             .setStorageConfig("../storage/src/main/resources/application-test.yml")
             .setLzyServiceConfig("../lzy-service/src/main/resources/application-test.yml")
             .build();
+
+        var allocatorCfgOverrides = Map.<String, Object>of(
+            "allocator.thread-allocator.enabled", true,
+            "allocator.thread-allocator.vm-class-name", "ai.lzy.worker.Worker"
+        );
 
         var environments = LzyConfig.Environments.builder()
             .addIamEnvironment(ai.lzy.iam.BeanFactory.TEST_ENV_NAME)
@@ -123,7 +129,7 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             StorageContextImpl.ENV_NAME,
             LzyServiceContextImpl.ENV_NAME
         };
-        lzy.setUp(configs, environments, ports, database, contextEnvs);
+        lzy.setUp(configs, allocatorCfgOverrides, environments, ports, database, contextEnvs);
 
         var internalUserCredentials = lzy.micronautContext().getBean(IamContextImpl.class).clientConfig()
             .createRenewableToken();
