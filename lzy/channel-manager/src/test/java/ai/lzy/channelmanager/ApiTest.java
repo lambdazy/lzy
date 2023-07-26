@@ -14,7 +14,6 @@ import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
@@ -23,17 +22,13 @@ import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
-import ai.lzy.v1.common.LC.PeerDescription.StoragePeer;
+import ai.lzy.v1.common.LC;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.micronaut.context.ApplicationContext;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.junit.*;
 
 import java.io.IOException;
@@ -43,58 +38,33 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
-import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.*;
-import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH;
 
-public class ApiTest {
-    private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
-
-    @ClassRule
-    public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @ClassRule
-    public static PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-
-    private static ApplicationContext context;
-    private static ChannelManagerMain app;
-    private static ManagedChannel channel;
+public class ApiTest extends IamOnlyChannelManagerContextTests {
     private static String workflowName;
     private static User user;
-    private static LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub privateClient;
-    private static LzyChannelManagerGrpc.LzyChannelManagerBlockingStub publicClient;
+
     private static HostAndPort mockedSlotApiAddress;
     private static Server mockedSlotApiServer;
     private static SlotsApiMock slotService;
     private static Server mockedLzyServiceServer;
 
+    private static LzyChannelManagerGrpc.LzyChannelManagerBlockingStub publicClient;
+
     @BeforeClass
     public static void before() throws Exception {
-        var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
-        iamTestContext.setUp(iamDbConfig);
+        setUp();
 
-        var channelManagerDbConfig = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
-        context = ApplicationContext.run(channelManagerDbConfig);
         var config = context.getBean(ChannelManagerConfig.class);
-        config.getIam().setAddress("localhost:" + iamTestContext.getPort());
-
-        app = context.getBean(ChannelManagerMain.class);
-        app.start();
-
-        channel = newGrpcChannel(config.getAddress(), LzyChannelManagerPrivateGrpc.SERVICE_NAME);
 
         workflowName = "wfName";
-        try (final var iamClient = new IamClient(config.getIam())) {
+        try (final var iamClient = new ApiTest.IamClient(config.getIam())) {
             user = iamClient.createUser("workflowUser");
             iamClient.addWorkflowAccess(user, workflowName);
         }
 
-        var internalUserCredentials = config.getIam().createRenewableToken();
-        privateClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channel),
-            "AuthPrivateTest", () -> internalUserCredentials.get().token());
-
-        publicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel),
+        publicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channelManagerGrpcChannel),
             "AuthPublicTest", () -> user.credentials().token());
 
         mockedSlotApiAddress = HostAndPort.fromString(config.getStubSlotApiAddress());
@@ -115,18 +85,13 @@ public class ApiTest {
     public static void afterClass() throws InterruptedException {
         InjectedFailures.assertClean();
 
-        iamTestContext.after();
-        app.stop();
-        app.awaitTermination();
-        channel.shutdown();
-        channel.awaitTermination(10, TimeUnit.SECONDS);
-        context.close();
-
         mockedSlotApiServer.shutdown();
         mockedSlotApiServer.awaitTermination();
 
         mockedLzyServiceServer.shutdownNow();
         mockedLzyServiceServer.awaitTermination();
+
+        tearDown();
     }
 
     @After
@@ -143,7 +108,7 @@ public class ApiTest {
                 .setExecutionId("execId")
                 .setWorkflowName(workflowName)
                 .setUserId(user.id())
-                .setProducer(StoragePeer.newBuilder()
+                .setProducer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setStorageUri("s3://some-bucket")
                     .build())
                 .build());
@@ -183,7 +148,7 @@ public class ApiTest {
                 .setExecutionId("execId")
                 .setWorkflowName(workflowName)
                 .setUserId(user.id())
-                .setConsumer(StoragePeer.newBuilder()
+                .setConsumer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setStorageUri("s3://some-bucket")
                     .build())
                 .build());
@@ -217,7 +182,7 @@ public class ApiTest {
                 .setExecutionId("execId")
                 .setWorkflowName(workflowName)
                 .setUserId(user.id())
-                .setConsumer(StoragePeer.newBuilder()
+                .setConsumer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setStorageUri("s3://some-bucket")
                     .build())
                 .build());
@@ -239,7 +204,7 @@ public class ApiTest {
             LCMPS.GetOrCreateRequest.newBuilder()
                 .setExecutionId("execId")
                 .setWorkflowName(workflowName)
-                .setProducer(StoragePeer.newBuilder()
+                .setProducer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setStorageUri("s3://some-bucket")
                     .build())
                 .setUserId(user.id())
@@ -271,7 +236,7 @@ public class ApiTest {
             LCMPS.GetOrCreateRequest.newBuilder()
                 .setExecutionId("execId")
                 .setWorkflowName(workflowName)
-                .setProducer(StoragePeer.newBuilder()
+                .setProducer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setStorageUri("s3://some-bucket")
                     .build())
                 .setUserId(user.id())
@@ -281,7 +246,7 @@ public class ApiTest {
             LCMPS.GetOrCreateRequest.newBuilder()
                 .setExecutionId("execId")
                 .setWorkflowName(workflowName)
-                .setProducer(StoragePeer.newBuilder()
+                .setProducer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setStorageUri("s3://some-bucket")
                     .build())
                 .setUserId(user.id())
@@ -296,7 +261,7 @@ public class ApiTest {
             LCMPS.GetOrCreateRequest.newBuilder()
                 .setExecutionId("execId")
                 .setWorkflowName(workflowName)
-                .setConsumer(StoragePeer.newBuilder()
+                .setConsumer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setStorageUri("s3://some-bucket")
                     .build())
                 .setUserId(user.id())
@@ -323,7 +288,7 @@ public class ApiTest {
             LCMPS.GetOrCreateRequest.newBuilder()
                 .setExecutionId("execId")
                 .setWorkflowName(workflowName)
-                .setProducer(StoragePeer.newBuilder()
+                .setProducer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setStorageUri("s3://some-bucket")
                     .build())
                 .setUserId(user.id())
@@ -378,14 +343,14 @@ public class ApiTest {
             this.accessBindingClient = new AccessBindingServiceGrpcClient("TestABClient", channel, iamToken::get);
         }
 
-        public User createUser(String name) throws Exception {
+        public ApiTest.User createUser(String name) throws Exception {
             var login = "github-" + name;
             var creds = generateCredentials(login, "GITHUB");
 
             var subj = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER,
                 new SubjectCredentials("main", creds.publicKey(), CredentialsType.PUBLIC_KEY));
 
-            return new User(subj.id(), creds.credentials());
+            return new ApiTest.User(subj.id(), creds.credentials());
         }
 
         public void addWorkflowAccess(User user, String workflowName) throws Exception {
@@ -395,7 +360,7 @@ public class ApiTest {
                 List.of(new AccessBinding(Role.LZY_WORKFLOW_OWNER, subj)));
         }
 
-        private GeneratedCredentials generateCredentials(String login, String provider)
+        private ApiTest.IamClient.GeneratedCredentials generateCredentials(String login, String provider)
             throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException
         {
             final var keys = RsaUtils.generateRsaKeys();
@@ -406,7 +371,7 @@ public class ApiTest {
 
             final var publicKey = keys.publicKey();
 
-            return new GeneratedCredentials(publicKey, credentials);
+            return new ApiTest.IamClient.GeneratedCredentials(publicKey, credentials);
         }
 
         @Override

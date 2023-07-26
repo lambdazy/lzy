@@ -2,9 +2,9 @@ package ai.lzy.test.context.dummy;
 
 import ai.lzy.test.context.*;
 import io.micronaut.context.annotation.Secondary;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 
-import java.nio.file.Path;
 import java.util.Map;
 
 @Singleton
@@ -13,7 +13,7 @@ public class DummyServiceContext implements IamContext, AllocatorContext, Channe
     SchedulerContext, LzyServiceContext, StorageServiceContext, WhiteboardServiceContext
 {
     @Override
-    public void setUp(Path config, Map<String, Object> runtimeConfig, String... environments) {}
+    public void setUp(@Nullable String baseConfigPath, Map<String, Object> configOverrides, String... environments) {}
 
     @Override
     public void tearDown() {}

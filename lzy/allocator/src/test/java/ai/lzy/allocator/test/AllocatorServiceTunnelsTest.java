@@ -31,25 +31,21 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorServiceTunnelsTest extends AllocatorApiTestBase {
-
     protected TunnelManager mockTunnelManager;
     private ManagedChannel tunnelAgentChannel;
 
     @Before
     public void before() throws IOException {
-        super.setUp();
-
-        ServiceConfig.TunnelConfig tunnelConfig = allocatorCtx.getBean(ServiceConfig.TunnelConfig.class);
+        ServiceConfig.TunnelConfig tunnelConfig = allocatorContext.getBean(ServiceConfig.TunnelConfig.class);
         mockTunnelManager = Mockito.mock(TunnelManager.class);
         TunnelAgentMain tunnelAgentMain = new TunnelAgentMain(new LzyTunnelAgentService(mockTunnelManager),
-                "localhost:" + tunnelConfig.getAgentPort());
+            "localhost:" + tunnelConfig.getAgentPort());
         tunnelAgentMain.start();
         tunnelAgentChannel = newGrpcChannel("localhost", tunnelConfig.getAgentPort(), LzyTunnelAgentGrpc.SERVICE_NAME);
     }
 
     @After
     public void after() {
-        super.tearDown();
         tunnelAgentChannel.shutdown();
         try {
             tunnelAgentChannel.awaitTermination(1, TimeUnit.SECONDS);
@@ -59,11 +55,12 @@ public class AllocatorServiceTunnelsTest extends AllocatorApiTestBase {
     }
 
     @Override
-    protected void updateStartupProperties(Map<String, Object> props) {
-        super.updateStartupProperties(props);
-        props.put("allocator.allocation-timeout", "30s");
-        props.put("allocator.kuber-tunnel-allocator.enabled", "true");
-        props.put("allocator.tunnel.agent-port", GrpcUtils.rollPort());
+    protected Map<String, Object> allocatorConfigOverrides() {
+        return Map.of(
+            "allocator.allocation-timeout", "30s",
+            "allocator.kuber-tunnel-allocator.enabled", "true",
+            "allocator.tunnel.agent-port", GrpcUtils.rollPort()
+        );
     }
 
     @Test
@@ -89,7 +86,7 @@ public class AllocatorServiceTunnelsTest extends AllocatorApiTestBase {
         Assert.assertNotNull(exception.getStatus().getDescription());
         Assert.assertTrue(exception.getStatus().getDescription().contains("Address 1.1.1.1 isn't v6!"));
         Assert.assertTrue(exception.getStatus().getDescription().contains("Tunnel index has invalid value: 40000." +
-                " Allowed range is [0, 255]"));
+            " Allowed range is [0, 255]"));
     }
 
     @Test

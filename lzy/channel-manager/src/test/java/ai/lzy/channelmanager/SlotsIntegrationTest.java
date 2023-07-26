@@ -2,15 +2,12 @@ package ai.lzy.channelmanager;
 
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.test.InjectedFailures;
+import ai.lzy.model.utils.FreePortFinder;
 import ai.lzy.slots.SlotsExecutionContext;
 import ai.lzy.slots.SlotsService;
-import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LCMPS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
-import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.common.LMST;
@@ -22,12 +19,8 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.AmazonS3URI;
 import com.google.common.net.HostAndPort;
-import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import io.micronaut.context.ApplicationContext;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.commons.io.FileUtils;
 import org.junit.*;
 
@@ -37,14 +30,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 
-import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 import static ai.lzy.util.grpc.GrpcUtils.*;
-import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH;
 
-public class SlotsIntegrationTest {
-    private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
+public class SlotsIntegrationTest extends IamOnlyChannelManagerContextTests {
     private static final int s3MockPort = FreePortFinder.find(1000, 2000);
     private static final int serverPort = FreePortFinder.find(2000, 3000);
 
@@ -59,39 +48,20 @@ public class SlotsIntegrationTest {
         .build();
     private static AmazonS3 s3Client;
 
-    @ClassRule
-    public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @ClassRule
-    public static PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-
-    private static ApplicationContext context;
-    private static ChannelManagerMain app;
-    private static ManagedChannel channel;
     private static String workflowName;
     private static ApiTest.User user;
-    private static LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub privateClient;
     private static LzyChannelManagerGrpc.LzyChannelManagerBlockingStub publicClient;
     private static Server mockedLzyServiceServer;
     private static Server server;
     private static SlotsService slotsService;
-    private static RenewableJwt internalUserCredentials;
 
     @BeforeClass
     public static void before() throws Exception {
+        setUp();
+
         GrpcUtils.setIsRetriesEnabled(false);
 
-        var iamDbConfig = preparePostgresConfig("iam", iamDb.getConnectionInfo());
-        iamTestContext.setUp(iamDbConfig);
-
-        var channelManagerDbConfig = preparePostgresConfig("channel-manager", channelManagerDb.getConnectionInfo());
-        context = ApplicationContext.run(channelManagerDbConfig);
         var config = context.getBean(ChannelManagerConfig.class);
-        config.getIam().setAddress("localhost:" + iamTestContext.getPort());
-
-        app = context.getBean(ChannelManagerMain.class);
-        app.start();
-
-        channel = newGrpcChannel(config.getAddress(), LzyChannelManagerPrivateGrpc.SERVICE_NAME);
 
         workflowName = "wfName";
         try (final var iamClient = new ApiTest.IamClient(config.getIam())) {
@@ -99,11 +69,7 @@ public class SlotsIntegrationTest {
             iamClient.addWorkflowAccess(user, workflowName);
         }
 
-        internalUserCredentials = config.getIam().createRenewableToken();
-        privateClient = newBlockingClient(LzyChannelManagerPrivateGrpc.newBlockingStub(channel),
-            "AuthPrivateTest", () -> internalUserCredentials.get().token());
-
-        publicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel),
+        publicClient = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channelManagerGrpcChannel),
             "AuthPublicTest", () -> user.credentials().token());
 
         var mockedLzyServiceAddress = HostAndPort.fromString(config.getLzyServiceAddress());
@@ -134,11 +100,6 @@ public class SlotsIntegrationTest {
     public static void afterClass() throws InterruptedException, IOException {
         InjectedFailures.assertClean();
 
-        iamTestContext.after();
-        app.stop();
-        app.awaitTermination();
-        channel.shutdown();
-        channel.awaitTermination(10, TimeUnit.SECONDS);
         context.close();
         mockedLzyServiceServer.shutdownNow();
         mockedLzyServiceServer.awaitTermination();
@@ -146,6 +107,8 @@ public class SlotsIntegrationTest {
         FileUtils.deleteDirectory(Path.of(FS_ROOT).toFile());
         server.shutdownNow();
         server.awaitTermination();
+
+        tearDown();
     }
 
     @After

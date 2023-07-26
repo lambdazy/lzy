@@ -1,38 +1,23 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.AllocatorMain;
-import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.disk.Disk;
-import ai.lzy.allocator.disk.DiskManager;
-import ai.lzy.allocator.disk.DiskMeta;
-import ai.lzy.allocator.disk.DiskSpec;
-import ai.lzy.allocator.disk.DiskType;
+import ai.lzy.allocator.disk.*;
 import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.disk.impl.mock.MockDiskManager;
-import ai.lzy.allocator.storage.AllocatorDataSource;
-import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.allocator.test.IamOnlyAllocatorContextTests;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.v1.DiskApi;
 import ai.lzy.v1.DiskServiceApi;
-import ai.lzy.v1.DiskServiceGrpc;
-import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusException;
-import io.micronaut.context.ApplicationContext;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import jakarta.annotation.Nonnull;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -40,91 +25,37 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
-public class DiskApiTest extends BaseTestWithIam {
+public class DiskApiTest extends IamOnlyAllocatorContextTests {
     private static final int DEFAULT_TIMEOUT_SEC = 300;
-
-    @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-
-    private ApplicationContext context;
-    private AllocatorMain allocatorApp;
-    private LongRunningServiceGrpc.LongRunningServiceBlockingStub operations;
-    private DiskServiceGrpc.DiskServiceBlockingStub diskService;
-    private DiskManager diskManager;
-    private ManagedChannel channel;
 
     private final DiskSpec defaultDiskSpec = new DiskSpec("disk", DiskType.HDD, 3, "ru-central1-a");
     private final String defaultUserName = "user-id";
+    private DiskManager diskManager;
 
     @Before
-    public void before() throws IOException {
-        super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
-
-        final var props = DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo());
-        context = ApplicationContext.run(props);
-        var config = context.getBean(ServiceConfig.class);
-        config.getIam().setAddress("localhost:" + super.getPort());
-
-        allocatorApp = context.getBean(AllocatorMain.class);
-        allocatorApp.start();
-
-        diskManager = context.getBean(DiskManager.class);
-
-        channel = newGrpcChannel(config.getAddress(), LongRunningServiceGrpc.SERVICE_NAME,
-            DiskServiceGrpc.SERVICE_NAME);
-
-        final var credentials = config.getIam().createRenewableToken();
-        operations = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test",
-            () -> credentials.get().token());
-        diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test",
-            () -> credentials.get().token());
-    }
-
-    @After
-    public void after() {
-        allocatorApp.stop(false);
-        try {
-            allocatorApp.awaitTermination();
-        } catch (InterruptedException e) {
-            // ignored
-        }
-
-        channel.shutdown();
-        try {
-            channel.awaitTermination(60, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            // ignored
-        }
-
-        context.getBean(AllocatorDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
-
-        context.stop();
-        super.after();
+    public void before() throws InterruptedException {
+        diskManager = allocatorContext.getBean(DiskManager.class);
     }
 
     @Test
     public void idempotentCreateDisk() throws Exception {
-        var op1 = withIdempotencyKey(diskService, "key-1").createDisk(
+        var op1 = withIdempotencyKey(diskServiceBlockingStub, "key-1").createDisk(
             DiskServiceApi.CreateDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
                 .setDiskSpec(defaultDiskSpec.toProto())
                 .build());
-        op1 = waitOperation(operations, op1, DEFAULT_TIMEOUT_SEC);
+        op1 = waitOperation(operationServiceApiBlockingStub, op1, DEFAULT_TIMEOUT_SEC);
         Assert.assertFalse(op1.hasError());
         Assert.assertTrue(op1.hasResponse());
 
-        var op2 = withIdempotencyKey(diskService, "key-1").createDisk(
+        var op2 = withIdempotencyKey(diskServiceBlockingStub, "key-1").createDisk(
             DiskServiceApi.CreateDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
                 .setDiskSpec(defaultDiskSpec.toProto())
                 .build());
-        op2 = waitOperation(operations, op1, DEFAULT_TIMEOUT_SEC);
+        op2 = waitOperation(operationServiceApiBlockingStub, op1, DEFAULT_TIMEOUT_SEC);
         Assert.assertFalse(op2.hasError());
         Assert.assertTrue(op2.hasResponse());
 
@@ -151,12 +82,12 @@ public class DiskApiTest extends BaseTestWithIam {
                     readyLatch.countDown();
                     readyLatch.await();
 
-                    var op = withIdempotencyKey(diskService, "key-1").createDisk(
+                    var op = withIdempotencyKey(diskServiceBlockingStub, "key-1").createDisk(
                         DiskServiceApi.CreateDiskRequest.newBuilder()
                             .setUserId(defaultUserName)
                             .setDiskSpec(defaultDiskSpec.toProto())
                             .build());
-                    op = waitOperation(operations, op, DEFAULT_TIMEOUT_SEC);
+                    op = waitOperation(operationServiceApiBlockingStub, op, DEFAULT_TIMEOUT_SEC);
                     Assert.assertFalse(op.getId().isEmpty());
                     Assert.assertFalse(op.hasError());
                     Assert.assertTrue(op.hasResponse());
@@ -186,12 +117,12 @@ public class DiskApiTest extends BaseTestWithIam {
     @Test
     public void createDeleteTest() throws Exception {
         var createDiskOperation = withGrpcContext(() ->
-            diskService.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
+            diskServiceBlockingStub.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
                 .setDiskSpec(defaultDiskSpec.toProto())
                 .build()));
 
-        createDiskOperation = waitOperation(operations, createDiskOperation, DEFAULT_TIMEOUT_SEC);
+        createDiskOperation = waitOperation(operationServiceApiBlockingStub, createDiskOperation, DEFAULT_TIMEOUT_SEC);
         Assert.assertFalse(createDiskOperation.hasError());
         Assert.assertTrue(createDiskOperation.hasResponse());
 
@@ -214,14 +145,14 @@ public class DiskApiTest extends BaseTestWithIam {
         ((MockDiskManager) diskManager).put(disk);
 
         var createDiskOperation =
-            diskService.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
+            diskServiceBlockingStub.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
                 .setExistingDisk(DiskServiceApi.CreateDiskRequest.ExistingDisk.newBuilder()
                     .setDiskId(disk.id())
                     .build())
                 .build());
 
-        createDiskOperation = waitOperation(operations, createDiskOperation, DEFAULT_TIMEOUT_SEC);
+        createDiskOperation = waitOperation(operationServiceApiBlockingStub, createDiskOperation, DEFAULT_TIMEOUT_SEC);
         Assert.assertFalse(createDiskOperation.hasError());
         Assert.assertTrue(createDiskOperation.hasResponse());
 
@@ -239,7 +170,7 @@ public class DiskApiTest extends BaseTestWithIam {
 
     @Test
     public void createExistingWithBadDiskIdTest() {
-        var createDiskOperation = diskService.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
+        var createDiskOperation = diskServiceBlockingStub.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
             .setUserId(defaultUserName)
             .setExistingDisk(DiskServiceApi.CreateDiskRequest.ExistingDisk.newBuilder()
                 .setDiskId("unknown-disk-id")
@@ -247,7 +178,7 @@ public class DiskApiTest extends BaseTestWithIam {
             .build()
         );
 
-        createDiskOperation = waitOperation(operations, createDiskOperation, DEFAULT_TIMEOUT_SEC);
+        createDiskOperation = waitOperation(operationServiceApiBlockingStub, createDiskOperation, DEFAULT_TIMEOUT_SEC);
         Assert.assertFalse(createDiskOperation.hasResponse());
         Assert.assertTrue(createDiskOperation.hasError());
         Assert.assertEquals(Status.NOT_FOUND.getCode().value(), createDiskOperation.getError().getCode());
@@ -260,12 +191,12 @@ public class DiskApiTest extends BaseTestWithIam {
         final DiskSpec clonedDiskSpec = new DiskSpec("clonedDiskName", DiskType.HDD, 4, "ru-central1-a");
         final String newUserId = "new_user_id";
         var cloneDiskOperation =
-            diskService.cloneDisk(DiskServiceApi.CloneDiskRequest.newBuilder()
+            diskServiceBlockingStub.cloneDisk(DiskServiceApi.CloneDiskRequest.newBuilder()
                 .setUserId(newUserId)
                 .setDiskId(disk.getDiskId())
                 .setNewDiskSpec(clonedDiskSpec.toProto())
                 .build());
-        cloneDiskOperation = waitOperation(operations, cloneDiskOperation, DEFAULT_TIMEOUT_SEC);
+        cloneDiskOperation = waitOperation(operationServiceApiBlockingStub, cloneDiskOperation, DEFAULT_TIMEOUT_SEC);
         Assert.assertEquals(newUserId, cloneDiskOperation.getCreatedBy());
         Assert.assertFalse(cloneDiskOperation.hasError());
         Assert.assertTrue(cloneDiskOperation.hasResponse());
@@ -294,24 +225,24 @@ public class DiskApiTest extends BaseTestWithIam {
         final DiskSpec clonedDiskSpec = new DiskSpec("clonedDiskName", DiskType.HDD, 4, "ru-central1-a");
         final String newUserId = "new_user_id";
 
-        var op1 = withIdempotencyKey(diskService, "key-1").cloneDisk(
+        var op1 = withIdempotencyKey(diskServiceBlockingStub, "key-1").cloneDisk(
             DiskServiceApi.CloneDiskRequest.newBuilder()
                 .setUserId(newUserId)
                 .setDiskId(disk.getDiskId())
                 .setNewDiskSpec(clonedDiskSpec.toProto())
                 .build());
-        op1 = waitOperation(operations, op1, DEFAULT_TIMEOUT_SEC);
+        op1 = waitOperation(operationServiceApiBlockingStub, op1, DEFAULT_TIMEOUT_SEC);
         Assert.assertEquals(newUserId, op1.getCreatedBy());
         Assert.assertFalse(op1.hasError());
         Assert.assertTrue(op1.hasResponse());
 
-        var op2 = withIdempotencyKey(diskService, "key-1").cloneDisk(
+        var op2 = withIdempotencyKey(diskServiceBlockingStub, "key-1").cloneDisk(
             DiskServiceApi.CloneDiskRequest.newBuilder()
                 .setUserId(newUserId)
                 .setDiskId(disk.getDiskId())
                 .setNewDiskSpec(clonedDiskSpec.toProto())
                 .build());
-        op2 = waitOperation(operations, op2, DEFAULT_TIMEOUT_SEC);
+        op2 = waitOperation(operationServiceApiBlockingStub, op2, DEFAULT_TIMEOUT_SEC);
         Assert.assertEquals(newUserId, op2.getCreatedBy());
         Assert.assertFalse(op2.hasError());
         Assert.assertTrue(op2.hasResponse());
@@ -344,13 +275,13 @@ public class DiskApiTest extends BaseTestWithIam {
                     readyLatch.countDown();
                     readyLatch.await();
 
-                    var op = withIdempotencyKey(diskService, "key-1").cloneDisk(
+                    var op = withIdempotencyKey(diskServiceBlockingStub, "key-1").cloneDisk(
                         DiskServiceApi.CloneDiskRequest.newBuilder()
                             .setUserId(newUserId)
                             .setDiskId(disk.getDiskId())
                             .setNewDiskSpec(clonedDiskSpec.toProto())
                             .build());
-                    op = waitOperation(operations, op, DEFAULT_TIMEOUT_SEC);
+                    op = waitOperation(operationServiceApiBlockingStub, op, DEFAULT_TIMEOUT_SEC);
                     Assert.assertEquals(newUserId, op.getCreatedBy());
                     Assert.assertFalse(op.hasError());
                     Assert.assertTrue(op.hasResponse());
@@ -383,12 +314,12 @@ public class DiskApiTest extends BaseTestWithIam {
         final DiskSpec clonedDiskSpec = new DiskSpec("clonedDiskName", DiskType.HDD, 1, "ru-central1-a");
 
         var cloneDiskOperation =
-            diskService.cloneDisk(DiskServiceApi.CloneDiskRequest.newBuilder()
+            diskServiceBlockingStub.cloneDisk(DiskServiceApi.CloneDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
                 .setDiskId(disk.getDiskId())
                 .setNewDiskSpec(clonedDiskSpec.toProto())
                 .build());
-        cloneDiskOperation = waitOperation(operations, cloneDiskOperation, DEFAULT_TIMEOUT_SEC);
+        cloneDiskOperation = waitOperation(operationServiceApiBlockingStub, cloneDiskOperation, DEFAULT_TIMEOUT_SEC);
         Assert.assertTrue(cloneDiskOperation.hasError());
         Assert.assertFalse(cloneDiskOperation.hasResponse());
         Assert.assertEquals(Status.INVALID_ARGUMENT.getCode().value(), cloneDiskOperation.getError().getCode());
@@ -403,12 +334,12 @@ public class DiskApiTest extends BaseTestWithIam {
         final DiskSpec clonedDiskSpec = new DiskSpec("clonedDiskName", DiskType.HDD, 1, "ru-central1-a");
 
         var cloneDiskOperation =
-            diskService.cloneDisk(DiskServiceApi.CloneDiskRequest.newBuilder()
+            diskServiceBlockingStub.cloneDisk(DiskServiceApi.CloneDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
                 .setDiskId("unknown-disk-id")
                 .setNewDiskSpec(clonedDiskSpec.toProto())
                 .build());
-        cloneDiskOperation = waitOperation(operations, cloneDiskOperation, DEFAULT_TIMEOUT_SEC);
+        cloneDiskOperation = waitOperation(operationServiceApiBlockingStub, cloneDiskOperation, DEFAULT_TIMEOUT_SEC);
         Assert.assertTrue(cloneDiskOperation.hasError());
         Assert.assertFalse(cloneDiskOperation.hasResponse());
         Assert.assertEquals(Status.NOT_FOUND.getCode().value(), cloneDiskOperation.getError().getCode());
@@ -416,10 +347,10 @@ public class DiskApiTest extends BaseTestWithIam {
 
     @Test
     public void deleteNonExistingDiskTest() {
-        var op = diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
+        var op = diskServiceBlockingStub.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
             .setDiskId("unknown-disk-id")
             .build());
-        op = waitOperation(operations, op, DEFAULT_TIMEOUT_SEC);
+        op = waitOperation(operationServiceApiBlockingStub, op, DEFAULT_TIMEOUT_SEC);
         Assert.assertTrue(op.hasError());
         Assert.assertFalse(op.hasResponse());
         Assert.assertEquals(Status.NOT_FOUND.getCode().value(), op.getError().getCode());
@@ -433,12 +364,12 @@ public class DiskApiTest extends BaseTestWithIam {
         final DiskSpec clonedDiskSpec = new DiskSpec("clonedDiskName", DiskType.HDD, 1, "ru-central1-a");
 
         var cloneDiskOperation =
-            diskService.cloneDisk(DiskServiceApi.CloneDiskRequest.newBuilder()
+            diskServiceBlockingStub.cloneDisk(DiskServiceApi.CloneDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
                 .setDiskId(disk.getDiskId())
                 .setNewDiskSpec(clonedDiskSpec.toProto())
                 .build());
-        cloneDiskOperation = waitOperation(operations, cloneDiskOperation, DEFAULT_TIMEOUT_SEC);
+        cloneDiskOperation = waitOperation(operationServiceApiBlockingStub, cloneDiskOperation, DEFAULT_TIMEOUT_SEC);
         Assert.assertTrue(cloneDiskOperation.hasError());
         Assert.assertFalse(cloneDiskOperation.hasResponse());
         Assert.assertEquals(Status.DATA_LOSS.getCode().value(), cloneDiskOperation.getError().getCode());
@@ -449,10 +380,10 @@ public class DiskApiTest extends BaseTestWithIam {
         final DiskApi.Disk disk = createDefaultDisk();
         ((MockDiskManager) diskManager).delete(disk.getDiskId());
 
-        var op = diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
+        var op = diskServiceBlockingStub.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
             .setDiskId(disk.getDiskId())
             .build());
-        op = waitOperation(operations, op, DEFAULT_TIMEOUT_SEC);
+        op = waitOperation(operationServiceApiBlockingStub, op, DEFAULT_TIMEOUT_SEC);
         Assert.assertTrue(op.hasError());
         Assert.assertFalse(op.hasResponse());
         Assert.assertEquals(Status.DATA_LOSS.getCode().value(), op.getError().getCode());
@@ -460,12 +391,12 @@ public class DiskApiTest extends BaseTestWithIam {
 
     private void deleteDisk(DiskApi.Disk disk) {
         withGrpcContext(() ->
-            diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
+            diskServiceBlockingStub.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder()
                 .setDiskId(disk.getDiskId())
                 .build()));
     }
 
-    private boolean waitDiskDeletion(DiskApi.Disk disk)  {
+    private boolean waitDiskDeletion(DiskApi.Disk disk) {
         return TimeUtils.waitFlagUp(
             () -> {
                 try {
@@ -480,14 +411,19 @@ public class DiskApiTest extends BaseTestWithIam {
     @Nonnull
     private DiskApi.Disk createDefaultDisk() throws InvalidProtocolBufferException {
         var createDiskOperation =
-            diskService.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
+            diskServiceBlockingStub.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
                 .setUserId(defaultUserName)
                 .setDiskSpec(defaultDiskSpec.toProto())
                 .build());
 
-        createDiskOperation = waitOperation(operations, createDiskOperation, DEFAULT_TIMEOUT_SEC);
+        createDiskOperation = waitOperation(operationServiceApiBlockingStub, createDiskOperation, DEFAULT_TIMEOUT_SEC);
         final var createDiskResponse =
             createDiskOperation.getResponse().unpack(DiskServiceApi.CreateDiskResponse.class);
         return createDiskResponse.getDisk();
+    }
+
+    @Override
+    protected Map<String, Object> allocatorConfigOverrides() {
+        return Collections.emptyMap();
     }
 }

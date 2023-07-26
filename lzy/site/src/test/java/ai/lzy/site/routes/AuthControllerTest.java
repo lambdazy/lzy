@@ -1,57 +1,32 @@
 package ai.lzy.site.routes;
 
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.model.db.test.DatabaseTestUtils;
+import ai.lzy.iam.test.IamContextImpl;
 import ai.lzy.site.ServiceConfig;
-import io.micronaut.context.ApplicationContext;
+import ai.lzy.site.routes.context.IamOnlySiteContextTests;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpStatus;
-import io.micronaut.runtime.server.EmbeddedServer;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
+import jakarta.annotation.Nullable;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class AuthControllerTest extends BaseTestWithIam {
-    @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
-
-    private ApplicationContext context;
-    private EmbeddedServer server = ApplicationContext.run(EmbeddedServer.class);
-
-    private Auth auth;
+public class AuthControllerTest extends IamOnlySiteContextTests {
     private ServiceConfig.GithubCredentials githubCredentials;
 
     @Before
-    public void before() throws IOException {
-        super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
-        context = server.getApplicationContext();
-        var config = context.getBean(ServiceConfig.class);
-        config.getIam().setAddress("localhost:" + super.getPort());
-        auth = context.getBean(Auth.class);
-        githubCredentials = context.getBean(ServiceConfig.GithubCredentials.class);
-        server = context.getBean(EmbeddedServer.class);
-    }
-
-    @After
-    public void after() {
-        super.after();
-        server.stop();
-        context.stop();
+    public void before() {
+        githubCredentials = micronautContext().getBean(ServiceConfig.GithubCredentials.class);
     }
 
     @Test
@@ -91,5 +66,15 @@ public class AuthControllerTest extends BaseTestWithIam {
 
         final var creds = listCredentials(subject.id());
         Assert.assertNotNull(creds);
+    }
+
+    @Nullable
+    public Subject getSubject(AuthProvider provider, String providerSubjectId, SubjectType type) {
+        return micronautContext().getBean(IamContextImpl.class).getSubject(provider, providerSubjectId, type);
+    }
+
+    @Nullable
+    public List<SubjectCredentials> listCredentials(String subjectId) {
+        return micronautContext().getBean(IamContextImpl.class).listCredentials(subjectId);
     }
 }

@@ -5,12 +5,10 @@ import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.util.Durations;
 import io.fabric8.kubernetes.api.model.PodListBuilder;
 import io.grpc.Status;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -19,29 +17,23 @@ import java.util.concurrent.TimeUnit;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorServiceMetricsTest extends AllocatorApiTestBase {
-
     private String sessionId;
 
     @Before
-    public void before() throws IOException {
-        super.setUp();
-
+    public void before() {
         sessionId = createSession(Durations.fromMillis(1));
         //Assert.assertEquals(1, (int) metrics.activeSessions.get());
     }
 
-    @After
-    public void after() {
-        super.tearDown();
-    }
-
     @Override
-    protected void updateStartupProperties(Map<String, Object> props) {
-        props.put("allocator.allocation-timeout", "10m");
-        props.put("allocator.gc.initial-delay", "100m");
-        props.put("allocator.gc.cleanup-period", "100m");
-        props.put("allocator.gc.lease-duration", "1000m");
-        props.put("allocator.gc.graceful-shutdown-duration", "0s");
+    protected Map<String, Object> allocatorConfigOverrides() {
+        return Map.of(
+            "allocator.allocation-timeout", "10m",
+            "allocator.gc.initial-delay", "100m",
+            "allocator.gc.cleanup-period", "100m",
+            "allocator.gc.lease-duration", "1000m",
+            "allocator.gc.graceful-shutdown-duration", "0s"
+        );
     }
 
     // createSession()

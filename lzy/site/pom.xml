@@ -119,6 +119,18 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>test-context</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>scheduler</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.zonky.test</groupId>
             <artifactId>embedded-postgres</artifactId>
             <scope>test</scope>

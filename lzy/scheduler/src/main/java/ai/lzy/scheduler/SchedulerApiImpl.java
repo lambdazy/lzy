@@ -18,7 +18,6 @@ import ai.lzy.v1.scheduler.SchedulerGrpc;
 import com.google.protobuf.InvalidProtocolBufferException;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
-import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -36,7 +35,6 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
     private final SchedulerDataSource storage;
     private final Allocate allocateJob;
 
-    @Inject
     public SchedulerApiImpl(TaskDao dao, JobsOperationDao opDao, SchedulerDataSource storage, Allocate allocateJob) {
         this.dao = dao;
         this.opDao = opDao;
@@ -146,8 +144,8 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         }
 
         responseObserver.onNext(TaskScheduleResponse.newBuilder()
-                .setStatus(buildTaskStatus(taskDesc, op))
-                .build());
+            .setStatus(buildTaskStatus(taskDesc, op))
+            .build());
         responseObserver.onCompleted();
     }
 
@@ -165,8 +163,8 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
         }
 
         responseObserver.onNext(TaskStatusResponse.newBuilder()
-                .setStatus(buildTaskStatus(desc, op))
-                .buildPartial());
+            .setStatus(buildTaskStatus(desc, op))
+            .buildPartial());
         responseObserver.onCompleted();
     }
 
@@ -184,7 +182,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
 
         final ArrayList<TaskStatus> statuses = new ArrayList<>();
 
-        for (var task: tasks) {
+        for (var task : tasks) {
             final Operation op;
             try {
                 op = DbHelper.withRetries(LOG, () -> opDao.get(task.operationId(), null));
@@ -246,7 +244,7 @@ public class SchedulerApiImpl extends SchedulerGrpc.SchedulerImplBase {
             throw Status.INTERNAL.asRuntimeException();
         }
 
-        for (var task: descList) {
+        for (var task : descList) {
             try {
                 opDao.failOperation(task.operationId(), com.google.rpc.Status.newBuilder()
                     .setCode(Status.Code.INTERNAL.value())

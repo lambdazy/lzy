@@ -10,11 +10,7 @@ import io.fabric8.kubernetes.client.utils.Serialization;
 import io.fabric8.mockwebserver.utils.ResponseProvider;
 import okhttp3.Headers;
 import okhttp3.mockwebserver.RecordedRequest;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.*;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -27,26 +23,25 @@ import static ai.lzy.allocator.test.Utils.waitOperation;
 import static java.util.Objects.requireNonNull;
 
 public class RestartAllocatorTest extends AllocatorApiTestBase {
-
     private static final String ZONE = "test-zone";
 
     @Before
     public void before() throws IOException {
-        super.setUp();
         InjectedFailures.reset();
     }
 
     @After
     public void after() {
-        super.tearDown();
         InjectedFailures.reset();
     }
 
     @Override
-    protected void updateStartupProperties(Map<String, Object> props) {
-        props.put("allocator.allocation-timeout", "10m");
-        props.put("allocator.gc.cleanup-period", "100m");
-        props.put("allocator.gc.lease-duration", "1000m");
+    protected Map<String, Object> allocatorConfigOverrides() {
+        return Map.of(
+            "allocator.allocation-timeout", "10m",
+            "allocator.gc.cleanup-period", "100m",
+            "allocator.gc.lease-duration", "1000m"
+        );
     }
 
     @Test
@@ -163,7 +158,7 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
 
         failKuberAlloc.set(false);
 
-        allocatorCtx.getBean(RestoreOperations.class); //calls restore after construction
+        allocatorContext.getBean(RestoreOperations.class); //calls restore after construction
 
         final String podName = createdPod.get();
         mockGetPodByName(podName);
@@ -176,6 +171,6 @@ public class RestartAllocatorTest extends AllocatorApiTestBase {
     }
 
     private static Runnable failure(String message) {
-        return () -> { throw new TerminateException(message); };
+        return () -> {throw new TerminateException(message);};
     }
 }

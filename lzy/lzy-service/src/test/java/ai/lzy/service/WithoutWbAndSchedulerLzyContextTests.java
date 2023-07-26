@@ -32,8 +32,6 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.util.grpc.GrpcUtils.*;
@@ -90,7 +88,7 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
 
         var configs = LzyConfig.Configs.builder()
             .setIamConfig("../iam/src/main/resources/application-test.yml")
-            .setAllocatorConfig("../allocator/src/main/resources/application-test.yml")
+            .setAllocatorConfig("../allocator/src/main/resources/application-local-test.yml")
             .setChannelManagerConfig("../channel-manager/src/main/resources/application-test.yml")
             .setGraphExecutorConfig("../graph-executor/src/main/resources/application-test.yml")
             .setStorageConfig("../storage/src/main/resources/application-test.yml")
@@ -117,21 +115,15 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             .setLzyServiceDbUrl(prepareDbUrl(lzyServiceDb.getConnectionInfo()))
             .build();
 
-        var contextEnvs = List.of(
+        var contextEnvs = new String[] {
             IamContextImpl.ENV_NAME,
             AllocatorContextImpl.ENV_NAME,
             ChannelManagerContextImpl.ENV_NAME,
             GraphExecutorContextImpl.ENV_NAME,
             StorageContextImpl.ENV_NAME,
-            LzyServiceContextImpl.ENV_NAME);
-        lzy.setUp(new ArrayList<>() {
-            {
-                addAll(configs.asCmdArgs());
-                addAll(environments.asCmdArgs());
-                addAll(ports.asCmdArgs());
-                addAll(database.asCmdArg());
-            }
-        }, contextEnvs);
+            LzyServiceContextImpl.ENV_NAME
+        };
+        lzy.setUp(configs, environments, ports, database, contextEnvs);
 
         var internalUserCredentials = lzy.micronautContext().getBean(IamContextImpl.class).clientConfig()
             .createRenewableToken();

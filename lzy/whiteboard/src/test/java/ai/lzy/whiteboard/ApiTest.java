@@ -7,37 +7,27 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.DataScheme;
-import ai.lzy.model.db.test.DatabaseTestUtils;
-import ai.lzy.test.IdempotencyUtils.TestScenario;
+import ai.lzy.test.IdempotencyUtils;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.RsaUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.whiteboard.LWB;
 import ai.lzy.v1.whiteboard.LWBS;
-import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc;
 import ai.lzy.v1.whiteboard.LzyWhiteboardServiceGrpc.LzyWhiteboardServiceBlockingStub;
 import ai.lzy.whiteboard.grpc.ProtoConverter;
-import ai.lzy.whiteboard.grpc.WhiteboardService;
 import ai.lzy.whiteboard.model.Whiteboard;
-import ai.lzy.whiteboard.storage.WhiteboardDataSource;
-import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
-import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.micronaut.context.ApplicationContext;
-import io.micronaut.inject.qualifiers.Qualifiers;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.*;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.net.URI;
@@ -45,101 +35,50 @@ import java.security.NoSuchAlgorithmException;
 import java.security.spec.InvalidKeySpecException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.TimeUnit;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static ai.lzy.model.grpc.ProtoConverter.toProto;
 import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsConcurrently;
 import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsSequentially;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-@SuppressWarnings("ResultOfMethodCallIgnored")
-public class ApiTest extends BaseTestWithIam {
-
-    @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
-    @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
-
-    private ApplicationContext context;
+public class ApiTest extends IamOnlyWhiteboardContextTests {
     private LzyWhiteboardServiceBlockingStub externalUserWhiteboardClient;
     private LzyWhiteboardServiceBlockingStub externalUser2WhiteboardClient;
-    private LzyWhiteboardServiceBlockingStub whiteboardClient;
-    private Server whiteboardServer;
-    private ManagedChannel channel;
+    private LzyWhiteboardServiceBlockingStub internalWhiteboardClient;
 
     @Before
-    public void setUp() throws Exception {
-        super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
+    public void before() throws Exception {
+        internalWhiteboardClient = whiteboardClient.withInterceptors(ClientHeaderInterceptor.header(
+            GrpcHeaders.AUTHORIZATION, () -> internalUserCredentials.get().token()));
 
-        context = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("whiteboard", db.getConnectionInfo()));
-        var config = context.getBean(AppConfig.class);
-        config.getIam().setAddress("localhost:" + super.getPort());
-        var address = HostAndPort.fromString(config.getAddress());
-
-        var iamChannel = context.getBean(ManagedChannel.class, Qualifiers.byName("WhiteboardIamGrpcChannel"));
-
-        whiteboardServer = WhiteboardApp.createServer(address, iamChannel, context.getBean(WhiteboardService.class));
-        whiteboardServer.start();
-
-        channel = ChannelBuilder
-            .forAddress(address)
-            .usePlaintext()
-            .build();
-        var credentials = config.getIam().createRenewableToken();
-        whiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
-
-        User externalUser;
-        User externalUser2;
-        try (final var iamClient = new IamClient(config.getIam())) {
+        ApiTest.User externalUser;
+        ApiTest.User externalUser2;
+        try (final var iamClient = new ApiTest.IamClient(iamClientConfig)) {
             externalUser = iamClient.createUser("wbUser");
             externalUser2 = iamClient.createUser("wbOtherUser");
         }
-        externalUserWhiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, externalUser.credentials::token));
+        externalUserWhiteboardClient = whiteboardClient.withInterceptors(ClientHeaderInterceptor.header(
+            GrpcHeaders.AUTHORIZATION, externalUser.credentials::token));
 
-        externalUser2WhiteboardClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel).withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, externalUser2.credentials::token));
-
-    }
-
-    @After
-    public void after() {
-        whiteboardServer.shutdown();
-        try {
-            whiteboardServer.awaitTermination();
-        } catch (InterruptedException ignored) {
-            // ignored
-        }
-
-        channel.shutdown();
-        try {
-            channel.awaitTermination(60, TimeUnit.SECONDS);
-        } catch (InterruptedException ignored) {
-            //ignored
-        }
-
-        context.getBean(WhiteboardDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
-        context.stop();
-        super.after();
+        externalUser2WhiteboardClient = whiteboardClient.withInterceptors(ClientHeaderInterceptor.header(
+            GrpcHeaders.AUTHORIZATION, externalUser2.credentials::token));
     }
 
     @Test
     public void testUnauthenticated() {
-        final var unauthorizedClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel);
-        apiAccessTest(unauthorizedClient, Status.UNAUTHENTICATED);
+        apiAccessTest(whiteboardClient, Status.UNAUTHENTICATED);
     }
 
     @Test
     public void testPermissionDenied() {
-        final var invalidCredsClient = LzyWhiteboardServiceGrpc.newBlockingStub(channel)
-            .withInterceptors(ClientHeaderInterceptor.header(
-                GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token
-            ));
+        final var invalidCredsClient = whiteboardClient.withInterceptors(ClientHeaderInterceptor.header(
+            GrpcHeaders.AUTHORIZATION, JwtUtils.invalidCredentials("user", "GITHUB")::token));
         apiAccessTest(invalidCredsClient, Status.PERMISSION_DENIED);
     }
 
@@ -157,7 +96,7 @@ public class ApiTest extends BaseTestWithIam {
         externalUserWhiteboardClient.registerWhiteboard(request);
 
         final var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(request.getWhiteboard().getId()).build();
-        final var getResponse = whiteboardClient.get(getRequest);
+        final var getResponse = internalWhiteboardClient.get(getRequest);
         assertEquals(request.getWhiteboard(), getResponse.getWhiteboard());
 
         final var getUserResponse = externalUserWhiteboardClient.get(getRequest);
@@ -174,14 +113,14 @@ public class ApiTest extends BaseTestWithIam {
     @Test
     public void registerInvalidArgs() {
         StatusRuntimeException sre = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
                     LWB.Whiteboard.newBuilder()
                         .build())
                 .build()));
         assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
                     LWB.Whiteboard.newBuilder()
                         .setId(UUID.randomUUID().toString())
                         .build())
@@ -189,7 +128,7 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
                     LWB.Whiteboard.newBuilder()
                         .setId(UUID.randomUUID().toString())
                         .setName("name")
@@ -198,7 +137,7 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
                     LWB.Whiteboard.newBuilder()
                         .setId(UUID.randomUUID().toString())
                         .setName("name")
@@ -212,7 +151,7 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
                     LWB.Whiteboard.newBuilder()
                         .setId(UUID.randomUUID().toString())
                         .setName("name")
@@ -227,7 +166,7 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
                     LWB.Whiteboard.newBuilder()
                         .setId(UUID.randomUUID().toString())
                         .setName("name")
@@ -243,7 +182,7 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
                     LWB.Whiteboard.newBuilder()
                         .setId(UUID.randomUUID().toString())
                         .setName("name")
@@ -259,7 +198,7 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
                     LWB.Whiteboard.newBuilder()
                         .setId(UUID.randomUUID().toString())
                         .setName("name")
@@ -276,7 +215,7 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
                     LWB.Whiteboard.newBuilder()
                         .setId(UUID.randomUUID().toString())
                         .setName("name")
@@ -293,7 +232,7 @@ public class ApiTest extends BaseTestWithIam {
         assertEquals(sre.getStatus().getCode(), Status.Code.INVALID_ARGUMENT);
 
         sre = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.registerWhiteboard(LWBS.RegisterWhiteboardRequest.newBuilder().setWhiteboard(
                     LWB.Whiteboard.newBuilder()
                         .setId(UUID.randomUUID().toString())
                         .setName("name")
@@ -315,11 +254,11 @@ public class ApiTest extends BaseTestWithIam {
         final String id = UUID.randomUUID().toString();
         final Instant createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         final LWBS.RegisterWhiteboardRequest whiteboardRequest = genCreateWhiteboardRequest(id, createdAt);
-        whiteboardClient.registerWhiteboard(whiteboardRequest);
+        internalWhiteboardClient.registerWhiteboard(whiteboardRequest);
 
         var getRequest =
             LWBS.GetRequest.newBuilder().setWhiteboardId(whiteboardRequest.getWhiteboard().getId()).build();
-        var whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
+        var whiteboard = internalWhiteboardClient.get(getRequest).getWhiteboard();
         assertEquals(LWB.Whiteboard.Status.CREATED, whiteboard.getStatus());
         assertEquals("wb-name", whiteboard.getName());
         HashSet<String> tags = new HashSet<>(whiteboard.getTagsList());
@@ -342,7 +281,7 @@ public class ApiTest extends BaseTestWithIam {
         assertTrue(fields.containsKey("f4"));
 
         final Instant newCreatedAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-        whiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder()
+        internalWhiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder()
             .setWhiteboard(LWB.Whiteboard.newBuilder()
                 .setId(id)
                 .setName("new_name")
@@ -362,7 +301,7 @@ public class ApiTest extends BaseTestWithIam {
             .build());
 
         getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(whiteboardRequest.getWhiteboard().getId()).build();
-        whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
+        whiteboard = internalWhiteboardClient.get(getRequest).getWhiteboard();
         assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
         assertEquals("new_name", whiteboard.getName());
         tags = new HashSet<>(whiteboard.getTagsList());
@@ -385,7 +324,7 @@ public class ApiTest extends BaseTestWithIam {
     @Test
     public void updateNonexistentWhiteboard() {
         final StatusRuntimeException statusRuntimeException = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder().setWhiteboard(
                 LWB.Whiteboard.newBuilder().setId(UUID.randomUUID().toString()).build()).build()));
         assertTrue(statusRuntimeException.getMessage().startsWith("NOT_FOUND"));
     }
@@ -393,7 +332,7 @@ public class ApiTest extends BaseTestWithIam {
     @Test
     public void updateNoWhiteboardId() {
         final StatusRuntimeException statusRuntimeException = Assert.assertThrows(StatusRuntimeException.class,
-            () -> whiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder().setWhiteboard(
+            () -> internalWhiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder().setWhiteboard(
                 LWB.Whiteboard.newBuilder().build()).build()));
         assertTrue(statusRuntimeException.getMessage().startsWith("INVALID_ARGUMENT: whiteboard ID is empty"));
     }
@@ -403,11 +342,11 @@ public class ApiTest extends BaseTestWithIam {
         final String id = UUID.randomUUID().toString();
         final Instant createdAt = Instant.now().truncatedTo(ChronoUnit.MILLIS);
         final LWBS.RegisterWhiteboardRequest whiteboardRequest = genCreateWhiteboardRequest(id, createdAt);
-        whiteboardClient.registerWhiteboard(whiteboardRequest);
+        internalWhiteboardClient.registerWhiteboard(whiteboardRequest);
 
         var getRequest =
             LWBS.GetRequest.newBuilder().setWhiteboardId(whiteboardRequest.getWhiteboard().getId()).build();
-        var whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
+        var whiteboard = internalWhiteboardClient.get(getRequest).getWhiteboard();
         assertEquals(LWB.Whiteboard.Status.CREATED, whiteboard.getStatus());
         assertEquals("wb-name", whiteboard.getName());
         HashSet<String> tags = new HashSet<>(whiteboard.getTagsList());
@@ -429,7 +368,7 @@ public class ApiTest extends BaseTestWithIam {
         assertTrue(fields.containsKey("f3"));
         assertTrue(fields.containsKey("f4"));
 
-        whiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder()
+        internalWhiteboardClient.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder()
             .setWhiteboard(LWB.Whiteboard.newBuilder()
                 .setId(id)
                 .setStatus(LWB.Whiteboard.Status.FINALIZED)
@@ -437,7 +376,7 @@ public class ApiTest extends BaseTestWithIam {
             .build());
 
         getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(whiteboardRequest.getWhiteboard().getId()).build();
-        whiteboard = whiteboardClient.get(getRequest).getWhiteboard();
+        whiteboard = internalWhiteboardClient.get(getRequest).getWhiteboard();
         assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus());
         assertEquals("wb-name", whiteboard.getName());
         tags = new HashSet<>(whiteboard.getTagsList());
@@ -515,10 +454,10 @@ public class ApiTest extends BaseTestWithIam {
         processIdempotentCallsConcurrently(updateWbScenario());
     }
 
-    private TestScenario<LzyWhiteboardServiceBlockingStub, Void, LWB.Whiteboard> createWbScenario() {
+    private IdempotencyUtils.TestScenario<LzyWhiteboardServiceBlockingStub, Void, LWB.Whiteboard> createWbScenario() {
         final String id = UUID.randomUUID().toString();
         final Instant ts = Instant.now().truncatedTo(ChronoUnit.MILLIS);
-        return new TestScenario<>(whiteboardClient,
+        return new IdempotencyUtils.TestScenario<>(internalWhiteboardClient,
             stub -> null,
             (stub, nothing) -> registerWhiteboard(stub, id, ts),
             wb -> {
@@ -536,9 +475,9 @@ public class ApiTest extends BaseTestWithIam {
             });
     }
 
-    private TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> updateWbScenario() {
+    private IdempotencyUtils.TestScenario<LzyWhiteboardServiceBlockingStub, LWB.Whiteboard, LWB.Whiteboard> updateWbScenario() {
         final String id = UUID.randomUUID().toString();
-        return new TestScenario<>(whiteboardClient,
+        return new IdempotencyUtils.TestScenario<>(internalWhiteboardClient,
             (client) -> registerWhiteboard(client, id, Instant.now().truncatedTo(ChronoUnit.MILLIS)),
             (stub, input) -> {
                 stub.updateWhiteboard(LWBS.UpdateWhiteboardRequest.newBuilder()
@@ -548,14 +487,12 @@ public class ApiTest extends BaseTestWithIam {
                         .build())
                     .build());
                 var getRequest = LWBS.GetRequest.newBuilder().setWhiteboardId(input.getId()).build();
-                return whiteboardClient.get(getRequest).getWhiteboard();
+                return internalWhiteboardClient.get(getRequest).getWhiteboard();
             },
             whiteboard -> assertEquals(LWB.Whiteboard.Status.FINALIZED, whiteboard.getStatus()));
     }
 
-    private void apiAccessTest(LzyWhiteboardServiceBlockingStub client,
-                               Status expectedStatus)
-    {
+    private void apiAccessTest(LzyWhiteboardServiceBlockingStub client, Status expectedStatus) {
         try {
             client.registerWhiteboard(LWBS.RegisterWhiteboardRequest.getDefaultInstance());
             Assert.fail();
@@ -639,8 +576,7 @@ public class ApiTest extends BaseTestWithIam {
             .build();
     }
 
-    private record User(String id, JwtCredentials credentials) {
-    }
+    private record User(String id, JwtCredentials credentials) {}
 
     public static class IamClient implements AutoCloseable {
 
@@ -653,14 +589,14 @@ public class ApiTest extends BaseTestWithIam {
             this.subjectClient = new SubjectServiceGrpcClient("TestClient", channel, iamToken::get);
         }
 
-        public User createUser(String name) throws Exception {
+        public ApiTest.User createUser(String name) throws Exception {
             var login = "github-" + name;
             var creds = generateCredentials(login, "GITHUB");
 
             var subj = subjectClient.createSubject(AuthProvider.GITHUB, login, SubjectType.USER,
                 new SubjectCredentials("main", creds.publicKey(), CredentialsType.PUBLIC_KEY));
 
-            return new User(subj.id(), creds.credentials());
+            return new ApiTest.User(subj.id(), creds.credentials());
         }
 
         @Override
@@ -669,14 +605,9 @@ public class ApiTest extends BaseTestWithIam {
         }
     }
 
-    public record GeneratedCredentials(
-        String publicKey,
-        JwtCredentials credentials
-    )
-    {
-    }
+    public record GeneratedCredentials(String publicKey, JwtCredentials credentials) {}
 
-    public static GeneratedCredentials generateCredentials(String login, String provider)
+    public static ApiTest.GeneratedCredentials generateCredentials(String login, String provider)
         throws IOException, InterruptedException, NoSuchAlgorithmException, InvalidKeySpecException
     {
         final var keys = RsaUtils.generateRsaKeys();
@@ -687,6 +618,6 @@ public class ApiTest extends BaseTestWithIam {
 
         final var publicKey = keys.publicKey();
 
-        return new GeneratedCredentials(publicKey, credentials);
+        return new ApiTest.GeneratedCredentials(publicKey, credentials);
     }
 }

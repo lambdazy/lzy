@@ -1,47 +1,32 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.AllocatorMain;
-import ai.lzy.allocator.alloc.AllocatorMetrics;
-import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.alloc.impl.kuber.KuberTunnelAllocator;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
-import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.gc.GarbageCollector;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.storage.AllocatorDataSource;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
-import ai.lzy.common.IdGenerator;
-import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.longrunning.OperationsExecutor;
-import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.OttHelper;
-import ai.lzy.v1.*;
+import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.v1.VmAllocatorPrivateApi;
 import ai.lzy.v1.longrunning.LongRunning;
-import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Duration;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.fabric8.kubernetes.client.utils.Serialization;
-import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.micronaut.context.ApplicationContext;
-import io.micronaut.inject.qualifiers.Qualifiers;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import okhttp3.mockwebserver.MockWebServer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.Rule;
+import org.junit.Before;
 
 import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.sql.SQLException;
@@ -56,11 +41,10 @@ import java.util.function.Consumer;
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
 
-public class AllocatorApiTestBase extends BaseTestWithIam {
-
+public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests {
     private static final Logger LOG = LogManager.getLogger(AllocatorApiTestBase.class);
 
     protected static final long TIMEOUT_SEC = 10;
@@ -72,32 +56,10 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         .formatted(NAMESPACE_VALUE);
     protected static final ClusterRegistry.ClusterType CLUSTER_TYPE = ClusterRegistry.ClusterType.User;
 
-    @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-
-    protected ApplicationContext allocatorCtx;
-    protected AllocatorGrpc.AllocatorBlockingStub unauthorizedAllocatorBlockingStub;
-    protected AllocatorGrpc.AllocatorBlockingStub authorizedAllocatorBlockingStub;
-    protected AllocatorPrivateGrpc.AllocatorPrivateBlockingStub privateAllocatorBlockingStub;
-    protected LongRunningServiceGrpc.LongRunningServiceBlockingStub operationServiceApiBlockingStub;
-    protected DiskServiceGrpc.DiskServiceBlockingStub diskService;
-    protected AllocatorMain allocatorApp;
     protected KubernetesMockServer kubernetesServer;
-    protected ManagedChannel channel;
-    protected ClusterRegistry clusterRegistry;
-    protected OperationsExecutor operationsExecutor;
-    protected AllocatorMetrics metrics;
-    protected GarbageCollector gc;
-    protected VmDao vmDao;
-    protected IdGenerator idGenerator;
 
-    protected void updateStartupProperties(Map<String, Object> props) {}
-
-    protected void setUp() throws IOException {
-        super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
-
+    @Before
+    public final void setUpKuberServer() {
         kubernetesServer = new KubernetesMockServer(new MockWebServer(), new ConcurrentHashMap<>(), false);
         kubernetesServer.init(InetAddress.getLoopbackAddress(), 0);
 
@@ -117,72 +79,20 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             .andReturn(HttpURLConnection.HTTP_OK, node)
             .always();
 
-        var props = DatabaseTestUtils.preparePostgresConfig("allocator", db.getConnectionInfo());
-        // props.putAll(DatabaseTestUtils.prepareLocalhostConfig("allocator"));
-
-        updateStartupProperties(props);
-
-        allocatorCtx = ApplicationContext.run(props);
-        ((MockKuberClientFactory) allocatorCtx.getBean(KuberClientFactory.class)).setClientSupplier(
-            () -> kubernetesServer.createClient()
-        );
-
-        var config = allocatorCtx.getBean(ServiceConfig.class);
-        config.getIam().setAddress("localhost:" + super.getPort());
-
-        allocatorApp = allocatorCtx.getBean(AllocatorMain.class);
-        allocatorApp.start();
-
-        channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME, AllocatorPrivateGrpc.SERVICE_NAME,
-            LongRunningServiceGrpc.SERVICE_NAME, DiskServiceGrpc.SERVICE_NAME);
-
-        var credentials = config.getIam().createRenewableToken();
-        unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
-        privateAllocatorBlockingStub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "Test", null);
-        operationServiceApiBlockingStub = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test",
-            () -> credentials.get().token());
-        authorizedAllocatorBlockingStub = newBlockingClient(unauthorizedAllocatorBlockingStub, "Test",
-            () -> credentials.get().token());
-        diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test",
-            () -> credentials.get().token());
-
-        clusterRegistry = allocatorCtx.getBean(ClusterRegistry.class);
-        operationsExecutor = allocatorCtx.getBean(OperationsExecutor.class,
-            Qualifiers.byName("AllocatorOperationsExecutor"));
-
-        metrics = allocatorCtx.getBean(AllocatorMetrics.class);
-        gc = allocatorCtx.getBean(GarbageCollector.class);
-        vmDao = allocatorCtx.getBean(VmDao.class);
-        idGenerator = allocatorCtx.getBean(IdGenerator.class, Qualifiers.byName("AllocatorIdGenerator"));
+        ((MockKuberClientFactory) allocatorContext.getBean(KuberClientFactory.class)).setClientSupplier(
+            () -> kubernetesServer.createClient());
     }
 
-    protected void tearDown() {
-        allocatorApp.stop(true);
-        try {
-            allocatorApp.awaitTermination();
-        } catch (InterruptedException ignored) {
-            // ignored
-        }
-
-        channel.shutdown();
-        try {
-            channel.awaitTermination(60, TimeUnit.SECONDS);
-        } catch (InterruptedException ignored) {
-            //ignored
-        }
-
-        allocatorCtx.getBean(AllocatorDataSource.class).setOnClose(DatabaseTestUtils::cleanup);
-
-        allocatorCtx.stop();
+    @After
+    public final void tearDownKuberServer() {
         kubernetesServer.destroy();
-        super.after();
     }
 
-    protected String createSession(Duration idleTimeout) {
+    protected String createSession(com.google.protobuf.Duration idleTimeout) {
         return createSession(idGenerator.generate("sid-"), idleTimeout);
     }
 
-    protected String createSession(String owner, Duration idleTimeout) {
+    protected String createSession(String owner, com.google.protobuf.Duration idleTimeout) {
         var op = createSessionOp(owner, idleTimeout, null);
         return Utils.extractSessionId(op);
     }
@@ -230,12 +140,12 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return updatedOperation;
     }
 
-    protected void waitOpError(LongRunning.Operation operation, Status expectedErrorStatus) {
+    protected void waitOpError(LongRunning.Operation operation, io.grpc.Status expectedErrorStatus) {
         var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
         Assert.assertFalse(updatedOperation.hasResponse());
         Assert.assertTrue(updatedOperation.hasError());
         Assert.assertEquals(expectedErrorStatus.getCode(),
-            Status.fromCodeValue(updatedOperation.getError().getCode()).getCode());
+            io.grpc.Status.fromCodeValue(updatedOperation.getError().getCode()).getCode());
     }
 
     protected void mockGetPodByName(String podName) {
@@ -347,9 +257,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         return mockCreatePod(null);
     }
 
-    protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete,
-                                                   int responseCode)
-    {
+    protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete, int responseCode) {
         kubernetesServer.expect().delete()
             .withPath(resourcePath + "/" + resourceName)
             .andReply(responseCode, (req) -> {
@@ -358,7 +266,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             }).once();
     }
 
-    protected void mockDeletePodByName(String podName,  int responseCode) {
+    protected void mockDeletePodByName(String podName, int responseCode) {
         mockDeletePodByName(podName, () -> {}, responseCode);
     }
 
@@ -373,11 +281,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
             }).once();
     }
 
-    protected record AllocatedVm(
-        String vmId,
-        String podName,
-        String allocationOpId
-    ) {}
+    protected record AllocatedVm(String vmId, String podName, String allocationOpId) {}
 
     protected AllocatedVm allocateVm(String sessionId, @Nullable String idempotencyKey) throws Exception {
         return allocateVm(sessionId, "S", idempotencyKey);
@@ -418,7 +322,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         allocOp = waitOpSuccess(allocOp);
         Assert.assertEquals(vmId, allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId());
 
-        return new AllocatedVm(vmId, podName, allocOp.getId());
+        return new AllocatorApiTestBase.AllocatedVm(vmId, podName, allocOp.getId());
     }
 
     protected void freeVm(String vmId) {
@@ -451,5 +355,10 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     @Nonnull
     public static String getName(HasMetadata resource) {
         return resource.getMetadata().getName();
+    }
+
+    @Override
+    protected Map<String, Object> allocatorConfigOverrides() {
+        return Map.of();
     }
 }
