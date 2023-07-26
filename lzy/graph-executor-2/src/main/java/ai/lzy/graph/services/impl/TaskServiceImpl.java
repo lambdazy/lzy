@@ -147,7 +147,8 @@ public class TaskServiceImpl implements TaskService {
                     .filter(task -> !task.tasksDependedOn().isEmpty())
                     .forEach(task -> waitingTasks.put(task.id(), task));
 
-                var statuses = Set.of(TaskState.Status.WAITING_ALLOCATION, TaskState.Status.ALLOCATING, TaskState.Status.EXECUTING);
+                var statuses = Set.of(TaskState.Status.WAITING_ALLOCATION,
+                    TaskState.Status.ALLOCATING, TaskState.Status.EXECUTING);
                 List<TaskState> executingTasks = taskList.stream()
                     .filter(task -> statuses.contains(task.status()))
                     .toList();
