@@ -733,7 +733,8 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .addVolumes(VolumeApi.Volume.newBuilder()
                     .setName(volumeName)
                     .setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
-                        .setDiskId(disk.getDiskId()).build())
+                        .setDiskId(disk.getDiskId())
+                        .setSizeGb(disk.getSpec().getSizeGb()).build())
                     .build())
                 .build());
         var allocateMetadata = allocationStarted.getMetadata().unpack(AllocateMetadata.class);
@@ -770,43 +771,6 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         //noinspection ResultOfMethodCallIgnored
         diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder().setDiskId(disk.getDiskId()).build());
-    }
-
-    @Test
-    public void runWithVolumeButNonExistingDisk() {
-        var sessionId = createSession(Durations.ZERO);
-
-        final String volumeName = "volumeName";
-        final String mountPath = "/mnt/volume";
-        final VolumeApi.Mount volumeMount = VolumeApi.Mount.newBuilder()
-            .setVolumeName(volumeName)
-            .setMountPath(mountPath)
-            .setReadOnly(false)
-            .setMountPropagation(VolumeApi.Mount.MountPropagation.NONE)
-            .build();
-
-        try {
-            Operation allocationStarted = authorizedAllocatorBlockingStub.allocate(
-                AllocateRequest.newBuilder()
-                    .setSessionId(sessionId)
-                    .setPoolLabel("S")
-                    .setZone(ZONE)
-                    .setClusterType(AllocateRequest.ClusterType.USER)
-                    .addWorkload(AllocateRequest.Workload.newBuilder()
-                        .setName("workload")
-                        .addVolumeMounts(volumeMount)
-                        .build())
-                    .addVolumes(VolumeApi.Volume.newBuilder()
-                        .setName(volumeName)
-                        .setDiskVolume(VolumeApi.DiskVolumeType.newBuilder()
-                            .setDiskId("unknown-disk-id").build())
-                        .build())
-                    .build());
-            waitOpError(allocationStarted, Status.NOT_FOUND);
-            Assert.fail();
-        } catch (StatusRuntimeException e) {
-            Assert.assertEquals(Status.NOT_FOUND.getCode(), e.getStatus().getCode());
-        }
     }
 
     @Test

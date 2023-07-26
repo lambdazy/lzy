@@ -45,7 +45,8 @@ public class AllocatorContext {
             "allocator.kuber-allocator.enabled", "false",
             "allocator.thread-allocator.enabled", "true",
             "allocator.thread-allocator.vm-jar-file", jarPath,
-            "allocator.thread-allocator.vm-class-name", executableClass
+            "allocator.thread-allocator.vm-class-name", executableClass,
+            "allocator.nfs-client-image", "xxx"
         )));
 
         this.context = ApplicationContext.run(opts);

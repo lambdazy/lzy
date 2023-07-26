@@ -252,8 +252,10 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
                 continue;
             }
 
-            if (nodeGroup.getStatus() != NodeGroup.Status.RUNNING) {
-                LOG.warn("Skip node group {} ({}) in state {}",
+            if (nodeGroup.getStatus() != NodeGroup.Status.RUNNING &&
+                nodeGroup.getStatus() != NodeGroup.Status.RECONCILING /* when node is deleting */)
+            {
+                LOG.info("Skip node group {} ({}) in state {}",
                     nodeGroup.getId(), nodeGroup.getName(), nodeGroup.getStatus());
                 continue;
             }
