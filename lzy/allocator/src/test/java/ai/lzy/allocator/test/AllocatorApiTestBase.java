@@ -19,7 +19,12 @@ import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.OttHelper;
-import ai.lzy.v1.*;
+import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.v1.AllocatorGrpc;
+import ai.lzy.v1.AllocatorPrivateGrpc;
+import ai.lzy.v1.DiskServiceGrpc;
+import ai.lzy.v1.VmAllocatorApi;
+import ai.lzy.v1.VmAllocatorPrivateApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -59,9 +64,13 @@ import java.util.function.Consumer;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
-import static ai.lzy.allocator.test.http.RequestMatchers.*;
+import static ai.lzy.allocator.test.http.RequestMatchers.exactPath;
+import static ai.lzy.allocator.test.http.RequestMatchers.method;
+import static ai.lzy.allocator.test.http.RequestMatchers.startsWithPath;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorApiTestBase extends BaseTestWithIam {
@@ -99,6 +108,7 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
     protected ObjectMapper objectMapper;
     protected MockWebServer mockWebServer;
     protected MockHttpDispatcher mockRequestDispatcher;
+    protected RenewableJwt internalUserCreds;
 
     protected void updateStartupProperties(Map<String, Object> props) {}
 
@@ -146,15 +156,15 @@ public class AllocatorApiTestBase extends BaseTestWithIam {
         channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME, AllocatorPrivateGrpc.SERVICE_NAME,
             LongRunningServiceGrpc.SERVICE_NAME, DiskServiceGrpc.SERVICE_NAME);
 
-        var credentials = config.getIam().createRenewableToken();
+        internalUserCreds = config.getIam().createRenewableToken();
         unauthorizedAllocatorBlockingStub = AllocatorGrpc.newBlockingStub(channel);
         privateAllocatorBlockingStub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "Test", null);
         operationServiceApiBlockingStub = newBlockingClient(LongRunningServiceGrpc.newBlockingStub(channel), "Test",
-            () -> credentials.get().token());
+            () -> internalUserCreds.get().token());
         authorizedAllocatorBlockingStub = newBlockingClient(unauthorizedAllocatorBlockingStub, "Test",
-            () -> credentials.get().token());
+            () -> internalUserCreds.get().token());
         diskService = newBlockingClient(DiskServiceGrpc.newBlockingStub(channel), "Test",
-            () -> credentials.get().token());
+            () -> internalUserCreds.get().token());
 
         clusterRegistry = allocatorCtx.getBean(ClusterRegistry.class);
         operationsExecutor = allocatorCtx.getBean(OperationsExecutor.class,

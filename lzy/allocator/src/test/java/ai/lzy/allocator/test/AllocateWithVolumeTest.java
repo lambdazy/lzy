@@ -1,17 +1,5 @@
 package ai.lzy.allocator.test;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Locale;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-
 import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactoryImpl;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
@@ -22,8 +10,12 @@ import ai.lzy.allocator.volume.KuberVolumeManager;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.test.TimeUtils;
-import ai.lzy.v1.*;
+import ai.lzy.v1.AllocatorGrpc;
+import ai.lzy.v1.AllocatorPrivateGrpc;
+import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
+import ai.lzy.v1.VmAllocatorPrivateApi;
+import ai.lzy.v1.VolumeApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.Durations;
@@ -42,6 +34,18 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import yandex.cloud.sdk.Zone;
+
+import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
 @Ignore
 public class AllocateWithVolumeTest extends BaseTestWithIam {

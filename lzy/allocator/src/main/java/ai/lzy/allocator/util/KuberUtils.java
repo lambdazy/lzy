@@ -12,7 +12,15 @@ public final class KuberUtils {
     }
 
     public static boolean isResourceAlreadyExist(Exception e) {
-        return e instanceof KubernetesClientException ex && ex.getCode() == HttpURLConnection.HTTP_CONFLICT;
+        return e instanceof KubernetesClientException ex && isResourceAlreadyExist(ex);
+    }
+
+    public static boolean isResourceAlreadyExist(KubernetesClientException e) {
+        return e.getCode() == HttpURLConnection.HTTP_CONFLICT;
+    }
+
+    public static boolean isResourceNotFound(Exception e) {
+        return e instanceof KubernetesClientException ex && isResourceNotFound(ex);
     }
 
     public static boolean isResourceNotFound(KubernetesClientException ex) {

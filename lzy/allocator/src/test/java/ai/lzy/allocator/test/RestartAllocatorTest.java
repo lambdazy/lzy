@@ -5,7 +5,11 @@ import ai.lzy.allocator.model.debug.InjectedFailures;
 import ai.lzy.allocator.model.debug.InjectedFailures.TerminateException;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.util.Durations;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Map;

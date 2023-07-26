@@ -42,6 +42,7 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
         if (invalidAccess(ProtoConverter.to(request.getResource()), ResourceAccessType.VIEW)) {
             LOG.error("Resource::{} NOT_FOUND", request.getResource());
             responseObserver.onError(Status.NOT_FOUND.asException());
+            return;
         }
         Stream<IAM.AccessBinding> bindings = accessBindingClient.listAccessBindings(
                 ProtoConverter.to(request.getResource())
@@ -58,6 +59,7 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
         if (invalidAccess(ProtoConverter.to(request.getResource()), ResourceAccessType.EDIT)) {
             LOG.error("Resource::{} NOT_FOUND", request.getResource());
             responseObserver.onError(Status.NOT_FOUND.asException());
+            return;
         }
         accessBindingClient.setAccessBindings(ProtoConverter.to(request.getResource()),
                 request.getBindingsList().stream().map(ProtoConverter::to).collect(Collectors.toList()));
@@ -72,6 +74,7 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
         if (invalidAccess(ProtoConverter.to(request.getResource()), ResourceAccessType.EDIT)) {
             LOG.error("Resource::{} NOT_FOUND", request.getResource());
             responseObserver.onError(Status.NOT_FOUND.asException());
+            return;
         }
         accessBindingClient.updateAccessBindings(ProtoConverter.to(request.getResource()),
                 request.getDeltasList().stream().map(ProtoConverter::to).collect(Collectors.toList()));
@@ -80,22 +83,19 @@ public class LzyABSService extends LzyAccessBindingServiceGrpc.LzyAccessBindingS
     }
 
     private boolean invalidAccess(AuthResource resource, ResourceAccessType accessType) {
-        AuthPermission permission;
-        switch (resource.type()) {
-            case Workflow.TYPE:
-                permission = switch (accessType) {
-                    case EDIT -> AuthPermission.WORKFLOW_RUN;
-                    case VIEW -> AuthPermission.WORKFLOW_GET;
-                };
-                break;
-            case Whiteboard.TYPE:
-                permission = switch (accessType) {
-                    case EDIT -> AuthPermission.WHITEBOARD_UPDATE;
-                    case VIEW -> AuthPermission.WHITEBOARD_GET;
-                };
-                break;
-            default:
-                return true;
+        var permission = switch (resource.type()) {
+            case Workflow.TYPE -> switch (accessType) {
+                case EDIT -> AuthPermission.WORKFLOW_RUN;
+                case VIEW -> AuthPermission.WORKFLOW_GET;
+            };
+            case Whiteboard.TYPE -> switch (accessType) {
+                case EDIT -> AuthPermission.WHITEBOARD_UPDATE;
+                case VIEW -> AuthPermission.WHITEBOARD_GET;
+            };
+            default -> null;
+        };
+        if (permission == null) {
+            return false;
         }
         return !accessClient.hasResourcePermission(
                 Objects.requireNonNull(AuthenticationContext.current()).getSubject(),

@@ -34,11 +34,13 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
             "S", new ClusterDescription(
                 idGenerator.generate("S-"),
                 "localhost:1256",
-                "", ClusterType.User),
+                "", ClusterType.User,
+                Map.of("s", PoolType.Cpu)),
             "M", new ClusterDescription(
                 idGenerator.generate("M-"),
                 "localhost:1256",
-                "", ClusterType.User)
+                "", ClusterType.User,
+                Map.of("m", PoolType.Cpu))
         );
 
         idsToClusters = labelsToClusters.entrySet().stream()
@@ -57,19 +59,26 @@ public class MockMk8s implements VmPoolRegistry, ClusterRegistry {
     }
 
     @Override
+    public List<ClusterDescription> listClusters(@Nullable ClusterType clusterType) {
+        if (clusterType == null) {
+            return idsToClusters.values().stream()
+                .map(x -> new ClusterDescription(x.clusterId(), x.masterAddress(), x.masterCert(), x.type(), x.pools()))
+                .toList();
+        }
+
+        return idsToClusters.values().stream()
+            .filter(x -> x.type() == clusterType)
+            .toList();
+    }
+
+    @Override
     public String getClusterPodsCidr(String clusterId) {
         return "10.20.0.0/16";
     }
 
     @Override
-    public List<ClusterDescription> listClusters(ClusterType clusterType) {
-        return idsToClusters.values().stream().filter(clusterDescription -> clusterDescription.type() == clusterType)
-            .toList();
-    }
-
-    @Override
     public Map<String, VmPoolSpec> getSystemVmPools() {
-        return null;
+        return Map.of();
     }
 
     @Override

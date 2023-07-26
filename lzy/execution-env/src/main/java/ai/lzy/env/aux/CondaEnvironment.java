@@ -1,7 +1,7 @@
 package ai.lzy.env.aux;
 
-import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.EnvironmentInstallationException;
+import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogHandle;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
