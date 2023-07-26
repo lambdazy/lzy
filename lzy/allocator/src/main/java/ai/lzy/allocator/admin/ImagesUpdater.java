@@ -1,5 +1,6 @@
 package ai.lzy.allocator.admin;
 
+import ai.lzy.allocator.admin.dao.AdminDao;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.ActiveImages;
@@ -13,6 +14,7 @@ import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.micronaut.context.annotation.Requires;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -26,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 @Singleton
+@Requires(property = "allocator.internal-image-updater.enabled", value = "true")
 public class ImagesUpdater {
     private static final Logger LOG = LogManager.getLogger(ImagesUpdater.class);
 
@@ -38,7 +41,7 @@ public class ImagesUpdater {
     private final Template daemonSetTemplate;
 
     public ImagesUpdater(ServiceConfig serviceConfig, KuberClientFactory kuberClientFactory,
-                         ClusterRegistry clusterRegistry) throws IOException
+                         ClusterRegistry clusterRegistry, AdminDao adminDao) throws Exception
     {
         this.address = serviceConfig.getAddress();
         this.kuberClientFactory = kuberClientFactory;
@@ -46,9 +49,14 @@ public class ImagesUpdater {
 
         var ftlConfig = new Configuration(Configuration.VERSION_2_3_22);
         ftlConfig.setClassLoaderForTemplateLoading(getClass().getClassLoader(), "/");
-        daemonSetTemplate = ftlConfig.getTemplate(DAEMONSET_TEMPLATE);
+        this.daemonSetTemplate = ftlConfig.getTemplate(DAEMONSET_TEMPLATE);
 
-        logFictiveDaemonSets(kuberClientFactory, clusterRegistry);
+        var hasDaemonSets = printFictiveDaemonSets(kuberClientFactory, clusterRegistry);
+        var hasDbConfig = !adminDao.getImages().isEmpty();
+
+        if (hasDaemonSets && !hasDbConfig) {
+            throw new RuntimeException("Invalid configuration: has active daemonsets but no configuration in DB");
+        }
     }
 
     public void update(ActiveImages.Configuration conf) throws UpdateDaemonSetsException {
@@ -128,7 +136,7 @@ public class ImagesUpdater {
             kuberClient.apps().daemonSets()
                 .inNamespace(FICTIVE_NS)
                 .resource(spec)
-                .create();
+                .createOrReplace();
             LOG.info("Daemonset {} successfully created", args);
         } catch (KubernetesClientException e) {
             LOG.error("Cannot create daemonset with args {}: {}", args, e.getMessage());
@@ -175,7 +183,10 @@ public class ImagesUpdater {
         }
     }
 
-    private static void logFictiveDaemonSets(KuberClientFactory kuberClientFactory, ClusterRegistry clusterRegistry) {
+    private static boolean printFictiveDaemonSets(KuberClientFactory kuberClientFactory,
+                                                  ClusterRegistry clusterRegistry)
+    {
+        boolean hasDaemonSets = false;
         for (var cluster : clusterRegistry.listClusters(ClusterRegistry.ClusterType.User)) {
             try (var client = kuberClientFactory.build(cluster)) {
                 try {
@@ -208,12 +219,15 @@ public class ImagesUpdater {
                         }
 
                         LOG.info(sb);
+                        hasDaemonSets = true;
                     }
                 } catch (KubernetesClientException e) {
                     LOG.error("Cannot list daemonsets in the {} namespace: {}", FICTIVE_NS, e.getMessage());
+                    throw new RuntimeException(e);
                 }
             }
         }
+        return hasDaemonSets;
     }
 
     public static final class UpdateDaemonSetsException extends Exception {

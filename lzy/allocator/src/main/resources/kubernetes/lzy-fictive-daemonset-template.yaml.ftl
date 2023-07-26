@@ -61,6 +61,12 @@ spec:
               mountPath: /host_shared/docker
               mountPropagation: Bidirectional
 
+      volumes:
+        - name: host-shared-docker-data-root
+          hostPath:
+            type: DirectoryOrCreate
+            path: /host_shared/docker
+
       hostNetwork: true
 
       dnsPolicy: ClusterFirstWithHostNet

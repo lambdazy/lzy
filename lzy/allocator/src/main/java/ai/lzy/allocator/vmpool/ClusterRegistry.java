@@ -22,7 +22,7 @@ public interface ClusterRegistry {
 
     ClusterDescription getCluster(String clusterId);
 
-    List<ClusterDescription> listClusters(@Nullable ClusterType clusterType);
+    List<ClusterDescription> listClusters(ClusterType clusterType);
 
     String getClusterPodsCidr(String clusterId);
 

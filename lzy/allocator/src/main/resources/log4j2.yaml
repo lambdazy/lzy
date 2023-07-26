@@ -54,14 +54,11 @@ Configuration:
       - name: UserEventLogs
         level: error
 
-      - name: "ai.lzy.model.utils.FreePortFinder"
+      - name: ai.lzy.model.utils.FreePortFinder
         level: error
 
-      - name: "ai.lzy.allocator"
-        level: debug
-
-      - name: ai.lzy.longrunning.OperationsExecutor
-        level: debug
+      - name: ai.lzy.allocator
+        level: info
 
       - name: io.micronaut.runtime
         level: info

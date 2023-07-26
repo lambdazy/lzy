@@ -12,6 +12,7 @@ import ai.lzy.v1.VmAllocatorAdminApi.JupyterLabImages;
 import com.google.protobuf.Empty;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -27,12 +28,13 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
     private static final Logger LOG = LogManager.getLogger(AllocatorAdminService.class);
 
     private final AdminDao adminDao;
+    @Nullable
     private final ImagesUpdater imagesUpdater;
 
     @Inject
-    public AllocatorAdminService(AdminDao adminDao, ImagesUpdater imagesUpdater) {
+    public AllocatorAdminService(AdminDao adminDao, Optional<ImagesUpdater> imagesUpdater) {
         this.adminDao = adminDao;
-        this.imagesUpdater = imagesUpdater;
+        this.imagesUpdater = imagesUpdater.orElse(null);
     }
 
     @Override

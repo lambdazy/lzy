@@ -21,6 +21,8 @@ allocator:
 
   yc-mk8s:
     period: 1m
+    internal-image-updater:
+      enabled: false
 
   gc:
     initial-delay: 10s

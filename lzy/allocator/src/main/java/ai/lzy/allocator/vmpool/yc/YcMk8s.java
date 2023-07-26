@@ -150,18 +150,11 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         if (desc == null) {
             throw new NoSuchElementException("cluster with id " + clusterId + " not found");
         }
-        return new ClusterDescription(desc.clusterId, desc.masterExternalAddress, desc.masterCert, desc.type,
-            convertPools(desc.pools));
+        return toClusterDescription(desc);
     }
 
     @Override
-    public synchronized List<ClusterDescription> listClusters(@Nullable ClusterType clusterType) {
-        if (clusterType == null) {
-            return clusters.values().stream()
-                .map(x -> new ClusterDescription(x.clusterId, x.masterExternalAddress, x.masterCert, x.type,
-                    convertPools(x.pools)))
-                .toList();
-        }
+    public synchronized List<ClusterDescription> listClusters(ClusterType clusterType) {
         return clusters.values().stream()
             .filter(c -> c.type() == clusterType)
             .map(YcMk8s::toClusterDescription)
@@ -366,7 +359,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         return pools.entrySet().stream()
             .collect(Collectors.toMap(
                 Map.Entry::getKey,
-                kv -> kv.getValue().cpuCount() > 0 ? PoolType.Gpu : PoolType.Cpu
+                kv -> kv.getValue().gpuCount() > 0 ? PoolType.Gpu : PoolType.Cpu
             ));
     }
 

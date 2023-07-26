@@ -26,8 +26,8 @@ public class AdminClient {
         var resp = client.getActiveImages(Empty.getDefaultInstance());
         printActiveConfiguration(resp);
 
-        setSyncImage(client, SYNC_IMAGE);
-        setWorkerImage(client, WORKER_IMAGE);
+//        setSyncImage(client, SYNC_IMAGE);
+//        setWorkerImage(client, WORKER_IMAGE);
 
         System.out.println("Update images...");
         resp = client.updateImages(Empty.getDefaultInstance());
