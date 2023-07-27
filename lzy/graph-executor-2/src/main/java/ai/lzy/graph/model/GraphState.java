@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import lombok.Builder;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -68,7 +67,7 @@ public record GraphState(
     }
 
     public GraphExecutorApi2.GraphExecuteResponse toProto(
-        Map<String, GraphExecutorApi2.TaskExecutionStatus> taskProtos)
+        List<GraphExecutorApi2.TaskExecutionStatus> executingTasks)
     {
         var builder = GraphExecutorApi2.GraphExecuteResponse.newBuilder()
             .setGraphId(id)
@@ -87,17 +86,11 @@ public record GraphState(
                     .setDescription(errorDescription)
                     .build()
             );
-            case EXECUTING -> {
-                final var statuses = new ArrayList<GraphExecutorApi2.TaskExecutionStatus>();
-                for (var task: tasks.get(Status.EXECUTING)) {
-                    statuses.add(taskProtos.get(task));
-                }
-                builder.setExecuting(
-                    GraphExecutorApi2.GraphExecuteResponse.Executing.newBuilder()
-                        .addAllExecutingTasks(statuses)
-                        .build()
-                );
-            }
+            case EXECUTING -> builder.setExecuting(
+                GraphExecutorApi2.GraphExecuteResponse.Executing.newBuilder()
+                    .addAllExecutingTasks(executingTasks)
+                    .build()
+            );
         }
         return builder.build();
     }

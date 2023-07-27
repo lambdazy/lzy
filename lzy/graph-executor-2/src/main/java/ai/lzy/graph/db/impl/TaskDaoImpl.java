@@ -2,19 +2,14 @@ package ai.lzy.graph.db.impl;
 
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.TaskDao;
-import ai.lzy.graph.model.TaskOperation;
 import ai.lzy.graph.model.TaskSlotDescription;
 import ai.lzy.graph.model.TaskState;
-import ai.lzy.graph.services.impl.ExecuteTaskAction;
-import ai.lzy.longrunning.OperationsExecutor;
-import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -23,9 +18,9 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 @Singleton
@@ -33,15 +28,16 @@ public class TaskDaoImpl implements TaskDao {
     private static final Logger LOG = LogManager.getLogger(TaskDaoImpl.class);
 
     private static final String TASK_INSERT_FIELDS_LIST = """
-        id, task_name, graph_id, status, workflow_id, workflow_name, user_id,
-        task_description, error_description, owner_instance_id""";
+        id, task_name, op_id, graph_id, status, workflow_id, workflow_name, user_id,
+        task_description, task_state, alloc_session, error_description, owner_instance_id""";
 
     private static final String TASK_SELECT_FIELDS_LIST = """
-        task.id, task.task_name, task.graph_id, task.status::text as status, task.workflow_id,
-        task.workflow_name, task.user_id, task.task_description, task.error_description, task.owner_instance_id""";
+        task.id, task.task_name, task.op_id, task.graph_id, task.status::text as status, task.workflow_id,
+        task.workflow_name, task.user_id, task.task_description, task.task_state, task.alloc_session,
+        task.error_description, task.owner_instance_id""";
 
     private static final String TASK_INSERT_STATEMENT = """
-        INSERT INTO task (%s) VALUES (?, ?, ?, ?::status, ?, ?, ?, ?, ?, ?)"""
+        INSERT INTO task (%s) VALUES (?, ?, ?, ?, ?::task_status, ?, ?, ?, ?, ?, ?, ?, ?)"""
         .formatted(TASK_INSERT_FIELDS_LIST);
 
     private static final String TASK_DEPENDENCY_INSERT_STATEMENT = """
@@ -50,7 +46,9 @@ public class TaskDaoImpl implements TaskDao {
     private static final String TASK_UPDATE_STATEMENT = """
         UPDATE task
         SET error_description = ?,
-            status = ?::status
+            status = ?::task_status,
+            alloc_session = ?,
+            task_state = ?
         WHERE id = ?""";
 
     private static final String TASK_GET_BY_ID_STATEMENT = """
@@ -84,51 +82,14 @@ public class TaskDaoImpl implements TaskDao {
         WHERE task.owner_instance_id = ? AND graph.status not in ('FAILED', 'COMPLETED')
         GROUP BY task.id""".formatted(TASK_SELECT_FIELDS_LIST);
 
-    private static final String TASK_OPERATION_INSERT_FIELDS_LIST = """
-        id, task_id, started_at, owner_instance_id, status, task_state, error_description""";
-
-    private static final String TASK_OPERATION_SELECT_FIELDS_LIST = """
-        id, task_id, started_at, owner_instance_id, status::text as task_op_status, task_state, error_description""";
-
-    private static final String TASK_OPERATION_INSERT_STATEMENT = """
-        INSERT INTO task_operation (%s) VALUES (?, ?, ?, ?, ?::task_op_status, ?, ?)"""
-        .formatted(TASK_OPERATION_INSERT_FIELDS_LIST);
-
-    private static final String TASK_OPERATION_UPDATE_STATEMENT = """
-        UPDATE task_operation
-        SET error_description = ?,
-            status = ?::status,
-            task_state = ?
-        WHERE id = ?""";
-
-    private static final String TASK_OPERATION_GET_BY_ID_STATEMENT = """
-        SELECT %s
-        FROM task_operation
-        WHERE id = ?
-        """.formatted(TASK_OPERATION_SELECT_FIELDS_LIST);
-
-    private static final String TASK_OPERATION_GET_BY_INSTANCE_STATEMENT = """
-        SELECT %s
-        FROM task_operation
-        WHERE owner_instance_id = ?
-        """.formatted(TASK_OPERATION_SELECT_FIELDS_LIST);
-
     private final GraphExecutorDataSource storage;
-    private final OperationDao operationDao;
-    private final OperationsExecutor operationsExecutor;
     private final ServiceConfig config;
     private final ObjectMapper objectMapper;
 
     @Inject
-    public TaskDaoImpl(GraphExecutorDataSource storage,
-                       @Named("GraphExecutorOperationDao") OperationDao operationDao,
-                       @Named("GraphExecutorOperationsExecutor") OperationsExecutor operationsExecutor,
-                       ServiceConfig config)
-    {
+    public TaskDaoImpl(GraphExecutorDataSource storage, ServiceConfig config) {
         this.storage = storage;
         this.config = config;
-        this.operationsExecutor = operationsExecutor;
-        this.operationDao = operationDao;
         this.objectMapper = new ObjectMapper().findAndRegisterModules();
     }
 
@@ -142,12 +103,15 @@ public class TaskDaoImpl implements TaskDao {
                     int count = 0;
                     st.setString(++count, task.id());
                     st.setString(++count, task.name());
+                    st.setString(++count, task.operationId());
                     st.setString(++count, task.graphId());
                     st.setString(++count, task.status().toString());
-                    st.setString(++count, task.workflowId());
+                    st.setString(++count, task.executionId());
                     st.setString(++count, task.workflowName());
                     st.setString(++count, task.userId());
                     st.setString(++count, objectMapper.writeValueAsString(task.taskSlotDescription()));
+                    st.setString(++count, objectMapper.writeValueAsString(task.executingState()));
+                    st.setString(++count, task.allocatorSession());
                     st.setString(++count, task.errorDescription());
                     st.setString(++count, config.getInstanceId());
 
@@ -182,9 +146,13 @@ public class TaskDaoImpl implements TaskDao {
                 int count = 0;
                 st.setString(++count, task.errorDescription());
                 st.setString(++count, task.status().name());
+                st.setString(++count, task.allocatorSession());
+                st.setString(++count, objectMapper.writeValueAsString(task.executingState()));
 
                 st.setString(++count, task.id());
                 st.executeUpdate();
+            } catch (JsonProcessingException e) {
+                throw new SQLException(e);
             }
         });
     }
@@ -241,119 +209,38 @@ public class TaskDaoImpl implements TaskDao {
         }
     }
 
-    @Override
-    public void createTaskOperation(TaskOperation taskOperation, TransactionHandle transaction)
-        throws SQLException
-    {
-        LOG.debug("Saving task operation: {}", taskOperation.id());
-
-        DbOperation.execute(transaction, storage, connection -> {
-            try (PreparedStatement st = connection.prepareStatement(TASK_OPERATION_INSERT_STATEMENT)) {
-                int count = 0;
-                st.setString(++count, taskOperation.id());
-                st.setString(++count, taskOperation.taskId());
-                st.setTimestamp(++count, Timestamp.from(taskOperation.startedAt()));
-                st.setString(++count, config.getInstanceId());
-                st.setString(++count, taskOperation.status().toString());
-                st.setString(++count, "");
-                st.setString(++count, taskOperation.errorDescription());
-
-                st.execute();
-            }
-        });
-    }
-
-    @Override
-    public void updateTaskOperation(TaskOperation taskOperation, TransactionHandle transaction)
-        throws SQLException
-    {
-        LOG.debug("Updating task operation: {}", taskOperation.id());
-
-        DbOperation.execute(transaction, storage, connection -> {
-            try (final Connection con = storage.connect();
-                 final PreparedStatement st = con.prepareStatement(TASK_OPERATION_UPDATE_STATEMENT))
-            {
-                int count = 0;
-                st.setString(++count, taskOperation.errorDescription());
-                st.setString(++count, taskOperation.status().name());
-                st.setString(++count, "");
-
-                st.setString(++count, taskOperation.id());
-                st.executeUpdate();
-            }
-        });
-    }
-
-    @Override
-    @Nullable
-    public TaskOperation getTaskOperationById(String taskOperationId) throws SQLException {
-        try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement(TASK_OPERATION_GET_BY_ID_STATEMENT);
-            st.setString(1, taskOperationId);
-            try (ResultSet s = st.executeQuery()) {
-                if (!s.isBeforeFirst()) {
-                    return null;
-                }
-                s.next();
-                return taskOperationFromResultSet(s);
-            }
-        }
-    }
-
-    @Override
-    public List<TaskOperation> getTasksOperationsByInstance(String instanceId) throws SQLException {
-        try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement(TASK_OPERATION_GET_BY_INSTANCE_STATEMENT);
-            st.setString(1, instanceId);
-            try (ResultSet s = st.executeQuery()) {
-                if (!s.isBeforeFirst()) {
-                    return new ArrayList<>();
-                }
-                List<TaskOperation> list = new ArrayList<>();
-                while (s.next()) {
-                    list.add(taskOperationFromResultSet(s));
-                }
-                return list;
-            }
-        }
-    }
-
     private TaskState taskFromResultSet(ResultSet resultSet) throws SQLException {
         final String taskId = resultSet.getString("id");
         final String taskName = resultSet.getString("task_name");
+        final String opId = resultSet.getString("op_id");
         final String graphId = resultSet.getString("graph_id");
         final TaskState.Status status = TaskState.Status.valueOf(resultSet.getString("status"));
         final String workflowId = resultSet.getString("workflow_id");
         final String workflowName = resultSet.getString("workflow_name");
         final String userId = resultSet.getString("user_id");
         final String taskDescription = resultSet.getString("task_description");
+        final String taskState = resultSet.getString("task_state");
         final String errorDescription = resultSet.getString("error_description");
+        final String allocSession = resultSet.getString("alloc_session");
         final String dependentsFrom = resultSet.getString("dependend_from");
         final String dependentsOn = resultSet.getString("dependend_on");
         final TaskSlotDescription taskSlotDescription;
+        final TaskState.ExecutingState taskOpExecutingState;
 
         try {
             taskSlotDescription = objectMapper.readValue(taskDescription, TaskSlotDescription.class);
+            taskOpExecutingState = objectMapper.readValue(taskState, TaskState.ExecutingState.class);
         } catch (JsonProcessingException e) {
             throw new SQLException(e);
         }
 
-        return new TaskState(taskId, taskName, graphId, status,
-            workflowId, workflowName, userId, errorDescription, taskSlotDescription,
-            Arrays.stream(dependentsOn.split(",")).distinct().toList(),
-            Arrays.stream(dependentsFrom.split(",")).distinct().toList()
+        return new TaskState(taskId, taskName, opId, graphId, status, workflowId, workflowName,
+            userId, errorDescription, taskSlotDescription, allocSession, taskOpExecutingState,
+            parseDependents(dependentsOn), parseDependents(dependentsFrom)
         );
     }
 
-    private TaskOperation taskOperationFromResultSet(ResultSet resultSet) throws SQLException {
-        final String taskOperationId = resultSet.getString("id");
-        final String taskId = resultSet.getString("task_id");
-        final Timestamp startedAt = resultSet.getTimestamp("started_at");
-        final TaskOperation.Status status = TaskOperation.Status.valueOf(resultSet.getString("status"));
-        final String taskState = resultSet.getString("task_state");
-        final String errorDescription = resultSet.getString("error_description");
-
-        return new TaskOperation(taskOperationId, taskId, startedAt.toInstant(), status, errorDescription,
-            new ExecuteTaskAction(taskId, taskState, storage, operationDao, operationsExecutor));
+    private List<String> parseDependents(String str) {
+        return str == null ? Collections.emptyList() : Arrays.stream(str.split(",")).distinct().toList();
     }
 }

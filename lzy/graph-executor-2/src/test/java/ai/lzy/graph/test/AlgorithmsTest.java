@@ -97,7 +97,8 @@ public class AlgorithmsTest {
     private TaskState buildTask(String taskId, List<TaskSlotDescription.Slot> slots, Map<String, String> slotToChannels) {
         final TaskSlotDescription slotDescription = new TaskSlotDescription(taskId, "descr",
             "pool", "zone", "command", slots, slotToChannels, null);
-        return new TaskState(taskId, taskId, "graph", TaskState.Status.WAITING, "w1",
-            "w1", "user1", null, slotDescription, new ArrayList<>(), new ArrayList<>());
+        return new TaskState(taskId, taskId, "op1", "graph", TaskState.Status.WAITING, "w1",
+            "w1", "user1", null, slotDescription, "", null,
+            new ArrayList<>(), new ArrayList<>());
     }
 }

@@ -12,6 +12,8 @@ public interface TaskService {
 
     void addTasks(List<TaskState> tasks);
 
+    void completeTask(TaskState task);
+
     @Nullable
     GraphExecutorApi2.TaskExecutionStatus getTaskStatus(String taskId);
 }

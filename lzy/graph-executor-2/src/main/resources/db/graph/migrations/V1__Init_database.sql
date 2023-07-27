@@ -40,34 +40,26 @@ CREATE TABLE graph
     owner_instance_id     TEXT                           NOT NULL
 );
 
+CREATE TYPE task_status AS ENUM ('WAITING', 'WAITING_ALLOCATION', 'ALLOCATING', 'EXECUTING', 'COMPLETED', 'FAILED');
+
 CREATE TABLE task (
     id                    TEXT                          NOT NULL PRIMARY KEY,
+    op_id                 TEXT                          NOT NULL REFERENCES operation (id) ON DELETE CASCADE,
     task_name             TEXT                          NOT NULL,
     graph_id              TEXT                          NOT NULL REFERENCES graph (id) ON DELETE CASCADE,
-    status                status default 'WAITING'      NOT NULL,
+    status                task_status default 'WAITING' NOT NULL,
     workflow_id           TEXT                          NOT NULL,
     workflow_name         TEXT                          NOT NULL,
     user_id               TEXT                          NOT NULL,
     task_description      TEXT                          NULL,
+    task_state            TEXT                          NULL,
     error_description     TEXT                          NULL,
-    owner_instance_id     TEXT                          NOT NULL
+    owner_instance_id     TEXT                          NOT NULL,
+    alloc_session         TEXT                          NULL
 );
 
 CREATE TABLE task_dependency (
     id                    SERIAL    PRIMARY KEY,
     task_id               TEXT      NOT NULL REFERENCES task (id) ON DELETE CASCADE,
     dependent_task_id     TEXT      NOT NULL REFERENCES task (id) ON DELETE CASCADE
-);
-
-CREATE TYPE task_op_status AS ENUM ('WAITING', 'ALLOCATING', 'EXECUTING', 'COMPLETED', 'FAILED');
-
-CREATE TABLE task_operation
-(
-    id                    TEXT                             NOT NULL PRIMARY KEY,
-    task_id               TEXT                             NOT NULL REFERENCES task (id) ON DELETE CASCADE,
-    started_at            TIMESTAMP                        NOT NULL,
-    owner_instance_id     TEXT                             NOT NULL,
-    status                task_op_status default 'WAITING' NOT NULL,
-    task_state            TEXT                             NULL,
-    error_description     TEXT                             NULL
 );

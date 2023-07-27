@@ -6,6 +6,7 @@ import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.impl.GraphExecutorDataSource;
 import ai.lzy.graph.model.debug.InjectedFailures;
 import ai.lzy.longrunning.OperationsExecutor;
+import ai.lzy.longrunning.OperationsService;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.dao.OperationDaoImpl;
 import ai.lzy.util.auth.credentials.RenewableJwt;
@@ -52,6 +53,12 @@ public class BeanFactory {
             .register();
 
         return new OperationsExecutor(5, 20, errors::inc, e -> e instanceof InjectedFailures.TerminateException);
+    }
+
+    @Singleton
+    @Named("GraphExecutorOperationsService")
+    public OperationsService operationsService(@Named("GraphExecutorOperationDao") OperationDao operationDao) {
+        return new OperationsService(operationDao);
     }
 
     @Singleton
