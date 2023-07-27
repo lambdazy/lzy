@@ -45,7 +45,9 @@ import java.util.function.Consumer;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.*;
 import static ai.lzy.allocator.test.Utils.waitOperation;
-import static ai.lzy.allocator.test.http.RequestMatchers.*;
+import static ai.lzy.allocator.test.http.RequestMatchers.exactPath;
+import static ai.lzy.allocator.test.http.RequestMatchers.method;
+import static ai.lzy.allocator.test.http.RequestMatchers.startsWithPath;
 import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
@@ -290,7 +292,7 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
                 }
 
                 future.complete(pod);
-                return new MockResponse().setBody(request.getBody()).setResponseCode(HttpURLConnection.HTTP_CREATED);
+                return new MockResponse().setBody(toJson(pod)).setResponseCode(HttpURLConnection.HTTP_CREATED);
             });
         return future;
     }
@@ -373,7 +375,16 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
 
     protected void freeVm(String vmId) {
         withGrpcContext(() ->
-            authorizedAllocatorBlockingStub.free(VmAllocatorApi.FreeRequest.newBuilder().setVmId(vmId).build()));
+            authorizedAllocatorBlockingStub.free(VmAllocatorApi.FreeRequest.newBuilder()
+                .setVmId(vmId)
+                .build()));
+    }
+
+    protected LongRunning.Operation forceFreeVm(String vmId) {
+        return withGrpcContext(() ->
+            authorizedAllocatorBlockingStub.forceFree(VmAllocatorApi.ForceFreeRequest.newBuilder()
+                .setVmId(vmId)
+                .build()));
     }
 
     protected void assertVmMetrics(String pool, int allocating, int running, int cached) {

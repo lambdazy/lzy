@@ -30,6 +30,7 @@ import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.VolumeApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.Any;
+import io.github.resilience4j.core.functions.Either;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
@@ -545,6 +546,98 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             responseObserver.onCompleted();
         } else {
             responseObserver.onError(status.asException());
+        }
+    }
+
+    @Override
+    public void forceFree(ForceFreeRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+        LOG.info("ForceFree request {}", ProtoPrinter.safePrinter().shortDebugString(request));
+
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        if (idempotencyKey != null && loadExistingOp(operationsDao, idempotencyKey, responseObserver, LOG)) {
+            return;
+        }
+
+        var reqid = ofNullable(GrpcHeaders.getRequestId()).orElse("unknown");
+
+        Either<Status, Operation> result;
+        try {
+            result = withRetries(
+                LOG,
+                () -> {
+                    try (var tx = TransactionHandle.create(allocationContext.storage())) {
+                        var vm = vmDao.get(request.getVmId(), tx);
+                        if (vm == null) {
+                            LOG.error("Cannot find vm {}", request.getVmId());
+                            return Either.left(Status.NOT_FOUND.withDescription("Cannot find vm"));
+                        }
+
+                        if (vm.status() == Vm.Status.ALLOCATING) {
+                            LOG.error("ForceFree vm {} in status ALLOCATING, trying to cancel allocation op {}",
+                                vm, vm.allocOpId());
+
+                            operationsDao.fail(
+                                vm.allocOpId(), toProto(Status.CANCELLED.withDescription("Unexpected Force Free")), tx);
+                            tx.commit();
+                            return Either.right(
+                                Operation.createCompleted(
+                                    UUID.randomUUID().toString(),
+                                    "system",
+                                    "ForceFree: vmId=%s".formatted(request.getVmId()),
+                                    idempotencyKey,
+                                    null,
+                                    ForceFreeResponse.getDefaultInstance()));
+                        }
+
+                        if (vm.status() != Vm.Status.RUNNING) {
+                            LOG.error("ForceFree vm {} in status {}, expected RUNNING", vm, vm.status());
+                            return Either.left(Status.FAILED_PRECONDITION.withDescription("State is " + vm.status()));
+                        }
+
+                        var session = sessionsDao.get(vm.sessionId(), tx);
+                        if (session == null) {
+                            LOG.error("Corrupted vm {} with incorrect session id: {}", vm.vmId(), vm.sessionId());
+                            return Either.left(Status.INTERNAL
+                                .withDescription("Session %s not found".formatted(vm.sessionId())));
+                        }
+
+                        final var op = Operation.create(
+                            session.owner(),
+                            "ForceFree: vmId=%s".formatted(request.getVmId()),
+                            config.getAllocationTimeout(),
+                            idempotencyKey,
+                            AllocateMetadata.getDefaultInstance());
+
+                        LOG.info("Force free requested, about to delete VM {}...", vm.vmId());
+
+                        var action = allocationContext.createDeleteVmAction(op, vm, reqid, tx);
+                        tx.commit();
+
+                        LOG.info("VM {} scheduled to remove (force free)", vm.vmId());
+
+                        allocationContext.startNew(action);
+                        allocationContext.metrics().runningVms.labels(vm.poolLabel()).dec();
+
+                        return Either.right(op);
+                    }
+                });
+        } catch (Exception ex) {
+            if (idempotencyKey != null &&
+                handleIdempotencyKeyConflict(idempotencyKey, ex, operationsDao, responseObserver, LOG))
+            {
+                return;
+            }
+
+            LOG.error("Error while free vm {}: {}", request.getVmId(), ex.getMessage(), ex);
+            responseObserver.onError(Status.INTERNAL.withDescription("Error while free").asException());
+            return;
+        }
+
+        if (result.isRight()) {
+            responseObserver.onNext(result.get().toProto());
+            responseObserver.onCompleted();
+        } else {
+            responseObserver.onError(result.getLeft().asException());
         }
     }
 

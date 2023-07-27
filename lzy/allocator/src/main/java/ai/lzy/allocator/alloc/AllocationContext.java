@@ -89,12 +89,18 @@ public record AllocationContext(
             new Operation.IdempotencyKey("Delete VM " + vm.vmId(), vm.vmId()),
             /* meta */ null);
 
-        var deleteState = new Vm.DeletingState(deleteOp.id(), selfWorkerId, reqid);
+        return createDeleteVmAction(deleteOp, vm, reqid, tx);
+    }
 
-        operationsDao.create(deleteOp, tx);
+    public DeleteVmAction createDeleteVmAction(Operation op, Vm vm, String reqid, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
+        var deleteState = new Vm.DeletingState(op.id(), selfWorkerId, reqid);
+
+        operationsDao.create(op, tx);
         vmDao.delete(vm.vmId(), deleteState, tx);
 
-        return new DeleteVmAction(vm, deleteOp.id(), this);
+        return new DeleteVmAction(vm, op.id(), this);
     }
 
     public Pair<UnmountDynamicDiskAction, Operation> createUnmountAction(@Nullable Vm vm, DynamicMount dynamicMount,

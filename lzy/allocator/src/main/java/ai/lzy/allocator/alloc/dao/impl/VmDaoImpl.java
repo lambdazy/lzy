@@ -239,7 +239,7 @@ public class VmDaoImpl implements VmDao {
     @Override
     public Vm get(String vmId, @Nullable TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, con -> {
-            try (PreparedStatement s = con.prepareStatement(QUERY_READ_VM)) {
+            try (PreparedStatement s = con.prepareStatement(QUERY_READ_VM + forUpdate(tx))) {
                 s.setString(1, vmId);
                 final var res = s.executeQuery();
                 if (res.next()) {
@@ -255,7 +255,7 @@ public class VmDaoImpl implements VmDao {
     @Override
     public List<Vm> getSessionVms(String sessionId, TransactionHandle tx) throws SQLException {
         return DbOperation.execute(tx, storage, conn -> {
-            try (PreparedStatement st = conn.prepareStatement(QUERY_READ_SESSION_VMS)) {
+            try (PreparedStatement st = conn.prepareStatement(QUERY_READ_SESSION_VMS + forUpdate(tx))) {
                 st.setString(1, sessionId);
                 final var res = st.executeQuery();
 
@@ -875,5 +875,9 @@ public class VmDaoImpl implements VmDao {
             idleState,
             deleteState
         );
+    }
+
+    private static String forUpdate(@Nullable TransactionHandle tx) {
+        return tx != null ? " FOR UPDATE" : "";
     }
 }

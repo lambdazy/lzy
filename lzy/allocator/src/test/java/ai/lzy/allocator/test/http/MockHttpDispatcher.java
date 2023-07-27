@@ -18,6 +18,7 @@ public class MockHttpDispatcher extends Dispatcher {
     @Nonnull
     @Override
     public MockResponse dispatch(@Nonnull RecordedRequest recordedRequest) throws InterruptedException {
+        // System.out.println("--> dispatch: " + recordedRequest);
         var iterator = handlers.iterator();
         while (iterator.hasNext()) {
             var entry = iterator.next();
@@ -27,9 +28,13 @@ public class MockHttpDispatcher extends Dispatcher {
             }
             if (entry.matcher().test(recordedRequest)) {
                 entry.increment();
-                return entry.handler().handle(recordedRequest);
+                var resp = entry.handler().handle(recordedRequest);
+                // System.out.println("--> handler response: " + resp.getStatus() + "\n  " +
+                //   resp.getBody().snapshot(Math.min((int) resp.getBody().size(), 100)));
+                return resp;
             }
         }
+        // System.out.println("--> not found " + recordedRequest.getRequestLine());
         return new MockResponse().setResponseCode(HttpURLConnection.HTTP_NOT_FOUND);
     }
 
