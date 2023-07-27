@@ -7,8 +7,12 @@ import ai.lzy.util.auth.credentials.JwtUtils;
 import ai.lzy.util.auth.credentials.OttHelper;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.*;
+import ai.lzy.v1.AllocatorGrpc;
+import ai.lzy.v1.DiskApi;
+import ai.lzy.v1.DiskServiceApi;
 import ai.lzy.v1.VmAllocatorApi.*;
+import ai.lzy.v1.VmAllocatorPrivateApi;
+import ai.lzy.v1.VolumeApi;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunning.Operation;
 import com.google.protobuf.util.Durations;
@@ -202,6 +206,15 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         return vm;
     }
 
+    private AllocatedVm allocateAndForceFreeVm(String sessionId, Consumer<AllocatedVm> beforeFree) throws Exception {
+        var vm = allocateVm(sessionId, null);
+        beforeFree.accept(vm);
+
+        var freeOp = forceFreeVm(vm.vmId());
+        waitOpSuccess(freeOp);
+        return vm;
+    }
+
     @Test
     public void allocateFreeSuccess() throws Exception {
         var sessionId = createSession(Durations.ZERO);
@@ -353,6 +366,35 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         });
 
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+    }
+
+    @Test
+    public void forceFree() throws Exception {
+        var sessionId = createSession(Durations.fromSeconds(10));
+
+        var firstVmRemoved = new AtomicBoolean(false);
+        var firstVm = allocateAndForceFreeVm(sessionId,
+            vm -> mockDeletePodByName(vm.podName(), () -> firstVmRemoved.set(true), HttpURLConnection.HTTP_OK));
+
+        Assert.assertTrue(firstVmRemoved.get());
+        assertVmMetrics("S", -1, 0, 0);
+
+        var secondVm = allocateVm(sessionId, "S", null);
+        Assert.assertNotEquals(firstVm.vmId(), secondVm.vmId());
+
+        assertVmMetrics("S", -1, 1, 0);
+
+        final CountDownLatch removeSecondVmLatch = new CountDownLatch(1);
+        mockDeletePodByName(secondVm.podName(), removeSecondVmLatch::countDown, HttpURLConnection.HTTP_OK);
+
+        //noinspection ResultOfMethodCallIgnored
+        authorizedAllocatorBlockingStub.free(
+            FreeRequest.newBuilder().setVmId(secondVm.vmId()).build());
+
+        assertVmMetrics("S", -1, 0, 1);
+
+        Assert.assertTrue(removeSecondVmLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
+        assertVmMetrics("S", 0, 0, 0);
     }
 
     @Test

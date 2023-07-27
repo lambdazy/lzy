@@ -392,7 +392,7 @@ public class KuberVmAllocator implements VmAllocator {
                 freeVolumes(credentials.clusterId(), claims);
             }
         } catch (KubernetesClientException e) {
-            LOG.error("Cannot remove pod for vm {}: [{}] {}", vmId, e.getCode(), e.getMessage());
+            LOG.error("Cannot remove pod for vm {}: [{}] {}", vmId, e.getCode(), e.getMessage(), e);
             if (e.getCode() != HttpURLConnection.HTTP_NOT_FOUND) {
                 return Result.RETRY_LATER.withReason(e.getMessage());
             }
