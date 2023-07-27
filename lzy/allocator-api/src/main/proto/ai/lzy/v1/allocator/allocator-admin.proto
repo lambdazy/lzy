@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package ai.lzy.v1.allocator;
+
+option java_outer_classname = "VmAllocatorAdminApi";
+option java_package = "ai.lzy.v1";
+
+import "google/protobuf/empty.proto";
+
+service AllocatorAdmin {
+  rpc SetWorkerImages (WorkerImages) returns (ActiveImages);
+  rpc SetSyncImage (SyncImage) returns (ActiveImages);
+  rpc SetJupyterlabImages (JupyterLabImages) returns (ActiveImages);
+  rpc GetActiveImages (google.protobuf.Empty) returns (ActiveImages);
+
+  rpc UpdateImages (google.protobuf.Empty) returns (ActiveImages);
+}
+
+message WorkerImages {
+  repeated string images = 1;
+}
+
+message SyncImage {
+  string image = 1;
+}
+
+message JupyterLabImages {
+  message Images {
+    string main_image = 1;
+    repeated string additional_images = 2;
+  }
+
+  repeated Images images = 1;
+}
+
+message ActiveImages {
+  SyncImage sync = 1;
+  WorkerImages worker = 2;
+  JupyterLabImages jl = 3;
+}

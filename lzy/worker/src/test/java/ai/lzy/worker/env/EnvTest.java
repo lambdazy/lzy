@@ -1,6 +1,6 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.env.*;
+import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.aux.CondaEnvironment;
 import ai.lzy.env.aux.SimpleBashEnvironment;
 import ai.lzy.env.base.DockerEnvironment;

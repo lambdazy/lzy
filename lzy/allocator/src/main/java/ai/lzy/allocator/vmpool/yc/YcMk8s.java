@@ -24,10 +24,13 @@ import yandex.cloud.api.k8s.v1.NodeGroupServiceGrpc.NodeGroupServiceBlockingStub
 import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass;
 import yandex.cloud.api.k8s.v1.NodeGroupServiceOuterClass.ListNodeGroupsRequest;
 import yandex.cloud.sdk.ServiceFactory;
-import yandex.cloud.sdk.grpc.interceptors.RequestIdInterceptor;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
 
 import static yandex.cloud.api.k8s.v1.ClusterOuterClass.Cluster;
 
@@ -40,11 +43,9 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     private final ClusterServiceBlockingStub clusterServiceClient;
     private final NodeGroupServiceBlockingStub nodeGroupServiceClient;
 
-    private final Map<String, VmPoolSpec> systemPools = new ConcurrentHashMap<>();
-    private final Map<String, VmPoolSpec> userPools = new ConcurrentHashMap<>();
-
-    private final Map<String, Set<String>> folder2clusters = new ConcurrentHashMap<>();
-    private final Map<String, Set<String>> cluster2labels = new ConcurrentHashMap<>();
+    // guarded by this
+    private final Map<String, VmPoolSpec> systemPools = new HashMap<>();
+    private final Map<String, VmPoolSpec> userPools = new HashMap<>();
 
     private record ClusterDesc(
         String clusterId,
@@ -53,12 +54,29 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         String masterExternalAddress,
         String masterCert,
         String clusterIpv4CidrBlock,
-        ClusterType type
-    )
-    {
+        ClusterType type,
+        Map<String, VmPoolSpec> pools
+    ) {
+        @Override
+        public String toString() {
+            var sb = new StringBuilder()
+                .append(type.name()).append(" cluster '").append(clusterId).append("'\n")
+                .append("  folder       : ").append(folderId).append('\n')
+                .append("  internal addr: ").append(masterInternalAddress).append('\n')
+                .append("  external addr: ").append(masterExternalAddress).append('\n')
+                .append("  ip4 CIDR     : ").append(clusterIpv4CidrBlock).append('\n')
+                .append("  pools        :").append('\n');
+
+            for (var pool : pools.entrySet()) {
+                sb.append("    ").append(pool.getKey()).append(": ").append(pool.getValue()).append('\n');
+            }
+
+            return sb.toString();
+        }
     }
 
-    private final Map<String, ClusterDesc> clusters = new ConcurrentHashMap<>();
+    // guarded by this
+    private final Map<String, ClusterDesc> clusters = new HashMap<>();
 
 
     @Inject
@@ -66,50 +84,43 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         this.config = config;
 
         this.clusterServiceClient = serviceFactory
-            .create(ClusterServiceBlockingStub.class, ClusterServiceGrpc::newBlockingStub)
-            .withInterceptors(
-                // TODO: forward X-REQUEST-ID header
-                new RequestIdInterceptor());
+            .create(ClusterServiceBlockingStub.class, ClusterServiceGrpc::newBlockingStub);
 
         this.nodeGroupServiceClient = serviceFactory
-            .create(NodeGroupServiceBlockingStub.class, NodeGroupServiceGrpc::newBlockingStub)
-            .withInterceptors(
-                // TODO: forward X-REQUEST-ID header
-                new RequestIdInterceptor());
+            .create(NodeGroupServiceBlockingStub.class, NodeGroupServiceGrpc::newBlockingStub);
+
+        syncClusters();
     }
 
-    @Scheduled(fixedDelay = "${allocator.yc-mk8s.period}")
+    @Scheduled(fixedDelay = "${allocator.yc-mk8s.period}", initialDelay = "${allocator.yc-mk8s.period}")
     public void syncClusters() {
-        config.getServiceClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ true));
-        config.getUserClusters().forEach(clusterId -> resolveCluster(clusterId, /* system */ false));
+        config.getServiceClusters().forEach(clusterId -> addCluster(clusterId, /* system */ true));
+        config.getUserClusters().forEach(clusterId -> addCluster(clusterId, /* system */ false));
     }
-
 
     @Override
-    public Map<String, VmPoolSpec> getSystemVmPools() {
+    public synchronized Map<String, VmPoolSpec> getSystemVmPools() {
         return systemPools;
     }
 
     @Override
-    public Map<String, VmPoolSpec> getUserVmPools() {
+    public synchronized Map<String, VmPoolSpec> getUserVmPools() {
         return userPools;
     }
 
     @Nullable
     @Override
-    public VmPoolSpec findPool(String poolLabel) {
-        VmPoolSpec poolSpec;
-        poolSpec = systemPools.get(poolLabel);
+    public synchronized VmPoolSpec findPool(String poolLabel) {
+        var poolSpec = systemPools.get(poolLabel);
         if (poolSpec != null) {
             return poolSpec;
         }
-        poolSpec = userPools.get(poolLabel);
-        return poolSpec;
+        return userPools.get(poolLabel);
     }
 
     @Override
     @Nullable
-    public ClusterDescription findCluster(String poolLabel, String zone, ClusterType type) {
+    public synchronized ClusterDescription findCluster(String poolLabel, String zone, ClusterType type) {
         // TODO(artolord) make better logic of vm scheduling
 
         final var pools = switch (type) {
@@ -123,7 +134,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         }
 
         final var desc = clusters.values().stream()
-            .filter(c -> cluster2labels.get(c.clusterId()).contains(poolLabel))
+            .filter(c -> c.pools().containsKey(poolLabel))
             .findFirst()
             .orElse(null);
 
@@ -134,7 +145,7 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     }
 
     @Override
-    public ClusterDescription getCluster(String clusterId) {
+    public synchronized ClusterDescription getCluster(String clusterId) {
         final var desc = clusters.get(clusterId);
         if (desc == null) {
             throw new NoSuchElementException("cluster with id " + clusterId + " not found");
@@ -143,7 +154,15 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
     }
 
     @Override
-    public String getClusterPodsCidr(String clusterId) {
+    public synchronized List<ClusterDescription> listClusters(ClusterType clusterType) {
+        return clusters.values().stream()
+            .filter(c -> c.type() == clusterType)
+            .map(YcMk8s::toClusterDescription)
+            .toList();
+    }
+
+    @Override
+    public synchronized String getClusterPodsCidr(String clusterId) {
         ClusterDesc desc = clusters.get(clusterId);
         if (desc == null) {
             throw new NoSuchElementException("cluster with id " + clusterId + " not found");
@@ -151,24 +170,41 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         return desc.clusterIpv4CidrBlock();
     }
 
-    @Override
-    public List<ClusterDescription> listClusters(ClusterType clusterType) {
-        return clusters.values().stream()
-            .filter(c -> c.type() == clusterType)
-            .map(this::toClusterDescription)
-            .toList();
+    private void addCluster(String clusterId, boolean system) {
+        var newCluster = resolveCluster(clusterId, system);
+
+        if (newCluster == null) {
+            LOG.error("Cannot add {} cluster {}", ct(system), clusterId);
+            return;
+        }
+
+        synchronized (this) {
+            var oldCluster = clusters.get(clusterId);
+            if (oldCluster != null) {
+                if (oldCluster.equals(newCluster)) {
+                    return;
+                }
+                LOG.info("Replace {} cluster\n  from: {}\n  to: {}", ct(system), oldCluster, newCluster);
+            } else {
+                LOG.info("Add {} cluster: {}", ct(system), newCluster);
+            }
+
+            clusters.put(clusterId, newCluster);
+
+            systemPools.clear();
+            userPools.clear();
+
+            clusters.values().forEach(cluster -> {
+                switch (cluster.type) {
+                    case User -> userPools.putAll(cluster.pools());
+                    case System -> systemPools.putAll(cluster.pools());
+                }
+            });
+        }
     }
 
-    // TODO: getters for YC-specific data
-
-    private ClusterDescription toClusterDescription(ClusterDesc desc) {
-        var hostAndPort =
-            desc.masterExternalAddress().isEmpty() ? desc.masterInternalAddress() :
-                desc.masterExternalAddress();
-        return new ClusterDescription(desc.clusterId(), hostAndPort, desc.masterCert(), desc.type());
-    }
-
-    private void resolveCluster(String clusterId, boolean system) {
+    @Nullable
+    private ClusterDesc resolveCluster(String clusterId, boolean system) {
         LOG.debug("Resolve {} cluster {}...", ct(system), clusterId);
 
         Cluster cluster;
@@ -179,23 +215,18 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
                     .build());
         } catch (StatusRuntimeException e) {
             LOG.error("Cannot resolve {} cluster {}: {}", ct(system), clusterId, e.getStatus(), e);
-            throw new RuntimeException(e);
+            return null;
         }
 
         if (cluster.getStatus() != Cluster.Status.RUNNING) {
             LOG.warn("Skip {} cluster {} at state {}", ct(system), clusterId, cluster.getStatus());
-            return;
+            return null;
         }
 
         if (cluster.getHealth() != Cluster.Health.HEALTHY) {
-            var msg = "Configuration error, %s cluster %s is not healthy".formatted(ct(system), clusterId);
-            LOG.error(msg);
-            throw new RuntimeException(msg);
+            LOG.error("Configuration error, {} cluster {} is not healthy", ct(system), clusterId);
+            return null;
         }
-
-        resolveClusterDescription(cluster, system);
-
-        // process node groups
 
         NodeGroupServiceOuterClass.ListNodeGroupsResponse nodeGroupsResponse;
         try {
@@ -206,13 +237,16 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
                     .build());
         } catch (StatusRuntimeException e) {
             LOG.error("GRPC error while requesting node groups in cluster {}: {}", cluster.getId(), e.getStatus(), e);
-            return;
+            return null;
         }
-
-        // TODO
         assert nodeGroupsResponse.getNextPageToken().isEmpty();
 
-        final Set<String> clusterVmSpecLabels = new HashSet<>();
+        var clusterDesc = createClusterDesc(cluster, system);
+
+        if (system) {
+            return clusterDesc;
+        }
+
         for (var nodeGroup : nodeGroupsResponse.getNodeGroupsList()) {
             if (!clusterId.equals(nodeGroup.getClusterId())) {
                 continue;
@@ -231,24 +265,26 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
 
             var label = nodeGroup.getNodeLabelsMap().get(KuberLabels.NODE_POOL_LABEL);
             var zone = nodeGroup.getNodeLabelsMap().get(KuberLabels.NODE_POOL_AZ_LABEL);
+            var kind = nodeGroup.getNodeLabelsMap().get(KuberLabels.NODE_POOL_KIND_LABEL);
 
-            if (label == null || zone == null) {  // Skip old node groups
+            if (label == null || zone == null || kind == null) {
+                LOG.error("Bad node group: {}", nodeGroup);
                 continue;
             }
 
-            resolveVmPoolSpec(cluster, nodeGroup, label, zone, system);
-            clusterVmSpecLabels.add(label);
+            var existingVmPool = clusterDesc.pools.get(label);
+            if (existingVmPool != null) {
+                existingVmPool.zones().add(zone);
+            } else {
+                var vmPoolSpec = resolveVmPoolSpec(nodeGroup, label, zone);
+                clusterDesc.pools.put(label, vmPoolSpec);
+            }
         }
 
-        cluster2labels.computeIfAbsent(clusterId, __ -> new HashSet<>()).forEach(label -> {
-            if (!clusterVmSpecLabels.contains(label)) {
-                (system ? systemPools : userPools).remove(label);
-            }
-        });
-        cluster2labels.put(clusterId, clusterVmSpecLabels);
+        return clusterDesc;
     }
 
-    private ClusterDesc resolveClusterDescription(Cluster cluster, boolean system) {
+    private static ClusterDesc createClusterDesc(Cluster cluster, boolean system) {
         var clusterId = cluster.getId();
         var master = cluster.getMaster();
         var masterCert = master.getMasterAuth().getClusterCaCertificate();
@@ -256,45 +292,18 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
         var masterExternalAddress = master.getEndpoints().getExternalV6Endpoint().isEmpty() ?
             master.getEndpoints().getExternalV4Endpoint() : master.getEndpoints().getExternalV6Endpoint();
 
-        var clusterNewDesc = new ClusterDesc(
+        return new ClusterDesc(
             clusterId,
             cluster.getFolderId(),
             masterInternalAddress,
             masterExternalAddress,
             masterCert,
             cluster.getIpAllocationPolicy().getClusterIpv4CidrBlock(),
-            system ? ClusterType.System : ClusterType.User);
-
-        ClusterDesc clusterOldDesc = clusters.get(clusterId);
-
-        if (clusterOldDesc != null && clusterOldDesc.equals(clusterNewDesc)) {
-            LOG.debug("Resolved old cluster {}", clusterId);
-            return clusterOldDesc;
-        }
-
-        LOG.info("""
-                Resolved {} new cluster {}:
-                  id: {}
-                  folder_id: {}
-                  name: {}
-                  description: {}
-                  k8s-master-type: {}
-                  k8s-master-internal: {}
-                  k8s-master-external: {}
-                  k83-master-cert: {}
-                """,
-            ct(system), clusterId, cluster.getId(), cluster.getFolderId(), cluster.getName(),
-            cluster.getDescription(),
-            master.getMasterTypeCase(), masterInternalAddress, masterExternalAddress, /* masterCert */ "***");
-
-        folder2clusters.computeIfAbsent(cluster.getFolderId(), x -> new HashSet<>()).add(clusterId);
-        clusters.put(clusterId, clusterNewDesc);
-        return clusterNewDesc;
+            system ? ClusterType.System : ClusterType.User,
+            new HashMap<>());
     }
 
-    private void resolveVmPoolSpec(Cluster cluster, NodeGroup nodeGroup,
-                                   String label, String zone, boolean system)
-    {
+    private static VmPoolSpec resolveVmPoolSpec(NodeGroup nodeGroup, String label, String zone) {
         var nodeTemplate = nodeGroup.getNodeTemplate();
         var spec = nodeTemplate.getResourcesSpec();
 
@@ -341,32 +350,26 @@ public class YcMk8s implements VmPoolRegistry, ClusterRegistry {
             (int) (spec.getMemory() >> 30), new HashSet<>());
         newVmSpec.zones().add(zone);
 
-        var pool = system ? systemPools : userPools;
-        var oldVmSpec = pool.get(label);
-
-        if (oldVmSpec != null && oldVmSpec.equals(newVmSpec)) {
-            LOG.debug("Resolved old node group {}", nodeGroup.getId());
-            return;
-        }
-
-        LOG.info("""
-                Resolved node group {} ({}):
-                  folder_id: {}
-                  cluster_id: {}
-                  zone: {}
-                  label: {}
-                  platform: {}
-                  cpu: {} ({})
-                  gpu: {} ({})
-                  ram: {}
-                """,
-            nodeGroup.getId(), nodeGroup.getName(), cluster.getFolderId(), cluster.getId(), zone, label,
-            nodeTemplate.getPlatformId(), spec.getCores(), cpuType, spec.getGpus(), gpuType, spec.getMemory());
-
-        pool.put(label, newVmSpec);
+        return newVmSpec;
     }
 
     private static String ct(boolean system) {
         return system ? "system" : "user";
+    }
+
+    private static Map<String, PoolType> convertPools(Map<String, VmPoolSpec> pools) {
+        return pools.entrySet().stream()
+            .collect(Collectors.toMap(
+                Map.Entry::getKey,
+                kv -> kv.getValue().gpuCount() > 0 ? PoolType.Gpu : PoolType.Cpu
+            ));
+    }
+
+    private static ClusterDescription toClusterDescription(ClusterDesc desc) {
+        var hostAndPort = desc.masterExternalAddress().isEmpty()
+            ? desc.masterInternalAddress()
+            : desc.masterExternalAddress();
+        return new ClusterDescription(desc.clusterId(), hostAndPort, desc.masterCert(), desc.type(),
+            convertPools(desc.pools()));
     }
 }

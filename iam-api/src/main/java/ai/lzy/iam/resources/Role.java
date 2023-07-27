@@ -8,37 +8,41 @@ import java.util.stream.Stream;
 public enum Role {
 
     LZY_WORKFLOW_OWNER("lzy.workflow.owner", Set.of(
-            AuthPermission.WORKFLOW_GET,
-            AuthPermission.WORKFLOW_STOP,
-            AuthPermission.WORKFLOW_RUN,
-            AuthPermission.WORKFLOW_DELETE
+        AuthPermission.WORKFLOW_GET,
+        AuthPermission.WORKFLOW_STOP,
+        AuthPermission.WORKFLOW_RUN,
+        AuthPermission.WORKFLOW_DELETE
     )),
     LZY_WHITEBOARD_OWNER("lzy.whiteboard.owner", Set.of(
-            AuthPermission.WHITEBOARD_GET,
-            AuthPermission.WHITEBOARD_CREATE,
-            AuthPermission.WHITEBOARD_UPDATE,
-            AuthPermission.WHITEBOARD_DELETE
+        AuthPermission.WHITEBOARD_GET,
+        AuthPermission.WHITEBOARD_CREATE,
+        AuthPermission.WHITEBOARD_UPDATE,
+        AuthPermission.WHITEBOARD_DELETE
     )),
     LZY_WHITEBOARD_READER("lzy.whiteboard.reader", Set.of(
-            AuthPermission.WHITEBOARD_GET
+        AuthPermission.WHITEBOARD_GET
     )),
     LZY_INTERNAL_USER("lzy.internal.user", Set.of(
-            AuthPermission.WHITEBOARD_GET,
-            AuthPermission.WHITEBOARD_CREATE,
-            AuthPermission.WHITEBOARD_UPDATE,
-            AuthPermission.WHITEBOARD_DELETE,
-            AuthPermission.WORKFLOW_GET,
-            AuthPermission.WORKFLOW_STOP,
-            AuthPermission.WORKFLOW_RUN,
-            AuthPermission.WORKFLOW_DELETE,
-            AuthPermission.INTERNAL_AUTHORIZE
+        AuthPermission.WHITEBOARD_GET,
+        AuthPermission.WHITEBOARD_CREATE,
+        AuthPermission.WHITEBOARD_UPDATE,
+        AuthPermission.WHITEBOARD_DELETE,
+        AuthPermission.WORKFLOW_GET,
+        AuthPermission.WORKFLOW_STOP,
+        AuthPermission.WORKFLOW_RUN,
+        AuthPermission.WORKFLOW_DELETE,
+        AuthPermission.INTERNAL_AUTHORIZE
     )),
     LZY_WORKER("lzy.internal.worker", Set.of(
-            AuthPermission.WORKFLOW_GET,
-            AuthPermission.WORKFLOW_RUN,
-            AuthPermission.WHITEBOARD_GET,
-            AuthPermission.WHITEBOARD_UPDATE,
-            AuthPermission.INTERNAL_AUTHORIZE
+        AuthPermission.WORKFLOW_GET,
+        AuthPermission.WORKFLOW_RUN,
+        AuthPermission.WHITEBOARD_GET,
+        AuthPermission.WHITEBOARD_UPDATE,
+        AuthPermission.INTERNAL_AUTHORIZE
+    )),
+    LZY_INTERNAL_ADMIN("lzy.internal.admin", Set.of(
+        AuthPermission.INTERNAL_UPDATE_IMAGES,
+        AuthPermission.INTERNAL_AUTHORIZE
     ))
     ;
 
