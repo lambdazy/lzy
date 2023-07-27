@@ -5,10 +5,12 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.gc.GarbageCollector;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.common.IdGenerator;
+import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.test.IamContextImpl;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.test.context.LzyInThread;
 import ai.lzy.test.context.config.LzyConfig;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.DiskServiceGrpc;
@@ -51,6 +53,7 @@ public abstract class IamOnlyAllocatorContextTests {
     protected IdGenerator idGenerator;
     protected GarbageCollector gc;
     protected OperationsExecutor operationsExecutor;
+    protected RenewableJwt internalUserCredentials;
 
     @Before
     public final void setUp() throws InterruptedException {
@@ -74,7 +77,7 @@ public abstract class IamOnlyAllocatorContextTests {
         lzy.setUp(configs, allocatorConfigOverrides(), environments, ports, database, AllocatorContextImpl.ENV_NAME,
             IamContextImpl.ENV_NAME);
 
-        var internalUserCredentials = lzy.micronautContext().getBean(IamContextImpl.class).clientConfig()
+        internalUserCredentials = lzy.micronautContext().getBean(IamContextImpl.class).clientConfig()
             .createRenewableToken();
 
         allocatorChannel = newGrpcChannel("localhost:" + ports.getAllocatorPort(), AllocatorGrpc.SERVICE_NAME,
@@ -110,6 +113,10 @@ public abstract class IamOnlyAllocatorContextTests {
         } finally {
             lzy.tearDown();
         }
+    }
+
+    public Subject createAdminSubject(String name, String publicKey) {
+        return lzy.micronautContext().getBean(IamContextImpl.class).createAdminSubject(name, publicKey);
     }
 
     protected abstract Map<String, Object> allocatorConfigOverrides();

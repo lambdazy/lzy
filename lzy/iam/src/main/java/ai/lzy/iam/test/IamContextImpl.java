@@ -8,6 +8,7 @@ import ai.lzy.iam.resources.credentials.SubjectCredentials;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.iam.storage.db.InternalUserInserter;
 import ai.lzy.iam.storage.impl.DbSubjectService;
 import ai.lzy.test.context.IamContext;
 import io.micronaut.context.ApplicationContext;
@@ -84,5 +85,13 @@ public class IamContextImpl implements IamContext {
     public List<SubjectCredentials> listCredentials(String subjectId) {
         var subjectService = micronautContext.getBean(DbSubjectService.class);
         return subjectService.listCredentials(subjectId);
+    }
+
+    public Subject createAdminSubject(String name, String publicKey) {
+        try {
+            return micronautContext.getBean(InternalUserInserter.class).addAdminUser(name, publicKey);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
