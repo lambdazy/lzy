@@ -7,6 +7,7 @@ import com.google.protobuf.Empty;
 
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 
 import static ai.lzy.util.auth.credentials.CredentialsUtils.readPrivateKey;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -26,8 +27,9 @@ public class AdminClient {
         var resp = client.getActiveImages(Empty.getDefaultInstance());
         printActiveConfiguration(resp);
 
-//        setSyncImage(client, SYNC_IMAGE);
-//        setWorkerImage(client, WORKER_IMAGE);
+        setSyncImage(client, SYNC_IMAGE);
+        setWorkerImage(client, WORKER_IMAGE);
+        //setJupyterLabImage(client, "", List.of(""));
 
         System.out.println("Update images...");
         resp = client.updateImages(Empty.getDefaultInstance());
@@ -48,6 +50,23 @@ public class AdminClient {
         System.out.println("Set WorkerImage to " + image);
         var resp = client.setWorkerImages(VmAllocatorAdminApi.WorkerImages.newBuilder()
             .addImages(image)
+            .build());
+        printActiveConfiguration(resp);
+    }
+
+    private static void setJupyterLabImage(AllocatorAdminGrpc.AllocatorAdminBlockingStub client, String dindImage,
+                                           List<String> internalImages)
+    {
+        System.out.printf("""
+            Set JupyterLabImages to:
+              main dind image: %s,
+              other images   : %s
+            %n""", dindImage, String.join(", ", internalImages));
+        var resp = client.setJupyterlabImages(VmAllocatorAdminApi.JupyterLabImages.newBuilder()
+            .addImages(VmAllocatorAdminApi.JupyterLabImages.Images.newBuilder()
+                .setMainImage(dindImage)
+                .addAllAdditionalImages(internalImages)
+                .build())
             .build());
         printActiveConfiguration(resp);
     }
