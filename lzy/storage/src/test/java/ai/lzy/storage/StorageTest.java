@@ -1,45 +1,24 @@
 package ai.lzy.storage;
 
-import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
-import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
-import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.longrunning.OperationsService;
-import ai.lzy.longrunning.dao.OperationDao;
-import ai.lzy.model.db.test.DatabaseTestUtils;
-import ai.lzy.storage.config.StorageConfig;
-import ai.lzy.test.IdempotencyUtils.TestScenario;
+import ai.lzy.test.IdempotencyUtils;
 import ai.lzy.test.TimeUtils;
 import ai.lzy.util.auth.credentials.JwtUtils;
-import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
-import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
-import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
 import ai.lzy.v1.storage.LSS;
-import ai.lzy.v1.storage.LzyStorageServiceGrpc;
 import ai.lzy.v1.storage.LzyStorageServiceGrpc.LzyStorageServiceBlockingStub;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.model.AmazonS3Exception;
-import com.google.common.net.HostAndPort;
 import com.google.protobuf.InvalidProtocolBufferException;
-import io.grpc.ManagedChannel;
-import io.grpc.Server;
-import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.micronaut.context.ApplicationContext;
-import io.micronaut.inject.qualifiers.Qualifiers;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -52,89 +31,27 @@ import static ai.lzy.storage.App.APP;
 import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsConcurrently;
 import static ai.lzy.test.IdempotencyUtils.processIdempotentCallsSequentially;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 import static ai.lzy.v1.longrunning.LongRunningServiceGrpc.newBlockingStub;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
-@SuppressWarnings("ResultOfMethodCallIgnored")
-public class StorageTest extends BaseTestWithIam {
+public class StorageTest extends IamOnlyStorageContextTests {
     private static final int DEFAULT_TIMEOUT_SEC = 300;
 
-    @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
-    @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {
-    });
-
-    private ApplicationContext storageCtx;
-    private StorageConfig storageConfig;
-    private Server storageServer;
-
-    private ManagedChannel iamChannel;
-
-    private LzyStorageServiceBlockingStub unauthorizedStorageClient;
     private LzyStorageServiceBlockingStub authorizedStorageClient;
-
-    private LongRunningServiceGrpc.LongRunningServiceBlockingStub opClient;
-    private ManagedChannel channel;
+    private LongRunningServiceBlockingStub opClient;
 
     @Before
     public void before() throws IOException {
-        super.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
-
-        storageCtx = ApplicationContext.run(DatabaseTestUtils.preparePostgresConfig("storage", db.getConnectionInfo()));
-        storageConfig = storageCtx.getBean(StorageConfig.class);
-        storageConfig.getIam().setAddress("localhost:" + super.getPort());
-
-        iamChannel = newGrpcChannel(storageConfig.getIam().getAddress(), LzyAuthenticateServiceGrpc.SERVICE_NAME);
-
-        var authInterceptor = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
-        var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
-
-        var operationService = new OperationsService(storageCtx.getBean(OperationDao.class,
-            Qualifiers.byName("StorageOperationDao")));
-
-        storageServer = App.createServer(HostAndPort.fromString(storageConfig.getAddress()), authInterceptor,
-            ServerInterceptors.intercept(operationService, internalOnly),
-            ServerInterceptors.intercept(storageCtx.getBean(StorageServiceGrpc.class), internalOnly));
-
-        storageServer.start();
-
-        channel = ChannelBuilder
-            .forAddress(HostAndPort.fromString(storageConfig.getAddress()))
-            .usePlaintext()
-            .build();
-
-        unauthorizedStorageClient = LzyStorageServiceGrpc.newBlockingStub(channel);
-
-        var credentials = storageConfig.getIam().createRenewableToken();
-        authorizedStorageClient = unauthorizedStorageClient.withInterceptors(
-            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> credentials.get().token()));
+        authorizedStorageClient = storageClient.withInterceptors(
+            ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, () -> internalUserCredentials.get().token()));
         opClient = newBlockingClient(newBlockingStub(authorizedStorageClient.getChannel()), APP,
-            () -> credentials.get().token());
-    }
-
-    @After
-    public void after() {
-        channel.shutdown();
-        storageServer.shutdown();
-        try {
-            storageServer.awaitTermination();
-        } catch (InterruptedException e) {
-            // ignored
-        }
-        iamChannel.shutdown();
-        storageCtx.close();
-        super.after();
+            () -> internalUserCredentials.get().token());
     }
 
     @Test
     public void testUnauthenticated() {
         try {
-            unauthorizedStorageClient.createStorage(LSS.CreateStorageRequest.newBuilder()
+            storageClient.createStorage(LSS.CreateStorageRequest.newBuilder()
                 .setUserId("test-user")
                 .setBucket("bucket-1")
                 .build());
@@ -144,7 +61,7 @@ public class StorageTest extends BaseTestWithIam {
         }
 
         try {
-            unauthorizedStorageClient.getStorageCredentials(LSS.GetStorageCredentialsRequest.newBuilder()
+            storageClient.getStorageCredentials(LSS.GetStorageCredentialsRequest.newBuilder()
                 .setUserId("test-user")
                 .setBucket("bucket-1")
                 .build());
@@ -154,7 +71,7 @@ public class StorageTest extends BaseTestWithIam {
         }
 
         try {
-            unauthorizedStorageClient.deleteStorage(LSS.DeleteStorageRequest.newBuilder()
+            storageClient.deleteStorage(LSS.DeleteStorageRequest.newBuilder()
                 .setBucket("bucket-1")
                 .build());
             Assert.fail();
@@ -165,9 +82,9 @@ public class StorageTest extends BaseTestWithIam {
 
     @Test
     public void testPermissionDenied() {
-        var credentials = JwtUtils.invalidCredentials(storageConfig.getIam().getInternalUserName(), "GITHUB");
+        var credentials = JwtUtils.invalidCredentials("lzy-internal-user", "GITHUB");
 
-        var client = unauthorizedStorageClient.withInterceptors(
+        var client = storageClient.withInterceptors(
             ClientHeaderInterceptor.header(GrpcHeaders.AUTHORIZATION, credentials::token));
 
         try {
@@ -262,8 +179,8 @@ public class StorageTest extends BaseTestWithIam {
         processIdempotentCallsConcurrently(createBucketScenario());
     }
 
-    private TestScenario<LzyStorageServiceBlockingStub, Void, LongRunning.Operation> createBucketScenario() {
-        return new TestScenario<>(authorizedStorageClient,
+    private IdempotencyUtils.TestScenario<LzyStorageServiceBlockingStub, Void, LongRunning.Operation> createBucketScenario() {
+        return new IdempotencyUtils.TestScenario<>(authorizedStorageClient,
             stub -> null,
             (stub, nothing) -> {
                 var op = createBucket(stub);

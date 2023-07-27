@@ -2,8 +2,6 @@ package ai.lzy.worker;
 
 import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
-import ai.lzy.iam.grpc.client.AccessBindingServiceGrpcClient;
-import ai.lzy.iam.grpc.client.SubjectServiceGrpcClient;
 import ai.lzy.iam.resources.AccessBinding;
 import ai.lzy.iam.resources.Role;
 import ai.lzy.iam.resources.credentials.SubjectCredentials;
@@ -11,8 +9,6 @@ import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.CredentialsType;
 import ai.lzy.iam.resources.subjects.SubjectType;
-import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.model.db.test.DatabaseTestUtils;
 import ai.lzy.test.GrpcUtils;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.JwtCredentials;
@@ -27,7 +23,6 @@ import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.VmAllocatorPrivateApi;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.longrunning.LongRunning;
-import ai.lzy.v1.longrunning.LongRunning.GetOperationRequest;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.slots.LSA;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
@@ -41,8 +36,6 @@ import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import jakarta.annotation.Nullable;
 import org.junit.*;
 import scala.collection.immutable.Map$;
@@ -55,21 +48,12 @@ import java.util.concurrent.TimeUnit;
 import static ai.lzy.util.grpc.GrpcUtils.*;
 import static org.junit.Assert.assertThrows;
 
-public class WorkerTests {
-    private static final BaseTestWithIam iamTestContext = new BaseTestWithIam();
-
-    @ClassRule
-    public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-
+public class WorkerTests extends IamOnlyWorkerTests {
     private static String kafkaBootstrapServer;
     private static EmbeddedK kafka;
     private static KafkaAdminClient kafkaAdminClient;
 
     private static final IdGenerator idGenerator = new RandomIdGenerator();
-
-    private static ManagedChannel iamChannel;
-    private static SubjectServiceGrpcClient iamSubjectClient;
-    private static AccessBindingServiceGrpcClient iamAccessBindingClient;
 
     private static String allocatorAddress;
     private static Server allocatorServer;
@@ -82,14 +66,6 @@ public class WorkerTests {
 
     @BeforeClass
     public static void beforeTest() throws Exception {
-        var iamDbConfig = DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo());
-        iamTestContext.setUp(iamDbConfig);
-
-        iamChannel = newGrpcChannel(iamTestContext.getClientConfig().getAddress());
-        var iamToken = iamTestContext.getClientConfig().createRenewableToken();
-        iamSubjectClient = new SubjectServiceGrpcClient("TestClient", iamChannel, iamToken::get);
-        iamAccessBindingClient = new AccessBindingServiceGrpcClient("TestABClient", iamChannel, iamToken::get);
-
         var allocatorPort = GrpcUtils.rollPort();
         allocatorAddress = "localhost:" + allocatorPort;
         allocatorServer = newGrpcServer("localhost", allocatorPort, NO_AUTH)
@@ -100,6 +76,7 @@ public class WorkerTests {
                     response.onNext(VmAllocatorPrivateApi.RegisterResponse.getDefaultInstance());
                     response.onCompleted();
                 }
+
                 public void heartbeat(VmAllocatorPrivateApi.HeartbeatRequest request,
                                       StreamObserver<VmAllocatorPrivateApi.HeartbeatResponse> response)
                 {
@@ -134,10 +111,6 @@ public class WorkerTests {
         kafkaAdminClient.shutdown();
         kafka.stop(true);
         KafkaHelper.USE_AUTH.set(true);
-
-        iamChannel.shutdownNow();
-        iamChannel.awaitTermination(1, TimeUnit.SECONDS);
-        iamTestContext.after();
     }
 
     @Before
@@ -191,7 +164,8 @@ public class WorkerTests {
         ManagedChannel slotsApiChannel,
         LzySlotsApiGrpc.LzySlotsApiBlockingStub slotsApiStub,
         LongRunningServiceGrpc.LongRunningServiceBlockingStub slotsApiOpStub
-    ) implements AutoCloseable {
+    ) implements AutoCloseable
+    {
         WorkerApiGrpc.WorkerApiBlockingStub workerApiStub(@Nullable String token) {
             workerApiChannel.resetConnectBackoff();
             var creds = token != null ? token : jwt.get().token();
@@ -230,9 +204,9 @@ public class WorkerTests {
         var workerId = idGenerator.generate(workerName + "-");
 
         var workerKeys = RsaUtils.generateRsaKeys();
-        var workerSubject = iamSubjectClient.createSubject(AuthProvider.INTERNAL, workerId, SubjectType.WORKER,
+        var workerSubject = subjectIamClient.createSubject(AuthProvider.INTERNAL, workerId, SubjectType.WORKER,
             new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
-        iamAccessBindingClient.setAccessBindings(new Workflow(uid + '/' + workflowName),
+        abIamClient.setAccessBindings(new Workflow(uid + '/' + workflowName),
             List.of(new AccessBinding(Role.LZY_WORKER, workerSubject)));
 
         var workerJwt = new RenewableJwt(workerId, "INTERNAL", Duration.ofDays(1),
@@ -240,20 +214,20 @@ public class WorkerTests {
         return workerJwt.get();
     }
 
-    private static WorkerDesc startWorker(String uid, String workflowName) throws Exception {
+    private static WorkerTests.WorkerDesc startWorker(String uid, String workflowName) throws Exception {
         var workerId = idGenerator.generate("worker-");
 
         var ctx = Worker.startApplication(workerId,
-            allocatorAddress, "localhost:" + iamTestContext.getPort(), Duration.ofHours(1),
+            allocatorAddress, "localhost:" + iamPort, Duration.ofHours(1),
             channelManagerAddress, "localhost", "token-" + workerId, 0, KafkaConfig.of(kafkaBootstrapServer));
 
         var worker = ctx.getBean(Worker.class);
         var config = ctx.getBean(ServiceConfig.class);
 
         var workerKeys = RsaUtils.generateRsaKeys();
-        var workerSubject = iamSubjectClient.createSubject(AuthProvider.INTERNAL, workerId, SubjectType.WORKER,
+        var workerSubject = subjectIamClient.createSubject(AuthProvider.INTERNAL, workerId, SubjectType.WORKER,
             new SubjectCredentials("main", workerKeys.publicKey(), CredentialsType.PUBLIC_KEY));
-        iamAccessBindingClient.setAccessBindings(new Workflow(uid + '/' + workflowName),
+        abIamClient.setAccessBindings(new Workflow(uid + '/' + workflowName),
             List.of(new AccessBinding(Role.LZY_WORKER, workerSubject)));
 
         var workerJwt = new RenewableJwt(workerId, "INTERNAL", Duration.ofDays(1),
@@ -270,14 +244,14 @@ public class WorkerTests {
         var slotsApiStub = LzySlotsApiGrpc.newBlockingStub(slotsApiChannel);
         var slotsApiOpStub = LongRunningServiceGrpc.newBlockingStub(slotsApiChannel);
 
-        return new WorkerDesc(workerId, worker, workerKeys, workerJwt,
+        return new WorkerTests.WorkerDesc(workerId, worker, workerKeys, workerJwt,
             workerApiChannel, workerApiStub, workerApiOpStub,
             slotsApiChannel, slotsApiStub, slotsApiOpStub);
     }
 
     @Test
     public void apiAvailability() throws Exception {
-        var internalUser = iamTestContext.getClientConfig().createRenewableToken().get().token();
+        var internalUser = internalUserCredentials.get().token();
 
         var hackerCreds = createWorkerCreds("hacker-worker", "hacker-user", "wf");
 
@@ -294,12 +268,14 @@ public class WorkerTests {
 
             // WorkerApi Ops unavailable for any worker
             e = assertThrows(StatusRuntimeException.class, () ->
-                worker.workerApiOpStub(null).get(GetOperationRequest.newBuilder().setOperationId("1").build()));
+                worker.workerApiOpStub(null)
+                    .get(LongRunning.GetOperationRequest.newBuilder().setOperationId("1").build()));
             Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
 
             // WorkerApi Ops available for internal user
             e = assertThrows(StatusRuntimeException.class, () ->
-                worker.workerApiOpStub(internalUser).get(GetOperationRequest.newBuilder().setOperationId("1").build()));
+                worker.workerApiOpStub(internalUser).get(
+                    LongRunning.GetOperationRequest.newBuilder().setOperationId("1").build()));
             Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
 
             // WorkerApi unavailable for any worker
@@ -322,7 +298,8 @@ public class WorkerTests {
 
             // Worker Ops available for internal user
             e = assertThrows(StatusRuntimeException.class, () ->
-                worker.workerApiOpStub(internalUser).get(GetOperationRequest.newBuilder().setOperationId("1").build()));
+                worker.workerApiOpStub(internalUser).get(
+                    LongRunning.GetOperationRequest.newBuilder().setOperationId("1").build()));
             Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
 
             // SlotsApi control plane unavailable for worker

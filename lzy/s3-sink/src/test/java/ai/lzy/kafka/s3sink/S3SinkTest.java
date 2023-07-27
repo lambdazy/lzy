@@ -1,10 +1,5 @@
-import ai.lzy.iam.test.BaseTestWithIam;
-import ai.lzy.kafka.s3sink.Job;
-import ai.lzy.kafka.s3sink.JobExecutor;
-import ai.lzy.kafka.s3sink.Main;
-import ai.lzy.kafka.s3sink.S3SinkMetrics;
-import ai.lzy.kafka.s3sink.ServiceConfig;
-import ai.lzy.model.db.test.DatabaseTestUtils;
+package ai.lzy.kafka.s3sink;
+
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMST;
@@ -23,8 +18,6 @@ import io.github.embeddedkafka.EmbeddedKafka;
 import io.github.embeddedkafka.EmbeddedKafkaConfig$;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.ApplicationContext;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -46,16 +39,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
-public class S3SinkTest {
+public class S3SinkTest extends IamOnlyS3SinkContextTests {
     private static ApplicationContext context;
     private static Main app;
-    private static BaseTestWithIam iamContext;
     private static EmbeddedK kafka;
     private static ManagedChannel channel;
     private static S3SinkServiceGrpc.S3SinkServiceBlockingStub stub;
 
-    @ClassRule
-    public static PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @ClassRule
     public static S3MockRule s3MockRule = S3MockRule.builder()
         .withHttpPort(12345)
@@ -68,9 +58,8 @@ public class S3SinkTest {
     private static final AtomicInteger nextTaskId = new AtomicInteger(1);
 
     @BeforeClass
-    public static void setUp() throws Exception {
-        iamContext = new BaseTestWithIam();
-        iamContext.setUp(DatabaseTestUtils.preparePostgresConfig("iam", iamDb.getConnectionInfo()));
+    public static void setUp() throws InterruptedException {
+        beforeClass();
 
         scala.collection.immutable.Map<String, String> conf = Map$.MODULE$.empty();
         var config = EmbeddedKafkaConfig$.MODULE$.apply(
@@ -87,7 +76,7 @@ public class S3SinkTest {
 
         Map<String, Object> appConf = Map.of(
             "s3-sink.kafka.bootstrap-servers", "localhost:8001",
-            "s3-sink.iam.address", "localhost:" + iamContext.getPort(),
+            "s3-sink.iam.address", "localhost:" + iamPort,
             "s3-sink.complete-job-timeout", "5s",
             "s3-sink.upload-poll-interval", "50ms",
             "s3-sink.kafka-poll-interval", "50ms"
@@ -99,11 +88,8 @@ public class S3SinkTest {
         var serviceConfig = context.getBean(ServiceConfig.class);
         channel = newGrpcChannel(serviceConfig.getAddress(), S3SinkServiceGrpc.SERVICE_NAME);
 
-
-        var creds = iamContext.getClientConfig().createRenewableToken();
-
         stub = newBlockingClient(S3SinkServiceGrpc.newBlockingStub(channel), "Test",
-            () -> creds.get().token());
+            () -> internalUserCredentials.get().token());
 
         var helper = context.getBean(KafkaHelper.class);
 
@@ -121,7 +107,7 @@ public class S3SinkTest {
 
     @AfterClass
     public static void tearDown() throws Exception {
-        iamContext.after();
+        afterClass();
         kafka.stop(true);
 
         app.close();
@@ -307,11 +293,12 @@ public class S3SinkTest {
         for (int j = 0; j < 10; j++) {  // Generating 10 messages for every job
             for (int i = 0; i < jobsCount; i++) {
                 msgFutures.addAll(
-                    writeToKafkaAsync(ids.get(i), "parallel_" + i, "out", "Some simple data %d/%d".formatted(i, j), j == 9));
+                    writeToKafkaAsync(ids.get(i), "parallel_" + i, "out", "Some simple data %d/%d".formatted(i, j),
+                        j == 9));
             }
         }
 
-        for (var fut: msgFutures) {
+        for (var fut : msgFutures) {
             fut.get();
         }
 

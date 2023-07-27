@@ -10,8 +10,8 @@ import jakarta.inject.Singleton;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Map;
+import java.util.Objects;
 
 import static ai.lzy.graph.test.GraphExecutorContextImpl.ENV_NAME;
 
@@ -24,12 +24,12 @@ public class GraphExecutorContextImpl implements GraphExecutorContext {
     private GraphExecutorApi graphExecutorApp;
 
     @Override
-    public void setUp(Path config, Map<String, Object> runtimeConfig, String... environments)
+    public void setUp(String baseConfigPath, Map<String, Object> configOverrides, String... environments)
         throws IOException, InterruptedException
     {
-        try (var file = new FileInputStream(config.toFile())) {
+        try (var file = new FileInputStream(Objects.requireNonNull(baseConfigPath))) {
             var actualConfig = new YamlPropertySourceLoader().read("graph-executor", file);
-            actualConfig.putAll(runtimeConfig);
+            actualConfig.putAll(configOverrides);
             micronautContext = ApplicationContext.run(PropertySource.of(actualConfig), environments);
         }
 

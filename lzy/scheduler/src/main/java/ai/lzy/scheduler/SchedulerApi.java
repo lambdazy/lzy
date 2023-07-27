@@ -4,11 +4,11 @@ import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.scheduler.configs.ServiceConfig;
+import ai.lzy.v1.scheduler.SchedulerGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.micronaut.context.ApplicationContext;
-import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -27,8 +27,7 @@ public class SchedulerApi {
     private final Server server;
     private final JobService jobService;
 
-    @Inject
-    public SchedulerApi(SchedulerApiImpl impl, ServiceConfig config,
+    public SchedulerApi(SchedulerGrpc.SchedulerImplBase impl, ServiceConfig config,
                         @Named("SchedulerIamGrpcChannel") ManagedChannel iamChannel, JobService jobService)
     {
         this.jobService = jobService;

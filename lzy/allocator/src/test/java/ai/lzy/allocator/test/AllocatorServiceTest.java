@@ -8,11 +8,7 @@ import ai.lzy.util.auth.credentials.OttHelper;
 import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.v1.*;
-import ai.lzy.v1.VmAllocatorApi.AllocateMetadata;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest;
-import ai.lzy.v1.VmAllocatorApi.AllocateResponse;
-import ai.lzy.v1.VmAllocatorApi.DeleteSessionRequest;
-import ai.lzy.v1.VmAllocatorApi.FreeRequest;
+import ai.lzy.v1.VmAllocatorApi.*;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunning.Operation;
 import com.google.protobuf.util.Durations;
@@ -23,15 +19,13 @@ import io.fabric8.kubernetes.api.model.Quantity;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import okhttp3.mockwebserver.MockResponse;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
-import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
@@ -50,24 +44,11 @@ import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorServiceTest extends AllocatorApiTestBase {
-
     private static final int TIMEOUT_SEC = 300;
 
-
-    @Before
-    public void before() throws IOException {
-        super.setUp();
-    }
-
-    @After
-    public void after() {
-        super.tearDown();
-    }
-
     @Override
-    protected void updateStartupProperties(Map<String, Object> props) {
-        super.updateStartupProperties(props);
-        props.put("allocator.allocation-timeout", "3s");
+    protected Map<String, Object> allocatorConfigOverrides() {
+        return Collections.singletonMap("allocator.allocation-timeout", "3s");
     }
 
     @Test
@@ -127,8 +108,8 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                     .setClusterType(AllocateRequest.ClusterType.USER)
                     .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                     .build()));
-        final VmAllocatorApi.AllocateMetadata allocateMeta =
-            operation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
+        final AllocateMetadata allocateMeta =
+            operation.getMetadata().unpack(AllocateMetadata.class);
 
         final String podName = getVmPodName(allocateMeta.getVmId());
         mockGetPodByName(podName);
@@ -171,7 +152,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
 
         assertVmMetrics("S", 0, 0, 0);
 
-        var nr = allocatorCtx.getBean(TestNodeRemover.class);
+        var nr = allocatorContext.getBean(TestNodeRemover.class);
         Assert.assertTrue(nr.await(Duration.ofSeconds(5)));
         Assert.assertEquals(1, nr.size());
         Assert.assertTrue(nr.contains(vmId, "node", "node"));
@@ -257,7 +238,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var vmId = allocOp.getMetadata().unpack(AllocateMetadata.class).getVmId();
         Assert.assertEquals(vm1.vmId(), vmId);
 
-        vmId = allocOp.getResponse().unpack(VmAllocatorApi.AllocateResponse.class).getVmId();
+        vmId = allocOp.getResponse().unpack(AllocateResponse.class).getVmId();
         Assert.assertEquals(vm1.vmId(), vmId);
 
         assertVmMetrics("S", -1, 1, 0);
@@ -334,7 +315,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
                 .addWorkload(AllocateRequest.Workload.getDefaultInstance())
                 .build()));
 
-        var vmId = allocOp.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class).getVmId();
+        var vmId = allocOp.getMetadata().unpack(AllocateMetadata.class).getVmId();
 
         final String podName = getName(future.get());
 
@@ -366,7 +347,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         var vm1 = allocateAndFreeVm(sessionId, vm ->
         {/* fail the first remove request */
             mockDeletePodByName(vm.podName(), () -> {
-                    kuberRemoveRequestLatch.countDown();
+                kuberRemoveRequestLatch.countDown();
                 mockDeletePodByName(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK);
             }, HttpURLConnection.HTTP_INTERNAL_ERROR);
         });
@@ -588,15 +569,14 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
             Assert.fail();
         } catch (StatusRuntimeException e) {
             switch (e.getStatus().getCode()) {
-                case CANCELLED ->
-                    Assert.assertEquals(e.getStatus().toString(),
-                        "Op %s already done".formatted(allocate.getId()),
-                        e.getStatus().getDescription());
-                case NOT_FOUND -> { }
-                case FAILED_PRECONDITION ->
-                    Assert.assertEquals(e.getStatus().toString(),
-                        "Unexpected VM status DELETING",
-                        e.getStatus().getDescription());
+                case CANCELLED -> Assert.assertEquals(e.getStatus().toString(),
+                    "Op %s already done".formatted(allocate.getId()),
+                    e.getStatus().getDescription());
+                case NOT_FOUND -> {
+                }
+                case FAILED_PRECONDITION -> Assert.assertEquals(e.getStatus().toString(),
+                    "Unexpected VM status DELETING",
+                    e.getStatus().getDescription());
                 default -> Assert.fail("Unexpected status: " + e.getStatus());
             }
         }
@@ -706,7 +686,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
             .setZoneId("ru-central1-a")
             .setType(DiskApi.DiskType.HDD)
             .build();
-        Operation createDiskOperation = diskService.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
+        Operation createDiskOperation = diskServiceBlockingStub.createDisk(DiskServiceApi.CreateDiskRequest.newBuilder()
             .setUserId("user-id")
             .setDiskSpec(diskSpec)
             .build());
@@ -770,14 +750,15 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         Assert.assertTrue(kuberRemoveResourceLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
 
         //noinspection ResultOfMethodCallIgnored
-        diskService.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder().setDiskId(disk.getDiskId()).build());
+        diskServiceBlockingStub.deleteDisk(DiskServiceApi.DeleteDiskRequest.newBuilder().setDiskId(disk.getDiskId())
+            .build());
     }
 
     @Test
     public void mountHandleWontWorkIfMountsAreDisabled() {
         var exception = Assert.assertThrows(StatusRuntimeException.class, () -> {
             //noinspection ResultOfMethodCallIgnored
-            authorizedAllocatorBlockingStub.mount(VmAllocatorApi.MountRequest.getDefaultInstance());
+            authorizedAllocatorBlockingStub.mount(MountRequest.getDefaultInstance());
         });
         Assert.assertEquals(Status.UNIMPLEMENTED.getCode(), exception.getStatus().getCode());
     }
@@ -786,7 +767,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
     public void unmountHandleWontWorkIfMountsAreDisabled() {
         var exception = Assert.assertThrows(StatusRuntimeException.class, () -> {
             //noinspection ResultOfMethodCallIgnored
-            authorizedAllocatorBlockingStub.unmount(VmAllocatorApi.UnmountRequest.getDefaultInstance());
+            authorizedAllocatorBlockingStub.unmount(UnmountRequest.getDefaultInstance());
         });
         Assert.assertEquals(Status.UNIMPLEMENTED.getCode(), exception.getStatus().getCode());
     }

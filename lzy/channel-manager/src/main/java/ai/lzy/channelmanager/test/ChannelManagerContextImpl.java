@@ -10,8 +10,8 @@ import jakarta.inject.Singleton;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Map;
+import java.util.Objects;
 
 import static ai.lzy.channelmanager.test.ChannelManagerContextImpl.ENV_NAME;
 
@@ -24,10 +24,12 @@ public class ChannelManagerContextImpl implements ChannelManagerContext {
     private ChannelManagerMain channelManagerApp;
 
     @Override
-    public void setUp(Path config, Map<String, Object> runtimeConfig, String... environments) throws IOException {
-        try (var file = new FileInputStream(config.toFile())) {
+    public void setUp(String baseConfigPath, Map<String, Object> configOverrides, String... environments)
+        throws IOException
+    {
+        try (var file = new FileInputStream(Objects.requireNonNull(baseConfigPath))) {
             var actualConfig = new YamlPropertySourceLoader().read("channel-manager", file);
-            actualConfig.putAll(runtimeConfig);
+            actualConfig.putAll(configOverrides);
             micronautContext = ApplicationContext.run(PropertySource.of(actualConfig), environments);
         }
 
@@ -44,5 +46,9 @@ public class ChannelManagerContextImpl implements ChannelManagerContext {
         } finally {
             micronautContext.stop();
         }
+    }
+
+    public ApplicationContext getMicronautContext() {
+        return micronautContext;
     }
 }

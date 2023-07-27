@@ -6,7 +6,6 @@ import ai.lzy.v1.AllocatorAdminGrpc;
 import com.google.protobuf.Empty;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -24,14 +23,7 @@ public class AllocatorAdminServiceTest extends AllocatorApiTestBase {
 
     @Before
     public void before() throws IOException {
-        super.setUp();
-
-        stub = AllocatorAdminGrpc.newBlockingStub(channel);
-    }
-
-    @After
-    public void after() {
-        super.tearDown();
+        stub = AllocatorAdminGrpc.newBlockingStub(allocatorChannel);
     }
 
     @Test
@@ -43,7 +35,7 @@ public class AllocatorAdminServiceTest extends AllocatorApiTestBase {
 
         // LzyInternal auth
         e = assertThrows(StatusRuntimeException.class, () ->
-            newBlockingClient(stub, "xxx", () -> internalUserCreds.get().token())
+            newBlockingClient(stub, "xxx", () -> internalUserCredentials.get().token())
                 .getActiveImages(Empty.getDefaultInstance()));
         Assert.assertEquals(Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
     }

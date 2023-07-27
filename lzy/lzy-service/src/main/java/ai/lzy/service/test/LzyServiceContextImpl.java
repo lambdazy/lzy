@@ -11,8 +11,8 @@ import jakarta.inject.Singleton;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.Map;
+import java.util.Objects;
 
 import static ai.lzy.service.test.LzyServiceContextImpl.ENV_NAME;
 
@@ -25,10 +25,12 @@ public class LzyServiceContextImpl implements LzyServiceContext {
     private App lzyServiceApp;
 
     @Override
-    public void setUp(Path configPath, Map<String, Object> runtimeConfig, String... environments) throws IOException {
-        try (var file = new FileInputStream(configPath.toFile())) {
+    public void setUp(String baseConfigPath, Map<String, Object> configOverrides, String... environments)
+        throws IOException
+    {
+        try (var file = new FileInputStream(Objects.requireNonNull(baseConfigPath))) {
             var actualConfig = new YamlPropertySourceLoader().read("lzy-service", file);
-            actualConfig.putAll(runtimeConfig);
+            actualConfig.putAll(configOverrides);
             micronautContext = ApplicationContext.run(PropertySource.of(actualConfig), environments);
         }
 

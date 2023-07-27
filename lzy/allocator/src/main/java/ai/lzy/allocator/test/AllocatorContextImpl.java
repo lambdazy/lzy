@@ -10,9 +10,9 @@ import jakarta.inject.Singleton;
 
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.Map;
+import java.util.Objects;
 
 import static ai.lzy.allocator.test.AllocatorContextImpl.ENV_NAME;
 
@@ -25,10 +25,12 @@ public class AllocatorContextImpl implements AllocatorContext {
     private AllocatorMain allocatorApp;
 
     @Override
-    public void setUp(Path config, Map<String, Object> runtimeConfig, String... environments) throws IOException {
-        try (var file = new FileInputStream(config.toFile())) {
+    public void setUp(String baseConfigPath, Map<String, Object> configOverrides, String... environments)
+        throws IOException
+    {
+        try (var file = new FileInputStream(Objects.requireNonNull(baseConfigPath))) {
             var actualConfig = new YamlPropertySourceLoader().read("allocator", file);
-            actualConfig.putAll(runtimeConfig);
+            actualConfig.putAll(configOverrides);
             micronautContext = ApplicationContext.run(PropertySource.of(actualConfig), environments);
         }
 
@@ -58,5 +60,9 @@ public class AllocatorContextImpl implements AllocatorContext {
 
     public AllocatorServiceDecorator allocator() {
         return micronautContext.getBean(AllocatorServiceDecorator.class);
+    }
+
+    public ApplicationContext getMicronautContext() {
+        return micronautContext;
     }
 }

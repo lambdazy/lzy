@@ -1,77 +1,18 @@
 package ai.lzy.scheduler.test;
 
-import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.scheduler.SchedulerApi;
-import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.scheduler.test.mocks.AllocatedWorkerMock;
 import ai.lzy.scheduler.test.mocks.AllocatorMock;
-import ai.lzy.util.grpc.GrpcChannels;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.scheduler.Scheduler;
 import ai.lzy.v1.scheduler.SchedulerApi.TaskScheduleRequest;
-import ai.lzy.v1.scheduler.SchedulerGrpc;
-import io.grpc.ManagedChannel;
-import io.micronaut.context.ApplicationContext;
-import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
-import io.zonky.test.db.postgres.junit.PreparedDbRule;
-import org.apache.logging.log4j.Level;
-import org.apache.logging.log4j.core.config.Configurator;
-import org.junit.*;
+import org.junit.Assert;
+import org.junit.Test;
 
-import java.io.IOException;
-import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 
-import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-
-public class IntegrationTest extends BaseTestWithIam {
-
-    @Rule
-    public PreparedDbRule iamDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @Rule
-    public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-
-    private ApplicationContext context;
-    private SchedulerApi api;
-    private SchedulerGrpc.SchedulerBlockingStub stub;
-    ManagedChannel chan;
-
-    @Before
-    public void setUp() throws IOException {
-        super.setUp(preparePostgresConfig("iam", iamDb.getConnectionInfo()));
-
-        var props = preparePostgresConfig("scheduler", db.getConnectionInfo());
-        props.putAll(preparePostgresConfig("jobs", db.getConnectionInfo()));
-
-        context = ApplicationContext.run(props);
-
-        var config = context.getBean(ServiceConfig.class);
-        config.getIam().setAddress("localhost:" + super.getPort());
-
-        api = context.getBean(SchedulerApi.class);
-        var auth = config.getIam();
-
-        var credentials = auth.createRenewableToken();
-
-        chan = newGrpcChannel("localhost", 2392, SchedulerGrpc.SERVICE_NAME);
-        stub = newBlockingClient(SchedulerGrpc.newBlockingStub(chan), "Test", () -> credentials.get().token());
-
-        Configurator.setAllLevels("ai.lzy.scheduler", Level.ALL);
-    }
-
-    @After
-    public void tearDown() throws InterruptedException {
-        api.close();
-        api.awaitTermination();
-        GrpcChannels.awaitTermination(chan, Duration.ofSeconds(15), getClass());
-        context.close();
-        super.after();
-    }
-
+public class IntegrationTest extends IamOnlySchedulerContextTests {
     @Test
     public void testSimple() throws Exception {
         var allocate = new CountDownLatch(1);

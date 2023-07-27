@@ -187,6 +187,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>test-context</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>com.adobe.testing</groupId>
             <artifactId>s3mock-junit4</artifactId>
             <scope>test</scope>

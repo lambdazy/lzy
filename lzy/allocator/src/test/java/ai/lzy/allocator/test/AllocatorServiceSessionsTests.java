@@ -10,31 +10,17 @@ import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.util.Durations;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import org.junit.After;
 import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 import org.postgresql.util.PSQLException;
 import org.postgresql.util.PSQLState;
 
-import java.io.IOException;
 import java.sql.SQLException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
-
-    @Before
-    public void before() throws IOException {
-        super.setUp();
-    }
-
-    @After
-    public void after() {
-        super.tearDown();
-    }
-
     @Test
     public void testUnauthenticated() {
         try {
@@ -84,7 +70,7 @@ public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
         var op = deleteSession(sessionId, true);
         Assert.assertTrue(op.toString(), op.hasResponse());
 
-        var session = allocatorCtx.getBean(SessionDao.class).get(sessionId, null);
+        var session = allocatorContext.getBean(SessionDao.class).get(sessionId, null);
         Assert.assertNull(session);
     }
 
@@ -138,7 +124,7 @@ public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
 
     @Test
     public void errorWhileCreatingSession() {
-        allocatorCtx.getBean(SessionDaoImpl.class).injectError(new SQLException("non retryable", "xxx"));
+        allocatorContext.getBean(SessionDaoImpl.class).injectError(new SQLException("non retryable", "xxx"));
 
         try {
             var sessionId = createSession(Durations.fromSeconds(100));
@@ -151,7 +137,7 @@ public class AllocatorServiceSessionsTests extends AllocatorApiTestBase {
 
     @Test
     public void retryableSqlErrorWhileCreatingSession() {
-        allocatorCtx.getBean(SessionDaoImpl.class).injectError(
+        allocatorContext.getBean(SessionDaoImpl.class).injectError(
             new PSQLException("retry me, plz", PSQLState.CONNECTION_FAILURE));
 
         createSession(Durations.fromSeconds(100));

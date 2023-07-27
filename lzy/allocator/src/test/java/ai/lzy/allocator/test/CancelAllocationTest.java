@@ -25,34 +25,28 @@ import static ai.lzy.test.GrpcUtils.withGrpcContext;
 import static java.util.Objects.requireNonNull;
 
 public class CancelAllocationTest extends AllocatorApiTestBase {
-
     private static final String ZONE = "test-zone";
 
     @Before
     public void before() throws IOException {
-        super.setUp();
         InjectedFailures.reset();
     }
 
     @After
     public void after() {
-        super.tearDown();
         InjectedFailures.reset();
     }
 
-    private record AllocVm(
-        String vmId,
-        String allocOpId
-    ) {}
+    private record AllocVm(String vmId, String allocOpId) {}
 
     private void assertVmCleaned(AllocVm x) throws Exception {
-        var vmDao = allocatorCtx.getBean(VmDao.class);
+        var vmDao = allocatorContext.getBean(VmDao.class);
         var vm = vmDao.get(x.vmId, null);
         Assert.assertNull(vm);
 
         Assert.assertTrue(vmDao.hasDeadVm(x.vmId));
 
-        var operationsDao = allocatorCtx.getBean(OperationDao.class);
+        var operationsDao = allocatorContext.getBean(OperationDao.class);
         var allocOp = operationsDao.get(x.allocOpId, null);
         Assert.assertEquals(Status.CANCELLED.getCode(),
             Status.fromCodeValue(allocOp.error().getCode().value()).getCode());
@@ -121,7 +115,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
         if (action.apply(vmId, allocOp)) {
             System.err.println("--> do restart ...");
             operationsExecutor.dropAll();
-            allocatorCtx.getBean(RestoreOperations.class); //calls restore after construction
+            allocatorContext.getBean(RestoreOperations.class); //calls restore after construction
             System.err.println("--> restart done");
         }
 
@@ -155,7 +149,7 @@ public class CancelAllocationTest extends AllocatorApiTestBase {
 
     private void waitVm(AllocVm vm) {
         var done = TimeUtils.waitFlagUp(() -> {
-            var vmDao = allocatorCtx.getBean(VmDao.class);
+            var vmDao = allocatorContext.getBean(VmDao.class);
             try {
                 return vmDao.get(vm.vmId, null) == null;
             } catch (SQLException e) {

@@ -1,6 +1,5 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.alloc.AllocatorMetrics;
 import ai.lzy.allocator.configs.ServiceConfig;
 import com.google.protobuf.util.Durations;
 import org.junit.After;
@@ -12,15 +11,11 @@ import java.io.IOException;
 import java.util.Map;
 
 public class AllocatorServiceCacheLimitsTest extends AllocatorApiTestBase {
-
     private ServiceConfig.CacheLimits cacheLimits;
-    private AllocatorMetrics metrics;
 
     @Before
     public void before() throws IOException {
-        super.setUp();
-        cacheLimits = allocatorCtx.getBean(ServiceConfig.CacheLimits.class);
-        metrics = allocatorCtx.getBean(AllocatorMetrics.class);
+        cacheLimits = allocatorContext.getBean(ServiceConfig.CacheLimits.class);
     }
 
     @After

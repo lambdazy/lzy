@@ -1,19 +1,11 @@
 package ai.lzy.allocator.test;
 
-import ai.lzy.allocator.AllocatorMain;
 import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactoryImpl;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.allocator.disk.DiskManager;
-import ai.lzy.allocator.vmpool.ClusterRegistry;
 import ai.lzy.allocator.volume.KuberVolumeManager;
-import ai.lzy.common.IdGenerator;
-import ai.lzy.iam.test.BaseTestWithIam;
 import ai.lzy.test.TimeUtils;
-import ai.lzy.v1.AllocatorGrpc;
-import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.VmAllocatorApi;
-import ai.lzy.v1.VmAllocatorApi.AllocateRequest.Workload;
 import ai.lzy.v1.VmAllocatorPrivateApi;
 import ai.lzy.v1.VolumeApi;
 import ai.lzy.v1.longrunning.LongRunning;
@@ -22,104 +14,44 @@ import com.google.protobuf.util.Durations;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.ExecWatch;
-import io.grpc.ManagedChannel;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import io.micronaut.context.ApplicationContext;
-import io.micronaut.context.env.PropertySource;
-import io.micronaut.context.env.yaml.YamlPropertySourceLoader;
-import io.micronaut.inject.qualifiers.Qualifiers;
 import jakarta.annotation.Nullable;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import yandex.cloud.sdk.Zone;
 
 import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-
 @Ignore
-public class AllocateWithVolumeTest extends BaseTestWithIam {
+public class AllocateWithVolumeTest extends IamOnlyAllocatorContextTests {
     private static final int TIMEOUT_SEC = 300;
-
-    private ApplicationContext context;
-    private AllocatorGrpc.AllocatorBlockingStub allocator;
-    private AllocatorPrivateGrpc.AllocatorPrivateBlockingStub privateAllocatorBlockingStub;
-    private AllocatorMain allocatorApp;
-    private ManagedChannel channel;
     private KubernetesClient kuber;
-    private DiskManager diskManager;
-    private IdGenerator idGenerator;
 
     @Before
     public void before() throws IOException, InterruptedException {
-        super.before();
-
-        var properties = new YamlPropertySourceLoader()
-            .read("allocator", new FileInputStream("../allocator/src/main/resources/application-test-manual.yml"));
-        context = ApplicationContext.run(PropertySource.of(properties));
-        var config = context.getBean(ServiceConfig.class);
-        config.getIam().setAddress("localhost:" + super.getPort());
-
-        diskManager = context.getBean(DiskManager.class);
-        final ServiceConfig serviceConfig = context.getBean(ServiceConfig.class);
-        final ClusterRegistry clusterRegistry = context.getBean(ClusterRegistry.class);
+        final ServiceConfig serviceConfig = allocatorContext.getBean(ServiceConfig.class);
         final String clusterId = serviceConfig.getUserClusters().stream().findFirst().orElse(null);
         if (clusterId == null) {
             throw new RuntimeException("No user cluster was specified for manual test");
         }
-        kuber = new KuberClientFactoryImpl(new TestCredProvider()).build(clusterRegistry.getCluster(clusterId));
-
-        allocatorApp = context.getBean(AllocatorMain.class);
-        allocatorApp.start();
-
-        channel = newGrpcChannel(config.getAddress(), AllocatorGrpc.SERVICE_NAME);
-
-        var credentials = config.getIam().createRenewableToken();
-        allocator = newBlockingClient(
-            AllocatorGrpc.newBlockingStub(channel), "Test", () -> credentials.get().token());
-        privateAllocatorBlockingStub = newBlockingClient(
-            AllocatorPrivateGrpc.newBlockingStub(channel), "Test", () -> credentials.get().token());
-
-        idGenerator = context.getBean(IdGenerator.class, Qualifiers.byName("AllocatorIdGenerator"));
-    }
-
-    @After
-    public void after() {
-        allocatorApp.stop(false);
-        try {
-            allocatorApp.awaitTermination();
-        } catch (InterruptedException ignored) {
-            // ignored
-        }
-
-        channel.shutdown();
-        try {
-            channel.awaitTermination(60, TimeUnit.SECONDS);
-        } catch (InterruptedException ignored) {
-            //ignored
-        }
-
-        context.stop();
-        super.after();
+        kuber = new KuberClientFactoryImpl(new TestCredProvider())
+            .build(clusterRegistry.getCluster(clusterId));
     }
 
     private record ExecResult(
         String stdout,
         String stderr,
         int exitCode
-    )
-    {
-    }
+    ) {}
 
     private ExecResult execInPod(String podName, String cmd) {
         var outputStream = new ByteArrayOutputStream();
@@ -139,7 +71,8 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
         ExecResult apply(String podName);
     }
 
-    private String runWorkloadWithDisk(List<Workload> workloads, String cmd, List<VolumeApi.Volume> volumes)
+    private String runWorkloadWithDisk(List<VmAllocatorApi.AllocateRequest.Workload> workloads, String cmd,
+                                       List<VolumeApi.Volume> volumes)
         throws InvalidProtocolBufferException
     {
         var execResult = runWorkloadWithDisk(workloads, volumes, (podName) -> execInPod(podName, cmd));
@@ -151,10 +84,11 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
     }
 
     @Nullable
-    private ExecResult runWorkloadWithDisk(List<Workload> workloads, List<VolumeApi.Volume> volumes,
-                                           ExecPodFunc execPodFunc) throws InvalidProtocolBufferException
+    private ExecResult runWorkloadWithDisk(
+        List<VmAllocatorApi.AllocateRequest.Workload> workloads, List<VolumeApi.Volume> volumes,
+        ExecPodFunc execPodFunc) throws InvalidProtocolBufferException
     {
-        var createSessionOp = allocator.createSession(
+        var createSessionOp = authorizedAllocatorBlockingStub.createSession(
             VmAllocatorApi.CreateSessionRequest.newBuilder()
                 .setOwner(idGenerator.generate("user-"))
                 .setCachePolicy(
@@ -163,14 +97,15 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
                         .build())
                 .build());
         final String sessionId = Utils.extractSessionId(createSessionOp);
-        LongRunning.Operation allocateOperation = allocator.allocate(VmAllocatorApi.AllocateRequest.newBuilder()
-            .setSessionId(sessionId)
-            .setPoolLabel("s")
-            .setZone(Zone.RU_CENTRAL1_A.getId())
-            .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)
-            .addAllWorkload(workloads)
-            .addAllVolumes(volumes)
-            .build());
+        LongRunning.Operation allocateOperation = authorizedAllocatorBlockingStub.allocate(
+            VmAllocatorApi.AllocateRequest.newBuilder()
+                .setSessionId(sessionId)
+                .setPoolLabel("s")
+                .setZone(Zone.RU_CENTRAL1_A.getId())
+                .setClusterType(VmAllocatorApi.AllocateRequest.ClusterType.USER)
+                .addAllWorkload(workloads)
+                .addAllVolumes(volumes)
+                .build());
         final VmAllocatorApi.AllocateMetadata allocateMeta =
             allocateOperation.getMetadata().unpack(VmAllocatorApi.AllocateMetadata.class);
 
@@ -198,9 +133,10 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
             execResult = execPodFunc.apply(podName);
         }
         //noinspection ResultOfMethodCallIgnored
-        allocator.free(VmAllocatorApi.FreeRequest.newBuilder().setVmId(allocateMeta.getVmId()).build());
+        authorizedAllocatorBlockingStub.free(VmAllocatorApi.FreeRequest.newBuilder()
+            .setVmId(allocateMeta.getVmId()).build());
         // noinspection ResultOfMethodCallIgnored
-        allocator.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
+        authorizedAllocatorBlockingStub.deleteSession(VmAllocatorApi.DeleteSessionRequest.newBuilder()
             .setSessionId(sessionId)
             .build());
         return execResult;
@@ -373,5 +309,10 @@ public class AllocateWithVolumeTest extends BaseTestWithIam {
                 throw new RuntimeException(e);
             }
         }, TIMEOUT_SEC, TimeUnit.SECONDS);
+    }
+
+    @Override
+    protected Map<String, Object> allocatorConfigOverrides() {
+        return Collections.emptyMap();
     }
 }
