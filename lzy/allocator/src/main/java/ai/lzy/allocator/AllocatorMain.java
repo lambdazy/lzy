@@ -152,11 +152,12 @@ public class AllocatorMain {
         var ops = vms.stream()
             .map(vm -> {
                 switch (vm.status()) {
-                    case ALLOCATING, DELETING -> { return null; }
+                    case ALLOCATING -> { return vm.allocOpId(); }
+                    case DELETING -> { return vm.deleteState().operationId(); }
                     case RUNNING, IDLE -> { }
                 }
                 try {
-                    return allocationContext.startDeleteVmAction(vm, "Force clean", "test", LOG);
+                    return null; //allocationContext.startDeleteVmAction(vm, "Force clean", "test", LOG);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -177,6 +178,8 @@ public class AllocatorMain {
                 }
             }
         });
+
+        System.out.println("!!!");
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {

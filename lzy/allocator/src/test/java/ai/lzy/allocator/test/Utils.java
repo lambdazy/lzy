@@ -36,19 +36,25 @@ public class Utils {
     public static Operation waitOperation(LongRunningServiceBlockingStub service, Operation operation,
                                           long timeoutSeconds)
     {
+        return waitOperation(service, operation.getId(), timeoutSeconds);
+    }
+
+    public static Operation waitOperation(LongRunningServiceBlockingStub service, String operationId,
+                                          long timeoutSeconds)
+    {
         TimeUtils.waitFlagUp(
             () -> withGrpcContext(
                 () -> service.get(
-                    LongRunning.GetOperationRequest.newBuilder()
-                        .setOperationId(operation.getId())
-                        .build())
+                        LongRunning.GetOperationRequest.newBuilder()
+                            .setOperationId(operationId)
+                            .build())
                     .getDone()),
             timeoutSeconds,
             TimeUnit.SECONDS);
 
         return withGrpcContext(() -> service.get(
             LongRunning.GetOperationRequest.newBuilder()
-                .setOperationId(operation.getId())
+                .setOperationId(operationId)
                 .build()));
     }
 
