@@ -21,6 +21,21 @@
     <dependencies>
         <dependency>
             <groupId>ai.lzy</groupId>
+            <artifactId>allocator-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>util-kafka</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
+            <artifactId>worker-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>ai.lzy</groupId>
             <artifactId>graph-executor-api-2</artifactId>
             <version>${project.version}</version>
         </dependency>

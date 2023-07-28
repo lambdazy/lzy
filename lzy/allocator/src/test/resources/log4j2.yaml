@@ -26,3 +26,6 @@ Configuration:
 
       - name: org.flywaydb
         level: warn
+
+      - name: ai.lzy.iam
+        level: error

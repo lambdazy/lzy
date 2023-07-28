@@ -43,6 +43,15 @@ service Allocator {
   // Return control of vm to allocator
   rpc Free (FreeRequest) returns (FreeResponse);
 
+  // Force free VM
+  rpc ForceFree (ForceFreeRequest) returns (ai.lzy.v1.longrunning.Operation) {
+    option (ai.lzy.v1.operation) = {
+      // metadata: null
+      response: "ForceFreeResponse"
+    };
+  };
+
+
   rpc Mount (MountRequest) returns (ai.lzy.v1.longrunning.Operation) {
     option (ai.lzy.v1.operation) = {
       metadata: "MountMetadata"
@@ -167,6 +176,14 @@ message FreeRequest {
 }
 
 message FreeResponse {}
+
+// ========= Force Free ==========
+
+message ForceFreeRequest {
+  string vm_id = 2;
+}
+
+message ForceFreeResponse {}
 
 // ========= Mount disk ==========
 

@@ -33,6 +33,18 @@ public record Vm(
             + '>';
     }
 
+    public String toFullString() {
+        return "Vm{" +
+            "spec=" + spec +
+            ", status=" + status +
+            ", instanceProperties=" + instanceProperties +
+            ", allocateState=" + allocateState +
+            ", runState=" + runState +
+            ", idleState=" + idleState +
+            ", deleteState=" + deleteState +
+            '}';
+    }
+
     public record Spec(
         String vmId,
         String sessionId,

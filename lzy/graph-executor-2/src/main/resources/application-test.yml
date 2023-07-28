@@ -1,6 +1,10 @@
 graph-executor-2:
   instance-id: "test-single-graph-executor"
   executors-count: 1
+  channel-manager-address: localhost:1234
+  allocator-address: localhost:8799
+  worker-image: worker
+  user-default-image: user-default
 
   database:
     url: 'embedded-postgres'

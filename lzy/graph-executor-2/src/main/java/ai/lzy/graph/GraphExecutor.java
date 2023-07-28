@@ -4,6 +4,7 @@ import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.longrunning.OperationsService;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -26,17 +27,20 @@ public class GraphExecutor {
 
     private final ServiceConfig config;
     private final ManagedChannel iamChannel;
+    private final OperationsService operationsService;
     private final GraphExecutorApi graphExecutorApi;
     private Server server;
 
     @Inject
     public GraphExecutor(ServiceConfig config,
                          @Named("GraphExecutorIamGrpcChannel") ManagedChannel iamChannel,
+                         @Named("GraphExecutorOperationsService") OperationsService operationsService,
                          GraphExecutorApi graphExecutorApi)
     {
         this.config = config;
         this.iamChannel = iamChannel;
         this.graphExecutorApi = graphExecutorApi;
+        this.operationsService = operationsService;
     }
 
     public void start() throws InterruptedException, IOException {
@@ -48,6 +52,7 @@ public class GraphExecutor {
             newGrpcServer("0.0.0.0", config.getPort(),
                 new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
                 .addService(ServerInterceptors.intercept(graphExecutorApi, internalUserOnly))
+                .addService(ServerInterceptors.intercept(operationsService, internalUserOnly))
                 .build();
 
         server.start();

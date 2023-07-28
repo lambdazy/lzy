@@ -1,6 +1,5 @@
 package ai.lzy.graph.db;
 
-import ai.lzy.graph.model.TaskOperation;
 import ai.lzy.graph.model.TaskState;
 import ai.lzy.model.db.TransactionHandle;
 import jakarta.annotation.Nullable;
@@ -19,15 +18,4 @@ public interface TaskDao {
     List<TaskState> getTasksByGraph(String graphId) throws SQLException;
 
     List<TaskState> getTasksByInstance(String instanceId) throws SQLException;
-
-    void createTaskOperation(TaskOperation taskOperation, @Nullable TransactionHandle transaction)
-        throws SQLException;
-
-    void updateTaskOperation(TaskOperation taskOperation, @Nullable TransactionHandle transaction)
-        throws SQLException;
-
-    @Nullable
-    TaskOperation getTaskOperationById(String taskOperationId) throws SQLException;
-
-    List<TaskOperation> getTasksOperationsByInstance(String instanceId) throws SQLException;
 }

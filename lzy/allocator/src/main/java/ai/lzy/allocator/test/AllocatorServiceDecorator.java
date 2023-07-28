@@ -25,6 +25,7 @@ public class AllocatorServiceDecorator extends AllocatorService {
     private volatile Consumer<String> onDeleteSession = sessionId -> {};
     private volatile Consumer<String> onAllocate = vmId -> {};
     private volatile Consumer<String> onFree = vmId -> {};
+    private volatile Consumer<String> onForceFree = vmId -> {};
 
     public AllocatorServiceDecorator(VmDao vmDao, @Named("AllocatorOperationDao") OperationDao operationsDao,
                                      SessionDao sessionsDao, AllocationContext allocationContext,
@@ -108,6 +109,14 @@ public class AllocatorServiceDecorator extends AllocatorService {
         super.free(request, responseObserver);
     }
 
+    @Override
+    public void forceFree(VmAllocatorApi.ForceFreeRequest request,
+                          StreamObserver<LongRunning.Operation> responseObserver)
+    {
+        onForceFree.accept(request.getVmId());
+        super.forceFree(request, responseObserver);
+    }
+
     public AllocatorServiceDecorator onCreateSession(Consumer<String> onCreateSession) {
         this.onCreateSession = onCreateSession;
         return this;
@@ -125,6 +134,11 @@ public class AllocatorServiceDecorator extends AllocatorService {
 
     public AllocatorServiceDecorator onFree(Consumer<String> onFree) {
         this.onFree = onFree;
+        return this;
+    }
+
+    public AllocatorServiceDecorator onForceFree(Consumer<String> onForceFree) {
+        this.onForceFree = onForceFree;
         return this;
     }
 }

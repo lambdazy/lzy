@@ -12,7 +12,11 @@ import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.*;
+import java.sql.Array;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -248,7 +252,7 @@ public class OperationDaoImpl implements OperationDao {
 
     @Override
     public void update(String id, @Nullable TransactionHandle transaction) throws SQLException {
-        LOG.info("Update operation {}", id);
+        LOG.debug("Update operation {}", id);
 
         DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_TIME)) {
@@ -308,7 +312,7 @@ public class OperationDaoImpl implements OperationDao {
 
     @Override
     public Operation updateMeta(String id, Any meta, @Nullable TransactionHandle transaction) throws SQLException {
-        LOG.info("Update operation {} meta", id);
+        LOG.debug("Update operation {} meta", id);
 
         return DbOperation.execute(transaction, storage, con -> {
             try (PreparedStatement st = con.prepareStatement(QUERY_UPDATE_OPERATION_META)) {
@@ -359,7 +363,7 @@ public class OperationDaoImpl implements OperationDao {
 
     @Override
     public boolean deleteCompletedOperation(String operationId, TransactionHandle transaction) throws SQLException {
-        LOG.info("Delete completed operation {}", operationId);
+        LOG.debug("Delete completed operation {}", operationId);
         return DbOperation.execute(transaction, storage, conn -> {
             try (PreparedStatement st = conn.prepareStatement(QUERY_DELETE_COMPLETED_OPERATION)) {
                 st.setString(1, operationId);

@@ -14,6 +14,7 @@ import ai.lzy.graph.services.TaskService;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
+import com.google.protobuf.Any;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -22,8 +23,10 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
+import static ai.lzy.util.grpc.ProtoConverter.toProto;
 
 @Singleton
 public class GraphServiceImpl implements GraphService {
@@ -50,7 +53,7 @@ public class GraphServiceImpl implements GraphService {
         this.storage = storage;
         this.idGenerator = idGenerator;
 
-        taskService.init(this::handleTaskCompleted);
+        taskService.init(this::handleTaskStatusChanged);
         restoreGraphs(config.getInstanceId());
     }
 
@@ -67,10 +70,17 @@ public class GraphServiceImpl implements GraphService {
             .toList();
 
         Algorithms.buildTaskDependents(graph, tasks, channels);
+        graph.tasks().put(GraphState.Status.WAITING,
+            tasks.stream().map(TaskState::id).collect(Collectors.toCollection(ArrayList::new))
+        );
+        graph.tasks().put(GraphState.Status.EXECUTING, new ArrayList<>());
+        graph.tasks().put(GraphState.Status.COMPLETED, new ArrayList<>());
+        graph.tasks().put(GraphState.Status.FAILED, new ArrayList<>());
 
         withRetries(LOG, () -> {
             try (var tx = TransactionHandle.create(storage)) {
                 operationDao.create(op, tx);
+                operationDao.updateMeta(op.id(), Any.pack(graph.toProto(Collections.emptyList())), tx);
                 graphDao.create(graph, tx);
                 taskDao.createTasks(tasks, tx);
                 tx.commit();
@@ -80,9 +90,72 @@ public class GraphServiceImpl implements GraphService {
         taskService.addTasks(tasks);
     }
 
-    @Override
-    public void handleTaskCompleted(TaskState task) {
+    private void handleTaskStatusChanged(TaskState task) {
+        GraphState graphState = graphs.get(task.graphId());
 
+        switch (task.status()) {
+            case COMPLETED -> {
+                List<String> waitingList = graphState.tasks().get(GraphState.Status.WAITING);
+                List<String> executingList = graphState.tasks().get(GraphState.Status.EXECUTING);
+                executingList.remove(task.id());
+                List<String> completed = graphState.tasks().get(GraphState.Status.COMPLETED);
+                completed.add(task.id());
+
+                if (waitingList.isEmpty() && executingList.isEmpty()) {
+                    graphState = graphState.toBuilder()
+                        .status(GraphState.Status.COMPLETED)
+                        .build();
+                }
+            }
+            case FAILED -> {
+                List<String> executingList = graphState.tasks().get(GraphState.Status.EXECUTING);
+                executingList.remove(task.id());
+                List<String> failed = graphState.tasks().get(GraphState.Status.FAILED);
+                failed.add(task.id());
+
+                graphState = graphState.toBuilder()
+                    .status(GraphState.Status.FAILED)
+                    .failedTaskId(task.id())
+                    .failedTaskName(task.name())
+                    .errorDescription(task.errorDescription())
+                    .build();
+            }
+            case WAITING_ALLOCATION, ALLOCATING, EXECUTING -> {
+                List<String> waitingList = graphState.tasks().get(GraphState.Status.WAITING);
+                waitingList.remove(task.id());
+                List<String> executing = graphState.tasks().get(GraphState.Status.EXECUTING);
+                executing.add(task.id());
+            }
+        }
+
+        GraphState finalGraphState = graphState;
+        var executingTasks = graphState.tasks().get(GraphState.Status.EXECUTING)
+            .stream()
+            .map(taskService::getTaskStatus)
+            .toList();
+        var msg = Any.pack(finalGraphState.toProto(executingTasks));
+        try {
+            withRetries(LOG, () -> {
+                try (var tx = TransactionHandle.create(storage)) {
+
+                    if (finalGraphState.status() == GraphState.Status.COMPLETED) {
+                        operationDao.complete(finalGraphState.operationId(), msg, tx);
+                    } else if (finalGraphState.status() == GraphState.Status.FAILED) {
+                        var status = io.grpc.Status.INTERNAL.withDescription(finalGraphState.errorDescription());
+                        operationDao.updateMeta(finalGraphState.operationId(), msg, tx);
+                        operationDao.failOperation(finalGraphState.operationId(), toProto(status), tx, LOG);
+                    } else {
+                        operationDao.updateMeta(finalGraphState.operationId(), msg, tx);
+                    }
+
+                    graphDao.update(finalGraphState, null);
+                    tx.commit();
+                }
+            });
+        } catch (Exception e) {
+            LOG.error("Cannot update graph {} status", graphState.id());
+            throw new RuntimeException(e);
+        }
     }
 
     private void restoreGraphs(String instanceId) {
