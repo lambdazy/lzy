@@ -1,17 +1,11 @@
-package ai.lzy.test.scenarios;
+package ai.lzy.test;
 
-import ai.lzy.test.ApplicationContextRule;
-import ai.lzy.test.ContextRule;
-import ai.lzy.test.impl.v2.GraphExecutorContext;
-import ai.lzy.test.impl.v2.WorkflowContext;
+import ai.lzy.test.context.LzyContextTests;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.graph.GraphExecutorApi;
-import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWFS;
-import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.List;
@@ -21,24 +15,12 @@ import java.util.function.Consumer;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static org.junit.Assert.*;
 
-public class CachedGraphExecutionTest {
-    @Rule
-    public final ApplicationContextRule ctx = new ApplicationContextRule();
-
-    @Rule
-    public final ContextRule<WorkflowContext> workflow = new ContextRule<>(ctx, WorkflowContext.class);
-    @Rule
-    public final ContextRule<GraphExecutorContext> graph = new ContextRule<>(ctx, GraphExecutorContext.class);
-
-    LzyWorkflowServiceGrpc.LzyWorkflowServiceBlockingStub workflowStub;
-    LongRunningServiceGrpc.LongRunningServiceBlockingStub operationsStub;
+public class CachedGraphExecutionTest extends LzyContextTests {
     LMST.StorageConfig storageConfig;
 
     @Before
-    public void setUp() {
-        workflowStub = workflow.context().stub();
-        operationsStub = workflow.context().opsStub();
-        storageConfig = workflowStub.getOrCreateDefaultStorage(LWFS.GetOrCreateDefaultStorageRequest.newBuilder()
+    public void before() {
+        storageConfig = lzyGrpcClient.getOrCreateDefaultStorage(LWFS.GetOrCreateDefaultStorageRequest.newBuilder()
             .build()).getStorage();
     }
 
@@ -52,7 +34,7 @@ public class CachedGraphExecutionTest {
 
         var wfName = "workflow_1";
         var exec1 = startWorkflow(wfName, "start_wf_1");
-        var graphId1 = withIdempotencyKey(workflowStub, "exec_graph_1").executeGraph(
+        var graphId1 = withIdempotencyKey(lzyGrpcClient, "exec_graph_1").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName(wfName)
                 .setExecutionId(exec1.getExecutionId())
                 .setGraph(graphs.get(0))
@@ -62,7 +44,7 @@ public class CachedGraphExecutionTest {
         finishWorkflow(wfName, exec1.getExecutionId(), "finish_wf_1");
 
         var exec2 = startWorkflow(wfName, "start_wf_2");
-        var graphId2 = withIdempotencyKey(workflowStub, "exec_graph_2").executeGraph(
+        var graphId2 = withIdempotencyKey(lzyGrpcClient, "exec_graph_2").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName(wfName)
                 .setExecutionId(exec2.getExecutionId())
                 .setGraph(graphs.get(1))
@@ -85,14 +67,14 @@ public class CachedGraphExecutionTest {
 
         onExecuteGraph(request -> countOfGraphs.incrementAndGet());
 
-        var graphId1 = withIdempotencyKey(workflowStub, "exec_graph_1").executeGraph(
+        var graphId1 = withIdempotencyKey(lzyGrpcClient, "exec_graph_1").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName(wfName)
                 .setExecutionId(workflow.getExecutionId())
                 .setGraph(graphs.get(0))
                 .build()).getGraphId();
         awaitGraph(wfName, workflow.getExecutionId(), graphId1);
 
-        var graphId2 = withIdempotencyKey(workflowStub, "exec_graph_2").executeGraph(
+        var graphId2 = withIdempotencyKey(lzyGrpcClient, "exec_graph_2").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName(wfName)
                 .setExecutionId(workflow.getExecutionId())
                 .setGraph(graphs.get(1))
@@ -101,7 +83,7 @@ public class CachedGraphExecutionTest {
 
         var before = countOfGraphs.get();
 
-        var graphId3 = withIdempotencyKey(workflowStub, "exec_graph_3").executeGraph(
+        var graphId3 = withIdempotencyKey(lzyGrpcClient, "exec_graph_3").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName(wfName)
                 .setExecutionId(workflow.getExecutionId())
                 .setGraph(graphs.get(2))
@@ -127,7 +109,7 @@ public class CachedGraphExecutionTest {
 
         var graphs = sequenceOfGraphs(storageConfig);
 
-        var graphId1 = withIdempotencyKey(workflowStub, "exec_graph_1").executeGraph(
+        var graphId1 = withIdempotencyKey(lzyGrpcClient, "exec_graph_1").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName(wfName)
                 .setExecutionId(workflow.getExecutionId())
                 .setGraph(graphs.get(0))
@@ -135,7 +117,7 @@ public class CachedGraphExecutionTest {
 
         awaitGraph(wfName, workflow.getExecutionId(), graphId1);
 
-        var graphId2 = withIdempotencyKey(workflowStub, "exec_graph_2").executeGraph(
+        var graphId2 = withIdempotencyKey(lzyGrpcClient, "exec_graph_2").executeGraph(
             LWFS.ExecuteGraphRequest.newBuilder().setWorkflowName(wfName)
                 .setExecutionId(workflow.getExecutionId())
                 .setGraph(graphs.get(1))
@@ -150,11 +132,11 @@ public class CachedGraphExecutionTest {
     }
 
     void onExecuteGraph(Consumer<GraphExecutorApi.GraphExecuteRequest> action) {
-        graph.context().onExecuteGraph(action);
+        graphExecutorDecorator().setOnExecute(action);
     }
 
     LWFS.StartWorkflowResponse startWorkflow(String name, String idempotencyKey) {
-        return withIdempotencyKey(workflowStub, idempotencyKey).startWorkflow(LWFS.StartWorkflowRequest
+        return withIdempotencyKey(lzyGrpcClient, idempotencyKey).startWorkflow(LWFS.StartWorkflowRequest
             .newBuilder()
             .setWorkflowName(name)
             .setSnapshotStorage(storageConfig)
@@ -164,7 +146,7 @@ public class CachedGraphExecutionTest {
 
     void finishWorkflow(String name, String activeExecutionId, String idempotencyKey) {
         //noinspection ResultOfMethodCallIgnored
-        withIdempotencyKey(workflowStub, idempotencyKey).finishWorkflow(
+        withIdempotencyKey(lzyGrpcClient, idempotencyKey).finishWorkflow(
             LWFS.FinishWorkflowRequest.newBuilder()
                 .setWorkflowName(name)
                 .setExecutionId(activeExecutionId)
@@ -270,7 +252,7 @@ public class CachedGraphExecutionTest {
         LWFS.GraphStatusResponse status;
 
         do {
-            status = workflowStub.graphStatus(LWFS.GraphStatusRequest.newBuilder()
+            status = lzyGrpcClient.graphStatus(LWFS.GraphStatusRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(executionId)
                 .setGraphId(graphId)

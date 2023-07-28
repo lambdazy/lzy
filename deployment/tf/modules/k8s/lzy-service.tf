@@ -101,6 +101,21 @@ resource "kubernetes_deployment" "lzy-service" {
           }
 
           env {
+            name = "LZY_SERVICE_GC_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name = "LZY_SERVICE_GC_PERIOD"
+            value = "30s"
+          }
+
+          env {
+            name = "LZY_SERVICE_GC_LEADER_PERIOD"
+            value = "1m"
+          }
+
+          env {
             name  = "LZY_SERVICE_PORTAL_PORTAL_API_PORT"
             value = 9876
           }

@@ -1,16 +1,24 @@
-package ai.lzy.test.impl.v2;
+package ai.lzy.test.context;
 
-import ai.lzy.test.impl.Utils;
+import ai.lzy.iam.resources.credentials.SubjectCredentials;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.SubjectType;
+import ai.lzy.test.Utils;
+import ai.lzy.util.auth.credentials.RsaUtils;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.LineIterator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -21,27 +29,80 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-public class PythonContextBase {
-    private static final Logger LOG = LogManager.getLogger(PythonContext.class);
+public abstract class PythonContextTests extends LzyContextTests {
+    private static final Path file = Path.of(System.getProperty("user.dir"), "../lzy-test-cert.pem");
+
+    private static final Logger LOG = LogManager.getLogger(PythonContextTests.class);
     protected static final Path scenarios = Paths.get("../pylzy/tests/scenarios/");
     protected static final String condaPrefix = "eval \"$(conda shell.bash hook)\" && "
         + "conda activate py39 && ";
 
-    private final Map<String, String> envs;
+    private Map<String, String> envs;
 
-    public PythonContextBase(String endpoint, String wbEndpoint, String username, String keyPath) {
+    protected String endpoint() {
+        return "localhost:" + ports.getLzyServicePort();
+    }
 
+    protected String wbEndpoint() {
+        return "localhost:" + ports.getWhiteboardPort();
+    }
+
+    protected String username() {
+        return "test";
+    }
+
+    protected String keyPath() {
+        return file.toAbsolutePath().toString();
+    }
+
+    public static PythonContextTests of() {
+        return new PythonContextTests() {};
+    }
+
+    @Before
+    public void before() throws IOException, InterruptedException {
         envs = Map.of(
-            "LZY_ENDPOINT", endpoint,
-            "LZY_KEY_PATH", keyPath,
-            "LZY_USER", username,
-            "LZY_WHITEBOARD_ENDPOINT", wbEndpoint,
+            "LZY_ENDPOINT", endpoint(),
+            "LZY_KEY_PATH", keyPath(),
+            "LZY_USER", username(),
+            "LZY_WHITEBOARD_ENDPOINT", wbEndpoint(),
             "FETCH_STATUS_PERIOD_SEC", "0"
         );
 
         for (var entry : envs.entrySet()) {
             LOG.info(entry.getKey() + ":\t" + entry.getValue());
         }
+
+        var keys = RsaUtils.generateRsaKeys();
+
+        if (Files.exists(file)) {
+            Files.delete(file);
+        }
+
+        Files.createFile(file);
+        FileUtils.write(file.toFile(), keys.privateKey(), StandardCharsets.UTF_8);
+
+        subjectServiceGrpcClient.createSubject(AuthProvider.GITHUB, username(), SubjectType.USER,
+            SubjectCredentials.publicKey(username(), keys.publicKey()));
+    }
+
+    @After
+    public final void after() {
+        try {
+            Files.delete(file);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public final void start() throws Exception {
+        super.setUp();
+        before();
+    }
+
+    public final void stop() throws InterruptedException {
+        after();
+        super.tearDown();
     }
 
     public ExecResult execInCondaEnv(Map<String, String> env, String cmd, Path pwd) {

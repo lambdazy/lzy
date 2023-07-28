@@ -5,8 +5,11 @@ lzy-service:
   channel-manager-address: 'localhost:8122'
   allocator-address: 'localhost:8899'
   allocator-vm-cache-timeout: 21m
-  gc-period: 30s
-  gc-leader-period: 1m
+
+  gc:
+    enabled: true
+    period: 30s
+    leader-period: 1m
 
   database:
     url: 'jdbc:postgresql://localhost:5432/lzy_workflows_db'

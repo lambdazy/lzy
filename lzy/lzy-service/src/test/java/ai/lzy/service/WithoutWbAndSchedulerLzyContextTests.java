@@ -80,7 +80,8 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
     }
 
     public GraphExecutorDecorator graphExecutor() {
-        return lzy.micronautContext().getBean(GraphExecutorContextImpl.class).getGraphExecutor();
+        return lzy.micronautContext().getBean(GraphExecutorContextImpl.class).getMicronautContext()
+            .getBean(GraphExecutorDecorator.class);
     }
 
     @Before
@@ -96,9 +97,10 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             .setLzyServiceConfig("../lzy-service/src/main/resources/application-test.yml")
             .build();
 
-        var allocatorCfgOverrides = Map.<String, Object>of(
+        var configOverrides = Map.<String, Object>of(
             "allocator.thread-allocator.enabled", true,
-            "allocator.thread-allocator.vm-class-name", "ai.lzy.worker.Worker"
+            "allocator.thread-allocator.vm-class-name", "ai.lzy.worker.Worker",
+            "lzy-service.gc.enabled", false
         );
 
         var environments = LzyConfig.Environments.builder()
@@ -129,7 +131,7 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             StorageContextImpl.ENV_NAME,
             LzyServiceContextImpl.ENV_NAME
         };
-        lzy.setUp(configs, allocatorCfgOverrides, environments, ports, database, contextEnvs);
+        lzy.setUp(configs, configOverrides, environments, ports, database, contextEnvs);
 
         var internalUserCredentials = lzy.micronautContext().getBean(IamContextImpl.class).clientConfig()
             .createRenewableToken();

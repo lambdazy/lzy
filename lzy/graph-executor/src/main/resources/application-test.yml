@@ -1,6 +1,9 @@
 graph-executor:
   executors-count: 1
 
+  scheduler:
+    host: "localhost"
+
   database:
     url: 'embedded-postgres'
     username: 'test'
