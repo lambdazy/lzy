@@ -134,7 +134,9 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
     }
 
     @After
-    public final void tearDownKuberServer() {
+    @Override
+    public void tearDown() {
+        super.tearDown();
         try {
             mockWebServer.shutdown();
         } catch (IOException e) {
@@ -187,7 +189,11 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
     }
 
     protected LongRunning.Operation waitOpSuccess(LongRunning.Operation operation) {
-        var updatedOperation = waitOperation(operationServiceApiBlockingStub, operation, TIMEOUT_SEC);
+        return waitOpSuccess(operation.getId());
+    }
+
+    protected LongRunning.Operation waitOpSuccess(String operationId) {
+        var updatedOperation = waitOperation(operationServiceApiBlockingStub, operationId, TIMEOUT_SEC);
         Assert.assertTrue(updatedOperation.hasResponse());
         Assert.assertFalse(updatedOperation.hasError());
         Assert.assertTrue(updatedOperation.getDone());
