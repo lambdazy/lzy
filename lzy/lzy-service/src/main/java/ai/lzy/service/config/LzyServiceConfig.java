@@ -78,7 +78,7 @@ public class LzyServiceConfig {
     @Setter
     public static final class GarbageCollector {
         private boolean enabled;
-        private Duration gcPeriod;
-        private Duration gcLeaderPeriod;
+        private Duration period;
+        private Duration leaderPeriod;
     }
 }

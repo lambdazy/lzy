@@ -12,8 +12,8 @@ lzy-service:
   wait-allocation-timeout: 10s
 
   gc:
-    gc-period: 100ms
-    gc-leader-period: 1s
+    period: 100ms
+    leader-period: 1s
 
   database:
     url: 'embedded-postgres'

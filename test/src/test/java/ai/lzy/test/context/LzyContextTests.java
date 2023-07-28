@@ -203,7 +203,7 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
             "lzy-service.kafka.bootstrap-servers", kafka.getBootstrapServers(),
             "lzy-service.allocator-vm-cache-timeout", "2s",
             "lzy-service.gc.enabled", false,
-            "lzy-service.gc.gc-period", "1s"
+            "lzy-service.gc.period", "1s"
         );
 
         var configOverrides = new HashMap<String, Object>() {
