@@ -26,8 +26,9 @@ public class LzyServiceConfig {
     private String channelManagerAddress;
 
     private Duration waitAllocationTimeout;
-    private Duration gcPeriod;
-    private Duration gcLeaderPeriod;
+
+    @ConfigurationBuilder("gc")
+    private final GarbageCollector gc = new GarbageCollector();
 
     @Nullable
     private String s3SinkAddress = null;  // If not set, not using s3 sink
@@ -71,5 +72,13 @@ public class LzyServiceConfig {
         private volatile Duration finishWorkflowTimeout;
         private volatile Duration abortWorkflowTimeout;
         private volatile Duration executeGraphTimeout;
+    }
+
+    @Getter
+    @Setter
+    public static final class GarbageCollector {
+        private boolean enabled;
+        private Duration gcPeriod;
+        private Duration gcLeaderPeriod;
     }
 }

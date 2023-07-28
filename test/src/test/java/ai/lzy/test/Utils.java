@@ -1,4 +1,4 @@
-package ai.lzy.test.impl;
+package ai.lzy.test;
 
 import ai.lzy.model.DataScheme;
 import ai.lzy.model.db.test.DatabaseTestUtils;

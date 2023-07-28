@@ -10,8 +10,10 @@ lzy-service:
   channel-manager-address: 'localhost:8122'
   whiteboard-address: 'localhost:8999'
   wait-allocation-timeout: 10s
-  gc-period: 100ms
-  gc-leader-period: 1s
+
+  gc:
+    gc-period: 100ms
+    gc-leader-period: 1s
 
   database:
     url: 'embedded-postgres'

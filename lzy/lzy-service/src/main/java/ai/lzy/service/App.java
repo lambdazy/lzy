@@ -35,6 +35,7 @@ public class App {
     private static final Logger LOG = LogManager.getLogger(App.class);
 
     private final Server grpcServer;
+    private final LzyServiceConfig config;
     private final MetricReporter metricReporter;
     private final GarbageCollector garbageCollector;
 
@@ -45,6 +46,7 @@ public class App {
                ClientVersionInterceptor clientVersionInterceptor,
                GarbageCollector garbageCollector)
     {
+        this.config = config;
         this.metricReporter = metricReporter;
         this.garbageCollector = garbageCollector;
         final var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
@@ -56,12 +58,12 @@ public class App {
             ServerInterceptors.intercept(lzyPrivateService, internalOnly));
     }
 
-    public void start(boolean withGc) throws IOException {
+    public void start() throws IOException {
         grpcServer.start();
         metricReporter.start();
         LOG.info("LzyServer started at {}",
             grpcServer.getListenSockets().stream().map(Object::toString).collect(Collectors.joining(", ")));
-        if (withGc) {
+        if (config.getGc().isEnabled()) {
             garbageCollector.start();
         }
     }
@@ -106,7 +108,7 @@ public class App {
     public static void main(String[] args) throws InterruptedException, IOException {
         try (var context = Micronaut.run(App.class, args)) {
             var main = context.getBean(App.class);
-            main.start(true);
+            main.start();
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 LOG.info("Stopping lzy service");
                 main.shutdown(false);

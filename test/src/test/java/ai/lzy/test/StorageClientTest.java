@@ -1,4 +1,4 @@
-package ai.lzy.test.scenarios;
+package ai.lzy.test;
 
 import ai.lzy.storage.StorageClient;
 import ai.lzy.storage.StorageClientFactory;

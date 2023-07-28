@@ -1,14 +1,7 @@
-package ai.lzy.test.scenarios;
+package ai.lzy.test;
 
 import ai.lzy.allocator.configs.ServiceConfig;
-import ai.lzy.test.ApplicationContextRule;
-import ai.lzy.test.ContextRule;
-import ai.lzy.test.impl.v2.AllocatorContext;
-import ai.lzy.test.impl.v2.ChannelManagerContext;
-import ai.lzy.test.impl.v2.GraphExecutorContext;
-import ai.lzy.test.impl.v2.IamContext;
-import ai.lzy.test.impl.v2.StorageContext;
-import ai.lzy.util.grpc.ClientHeaderInterceptor;
+import ai.lzy.test.context.LzyContextTests;
 import ai.lzy.util.grpc.JsonUtils;
 import ai.lzy.v1.VmAllocatorApi;
 import ai.lzy.v1.channel.LCMPS;
@@ -29,7 +22,6 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.util.List;
@@ -39,29 +31,13 @@ import java.util.stream.Stream;
 import static ai.lzy.v1.common.LMS.Slot.Direction.INPUT;
 import static ai.lzy.v1.common.LMS.Slot.Direction.OUTPUT;
 
-public class SchedulerTest {
+public class SchedulerTest extends LzyContextTests {
     static final Logger LOG = LogManager.getLogger(SchedulerTest.class);
-
-    @Rule
-    public final ApplicationContextRule ctx = new ApplicationContextRule();
-
-    @Rule
-    public final ContextRule<IamContext> iam = new ContextRule<>(ctx, IamContext.class);
-
-    @Rule
-    public final ContextRule<GraphExecutorContext> graphExecutor = new ContextRule<>(ctx, GraphExecutorContext.class);
-
-    @Rule
-    public final ContextRule<ChannelManagerContext> channelManager
-        = new ContextRule<>(ctx, ChannelManagerContext.class);
-
-    @Rule
-    public final ContextRule<StorageContext> storage = new ContextRule<>(ctx, StorageContext.class);
 
     private AmazonS3 s3Client;
 
     @Before
-    public void setUp() {
+    public void setUpS3() {
         s3Client = AmazonS3ClientBuilder.standard()
             .withPathStyleAccessEnabled(true)
             .withEndpointConfiguration(
@@ -76,10 +52,7 @@ public class SchedulerTest {
     public void testGE() throws Exception {
         WorkerApiImpl.TEST_ENV = true;
 
-        var creds = ctx.getCtx().getBean(ServiceConfig.class).getIam()
-            .createRenewableToken();
-        var sid = ctx.getCtx().getBean(AllocatorContext.class).stub()
-            .withInterceptors(ClientHeaderInterceptor.authorization(() -> creds.get().token()))
+        var sid = allocatorGrpcClient
             .createSession(VmAllocatorApi.CreateSessionRequest.newBuilder()
                 .setOwner("user")
                 .setDescription("")
@@ -93,8 +66,7 @@ public class SchedulerTest {
             .unpack(VmAllocatorApi.CreateSessionResponse.class)
             .getSessionId();
 
-        var cacheLimits = ctx.getCtx().getBean(AllocatorContext.WorkerAllocatorContext.class).context()
-            .getBean(ServiceConfig.CacheLimits.class);
+        var cacheLimits = allocatorContext().getBean(ServiceConfig.CacheLimits.class);
         cacheLimits.setUserLimit(Integer.MAX_VALUE);
         cacheLimits.setSessionLimit(Integer.MAX_VALUE);
         cacheLimits.setSessionPoolLimit(null);
@@ -117,7 +89,7 @@ public class SchedulerTest {
         final var t4 = buildTask("4", "cat $LZY_MOUNT/i3 >> /tmp/res.txt && cat $LZY_MOUNT/i4 >> /tmp/res.txt",
             List.of("/i3", "/i4"), List.of(), Map.of("/i3", ch3, "/i4", ch4));
 
-        final var g1 = graphExecutor.context().stub().execute(GraphExecuteRequest.newBuilder()
+        final var g1 = graphsGrpcClient.execute(GraphExecuteRequest.newBuilder()
             .setWorkflowId("wf_id")
             .setWorkflowName("wf")
             .setUserId("Semjon.Semjonych")
@@ -146,7 +118,7 @@ public class SchedulerTest {
         do {
             //noinspection BusyWait
             Thread.sleep(1000);
-            status = graphExecutor.context().stub().status(GraphStatusRequest.newBuilder()
+            status = graphsGrpcClient.status(GraphStatusRequest.newBuilder()
                 .setGraphId(g1)
                 .setWorkflowId("wf_id")
                 .build()).getStatus();
@@ -160,8 +132,7 @@ public class SchedulerTest {
 
     @Nonnull
     private String buildChannel(String channelName) {
-        final var client = channelManager.context().privateClient();
-        final var response = client.getOrCreate(
+        final var response = privateChannelsGrpcClient.getOrCreate(
             LCMPS.GetOrCreateRequest.newBuilder()
                 .setExecutionId("wf_id")
                 .setUserId("Semjon.Semjonych")
@@ -206,14 +177,13 @@ public class SchedulerTest {
                         .setSlotName(e.getKey())
                         .setChannelId(e.getValue())
                         .build()
-                        )
+                    )
                     .toList()
             )
             .build();
     }
 
     public static LMS.Slot buildSlot(String name, LMS.Slot.Direction direction) {
-
         return LMS.Slot.newBuilder()
             .setContentType(LMD.DataScheme.newBuilder()
                 .setSchemeFormat("plain")
@@ -224,5 +194,4 @@ public class SchedulerTest {
             .setDirection(direction)
             .build();
     }
-
 }

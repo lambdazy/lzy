@@ -1,13 +1,8 @@
-package ai.lzy.test.scenarios;
+package ai.lzy.test;
 
 import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.service.dao.WorkflowDao;
-import ai.lzy.test.ApplicationContextRule;
-import ai.lzy.test.ContextRule;
-import ai.lzy.test.TimeUtils;
-import ai.lzy.test.impl.v2.AllocatorContext;
-import ai.lzy.test.impl.v2.WhiteboardContext;
-import ai.lzy.test.impl.v2.WorkflowContext;
+import ai.lzy.test.context.LzyContextTests;
 import ai.lzy.v1.workflow.LWF;
 import ai.lzy.v1.workflow.LWF.Graph;
 import ai.lzy.v1.workflow.LWF.Operation;
@@ -19,7 +14,6 @@ import com.google.protobuf.util.JsonFormat;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
 
 import java.sql.SQLException;
@@ -32,36 +26,22 @@ import static ai.lzy.longrunning.OperationUtils.awaitOperationDone;
 import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 import static java.util.Objects.requireNonNull;
 
-public class WorkflowTest {
+public class WorkflowTest extends LzyContextTests {
     static final Logger LOG = LogManager.getLogger(WorkflowTest.class);
-
-    @Rule
-    public final ApplicationContextRule ctx = new ApplicationContextRule();
-
-    @Rule
-    public final ContextRule<AllocatorContext> allocator = new ContextRule<>(ctx, AllocatorContext.class);
-
-    @Rule
-    public final ContextRule<WorkflowContext> workflow = new ContextRule<>(ctx, WorkflowContext.class);
-
-    @Rule
-    public final ContextRule<WhiteboardContext> whiteboard = new ContextRule<>(ctx, WhiteboardContext.class);
 
     @Test
     public void simple() throws InvalidProtocolBufferException, SQLException {
-        var stub = workflow.context().stub();
-
         var workflowName = "wf";
-        var creds = stub.getOrCreateDefaultStorage(LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build())
+        var creds = lzyGrpcClient.getOrCreateDefaultStorage(LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build())
             .getStorage();
-        var wf = withIdempotencyKey(stub, "start_wf").startWorkflow(LWFS.StartWorkflowRequest
+        var wf = withIdempotencyKey(lzyGrpcClient, "start_wf").startWorkflow(LWFS.StartWorkflowRequest
             .newBuilder()
             .setWorkflowName(workflowName)
             .setSnapshotStorage(creds)
             .build()
         );
 
-        var graph = withIdempotencyKey(stub, "execute_graph").executeGraph(ExecuteGraphRequest.newBuilder()
+        var graph = withIdempotencyKey(lzyGrpcClient, "execute_graph").executeGraph(ExecuteGraphRequest.newBuilder()
             .setWorkflowName(workflowName)
             .setExecutionId(wf.getExecutionId())
             .setGraph(Graph.newBuilder()
@@ -97,7 +77,7 @@ public class WorkflowTest {
         LWFS.GraphStatusResponse status;
 
         do {
-            status = stub.graphStatus(LWFS.GraphStatusRequest.newBuilder()
+            status = lzyGrpcClient.graphStatus(LWFS.GraphStatusRequest.newBuilder()
                 .setWorkflowName(workflowName)
                 .setExecutionId(wf.getExecutionId())
                 .setGraphId(graph.getGraphId())
@@ -114,7 +94,7 @@ public class WorkflowTest {
         var allocSid = wfDesc.allocatorSessionId();
 
         //noinspection ResultOfMethodCallIgnored
-        withIdempotencyKey(stub, "finish_wf").finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
+        withIdempotencyKey(lzyGrpcClient, "finish_wf").finishWorkflow(LWFS.FinishWorkflowRequest.newBuilder()
             .setWorkflowName(workflowName).setExecutionId(wf.getExecutionId()).setReason("no-matter").build());
 
 
@@ -124,13 +104,13 @@ public class WorkflowTest {
             Assert.assertEquals(allocSid, wfDesc.allocatorSessionId());
             Assert.assertNotNull(wfDesc.allocatorSessionDeadline());
 
-            var session = allocator.context().sessionDao().get(allocSid, null);
+            var session = sessionDao().get(allocSid, null);
             Assert.assertNotNull(session);
 
             System.out.println("--> deadline: " + wfDesc.allocatorSessionDeadline());
             System.out.println("-->      now: " + Instant.now());
 
-            var gc = workflow.context().garbageCollector();
+            var gc = garbageCollector();
             var deleteAllocSessionOpId = new AtomicReference<String>(null);
             gc.setInterceptor(deleteAllocSessionOpId::set);
             gc.start();
@@ -149,25 +129,23 @@ public class WorkflowTest {
 
             System.out.println("--> opId: " + deleteAllocSessionOpId.get());
 
-            var op = awaitOperationDone(workflow.context().operationDao(), deleteAllocSessionOpId.get(),
+            var op = awaitOperationDone(operationDao(), deleteAllocSessionOpId.get(),
                 Duration.ofMillis(100), Duration.ofSeconds(10), LOG);
             Assert.assertNotNull(op);
             Assert.assertTrue(op.done());
             Assert.assertNotNull(op.response());
 
-            session = allocator.context().sessionDao().get(allocSid, null);
+            session = sessionDao().get(allocSid, null);
             Assert.assertNull(session);
         }
     }
 
     @Test
     public void reuseAllocatorSession() throws SQLException {
-        var stub = workflow.context().stub();
-
         var workflowName = new RandomIdGenerator().generate("wf-");
-        var creds = stub.getOrCreateDefaultStorage(LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build())
+        var creds = lzyGrpcClient.getOrCreateDefaultStorage(LWFS.GetOrCreateDefaultStorageRequest.newBuilder().build())
             .getStorage();
-        var wf = withIdempotencyKey(stub, "start_wf")
+        var wf = withIdempotencyKey(lzyGrpcClient, "start_wf")
             .startWorkflow(
                 LWFS.StartWorkflowRequest.newBuilder()
                     .setWorkflowName(workflowName)
@@ -181,7 +159,7 @@ public class WorkflowTest {
         var sid = wfDesc.allocatorSessionId();
 
         //noinspection ResultOfMethodCallIgnored
-        withIdempotencyKey(stub, "finish_wf")
+        withIdempotencyKey(lzyGrpcClient, "finish_wf")
             .finishWorkflow(
                 LWFS.FinishWorkflowRequest.newBuilder()
                     .setWorkflowName(workflowName)
@@ -195,7 +173,7 @@ public class WorkflowTest {
 
         // start new workflow with the same name
         {
-            var wf2 = withIdempotencyKey(stub, "start_wf2")
+            var wf2 = withIdempotencyKey(lzyGrpcClient, "start_wf2")
                 .startWorkflow(
                     LWFS.StartWorkflowRequest.newBuilder()
                         .setWorkflowName(workflowName)
@@ -209,7 +187,7 @@ public class WorkflowTest {
             Assert.assertNull(wfDesc.allocatorSessionDeadline());
 
             //noinspection ResultOfMethodCallIgnored
-            withIdempotencyKey(stub, "finish_wf2")
+            withIdempotencyKey(lzyGrpcClient, "finish_wf2")
                 .finishWorkflow(
                     LWFS.FinishWorkflowRequest.newBuilder()
                         .setWorkflowName(workflowName)
@@ -224,7 +202,6 @@ public class WorkflowTest {
     }
 
     private WorkflowDao.WorkflowDesc getWorkflowDesc(String workflowName) throws SQLException {
-        return requireNonNull(workflow.context().wfDao()
-            .loadWorkflowDescForTests(workflow.context().internalUserName(), workflowName));
+        return requireNonNull(wfDao().loadWorkflowDescForTests(testUser.id(), workflowName));
     }
 }
