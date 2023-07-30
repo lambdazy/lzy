@@ -13,18 +13,20 @@ import java.util.Map;
 import static ai.lzy.model.db.DbHelper.withRetries;
 
 public abstract class OpTaskAwareAction extends OperationRunnerBase {
+    private final OperationTaskExecutor operationTaskExecutor;
     private final OperationTaskDao operationTaskDao;
     private final Duration leaseDuration;
     private OperationTask operationTask;
 
     public OpTaskAwareAction(OperationTask operationTask, OperationTaskDao operationTaskDao, Duration leaseDuration,
                              String opId, String desc, Storage storage, OperationDao operationsDao,
-                             OperationsExecutor executor)
+                             OperationsExecutor executor, OperationTaskExecutor operationTaskExecutor)
     {
         super(opId, desc, storage, operationsDao, executor);
         this.operationTask = operationTask;
         this.operationTaskDao = operationTaskDao;
         this.leaseDuration = leaseDuration;
+        this.operationTaskExecutor = operationTaskExecutor;
     }
 
     @Override
@@ -52,6 +54,7 @@ public abstract class OpTaskAwareAction extends OperationRunnerBase {
             operationTask = withRetries(log(), () -> operationTaskDao.updateLease(operationTask.id(), leaseDuration,
                 null));
         } catch (Exception e) {
+            log().error("{} Couldn't update lease on task {}", logPrefix(), task().id());
             throw new RuntimeException(e);
         }
     }
@@ -72,5 +75,6 @@ public abstract class OpTaskAwareAction extends OperationRunnerBase {
         } catch (Exception e) {
             log().error("{} Couldn't finish operation task {}", logPrefix(), task().id());
         }
+        operationTaskExecutor.releaseTask(task());
     }
 }
