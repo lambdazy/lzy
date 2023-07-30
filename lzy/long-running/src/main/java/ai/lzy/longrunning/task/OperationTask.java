@@ -5,7 +5,7 @@ import jakarta.annotation.Nullable;
 import java.time.Instant;
 import java.util.Map;
 
-public record Task(
+public record OperationTask(
     long id,
     String name,
     String entityId,
@@ -21,16 +21,17 @@ public record Task(
     @Nullable
     Instant leaseTill
 ) {
-    public static Task createPending(String name, String entityId, String type, Map<String, Object> metadata) {
-        return new Task(-1, name, entityId, type, Status.PENDING, Instant.now(), Instant.now(),
+    public static OperationTask createPending(String name, String entityId, String type, Map<String, Object> metadata) {
+        return new OperationTask(-1, name, entityId, type, Status.PENDING, Instant.now(), Instant.now(),
             metadata, null, null, null);
     }
 
     public enum Status {
-        PENDING,
-        RUNNING,
-        FAILED,
-        FINISHED,
+        PENDING,    //just created and waiting to be executed
+        RUNNING,    //acquired by one of the instance of app and executing
+        FINISHED,   //successful finish
+        FAILED,     //unrecoverable failure
+        STALE,      //executed too late and not applicable anymore
     }
 
     public record Update(

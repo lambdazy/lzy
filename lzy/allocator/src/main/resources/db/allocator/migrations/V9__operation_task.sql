@@ -1,8 +1,8 @@
-CREATE TYPE task_status AS ENUM ('PENDING', 'RUNNING', 'FAILED', 'FINISHED');
+CREATE TYPE task_status AS ENUM ('PENDING', 'RUNNING', 'FAILED', 'FINISHED', 'STALE');
 
 CREATE TYPE task_type AS ENUM ('UNMOUNT', 'MOUNT');
 
-CREATE TABLE IF NOT EXISTS task(
+CREATE TABLE IF NOT EXISTS operation_task(
     id              BIGSERIAL   NOT NULL,
     name            TEXT        NOT NULL,
     entity_id       TEXT        NOT NULL,
@@ -18,4 +18,4 @@ CREATE TABLE IF NOT EXISTS task(
     FOREIGN KEY (operation_id) REFERENCES operation(id)
 );
 
-CREATE INDEX IF NOT EXISTS task_status_entity_id_idx ON task(status, entity_id, id);
+CREATE INDEX IF NOT EXISTS task_status_entity_id_idx ON operation_task(status, entity_id, id);

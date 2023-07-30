@@ -2,7 +2,7 @@ CREATE TYPE task_status AS ENUM ('PENDING', 'RUNNING', 'FAILED', 'FINISHED');
 
 CREATE TYPE task_type AS ENUM ('UNMOUNT', 'MOUNT');
 
-CREATE TABLE IF NOT EXISTS task(
+CREATE TABLE IF NOT EXISTS operation_task(
     id              BIGSERIAL   NOT NULL,
     name            TEXT        NOT NULL,
     entity_id       TEXT        NOT NULL,
