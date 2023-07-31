@@ -39,7 +39,7 @@ with lzy.workflow("training"):
     model = train(data_set)
 ```
 
-Please read the [tutorial](https://github.com/lambdazy/lzy/tree/master/docs/tutorials/0-contents.md) for details. We provide a free [sandbox installation](https://lzy.ai).
+Please read the [tutorial](https://github.com/lambdazy/lzy/tree/master/docs/tutorials/0-contents.md) for details.
 
 ## Runtime
 

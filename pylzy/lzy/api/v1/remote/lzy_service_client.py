@@ -118,7 +118,7 @@ class LzyServiceClient:
         if key_path is None:
             raise ValueError(f"Key path must be specified by env variable {KEY_PATH_ENV} or `key_path` argument")
 
-        address = os.getenv(ENDPOINT_ENV, "api.lzy.ai:8899")
+        address = os.getenv(ENDPOINT_ENV)
         token = build_token(user, key_path)
         interceptors = build_headers(token)
 
