@@ -22,12 +22,14 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.*;
 
-public class OperationTaskExecutorTest {
+public class OperationTaskSchedulerTest {
 
     public static final String MOUNT_TASK_TYPE = "MOUNT";
     public static final Duration SCHEDULER_DELAY = Duration.ofMinutes(5);
@@ -44,11 +46,10 @@ public class OperationTaskExecutorTest {
 
     private StorageImpl storage;
     private OperationTaskDaoImpl taskDao;
-    private OperationTaskExecutor taskExecutor;
+    private OperationTaskScheduler taskScheduler;
     private OperationDaoImpl operationDao;
     private OperationsExecutor operationsExecutor;
     private DispatchingOperationTaskResolver taskResolver;
-
 
     @Before
     public void setup() {
@@ -58,7 +59,7 @@ public class OperationTaskExecutorTest {
         operationDao = new OperationDaoImpl(storage);
         operationsExecutor = new OperationsExecutor(5, 10, () -> {}, e -> false);
         taskResolver = new DispatchingOperationTaskResolver(List.of());
-        taskExecutor = new OperationTaskExecutor(taskDao, operationsExecutor, taskResolver, Duration.ZERO,
+        taskScheduler = new OperationTaskScheduler(taskDao, operationsExecutor, taskResolver, Duration.ZERO,
             SCHEDULER_DELAY, storage, new StubMetricsProvider(), WORKER_ID , LEASE_DURATION,
             BATCH_SIZE, MAX_RUNNING_TASKS);
 
@@ -68,27 +69,27 @@ public class OperationTaskExecutorTest {
     public void teardown() {
         DatabaseTestUtils.cleanup(storage);
         storage.close();
-        taskExecutor.shutdown();
+        taskScheduler.shutdown();
     }
 
     @Test
-    public void executorWorkflow() {
-        taskExecutor.start();
+    public void schedulerWorkflow() {
+        taskScheduler.start();
     }
 
     @Test
-    public void executorCannotBeStartedTwice() {
-        taskExecutor.start();
-        assertThrows(IllegalStateException.class, () -> taskExecutor.start());
+    public void schedulerCannotBeStartedTwice() {
+        taskScheduler.start();
+        assertThrows(IllegalStateException.class, () -> taskScheduler.start());
     }
 
     @Test
-    public void executorShouldWork() throws SQLException {
+    public void schedulerShouldWork() throws SQLException {
         taskResolver.addResolver(resolver(MOUNT_TASK_TYPE, () -> OperationRunnerBase.StepResult.FINISH, true));
         var op = createOperation();
-        var task = taskExecutor.saveTask(OperationTask.createPending("Test", "foo",
+        var task = taskScheduler.saveTask(OperationTask.createPending("Test", "foo",
             MOUNT_TASK_TYPE, Map.of(), op.id()), null);
-        taskExecutor.start();
+        taskScheduler.start();
         op = waitForOperation(op.id());
         assertNull(op.error());
         task = taskDao.get(task.id(), null);
@@ -101,12 +102,12 @@ public class OperationTaskExecutorTest {
     }
 
     @Test
-    public void executorCanFail() throws SQLException {
+    public void schedulerCanFail() throws SQLException {
         taskResolver.addResolver(resolver(MOUNT_TASK_TYPE, () -> OperationRunnerBase.StepResult.FINISH, false));
         var op = createOperation();
-        var task = taskExecutor.saveTask(OperationTask.createPending("Test", "foo",
+        var task = taskScheduler.saveTask(OperationTask.createPending("Test", "foo",
             MOUNT_TASK_TYPE, Map.of(), op.id()), null);
-        taskExecutor.start();
+        taskScheduler.start();
         op = waitForOperation(op.id());
         assertNotNull(op.error());
         task = taskDao.get(task.id(), null);
@@ -116,6 +117,30 @@ public class OperationTaskExecutorTest {
         assertNotNull(task.leaseTill());
         assertTrue(task.createdAt().isBefore(task.leaseTill()));
         assertEquals(WORKER_ID, task.workerId());
+    }
+
+    @Test
+    public void schedulerWillLoadOnlyOneBatch() throws SQLException, InterruptedException {
+        CountDownLatch latch = new CountDownLatch(1);
+        taskResolver.addResolver(resolver(MOUNT_TASK_TYPE, () -> {
+            latch.countDown();
+            return OperationRunnerBase.StepResult.FINISH;
+        }, true));
+        for (int i = 0; i < MAX_RUNNING_TASKS; i++) {
+            var op = createOperation();
+            var task = taskScheduler.saveTask(OperationTask.createPending("Test", "foo" + i,
+                MOUNT_TASK_TYPE, Map.of(), op.id()), null);
+        }
+        taskScheduler.start();
+        latch.await();
+        var tasks = taskDao.getAll(null);
+        var tasksByPendingStatus = tasks.stream()
+            .collect(Collectors.partitioningBy(x -> x.status() == OperationTask.Status.PENDING));
+        var pendingTasks = tasksByPendingStatus.get(true);
+        var runningTasks = tasksByPendingStatus.get(false);
+        assertEquals(MAX_RUNNING_TASKS - BATCH_SIZE, pendingTasks.size());
+        assertEquals(BATCH_SIZE, runningTasks.size());
+
     }
 
     private Operation waitForOperation(String opId) throws SQLException {
@@ -150,7 +175,7 @@ public class OperationTaskExecutorTest {
             public Result resolve(OperationTask task, @Nullable TransactionHandle tx) {
                 return Result.success(new TestAction(action, completeOperation, task, taskDao,
                     SCHEDULER_DELAY, task.operationId(), "Test action", storage, operationDao,
-                    operationsExecutor, taskExecutor));
+                    operationsExecutor, taskScheduler));
             }
         };
     }

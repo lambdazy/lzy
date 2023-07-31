@@ -22,10 +22,10 @@ public class TestAction extends OpTaskAwareAction {
                       OperationTaskDao operationTaskDao, Duration leaseDuration, String opId, String desc,
                       Storage storage, OperationDao operationsDao,
                       OperationsExecutor executor,
-                      OperationTaskExecutor operationTaskExecutor)
+                      OperationTaskScheduler operationTaskScheduler)
     {
         super(operationTask, operationTaskDao, leaseDuration, opId, desc, storage, operationsDao, executor,
-            operationTaskExecutor);
+            operationTaskScheduler);
         this.action = action;
         this.completeOperation = completeOperation;
     }

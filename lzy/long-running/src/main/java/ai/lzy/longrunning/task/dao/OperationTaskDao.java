@@ -33,4 +33,6 @@ public interface OperationTaskDao {
     @Nullable
     OperationTask tryLockTask(Long taskId, String entityId, String ownerId, Duration leaseDuration,
                               @Nullable TransactionHandle tx) throws SQLException;
+
+    List<OperationTask> getAll(@Nullable TransactionHandle tx) throws SQLException;
 }

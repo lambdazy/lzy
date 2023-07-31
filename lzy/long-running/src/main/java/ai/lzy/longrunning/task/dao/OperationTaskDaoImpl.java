@@ -27,6 +27,9 @@ public class OperationTaskDaoImpl implements OperationTaskDao {
         VALUES (?, ?, cast(? as task_type), cast(? as task_status), now(), now(), cast(? as jsonb), ?)
         RETURNING %s;
         """.formatted(FIELDS);
+    public static final String GET_ALL_QUERY = """
+        SELECT %s FROM operation_task
+        """.formatted(FIELDS);
 
     //in first nested request we gather all tasks that either locked or free.
     //in second nested request we filter result of previous request to get only free tasks
@@ -238,6 +241,21 @@ public class OperationTaskDaoImpl implements OperationTaskDao {
                         return readTask(rs);
                     }
                     return null;
+                }
+            }
+        });
+    }
+
+    @Override
+    public List<OperationTask> getAll(@Nullable TransactionHandle tx) throws SQLException {
+        return DbOperation.execute(tx, storage, c -> {
+            try (PreparedStatement ps = c.prepareStatement(GET_ALL_QUERY)) {
+                try (var rs = ps.executeQuery()) {
+                    var result = new ArrayList<OperationTask>(rs.getFetchSize());
+                    while (rs.next()) {
+                        result.add(readTask(rs));
+                    }
+                    return result;
                 }
             }
         });

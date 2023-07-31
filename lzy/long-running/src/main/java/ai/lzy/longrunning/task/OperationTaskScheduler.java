@@ -19,9 +19,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class OperationTaskExecutor {
+public class OperationTaskScheduler {
 
-    private static final Logger LOG = LogManager.getLogger(OperationTaskExecutor.class);
+    private static final Logger LOG = LogManager.getLogger(OperationTaskScheduler.class);
 
     private final OperationTaskDao opTaskDao;
     private final OperationsExecutor operationsExecutor;
@@ -39,10 +39,10 @@ public class OperationTaskExecutor {
     private final AtomicBoolean started = new AtomicBoolean(false);
     private volatile boolean disabled = false;
 
-    public OperationTaskExecutor(OperationTaskDao opTaskDao, OperationsExecutor operationsExecutor,
-                                 OperationTaskResolver resolver, Duration initialDelay, Duration executionDelay,
-                                 Storage storage, TaskMetricsProvider metricsProvider, String instanceId,
-                                 Duration leaseDuration, int batchSize, int maxRunningTasks)
+    public OperationTaskScheduler(OperationTaskDao opTaskDao, OperationsExecutor operationsExecutor,
+                                  OperationTaskResolver resolver, Duration initialDelay, Duration executionDelay,
+                                  Storage storage, TaskMetricsProvider metricsProvider, String instanceId,
+                                  Duration leaseDuration, int batchSize, int maxRunningTasks)
     {
         this.opTaskDao = opTaskDao;
         this.operationsExecutor = operationsExecutor;
