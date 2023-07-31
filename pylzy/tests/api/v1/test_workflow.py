@@ -356,7 +356,7 @@ class LzyWorkflowTests(TestCase):
     def test_lazy_args_loading(self):
         @op(lazy_arguments=True)
         def is_arg_type_str(a: str) -> bool:
-            return type(a) == str
+            return type(a) is str
 
         with self.lzy.workflow("test"):
             res = is_arg_type_str("str")
@@ -365,7 +365,7 @@ class LzyWorkflowTests(TestCase):
     def test_eager_args_loading(self):
         @op(lazy_arguments=False)
         def is_arg_type_str(a: str) -> bool:
-            return type(a) == str
+            return type(a) is str
 
         with self.lzy.workflow("test"):
             res = is_arg_type_str("str")
