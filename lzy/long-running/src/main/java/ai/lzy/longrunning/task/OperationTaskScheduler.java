@@ -52,7 +52,8 @@ public class OperationTaskScheduler {
         this.storage = storage;
         this.leaseDuration = leaseDuration;
         this.batchSize = batchSize;
-        this.scheduler = Executors.newSingleThreadScheduledExecutor(); //it's important to have only one thread
+        //it's important to have only one thread to execute all command subsequently
+        this.scheduler = Executors.newSingleThreadScheduledExecutor();
         this.metricsProvider = metricsProvider;
         this.instanceId = instanceId;
         this.runningTaskQuota.set(maxRunningTasks);
@@ -147,27 +148,29 @@ public class OperationTaskScheduler {
     }
 
     private void restoreTasks() {
-        try {
-            var actionsToRun = new ArrayList<OpTaskAwareAction>();
-            //allow over-quoting to complete unfinished tasks first
-            DbHelper.withRetries(LOG, () -> {
-                try (var tx = TransactionHandle.create(storage)) {
-                    var tasks = opTaskDao.recaptureOldTasks(instanceId, leaseDuration, tx);
-                    for (OperationTask operationTask : tasks) {
-                        var taskAwareAction = resolveTask(operationTask, tx);
-                        if (taskAwareAction != null) {
-                            actionsToRun.add(taskAwareAction);
+        scheduler.schedule(() -> {
+            try {
+                var actionsToRun = new ArrayList<OpTaskAwareAction>();
+                //allow over-quoting to complete unfinished tasks first
+                DbHelper.withRetries(LOG, () -> {
+                    try (var tx = TransactionHandle.create(storage)) {
+                        var tasks = opTaskDao.recaptureOldTasks(instanceId, leaseDuration, tx);
+                        for (OperationTask operationTask : tasks) {
+                            var taskAwareAction = resolveTask(operationTask, tx);
+                            if (taskAwareAction != null) {
+                                actionsToRun.add(taskAwareAction);
+                            }
                         }
+                        tx.commit();
                     }
-                    tx.commit();
-                }
-            });
-            acquireTasks(actionsToRun.size());
-            actionsToRun.forEach(operationsExecutor::startNew);
-        } catch (Exception e) {
-            LOG.error("Got exception while restoring tasks", e);
-            metricsProvider.schedulerErrors().inc();
-        }
+                });
+                acquireTasks(actionsToRun.size());
+                actionsToRun.forEach(operationsExecutor::startNew);
+            } catch (Exception e) {
+                LOG.error("Got exception while restoring tasks", e);
+                metricsProvider.schedulerErrors().inc();
+            }
+        }, 0, TimeUnit.MILLISECONDS);
     }
 
     private OperationTask setStatus(OperationTask operationTask, OperationTask.Status status, TransactionHandle tx)

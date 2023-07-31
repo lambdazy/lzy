@@ -23,6 +23,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.LockSupport;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -90,7 +91,7 @@ public class OperationTaskSchedulerTest {
         var task = taskScheduler.saveTask(OperationTask.createPending("Test", "foo",
             MOUNT_TASK_TYPE, Map.of(), op.id()), null);
         taskScheduler.start();
-        op = waitForOperation(op.id());
+        op = waitForOperation(op);
         assertNull(op.error());
         task = taskDao.get(task.id(), null);
         assertNotNull(task);
@@ -108,7 +109,7 @@ public class OperationTaskSchedulerTest {
         var task = taskScheduler.saveTask(OperationTask.createPending("Test", "foo",
             MOUNT_TASK_TYPE, Map.of(), op.id()), null);
         taskScheduler.start();
-        op = waitForOperation(op.id());
+        op = waitForOperation(op);
         assertNotNull(op.error());
         task = taskDao.get(task.id(), null);
         assertNotNull(task);
@@ -140,7 +141,83 @@ public class OperationTaskSchedulerTest {
         var runningTasks = tasksByPendingStatus.get(false);
         assertEquals(MAX_RUNNING_TASKS - BATCH_SIZE, pendingTasks.size());
         assertEquals(BATCH_SIZE, runningTasks.size());
+    }
 
+    @Test
+    public void schedulerCanScheduleImmediateTask() throws SQLException, ExecutionException, InterruptedException {
+        taskResolver.addResolver(resolver(MOUNT_TASK_TYPE, () -> OperationRunnerBase.StepResult.FINISH, true));
+        taskScheduler.start();
+
+        var op = createOperation();
+        var task = taskScheduler.saveTask(OperationTask.createPending("Test", "foo",
+            MOUNT_TASK_TYPE, Map.of(), op.id()), null);
+        var scheduledFuture = taskScheduler.startImmediately(task);
+        var scheduled = scheduledFuture.get();
+        assertTrue(scheduled);
+
+        waitForOperation(op);
+        task = taskDao.get(task.id(), null);
+        assertNotNull(task);
+        assertEquals(OperationTask.Status.FINISHED, task.status());
+    }
+
+    @Test
+    public void schedulerCannotScheduleTwoImmediateTaskWithSameEntityId()
+        throws SQLException, ExecutionException, InterruptedException
+    {
+        CountDownLatch latch = new CountDownLatch(1);
+        taskResolver.addResolver(resolver(MOUNT_TASK_TYPE, () -> {
+            try {
+                latch.await();
+            } catch (InterruptedException e) {}
+            return OperationRunnerBase.StepResult.FINISH;
+        }, true));
+        taskScheduler.start();
+
+        var op1 = createOperation();
+        var task1 = taskScheduler.saveTask(OperationTask.createPending("Test", "foo",
+            MOUNT_TASK_TYPE, Map.of(), op1.id()), null);
+        var op2 = createOperation();
+        var task2 = taskScheduler.saveTask(OperationTask.createPending("Test", "foo",
+            MOUNT_TASK_TYPE, Map.of(), op2.id()), null);
+        var task1Future = taskScheduler.startImmediately(task1);
+        var task2Future = taskScheduler.startImmediately(task2);
+        assertTrue(task1Future.get());
+        assertFalse(task2Future.get());
+
+        task1 = taskDao.get(task1.id(), null);
+        task2 = taskDao.get(task2.id(), null);
+        assertNotNull(task1);
+        assertNotNull(task2);
+        assertEquals(OperationTask.Status.RUNNING, task1.status());
+        assertEquals(WORKER_ID, task1.workerId());
+        assertEquals(OperationTask.Status.PENDING, task2.status());
+        assertNull(task2.workerId());
+        latch.countDown();
+    }
+
+    @Test
+    public void schedulerShouldRestartOldTasksOnStart() throws SQLException {
+        taskResolver.addResolver(resolver(MOUNT_TASK_TYPE, () -> OperationRunnerBase.StepResult.FINISH, true));
+        var op1 = createOperation();
+        var task1 = taskScheduler.saveTask(OperationTask.createPending("Test", "foo",
+            MOUNT_TASK_TYPE, Map.of(), op1.id()), null);
+        task1 = taskDao.tryLockTask(task1.id(), task1.entityId(), WORKER_ID, LEASE_DURATION, null);
+        assertNotNull(task1);
+        assertEquals(OperationTask.Status.RUNNING, task1.status());
+        assertEquals(WORKER_ID, task1.workerId());
+
+        taskScheduler.start();
+        waitForOperation(op1);
+
+        task1 = taskDao.get(task1.id(), null);
+        assertNotNull(task1);
+        assertEquals(OperationTask.Status.FINISHED, task1.status());
+        assertEquals(WORKER_ID, task1.workerId());
+    }
+
+    private Operation waitForOperation(Operation op) throws SQLException {
+        return waitForOperation(op.id());
     }
 
     private Operation waitForOperation(String opId) throws SQLException {
