@@ -45,7 +45,7 @@ def materialize_if_sequence_of_lzy_proxies(obj: Any) -> Any:
         if is_lzy_proxy(elem):
             result.append(materialize(elem))
 
-    if type(obj) == tuple:
+    if type(obj) is tuple:
         return tuple(result)
     return result
 
