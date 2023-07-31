@@ -7,7 +7,10 @@ import ai.lzy.allocator.util.KuberUtils;
 import ai.lzy.allocator.volume.VolumeManager;
 import ai.lzy.logs.LogContextKey;
 import ai.lzy.longrunning.Operation;
-import ai.lzy.longrunning.OperationRunnerBase;
+import ai.lzy.longrunning.task.OpTaskAwareAction;
+import ai.lzy.longrunning.task.OperationTask;
+import ai.lzy.longrunning.task.OperationTaskScheduler;
+import ai.lzy.longrunning.task.dao.OperationTaskDao;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.VmAllocatorApi;
 import com.google.protobuf.Any;
@@ -17,6 +20,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -25,7 +29,7 @@ import java.util.function.Supplier;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
 
-public final class MountDynamicDiskAction extends OperationRunnerBase {
+public final class MountDynamicDiskAction extends OpTaskAwareAction {
     private final AllocationContext allocationContext;
     private final VolumeManager volumeManager;
     private final MountHolderManager mountHolderManager;
@@ -42,9 +46,13 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     private Long nextId;
     private boolean mountPodsDeleted;
 
-    public MountDynamicDiskAction(Vm vm, DynamicMount dynamicMount, AllocationContext allocationContext) {
-        super(dynamicMount.mountOperationId(), String.format("Mount %s to VM %s", dynamicMount.mountName(), vm.vmId()),
-            allocationContext.storage(), allocationContext.operationsDao(), allocationContext.executor());
+    public MountDynamicDiskAction(Vm vm, DynamicMount dynamicMount, AllocationContext allocationContext,
+                                  OperationTask operationTask, OperationTaskDao operationTaskDao,
+                                  Duration leaseDuration, OperationTaskScheduler operationTaskScheduler)
+    {
+        super(operationTask, operationTaskDao, leaseDuration, dynamicMount.mountOperationId(),
+            String.format("Mount %s to VM %s", dynamicMount.mountName(), vm.vmId()), allocationContext.storage(),
+            allocationContext.operationsDao(), allocationContext.executor(), operationTaskScheduler);
         this.dynamicMount = dynamicMount;
         this.vm = vm;
         this.allocationContext = allocationContext;
