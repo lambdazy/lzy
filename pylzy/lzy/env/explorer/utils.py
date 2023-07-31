@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import sys
 import types
+from functools import lru_cache
 from inspect import isclass, getmro
-from typing import List, Any, Tuple
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from typing import List, Any, Tuple, Dict, FrozenSet
+
+import importlib_metadata
+from importlib_metadata import Distribution
+
+from lzy.utils.paths import change_working_directory
 
 
 def getmembers(object: Any, predicate=None) -> List[Tuple[str, Any]]:
@@ -10,7 +19,8 @@ def getmembers(object: Any, predicate=None) -> List[Tuple[str, Any]]:
     Optionally, only return members that satisfy a given predicate.
 
     NB: this function is a copypaste from inspect.py with small addition:
-    we are catching TypeError in addition to AttributeError.
+    we are catching TypeError in addition to AttributeError
+    and ModuleNotFoundError in additition to other AttributeError at other tre/except.
     """
     if isclass(object):
         mro = (object,) + getmro(object)
@@ -38,7 +48,7 @@ def getmembers(object: Any, predicate=None) -> List[Tuple[str, Any]]:
             # handle the duplicate key
             if key in processed:
                 raise AttributeError
-        except AttributeError:
+        except (AttributeError, ModuleNotFoundError):
             for base in mro:
                 if key in base.__dict__:
                     value = base.__dict__[key]
@@ -52,3 +62,55 @@ def getmembers(object: Any, predicate=None) -> List[Tuple[str, Any]]:
         processed.add(key)
     results.sort(key=lambda pair: pair[0])
     return results
+
+
+def check_url_is_local_file(url: str) -> bool:
+    file_scheme = 'file://'
+
+    if not url.startswith(file_scheme):
+        return False
+
+    raw_path = url[len(file_scheme):]
+    path = Path(raw_path)
+
+    # idk if there may be relative paths in direct_url.json,
+    # but if it is, next code will work badly with it.
+    if not path.is_absolute():
+        return False
+
+    return path.exists()
+
+
+@lru_cache(maxsize=None)
+def get_stdlib_module_names() -> FrozenSet[str]:
+    try:
+        return frozenset(sys.stdlib_module_names)  # type: ignore
+    except AttributeError:
+        # python_version < 3.10
+        from stdlib_list import stdlib_list
+
+        return frozenset(stdlib_list())
+
+
+@lru_cache(maxsize=None)
+def get_builtin_module_names() -> FrozenSet[str]:
+    return frozenset(sys.builtin_module_names)
+
+
+@lru_cache(maxsize=None)  # cache size is about few MB
+def get_files_to_distributions() -> Dict[str, Distribution]:
+    result = {}
+
+    # NB: importlib_metadata.Distribution calls may return different
+    # results in depends from cwd.
+    # So we are moving cwd into tmp dir in name of results repeatability.
+    # In case of PermissionError, location of tmp dir can be moved with
+    # TMPDIR env variable.
+    with TemporaryDirectory() as tmp:
+        with change_working_directory(tmp):
+            for distribution in importlib_metadata.distributions():
+                for filename in distribution.files:
+                    fullpath = distribution.locate_file(filename)
+                    result[str(fullpath)] = distribution
+
+    return result

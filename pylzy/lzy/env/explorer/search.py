@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import inspect
-import importlib.machinery
 import functools
 import sys
+import warnings
 from typing import Dict, Any, Set, FrozenSet, List, Tuple, Optional, Iterable, Iterator
 from types import ModuleType
 
@@ -85,10 +85,17 @@ def get_direct_module_dependencies(module: ModuleType) -> ModulesFrozenSet:
     This function caches its results for performance optimization.
     """
 
-    # NB: we are using our getmembers instead of inspect.getmembers,
-    # because original one are raising TypeError in case of
-    # getmembers(torch.ops), and we are catching it in our clone
-    members: List[Tuple[str, Any]] = getmembers(module)
+    # All real import-time warnings user already saw when he did
+    # imports at his code. Actually we are supressing only
+    # "useless" import warnings triggered by our DFS, not by user actions.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+
+        # NB: we are using our getmembers instead of inspect.getmembers,
+        # because original one are raising TypeError in case of
+        # getmembers(torch.ops), and we are catching it in our clone
+        members: List[Tuple[str, Any]] = getmembers(module)
+
     members_vars: Iterator[Any] = (var for _, var in members)
 
     result = _get_vars_dependencies(members_vars)
