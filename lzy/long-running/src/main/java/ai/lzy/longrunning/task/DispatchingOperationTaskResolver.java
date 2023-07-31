@@ -1,6 +1,7 @@
 package ai.lzy.longrunning.task;
 
 import ai.lzy.model.db.TransactionHandle;
+import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,6 +32,11 @@ public class DispatchingOperationTaskResolver implements OperationTaskResolver {
         });
         return resolvers.stream()
             .collect(Collectors.toMap(TypedOperationTaskResolver::type, r -> r));
+    }
+
+    @VisibleForTesting
+    void addResolver(TypedOperationTaskResolver resolver) {
+        resolvers.put(resolver.type(), resolver);
     }
 
     @Override

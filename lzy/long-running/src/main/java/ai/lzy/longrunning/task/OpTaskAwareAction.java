@@ -5,7 +5,6 @@ import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.longrunning.task.dao.OperationTaskDao;
 import ai.lzy.model.db.Storage;
-import jakarta.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.Map;
@@ -60,11 +59,9 @@ public abstract class OpTaskAwareAction extends OperationRunnerBase {
     }
 
     @Override
-    protected void notifyFinished(@Nullable Throwable t) {
-        super.notifyFinished(t);
-
+    protected void notifyFinished() {
         var builder = OperationTask.Update.builder();
-        if (t != null) {
+        if (isFailed()) {
             builder.status(OperationTask.Status.FAILED);
         } else {
             builder.status(OperationTask.Status.FINISHED);

@@ -59,7 +59,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     }
 
     @Override
-    protected void notifyFinished(@Nullable Throwable t) {
+    protected void notifyFinished() {
         log().info("{} Finished unmounting volume {}", logPrefix(), dynamicMount.id());
     }
 

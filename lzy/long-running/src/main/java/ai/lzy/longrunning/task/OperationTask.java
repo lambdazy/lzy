@@ -21,9 +21,11 @@ public record OperationTask(
     @Nullable
     Instant leaseTill
 ) {
-    public static OperationTask createPending(String name, String entityId, String type, Map<String, Object> metadata) {
+    public static OperationTask createPending(String name, String entityId, String type, Map<String, Object> metadata,
+                                              String operationId)
+    {
         return new OperationTask(-1, name, entityId, type, Status.PENDING, Instant.now(), Instant.now(),
-            metadata, null, null, null);
+            metadata, operationId, null, null);
     }
 
     public enum Status {

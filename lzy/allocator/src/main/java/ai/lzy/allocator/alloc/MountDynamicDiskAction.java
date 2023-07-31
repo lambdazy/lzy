@@ -68,7 +68,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     }
 
     @Override
-    protected void notifyFinished(@Nullable Throwable t) {
+    protected void notifyFinished() {
         if (unmountAction != null) {
             log().error("{} Failed to mount dynamic disk", logPrefix());
             try {

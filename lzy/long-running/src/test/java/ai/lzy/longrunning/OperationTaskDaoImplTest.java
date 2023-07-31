@@ -41,23 +41,23 @@ public class OperationTaskDaoImplTest {
 
     @Test
     public void create() throws Exception {
-        var task = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar")), null);
+        var task = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar"), null), null);
         var fetched = taskDao.get(task.id(), null);
         assertEquals(task, fetched);
     }
 
     @Test
     public void multiCreate() throws Exception {
-        var task1 = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar")), null);
-        var task2 = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar")), null);
-        var task3 = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar")), null);
+        var task1 = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar"), null), null);
+        var task2 = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar"), null), null);
+        var task3 = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar"), null), null);
         Assert.assertTrue(task1.id() < task2.id());
         Assert.assertTrue(task2.id() < task3.id());
     }
 
     @Test
     public void update() throws Exception {
-        var task = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar")), null);
+        var task = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar"), null), null);
         var updated = taskDao.update(task.id(), OperationTask.Update.builder().status(OperationTask.Status.RUNNING).build(), null);
         assertEquals(OperationTask.Status.RUNNING, updated.status());
         updated = taskDao.update(task.id(), OperationTask.Update.builder().operationId("42").build(), null);
@@ -76,13 +76,13 @@ public class OperationTaskDaoImplTest {
 
     @Test
     public void delete() throws Exception {
-        var task = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar")), null);
+        var task = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar"), null), null);
         taskDao.delete(task.id(), null);
     }
 
     @Test
     public void updateLease() throws Exception {
-        var task = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar")), null);
+        var task = taskDao.insert(OperationTask.createPending("foo", "bar", "MOUNT", Map.of("foo", "bar"), null), null);
         var updateLease = taskDao.updateLease(task.id(), Duration.ofMinutes(5), null);
         var between = Duration.between(task.createdAt(), updateLease.leaseTill());
         //leaseTill should be around 5 minutes from now
@@ -114,14 +114,14 @@ public class OperationTaskDaoImplTest {
 
     @Test
     public void lockPendingBatch() throws Exception {
-        var task1 = taskDao.insert(OperationTask.createPending("task1", "1", "MOUNT", Map.of()), null);
-        var task2 = taskDao.insert(OperationTask.createPending("task2", "2", "MOUNT", Map.of()), null);
-        var task3 = taskDao.insert(OperationTask.createPending("task3", "3", "MOUNT", Map.of()), null);
-        var task4 = taskDao.insert(OperationTask.createPending("task4", "4", "MOUNT", Map.of()), null);
-        var task5 = taskDao.insert(OperationTask.createPending("task5", "1", "MOUNT", Map.of()), null);
-        var task6 = taskDao.insert(OperationTask.createPending("task6", "2", "MOUNT", Map.of()), null);
-        var task7 = taskDao.insert(OperationTask.createPending("task7", "3", "MOUNT", Map.of()), null);
-        var task8 = taskDao.insert(OperationTask.createPending("task8", "4", "MOUNT", Map.of()), null);
+        var task1 = taskDao.insert(OperationTask.createPending("task1", "1", "MOUNT", Map.of(), null), null);
+        var task2 = taskDao.insert(OperationTask.createPending("task2", "2", "MOUNT", Map.of(), null), null);
+        var task3 = taskDao.insert(OperationTask.createPending("task3", "3", "MOUNT", Map.of(), null), null);
+        var task4 = taskDao.insert(OperationTask.createPending("task4", "4", "MOUNT", Map.of(), null), null);
+        var task5 = taskDao.insert(OperationTask.createPending("task5", "1", "MOUNT", Map.of(), null), null);
+        var task6 = taskDao.insert(OperationTask.createPending("task6", "2", "MOUNT", Map.of(), null), null);
+        var task7 = taskDao.insert(OperationTask.createPending("task7", "3", "MOUNT", Map.of(), null), null);
+        var task8 = taskDao.insert(OperationTask.createPending("task8", "4", "MOUNT", Map.of(), null), null);
 
         task2 = taskDao.update(task2.id(), statusUpdate(OperationTask.Status.RUNNING), null);
         task3 = taskDao.update(task3.id(), statusUpdate(OperationTask.Status.FINISHED), null);
@@ -134,14 +134,14 @@ public class OperationTaskDaoImplTest {
 
     @Test
     public void lockPendingBatchWithAllRunning() throws Exception {
-        var task1 = taskDao.insert(OperationTask.createPending("task1", "1", "MOUNT", Map.of()), null);
-        var task2 = taskDao.insert(OperationTask.createPending("task2", "2", "MOUNT", Map.of()), null);
-        var task3 = taskDao.insert(OperationTask.createPending("task3", "3", "MOUNT", Map.of()), null);
-        var task4 = taskDao.insert(OperationTask.createPending("task4", "4", "MOUNT", Map.of()), null);
-        var task5 = taskDao.insert(OperationTask.createPending("task5", "1", "MOUNT", Map.of()), null);
-        var task6 = taskDao.insert(OperationTask.createPending("task6", "2", "MOUNT", Map.of()), null);
-        var task7 = taskDao.insert(OperationTask.createPending("task7", "3", "MOUNT", Map.of()), null);
-        var task8 = taskDao.insert(OperationTask.createPending("task8", "4", "MOUNT", Map.of()), null);
+        var task1 = taskDao.insert(OperationTask.createPending("task1", "1", "MOUNT", Map.of(), null), null);
+        var task2 = taskDao.insert(OperationTask.createPending("task2", "2", "MOUNT", Map.of(), null), null);
+        var task3 = taskDao.insert(OperationTask.createPending("task3", "3", "MOUNT", Map.of(), null), null);
+        var task4 = taskDao.insert(OperationTask.createPending("task4", "4", "MOUNT", Map.of(), null), null);
+        var task5 = taskDao.insert(OperationTask.createPending("task5", "1", "MOUNT", Map.of(), null), null);
+        var task6 = taskDao.insert(OperationTask.createPending("task6", "2", "MOUNT", Map.of(), null), null);
+        var task7 = taskDao.insert(OperationTask.createPending("task7", "3", "MOUNT", Map.of(), null), null);
+        var task8 = taskDao.insert(OperationTask.createPending("task8", "4", "MOUNT", Map.of(), null), null);
 
         task1 = taskDao.update(task1.id(), statusUpdate(OperationTask.Status.RUNNING), null);
         task2 = taskDao.update(task2.id(), statusUpdate(OperationTask.Status.RUNNING), null);

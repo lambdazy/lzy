@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class OperationTaskExecutor {
@@ -35,7 +36,7 @@ public class OperationTaskExecutor {
     private final int batchSize;
     private final AtomicInteger runningTaskQuota = new AtomicInteger();
 
-    private volatile boolean started = false;
+    private final AtomicBoolean started = new AtomicBoolean(false);
     private volatile boolean disabled = false;
 
     public OperationTaskExecutor(OperationTaskDao opTaskDao, OperationsExecutor operationsExecutor,
@@ -58,10 +59,9 @@ public class OperationTaskExecutor {
     }
 
     public void start() {
-        if (started) {
+        if (!started.compareAndSet(false, true)) {
             throw new IllegalStateException("Task executor has already started!");
         }
-        started = true;
         restoreTasks();
         startMailLoop();
     }
@@ -178,8 +178,8 @@ public class OperationTaskExecutor {
             .build(), tx);
     }
 
-    public void saveTask(OperationTask operationTask, @Nullable TransactionHandle tx) throws SQLException {
-        opTaskDao.insert(operationTask, tx);
+    public OperationTask saveTask(OperationTask operationTask, @Nullable TransactionHandle tx) throws SQLException {
+        return opTaskDao.insert(operationTask, tx);
     }
 
     public ScheduledFuture<Boolean> startImmediately(OperationTask opTask) {
