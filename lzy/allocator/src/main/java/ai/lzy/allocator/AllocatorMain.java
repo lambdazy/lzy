@@ -178,8 +178,6 @@ public class AllocatorMain {
                 }
             }
         });
-
-        System.out.println("!!!");
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
