@@ -589,8 +589,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                                     ForceFreeResponse.getDefaultInstance()));
                         }
 
-                        if (vm.status() != Vm.Status.RUNNING) {
-                            LOG.error("ForceFree vm {} in status {}, expected RUNNING", vm, vm.status());
+                        if (vm.status() != Vm.Status.RUNNING && vm.status() != Vm.Status.IDLE) {
+                            LOG.error("ForceFree vm {} in status {}, expected RUNNING or IDLE", vm, vm.status());
                             return Either.left(Status.FAILED_PRECONDITION.withDescription("State is " + vm.status()));
                         }
 
@@ -616,7 +616,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         LOG.info("VM {} scheduled to remove (force free)", vm.vmId());
 
                         allocationContext.startNew(action);
-                        allocationContext.metrics().runningVms.labels(vm.poolLabel()).dec();
+
+                        switch (vm.status()) {
+                            case RUNNING -> allocationContext.metrics().runningVms.labels(vm.poolLabel()).dec();
+                            case IDLE -> allocationContext.metrics().cachedVms.labels(vm.poolLabel()).dec();
+                        }
 
                         return Either.right(op);
                     }
