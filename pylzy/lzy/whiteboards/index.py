@@ -54,12 +54,15 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
 
         user = os.getenv(WB_USER_ENV)
         key_path = os.getenv(WB_KEY_PATH_ENV)
-        endpoint: str = os.getenv(WB_ENDPOINT_ENV)
+        endpoint = os.getenv(WB_ENDPOINT_ENV)
 
         if user is None:
             raise ValueError(f"User must be specified by env variable {WB_USER_ENV} or `user` argument")
         if key_path is None:
             raise ValueError(f"Key path must be specified by env variable {WB_KEY_PATH_ENV} or `key_path` argument")
+        if endpoint is None:
+            raise ValueError(f"WB endpoint must be specified by env variable {WB_ENDPOINT_ENV}"
+                             f" or `whiteboards_endpoint` argument")
 
         token = build_token(cast(str, user), cast(str, key_path))
 
