@@ -6,7 +6,6 @@ import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import jakarta.annotation.Nullable;
-import jakarta.validation.ValidationException;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -90,10 +89,6 @@ public class LzyServiceConfig {
         // legacy credentials format
         private YcCredentials yc;
 
-        public void validate() {
-            s3.validate();
-        }
-
         @Getter
         @Setter
         @ConfigurationProperties("s3")
@@ -101,14 +96,6 @@ public class LzyServiceConfig {
             private InMemoryS3Credentials memory;
             private YcS3Credentials yc;
             private AzureS3Credentials azure;
-
-            public void validate() {
-                int cnt = (yc.enabled ? 1 : 0) + (azure.enabled ? 1 : 0) + (memory.enabled ? 1 : 0);
-
-                if (cnt != 1) {
-                    throw new ValidationException("Exactly one s3 provider should be enabled.");
-                }
-            }
 
             @Getter
             @Setter

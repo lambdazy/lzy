@@ -23,11 +23,6 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>storage-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
             <artifactId>channel-manager-api</artifactId>
             <version>${project.version}</version>
         </dependency>
@@ -54,11 +49,6 @@
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>graph-executor-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>storage</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

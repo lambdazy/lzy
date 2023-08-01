@@ -64,7 +64,7 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>storage-api</artifactId>
+            <artifactId>util-common</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

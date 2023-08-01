@@ -1,7 +1,7 @@
 package ai.lzy.slots.transfers;
 
-import ai.lzy.storage.StorageClient;
-import ai.lzy.storage.StorageClientFactory;
+import ai.lzy.common.storage.StorageClient;
+import ai.lzy.common.storage.StorageClientFactory;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.common.LMST;
 

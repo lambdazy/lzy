@@ -2,6 +2,7 @@ package ai.lzy.service;
 
 import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
+import ai.lzy.common.storage.StorageClientFactory;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.longrunning.OperationsExecutor;
@@ -15,7 +16,6 @@ import ai.lzy.metrics.PrometheusMetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.dao.impl.LzyServiceStorage;
 import ai.lzy.service.debug.InjectedFailures;
-import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.util.kafka.NoopKafkaAdminClient;

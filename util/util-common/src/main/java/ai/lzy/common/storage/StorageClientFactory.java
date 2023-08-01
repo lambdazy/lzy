@@ -1,7 +1,7 @@
-package ai.lzy.storage;
+package ai.lzy.common.storage;
 
-import ai.lzy.storage.azure.AzureClientWithTransmitter;
-import ai.lzy.storage.s3.S3ClientWithTransmitter;
+import ai.lzy.common.storage.azure.AzureClientWithTransmitter;
+import ai.lzy.common.storage.s3.S3ClientWithTransmitter;
 import ai.lzy.v1.common.LMST;
 import jakarta.annotation.Nonnull;
 

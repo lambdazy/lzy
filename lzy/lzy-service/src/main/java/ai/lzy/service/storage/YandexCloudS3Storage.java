@@ -8,8 +8,6 @@ import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.dao.impl.LzyServiceStorage;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.common.LMST;
-import ai.lzy.v1.storage.LSS.GetStorageCredentialsRequest;
-import ai.lzy.v1.storage.LSS.GetStorageCredentialsResponse;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
@@ -19,7 +17,6 @@ import com.amazonaws.services.s3.model.CanonicalGrantee;
 import com.amazonaws.services.s3.model.Permission;
 import com.google.protobuf.Any;
 import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
@@ -236,41 +233,6 @@ public class YandexCloudS3Storage implements StorageService {
     public void deleteStorage(@Nullable String userId, String bucket) {
         LOG.debug("YandexCloudS3Storage::deleteBucket, bucket={}", bucket);
         safeDeleteBucket(userId, bucket, s3Client());
-    }
-
-    @Override
-    public void getStorageCreds(GetStorageCredentialsRequest request,
-                                StreamObserver<GetStorageCredentialsResponse> response)
-    {
-        LOG.debug("YandexCloudS3Storage::getBucketCredentials, userId={}, bucket={}",
-            request.getUserId(), request.getBucket());
-
-        try (var conn = dataSource.connect();
-             var st = conn.prepareStatement("""
-                 select access_token, secret_token
-                 from yc_s3_credentials
-                 where user_id = ?"""))
-        {
-            st.setString(1, request.getUserId());
-
-            var rs = st.executeQuery();
-            if (rs.next()) {
-                response.onNext(GetStorageCredentialsResponse.newBuilder()
-                    .setAmazon(LMST.S3Credentials.newBuilder()
-                        .setEndpoint(s3Creds.getEndpoint())
-                        .setAccessToken(rs.getString("access_token"))
-                        .setSecretToken(rs.getString("secret_token"))
-                        .build())
-                    .build());
-                response.onCompleted();
-                return;
-            }
-
-            response.onError(Status.NOT_FOUND.asException());
-        } catch (SQLException e) {
-            response.onError(Status.INTERNAL
-                .withDescription(e.getMessage()).withCause(e).asException());
-        }
     }
 
     private AmazonS3 s3Client() {

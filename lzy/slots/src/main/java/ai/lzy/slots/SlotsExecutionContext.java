@@ -1,9 +1,9 @@
 package ai.lzy.slots;
 
+import ai.lzy.common.storage.StorageClientFactory;
 import ai.lzy.slots.backends.FileInputBackend;
 import ai.lzy.slots.backends.OutputPipeBackend;
 import ai.lzy.slots.transfers.TransferFactory;
-import ai.lzy.storage.StorageClientFactory;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
 import ai.lzy.v1.common.LMS;
 import com.google.common.annotations.VisibleForTesting;

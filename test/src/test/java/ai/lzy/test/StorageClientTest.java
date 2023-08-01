@@ -1,8 +1,7 @@
 package ai.lzy.test;
 
-import ai.lzy.storage.StorageClient;
-import ai.lzy.storage.StorageClientFactory;
-import ai.lzy.test.GrpcUtils;
+import ai.lzy.common.storage.StorageClient;
+import ai.lzy.common.storage.StorageClientFactory;
 import ai.lzy.v1.common.LMST;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;

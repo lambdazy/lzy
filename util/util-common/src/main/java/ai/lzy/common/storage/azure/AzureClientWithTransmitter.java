@@ -1,10 +1,11 @@
-package ai.lzy.storage.azure;
+package ai.lzy.common.storage.azure;
 
-import ai.lzy.storage.StorageClientWithTransmitter;
+import ai.lzy.common.storage.StorageClientWithTransmitter;
 import ai.lzy.util.azure.blobstorage.AzureTransmitterFactory;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;
 import com.azure.storage.blob.BlobUrlParts;
+import com.google.common.util.concurrent.MoreExecutors;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequest;
 import ru.yandex.qe.s3.transfer.download.DownloadRequestBuilder;
@@ -16,8 +17,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.util.concurrent.ExecutorService;
-
-import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 
 public final class AzureClientWithTransmitter extends StorageClientWithTransmitter {
     private final BlobServiceClient azureClient;
@@ -31,9 +30,9 @@ public final class AzureClientWithTransmitter extends StorageClientWithTransmitt
             Transmitter withUserThreadPool() {
                 return create(
                     createByteBufferPool(DEFAULT_TRANSMITTER_NAME, byteBufferSizeType, byteBufferPoolSize),
-                    listeningDecorator(transferPool),
-                    listeningDecorator(chunkPool),
-                    listeningDecorator(consumerPool)
+                    MoreExecutors.listeningDecorator(transferPool),
+                    MoreExecutors.listeningDecorator(chunkPool),
+                    MoreExecutors.listeningDecorator(consumerPool)
                 );
             }
         }.withUserThreadPool();

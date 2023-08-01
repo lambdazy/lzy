@@ -1,4 +1,4 @@
-package ai.lzy.storage;
+package ai.lzy.common.storage;
 
 import java.io.IOException;
 import java.io.InputStream;

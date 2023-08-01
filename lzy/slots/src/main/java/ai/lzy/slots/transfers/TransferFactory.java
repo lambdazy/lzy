@@ -1,6 +1,6 @@
 package ai.lzy.slots.transfers;
 
-import ai.lzy.storage.StorageClientFactory;
+import ai.lzy.common.storage.StorageClientFactory;
 import ai.lzy.v1.common.LC;
 import jakarta.annotation.Nullable;
 

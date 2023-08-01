@@ -4,8 +4,6 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.v1.common.LMST;
-import ai.lzy.v1.storage.LSS.GetStorageCredentialsRequest;
-import ai.lzy.v1.storage.LSS.GetStorageCredentialsResponse;
 import com.amazonaws.SdkClientException;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
@@ -16,7 +14,6 @@ import com.google.common.net.HostAndPort;
 import com.google.protobuf.Any;
 import io.findify.s3mock.S3Mock;
 import io.grpc.Status;
-import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Requires;
 import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
@@ -125,20 +122,5 @@ public class InMemoryS3Storage implements StorageService {
         } catch (SdkClientException e) {
             LOG.error("Can not delete bucket '{}': {}", bucket, e.getMessage(), e);
         }
-    }
-
-    @Override
-    public void getStorageCreds(GetStorageCredentialsRequest request,
-                                StreamObserver<GetStorageCredentialsResponse> response)
-    {
-        LOG.debug("InMemoryS3Storage::getBucketCredentials, userId={}, bucket={}",
-            request.getUserId(), request.getBucket());
-
-        response.onNext(GetStorageCredentialsResponse.newBuilder()
-            .setAmazon(LMST.S3Credentials.newBuilder()
-                .setEndpoint(endpoint)
-                .build())
-            .build());
-        response.onCompleted();
     }
 }

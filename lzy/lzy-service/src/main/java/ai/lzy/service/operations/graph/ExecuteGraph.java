@@ -1,5 +1,6 @@
 package ai.lzy.service.operations.graph;
 
+import ai.lzy.common.storage.StorageClient;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationCompletedException;
 import ai.lzy.model.db.TransactionHandle;
@@ -8,7 +9,6 @@ import ai.lzy.service.dao.ExecuteGraphState;
 import ai.lzy.service.dao.ExecutionDao;
 import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.operations.ExecutionOperationRunner;
-import ai.lzy.storage.StorageClient;
 import ai.lzy.util.kafka.KafkaConfig;
 import ai.lzy.v1.VmPoolServiceGrpc.VmPoolServiceBlockingStub;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc.LzyChannelManagerPrivateBlockingStub;

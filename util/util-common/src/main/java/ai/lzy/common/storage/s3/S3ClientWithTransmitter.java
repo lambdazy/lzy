@@ -1,11 +1,12 @@
-package ai.lzy.storage.s3;
+package ai.lzy.common.storage.s3;
 
-import ai.lzy.storage.StorageClientWithTransmitter;
+import ai.lzy.common.storage.StorageClientWithTransmitter;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3ClientBuilder;
 import com.amazonaws.services.s3.AmazonS3URI;
+import com.google.common.util.concurrent.MoreExecutors;
 import ru.yandex.qe.s3.amazon.transfer.AmazonTransmitterFactory;
 import ru.yandex.qe.s3.transfer.Transmitter;
 import ru.yandex.qe.s3.transfer.download.DownloadRequest;
@@ -18,7 +19,6 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.concurrent.ExecutorService;
 
-import static com.google.common.util.concurrent.MoreExecutors.listeningDecorator;
 
 public final class S3ClientWithTransmitter extends StorageClientWithTransmitter {
     private final AmazonS3 amazonS3Client;
@@ -37,9 +37,9 @@ public final class S3ClientWithTransmitter extends StorageClientWithTransmitter 
             Transmitter withUserThreadPool() {
                 return create(
                     createByteBufferPool(DEFAULT_TRANSMITTER_NAME, byteBufferSizeType, byteBufferPoolSize),
-                    listeningDecorator(transferPool),
-                    listeningDecorator(chunkPool),
-                    listeningDecorator(consumerPool)
+                    MoreExecutors.listeningDecorator(transferPool),
+                    MoreExecutors.listeningDecorator(chunkPool),
+                    MoreExecutors.listeningDecorator(consumerPool)
                 );
             }
         }.withUserThreadPool();

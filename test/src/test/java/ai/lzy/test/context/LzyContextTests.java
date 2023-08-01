@@ -81,6 +81,7 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
     @Rule
     public PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
+    protected int s3Port;
     protected LzyConfig.Ports ports;
     public LzyInThread lzy = new LzyInThread();
 
@@ -192,13 +193,14 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
             "scheduler.user-default-image", userDefaultImage
         );
 
+        s3Port = rollPort();
         var lzyServiceConfigOverrides = Map.<String, Object>of(
             "lzy-service.kafka.bootstrap-servers", kafka.getBootstrapServers(),
             "lzy-service.allocator-vm-cache-timeout", "2s",
             "lzy-service.gc.enabled", false,
             "lzy-service.gc.period", "1s",
             "lzy-service.storage.s3.memory.enabled", true,
-            "lzy-service.storage.s3.memory.port", rollPort()
+            "lzy-service.storage.s3.memory.port", s3Port
         );
 
         var configOverrides = new HashMap<String, Object>() {
