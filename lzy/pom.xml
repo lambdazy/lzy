@@ -26,7 +26,6 @@
         <module>scheduler-api</module>
         <module>worker</module>
         <module>slots-api</module>
-        <module>storage</module>
         <module>storage-api</module>
         <module>tunnel-agent</module>
         <module>whiteboard</module>
