@@ -27,7 +27,6 @@ public class LzyConfig {
         String channelManagerConfig;
         String graphExecutorConfig;
         String schedulerConfig;
-        String storageConfig;
         String whiteboardConfig;
         String lzyServiceConfig;
 
@@ -39,7 +38,6 @@ public class LzyConfig {
             this.channelManagerConfig = builder.channelManagerConfig;
             this.graphExecutorConfig = builder.graphExecutorConfig;
             this.schedulerConfig = builder.schedulerConfig;
-            this.storageConfig = builder.storageConfig;
             this.whiteboardConfig = builder.whiteboardConfig;
             this.lzyServiceConfig = builder.lzyServiceConfig;
         }
@@ -62,9 +60,6 @@ public class LzyConfig {
             if (schedulerConfig != null) {
                 cmdArgs.add(prefix + "scheduler-config=" + schedulerConfig);
             }
-            if (storageConfig != null) {
-                cmdArgs.add(prefix + "storage-config=" + storageConfig);
-            }
             if (whiteboardConfig != null) {
                 cmdArgs.add(prefix + "whiteboard-config=" + whiteboardConfig);
             }
@@ -84,7 +79,6 @@ public class LzyConfig {
             private String channelManagerConfig;
             private String graphExecutorConfig;
             private String schedulerConfig;
-            private String storageConfig;
             private String whiteboardConfig;
             private String lzyServiceConfig;
 
@@ -113,11 +107,6 @@ public class LzyConfig {
                 return this;
             }
 
-            public Builder setStorageConfig(String storageConfig) {
-                this.storageConfig = storageConfig;
-                return this;
-            }
-
             public Builder setWhiteboardConfig(String whiteboardConfig) {
                 this.whiteboardConfig = whiteboardConfig;
                 return this;
@@ -143,7 +132,6 @@ public class LzyConfig {
         List<String> channelManagerEnvironments;
         List<String> graphExecutorEnvironments;
         List<String> schedulerEnvironments;
-        List<String> storageEnvironments;
         List<String> whiteboardEnvironments;
         List<String> lzyServiceEnvironments;
 
@@ -155,7 +143,6 @@ public class LzyConfig {
             this.channelManagerEnvironments = builder.channelManagerEnvironments;
             this.graphExecutorEnvironments = builder.graphExecutorEnvironments;
             this.schedulerEnvironments = builder.schedulerEnvironments;
-            this.storageEnvironments = builder.storageEnvironments;
             this.whiteboardEnvironments = builder.whiteboardEnvironments;
             this.lzyServiceEnvironments = builder.lzyServiceEnvironments;
         }
@@ -178,9 +165,6 @@ public class LzyConfig {
             }
             if (schedulerEnvironments != null) {
                 cmdArgs.add(prefix + "scheduler-environments=" + asCmdArg(schedulerEnvironments));
-            }
-            if (storageEnvironments != null) {
-                cmdArgs.add(prefix + "storage-environments=" + asCmdArg(storageEnvironments));
             }
             if (whiteboardEnvironments != null) {
                 cmdArgs.add(prefix + "whiteboard-environments=" + asCmdArg(whiteboardEnvironments));
@@ -205,7 +189,6 @@ public class LzyConfig {
             private List<String> channelManagerEnvironments;
             private List<String> graphExecutorEnvironments;
             private List<String> schedulerEnvironments;
-            private List<String> storageEnvironments;
             private List<String> whiteboardEnvironments;
             private List<String> lzyServiceEnvironments;
 
@@ -249,14 +232,6 @@ public class LzyConfig {
                 return this;
             }
 
-            public Builder addStorageEnvironment(String storageEnvironment) {
-                if (storageEnvironments == null) {
-                    storageEnvironments = new ArrayList<>();
-                }
-                storageEnvironments.add(storageEnvironment);
-                return this;
-            }
-
             public Builder addWhiteboardEnvironment(String whiteboardEnvironment) {
                 if (whiteboardEnvironments == null) {
                     whiteboardEnvironments = new ArrayList<>();
@@ -288,21 +263,19 @@ public class LzyConfig {
         int channelManagerPort;
         int graphExecutorPort;
         int schedulerPort;
-        int storagePort;
         int whiteboardPort;
         int lzyServicePort;
 
         public Ports() {}
 
         public Ports(int iamPort, int allocatorPort, int channelManagerPort, int graphExecutorPort, int schedulerPort,
-                     int storagePort, int whiteboardPort, int lzyServicePort)
+                     int whiteboardPort, int lzyServicePort)
         {
             this.iamPort = iamPort;
             this.allocatorPort = allocatorPort;
             this.channelManagerPort = channelManagerPort;
             this.graphExecutorPort = graphExecutorPort;
             this.schedulerPort = schedulerPort;
-            this.storagePort = storagePort;
             this.whiteboardPort = whiteboardPort;
             this.lzyServicePort = lzyServicePort;
         }
@@ -315,7 +288,6 @@ public class LzyConfig {
                 prefix + "channel-manager-port=" + channelManagerPort,
                 prefix + "graph-executor-port=" + graphExecutorPort,
                 prefix + "scheduler-port=" + schedulerPort,
-                prefix + "storage-port=" + storagePort,
                 prefix + "whiteboard-port=" + whiteboardPort,
                 prefix + "lzy-service-port=" + lzyServicePort
             );
@@ -323,7 +295,6 @@ public class LzyConfig {
 
         public static Ports findFree() {
             return new Ports(
-                GrpcUtils.rollPort(),
                 GrpcUtils.rollPort(),
                 GrpcUtils.rollPort(),
                 GrpcUtils.rollPort(),
@@ -351,7 +322,6 @@ public class LzyConfig {
         String channelManagerDbUrl;
         String graphExecutorDbUrl;
         String schedulerDbUrl;
-        String storageServiceDbUrl;
         String whiteboardDbUrl;
         String lzyServiceDbUrl;
 
@@ -363,7 +333,6 @@ public class LzyConfig {
             this.channelManagerDbUrl = builder.channelManagerDbUrl;
             this.graphExecutorDbUrl = builder.graphExecutorDbUrl;
             this.schedulerDbUrl = builder.schedulerDbUrl;
-            this.storageServiceDbUrl = builder.storageServiceDbUrl;
             this.whiteboardDbUrl = builder.whiteboardDbUrl;
             this.lzyServiceDbUrl = builder.lzyServiceDbUrl;
         }
@@ -387,9 +356,6 @@ public class LzyConfig {
             if (schedulerDbUrl != null) {
                 cmdArgs.add(prefix + "scheduler-db-url=" + schedulerDbUrl);
             }
-            if (storageServiceDbUrl != null) {
-                cmdArgs.add(prefix + "storage-service-db-url=" + storageServiceDbUrl);
-            }
             if (whiteboardDbUrl != null) {
                 cmdArgs.add(prefix + "whiteboard-db-url=" + whiteboardDbUrl);
             }
@@ -409,7 +375,6 @@ public class LzyConfig {
             private String channelManagerDbUrl;
             private String graphExecutorDbUrl;
             private String schedulerDbUrl;
-            private String storageServiceDbUrl;
             private String whiteboardDbUrl;
             private String lzyServiceDbUrl;
 
@@ -435,11 +400,6 @@ public class LzyConfig {
 
             public Builder setSchedulerDbUrl(String schedulerDbUrl) {
                 this.schedulerDbUrl = schedulerDbUrl;
-                return this;
-            }
-
-            public Builder setStorageServiceDbUrl(String storageServiceDbUrl) {
-                this.storageServiceDbUrl = storageServiceDbUrl;
                 return this;
             }
 

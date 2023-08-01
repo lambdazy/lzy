@@ -1,7 +1,7 @@
 package ai.lzy.storage.test;
 
 import ai.lzy.storage.App;
-import ai.lzy.test.context.StorageServiceContext;
+import ai.lzy.test.context.ServiceContext;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.env.PropertySource;
@@ -17,7 +17,7 @@ import static ai.lzy.storage.test.StorageContextImpl.ENV_NAME;
 
 @Singleton
 @Requires(env = ENV_NAME)
-public class StorageContextImpl implements StorageServiceContext {
+public class StorageContextImpl implements ServiceContext {
     public static final String ENV_NAME = "common_storage_context";
 
     private ApplicationContext micronautContext;

@@ -12,6 +12,7 @@ import ai.lzy.service.dao.GraphDao;
 import ai.lzy.service.dao.WorkflowDao;
 import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.service.operations.OperationRunnersFactory;
+import ai.lzy.service.storage.StorageService;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.VmPoolServiceGrpc.VmPoolServiceBlockingStub;
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
@@ -83,6 +84,10 @@ public interface ContextAwareService {
 
     default KafkaLogsListeners kafkaLogsListeners() {
         return lzyServiceCtx().kafkaLogsListeners();
+    }
+
+    default StorageService storageService() {
+        return lzyServiceCtx().storageService();
     }
 
     default LzyStorageServiceBlockingStub storagesGrpcClient() {

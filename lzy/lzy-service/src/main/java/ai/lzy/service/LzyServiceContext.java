@@ -12,6 +12,7 @@ import ai.lzy.service.dao.WorkflowDao;
 import ai.lzy.service.dao.impl.LzyServiceStorage;
 import ai.lzy.service.kafka.KafkaLogsListeners;
 import ai.lzy.service.operations.OperationRunnersFactory;
+import ai.lzy.service.storage.StorageService;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.VmPoolServiceGrpc.VmPoolServiceBlockingStub;
 import ai.lzy.v1.graph.GraphExecutorGrpc.GraphExecutorBlockingStub;
@@ -29,6 +30,7 @@ public record LzyServiceContext(
     WorkflowDao wfDao,
     ExecutionDao execDao,
     GraphDao graphDao,
+    StorageService storageService,
     @Named("LzyServiceOperationDao") OperationDao opsDao,
     ExecutionOperationsDao execOpsDao,
     DeleteAllocatorSessionOperationsDao deleteAllocSessionDao,
@@ -42,6 +44,4 @@ public record LzyServiceContext(
     @Named("LzyServiceVmPoolGrpcClient") VmPoolServiceBlockingStub vmPoolGrpcClient,
     @Named("LzyServiceStorageGrpcClient") LzyStorageServiceBlockingStub storagesGrpcClient,
     @Named("LzyServiceStorageOpsGrpcClient") LongRunningServiceBlockingStub storagesOpsGrpcClient
-)
-{
-}
+) {}

@@ -12,6 +12,7 @@ lzy-service:
   wait-allocation-timeout: 10s
   gc-period: 100ms
   gc-leader-period: 1s
+  bucket-creation-timeout: 10s
 
   database:
     url: 'embedded-postgres'
@@ -19,10 +20,6 @@ lzy-service:
     password: ''
     min-pool-size: 3
     max-pool-size: 5
-
-  storage:
-    address: 'localhost:7780'
-    bucket-creation-timeout: 10s
 
   iam:
     address: 'localhost:8443'
@@ -55,19 +52,6 @@ lzy-service:
       /R0NeRjKxaOebS9NKgaWI9YB+9kxCa3R//sGkRvAOHa7H986mQ1Vx1y14GGtuSTr
       l7I2m1fDWAE7ibup2fO9VSexAlqwoDnv4dWQ03f/ifRpFE/Tg7NV5OM=
       -----END RSA PRIVATE KEY-----
-
-  portal:
-    host: 'localhost'
-    portal-api-port: '${random.port}'
-    slots-api-port: '${random.port}'
-    stdout-channel-name: 'portal:stdout'
-    stderr-channel-name: 'portal:stderr'
-    docker-image: ""
-    pool-label: "portals"
-    pool-zone: "ru-central1-a"
-    workers-pool-size: 10
-    downloads-pool-size: 10
-    chunks-pool-size: 10
 
   metrics:
     kind: 'Disabled'

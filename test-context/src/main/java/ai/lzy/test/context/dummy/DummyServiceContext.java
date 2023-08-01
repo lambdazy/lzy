@@ -10,7 +10,7 @@ import java.util.Map;
 @Singleton
 @Secondary
 public class DummyServiceContext implements IamContext, AllocatorContext, ChannelManagerContext, GraphExecutorContext,
-    SchedulerContext, LzyServiceContext, StorageServiceContext, WhiteboardServiceContext
+    SchedulerContext, LzyServiceContext, WhiteboardServiceContext, ServiceContext
 {
     @Override
     public void setUp(@Nullable String baseConfigPath, Map<String, Object> configOverrides, String... environments) {}

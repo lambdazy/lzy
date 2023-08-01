@@ -40,3 +40,6 @@ Configuration:
     Logger:
       - name: "ai.lzy.service.graph"
         level: debug
+
+      - name: "com.amazonaws.AmazonWebServiceClient"
+        level: warn

@@ -2,7 +2,6 @@ package ai.lzy.service.config;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
-import ai.lzy.storage.config.StorageClientConfiguration;
 import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
@@ -29,6 +28,8 @@ public class LzyServiceConfig {
     private Duration gcPeriod;
     private Duration gcLeaderPeriod;
 
+    private Duration bucketCreationTimeout;
+
     @Nullable
     private String s3SinkAddress = null;  // If not set, not using s3 sink
 
@@ -42,7 +43,7 @@ public class LzyServiceConfig {
     private final DatabaseConfiguration database = new DatabaseConfiguration();
 
     @ConfigurationBuilder("storage")
-    private final StorageClientConfiguration storage = new StorageClientConfiguration();
+    private final StorageConfig storage = new StorageConfig();
 
     @ConfigurationBuilder("operations")
     private final OperationsConfig operations = new OperationsConfig();
