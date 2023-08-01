@@ -1,6 +1,6 @@
-package ai.lzy.common.storage.azure;
+package ai.lzy.storage.azure;
 
-import ai.lzy.common.storage.StorageClientWithTransmitter;
+import ai.lzy.storage.StorageClientWithTransmitter;
 import ai.lzy.util.azure.blobstorage.AzureTransmitterFactory;
 import com.azure.storage.blob.BlobServiceClient;
 import com.azure.storage.blob.BlobServiceClientBuilder;

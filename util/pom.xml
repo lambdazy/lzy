@@ -13,7 +13,6 @@
 
     <modules>
         <module>util-auth</module>
-        <module>util-azure</module>
         <module>util-db</module>
         <module>util-grpc</module>
         <module>util-log</module>

@@ -1,4 +1,4 @@
-package ai.lzy.common.storage;
+package ai.lzy.storage;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;

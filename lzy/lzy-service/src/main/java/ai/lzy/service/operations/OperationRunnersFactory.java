@@ -1,8 +1,6 @@
 package ai.lzy.service.operations;
 
 import ai.lzy.common.IdGenerator;
-import ai.lzy.common.storage.StorageClient;
-import ai.lzy.common.storage.StorageClientFactory;
 import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.Storage;
@@ -18,6 +16,11 @@ import ai.lzy.service.operations.graph.ExecuteGraph;
 import ai.lzy.service.operations.start.StartExecution;
 import ai.lzy.service.operations.stop.AbortExecution;
 import ai.lzy.service.operations.stop.FinishExecution;
+import ai.lzy.storage.StorageClient;
+import ai.lzy.storage.StorageClientFactory;
+import ai.lzy.storage.StorageConfig;
+import ai.lzy.storage.StorageConfig.AzureBlobStorageCredentials;
+import ai.lzy.storage.StorageConfig.S3Credentials;
 import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.util.kafka.KafkaAdminClient;
 import ai.lzy.util.kafka.KafkaConfig;
@@ -224,7 +227,17 @@ public class OperationRunnersFactory {
     {
         ExecutionDao.ExecuteGraphData execGraphData = withRetries(LOG, () -> execDao.loadExecGraphData(execId, null));
 
-        StorageClient storageClient = storageClientFactory.provider(execGraphData.storageConfig()).get();
+        StorageConfig storageConfig;
+        if (execGraphData.storageConfig().hasAzure()) {
+            var azureProto = execGraphData.storageConfig().getAzure();
+            storageConfig = StorageConfig.of(new AzureBlobStorageCredentials(azureProto.getConnectionString()));
+        } else {
+            var s3Proto = execGraphData.storageConfig().getS3();
+            storageConfig = StorageConfig.of(new S3Credentials(s3Proto.getEndpoint(), s3Proto.getAccessToken(),
+                s3Proto.getSecretToken()));
+        }
+
+        StorageClient storageClient = storageClientFactory.provider(storageConfig).get();
 
         ExecuteGraphState state = withRetries(LOG, () -> execOpsDao.getState(opId, null));
 

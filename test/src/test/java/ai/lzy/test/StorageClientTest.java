@@ -1,8 +1,8 @@
 package ai.lzy.test;
 
-import ai.lzy.common.storage.StorageClient;
-import ai.lzy.common.storage.StorageClientFactory;
-import ai.lzy.v1.common.LMST;
+import ai.lzy.storage.StorageClient;
+import ai.lzy.storage.StorageClientFactory;
+import ai.lzy.storage.StorageConfig;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.AnonymousAWSCredentials;
 import com.amazonaws.client.builder.AwsClientBuilder;
@@ -66,8 +66,8 @@ public class StorageClientTest {
     }
 
     StorageClient getClient() {
-        return storageClientFactory.provider(LMST.StorageConfig.newBuilder().setS3(
-            LMST.S3Credentials.newBuilder().setEndpoint(address).setAccessToken("").setSecretToken("")).build()).get();
+        var s3 = new StorageConfig.S3Credentials(address, "", "");
+        return storageClientFactory.provider(StorageConfig.of(s3)).get();
     }
 
     void clearDir(Path path) throws IOException {

@@ -1,8 +1,7 @@
-package ai.lzy.common.storage;
+package ai.lzy.storage;
 
-import ai.lzy.common.storage.azure.AzureClientWithTransmitter;
-import ai.lzy.common.storage.s3.S3ClientWithTransmitter;
-import ai.lzy.v1.common.LMST;
+import ai.lzy.storage.azure.AzureClientWithTransmitter;
+import ai.lzy.storage.s3.S3ClientWithTransmitter;
 import jakarta.annotation.Nonnull;
 
 import java.util.concurrent.ExecutorService;
@@ -89,14 +88,14 @@ public class StorageClientFactory {
         }
     }
 
-    public Supplier<? extends StorageClientWithTransmitter> provider(LMST.StorageConfig storageConfig) {
+    public Supplier<? extends StorageClientWithTransmitter> provider(StorageConfig storageConfig) {
         if (storageConfig.hasAzure()) {
-            return new AzureProvider(storageConfig.getAzure().getConnectionString(), byteBufferPoolSize, transferPool,
+            return new AzureProvider(storageConfig.getAzure().connectionString(), byteBufferPoolSize, transferPool,
                 chunkPool, consumePool);
         } else {
             assert storageConfig.hasS3();
-            return new S3Provider(storageConfig.getS3().getEndpoint(), storageConfig.getS3().getAccessToken(),
-                storageConfig.getS3().getSecretToken(), byteBufferPoolSize, transferPool, chunkPool, consumePool);
+            return new S3Provider(storageConfig.getS3().endpoint(), storageConfig.getS3().accessToken(),
+                storageConfig.getS3().secretToken(), byteBufferPoolSize, transferPool, chunkPool, consumePool);
         }
     }
 }

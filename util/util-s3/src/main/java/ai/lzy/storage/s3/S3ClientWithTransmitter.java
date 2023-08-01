@@ -1,6 +1,6 @@
-package ai.lzy.common.storage.s3;
+package ai.lzy.storage.s3;
 
-import ai.lzy.common.storage.StorageClientWithTransmitter;
+import ai.lzy.storage.StorageClientWithTransmitter;
 import com.amazonaws.auth.AWSStaticCredentialsProvider;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3;
