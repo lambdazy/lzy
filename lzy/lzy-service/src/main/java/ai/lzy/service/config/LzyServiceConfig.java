@@ -40,8 +40,7 @@ public class LzyServiceConfig {
     @ConfigurationBuilder("database")
     private final DatabaseConfiguration database = new DatabaseConfiguration();
 
-    @ConfigurationBuilder("storage")
-    private final StorageConfig storage = new StorageConfig();
+    private StorageConfig storage;
 
     private OperationsConfig operations;
 
@@ -99,15 +98,9 @@ public class LzyServiceConfig {
         @Setter
         @ConfigurationProperties("s3")
         public static final class S3Credentials {
-
-            @ConfigurationBuilder("memory")
-            private final InMemoryS3Credentials memory = new InMemoryS3Credentials();
-
-            @ConfigurationBuilder("yc")
-            private final YcS3Credentials yc = new YcS3Credentials();
-
-            @ConfigurationBuilder("azure")
-            private final AzureS3Credentials azure = new AzureS3Credentials();
+            private InMemoryS3Credentials memory;
+            private YcS3Credentials yc;
+            private AzureS3Credentials azure;
 
             public void validate() {
                 int cnt = (yc.enabled ? 1 : 0) + (azure.enabled ? 1 : 0) + (memory.enabled ? 1 : 0);
