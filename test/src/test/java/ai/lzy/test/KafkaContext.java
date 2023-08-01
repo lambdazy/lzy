@@ -1,4 +1,4 @@
-package ai.lzy.test.impl.v2;
+package ai.lzy.test;
 
 import ai.lzy.util.kafka.KafkaHelper;
 import io.github.embeddedkafka.EmbeddedK;

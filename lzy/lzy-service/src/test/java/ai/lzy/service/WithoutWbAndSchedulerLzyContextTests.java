@@ -78,7 +78,8 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
     }
 
     public GraphExecutorDecorator graphExecutor() {
-        return lzy.micronautContext().getBean(GraphExecutorContextImpl.class).getGraphExecutor();
+        return lzy.micronautContext().getBean(GraphExecutorContextImpl.class).getMicronautContext()
+            .getBean(GraphExecutorDecorator.class);
     }
 
     @Before
@@ -97,7 +98,8 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             "allocator.thread-allocator.enabled", true,
             "allocator.thread-allocator.vm-class-name", "ai.lzy.worker.Worker",
             "lzy-service.storage.s3.memory.enabled", true,
-            "lzy-service.storage.s3.memory.port", rollPort()
+            "lzy-service.storage.s3.memory.port", rollPort(),
+            "lzy-service.gc.enabled", false
         );
 
         var environments = LzyConfig.Environments.builder()

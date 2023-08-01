@@ -21,6 +21,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
@@ -68,7 +69,8 @@ public abstract class IamOnlyLzyContextTests {
             .setLzyServiceDbUrl(prepareDbUrl(lzyServiceDb.getConnectionInfo()))
             .build();
 
-        lzy.setUp(configs, environments, ports, database, IamContextImpl.ENV_NAME, LzyServiceContextImpl.ENV_NAME);
+        lzy.setUp(configs, Map.of("lzy-service.gc.enabled", false), environments, ports, database,
+            IamContextImpl.ENV_NAME, LzyServiceContextImpl.ENV_NAME);
 
         var internalUserCredentials = lzy.micronautContext().getBean(IamContextImpl.class).clientConfig()
             .createRenewableToken();

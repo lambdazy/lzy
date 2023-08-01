@@ -35,7 +35,7 @@ public class LzyServiceContextImpl implements LzyServiceContext {
         }
 
         lzyServiceApp = micronautContext.getBean(App.class);
-        lzyServiceApp.start(true);
+        lzyServiceApp.start();
     }
 
     @Override
@@ -46,5 +46,9 @@ public class LzyServiceContextImpl implements LzyServiceContext {
 
     public OperationDaoDecorator operationsDao() {
         return micronautContext.getBean(OperationDaoDecorator.class);
+    }
+
+    public ApplicationContext getMicronautContext() {
+        return micronautContext;
     }
 }

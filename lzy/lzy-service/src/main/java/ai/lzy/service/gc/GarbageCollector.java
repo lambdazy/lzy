@@ -40,7 +40,7 @@ public class GarbageCollector extends TimerTask {
 
         this.id = "LzyServiceGc-" + config.getInstanceId();
 
-        this.period = config.getGcLeaderPeriod().toMillis() +
+        this.period = config.getGc().getLeaderPeriod().toMillis() +
             (long) ((MAX_JITTER_PERIOD - MIN_JITTER_PERIOD) * Math.random() + MIN_JITTER_PERIOD);
         this.operationRunnersFactory = operationRunnersFactory;
     }
@@ -59,7 +59,7 @@ public class GarbageCollector extends TimerTask {
     public void run() {
         Timestamp now = Timestamp.from(Instant.now());
         Timestamp validUntil = Timestamp.from(now.toInstant()
-            .plusMillis(config.getGcLeaderPeriod().toMillis()));
+            .plusMillis(config.getGc().getLeaderPeriod().toMillis()));
 
         try {
             var res = DbHelper.withRetries(LOG, () -> gcDao.updateGC(id, now, validUntil, null));
@@ -75,12 +75,12 @@ public class GarbageCollector extends TimerTask {
 
         LOG.info("GC {} became leader", id);
 
-        long taskPeriod = config.getGcPeriod().toMillis();
+        long taskPeriod = config.getGc().getPeriod().toMillis();
         taskTimer = new Timer("gc-workflow-task-timer", true);
         taskTimer.scheduleAtFixedRate(
             new GarbageCollectorTask(id, interceptor, operationRunnersFactory), taskPeriod, taskPeriod);
-        long markPeriod = config.getGcLeaderPeriod().toMillis() / 2;
-        taskTimer.scheduleAtFixedRate(new MarkGcValid(config.getGcLeaderPeriod()), markPeriod, markPeriod);
+        long markPeriod = config.getGc().getLeaderPeriod().toMillis() / 2;
+        taskTimer.scheduleAtFixedRate(new MarkGcValid(config.getGc().getLeaderPeriod()), markPeriod, markPeriod);
     }
 
     @PreDestroy

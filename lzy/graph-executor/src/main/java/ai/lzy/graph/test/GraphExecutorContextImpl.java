@@ -49,7 +49,7 @@ public class GraphExecutorContextImpl implements GraphExecutorContext {
         }
     }
 
-    public GraphExecutorDecorator getGraphExecutor() {
-        return micronautContext.getBean(GraphExecutorDecorator.class);
+    public ApplicationContext getMicronautContext() {
+        return micronautContext;
     }
 }

@@ -12,10 +12,8 @@ from typing import (
 
 import yaml
 
-from pypi_simple import PYPI_SIMPLE_ENDPOINT
-
-from lzy.py_env.api import PyEnv
 from lzy.logs.config import get_logger
+from lzy.py_env.api import PyEnv
 from lzy.utils.pypi import validate_pypi_index_url
 
 _LOG = get_logger(__name__)
@@ -158,7 +156,7 @@ class Env:
         if python_version in _INSTALLED_VERSIONS:
             env_name = _INSTALLED_VERSIONS[python_version]
         else:
-            _LOG.warn(
+            _LOG.warning(
                 f"Installed python version ({python_version}) is not cached remotely. "
                 f"Usage of a cached python version ({list(_INSTALLED_VERSIONS.keys())}) "
                 f"can decrease startup time."

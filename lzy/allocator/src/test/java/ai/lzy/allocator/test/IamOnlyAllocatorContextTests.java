@@ -104,7 +104,7 @@ public abstract class IamOnlyAllocatorContextTests {
     }
 
     @After
-    public final void tearDown() {
+    public void tearDown() {
         allocatorChannel.shutdown();
         try {
             allocatorChannel.awaitTermination(60, TimeUnit.SECONDS);

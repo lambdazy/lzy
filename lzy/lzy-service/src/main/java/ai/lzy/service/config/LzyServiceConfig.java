@@ -25,8 +25,9 @@ public class LzyServiceConfig {
     private String channelManagerAddress;
 
     private Duration waitAllocationTimeout;
-    private Duration gcPeriod;
-    private Duration gcLeaderPeriod;
+
+    @ConfigurationBuilder("gc")
+    private final GarbageCollector gc = new GarbageCollector();
 
     private Duration bucketCreationTimeout;
 
@@ -72,5 +73,13 @@ public class LzyServiceConfig {
         private volatile Duration finishWorkflowTimeout;
         private volatile Duration abortWorkflowTimeout;
         private volatile Duration executeGraphTimeout;
+    }
+
+    @Getter
+    @Setter
+    public static final class GarbageCollector {
+        private boolean enabled;
+        private Duration period;
+        private Duration leaderPeriod;
     }
 }
