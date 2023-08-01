@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 @Singleton
-@Requires(property = "allocator.internal-image-updater.enabled", value = "true")
+@Requires(property = "allocator.yc-mk8s.internal-image-updater.enabled", value = "true", defaultValue = "false")
 public class ImagesUpdater {
     private static final Logger LOG = LogManager.getLogger(ImagesUpdater.class);
 
