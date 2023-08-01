@@ -27,30 +27,40 @@ from .utils import (
 )
 
 
+DistributionSet = Set[Distribution]
+
+
 class ModuleClassifier:
     def __init__(self, pypi_index_url: str):
         self.pypi_index_url = pypi_index_url
-
-        self.distributions: Set[Distribution]
-        self.modules_without_distribution: ModulesSet
-        self.binary_distributions: Set[Distribution]
 
         self.stdlib_module_names = get_stdlib_module_names()
         self.builtin_module_names = get_builtin_module_names()
         self.files_to_distributions = get_files_to_distributions()
 
-    def __call__(self, modules: ModulesFrozenSet) -> FrozenSet[BasePackage]:
-        self.distributions = set()
-        self.binary_distributions = set()
-        self.modules_without_distribution = set()
+    def classify(self, modules: ModulesFrozenSet) -> FrozenSet[BasePackage]:
+        distributions: DistributionSet = set()
+        binary_distributions: DistributionSet = set()
+        modules_without_distribution: ModulesSet = set()
 
-        self._classify_modules(modules)
-        packages = self._classify_distributions()
-        packages |= self._classify_modules_without_distributions()
+        self._classify_modules(
+            modules,
+            distributions,
+            binary_distributions,
+            modules_without_distribution
+        )
+        packages = self._classify_distributions(distributions, binary_distributions)
+        packages |= self._classify_modules_without_distributions(modules_without_distribution)
 
         return frozenset(packages)
 
-    def _classify_modules(self, modules: ModulesFrozenSet) -> None:
+    def _classify_modules(
+        self,
+        modules: ModulesFrozenSet,
+        distributions: DistributionSet,
+        binary_distributions: DistributionSet,
+        modules_without_distribution: ModulesSet,
+    ) -> None:
         """
         Here we are dividing modules into two piles:
         those which are part of some distribution and those which are not.
@@ -64,6 +74,8 @@ class ModuleClassifier:
             # Modules without __file__ doesn't represent specific file at the disk
             # so we a generally doesn't interested about it.
             # It can be namespace modules or strange virtual modules as the `six.moves.*`.
+            # It's totally okay that we are skipping it and don't require any warning,
+            # because we should process such distributions by other signes.
             if not filename:
                 continue
 
@@ -76,23 +88,27 @@ class ModuleClassifier:
 
             distribution = self.files_to_distributions.get(filename)
             if distribution and not self._check_distribution_is_editable(distribution):
-                self.distributions.add(distribution)
+                distributions.add(distribution)
 
                 if self._check_module_is_binary(module):
-                    self.binary_distributions.add(distribution)
+                    binary_distributions.add(distribution)
 
                 continue
 
-            self.modules_without_distribution.add(module)
+            modules_without_distribution.add(module)
 
-    def _classify_distributions(self) -> Set[BasePackage]:
+    def _classify_distributions(
+        self,
+        distributions: DistributionSet,
+        binary_distributions: DistributionSet,
+    ) -> Set[BasePackage]:
         """
         Here we are dividing distributions into two piles:
         those which are present on pypi and thos which is not.
         """
         result: Set[BasePackage] = set()
 
-        for distribution in self.distributions:
+        for distribution in distributions:
             package: BasePackage
             # TODO: make this check parallel
             if self._check_distribution_at_pypi(
@@ -107,7 +123,7 @@ class ModuleClassifier:
                 )
             else:
                 paths = self._get_distribution_paths(distribution)
-                is_binary = distribution in self.binary_distributions
+                is_binary = distribution in binary_distributions
                 package = LocalDistribution(
                     name=distribution.name,
                     version=distribution.version,
@@ -119,7 +135,10 @@ class ModuleClassifier:
 
         return result
 
-    def _classify_modules_without_distributions(self) -> Set[BasePackage]:
+    def _classify_modules_without_distributions(
+        self,
+        modules_without_distribution: ModulesSet
+    ) -> Set[BasePackage]:
         """
         Based on module names and paths here we are creating
         "virtual" distributions which are consists of local files.
@@ -129,7 +148,7 @@ class ModuleClassifier:
         binary_distributions: Set[str] = set()
         broken: Dict[str, str] = {}
 
-        for module in self.modules_without_distribution:
+        for module in modules_without_distribution:
             module_name = module.__name__
             top_level: str = module_name.split('.')[0]
 
@@ -216,7 +235,7 @@ class ModuleClassifier:
 
         for path in distribution.files:
             first_part = path.parts[0]
-            path = path.locate_file('') / first_part
+            path = distribution.locate_file('') / first_part
             paths.add(str(path))
 
         return frozenset(paths)
