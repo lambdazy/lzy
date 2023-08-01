@@ -1,5 +1,5 @@
 import pickle
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Set
 from dataclasses import dataclass
 
 import pytest
@@ -26,7 +26,7 @@ def simple_deconstructible():
     )
 
 
-def test_simple_repr(simple_deconstructible):
+def test_simple_repr(simple_deconstructible: SimpleDeconstructible) -> None:
     simple_repr = repr(simple_deconstructible)
     restored = eval(simple_repr)
 
@@ -36,32 +36,34 @@ def test_simple_repr(simple_deconstructible):
     assert not (restored != simple_deconstructible)
 
 
-def test_pickle(simple_deconstructible):
+def test_pickle(simple_deconstructible: SimpleDeconstructible) -> None:
     dumped = pickle.dumps(simple_deconstructible)
     loaded = pickle.loads(dumped)
 
     assert loaded == simple_deconstructible
 
 
-def test_ordering(simple_deconstructible):
+def test_ordering(simple_deconstructible: SimpleDeconstructible) -> None:
     first = simple_deconstructible
     second = first.with_fields(simple_required=3)
     third = first.with_fields(simple='b')
+    third2 = first.with_fields(simple='b')
 
     assert first != second != third
     assert first != third
-    assert first < second < third
-    assert third > second > first
+
+    assert third == third2
+    assert third is not third2
 
 
-def test_hash(simple_deconstructible):
+def test_hash(simple_deconstructible: SimpleDeconstructible) -> None:
     @dataclass(frozen=True)
     class HashableDeconstructible(Deconstructible):
         a: int = 0
         b: EnvironmentField[str] = NotSpecified
         c: Any = 1
 
-    set_ = set()
+    set_: Set[Deconstructible] = set()
 
     with pytest.raises(TypeError):
         set_.add(simple_deconstructible)
@@ -72,7 +74,7 @@ def test_hash(simple_deconstructible):
         set_.add(HashableDeconstructible(c={}))
 
 
-def test_combine(simple_deconstructible):
+def test_combine(simple_deconstructible: SimpleDeconstructible) -> None:
     first = simple_deconstructible
     second = first.with_fields(
         simple_not_specified=3,

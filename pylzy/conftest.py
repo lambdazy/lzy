@@ -4,7 +4,9 @@ import logging
 
 
 MYPY_WHITELIST = [
-    r'lzy/'
+    r'lzy/',
+    r'tests/env/',
+    r'tests/conftest.py',
 ]
 
 DOCTEST_BLACKLIST = [
@@ -33,7 +35,7 @@ def pytest_collection_modifyitems(config, items):
         if not mypy or not isinstance(item, mypy.MypyItem):
             continue
 
-        if not all(
+        if not any(
             re.match(pattern, path) for pattern in MYPY_WHITELIST
         ):
             items.remove(item)

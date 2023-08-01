@@ -6,7 +6,7 @@ from lzy.env.explorer.auto import AutoExplorer
 from lzy.env.explorer.base import BaseExplorer, ModulePathsList, PackagesDict
 
 
-def test_explorer_factory():
+def test_explorer_factory() -> None:
     python_env = AutoPythonEnv()
 
     assert isinstance(python_env._env_explorer, AutoExplorer)
@@ -26,7 +26,7 @@ def test_explorer_factory():
     assert isinstance(python_env._env_explorer, MyExplorer)
 
 
-def test_python_version():
+def test_python_version() -> None:
     python_env = AutoPythonEnv()
 
     etalon = f'{sys.version_info[0]}.{sys.version_info[1]}.{sys.version_info[2]}'
@@ -34,7 +34,7 @@ def test_python_version():
     assert python_env.get_python_version() == etalon
 
 
-def test_pypi_index_url():
+def test_pypi_index_url() -> None:
     python_env = AutoPythonEnv()
 
     # some default, may differ from run environment,
@@ -45,11 +45,11 @@ def test_pypi_index_url():
     assert python_env.get_pypi_index_url() == 'foo'
 
 
-def test_get_local_module_paths():
+def test_get_local_module_paths() -> None:
     # TBD
     pass
 
 
-def test_get_pypi_packages():
+def test_get_pypi_packages() -> None:
     # TBD
     pass

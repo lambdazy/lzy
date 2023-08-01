@@ -14,7 +14,7 @@ class MyWithEnv(WithEnvironmentMixin):
     env: LzyEnvironment = field(default_factory=LzyEnvironment)
 
 
-def test_with():
+def test_with() -> None:
     subject = MyWithEnv()
 
     container = DockerContainer(image_url='example.com')
@@ -53,7 +53,7 @@ def test_with():
     assert subject.env.get_env_vars() == env_vars
 
 
-def test_decorate():
+def test_decorate() -> None:
     subject = MyWithEnv()
 
     container = DockerContainer(image_url='example.com')
@@ -74,7 +74,7 @@ def test_decorate():
     )
 
     for object_ in (container, python_env, provisioning, env):
-        new_subject = object_(subject)
+        new_subject = object_(subject)  # type: ignore
         assert isinstance(new_subject, MyWithEnv)
 
     for name, object_ in (
@@ -82,7 +82,7 @@ def test_decorate():
         ('python_env', python_env),
         ('provisioning', provisioning),
     ):
-        new_subject = object_(subject)
+        new_subject = object_(subject)  # type: ignore
         env_field = getattr(new_subject.env, name)
         assert env_field == object_
 

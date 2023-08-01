@@ -3,7 +3,7 @@ import pytest
 from lzy.env.container.base import BaseContainer, ContainerTypes, DockerProtocol, DockerPullPolicy
 
 
-def test_inheritance():
+def test_inheritance() -> None:
     with pytest.raises(TypeError, match=r".*must have container_type attribute"):
         class BadClass(BaseContainer):
             pass

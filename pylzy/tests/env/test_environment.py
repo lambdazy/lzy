@@ -6,7 +6,7 @@ from lzy.env.python.auto import AutoPythonEnv
 from lzy.env.python.manual import ManualPythonEnv
 
 
-def test_defaults():
+def test_defaults() -> None:
     env = LzyEnvironment()
 
     assert env.get_env_vars() == {}
@@ -15,7 +15,7 @@ def test_defaults():
     assert env.get_provisioning() == Provisioning()
 
 
-def test_defaults_override():
+def test_defaults_override() -> None:
     env = LzyEnvironment()
 
     container = DockerContainer(image_url='example.com')
@@ -46,7 +46,7 @@ def test_defaults_override():
     assert env.get_provisioning() == provisioning
 
 
-def test_combine_provisionin():
+def test_combine_provisioning() -> None:
     container1 = DockerContainer(image_url='example1.com')
     container2 = DockerContainer(image_url='example2.com')
 

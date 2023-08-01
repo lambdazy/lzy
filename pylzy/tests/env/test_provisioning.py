@@ -1,6 +1,6 @@
-import pytest
+from typing import Tuple
 
-import dataclasses
+import pytest
 
 from lzy.types import VmSpec
 from lzy.env.base import NotSpecified
@@ -10,16 +10,16 @@ from lzy.exceptions import BadProvisioning
 
 
 @pytest.fixture
-def first():
+def first() -> Provisioning:
     return Provisioning(cpu_count=1, gpu_count=Any)
 
 
 @pytest.fixture
-def second():
+def second() -> Provisioning:
     return Provisioning(cpu_type='foo', gpu_type=Any, gpu_count=2)
 
 
-def test_combine(first, second):
+def test_combine(first: Provisioning, second: Provisioning):
     assert first.combine(second) == Provisioning(
         cpu_count=1,
         cpu_type='foo',
@@ -35,21 +35,30 @@ def test_combine(first, second):
     )
 
 
-def test_validate(first, second):
-    with pytest.raises(BadProvisioning):
+def test_validate(first: Provisioning, second: Provisioning) -> None:
+    with pytest.raises(
+        BadProvisioning,
+        match=r'gpu_type is set to NotSpecified while gpu_count is 1'
+    ):
         Provisioning(gpu_count=1).validate()
 
-    with pytest.raises(BadProvisioning):
-        Provisioning(gpu_type=NO_GPU, gpu_count=1).validate()
+    with pytest.raises(
+        BadProvisioning,
+        match=r'gpu_type is set to NO_GPU while gpu_count is 2'
+    ):
+        Provisioning(gpu_type=NO_GPU, gpu_count=2).validate()
 
-    with pytest.raises(BadProvisioning):
+    with pytest.raises(
+        BadProvisioning,
+        match=r'gpu_type is set to NotSpecified while gpu_count is 1'
+    ):
         Provisioning(gpu_type=NotSpecified, gpu_count=1).validate()
 
     first.combine(second).validate()
     second.combine(first).validate()
 
 
-def test_filter():
+def test_filter() -> None:
     spec = VmSpec(
         cpu_type='cpu',
         gpu_type=NO_GPU,
@@ -122,7 +131,7 @@ def test_filter():
         assert provisioning._filter_spec(_prov_spec, spec)
 
 
-def test_filter_gpu():
+def test_filter_gpu() -> None:
     spec = VmSpec(
         cpu_type='cpu',
         gpu_type='gpu',
@@ -132,17 +141,21 @@ def test_filter_gpu():
     )
 
     for value in ('gpu', Any):
-        provisioning = Provisioning(cpu_count=1, gpu_type=value)
+        provisioning = Provisioning(cpu_count=1, gpu_type=value)  # type: ignore
         _prov_spec = provisioning._as_vm_spec()
         assert provisioning._filter_spec(_prov_spec, spec)
 
     for value in ('foo', NotSpecified, NO_GPU):
-        provisioning = Provisioning(cpu_count=1, gpu_type=value)
+        provisioning = Provisioning(cpu_count=1, gpu_type=value)  # type: ignore
         _prov_spec = provisioning._as_vm_spec()
         assert not provisioning._filter_spec(_prov_spec, spec)
 
 
-def test_score_function(vm_specs, vm_spec_small, vm_spec_large):
+def test_score_function(
+    vm_specs: Tuple[VmSpec],
+    vm_spec_small: VmSpec,
+    vm_spec_large: VmSpec
+) -> None:
     # NB: if we left gpu_type non-specified, it will coerce to default value NO_GPU
     # and will filter vm_spec_large from scoring:
     provisioning = Provisioning()

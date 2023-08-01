@@ -4,6 +4,9 @@ import typing
 import sys
 import yaml
 
+from types import ModuleType
+from typing import cast
+
 import pytest
 import typing_extensions
 
@@ -11,12 +14,13 @@ from lzy.env.explorer.search import (
     get_direct_module_dependencies,
     get_transitive_module_dependencies,
     get_transitive_namespace_dependencies,
-    _get_vars_dependencies
+    _get_vars_dependencies,
+    ModulesSet
 )
 
 
 @pytest.fixture
-def loaders():
+def loaders() -> ModulesSet:
     """
     Fixture returns two standard modules, which are "dependency" of any other module
     from __loader__ and __spec__ variables.
@@ -25,10 +29,13 @@ def loaders():
     importlib_bootstrap = inspect.getmodule(pytest.__spec__)
     importlib_bootstrap_external = inspect.getmodule(pytest.__loader__)
 
+    assert importlib_bootstrap
+    assert importlib_bootstrap_external
+
     return {importlib_bootstrap, importlib_bootstrap_external}
 
 
-def test_get_vars_dependencies(with_test_modules):
+def test_get_vars_dependencies(with_test_modules: None) -> None:
     assert _get_vars_dependencies([str]) == {builtins}
 
     import modules_for_tests.level1.level1 as level1
@@ -48,7 +55,7 @@ def test_get_vars_dependencies(with_test_modules):
     assert _get_vars_dependencies([level3.yaml]) == {yaml}
 
 
-def test_get_direct_module_dependencies(with_test_modules, loaders):
+def test_get_direct_module_dependencies(with_test_modules, loaders: ModulesSet) -> None:
     import modules_for_tests.level1.level1 as level1
     import modules_for_tests.level1.level2.level2 as level2
     import modules_for_tests.level1.level2.level3.level3 as level3
@@ -78,7 +85,7 @@ def test_get_direct_module_dependencies(with_test_modules, loaders):
     assert_dependencies(second_import, {two_dependencies, empty})
 
 
-def test_get_transitive_module_dependencies(with_test_modules):
+def test_get_transitive_module_dependencies(with_test_modules) -> None:
     import modules_for_tests_3 as top
     import modules_for_tests_3.empty as empty
     import modules_for_tests_3.one_dependency as one_dependency
@@ -114,7 +121,7 @@ def test_get_transitive_module_dependencies(with_test_modules):
         assert get_transitive_module_dependencies(module, include_parents=True) - empty_deps == all_modules
 
 
-def test_get_transitive_namespace_dependencies(with_test_modules):
+def test_get_transitive_namespace_dependencies(with_test_modules) -> None:
     import empty_module as empty_module
     import modules_for_tests_3.empty as empty
     import modules_for_tests_3.one_dependency as one_dependency
