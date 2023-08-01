@@ -16,7 +16,7 @@
     </distributionManagement>
 
     <properties>
-        <revision>1.15</revision>
+        <revision>1.14</revision>
         <changelist>-SNAPSHOT</changelist>
 
         <java.version>17</java.version>
