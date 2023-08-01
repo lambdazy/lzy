@@ -6,6 +6,7 @@ import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 import jakarta.annotation.Nullable;
+import jakarta.validation.ValidationException;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,10 +26,6 @@ public class LzyServiceConfig {
     private String channelManagerAddress;
 
     private Duration waitAllocationTimeout;
-
-    @ConfigurationBuilder("gc")
-    private final GarbageCollector gc = new GarbageCollector();
-
     private Duration bucketCreationTimeout;
 
     @Nullable
@@ -46,9 +43,9 @@ public class LzyServiceConfig {
     @ConfigurationBuilder("storage")
     private final StorageConfig storage = new StorageConfig();
 
-    @ConfigurationBuilder("operations")
-    private final OperationsConfig operations = new OperationsConfig();
+    private OperationsConfig operations;
 
+    private GarbageCollector gc;
 
     public enum MetricsKind {
         Disabled,
@@ -68,6 +65,7 @@ public class LzyServiceConfig {
 
     @Getter
     @Setter
+    @ConfigurationProperties("operations")
     public static final class OperationsConfig {
         private volatile Duration startWorkflowTimeout;
         private volatile Duration finishWorkflowTimeout;
@@ -77,9 +75,82 @@ public class LzyServiceConfig {
 
     @Getter
     @Setter
+    @ConfigurationProperties("gc")
     public static final class GarbageCollector {
         private boolean enabled;
         private Duration period;
         private Duration leaderPeriod;
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("storage")
+    public static final class StorageConfig {
+        private S3Credentials s3;
+
+        // legacy credentials format
+        private YcCredentials yc;
+
+        public void validate() {
+            s3.validate();
+        }
+
+        @Getter
+        @Setter
+        @ConfigurationProperties("s3")
+        public static final class S3Credentials {
+
+            @ConfigurationBuilder("memory")
+            private final InMemoryS3Credentials memory = new InMemoryS3Credentials();
+
+            @ConfigurationBuilder("yc")
+            private final YcS3Credentials yc = new YcS3Credentials();
+
+            @ConfigurationBuilder("azure")
+            private final AzureS3Credentials azure = new AzureS3Credentials();
+
+            public void validate() {
+                int cnt = (yc.enabled ? 1 : 0) + (azure.enabled ? 1 : 0) + (memory.enabled ? 1 : 0);
+
+                if (cnt != 1) {
+                    throw new ValidationException("Exactly one s3 provider should be enabled.");
+                }
+            }
+
+            @Getter
+            @Setter
+            @ConfigurationProperties("yc")
+            public static final class YcS3Credentials {
+                private boolean enabled;
+                private String endpoint;
+                private String accessToken;
+                private String secretToken;
+            }
+
+            @Getter
+            @Setter
+            @ConfigurationProperties("azure")
+            public static final class AzureS3Credentials {
+                private boolean enabled;
+                private String connectionString;
+            }
+
+            @Getter
+            @Setter
+            @ConfigurationProperties("memory")
+            public static class InMemoryS3Credentials {
+                private boolean enabled = false;
+                private int port;
+            }
+        }
+
+        @Getter
+        @Setter
+        @ConfigurationProperties("yc")
+        public static final class YcCredentials {
+            private boolean enabled = false;
+            private String endpoint;
+            private String folderId;
+        }
     }
 }

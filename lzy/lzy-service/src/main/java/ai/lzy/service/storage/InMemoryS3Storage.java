@@ -3,7 +3,6 @@ package ai.lzy.service.storage;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.service.config.LzyServiceConfig;
-import ai.lzy.service.config.StorageConfig;
 import ai.lzy.v1.common.LMST;
 import ai.lzy.v1.storage.LSS.GetStorageCredentialsRequest;
 import ai.lzy.v1.storage.LSS.GetStorageCredentialsResponse;
@@ -42,11 +41,12 @@ public class InMemoryS3Storage implements StorageService {
 
     private final OperationDao operationDao;
 
-    public InMemoryS3Storage(LzyServiceConfig config, StorageConfig.S3Credentials.InMemoryS3Credentials s3Config,
+    public InMemoryS3Storage(LzyServiceConfig config,
+                             LzyServiceConfig.StorageConfig.S3Credentials.InMemoryS3Credentials s3Config,
                              @Named("LzyServiceOperationDao") OperationDao operationDao)
     {
-        var storageAddress = HostAndPort.fromString(config.getAddress());
-        this.endpoint = "http://" + storageAddress.getHost() + ":" + s3Config.getPort();
+        var address = HostAndPort.fromString(config.getAddress());
+        this.endpoint = "http://" + address.getHost() + ":" + s3Config.getPort();
 
         LOG.info("Starting in-memory s3 on {}", endpoint);
 

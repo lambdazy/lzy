@@ -4,7 +4,7 @@ import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.service.config.StorageConfig;
+import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.dao.impl.LzyServiceStorage;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.common.LMST;
@@ -55,8 +55,8 @@ public class YandexCloudS3Storage implements StorageService {
     private static final Duration SA_TIMEOUT = Duration.ofSeconds(30);
     private static final Logger LOG = LogManager.getLogger(YandexCloudS3Storage.class);
 
-    private final StorageConfig.S3Credentials.YcS3Credentials s3Creds;
-    private final StorageConfig.YcCredentials ycCreds;
+    private final LzyServiceConfig.StorageConfig.S3Credentials.YcS3Credentials s3Creds;
+    private final LzyServiceConfig.StorageConfig.YcCredentials ycCreds;
     private final LzyServiceStorage dataSource;
 
     private final OperationDao operationDao;
@@ -64,8 +64,8 @@ public class YandexCloudS3Storage implements StorageService {
     private final OperationServiceBlockingStub operationService;
     private final AccessKeyServiceBlockingStub keyService;
 
-    public YandexCloudS3Storage(StorageConfig.S3Credentials.YcS3Credentials s3,
-                                StorageConfig.YcCredentials yc, LzyServiceStorage dataSource,
+    public YandexCloudS3Storage(LzyServiceConfig.StorageConfig.S3Credentials.YcS3Credentials s3,
+                                LzyServiceConfig.StorageConfig.YcCredentials yc, LzyServiceStorage dataSource,
                                 @Named("LzyServiceOperationDao") OperationDao operationDao)
     {
         this.s3Creds = s3;

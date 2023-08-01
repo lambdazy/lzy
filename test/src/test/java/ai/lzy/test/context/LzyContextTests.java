@@ -16,10 +16,9 @@ import ai.lzy.iam.test.IamContextImpl;
 import ai.lzy.scheduler.test.SchedulerContextImpl;
 import ai.lzy.service.test.LzyServiceContextImpl;
 import ai.lzy.service.util.ClientVersionInterceptor;
-import ai.lzy.storage.test.StorageContextImpl;
-import ai.lzy.test.context.config.LzyConfig;
-import ai.lzy.test.Utils;
 import ai.lzy.test.KafkaContext;
+import ai.lzy.test.Utils;
+import ai.lzy.test.context.config.LzyConfig;
 import ai.lzy.util.auth.credentials.*;
 import ai.lzy.util.grpc.RequestIdInterceptor;
 import ai.lzy.v1.AllocatorGrpc;
@@ -61,6 +60,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static ai.lzy.test.GrpcUtils.rollPort;
 import static ai.lzy.util.grpc.GrpcUtils.*;
 
 public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBeans, LzyServiceBeans {
@@ -77,8 +77,6 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
     @Rule
     public PreparedDbRule schedulerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
-    public PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @Rule
     public PreparedDbRule whiteboardDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
@@ -90,9 +88,7 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
     private RenewableJwt internalUserCredential;
     private ManagedChannel channelsGrpcChannel;
     private ManagedChannel iamGrpcChannel;
-    private ManagedChannel graphsGrpcChannel;
     private ManagedChannel lzyServiceGrpcChannel;
-    private ManagedChannel allocatorGrpcChannel;
 
     protected LzyWorkflowServiceBlockingStub lzyGrpcClient;
     protected LzyWorkflowPrivateServiceBlockingStub privateLzyGrpcClient;
@@ -134,7 +130,6 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
             .setChannelManagerConfig("../lzy/channel-manager/src/main/resources/application-test.yml")
             .setGraphExecutorConfig("../lzy/graph-executor/src/main/resources/application-test.yml")
             .setSchedulerConfig("../lzy/scheduler/src/main/resources/application-test.yml")
-            .setStorageConfig("../lzy/storage/src/main/resources/application-test.yml")
             .setWhiteboardConfig("../lzy/whiteboard/src/main/resources/application-test.yml")
             .setLzyServiceConfig("../lzy/lzy-service/src/main/resources/application-test.yml")
             .build();
@@ -155,7 +150,6 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
             .setChannelManagerDbUrl(prepareDbUrl(channelManagerDb.getConnectionInfo()))
             .setGraphExecutorDbUrl(prepareDbUrl(graphExecutorDb.getConnectionInfo()))
             .setSchedulerDbUrl(prepareDbUrl(schedulerDb.getConnectionInfo()))
-            .setStorageServiceDbUrl(prepareDbUrl(storageDb.getConnectionInfo()))
             .setWhiteboardDbUrl(prepareDbUrl(whiteboardDb.getConnectionInfo()))
             .setLzyServiceDbUrl(prepareDbUrl(lzyServiceDb.getConnectionInfo()))
             .build();
@@ -166,7 +160,6 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
             ChannelManagerContextImpl.ENV_NAME,
             GraphExecutorContextImpl.ENV_NAME,
             SchedulerContextImpl.ENV_NAME,
-            StorageContextImpl.ENV_NAME,
             WhiteboardServiceContextImpl.ENV_NAME,
             LzyServiceContextImpl.ENV_NAME
         };
@@ -203,7 +196,9 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
             "lzy-service.kafka.bootstrap-servers", kafka.getBootstrapServers(),
             "lzy-service.allocator-vm-cache-timeout", "2s",
             "lzy-service.gc.enabled", false,
-            "lzy-service.gc.period", "1s"
+            "lzy-service.gc.period", "1s",
+            "lzy-service.storage.s3.memory.enabled", true,
+            "lzy-service.storage.s3.memory.port", rollPort()
         );
 
         var configOverrides = new HashMap<String, Object>() {
@@ -228,9 +223,11 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
             LzyWorkflowServiceGrpc.SERVICE_NAME, LzyWorkflowPrivateServiceGrpc.SERVICE_NAME);
         iamGrpcChannel = newGrpcChannel("localhost", ports.getIamPort(), LzySubjectServiceGrpc.SERVICE_NAME,
             LzyAccessBindingServiceGrpc.SERVICE_NAME, LzyAuthenticateServiceGrpc.SERVICE_NAME);
-        graphsGrpcChannel = newGrpcChannel("localhost", ports.getGraphExecutorPort(), GraphExecutorGrpc.SERVICE_NAME);
-        allocatorGrpcChannel = newGrpcChannel("localhost", ports.getAllocatorPort(), AllocatorGrpc.SERVICE_NAME,
-            AllocatorPrivateGrpc.SERVICE_NAME);
+        ManagedChannel graphsGrpcChannel =
+            newGrpcChannel("localhost", ports.getGraphExecutorPort(), GraphExecutorGrpc.SERVICE_NAME);
+        ManagedChannel allocatorGrpcChannel =
+            newGrpcChannel("localhost", ports.getAllocatorPort(), AllocatorGrpc.SERVICE_NAME,
+                AllocatorPrivateGrpc.SERVICE_NAME);
 
         testUser = IamClient.createUser("test-user-1", iamGrpcChannel, internalUserCredential);
 
@@ -245,7 +242,7 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
         allocatorGrpcClient = newBlockingClient(AllocatorGrpc.newBlockingStub(allocatorGrpcChannel), CLIENT_NAME,
             () -> internalUserCredential.get().token());
 
-        subjectServiceGrpcClient =  new SubjectServiceGrpcClient(CLIENT_NAME, iamGrpcChannel,
+        subjectServiceGrpcClient = new SubjectServiceGrpcClient(CLIENT_NAME, iamGrpcChannel,
             () -> internalUserCredential.get());
     }
 

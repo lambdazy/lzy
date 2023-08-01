@@ -25,6 +25,7 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -771,9 +772,11 @@ public class LzyService extends LzyWorkflowServiceGrpc.LzyWorkflowServiceImplBas
 
         try {
             var s3creds = op.response().unpack(LMST.S3Credentials.class);
-            response.onNext(GetOrCreateDefaultStorageResponse.newBuilder().setStorage(
-                LMST.StorageConfig.newBuilder().setUri(s3creds.getEndpoint()).setS3(s3creds).build()
-            ).build());
+            var storageCfg = LMST.StorageConfig.newBuilder()
+                .setUri(URI.create("s3://" + bucketName).toString())
+                .setS3(s3creds)
+                .build();
+            response.onNext(GetOrCreateDefaultStorageResponse.newBuilder().setStorage(storageCfg).build());
             response.onCompleted();
         } catch (InvalidProtocolBufferException e) {
             LOG.error("Cannot parse get or create response: { bucketName: {}, userId: {}, error: {} }", bucketName,
