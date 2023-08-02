@@ -44,11 +44,6 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>util-azure</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
             <artifactId>util-grpc</artifactId>
             <version>${project.version}</version>
         </dependency>
