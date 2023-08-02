@@ -19,6 +19,7 @@ public class GrpcHeaders {
     public static final Metadata.Key<String> CLIENT_VERSION = createMetadataKey("X-Client-Version");
     public static final Metadata.Key<String> X_REQUEST_ID = createMetadataKey("X-Request-ID");
     public static final Metadata.Key<String> X_EXECUTION_ID = createMetadataKey("X-Execution-ID");
+    public static final Metadata.Key<String> X_EXECUTION_TASK_ID = createMetadataKey("X-Execution-Task-ID");
 
 
     public static Metadata getHeaders() {
@@ -63,6 +64,11 @@ public class GrpcHeaders {
     @Nullable
     public static String getExecutionId() {
         return getHeader(X_EXECUTION_ID);
+    }
+
+    @Nullable
+    public static String getExecutionTaskId() {
+        return getHeader(X_EXECUTION_TASK_ID);
     }
 
     public static Context createContext(Map<Metadata.Key<String>, String> overrideHeaders) {

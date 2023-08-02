@@ -261,6 +261,10 @@ public class WorkerTests extends IamOnlyWorkerTests {
                 worker.slotsApiStub(null).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
             Assert.assertEquals(e.toString(), Status.Code.UNAVAILABLE, e.getStatus().getCode());
 
+            e = assertThrows(StatusRuntimeException.class, () ->
+                worker.slotsApiStub(null).read(LSA.ReadDataRequest.getDefaultInstance()).next());
+            Assert.assertEquals(e.toString(), Status.Code.UNAVAILABLE, e.getStatus().getCode());
+
             // SlotsApi unavailable for internal user
             e = assertThrows(StatusRuntimeException.class, () ->
                 worker.slotsApiStub(internalUser).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
@@ -302,19 +306,24 @@ public class WorkerTests extends IamOnlyWorkerTests {
                     LongRunning.GetOperationRequest.newBuilder().setOperationId("1").build()));
             Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
 
+            // SlotsApi control plane available for internal user
+            e = assertThrows(StatusRuntimeException.class, () ->
+                worker.slotsApiStub(internalUser).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
+            Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
+
             // SlotsApi control plane unavailable for worker
             e = assertThrows(StatusRuntimeException.class, () ->
                 worker.slotsApiStub(null).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
             Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
 
+            // SlotsApi data plane available for internal user (is it a bug?)
+            e = assertThrows(StatusRuntimeException.class, () ->
+                worker.slotsApiStub(internalUser).read(LSA.ReadDataRequest.getDefaultInstance()).next());
+            Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
+
             // SlotsApi data plane available for worker
             e = assertThrows(StatusRuntimeException.class, () ->
                 worker.slotsApiStub(null).read(LSA.ReadDataRequest.getDefaultInstance()).next());
-            Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
-
-            // SlotsApi available for internal user
-            e = assertThrows(StatusRuntimeException.class, () ->
-                worker.slotsApiStub(internalUser).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
             Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
 
             // hacker attempts

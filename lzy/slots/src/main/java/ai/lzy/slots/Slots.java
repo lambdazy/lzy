@@ -7,9 +7,9 @@ import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
-import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
+import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
 import ai.lzy.v1.common.LMS;
 import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import com.google.common.net.HostAndPort;
@@ -23,7 +23,12 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Supplier;
+
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 public class Slots {
     private final Path fsRoot;
@@ -47,40 +52,39 @@ public class Slots {
             Files.createDirectories(fsRoot);
         }
 
-        channelManagerChannel = GrpcUtils.newGrpcChannel(channelManagerAddress, LzyChannelManagerGrpc.SERVICE_NAME);
-        channelManager = GrpcUtils.newBlockingClient(
+        channelManagerChannel = newGrpcChannel(
+            channelManagerAddress, LzyChannelManagerGrpc.SERVICE_NAME, LzyChannelManagerPrivateGrpc.SERVICE_NAME);
+        channelManager = newBlockingClient(
             LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel), serviceName, token);
 
         slotsService = new SlotsService();
 
-        final var authInterceptor = new AuthServerInterceptor(
-            new AuthenticateServiceGrpcClient(serviceName, iamChannel));
+        final var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(serviceName, iamChannel));
 
         var accessClient = new AccessServiceGrpcClient(serviceName, iamChannel);
-        var internalOnlyInterceptor = new AllowInternalUserOnlyInterceptor(accessClient);
-        var accessInterceptor = new AccessServerInterceptor(accessClient);
+        var internalOnlyAccess = new AllowInternalUserOnlyInterceptor(
+            accessClient, Set.of(LzySlotsApiGrpc.getReadMethod()));
+        var workflowAccess = new AccessServerInterceptor(
+            accessClient, Set.of(LzySlotsApiGrpc.getStartTransferMethod()),
+            new Workflow(ownerId + "/" + workflowName), AuthPermission.WORKFLOW_RUN);
 
-        accessInterceptor.configure(new Workflow(ownerId + "/" + workflowName), AuthPermission.WORKFLOW_RUN);
-
-
-        server = GrpcUtils.newGrpcServer(slotsApiAddress, authInterceptor)
+        server = newGrpcServer(slotsApiAddress, auth)
             .addService(ServerInterceptors.intercept(
                 slotsService,
-                accessInterceptor,
-                internalOnlyInterceptor.ignoreMethods(LzySlotsApiGrpc.getReadMethod())))
+                workflowAccess,
+                internalOnlyAccess))
             .build();
 
         server.start();
     }
 
-    public synchronized SlotsExecutionContext context(String executionId, List<LMS.Slot> slots,
-                                                      Map<String, String> slotToChannelMapping)
+    public synchronized SlotsExecutionContext context(String requestId, String executionId, String taskId,
+                                                      List<LMS.Slot> slots, Map<String, String> slotToChannelMapping)
     {
-        var context = new SlotsExecutionContext(fsRoot, slots, slotToChannelMapping, channelManager, executionId,
-            slotsApiAddress.toString(), token, slotsService);
+        var context = new SlotsExecutionContext(fsRoot, slots, slotToChannelMapping, channelManager,
+            requestId, executionId, taskId, slotsApiAddress.toString(), token, slotsService);
 
         contexts.add(context);
-
         return context;
     }
 

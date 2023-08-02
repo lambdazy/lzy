@@ -32,8 +32,9 @@ public class Execution {
 
     public int waitFor() throws InterruptedException {
         int rc = process.waitFor();
-        String resultDescription = (rc == 0) ? "Success" : "Error while executing command on worker.\n" +
-            "See your stdout/stderr to see more info";
+        String resultDescription = (rc == 0)
+            ? "Success"
+            : "Error while executing command on worker, rc = " + rc + ".\nSee your stdout/stderr to see more info.";
         LOG.info("Result description: " + resultDescription);
         return rc;
     }

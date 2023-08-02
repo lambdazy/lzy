@@ -17,22 +17,28 @@ import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.function.Function;
+import java.util.concurrent.locks.LockSupport;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 public final class GrpcUtils {
     public static final ServerInterceptor NO_AUTH = null;
     public static final Supplier<String>  NO_AUTH_TOKEN = null;
-    private static final AtomicBoolean    IS_RETRIES_ENABLED = new AtomicBoolean(true);
-    private static final RetryConfig      DEFAULT_RETRY_CONFIG = new RetryConfig(0, GrpcUtils::isRetryable,
-        Duration.ofMillis(100), 1);
+
+    public static final AtomicBoolean IS_RETRIES_ENABLED = new AtomicBoolean(true);
+    public static final RetryConfig INFINITY_RETRY_CONFIG = new RetryConfig(
+        /* infinity */ 0, e -> retryableStatusCode(e.getStatus()), Duration.ofMillis(100), Duration.ofSeconds(5), 1.3);
+    public static final RetryConfig LONGENOUGH_RETRY_CONFIG = new RetryConfig(
+        200, e -> retryableStatusCode(e.getStatus()), Duration.ofMillis(100), Duration.ofSeconds(5), 1.3); // ~15 min
 
     private static final List<ClientHeaderInterceptor.Entry<String>> COMMON_CLIENT_HEADERS = List.of(
         new ClientHeaderInterceptor.Entry<>(GrpcHeaders.X_REQUEST_ID, GrpcHeaders::getRequestId),
-        new ClientHeaderInterceptor.Entry<>(GrpcHeaders.X_EXECUTION_ID, GrpcHeaders::getExecutionId)
+        new ClientHeaderInterceptor.Entry<>(GrpcHeaders.X_EXECUTION_ID, GrpcHeaders::getExecutionId),
+        new ClientHeaderInterceptor.Entry<>(GrpcHeaders.X_EXECUTION_TASK_ID, GrpcHeaders::getExecutionTaskId)
     );
 
-    private GrpcUtils() {}
+    private GrpcUtils() {
+    }
 
     public static <T extends AbstractBlockingStub<T>> T newBlockingClient(T stub, String name,
                                                                           @Nullable Supplier<String> token)
@@ -137,42 +143,49 @@ public final class GrpcUtils {
         };
     }
 
-    public static boolean isRetryable(Exception e) {
-        if (e instanceof StatusRuntimeException) {
-            return retryableStatusCode(((StatusRuntimeException) e).getStatus());
-        }
-        if (e instanceof StatusException) {
-            return retryableStatusCode(((StatusException) e).getStatus());
-        }
-        return false;
-    }
-
-    record RetryConfig(
+    public record RetryConfig(
         int count,  // Number of retries, or 0 for infinity
-        Function<Exception, Boolean> isRetryableMapper,
+        Predicate<StatusRuntimeException> isRetryable,
         Duration initialBackoff,
-        int backoffMultiplayer
+        Duration maxBackoff,
+        double backoffMultiplayer
     ) {}
 
-    public static <T> T withRetries(Logger logger, RetryConfig config, Supplier<T> func) throws Exception {
-        int count = config.count;
-        var infinityRetry = count == 0;
+    @FunctionalInterface
+    public interface GrpcCall<T> {
+        T call() throws StatusRuntimeException;
+    }
+
+    @FunctionalInterface
+    public interface GrpcRun {
+        void run() throws StatusRuntimeException;
+    }
+
+    public static <T> T withRetries(Logger logger, RetryConfig config, GrpcCall<T> func) throws StatusRuntimeException {
+        var attempt = 0;
+        var delayMs = 0L;
 
         while (true) {
-            try {
-                return func.get();
-            } catch (Exception e) {
-                if (count > 0) {
-                    count--;
-                }
+            if (++attempt != 1) {
+                LockSupport.parkNanos(Duration.ofMillis(delayMs).toNanos());
+            }
 
-                if (!config.isRetryableMapper.apply(e)) {
+            try {
+                return func.call();
+            } catch (StatusRuntimeException e) {
+                if (!config.isRetryable.test(e)) {
                     logger.error("Got not retryable error while executing some grpc call: ", e);
                     throw e;
                 }
 
-                if (IS_RETRIES_ENABLED.get() && (count > 0 || infinityRetry)) {
-                    logger.warn("Got retryable error while executing some grpc call, retrying it: ", e);
+                boolean retry = IS_RETRIES_ENABLED.get();
+                if (retry && config.count != 0) {
+                    retry = attempt <= config.count;
+                }
+
+                if (retry) {
+                    delayMs = Math.min(config.maxBackoff.toMillis(), (long) (delayMs * config.backoffMultiplayer));
+                    logger.warn("Got retryable error while executing some grpc call, retry after {} ms", delayMs, e);
                     continue;
                 }
 
@@ -182,12 +195,12 @@ public final class GrpcUtils {
         }
     }
 
-    public static <T> T withRetries(Logger logger, Supplier<T> func) throws Exception {
-        return withRetries(logger, DEFAULT_RETRY_CONFIG, func);
+    public static <T> T withRetries(Logger logger, GrpcCall<T> func) throws StatusRuntimeException {
+        return withRetries(logger, INFINITY_RETRY_CONFIG, func);
     }
 
-    public static void withRetries(Logger logger, Runnable func) throws Exception {
-        withRetries(logger, DEFAULT_RETRY_CONFIG, () -> {
+    public static void withRetries(Logger logger, GrpcRun func) throws StatusRuntimeException {
+        withRetries(logger, INFINITY_RETRY_CONFIG, () -> {
             func.run();
             return null;
         });

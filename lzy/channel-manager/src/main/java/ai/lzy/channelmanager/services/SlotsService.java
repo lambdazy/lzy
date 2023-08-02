@@ -373,8 +373,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         final var authenticationContext = AuthenticationContext.current();
         final String subjId = Objects.requireNonNull(authenticationContext).getSubject().id();
 
-        var hasAccess = accessManager.checkAccess(subjId, channel.userId(), channel.workflowName(),
-            WORKFLOW_RUN);
+        var hasAccess = accessManager.checkAccess(subjId, channel.userId(), channel.workflowName(), WORKFLOW_RUN);
 
         if (!hasAccess) {
             LOG.error("{}: Permission denied (executionId: {}, userId: {}, subjId: {})", callName,

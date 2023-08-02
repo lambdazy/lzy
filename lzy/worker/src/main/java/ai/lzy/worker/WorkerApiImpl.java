@@ -13,6 +13,7 @@ import ai.lzy.model.ReturnCodes;
 import ai.lzy.slots.Slots;
 import ai.lzy.util.auth.credentials.CredentialsUtils;
 import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.grpc.GrpcHeaders;
 import ai.lzy.util.grpc.ProtoPrinter;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.common.LMO;
@@ -35,6 +36,7 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.logs.LogUtils.withLoggingContext;
@@ -73,6 +75,67 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
         this.kafkaHelper = helper;
         this.operationService = localOperationService;
         this.envFactory = environmentFactory;
+    }
+
+    @Override
+    public synchronized void execute(LWS.ExecuteRequest request, StreamObserver<LongRunning.Operation> response) {
+        var rid = Optional.ofNullable(GrpcHeaders.getRequestId()).orElse("unknown");
+
+        var logContextOverrides = Map.of(
+            LogContextKey.REQUEST_ID, rid,
+            LogContextKey.EXECUTION_ID, request.getExecutionId(),
+            "tid", request.getTaskId());
+
+        var grpcHeadersOverrides = Map.of(
+            GrpcHeaders.X_EXECUTION_ID, request.getExecutionId(),
+            GrpcHeaders.X_EXECUTION_TASK_ID, request.getTaskId());
+
+        withLoggingContext(
+            logContextOverrides,
+            () -> {
+                if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
+                    LOG.debug("Worker::execute {}", ProtoPrinter.safePrinter().printToString(request));
+                } else {
+                    LOG.info("Worker::execute request");
+                }
+
+                var requester = new Owner(request.getUserId(), request.getWorkflowName());
+                if (owner == null || !owner.equals(requester)) {
+                    LOG.error("Attempt to execute op from another owner. Current is {}, got {}", owner, requester);
+                    response.onError(Status.PERMISSION_DENIED.asException());
+                    return;
+                }
+
+                if (slots == null) {
+                    LOG.error("Unexpected error");
+                    response.onError(Status.INTERNAL.asException());
+                    return;
+                }
+
+                var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+                if (idempotencyKey != null && loadExistingOpResult(idempotencyKey, response)) {
+                    return;
+                }
+
+                var op = Operation.create(
+                    request.getTaskId(),
+                    "Worker, executionId: " + request.getExecutionId() + ", taskId: " + request.getTaskId(),
+                    /* deadline */ null,
+                    idempotencyKey,
+                    /* meta */ null);
+
+                hasActiveExecution = true;
+                var opSnapshot = operationService.execute(op, () -> {
+                    try {
+                        return executeOp(request);
+                    } finally {
+                        hasActiveExecution = false;
+                    }
+                }, logContextOverrides, grpcHeadersOverrides);
+
+                response.onNext(opSnapshot.toProto());
+                response.onCompleted();
+            });
     }
 
     private LWS.ExecuteResponse executeOp(LWS.ExecuteRequest request) {
@@ -122,7 +185,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
             LOG.info("Executing task...");
 
-            var slotsContext = slots.context(request.getExecutionId(), op.getSlotsList(), slotAssignments);
+            var slotsContext = slots.context("", request.getExecutionId(), tid, op.getSlotsList(), slotAssignments);
 
             try {
                 var exec = new Execution(op.getCommand(), "");
@@ -142,8 +205,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
                     message = "Success";
                     slotsContext.afterExecution();
                 } else {
-                    message = "Error while executing command on worker. " +
-                        "See your stdout/stderr to see more info";
+                    message = "Error while executing command on worker. See your stdout/stderr to see more info.";
                 }
 
                 return LWS.ExecuteResponse.newBuilder()
@@ -214,52 +276,6 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
         response.onNext(LWS.InitResponse.getDefaultInstance());
         response.onCompleted();
-    }
-
-    @Override
-    public synchronized void execute(LWS.ExecuteRequest request, StreamObserver<LongRunning.Operation> response) {
-        withLoggingContext(
-            Map.of(
-                "tid", request.getTaskId(),
-                LogContextKey.EXECUTION_ID, request.getExecutionId()),
-            () -> {
-                if (LOG.getLevel().isLessSpecificThan(Level.DEBUG)) {
-                    LOG.debug("Worker::execute {}", ProtoPrinter.safePrinter().printToString(request));
-                } else {
-                    LOG.info("Worker::execute request");
-                }
-
-                var requester = new Owner(request.getUserId(), request.getWorkflowName());
-                if (owner == null || !owner.equals(requester)) {
-                    LOG.error("Attempt to execute op from another owner. Current is {}, got {}", owner, requester);
-                    response.onError(Status.PERMISSION_DENIED.asException());
-                    return;
-                }
-
-                var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
-                if (idempotencyKey != null && loadExistingOpResult(idempotencyKey, response)) {
-                    return;
-                }
-
-                var op = Operation.create(
-                    request.getTaskId(),
-                    "Worker, executionId: " + request.getExecutionId() + ", taskId: " + request.getTaskId(),
-                    /* deadline */ null,
-                    idempotencyKey,
-                    /* meta */ null);
-
-                hasActiveExecution = true;
-                var opSnapshot = operationService.execute(op, () -> {
-                    try {
-                        return executeOp(request);
-                    } finally {
-                        hasActiveExecution = false;
-                    }
-                });
-
-                response.onNext(opSnapshot.toProto());
-                response.onCompleted();
-            });
     }
 
     @PreDestroy

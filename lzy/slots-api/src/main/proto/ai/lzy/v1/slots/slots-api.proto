@@ -11,7 +11,6 @@ option java_outer_classname = "LSA";
 option java_package = "ai.lzy.v1.slots";
 
 service LzySlotsApi {
-
   // Connect slot to remote peer (call from channel manager)
   rpc StartTransfer (StartTransferRequest) returns (StartTransferResponse) {}
 
@@ -22,8 +21,8 @@ service LzySlotsApi {
 // ============ StartTransfer ==============
 
 message StartTransferRequest {
-  string transfer_id          = 1;
-  string slot_id              = 2;  // Peer id of slot
+  string transfer_id = 1;
+  string slot_id = 2;  // Peer id of slot
   common.PeerDescription peer = 3;
 }
 
@@ -33,7 +32,7 @@ message StartTransferResponse {}
 
 message ReadDataRequest {
   string peer_id = 1;
-  int64 offset   = 2;
+  uint64 offset = 2;
 }
 
 message ReadDataChunk {

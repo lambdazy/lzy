@@ -62,12 +62,13 @@ public class SlotInputTransfer implements InputTransfer, AutoCloseable {
                 chunk = stream.next();
                 done = true;
             } catch (StatusRuntimeException e) {
-                LOG.warn("Error while reading from slot peer {}, will be retried... ", peer.getPeerId(), e);
-
                 if (!GrpcUtils.retryableStatusCode(e.getStatus())) {
-                    LOG.error("Error is not retryable, will not retry", e);
+                    LOG.error("Non retryable error '{}' while reading from slot peer {}",
+                        e.getStatus(), peer.getPeerId());
                     throw new ReadException("Cannot read from slot peer " + peer.getPeerId(), e);
                 }
+
+                LOG.warn("Error '{}' while reading from slot peer {}, retry later...", e.getStatus(), peer.getPeerId());
 
                 remainingRetries--;
                 try {

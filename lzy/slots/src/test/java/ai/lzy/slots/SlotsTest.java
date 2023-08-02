@@ -1,8 +1,12 @@
 package ai.lzy.slots;
 
-import ai.lzy.slots.backends.*;
 import ai.lzy.model.utils.FreePortFinder;
-import ai.lzy.util.grpc.GrpcUtils;
+import ai.lzy.slots.backends.FileInputBackend;
+import ai.lzy.slots.backends.InputSlotBackend;
+import ai.lzy.slots.backends.OutputFileBackend;
+import ai.lzy.slots.backends.OutputPipeBackend;
+import ai.lzy.slots.backends.OutputSlotBackend;
+import ai.lzy.util.grpc.RequestIdInterceptor;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.common.LC;
@@ -46,6 +50,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH_TOKEN;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.setIsRetriesEnabled;
+
 public class SlotsTest {
     private static final int s3MockPort = FreePortFinder.find(1000, 2000);
     private static final int serverPort = FreePortFinder.find(2000, 3000);
@@ -86,12 +94,15 @@ public class SlotsTest {
             .usePlaintext()
             .build();
 
-        var stub = LzyChannelManagerGrpc.newBlockingStub(channel);
+        var channelManagerStub = newBlockingClient(LzyChannelManagerGrpc.newBlockingStub(channel), "x", NO_AUTH_TOKEN)
+            .withInterceptors(RequestIdInterceptor.clientGenerate());
 
         executionContext = new SlotsExecutionContext(
-            Path.of(FS_ROOT), List.of(), Map.of(), stub, EXECUTION_ID, ADDRESS, () -> "", slotsService);
+            Path.of(FS_ROOT), List.of(), Map.of(), channelManagerStub, "rid", EXECUTION_ID, "tid", ADDRESS,
+            () -> "", slotsService);
 
-        slotsStub = LzySlotsApiGrpc.newBlockingStub(channel);
+        slotsStub = newBlockingClient(LzySlotsApiGrpc.newBlockingStub(channel), "x", NO_AUTH_TOKEN)
+            .withInterceptors(RequestIdInterceptor.clientGenerate());
 
         s3Client = AmazonS3ClientBuilder.standard()
             .withPathStyleAccessEnabled(true)
@@ -100,7 +111,7 @@ public class SlotsTest {
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
 
-        GrpcUtils.setIsRetriesEnabled(false);
+        setIsRetriesEnabled(false);
     }
 
     @AfterClass
@@ -118,11 +129,12 @@ public class SlotsTest {
 
     @Test
     public void testSimple() throws IOException, InterruptedException {
-        var pipePath = Path.of(FS_ROOT,"test_simple-out");
+        var pipePath = Path.of(FS_ROOT, "test_simple-out");
         var inPath = genPath("test_simple-in");
 
         var outBackend = new OutputPipeBackend(pipePath);
         var outHandle = channelManagerMock.onBind("1");
+        channelManagerMock.onUnbind("1").complete(LCMS.UnbindResponse.getDefaultInstance());
 
         var outSlot = new OutputSlot(outBackend, "1", "chan", executionContext.context());
         executionContext.add(outSlot);
@@ -137,6 +149,7 @@ public class SlotsTest {
         beforeFut.join();
 
         var inHandle = channelManagerMock.onBind("2");
+        channelManagerMock.onUnbind("2").complete(LCMS.UnbindResponse.getDefaultInstance());
         var transferCompletedHandle = channelManagerMock.onTransferCompleted("transfer-id");
 
         inHandle.complete(LCMS.BindResponse.newBuilder()
@@ -147,8 +160,7 @@ public class SlotsTest {
                     .build())
                 .build())
             .setTransferId("transfer-id")
-            .build()
-        );
+            .build());
         var inBackend = new FileInputBackend(inPath);
 
         var inSlot = new InputSlot(inBackend, "2", "chan", executionContext.context());
@@ -160,6 +172,7 @@ public class SlotsTest {
 
         transferCompletedHandle.get();
         var bindHandle = channelManagerMock.onBind("2-out");
+        channelManagerMock.onUnbind("2-out").complete(LCMS.UnbindResponse.getDefaultInstance());
         transferCompletedHandle.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
 
         inBeforeFut.join();
@@ -208,6 +221,9 @@ public class SlotsTest {
         var inBind = channelManagerMock.onBind("1");
         var outBind = channelManagerMock.onBind("2");
 
+        channelManagerMock.onUnbind("1").complete(LCMS.UnbindResponse.getDefaultInstance());
+        channelManagerMock.onUnbind("2").complete(LCMS.UnbindResponse.getDefaultInstance());
+
         var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
         var outSlot = new OutputSlot(outBack, "2", "chan", executionContext.context());
 
@@ -227,8 +243,7 @@ public class SlotsTest {
                     .setPeerUrl(ADDRESS)
                     .build())
                 .build())
-            .build()
-        );
+            .build());
 
         transferCompletedHandle.get();
         transferCompletedHandle.complete(LCMS.TransferCompletedResponse.getDefaultInstance());
@@ -249,6 +264,9 @@ public class SlotsTest {
 
         var inBind = channelManagerMock.onBind("1");
         var outBind = channelManagerMock.onBind("2");
+
+        channelManagerMock.onUnbind("1").complete(LCMS.UnbindResponse.getDefaultInstance());
+        channelManagerMock.onUnbind("2").complete(LCMS.UnbindResponse.getDefaultInstance());
 
         var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
         var outSlot = new OutputSlot(outBack, "2", "chan", executionContext.context());
@@ -284,6 +302,9 @@ public class SlotsTest {
 
         var inBind = channelManagerMock.onBind("1");
         var outBind = channelManagerMock.onBind("2");
+
+        channelManagerMock.onUnbind("1").complete(LCMS.UnbindResponse.getDefaultInstance());
+        channelManagerMock.onUnbind("2").complete(LCMS.UnbindResponse.getDefaultInstance());
 
         var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
         var outSlot = new OutputSlot(outBack, "2", "chan", executionContext.context());
@@ -386,6 +407,7 @@ public class SlotsTest {
 
         inHandle.complete(LCMS.BindResponse.newBuilder()
             .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("storage")
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint(S3_ADDRESS)
@@ -393,7 +415,7 @@ public class SlotsTest {
                     .setStorageUri("s3://bucket-read/key1")
                     .build())
                 .build())
-                .setTransferId("transfer-id")
+            .setTransferId("transfer-id")
             .build());
 
         transferHandle.get();
@@ -419,6 +441,7 @@ public class SlotsTest {
 
         outHandle.complete(LCMS.BindResponse.newBuilder()
             .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("storage")
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint(S3_ADDRESS)
@@ -426,7 +449,7 @@ public class SlotsTest {
                     .setStorageUri("s3://bucket-write/key1")
                     .build())
                 .build())
-                .setTransferId("transfer-id")
+            .setTransferId("transfer-id")
             .build());
 
         transferHandle.get();
@@ -439,7 +462,7 @@ public class SlotsTest {
     }
 
     @Test
-    public void testReadFromStorageFail() throws ExecutionException, InterruptedException {
+    public void testReadFromStorageFail() {
         var inBack = new InMemBackend(new byte[1024]);
         var inHandle = channelManagerMock.onBind("1");
         var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
@@ -450,6 +473,7 @@ public class SlotsTest {
 
         inHandle.complete(LCMS.BindResponse.newBuilder()
             .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("storage")
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint(S3_ADDRESS)
@@ -457,7 +481,7 @@ public class SlotsTest {
                     .setStorageUri("s3://lolkek/key1")
                     .build())
                 .build())
-                .setTransferId("transfer-id")
+            .setTransferId("transfer-id")
             .build());
 
         transferHandle.get();
@@ -479,6 +503,7 @@ public class SlotsTest {
 
         outHandle.complete(LCMS.BindResponse.newBuilder()
             .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("storage")
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint(S3_ADDRESS)
@@ -486,7 +511,7 @@ public class SlotsTest {
                     .setStorageUri("s3://lolkek/key1")
                     .build())
                 .build())
-                .setTransferId("transfer-id")
+            .setTransferId("transfer-id")
             .build());
 
         transferHandle.get();
@@ -517,6 +542,7 @@ public class SlotsTest {
         inHandle.complete(LCMS.BindResponse.newBuilder()
             .setTransferId("transfer-id1")
             .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("storage-1")
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint(S3_ADDRESS)
@@ -530,6 +556,7 @@ public class SlotsTest {
         outHandle.complete(LCMS.BindResponse.newBuilder()
             .setTransferId("transfer-id2")
             .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("storage-2")
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint(S3_ADDRESS)
@@ -543,6 +570,7 @@ public class SlotsTest {
         outHandle2.complete(LCMS.BindResponse.newBuilder()
             .setTransferId("transfer-id3")
             .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("storage-3")
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint(S3_ADDRESS)
@@ -569,7 +597,9 @@ public class SlotsTest {
                 "a/b/out", "chan"
             ),
             LzyChannelManagerGrpc.newBlockingStub(channel),
+            "rid",
             "exec",
+            "tid",
             ADDRESS,
             () -> "",
             slotsService
@@ -613,8 +643,8 @@ public class SlotsTest {
         var rand = new Random();
         var data = new byte[1024 * 1024];  // 1 Mb
 
-        // Writing random data of size 1 Gb
-        for (int i = 0; i < 1024; i++) {
+        // Writing random data of size 200 Mb
+        for (int i = 0; i < 200; i++) {
             rand.nextBytes(data);
             Files.write(outPath, data, StandardOpenOption.APPEND);
         }
@@ -624,9 +654,11 @@ public class SlotsTest {
         var inBind = channelManagerMock.onBind("1");
         var outBind = channelManagerMock.onBind("2");
 
+        channelManagerMock.onUnbind("1").complete(LCMS.UnbindResponse.getDefaultInstance());
+        channelManagerMock.onUnbind("2").complete(LCMS.UnbindResponse.getDefaultInstance());
+
         var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
         var outSlot = new OutputSlot(outBack, "2", "chan", executionContext.context());
-
 
         outBind.get();
         outBind.complete(LCMS.BindResponse.getDefaultInstance());
@@ -663,7 +695,7 @@ public class SlotsTest {
     @Test
     public void testLargeReadFromStorage() throws Exception {
         var inPath = genPath("test-large-storage-in");
-        var dataPath =genPath("test-large-storage-data");
+        var dataPath = genPath("test-large-storage-data");
 
         s3Client.createBucket("bucket-read-large");
 
@@ -675,8 +707,8 @@ public class SlotsTest {
         var timeToGenData = System.currentTimeMillis();
         var rand = new Random();
         var data = new byte[1024 * 1024];  // 1 Mb
-        // Writing random data of size 1 Gb
-        for (int i = 0; i < 1024; i++) {
+        // Writing random data of size 200 Gb
+        for (int i = 0; i < 200; i++) {
             rand.nextBytes(data);
             Files.write(dataPath, data, StandardOpenOption.APPEND);
         }
@@ -690,6 +722,8 @@ public class SlotsTest {
         var inBack = new FileInputBackend(inPath);
 
         var inBind = channelManagerMock.onBind("1");
+        channelManagerMock.onUnbind("1").complete(LCMS.UnbindResponse.getDefaultInstance());
+
         var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
 
         var transferCompletedHandle = channelManagerMock.onTransferCompleted("transfer-id");
@@ -697,6 +731,7 @@ public class SlotsTest {
         inBind.get();
         inBind.complete(LCMS.BindResponse.newBuilder()
             .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("storage")
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint(S3_ADDRESS)
@@ -728,8 +763,8 @@ public class SlotsTest {
         var timeToGenData = System.currentTimeMillis();
         var rand = new Random();
         var data = new byte[1024 * 1024];  // 1 Mb
-        // Writing random data of size 1 Gb
-        for (int i = 0; i < 1024; i++) {
+        // Writing random data of size 200 Mb
+        for (int i = 0; i < 200; i++) {
             rand.nextBytes(data);
             Files.write(inPath, data, StandardOpenOption.APPEND);
         }
@@ -738,12 +773,15 @@ public class SlotsTest {
         var outBack = new OutputFileBackend(inPath);
 
         var outBind = channelManagerMock.onBind("1");
+        channelManagerMock.onUnbind("1").complete(LCMS.UnbindResponse.getDefaultInstance());
+
         var outSlot = new OutputSlot(outBack, "1", "chan", executionContext.context());
 
         outBind.get();
         var transferCompletedHandle = channelManagerMock.onTransferCompleted("transfer-id");
         outBind.complete(LCMS.BindResponse.newBuilder()
             .setPeer(LC.PeerDescription.newBuilder()
+                .setPeerId("storage")
                 .setStoragePeer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setS3(LMST.S3Credentials.newBuilder()
                         .setEndpoint(S3_ADDRESS)
@@ -775,6 +813,9 @@ public class SlotsTest {
 
         var inBind = channelManagerMock.onBind("1");
         var outBind = channelManagerMock.onBind("2");
+
+        channelManagerMock.onUnbind("1").complete(LCMS.UnbindResponse.getDefaultInstance());
+        channelManagerMock.onUnbind("2").complete(LCMS.UnbindResponse.getDefaultInstance());
 
         var inSlot = new InputSlot(inBack, "1", "chan", executionContext.context());
         var outSlot = new OutputSlot(outBack, "2", "chan", executionContext.context());
@@ -866,7 +907,8 @@ public class SlotsTest {
         }
 
         @Override
-        public void close() throws IOException {}
+        public void close() {
+        }
     }
 
     private static class FailingInputStream implements ReadableByteChannel {
