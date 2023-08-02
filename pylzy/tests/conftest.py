@@ -1,3 +1,4 @@
+import os
 import json
 import pathlib
 import pytest
@@ -136,3 +137,10 @@ def pypi_index_url():
 @pytest.fixture(scope='session')
 def pypi_index_url_testing():
     return 'https://test.pypi.org/simple'
+
+
+@pytest.fixture(scope='session')
+def virtualenv_path() -> pathlib.Path:
+    virtualenv_dir = os.getenv('TOX_ENV_DIR')
+    assert virtualenv_dir
+    return pathlib.Path(virtualenv_dir)

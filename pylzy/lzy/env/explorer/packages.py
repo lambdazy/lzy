@@ -20,6 +20,7 @@ class LocalPackage(BasePackage):
 @dataclass(frozen=True)
 class LocalDistribution(LocalPackage):
     version: str
+    bad_paths: FrozenSet[str]
 
 
 @dataclass(frozen=True)

@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import os
 from functools import lru_cache
-from typing import FrozenSet, Set, Dict, cast
+from typing import FrozenSet, Set, Dict, cast, Iterable, Tuple
 from types import ModuleType
 
 from importlib.machinery import ExtensionFileLoader
@@ -11,7 +11,7 @@ from importlib_metadata import Distribution
 
 from lzy.utils.pypi import check_package_version_exists
 
-from .search import ModulesFrozenSet, ModulesSet
+from .search import ModulesSet
 from .packages import (
     LocalPackage,
     LocalDistribution,
@@ -38,7 +38,7 @@ class ModuleClassifier:
         self.builtin_module_names = get_builtin_module_names()
         self.files_to_distributions = get_files_to_distributions()
 
-    def classify(self, modules: ModulesFrozenSet) -> FrozenSet[BasePackage]:
+    def classify(self, modules: Iterable[ModuleType]) -> FrozenSet[BasePackage]:
         distributions: DistributionSet = set()
         binary_distributions: DistributionSet = set()
         modules_without_distribution: ModulesSet = set()
@@ -56,7 +56,7 @@ class ModuleClassifier:
 
     def _classify_modules(
         self,
-        modules: ModulesFrozenSet,
+        modules: Iterable[ModuleType],
         distributions: DistributionSet,
         binary_distributions: DistributionSet,
         modules_without_distribution: ModulesSet,
@@ -122,13 +122,14 @@ class ModuleClassifier:
                     pypi_index_url=self.pypi_index_url,
                 )
             else:
-                paths = self._get_distribution_paths(distribution)
+                paths, bad_paths = self._get_distribution_paths(distribution)
                 is_binary = distribution in binary_distributions
                 package = LocalDistribution(
                     name=distribution.name,
                     version=distribution.version,
                     paths=paths,
                     is_binary=is_binary,
+                    bad_paths=bad_paths,
                 )
 
             result.add(package)
@@ -201,6 +202,8 @@ class ModuleClassifier:
             # always present
             return False
 
+        editable = direct_url_data.get('dir_info', {}).get('editable')
+
         # The whole thing about direct_url.json is that
         # it is a sign of editable installation from the one hand,
         # but from the other hand, conda left this file at it's
@@ -209,7 +212,7 @@ class ModuleClassifier:
         # In case of conda, there will be some strange path like
         # file:///work/ci_py311/idna_1676822698822/work
         # which is probably will not exists at user's system
-        return check_url_is_local_file(url)
+        return editable and check_url_is_local_file(url)
 
     @staticmethod
     @lru_cache(maxsize=None)
@@ -225,20 +228,31 @@ class ModuleClassifier:
             version=version,
         )
 
-    def _get_distribution_paths(self, distribution: Distribution) -> FrozenSet[str]:
+    def _get_distribution_paths(
+        self, distribution: Distribution
+    ) -> Tuple[FrozenSet[str], FrozenSet[str]]:
         """
         If Distribution files are foo/bar, foo/baz and foo1,
         we want to return {<site-packages>/foo, <site-packages>/foo1}
         """
 
         paths = set()
+        bad_paths = set()
+
+        base_path = distribution.locate_file('')
 
         for path in distribution.files:
-            first_part = path.parts[0]
-            path = distribution.locate_file('') / first_part
+            abs_path = distribution.locate_file(path).resolve()
+            if base_path not in abs_path.parents:
+                bad_paths.add(str(abs_path))
+                continue
+
+            rel_path = abs_path.relative_to(base_path)
+            first_part = rel_path.parts[0]
+            path = base_path / first_part
             paths.add(str(path))
 
-        return frozenset(paths)
+        return frozenset(paths), frozenset(bad_paths)
 
     def _check_module_is_binary(self, module: ModuleType) -> bool:
         loader = getattr(module, '__loader__', None)

@@ -1,0 +1,54 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - pylzy 1.15.0 (https://lzy.ai)
+    method: GET
+    uri: https://pypi.org/simple/lzy-test-project/
+  response:
+    body:
+      string: 404 Not Found
+    headers:
+      Accept-Ranges:
+      - bytes
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '13'
+      Content-Security-Policy:
+      - default-src 'none'; sandbox allow-top-navigation
+      Content-Type:
+      - text/plain; charset=UTF-8
+      Date:
+      - Tue, 01 Aug 2023 18:32:40 GMT
+      Referrer-Policy:
+      - origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Vary:
+      - Accept-Encoding
+      X-Cache:
+      - MISS, MISS
+      X-Cache-Hits:
+      - 0, 0
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-Permitted-Cross-Domain-Policies:
+      - none
+      X-Served-By:
+      - cache-iad-kiad7000148-IAD, cache-jnb7023-JNB
+      X-Timer:
+      - S1690914760.914053,VS0,VE265
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 404
+      message: Not Found
+version: 1
