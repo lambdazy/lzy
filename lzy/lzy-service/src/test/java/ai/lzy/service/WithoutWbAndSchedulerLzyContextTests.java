@@ -11,7 +11,6 @@ import ai.lzy.iam.test.LzySubjectServiceDecorator;
 import ai.lzy.longrunning.dao.OperationDaoDecorator;
 import ai.lzy.service.test.LzyServiceContextImpl;
 import ai.lzy.service.util.ClientVersionInterceptor;
-import ai.lzy.storage.test.StorageContextImpl;
 import ai.lzy.test.context.LzyInThread;
 import ai.lzy.test.context.config.LzyConfig;
 import ai.lzy.util.grpc.RequestIdInterceptor;
@@ -35,6 +34,7 @@ import org.junit.Rule;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static ai.lzy.test.GrpcUtils.rollPort;
 import static ai.lzy.util.grpc.GrpcUtils.*;
 
 public abstract class WithoutWbAndSchedulerLzyContextTests {
@@ -48,8 +48,6 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
     public PreparedDbRule channelManagerDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule graphExecutorDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
-    @Rule
-    public PreparedDbRule storageDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
     @Rule
     public PreparedDbRule lzyServiceDb = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
@@ -93,13 +91,14 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             .setAllocatorConfig("../allocator/src/main/resources/application-test.yml")
             .setChannelManagerConfig("../channel-manager/src/main/resources/application-test.yml")
             .setGraphExecutorConfig("../graph-executor/src/main/resources/application-test.yml")
-            .setStorageConfig("../storage/src/main/resources/application-test.yml")
             .setLzyServiceConfig("../lzy-service/src/main/resources/application-test.yml")
             .build();
 
         var configOverrides = Map.<String, Object>of(
             "allocator.thread-allocator.enabled", true,
             "allocator.thread-allocator.vm-class-name", "ai.lzy.worker.Worker",
+            "lzy-service.storage.s3.memory.enabled", true,
+            "lzy-service.storage.s3.memory.port", rollPort(),
             "lzy-service.gc.enabled", false
         );
 
@@ -119,7 +118,6 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             .setAllocatorDbUrl(prepareDbUrl(allocatorDb.getConnectionInfo()))
             .setChannelManagerDbUrl(prepareDbUrl(channelManagerDb.getConnectionInfo()))
             .setGraphExecutorDbUrl(prepareDbUrl(graphExecutorDb.getConnectionInfo()))
-            .setStorageServiceDbUrl(prepareDbUrl(storageDb.getConnectionInfo()))
             .setLzyServiceDbUrl(prepareDbUrl(lzyServiceDb.getConnectionInfo()))
             .build();
 
@@ -128,7 +126,6 @@ public abstract class WithoutWbAndSchedulerLzyContextTests {
             AllocatorContextImpl.ENV_NAME,
             ChannelManagerContextImpl.ENV_NAME,
             GraphExecutorContextImpl.ENV_NAME,
-            StorageContextImpl.ENV_NAME,
             LzyServiceContextImpl.ENV_NAME
         };
         lzy.setUp(configs, configOverrides, environments, ports, database, contextEnvs);

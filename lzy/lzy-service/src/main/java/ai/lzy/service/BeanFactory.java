@@ -34,8 +34,6 @@ import ai.lzy.v1.kafka.S3SinkServiceGrpc;
 import ai.lzy.v1.kafka.S3SinkServiceGrpc.S3SinkServiceBlockingStub;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc.LongRunningServiceBlockingStub;
-import ai.lzy.v1.storage.LzyStorageServiceGrpc;
-import ai.lzy.v1.storage.LzyStorageServiceGrpc.LzyStorageServiceBlockingStub;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hubspot.jackson.datatype.protobuf.ProtobufModule;
 import io.grpc.ManagedChannel;
@@ -64,34 +62,6 @@ public class BeanFactory {
     public ManagedChannel allocatorChannel(LzyServiceConfig config) {
         return newGrpcChannel(config.getAllocatorAddress(), AllocatorGrpc.SERVICE_NAME,
             LongRunningServiceGrpc.SERVICE_NAME, VmPoolServiceGrpc.SERVICE_NAME);
-    }
-
-    @Bean(preDestroy = "shutdown")
-    @Singleton
-    @Named("StorageServiceChannel")
-    public ManagedChannel storageChannel(LzyServiceConfig config) {
-        return newGrpcChannel(config.getStorage().getAddress(), LzyStorageServiceGrpc.SERVICE_NAME,
-            LongRunningServiceGrpc.SERVICE_NAME);
-    }
-
-    @Singleton
-    @Named("LzyServiceStorageGrpcClient")
-    public LzyStorageServiceBlockingStub storagesGrpcClient(
-        @Named("StorageServiceChannel") ManagedChannel grpcChannel,
-        @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
-    {
-        return newBlockingClient(LzyStorageServiceGrpc.newBlockingStub(grpcChannel), APP,
-            () -> internalUserCreds.get().token());
-    }
-
-    @Singleton
-    @Named("LzyServiceStorageOpsGrpcClient")
-    public LongRunningServiceBlockingStub storageOpsGrpcClient(
-        @Named("StorageServiceChannel") ManagedChannel grpcChannel,
-        @Named("LzyServiceIamToken") RenewableJwt internalUserCreds)
-    {
-        return newBlockingClient(LongRunningServiceGrpc.newBlockingStub(grpcChannel), APP,
-            () -> internalUserCreds.get().token());
     }
 
     @Bean(preDestroy = "shutdown")

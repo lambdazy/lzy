@@ -2,8 +2,10 @@ package ai.lzy.slots.transfers;
 
 import ai.lzy.storage.StorageClient;
 import ai.lzy.storage.StorageClientFactory;
+import ai.lzy.storage.StorageConfig;
+import ai.lzy.storage.StorageConfig.AzureBlobStorageCredentials;
+import ai.lzy.storage.StorageConfig.S3Credentials;
 import ai.lzy.v1.common.LC;
-import ai.lzy.v1.common.LMST;
 
 import java.net.URI;
 import java.nio.channels.Channels;
@@ -16,14 +18,14 @@ public class StorageOutputTransfer implements OutputTransfer {
     public StorageOutputTransfer(LC.PeerDescription peer, StorageClientFactory clientFactory) {
         this.peer = peer;
 
-        var storageConfigBuilder = LMST.StorageConfig.newBuilder();
         if (peer.getStoragePeer().hasAzure()) {
-            storageConfigBuilder.setAzure(peer.getStoragePeer().getAzure());
+            var azure = new AzureBlobStorageCredentials(peer.getStoragePeer().getAzure().getConnectionString());
+            this.client = clientFactory.provider(StorageConfig.of(azure)).get();
         } else {
-            storageConfigBuilder.setS3(peer.getStoragePeer().getS3());
+            var s3proto = peer.getStoragePeer().getS3();
+            var s3 = new S3Credentials(s3proto.getEndpoint(), s3proto.getAccessToken(), s3proto.getSecretToken());
+            this.client = clientFactory.provider(StorageConfig.of(s3)).get();
         }
-
-        this.client = clientFactory.provider(storageConfigBuilder.build()).get();
     }
 
     @Override

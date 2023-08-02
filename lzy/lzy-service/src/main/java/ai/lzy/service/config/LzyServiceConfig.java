@@ -2,7 +2,6 @@ package ai.lzy.service.config;
 
 import ai.lzy.iam.config.IamClientConfiguration;
 import ai.lzy.model.db.DatabaseConfiguration;
-import ai.lzy.storage.config.StorageClientConfiguration;
 import ai.lzy.util.kafka.KafkaConfig;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
@@ -26,9 +25,7 @@ public class LzyServiceConfig {
     private String channelManagerAddress;
 
     private Duration waitAllocationTimeout;
-
-    @ConfigurationBuilder("gc")
-    private final GarbageCollector gc = new GarbageCollector();
+    private Duration bucketCreationTimeout;
 
     @Nullable
     private String s3SinkAddress = null;  // If not set, not using s3 sink
@@ -42,12 +39,11 @@ public class LzyServiceConfig {
     @ConfigurationBuilder("database")
     private final DatabaseConfiguration database = new DatabaseConfiguration();
 
-    @ConfigurationBuilder("storage")
-    private final StorageClientConfiguration storage = new StorageClientConfiguration();
+    private StorageConfig storage;
 
-    @ConfigurationBuilder("operations")
-    private final OperationsConfig operations = new OperationsConfig();
+    private OperationsConfig operations;
 
+    private GarbageCollector gc;
 
     public enum MetricsKind {
         Disabled,
@@ -67,6 +63,7 @@ public class LzyServiceConfig {
 
     @Getter
     @Setter
+    @ConfigurationProperties("operations")
     public static final class OperationsConfig {
         private volatile Duration startWorkflowTimeout;
         private volatile Duration finishWorkflowTimeout;
@@ -76,9 +73,64 @@ public class LzyServiceConfig {
 
     @Getter
     @Setter
+    @ConfigurationProperties("gc")
     public static final class GarbageCollector {
         private boolean enabled;
         private Duration period;
         private Duration leaderPeriod;
+    }
+
+    @Getter
+    @Setter
+    @ConfigurationProperties("storage")
+    public static final class StorageConfig {
+        private S3Credentials s3;
+
+        // legacy credentials format
+        private YcCredentials yc;
+
+        @Getter
+        @Setter
+        @ConfigurationProperties("s3")
+        public static final class S3Credentials {
+            private InMemoryS3Credentials memory;
+            private YcS3Credentials yc;
+            private AzureS3Credentials azure;
+
+            @Getter
+            @Setter
+            @ConfigurationProperties("yc")
+            public static final class YcS3Credentials {
+                private boolean enabled;
+                private String endpoint;
+                private String accessToken;
+                private String secretToken;
+            }
+
+            @Getter
+            @Setter
+            @ConfigurationProperties("azure")
+            public static final class AzureS3Credentials {
+                private boolean enabled;
+                private String connectionString;
+            }
+
+            @Getter
+            @Setter
+            @ConfigurationProperties("memory")
+            public static class InMemoryS3Credentials {
+                private boolean enabled = false;
+                private int port;
+            }
+        }
+
+        @Getter
+        @Setter
+        @ConfigurationProperties("yc")
+        public static final class YcCredentials {
+            private boolean enabled = false;
+            private String endpoint;
+            private String folderId;
+        }
     }
 }

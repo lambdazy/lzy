@@ -217,13 +217,43 @@ resource "kubernetes_deployment" "lzy-service" {
           }
 
           env {
-            name  = "LZY_SERVICE_STORAGE_ADDRESS"
-            value = "${kubernetes_service.storage_service.spec[0].cluster_ip}:${local.storage-port}"
+            name  = "LZY_SERVICE_BUCKET_CREATION_TIMEOUT"
+            value = "20s"
           }
 
           env {
-            name  = "LZY_SERVICE_STORAGE_BUCKET_CREATION_TIMEOUT"
-            value = "20s"
+            name  = "LZY_SERVICE_STORAGE_YC_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "LZY_SERVICE_STORAGE_YC_FOLDER_ID"
+            value = var.folder_id
+          }
+
+          env {
+            name  = "LZY_SERVICE_STORAGE_YC_ENDPOINT"
+            value = var.yc-endpoint
+          }
+
+          env {
+            name  = "LZY_SERVICE_STORAGE_S3_YC_ENABLED"
+            value = "true"
+          }
+
+          env {
+            name  = "LZY_SERVICE_STORAGE_S3_YC_ENDPOINT"
+            value = "https://storage.yandexcloud.net"
+          }
+
+          env {
+            name  = "LZY_SERVICE_STORAGE_S3_YC_ACCESS_TOKEN"
+            value = var.node-sa-static-key-access-key
+          }
+
+          env {
+            name  = "LZY_SERVICE_STORAGE_S3_YC_SECRET_TOKEN"
+            value = var.node-sa-static-key-secret-key
           }
 
           dynamic "env" {
