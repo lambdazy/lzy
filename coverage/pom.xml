@@ -52,11 +52,6 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>storage</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
             <artifactId>whiteboard</artifactId>
             <version>${project.version}</version>
         </dependency>

@@ -137,6 +137,7 @@ public class ExecutionDaoImpl implements ExecutionDao {
             }
         });
     }
+
     @Override
     public void updateAllocatorSession(String execId, String allocSessionId, @Nullable TransactionHandle transaction)
         throws SQLException

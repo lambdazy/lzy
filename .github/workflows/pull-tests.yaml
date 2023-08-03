@@ -91,8 +91,6 @@ jobs:
           SHA=${{ github.sha }}
           sudo mkdir -p /tmp/old-lzy-logs/$SHA
           sudo tar -czvf /tmp/old-lzy-logs/$SHA/logs.tar.gz /tmp/lzy-log
-          sudo umount -f /tmp/lzy*
-          sudo umount -f /tmp/term*
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker* /tmp/tmp*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh /tmp/gen-rsa-keys*
           sudo rm -rf /tmp/kafka-logs* /tmp/zookeeper-logs* /tmp/s3mockFileStore* /tmp/Log4j2Plugins*
@@ -118,8 +116,6 @@ jobs:
 
       - name: 'Clear before tests'
         run: |
-          sudo umount -f /tmp/lzy*
-          sudo umount -f /tmp/term*
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh /tmp/gen-rsa-keys*
           sudo rm -rf /tmp/kafka-logs* /tmp/zookeeper-logs* /tmp/s3mockFileStore* /tmp/Log4j2Plugins*
@@ -179,8 +175,6 @@ jobs:
           SHA=${{ github.sha }}
           sudo mkdir -p /tmp/old-lzy-logs/$SHA
           sudo tar -czvf /tmp/old-lzy-logs/$SHA/logs.tar.gz /tmp/lzy-log
-          sudo umount -f /tmp/lzy*
-          sudo umount -f /tmp/term*
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker* /tmp/tmp*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh
 

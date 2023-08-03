@@ -41,7 +41,7 @@ public class SchedulerTest extends LzyContextTests {
         s3Client = AmazonS3ClientBuilder.standard()
             .withPathStyleAccessEnabled(true)
             .withEndpointConfiguration(
-                new AwsClientBuilder.EndpointConfiguration("http://localhost:18081", "us-west-1"))
+                new AwsClientBuilder.EndpointConfiguration("http://localhost:" + s3Port, "us-west-1"))
             .withCredentials(new AWSStaticCredentialsProvider(new AnonymousAWSCredentials()))
             .build();
 
@@ -140,7 +140,7 @@ public class SchedulerTest extends LzyContextTests {
                 .setConsumer(LC.PeerDescription.StoragePeer.newBuilder()
                     .setStorageUri("s3://scheduler-test-bucket/" + channelName)
                     .setS3(LMST.S3Credentials.newBuilder()
-                        .setEndpoint("http://localhost:18081")
+                        .setEndpoint("http://localhost:" + s3Port)
                         .build())
                     .build())
                 .build());

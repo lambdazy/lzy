@@ -2,19 +2,24 @@ package ai.lzy.slots;
 
 import ai.lzy.slots.backends.InputSlotBackend;
 import ai.lzy.slots.transfers.InputTransfer;
-import ai.lzy.util.grpc.GrpcUtils;
+import ai.lzy.util.grpc.ContextAwareTask;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.LSA;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.nio.channels.SeekableByteChannel;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
+
+import static ai.lzy.util.grpc.GrpcUtils.*;
+import static com.google.protobuf.TextFormat.printer;
 
 public class InputSlot extends Thread implements Slot, SlotInternal {
     private static final Logger LOG = LogManager.getLogger(InputSlot.class);
@@ -24,6 +29,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
     private final String slotId;
     private final String channelId;
     private final String logPrefix;
+    private final Runnable body;
 
     private final SlotsContext context;
     private final AtomicReference<State> state = new AtomicReference<>(State.BINDING);
@@ -31,9 +37,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
     private final CompletableFuture<StartTransferRequest> waitForPeer = new CompletableFuture<>();
     private final CompletableFuture<Void> ready = new CompletableFuture<>();
 
-    public InputSlot(InputSlotBackend backend, String slotId, String channelId,
-                     SlotsContext context)
-    {
+    public InputSlot(InputSlotBackend backend, String slotId, String channelId, SlotsContext context) {
         super(INPUT_SLOT_GROUP, "input-slot-%s ".formatted(slotId));
 
         this.backend = backend;
@@ -42,7 +46,28 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
         this.context = context;
 
         this.logPrefix = "InputSlot(slotId: %s, channelId: %s) ".formatted(slotId, channelId);
+
+        this.body = new ContextAwareTask() {
+            @Override
+            protected void execute() {
+                try {
+                    runImpl();
+                } catch (Exception e) {
+                    LOG.error("{} Error while running slot: ", logPrefix, e);
+                } finally {
+                    clear();
+                }
+            }
+        };
+
         this.start();
+
+        LOG.info("{} started", logPrefix);
+    }
+
+    @Override
+    public void run() {
+        body.run();
     }
 
     @Override
@@ -63,12 +88,16 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
             throw new IllegalStateException("Transfer is already started in this slot");
         }
 
+        LOG.info("{} transfer {} started, peer: {}",
+            logPrefix, transferId, printer().shortDebugString(peer));
+
         var req = new StartTransferRequest(transferId, peer);
         waitForPeer.complete(req);
     }
 
     @Override
     public void read(long offset, StreamObserver<LSA.ReadDataChunk> transfer) {
+        LOG.error("{} unexpected `read` call", logPrefix);
         transfer.onError(Status.UNIMPLEMENTED.asRuntimeException());
     }
 
@@ -83,6 +112,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
             return;
         }
 
+        LOG.info("{} close, interrupt self {}", logPrefix, toString());
         this.interrupt();
     }
 
@@ -96,12 +126,13 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
 
     private void runImpl() throws Exception {
         context.slotsService().register(this); // Registering here before bind
-        LOG.info("{} Registered in slots service, binding", logPrefix);
+
+        LOG.info("{} Registered in slots service, bind...", logPrefix);
 
         var resp = bind();
 
         if (resp == null || state.get() == State.CLOSED) {
-            LOG.error("{} Bind failed or slot already closed, failing", logPrefix);
+            LOG.error("{} Bind failed or slot already closed, fail", logPrefix);
             return;  // run method will clear all resources
         }
 
@@ -109,7 +140,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
         final LC.PeerDescription peerDescription;
 
         if (!resp.hasPeer()) {
-            LOG.info("{} Bind call does not have peer, waiting for it", logPrefix);
+            LOG.info("{} Bind call does not have peer, wait for it...", logPrefix);
             state.set(State.WAITING_FOR_PEER);
             var req = waitForPeer.get();
             transferId = req.transferId;
@@ -119,7 +150,8 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
             peerDescription = resp.getPeer();
         }
 
-        LOG.info("{} Got peer {} with transfer {}, starting download", logPrefix, peerDescription, transferId);
+        LOG.info("{} Got peer {} with transfer {}, start download...",
+            logPrefix, printer().shortDebugString(peerDescription), transferId);
 
         state.set(State.DOWNLOADING);
         context.slotsService().unregister(this.slotId); // Got peer, unregistering
@@ -140,19 +172,23 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
      * returns null if slot was closed
      */
     @Nullable
-    private LCMS.BindResponse bind() throws Exception {
-        return GrpcUtils.withRetries(LOG, () -> {
+    private LCMS.BindResponse bind() throws StatusRuntimeException {
+        var stub = withIdempotencyKey(context.channelManager(), UUID.randomUUID().toString());
+
+        return withRetries(LOG, INFINITY_RETRY_CONFIG, () -> {
             if (state.get().equals(State.CLOSED)) {
+                LOG.info("{} Bind cancelled, slot is closed", logPrefix);
                 return null;
             }
 
-            return context.channelManager().bind(LCMS.BindRequest.newBuilder()
-                .setPeerId(slotId)
-                .setExecutionId(context.executionId())
-                .setChannelId(channelId)
-                .setPeerUrl(context.apiUrl())
-                .setRole(LCMS.BindRequest.Role.CONSUMER)
-                .build());
+            return stub.bind(
+                LCMS.BindRequest.newBuilder()
+                    .setPeerId(slotId)
+                    .setExecutionId(context.executionId())
+                    .setChannelId(channelId)
+                    .setPeerUrl(context.apiUrl())
+                    .setRole(LCMS.BindRequest.Role.CONSUMER)
+                    .build());
         });
     }
 
@@ -172,24 +208,15 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
         }
 
         try {
-            context.channelManager().unbind(LCMS.UnbindRequest.newBuilder()
-                .setChannelId(channelId)
-                .setPeerId(slotId)
-                .build());
+            var stub = withIdempotencyKey(context.channelManager(), UUID.randomUUID().toString());
+            withRetries(LOG, LONGENOUGH_RETRY_CONFIG, () -> stub.unbind(
+                LCMS.UnbindRequest.newBuilder()
+                    .setChannelId(channelId)
+                    .setPeerId(slotId)
+                    .build()));
         } catch (Exception e) {
             LOG.error("{} Error while unbinding: ", logPrefix, e);
             // Ignoring this error
-        }
-    }
-
-    @Override
-    public void run() {
-        try {
-            runImpl();
-        } catch (Exception e) {
-            LOG.error("{} Error while running slot: ", logPrefix, e);
-        } finally {
-            clear();
         }
     }
 
@@ -198,30 +225,33 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
         var peer = initPeer;
         var transfer = context.transferFactory().input(peer, offset);
         var transferId = initTransferId;
-        var failed = false;
+        var peerFailReason = (String) null;
         SeekableByteChannel backendStream = backend.openChannel();
 
         while (true) {
-            if (failed) {
-                failed = false;
-
+            if (peerFailReason != null) {
                 // Reopening channel
                 backendStream.close();
                 backendStream = backend.openChannel();
 
                 transfer.close();
-                var newPeerResp = context.channelManager()
-                    .transferFailed(LCMS.TransferFailedRequest.newBuilder()
-                        .setTransferId(transferId)
-                        .setChannelId(channelId)
-                        .build());
+
+                var stub = withIdempotencyKey(context.channelManager(), UUID.randomUUID().toString());
+                var req = LCMS.TransferFailedRequest.newBuilder()
+                    .setTransferId(transferId)
+                    .setChannelId(channelId)
+                    .setDescription(peerFailReason)
+                    .build();
+
+                var newPeerResp = withRetries(LOG, LONGENOUGH_RETRY_CONFIG, () -> stub.transferFailed(req));
 
                 if (!newPeerResp.hasNewPeer()) {
+                    // we expect that we always have S3 peer
                     LOG.error("({}) Cannot get peer from channel manager", logPrefix);
-
                     throw new IllegalStateException("Cannot get data from any peer");
                 }
 
+                peerFailReason = null;
                 peer = newPeerResp.getNewPeer();
 
                 LOG.info("({}) Got new peer {}", logPrefix, peer.getPeerId());
@@ -236,7 +266,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
             } catch (InputTransfer.ReadException e) {
                 // Some error while reading from peer, marking it as bad
                 LOG.error("({}) Error while reading from peer {}: ", logPrefix, peer.getPeerId(), e);
-                failed = true;
+                peerFailReason = e.getMessage();
                 continue;
             } catch (Exception e) {
                 // Some error on backend side
@@ -248,10 +278,14 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
             if (read == -1) {
                 transfer.close();
                 backendStream.close();
-                context.channelManager().transferCompleted(LCMS.TransferCompletedRequest.newBuilder()
+
+                var stub = withIdempotencyKey(context.channelManager(), UUID.randomUUID().toString());
+                var req = LCMS.TransferCompletedRequest.newBuilder()
                     .setTransferId(transferId)
                     .setChannelId(channelId)
-                    .build());
+                    .build();
+
+                withRetries(LOG, LONGENOUGH_RETRY_CONFIG, () -> stub.transferCompleted(req));
                 return;
 
             } else {
@@ -263,5 +297,11 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
     private record StartTransferRequest(
         String transferId,
         LC.PeerDescription peerDescription
-    ) {}
+    ) {
+        @Override
+        public String toString() {
+            return "StartTransferRequest(transferId: " + transferId +
+                ", peer: " + printer().shortDebugString(peerDescription) + ")";
+        }
+    }
 }

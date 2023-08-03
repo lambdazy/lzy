@@ -5,6 +5,7 @@ lzy-service:
   channel-manager-address: 'localhost:8122'
   allocator-address: 'localhost:8899'
   allocator-vm-cache-timeout: 21m
+  bucket-creation-timeout: 10s
 
   gc:
     enabled: true
@@ -19,7 +20,27 @@ lzy-service:
     max-pool-size: 5
 
   storage:
-    address: 'localhost:7780'
+    yc:
+      enabled: false
+      service-account-id: 'service-account-id'
+      key-id: 'key-id'
+      private-key: 'private-key'
+      folder-id: 'folder-id'
+
+    s3:
+      yc:
+        enabled: false
+        endpoint: ''
+        access-token: ''
+        secret-token: ''
+
+      azure:
+        enabled: false
+        connection-string: ''
+
+      memory:
+        enabled: false
+        port: 18081
 
   iam:
     address: 'localhost:8443'

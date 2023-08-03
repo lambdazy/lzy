@@ -8,6 +8,8 @@ public record SlotsContext(
     TransferFactory transferFactory,
     String apiUrl,
     SlotsService slotsService,
+    String executeRequestId,
     String executionId,
+    String taskId,
     SlotsExecutionContext executionContext
 ) {}

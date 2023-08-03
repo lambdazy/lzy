@@ -2,8 +2,10 @@ package ai.lzy.slots.transfers;
 
 import ai.lzy.storage.StorageClient;
 import ai.lzy.storage.StorageClientFactory;
+import ai.lzy.storage.StorageConfig;
+import ai.lzy.storage.StorageConfig.AzureBlobStorageCredentials;
+import ai.lzy.storage.StorageConfig.S3Credentials;
 import ai.lzy.v1.common.LC;
-import ai.lzy.v1.common.LMST;
 
 import java.net.URI;
 import java.nio.channels.Channels;
@@ -16,16 +18,14 @@ public class StorageInputTransfer implements InputTransfer {
     public StorageInputTransfer(LC.PeerDescription peer, StorageClientFactory factory) {
         this.peer = peer;
 
-        var builder = LMST.StorageConfig.newBuilder()
-            .setUri(peer.getStoragePeer().getStorageUri());
-
         if (peer.getStoragePeer().hasAzure()) {
-            builder.setAzure(peer.getStoragePeer().getAzure());
+            var azure = new AzureBlobStorageCredentials(peer.getStoragePeer().getAzure().getConnectionString());
+            this.client = factory.provider(StorageConfig.of(azure)).get();
         } else {
-            builder.setS3(peer.getStoragePeer().getS3());
+            var s3proto = peer.getStoragePeer().getS3();
+            var s3 = new S3Credentials(s3proto.getEndpoint(), s3proto.getAccessToken(), s3proto.getSecretToken());
+            this.client = factory.provider(StorageConfig.of(s3)).get();
         }
-
-        this.client = factory.provider(builder.build()).get();
     }
 
     @Override

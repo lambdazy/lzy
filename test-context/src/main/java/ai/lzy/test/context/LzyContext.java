@@ -22,7 +22,6 @@ public class LzyContext {
     private final ChannelManagerContext channelManagerCtx;
     private final GraphExecutorContext graphExecutorCtx;
     private final SchedulerContext schedulerCtx;
-    private final StorageServiceContext storageCtx;
     private final WhiteboardServiceContext whiteboardCtx;
     private final LzyServiceContext lzyServiceCtx;
 
@@ -31,8 +30,7 @@ public class LzyContext {
     public LzyContext(ApplicationContext micronautCtx, LzyConfig lzyConfig, IamContext iamCtx,
                       AllocatorContext allocatorCtx, ChannelManagerContext channelManagerCtx,
                       GraphExecutorContext graphExecutorCtx, SchedulerContext schedulerCtx,
-                      StorageServiceContext storageCtx, WhiteboardServiceContext whiteboardCtx,
-                      LzyServiceContext lzyServiceCtx)
+                      WhiteboardServiceContext whiteboardCtx, LzyServiceContext lzyServiceCtx)
     {
         this.micronautCtx = micronautCtx;
         this.lzyConfig = lzyConfig;
@@ -41,7 +39,6 @@ public class LzyContext {
         this.channelManagerCtx = channelManagerCtx;
         this.graphExecutorCtx = graphExecutorCtx;
         this.schedulerCtx = schedulerCtx;
-        this.storageCtx = storageCtx;
         this.whiteboardCtx = whiteboardCtx;
         this.lzyServiceCtx = lzyServiceCtx;
     }
@@ -53,7 +50,6 @@ public class LzyContext {
         setUpChannelManager();
         setUpGraphExecutor();
         setUpScheduler();
-        setUpStorageService();
         setUpWhiteboardService();
         setUpLzyService();
     }
@@ -64,7 +60,6 @@ public class LzyContext {
         channelManagerCtx.tearDown();
         graphExecutorCtx.tearDown();
         schedulerCtx.tearDown();
-        storageCtx.tearDown();
         whiteboardCtx.tearDown();
         lzyServiceCtx.tearDown();
         running.countDown();
@@ -81,7 +76,6 @@ public class LzyContext {
 
         configOverrides.put("address", "localhost:" + lzyConfig.getPorts().getLzyServicePort());
         configOverrides.put("iam.address", "localhost:" + lzyConfig.getPorts().getIamPort());
-        configOverrides.put("storage.address", "localhost:" + lzyConfig.getPorts().getStoragePort());
         configOverrides.put("channel-manager-address", "localhost:" + lzyConfig.getPorts().getChannelManagerPort());
         configOverrides.put("graph-executor-address", "localhost:" + lzyConfig.getPorts().getGraphExecutorPort());
         configOverrides.put("allocator-address", "localhost:" + lzyConfig.getPorts().getAllocatorPort());
@@ -120,28 +114,6 @@ public class LzyContext {
         var envs = lzyConfig.getEnvironments().getWhiteboardEnvironments();
 
         whiteboardCtx.setUp(configPath, configOverrides, toArray(envs));
-    }
-
-    private void setUpStorageService() throws Exception {
-        var storagePrefix = "storage";
-
-        Map<String, Object> configOverrides = new HashMap<>(micronautCtx.getProperties(storagePrefix));
-
-        configOverrides.put("address", "localhost:" + lzyConfig.getPorts().getStoragePort());
-        configOverrides.put("iam.address", "localhost:" + lzyConfig.getPorts().getIamPort());
-        configOverrides.put(LzyConfig.Database.DB_ENABLED, true);
-        configOverrides.put(LzyConfig.Database.DB_URL, lzyConfig.getDatabase().getStorageServiceDbUrl());
-        configOverrides.put(LzyConfig.Database.DB_USERNAME, LzyConfig.Database.POSTGRES_USERNAME);
-        configOverrides.put(LzyConfig.Database.DB_PASSWORD, LzyConfig.Database.POSTGRES_PASSWORD);
-
-        configOverrides.values().removeIf(Objects::isNull);
-        configOverrides = configOverrides.entrySet().stream().collect(
-            Collectors.toMap(e -> storagePrefix + "." + e.getKey(), Map.Entry::getValue));
-
-        var configPath = lzyConfig.getConfigs().getStorageConfig();
-        var envs = lzyConfig.getEnvironments().getStorageEnvironments();
-
-        storageCtx.setUp(configPath, configOverrides, toArray(envs));
     }
 
     private void setUpScheduler() throws Exception {

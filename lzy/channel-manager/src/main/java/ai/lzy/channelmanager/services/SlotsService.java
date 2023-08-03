@@ -200,7 +200,8 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                 try (var tx = TransactionHandle.create(storage)) {
                     Transfer transfer = getAndValidateTransfer(request.getTransferId(), channel, logPrefix, tx);
 
-                    LOG.error("{} Failed with description {}", logPrefix, request.getDescription());
+                    LOG.error("{} Failed with description '{}', current transfer: {}",
+                        logPrefix, request.getDescription(), transfer);
                     transferDao.markFailed(request.getTransferId(), channel.id(), request.getDescription(), tx);
 
                     if (transfer.to().description().hasStoragePeer()) {
@@ -373,8 +374,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         final var authenticationContext = AuthenticationContext.current();
         final String subjId = Objects.requireNonNull(authenticationContext).getSubject().id();
 
-        var hasAccess = accessManager.checkAccess(subjId, channel.userId(), channel.workflowName(),
-            WORKFLOW_RUN);
+        var hasAccess = accessManager.checkAccess(subjId, channel.userId(), channel.workflowName(), WORKFLOW_RUN);
 
         if (!hasAccess) {
             LOG.error("{}: Permission denied (executionId: {}, userId: {}, subjId: {})", callName,

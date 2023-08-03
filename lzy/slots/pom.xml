@@ -24,27 +24,12 @@
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
-            <artifactId>long-running-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>long-running</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
             <artifactId>slots-api</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>ai.lzy</groupId>
             <artifactId>util-auth</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>util-azure</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -63,29 +48,12 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>ai.lzy</groupId>
-            <artifactId>storage-api</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-core</artifactId>
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
             <artifactId>aws-java-sdk-s3</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.azure</groupId>
-            <artifactId>azure-storage-blob</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.github.jnr</groupId>
-            <artifactId>jnr-ffi</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.github.serceman</groupId>
-            <artifactId>jnr-fuse</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.protobuf</groupId>

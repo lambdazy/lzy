@@ -224,7 +224,7 @@ public class AllocatorPrivateService extends AllocatorPrivateImplBase {
 
         if (vm == null) {
             allocationContext.metrics().hbUnknownVm.inc();
-            LOG.error("Heartbeat from unknown VM {}", request.getVmId());
+            LOG.error("Heartbeat from unknown (already deleted?) VM {}", request.getVmId());
             responseObserver.onError(
                 Status.NOT_FOUND.withDescription("Vm not found").asException());
             return;

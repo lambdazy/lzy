@@ -394,7 +394,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         assertVmMetrics("S", -1, 0, 1);
 
         Assert.assertTrue(removeSecondVmLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
-        assertVmMetrics("S", 0, 0, 0);
+        assertVmMetrics("S", 0, 0, 0, Duration.ofSeconds(5));
     }
 
     @Test
@@ -436,6 +436,26 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         Assert.assertTrue(kuberRemoveRequestLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
 
         assertVmMetrics("S", 0, 0, 0);
+    }
+
+    @Test
+    public void forceFreeFromCache() throws Exception {
+        var sessionId = createSession(Durations.fromSeconds(10));
+
+        final CountDownLatch kuberRemoveRequestLatch = new CountDownLatch(1);
+
+        var firstVm = allocateAndFreeVm(sessionId,
+            vm -> mockDeletePodByName(vm.podName(), kuberRemoveRequestLatch::countDown, HttpURLConnection.HTTP_OK));
+
+        assertVmMetrics("S", -1, 0, 1);
+
+        var forceFreeOp = forceFreeVm(firstVm.vmId());
+        waitOpSuccess(forceFreeOp);
+        assertVmMetrics("S", -1, 0, 0);
+
+        var secondVm = allocateVm(sessionId, "S", null);
+        Assert.assertNotEquals(firstVm.vmId(), secondVm.vmId());
+        assertVmMetrics("S", -1, 1, 0);
     }
 
     @Test

@@ -29,3 +29,9 @@ Configuration:
 
       - name: ai.lzy.service
         level: info
+
+      - name: com.amazonaws.AmazonWebServiceClient
+        level: warn
+
+      - name: io.zonky.test
+        level: warn

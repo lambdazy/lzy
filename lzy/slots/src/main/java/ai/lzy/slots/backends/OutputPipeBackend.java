@@ -4,7 +4,10 @@ import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.nio.channels.FileChannel;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.file.Files;
@@ -27,11 +30,12 @@ public class OutputPipeBackend implements OutputSlotBackend {
             Files.createDirectories(pipePath.getParent());
         }
 
-        // Creating named pipe
+        // Create named pipe
         var res = Runtime.getRuntime().exec(new String[]{"mkfifo", pipePath.toAbsolutePath().toString()}).waitFor();
 
         if (res != 0) {
-            throw new RuntimeException("Failed to create named pipe");
+            throw new RuntimeException("Failed to create named pipe '%s': %d"
+                .formatted(pipePath.toAbsolutePath().toString(), res));
         }
     }
 
