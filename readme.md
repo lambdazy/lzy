@@ -18,8 +18,6 @@ with the following properties:
 
 ## Quick start
 
-[![Google Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1Z7CERGqTU-ZTu3dwbeZxD9zJ6L8oQBbN?usp=sharing)
-
 ʎzy allows running any python functions on a cluster by annotating them with `@op` decorator:
 
 ```python
