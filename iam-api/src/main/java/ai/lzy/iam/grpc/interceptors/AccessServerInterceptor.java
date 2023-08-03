@@ -6,41 +6,61 @@ import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.AuthResource;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.util.auth.exceptions.AuthException;
-import io.grpc.Metadata;
-import io.grpc.ServerCall;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
-import io.grpc.Status;
+import io.grpc.*;
+import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class AccessServerInterceptor implements ServerInterceptor {
     private static final Logger LOG = LogManager.getLogger(AccessServerInterceptor.class);
 
     private final AccessClient accessServiceClient;
+    private final Set<MethodDescriptor<?, ?>> exceptMethods;
 
     private record AuthConf(
         AuthResource resource,
         AuthPermission permission
     ) {}
 
-    private final AtomicReference<AuthConf> authConf = new AtomicReference<>(null);
+    private final AtomicReference<AuthConf> authConf;
 
     public AccessServerInterceptor(AccessClient accessServiceClient) {
-        this.accessServiceClient = accessServiceClient;
+        this(accessServiceClient, Set.of(), null);
+    }
+
+    public AccessServerInterceptor(AccessClient accessServiceClient, Set<MethodDescriptor<?, ?>> exceptMethods) {
+        this(accessServiceClient, exceptMethods, null);
     }
 
     public AccessServerInterceptor(AccessClient accessClient, AuthResource resource, AuthPermission permission) {
-        this.accessServiceClient = accessClient;
-        authConf.set(new AuthConf(resource, permission));
+        this(accessClient, Set.of(), new AuthConf(resource, permission));
+    }
+
+    public AccessServerInterceptor(AccessClient accessClient, Set<MethodDescriptor<?, ?>> exceptMethods,
+                                   AuthResource resource, AuthPermission permission)
+    {
+        this(accessClient, exceptMethods, new AuthConf(resource, permission));
+    }
+
+    private AccessServerInterceptor(AccessClient accessServiceClient, Set<MethodDescriptor<?, ?>> exceptMethods,
+                                    @Nullable AuthConf authConf)
+    {
+        this.accessServiceClient = accessServiceClient;
+        this.exceptMethods = exceptMethods;
+        this.authConf = new AtomicReference<>(authConf);
     }
 
     public void configure(AuthResource authResource, AuthPermission authPermission) {
         LOG.debug("Configure check access to {}/{}", authResource, authPermission);
         authConf.set(new AuthConf(authResource, authPermission));
+    }
+
+    public AccessServerInterceptor ignoreMethods(MethodDescriptor<?, ?>... methods) {
+        return new AccessServerInterceptor(accessServiceClient, Set.of(methods), authConf.get());
     }
 
     @Override
@@ -52,6 +72,10 @@ public class AccessServerInterceptor implements ServerInterceptor {
 
             call.close(Status.UNAUTHENTICATED, new Metadata());
             return new ServerCall.Listener<>() {};
+        }
+
+        if (exceptMethods.contains(call.getMethodDescriptor())) {
+            return next.startCall(call, headers);
         }
 
         var authConf = this.authConf.get();

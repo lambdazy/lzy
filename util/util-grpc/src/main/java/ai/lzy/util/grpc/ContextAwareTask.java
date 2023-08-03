@@ -9,7 +9,8 @@ import org.apache.logging.log4j.ThreadContext;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
+
+import static ai.lzy.util.grpc.GrpcHeaders.HEADERS;
 
 public abstract class ContextAwareTask implements Runnable {
     private final Map<String, String> logContext;
@@ -21,10 +22,19 @@ public abstract class ContextAwareTask implements Runnable {
 
         emplace(LogContextKey.REQUEST_ID, GrpcHeaders.X_REQUEST_ID);
         emplace(LogContextKey.EXECUTION_ID, GrpcHeaders.X_EXECUTION_ID);
+        emplace(LogContextKey.EXECUTION_TASK_ID, GrpcHeaders.X_EXECUTION_TASK_ID);
     }
 
     public final void run() {
-        var previous = grpcContext.attach();
+        var newHeaders = new Metadata();
+        var existingHeaders = HEADERS.get(grpcContext);
+        if (existingHeaders != null) {
+            newHeaders.merge(existingHeaders);
+        }
+        prepareGrpcHeaders().forEach(newHeaders::put);
+
+        var ctx = grpcContext.withValue(HEADERS, newHeaders);
+        var previous = ctx.attach();
         try (var ignore = CloseableThreadContext.putAll(logContext).putAll(prepareLogContext())) {
             try {
                 execute();
@@ -32,7 +42,7 @@ public abstract class ContextAwareTask implements Runnable {
                 throw Lombok.sneakyThrow(e);
             }
         } finally {
-            grpcContext.detach(previous);
+            ctx.detach(previous);
         }
     }
 
@@ -42,11 +52,14 @@ public abstract class ContextAwareTask implements Runnable {
         return new HashMap<>();
     }
 
-    protected final void emplace(String logKey, Metadata.Key<String> grpcHeader) {
-        logContext.computeIfAbsent(logKey, x -> fromHeader(grpcHeader));
+    protected Map<Metadata.Key<String>, String> prepareGrpcHeaders() {
+        return new HashMap<>();
     }
 
-    protected static String fromHeader(Metadata.Key<String> header) {
-        return Optional.ofNullable(GrpcHeaders.getHeader(header)).orElse("unknown");
+    protected final void emplace(String logKey, Metadata.Key<String> grpcHeader) {
+        var value = GrpcHeaders.getHeader(grpcHeader);
+        if (value != null) {
+            logContext.putIfAbsent(logKey, value);
+        }
     }
 }

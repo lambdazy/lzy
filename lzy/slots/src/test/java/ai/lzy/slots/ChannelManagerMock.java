@@ -2,13 +2,18 @@ package ai.lzy.slots;
 
 import ai.lzy.v1.channel.LCMS.*;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
+import com.google.protobuf.TextFormat;
 import io.grpc.stub.StreamObserver;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
+    private static final Logger LOG = LogManager.getLogger(ChannelManagerMock.class);
+
     private final ConcurrentHashMap<String, RequestHandle<BindResponse, BindRequest>>
         onBind = new ConcurrentHashMap<>();
 
@@ -23,6 +28,8 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
 
     @Override
     public void bind(BindRequest request, StreamObserver<BindResponse> responseObserver) {
+        LOG.info("bind:: {}", TextFormat.printer().shortDebugString(request));
+
         var handle = onBind.get(request.getPeerId());
         if (handle == null) {
             responseObserver.onError(new RuntimeException("Unexpected bind request: " + request));
@@ -33,6 +40,8 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
 
     @Override
     public void unbind(UnbindRequest request, StreamObserver<UnbindResponse> responseObserver) {
+        LOG.info("unbind:: {}", TextFormat.printer().shortDebugString(request));
+
         var handle = onUnbind.get(request.getPeerId());
         if (handle == null) {
             responseObserver.onError(new RuntimeException("Unexpected unbind request: " + request));
@@ -42,9 +51,11 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
     }
 
     @Override
-    public void transferCompleted(
-        TransferCompletedRequest request, StreamObserver<TransferCompletedResponse> responseObserver)
+    public void transferCompleted(TransferCompletedRequest request,
+                                  StreamObserver<TransferCompletedResponse> responseObserver)
     {
+        LOG.info("transferCompleted:: {}", TextFormat.printer().shortDebugString(request));
+
         var handle = onTransferCompleted.get(request.getTransferId());
         if (handle == null) {
             responseObserver.onError(new RuntimeException("Unexpected transfer completed request: " + request));
@@ -55,6 +66,8 @@ public class ChannelManagerMock extends LzyChannelManagerGrpc.LzyChannelManagerI
 
     @Override
     public void transferFailed(TransferFailedRequest request, StreamObserver<TransferFailedResponse> responseObserver) {
+        LOG.info("transferFailed:: {}", TextFormat.printer().shortDebugString(request));
+
         var handle = onTransferFailed.get(request.getTransferId());
         if (handle == null) {
             responseObserver.onError(new RuntimeException("Unexpected transfer failed request: " + request));

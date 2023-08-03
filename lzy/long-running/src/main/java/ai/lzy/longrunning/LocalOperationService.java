@@ -7,6 +7,7 @@ import ai.lzy.v1.longrunning.LongRunning.CancelOperationRequest;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
 import com.google.protobuf.Any;
 import com.google.protobuf.Message;
+import io.grpc.Metadata;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -78,7 +79,23 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
      * Execute operation in new Thread and complete it on response or error
      */
     public OperationSnapshot execute(Operation op, Supplier<Message> runnable) {
+        return execute(op, runnable, Map.of(), Map.of());
+    }
+
+    public OperationSnapshot execute(Operation op, Supplier<Message> runnable, Map<String, String> logContextOverrides,
+                                     Map<Metadata.Key<String>, String> grpcHeadersOverrides)
+    {
         var task = new ContextAwareTask() {
+            @Override
+            protected Map<String, String> prepareLogContext() {
+                return logContextOverrides;
+            }
+
+            @Override
+            protected Map<Metadata.Key<String>, String> prepareGrpcHeaders() {
+                return grpcHeadersOverrides;
+            }
+
             @Override
             protected void execute() {
                 try {
