@@ -394,7 +394,7 @@ public class AllocatorServiceTest extends AllocatorApiTestBase {
         assertVmMetrics("S", -1, 0, 1);
 
         Assert.assertTrue(removeSecondVmLatch.await(TIMEOUT_SEC, TimeUnit.SECONDS));
-        assertVmMetrics("S", 0, 0, 0);
+        assertVmMetrics("S", 0, 0, 0, Duration.ofSeconds(5));
     }
 
     @Test

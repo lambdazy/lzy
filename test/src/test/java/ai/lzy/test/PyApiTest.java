@@ -1,6 +1,7 @@
 package ai.lzy.test;
 
 import ai.lzy.env.aux.CondaEnvironment;
+import ai.lzy.slots.transfers.SlotInputTransfer;
 import ai.lzy.test.context.PythonContextTests;
 import org.junit.Test;
 
@@ -9,6 +10,8 @@ import java.util.List;
 public class PyApiTest extends PythonContextTests {
     static {
         CondaEnvironment.reconfigureConda(false);  // To optimize conda configuration
+
+        SlotInputTransfer.setMaxRetryAttempts(2);
     }
 
     @Test

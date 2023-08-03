@@ -225,13 +225,11 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
         var peer = initPeer;
         var transfer = context.transferFactory().input(peer, offset);
         var transferId = initTransferId;
-        var failed = false;
+        var peerFailReason = (String) null;
         SeekableByteChannel backendStream = backend.openChannel();
 
         while (true) {
-            if (failed) {
-                failed = false;
-
+            if (peerFailReason != null) {
                 // Reopening channel
                 backendStream.close();
                 backendStream = backend.openChannel();
@@ -242,6 +240,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
                 var req = LCMS.TransferFailedRequest.newBuilder()
                     .setTransferId(transferId)
                     .setChannelId(channelId)
+                    .setDescription(peerFailReason)
                     .build();
 
                 var newPeerResp = withRetries(LOG, LONGENOUGH_RETRY_CONFIG, () -> stub.transferFailed(req));
@@ -252,6 +251,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
                     throw new IllegalStateException("Cannot get data from any peer");
                 }
 
+                peerFailReason = null;
                 peer = newPeerResp.getNewPeer();
 
                 LOG.info("({}) Got new peer {}", logPrefix, peer.getPeerId());
@@ -266,7 +266,7 @@ public class InputSlot extends Thread implements Slot, SlotInternal {
             } catch (InputTransfer.ReadException e) {
                 // Some error while reading from peer, marking it as bad
                 LOG.error("({}) Error while reading from peer {}: ", logPrefix, peer.getPeerId(), e);
-                failed = true;
+                peerFailReason = e.getMessage();
                 continue;
             } catch (Exception e) {
                 // Some error on backend side

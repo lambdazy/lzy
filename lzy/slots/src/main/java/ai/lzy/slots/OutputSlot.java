@@ -84,7 +84,7 @@ public class OutputSlot implements Slot, SlotInternal {
 
     @Override
     public void close() {
-        LOG.info("{} close", logPrefix);
+        LOG.info("{} Start close...", logPrefix);
         // Failed, so no more requests from outside available
         context.slotsService().unregister(slotId);
 

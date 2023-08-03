@@ -5,6 +5,7 @@ import ai.lzy.util.grpc.ClientHeaderInterceptor;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import ai.lzy.v1.VmAllocatorPrivateApi;
 import io.grpc.ManagedChannel;
+import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
@@ -37,6 +38,7 @@ public class AllocatorAgent extends TimerTask {
     public static final String K8S_CONTAINER_NAME = "K8S_CONTAINER_NAME";
 
     private final String vmId;
+    private final String allocatorAddress;
     private final AllocatorPrivateGrpc.AllocatorPrivateBlockingStub stub;
     private final Duration heartbeatPeriod;
     private final Timer timer;
@@ -48,12 +50,13 @@ public class AllocatorAgent extends TimerTask {
                           @Nullable Duration heartbeatPeriod)
     {
         this.vmId = vmId == null ? System.getenv(VM_ID_KEY) : vmId;
-        final var allocAddress = allocatorAddress == null
-            ? System.getenv(VM_ALLOCATOR_ADDRESS) : allocatorAddress;
+        this.allocatorAddress = allocatorAddress == null
+            ? System.getenv(VM_ALLOCATOR_ADDRESS)
+            : allocatorAddress;
         this.heartbeatPeriod = heartbeatPeriod == null ? Duration.parse(System.getenv(VM_HEARTBEAT_PERIOD))
             : heartbeatPeriod;
 
-        channel = newGrpcChannel(allocAddress, AllocatorPrivateGrpc.SERVICE_NAME);
+        channel = newGrpcChannel(this.allocatorAddress, AllocatorPrivateGrpc.SERVICE_NAME);
         stub = newBlockingClient(AllocatorPrivateGrpc.newBlockingStub(channel), "AllocatorAgent", null);
 
         ott = ott != null ? ott : System.getenv(VM_ALLOCATOR_OTT);
@@ -133,7 +136,10 @@ public class AllocatorAgent extends TimerTask {
                 .setVmId(vmId)
                 .build());
         } catch (StatusRuntimeException e) {
-            LOG.error("Cannot send heartbeat to allocator: {}", e.getStatus());
+            LOG.error("Cannot send heartbeat to allocator {}: {}", allocatorAddress, e.getStatus());
+            if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+                cancel();
+            }
         }
     }
 
@@ -143,7 +149,7 @@ public class AllocatorAgent extends TimerTask {
         try {
             channel.awaitTermination(5, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
-            LOG.error("Error while stopping allocator agent", e);
+            LOG.error("Shutdown interrupted", e);
         }
     }
 

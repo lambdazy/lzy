@@ -167,6 +167,9 @@ public final class GrpcUtils {
 
         while (true) {
             if (++attempt != 1) {
+                if (delayMs == 0) {
+                    Runtime.getRuntime().halt(42);
+                }
                 LockSupport.parkNanos(Duration.ofMillis(delayMs).toNanos());
             }
 
@@ -184,7 +187,11 @@ public final class GrpcUtils {
                 }
 
                 if (retry) {
-                    delayMs = Math.min(config.maxBackoff.toMillis(), (long) (delayMs * config.backoffMultiplayer));
+                    if (attempt == 1) {
+                        delayMs = config.initialBackoff.toMillis();
+                    } else {
+                        delayMs = Math.min(config.maxBackoff.toMillis(), (long) (delayMs * config.backoffMultiplayer));
+                    }
                     logger.warn("Got retryable error while executing some grpc call, retry after {} ms", delayMs, e);
                     continue;
                 }
