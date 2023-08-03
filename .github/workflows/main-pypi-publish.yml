@@ -30,7 +30,7 @@ jobs:
 
       - name: 'AC test'
         timeout-minutes: 45
-        run: mvn install -Dlzy.kharon.domain=api.lzy.ai -Dtest=KuberRunTest -DfailIfNoTests=false
+        run: mvn install -Dtest=KuberRunTest -DfailIfNoTests=false
 
       - uses: scacap/action-surefire-report@v1
         if: always()

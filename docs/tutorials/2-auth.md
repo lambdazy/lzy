@@ -1,6 +1,7 @@
 # Authentication
 
 ### Sandbox sign up
+<span style="color:red">**Sandbox installation is closed.**</span>
 
 1. Sign in to [ʎzy website](https://lzy.ai) using your [github](https://github.com) account.
 2. **[Skip this step if you has already have an RSA key]** Generate RSA keys with openssl:
