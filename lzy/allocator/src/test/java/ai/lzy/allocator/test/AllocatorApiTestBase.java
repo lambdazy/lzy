@@ -405,6 +405,17 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
         }
     }
 
+    protected void assertVmMetrics(String pool, int allocating, int running, int cached, java.time.Duration timeout) {
+        TimeUtils.waitFlagUp(() -> {
+            try {
+                assertVmMetrics(pool, allocating, running, cached);
+                return true;
+            } catch (AssertionError ignored) {
+                return false;
+            }
+        }, timeout.toMillis(), TimeUnit.MILLISECONDS);
+    }
+
     @Nonnull
     public static String getVmPodName(String vmId) {
         return KuberVmAllocator.VM_POD_NAME_PREFIX + vmId.toLowerCase(Locale.ROOT);
