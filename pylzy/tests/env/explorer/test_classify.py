@@ -3,14 +3,13 @@ from pathlib import Path
 
 import pytest
 
-from lzy.utils.pypi import PYPI_INDEX_URL_DEFAULT
 from lzy.env.explorer.classify import ModuleClassifier
 from lzy.env.explorer.packages import LocalPackage, PypiDistribution, LocalDistribution
 
 
 @pytest.fixture(scope='function')
-def classifier() -> ModuleClassifier:
-    return ModuleClassifier(pypi_index_url=PYPI_INDEX_URL_DEFAULT)
+def classifier(pypi_index_url) -> ModuleClassifier:
+    return ModuleClassifier(pypi_index_url=pypi_index_url)
 
 
 @pytest.mark.block_network
@@ -52,12 +51,12 @@ def test_classify_local_packages(
 
 
 @pytest.mark.vcr
-def test_classify_pypi_packages(classifier: ModuleClassifier) -> None:
+def test_classify_pypi_packages(classifier: ModuleClassifier, pypi_index_url: str) -> None:
     assert classifier.classify([pytest]) == frozenset({
         PypiDistribution(
             name='pytest',
             version='.'.join(str(v) for v in pytest.version_tuple),
-            pypi_index_url=PYPI_INDEX_URL_DEFAULT
+            pypi_index_url=pypi_index_url,
         )
     })
 
