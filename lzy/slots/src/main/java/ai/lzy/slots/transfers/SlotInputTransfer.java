@@ -21,12 +21,14 @@ import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 public class SlotInputTransfer implements InputTransfer, AutoCloseable {
     private static final Logger LOG = LogManager.getLogger(SlotInputTransfer.class);
 
+    private static volatile int MAX_RETRY_ATTEMPTS = 15;
+
     private final LC.PeerDescription peer;
     private final ManagedChannel channel;
     private final LzySlotsApiGrpc.LzySlotsApiBlockingStub stub;
     private long currentOffset;
     private Iterator<LSA.ReadDataChunk> stream;
-    private int remainingRetries = 15;
+    private int retryAttempt = 0;
 
     public SlotInputTransfer(LC.PeerDescription peer, long offset, Supplier<String> jwt) {
         this.peer = peer;
@@ -63,23 +65,25 @@ public class SlotInputTransfer implements InputTransfer, AutoCloseable {
                 done = true;
             } catch (StatusRuntimeException e) {
                 if (!GrpcUtils.retryableStatusCode(e.getStatus())) {
-                    LOG.error("Non retryable error '{}' while reading from slot peer {}",
-                        e.getStatus(), peer.getPeerId());
+                    LOG.error("Cannot read from peer {}, got non-retryable error: {}", peer.getPeerId(), e.getStatus());
                     throw new ReadException("Cannot read from slot peer " + peer.getPeerId(), e);
                 }
 
-                LOG.warn("Error '{}' while reading from slot peer {}, retry later...", e.getStatus(), peer.getPeerId());
+                ++retryAttempt;
 
-                remainingRetries--;
+                if (retryAttempt > MAX_RETRY_ATTEMPTS) {
+                    throw new ReadException("Cannot read from slot peer " + peer.getPeerId() + ", retry limit exceeded",
+                        e);
+                }
+
+                LOG.warn("Cannot read from peer {}, attempt #{}, retry after 1 sec, error: {}",
+                    peer.getPeerId(), retryAttempt, e.getStatus());
+
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException ex) {
                     LOG.warn("Interrupted while waiting for retry", ex);
                     throw new IOException("Interrupted while waiting for retry", ex);
-                }
-
-                if (remainingRetries == 0) {
-                    throw new ReadException("Cannot read from slot peer " + peer.getPeerId(), e);
                 }
             }
         }
@@ -101,5 +105,9 @@ public class SlotInputTransfer implements InputTransfer, AutoCloseable {
         } catch (InterruptedException e) {
             LOG.warn("Interrupted while waiting for channel to terminate", e);
         }
+    }
+
+    public static void setMaxRetryAttempts(int maxRetryAttempts) {
+        MAX_RETRY_ATTEMPTS = maxRetryAttempts;
     }
 }

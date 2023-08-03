@@ -212,7 +212,7 @@ public class OperationDaoImpl implements OperationDao {
         var operation = getBy(idempotencyKey, QUERY_FIND_OPERATION, transaction);
 
         if (operation == null) {
-            LOG.info("Cannot find operation by { idempotencyKey: {} }", idempotencyKey);
+            LOG.debug("Cannot find operation by { idempotencyKey: {} }", idempotencyKey);
         }
 
         return operation;
@@ -224,7 +224,7 @@ public class OperationDaoImpl implements OperationDao {
         var operation = getBy(operationId, QUERY_GET_OPERATION, transaction);
 
         if (operation == null) {
-            LOG.info("Cannot find operation by { operationId: {} }", operationId);
+            LOG.debug("Cannot find operation by { operationId: {} }", operationId);
         }
 
         return operation;
