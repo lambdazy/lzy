@@ -1,4 +1,4 @@
-import os
+import sys
 import json
 import pathlib
 import pytest
@@ -140,7 +140,10 @@ def pypi_index_url_testing():
 
 
 @pytest.fixture(scope='session')
-def virtualenv_path() -> pathlib.Path:
-    virtualenv_dir = os.getenv('TOX_ENV_DIR')
-    assert virtualenv_dir
-    return pathlib.Path(virtualenv_dir)
+def env_prefix() -> pathlib.Path:
+    return pathlib.Path(sys.exec_prefix)
+
+
+@pytest.fixture(scope='session')
+def site_packages(env_prefix: pathlib.Path) -> pathlib.Path:
+    return env_prefix / "lib" / "python{}.{}".format(*sys.version_info) / "site-packages"

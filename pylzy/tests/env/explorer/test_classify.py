@@ -62,7 +62,11 @@ def test_classify_pypi_packages(classifier: ModuleClassifier, pypi_index_url: st
 
 
 @pytest.mark.vcr
-def test_classify_local_distribution(classifier: ModuleClassifier, virtualenv_path: Path) -> None:
+def test_classify_local_distribution(
+    classifier: ModuleClassifier,
+    env_prefix: Path,
+    site_packages: Path
+) -> None:
     # NB: lzy_test_project located at test_data/lzy_test_project and gets installed by tox while
     # tox venv preparing
     import lzy_test_project
@@ -71,12 +75,12 @@ def test_classify_local_distribution(classifier: ModuleClassifier, virtualenv_pa
     etalon = LocalDistribution(
         name='lzy-test-project',
         paths=frozenset({
-            f'{virtualenv_path}/lib/python3.7/site-packages/lzy_test_project',
-            f'{virtualenv_path}/lib/python3.7/site-packages/lzy_test_project-3.0.0.dist-info'
+            f'{site_packages}/lzy_test_project',
+            f'{site_packages}/lzy_test_project-3.0.0.dist-info'
         }),
         is_binary=False,
         version='3.0.0',
-        bad_paths=frozenset({f'{virtualenv_path}/bin/lzy_test_project_bin'})
+        bad_paths=frozenset({f'{env_prefix}/bin/lzy_test_project_bin'})
     )
 
     assert classifier.classify([lzy_test_project]) == frozenset({etalon})
