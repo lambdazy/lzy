@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.logs.LogUtils.withLoggingContext;
@@ -79,10 +78,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
     @Override
     public synchronized void execute(LWS.ExecuteRequest request, StreamObserver<LongRunning.Operation> response) {
-        var rid = Optional.ofNullable(GrpcHeaders.getRequestId()).orElse("unknown");
-
         var logContextOverrides = Map.of(
-            LogContextKey.REQUEST_ID, rid,
             LogContextKey.EXECUTION_ID, request.getExecutionId(),
             "tid", request.getTaskId());
 
