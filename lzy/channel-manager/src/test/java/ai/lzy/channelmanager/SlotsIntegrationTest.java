@@ -31,7 +31,9 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.NO_AUTH;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
 public class SlotsIntegrationTest extends IamOnlyChannelManagerContextTests {
     private static final int s3MockPort = FreePortFinder.find(1000, 2000);
@@ -149,7 +151,9 @@ public class SlotsIntegrationTest extends IamOnlyChannelManagerContextTests {
             slots,
             Map.of("storage-to-consumer/in", channelId),
             publicClient,
+            "rid",
             "execId",
+            "tid",
             SLOTS_ADDRESS,
             () -> user.credentials().token(),
             slotsService
@@ -192,7 +196,9 @@ public class SlotsIntegrationTest extends IamOnlyChannelManagerContextTests {
             slots,
             Map.of("producer-to-storage/out", channelId),
             publicClient,
+            "rid",
             "execId",
+            "tid",
             SLOTS_ADDRESS,
             () -> user.credentials().token(),
             slotsService
@@ -237,7 +243,9 @@ public class SlotsIntegrationTest extends IamOnlyChannelManagerContextTests {
             slots,
             Map.of("multi-consumer/out", channelId),
             publicClient,
+            "rid",
             "execId",
+            "tid",
             SLOTS_ADDRESS,
             () -> user.credentials().token(),
             slotsService
@@ -267,7 +275,9 @@ public class SlotsIntegrationTest extends IamOnlyChannelManagerContextTests {
                 "multi-consumer/in3", channelId
             ),
             publicClient,
+            "rid",
             "execId",
+            "tid",
             SLOTS_ADDRESS,
             () -> user.credentials().token(),
             slotsService

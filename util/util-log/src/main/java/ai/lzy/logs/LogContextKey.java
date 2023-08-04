@@ -4,6 +4,7 @@ public final class LogContextKey {
 
     public static final String REQUEST_ID = "rid";
     public static final String EXECUTION_ID = "exec_id";
+    public static final String EXECUTION_TASK_ID = "exec_tid";
 
     public static final String SUBJECT = "subj";
 

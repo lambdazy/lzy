@@ -158,6 +158,7 @@ public class Worker {
             try {
                 worker.awaitTermination();
             } catch (InterruptedException e) {
+                LOG.error("Worker {} interrupted", vmId, e);
                 worker.stop();
             }
             return 0;

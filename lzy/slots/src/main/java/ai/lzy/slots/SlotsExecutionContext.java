@@ -25,10 +25,12 @@ public class SlotsExecutionContext {
     private final Map<String, String> slotToChannelMapping;
     private final SlotsContext context;
     private final Path fsRoot;
+    private final List<SlotInternal> slots = new ArrayList<>();
 
     public SlotsExecutionContext(Path fsRoot, List<LMS.Slot> slotDescriptions, Map<String, String> slotToChannelMapping,
-                                 LzyChannelManagerBlockingStub channelManager, String executionId,
-                                 String slotsApiAddress, Supplier<String> tokenSupplier, SlotsService slotsService)
+                                 LzyChannelManagerBlockingStub channelManager, String requestId, String executionId,
+                                 String taskId, String slotsApiAddress, Supplier<String> tokenSupplier,
+                                 SlotsService slotsService)
     {
         this.fsRoot = fsRoot;
         this.slotDescriptions = slotDescriptions;
@@ -36,10 +38,9 @@ public class SlotsExecutionContext {
 
         var transferFactory = new TransferFactory(storageClientFactory, tokenSupplier);
 
-        context = new SlotsContext(channelManager, transferFactory, slotsApiAddress, slotsService, executionId, this);
+        context = new SlotsContext(channelManager, transferFactory, slotsApiAddress, slotsService,
+            requestId, executionId, taskId, this);
     }
-
-    private final List<SlotInternal> slots = new ArrayList<>();
 
     public void beforeExecution() throws Exception {
         try {

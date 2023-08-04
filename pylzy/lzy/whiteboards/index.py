@@ -12,8 +12,6 @@ from google.protobuf.json_format import MessageToJson, ParseDict
 from google.protobuf.timestamp_pb2 import Timestamp
 # noinspection PyPackageRequirements
 from grpc.aio import Channel
-
-from lzy.utils.event_loop import LzyEventLoop
 from serialzy.api import SerializerRegistry
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard, TimeBounds
@@ -21,6 +19,7 @@ from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import GetRequest, GetResponse,
     RegisterWhiteboardRequest, UpdateWhiteboardRequest
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceStub
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
+from lzy.utils.event_loop import LzyEventLoop
 from lzy.utils.grpc import build_channel, build_token, RetryConfig, retry, build_headers
 from lzy.whiteboards.api import WhiteboardIndexClient, WhiteboardManager
 from lzy.whiteboards.wrapper import WhiteboardWrapper
@@ -55,12 +54,15 @@ class RemoteWhiteboardIndexClient(WhiteboardIndexClient):
 
         user = os.getenv(WB_USER_ENV)
         key_path = os.getenv(WB_KEY_PATH_ENV)
-        endpoint: str = os.getenv(WB_ENDPOINT_ENV, "whiteboard.lzy.ai:8122")
+        endpoint = os.getenv(WB_ENDPOINT_ENV)
 
         if user is None:
             raise ValueError(f"User must be specified by env variable {WB_USER_ENV} or `user` argument")
         if key_path is None:
             raise ValueError(f"Key path must be specified by env variable {WB_KEY_PATH_ENV} or `key_path` argument")
+        if endpoint is None:
+            raise ValueError(f"WB endpoint must be specified by env variable {WB_ENDPOINT_ENV}"
+                             f" or `whiteboards_endpoint` argument")
 
         token = build_token(cast(str, user), cast(str, key_path))
 

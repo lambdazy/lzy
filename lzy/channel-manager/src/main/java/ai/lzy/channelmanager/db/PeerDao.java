@@ -41,7 +41,7 @@ public interface PeerDao {
     Peer get(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException;
 
     enum Priority {
-        PRIMARY(10),
+        PRIMARY(7),
         BACKUP(5),
         DONT_USE(-1);
         final int val;

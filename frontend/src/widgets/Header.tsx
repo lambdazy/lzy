@@ -1,4 +1,4 @@
-import {Button, Container, Nav, Navbar} from "react-bootstrap";
+import {Container, Navbar} from "react-bootstrap";
 import {useHistory} from "react-router-dom";
 import {AuthContext} from "../logic/Auth";
 import {LzyLogo} from "./LzyLogo";
