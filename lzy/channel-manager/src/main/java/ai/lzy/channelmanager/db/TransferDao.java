@@ -8,11 +8,17 @@ import java.sql.SQLException;
 import java.util.List;
 
 public interface TransferDao {
-    void create(String id, String fromId, String toId, String channelId, State state,
-                @Nullable TransactionHandle tx) throws SQLException;
+    /**
+     * Create new transfer
+     * @return transfer id
+     */
+    String create(String fromId, String toId, String channelId, State state, String idempotencyKey, String requestHash,
+                  @Nullable TransactionHandle tx) throws SQLException;
 
     @Nullable
     Transfer get(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException;
+
+    void markScheduled(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException;
 
     void markActive(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException;
 
@@ -37,6 +43,7 @@ public interface TransferDao {
 
     enum State {
         PENDING,
+        SCHEDULED,
         ACTIVE,
         COMPLETED,
         FAILED

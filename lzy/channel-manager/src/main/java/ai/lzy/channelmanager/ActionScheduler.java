@@ -3,7 +3,6 @@ package ai.lzy.channelmanager;
 import ai.lzy.channelmanager.db.TransferDao;
 import ai.lzy.channelmanager.grpc.SlotConnectionManager;
 import ai.lzy.channelmanager.model.Peer;
-import ai.lzy.model.db.DbHelper;
 import ai.lzy.v1.slots.LSA;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -12,6 +11,8 @@ import org.apache.logging.log4j.Logger;
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import static ai.lzy.model.db.DbHelper.withRetries;
 
 @Singleton
 public class ActionScheduler {
@@ -38,13 +39,13 @@ public class ActionScheduler {
     public void restoreActions() {
         final List<TransferDao.Transfer> transfers;
         try {
-            transfers = DbHelper.withRetries(LOG, () -> connections.listPending(null));
+            transfers = withRetries(LOG, () -> connections.listPending(null));
         } catch (Exception e) {
             LOG.error("Cannot restore pending transmissions", e);
             throw new RuntimeException(e);
         }
 
-        for (var transfer: transfers) {
+        for (var transfer : transfers) {
             runStartTransferAction(transfer.from(), transfer.to());
         }
     }
@@ -65,14 +66,14 @@ public class ActionScheduler {
                     .build()
             );
 
-            DbHelper.withRetries(LOG, () -> connections.markActive(from.id(), to.id(), null));
+            withRetries(LOG, () -> connections.markActive(from.id(), to.id(), null));
         } catch (Exception e) {
 
             var reason = "(Connecting slot: %s to peer: %s): Cannot connect.".formatted(from, to);
 
             LOG.error(reason, e);
             try {
-                DbHelper.withRetries(LOG, () -> lzyServiceClient.destroyChannelAndWorkflow(from.channelId(), reason,
+                withRetries(LOG, () -> lzyServiceClient.destroyChannelAndWorkflow(from.channelId(), reason,
                     null));
             } catch (Exception ex) {
                 LOG.error("Cannot abort workflow", ex);

@@ -11,7 +11,7 @@ import java.util.List;
 public interface PeerDao {
 
     Peer create(String channelId, LC.PeerDescription desc, Peer.Role role, Priority priority, boolean connected,
-                @Nullable TransactionHandle tx) throws SQLException;
+                String idempotencyKey, String requestHash, @Nullable TransactionHandle tx) throws SQLException;
 
     /**
      * Find producer with max priority in this channel
@@ -19,15 +19,19 @@ public interface PeerDao {
     @Nullable
     Peer findProducer(String channelId, @Nullable TransactionHandle tx) throws SQLException;
 
+    List<Peer> listConnectedConsumersByRequest(String channelId, String idempotencyKey, String requestHash,
+                                               @Nullable TransactionHandle tx) throws SQLException;
     /**
      * Atomic request to get all not connected consumers and mark them as connected
      */
-    List<Peer> markConsumersAsConnected(String channelId, @Nullable TransactionHandle tx) throws SQLException;
+    List<Peer> markConsumersAsConnected(String channelId, String idempotencyKey, String requestHash,
+                                        @Nullable TransactionHandle tx) throws SQLException;
 
     /**
      * Marks peer as less prior
      * @return new priority
      */
+    // todo make idempotent
     int decrementPriority(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException;
 
     @Nullable
