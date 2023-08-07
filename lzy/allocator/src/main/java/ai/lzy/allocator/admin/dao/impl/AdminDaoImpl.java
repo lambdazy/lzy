@@ -38,15 +38,15 @@ public class AdminDaoImpl implements AdminDao {
 
                 while (rs.next()) {
                     var kind = rs.getString("kind");
-                    var syncImage = rs.getString("sync_image");
+                    var syncImg = rs.getString("sync_image");
 
                     switch (kind) {
                         case "SYNC" -> {
                             if (sync != null) {
-                                LOG.error("Duplicated sync image: {} and {}", sync, syncImage);
-                                throw new RuntimeException("Duplicated sync image: %s and %s".formatted(sync, syncImage));
+                                LOG.error("Duplicated sync image: {} and {}", sync, syncImg);
+                                throw new RuntimeException("Duplicated sync image: %s and %s".formatted(sync, syncImg));
                             }
-                            sync = syncImage;
+                            sync = syncImg;
                         }
                         case "CACHE" -> {
                             var images = rs.getArray("images");
@@ -54,8 +54,11 @@ public class AdminDaoImpl implements AdminDao {
                             var poolKind = rs.getString("pool_kind");
                             var poolName = rs.getString("pool_name");
                             ActiveImages.DindImages dindImages = null;
-                            if (syncImage != null && additionalImagesArr != null) {
-                                dindImages = ActiveImages.DindImages.of(syncImage, Arrays.stream(((String[]) additionalImagesArr.getArray())).toList());
+                            if (syncImg != null && additionalImagesArr != null) {
+                                dindImages = ActiveImages.DindImages.of(
+                                    syncImg,
+                                    Arrays.stream(((String[]) additionalImagesArr.getArray())).toList()
+                                );
                             }
                             workers.add(
                                 ActiveImages.PoolConfig.of(
@@ -90,10 +93,14 @@ public class AdminDaoImpl implements AdminDao {
             drop.execute();
 
             for (var pool : images) {
-                insert.setArray(1, conn.createArrayOf("TEXT", pool.images().stream().map(ActiveImages.Image::image).toArray()));
+                insert.setArray(
+                    1,
+                    conn.createArrayOf("TEXT", pool.images().stream().map(ActiveImages.Image::image).toArray()));
                 if (pool.dindImages() != null) {
                     insert.setString(2, pool.dindImages().dindImage());
-                    insert.setArray(3, conn.createArrayOf("TEXT", pool.dindImages().additionalImages().toArray()));
+                    insert.setArray(
+                        3,
+                        conn.createArrayOf("TEXT", pool.dindImages().additionalImages().toArray()));
                 } else {
                     insert.setString(2, null);
                     insert.setArray(3, null);

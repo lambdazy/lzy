@@ -66,7 +66,8 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
         LOG.info("About to set new sync image: {}", request);
 
         try {
-            withRetries(LOG, () -> adminDao.setSyncImage(ai.lzy.allocator.model.ActiveImages.Image.of(request.getImage())));
+            withRetries(LOG, () -> adminDao.setSyncImage(
+                ai.lzy.allocator.model.ActiveImages.Image.of(request.getImage())));
         } catch (Exception e) {
             LOG.error("Cannot set sync image", e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
@@ -133,11 +134,13 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
         var builder = ActiveImages.newBuilder();
         for (var pc : conf.configs()) {
             var poolConfig = VmAllocatorAdminApi.PoolConfig.newBuilder();
-            poolConfig.addAllImages(pc.images().stream().map(ai.lzy.allocator.model.ActiveImages.Image::image).toList());
+            poolConfig.addAllImages(
+                pc.images().stream()
+                    .map(ai.lzy.allocator.model.ActiveImages.Image::image).toList());
             if (pc.dindImages() != null) {
                 poolConfig.setDindImages(VmAllocatorAdminApi.DindImages.newBuilder()
                     .setDindImage(pc.dindImages().dindImage())
-                        .addAllAdditionalImages(pc.dindImages().additionalImages())
+                    .addAllAdditionalImages(pc.dindImages().additionalImages())
                     .build());
             }
             poolConfig.setPoolKind(pc.kind());
