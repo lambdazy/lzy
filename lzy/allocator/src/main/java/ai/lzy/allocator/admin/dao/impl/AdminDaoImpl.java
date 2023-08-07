@@ -12,6 +12,7 @@ import org.apache.logging.log4j.Logger;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Singleton
@@ -28,54 +29,77 @@ public class AdminDaoImpl implements AdminDao {
     public ActiveImages.Configuration getImages() throws SQLException {
         return DbOperation.execute(null, storage, conn -> {
             try (PreparedStatement st = conn.prepareStatement(
-                "SELECT kind, image, additional_images FROM images"))
+                "SELECT kind, images, sync_image, additional_images, pool_kind, pool_name FROM images"))
             {
                 var rs = st.executeQuery();
 
                 String sync = null;
-                List<ActiveImages.WorkerImage> workers = new ArrayList<>();
-                List<ActiveImages.JupyterLabImage> jupyterLabs = new ArrayList<>();
+                List<ActiveImages.PoolConfig> workers = new ArrayList<>();
 
                 while (rs.next()) {
                     var kind = rs.getString("kind");
-                    var image = rs.getString("image");
-                    var additionalImagesArr = rs.getArray("additional_images");
+                    var syncImage = rs.getString("sync_image");
 
                     switch (kind) {
-                        case "WORKER" -> workers.add(ActiveImages.WorkerImage.of(image));
                         case "SYNC" -> {
                             if (sync != null) {
-                                LOG.error("Duplicated sync image: {} and {}", sync, image);
-                                throw new RuntimeException("Duplicated sync image: %s and %s".formatted(sync, image));
+                                LOG.error("Duplicated sync image: {} and {}", sync, syncImage);
+                                throw new RuntimeException("Duplicated sync image: %s and %s".formatted(sync, syncImage));
                             }
-                            sync = image;
+                            sync = syncImage;
                         }
-                        case "JUPYTERLAB" -> jupyterLabs.add(
-                            ActiveImages.JupyterLabImage.of(image, (String[]) additionalImagesArr.getArray()));
+                        case "CACHE" -> {
+                            var images = rs.getArray("images");
+                            var additionalImagesArr = rs.getArray("additional_images");
+                            var poolKind = rs.getString("pool_kind");
+                            var poolName = rs.getString("pool_name");
+                            ActiveImages.DindImages dindImages = null;
+                            if (syncImage != null && additionalImagesArr != null) {
+                                dindImages = ActiveImages.DindImages.of(syncImage, Arrays.stream(((String[]) additionalImagesArr.getArray())).toList());
+                            }
+                            workers.add(
+                                ActiveImages.PoolConfig.of(
+                                    Arrays.stream(((String[]) images.getArray())).map(ActiveImages.Image::of).toList(),
+                                    dindImages,
+                                    poolKind,
+                                    poolName
+                            ));
+                        }
                     }
                 }
 
                 return new ActiveImages.Configuration(
-                    ActiveImages.SyncImage.of(sync),
-                    workers,
-                    jupyterLabs);
+                    ActiveImages.Image.of(sync),
+                    workers
+                );
             }
         });
     }
 
     @Override
-    public void setWorkerImages(List<ActiveImages.WorkerImage> workers) throws SQLException {
+    public void setImages(List<ActiveImages.PoolConfig> images) throws SQLException {
         try (var tx = TransactionHandle.create(storage);
              var conn = tx.connect();
              var drop = conn.prepareStatement(
-                 "DELETE FROM images WHERE kind = 'WORKER'::image_kind");
-             var insert = conn.prepareStatement("" +
-                 "INSERT INTO images (kind, image, additional_images) VALUES ('WORKER'::image_kind, ?, NULL)"))
+                 "DELETE FROM images WHERE kind = 'CACHE'::image_kind");
+             var insert = conn.prepareStatement("""
+                    INSERT INTO images (kind, images, sync_image, additional_images, pool_kind, pool_name)
+                    VALUES ('CACHE'::image_kind, ?, ?, ?, ?, ?)
+                    """))
         {
             drop.execute();
 
-            for (var worker : workers) {
-                insert.setString(1, worker.image());
+            for (var pool : images) {
+                insert.setArray(1, conn.createArrayOf("TEXT", pool.images().stream().map(ActiveImages.Image::image).toArray()));
+                if (pool.dindImages() != null) {
+                    insert.setString(2, pool.dindImages().dindImage());
+                    insert.setArray(3, conn.createArrayOf("TEXT", pool.dindImages().additionalImages().toArray()));
+                } else {
+                    insert.setString(2, null);
+                    insert.setArray(3, null);
+                }
+                insert.setString(4, pool.kind());
+                insert.setString(5, pool.name());
                 insert.addBatch();
             }
 
@@ -86,11 +110,12 @@ public class AdminDaoImpl implements AdminDao {
     }
 
     @Override
-    public void setSyncImage(ActiveImages.SyncImage sync) throws SQLException {
+    public void setSyncImage(ActiveImages.Image sync) throws SQLException {
         DbOperation.execute(null, storage, conn -> {
             try (PreparedStatement st = conn.prepareStatement("""
-                INSERT INTO images (kind, image, additional_images) VALUES ('SYNC'::image_kind, ?, NULL)
-                ON CONFLICT (kind) WHERE kind = 'SYNC'::image_kind DO UPDATE SET image = ?
+                INSERT INTO images (kind, images, sync_image, additional_images, pool_kind, pool_name)
+                VALUES ('SYNC'::image_kind, NULL,  ?, NULL, '', '')
+                ON CONFLICT (kind) WHERE kind = 'SYNC'::image_kind DO UPDATE SET sync_image = ?
                 """))
             {
                 st.setString(1, sync.image());
@@ -100,26 +125,4 @@ public class AdminDaoImpl implements AdminDao {
         });
     }
 
-    @Override
-    public void setJupyterLabImages(List<ActiveImages.JupyterLabImage> jupyterLabs) throws SQLException {
-        try (var tx = TransactionHandle.create(storage);
-             var conn = tx.connect();
-             var drop = conn.prepareStatement(
-                 "DELETE FROM images WHERE kind = 'JUPYTERLAB'::image_kind");
-             var insert = conn.prepareStatement("" +
-                 "INSERT INTO images (kind, image, additional_images) VALUES ('JUPYTERLAB'::image_kind, ?, ?)"))
-        {
-            drop.execute();
-
-            for (var jl : jupyterLabs) {
-                insert.setString(1, jl.mainImage());
-                insert.setArray(2, conn.createArrayOf("TEXT", jl.additionalImages()));
-                insert.addBatch();
-            }
-
-            insert.executeBatch();
-
-            tx.commit();
-        }
-    }
 }

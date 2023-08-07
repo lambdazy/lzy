@@ -17,6 +17,7 @@ import org.junit.Test;
 import java.io.ByteArrayInputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -60,14 +61,13 @@ public class ImagesUpdaterTest {
         var updater = new ImagesUpdater(serviceConfig, kcf, cr, new DummyAdminDaoImpl());
 
         updater.update(new ActiveImages.Configuration(
-            ActiveImages.SyncImage.of("sync1"),
+            ActiveImages.Image.of("sync1"),
             List.of(
-                ActiveImages.WorkerImage.of("worker1"),
-                ActiveImages.WorkerImage.of("worker2")),
-            List.of(
-                ActiveImages.JupyterLabImage.of("jl1", new String[0]),
-                ActiveImages.JupyterLabImage.of("jl2", new String[] {"img1", "img2"}))
-        ));
+                ActiveImages.PoolConfig.of(List.of(), ActiveImages.DindImages.of("dind1", List.of()), "CPU", "S"),
+                ActiveImages.PoolConfig.of(List.of(ActiveImages.Image.of("worker1"), ActiveImages.Image.of("worker2")), ActiveImages.DindImages.of("dind2", List.of("dindImage1")), "CPU", "m"),
+                ActiveImages.PoolConfig.of(List.of(ActiveImages.Image.of("worker3")), ActiveImages.DindImages.of("dind3", List.of()), "GPU", "m"),
+                ActiveImages.PoolConfig.of(List.of(), null, "CPU", "s")
+        )));
 
         Assert.assertEquals(2, daemonsets.size());
 
@@ -78,24 +78,22 @@ public class ImagesUpdaterTest {
 
     private static final class DummyAdminDaoImpl implements AdminDao {
         @Override
+        public void setSyncImage(ActiveImages.Image sync) throws SQLException {
+
+        }
+
+        @Override
+        public void setImages(List<ActiveImages.PoolConfig> images) throws SQLException {
+
+        }
+
+        @Override
         public ActiveImages.Configuration getImages() {
             return new ActiveImages.Configuration(
-                ActiveImages.SyncImage.of(null),
-                List.of(),
+                ActiveImages.Image.of(null),
                 List.of()
             );
         }
 
-        @Override
-        public void setWorkerImages(List<ActiveImages.WorkerImage> workers) {
-        }
-
-        @Override
-        public void setSyncImage(ActiveImages.SyncImage sync) {
-        }
-
-        @Override
-        public void setJupyterLabImages(List<ActiveImages.JupyterLabImage> jupyterLabs) {
-        }
     }
 }

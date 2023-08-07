@@ -25,11 +25,11 @@ spec:
           command: ["sh", "-c", "exit 0"]
 </#list>
 
-<#list jls as jl>
-        - name: download-jupyterlab-images-${jl.name}
-          image: ${jl.main_image}
+<#list imgs as img>
+        - name: download-dind-images-${img.name}
+          image: ${img.dind_image}
           imagePullPolicy: Always
-          command: ["sh", "-c", "/entrypoint.sh ${jl.additional_images?join(" ")}"]
+          command: ["sh", "-c", "/entrypoint.sh ${img.additional_images?join(" ")}"]
           securityContext:
             runAsUser: 0
             privileged: true

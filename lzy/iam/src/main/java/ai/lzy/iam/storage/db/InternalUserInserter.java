@@ -100,6 +100,10 @@ public class InternalUserInserter {
                     upsertRoleSt.setString(4, Role.LZY_INTERNAL_USER.value());
                     upsertRoleSt.executeUpdate();
 
+                    if (config.userAdminName() != null && !config.userAdminName().isEmpty()) {
+                        addAdminUser(config.userAdminName(), config.userAdminCredentialValue());
+                    }
+
                     return true;
                 }
             });
@@ -114,13 +118,13 @@ public class InternalUserInserter {
              PreparedStatement addUserSt = conn.prepareStatement("""
                 INSERT INTO users
                     (user_id, auth_provider, provider_user_id, access_type, user_type, request_hash)
-                VALUES (?, ?, ?, ?, ?, ?)""");
+                VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING""");
              PreparedStatement addCredsSt = conn.prepareStatement("""
                 INSERT INTO credentials (name, value, user_id, type)
-                VALUES (?, ?, ?, ?)""");
+                VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING""");
              PreparedStatement addRoleSt = conn.prepareStatement("""
                 INSERT INTO user_resource_roles (user_id, resource_id, resource_type, role)
-                VALUES (?, ?, ?, ?)"""))
+                VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING"""))
         {
             addUserSt.setString(1, name);
             addUserSt.setString(2, AuthProvider.INTERNAL.name());
