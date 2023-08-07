@@ -31,7 +31,6 @@ public class ServiceConfig {
     private List<String> serviceClusters = new ArrayList<>();
     private List<String> userClusters = new ArrayList<>();
     private Set<NetworkPolicyManager.PolicyRule> serviceCidrs = new HashSet<>();
-    private String nfsClientImage;
 
     public String getAddress() {
         String ipv6Host = hosts.stream().filter(ValidationUtils::validateIpV6).findFirst().orElse(null);

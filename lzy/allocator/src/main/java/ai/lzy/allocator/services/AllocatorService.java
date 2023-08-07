@@ -56,18 +56,15 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator.NODE_INSTANCE_ID_KEY;
 import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType;
-import static ai.lzy.allocator.model.HostPathVolumeDescription.HostPathType.DIRECTORY_OR_CREATE;
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
 import static ai.lzy.model.db.DbHelper.withRetries;
 import static ai.lzy.util.grpc.ProtoConverter.toProto;
-import static ai.lzy.v1.VolumeApi.Volume.VolumeTypeCase.NFS_VOLUME;
 import static java.util.Objects.requireNonNull;
 import static java.util.Optional.ofNullable;
 
@@ -75,11 +72,6 @@ import static java.util.Optional.ofNullable;
 @Requires(notEnv = BeanFactory.TEST_ENV_NAME)
 public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
     private static final Logger LOG = LogManager.getLogger(AllocatorService.class);
-
-    private static final String NFS_MOUNT_PATTERN = "until mount -t nfs -o %s %s:%s %s; do " +
-        "sleep 1; echo \"nfs mount waiting\"; done";
-    private static final String NFS_HOST_PATH_PREFIX = "/host_shared/nfs/";
-    private static final String NFS_MOUNT_PATH_PREFIX = "/mnt/nfs/";
 
     private final VmDao vmDao;
     private final OperationDao operationsDao;
@@ -294,7 +286,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
 
         final var workloads = request.getWorkloadList().stream()
             .map(Workload::fromProto)
-            .collect(Collectors.toList());
+            .toList();
 
         final var initWorkloads = request.getInitWorkloadList().stream()
             .map(Workload::fromProto)
@@ -326,8 +318,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             responseObserver.onError(e);
             return;
         }
-
-        workloads.add(prepareNfsWorkload(request.getVolumesList()));
 
         var clusterType = switch (request.getClusterType()) {
             case USER -> ClusterRegistry.ClusterType.User;
@@ -935,34 +925,6 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         throw new StatusRuntimeException(Status.INVALID_ARGUMENT.withDescription("unsupported volume type: " + type));
     }
 
-    private Workload prepareNfsWorkload(List<VolumeApi.Volume> volumes) {
-        final List<VolumeMount> mounts = new ArrayList<>();
-        final List<String> mountCommands = new ArrayList<>();
-
-        for (var volume : volumes) {
-            if (!volume.getVolumeTypeCase().equals(NFS_VOLUME)) {
-                continue;
-            }
-            final var nfsVolume = volume.getNfsVolume();
-            final String mntPath = Path.of(NFS_MOUNT_PATH_PREFIX, nfsVolume.getShare()).toString();
-            mounts.add(new VolumeMount(volume.getName().toLowerCase(Locale.ROOT),
-                mntPath, nfsVolume.getReadOnly(), VolumeMount.MountPropagation.BIDIRECTIONAL));
-
-            final var mountCmd = String.format(NFS_MOUNT_PATTERN, String.join(",", nfsVolume.getMountOptionsList()),
-                nfsVolume.getServer(), nfsVolume.getShare(), mntPath);
-            mountCommands.add(mountCmd);
-        }
-
-        return new Workload(
-            "nfs-client",
-            config.getNfsClientImage(),
-            Map.of(),
-            List.of(String.join("; ", mountCommands)),
-            Map.of(),
-            mounts
-        );
-    }
-
     private List<VolumeRequest> prepareVolumeRequests(List<VolumeApi.Volume> volumes) throws StatusException {
         final var requests = new ArrayList<VolumeRequest>(volumes.size());
 
@@ -984,11 +946,11 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                         new HostPathVolumeDescription(volume.getName(), hostPathVolume.getPath(), hostPathType));
                 }
 
-                case NFS_VOLUME -> { // nfsVolume as bidirectional hostPathVolume with nfs-client container
+                case NFS_VOLUME -> {
                     final var nfsVolume = volume.getNfsVolume();
-                    final String hostPath = Path.of(NFS_HOST_PATH_PREFIX, nfsVolume.getShare()).toString();
-                    yield new VolumeRequest(idGenerator.generate("host-path-for-nfs-volume-").toLowerCase(Locale.ROOT),
-                        new HostPathVolumeDescription(volume.getName(), hostPath, DIRECTORY_OR_CREATE));
+                    yield new VolumeRequest(idGenerator.generate("nfs-volume-").toLowerCase(Locale.ROOT),
+                        new NFSVolumeDescription(volume.getName(), nfsVolume.getServer(),
+                            nfsVolume.getShare(), nfsVolume.getReadOnly(), nfsVolume.getMountOptionsList()));
                 }
 
                 case VOLUMETYPE_NOT_SET -> {
