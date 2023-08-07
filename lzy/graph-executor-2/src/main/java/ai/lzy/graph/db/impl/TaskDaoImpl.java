@@ -14,7 +14,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -29,25 +28,25 @@ public class TaskDaoImpl implements TaskDao {
 
     private static final String TASK_INSERT_FIELDS_LIST = """
         id, task_name, op_id, graph_id, status, workflow_id, workflow_name, user_id,
-        task_description, task_state, alloc_session, error_description, owner_instance_id""";
+        task_description, task_state, allocator_session_id, error_description, owner_instance_id""";
 
     private static final String TASK_SELECT_FIELDS_LIST = """
         task.id, task.task_name, task.op_id, task.graph_id, task.status::text as status, task.workflow_id,
-        task.workflow_name, task.user_id, task.task_description, task.task_state, task.alloc_session,
+        task.workflow_name, task.user_id, task.task_description, task.task_state, task.allocator_session_id,
         task.error_description, task.owner_instance_id""";
 
     private static final String TASK_INSERT_STATEMENT = """
-        INSERT INTO task (%s) VALUES (?, ?, ?, ?, ?::task_status, ?, ?, ?, ?, ?, ?, ?, ?)"""
-        .formatted(TASK_INSERT_FIELDS_LIST);
+        INSERT INTO task (%s)
+        VALUES (?, ?, ?, ?, ?::task_status, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(TASK_INSERT_FIELDS_LIST);
 
     private static final String TASK_DEPENDENCY_INSERT_STATEMENT = """
-        INSERT INTO task_dependency (task_id, dependent_task_id) VALUES (?, ?)""";
+        INSERT INTO task_dependency (task_id, dependent_task_id)
+        VALUES (?, ?)""";
 
     private static final String TASK_UPDATE_STATEMENT = """
         UPDATE task
         SET error_description = ?,
             status = ?::task_status,
-            alloc_session = ?,
             task_state = ?
         WHERE id = ?""";
 
@@ -94,26 +93,26 @@ public class TaskDaoImpl implements TaskDao {
     }
 
     @Override
-    public void createTasks(List<TaskState> tasks, TransactionHandle transaction) throws SQLException {
+    public void createTasks(List<TaskState> tasks, @Nullable TransactionHandle transaction) throws SQLException {
         LOG.debug("Saving tasks: {}", tasks.stream().map(TaskState::id).toList());
 
         DbOperation.execute(transaction, storage, connection -> {
             try (PreparedStatement st = connection.prepareStatement(TASK_INSERT_STATEMENT)) {
-                for (TaskState task: tasks) {
-                    int count = 0;
-                    st.setString(++count, task.id());
-                    st.setString(++count, task.name());
-                    st.setString(++count, task.operationId());
-                    st.setString(++count, task.graphId());
-                    st.setString(++count, task.status().toString());
-                    st.setString(++count, task.executionId());
-                    st.setString(++count, task.workflowName());
-                    st.setString(++count, task.userId());
-                    st.setString(++count, objectMapper.writeValueAsString(task.taskSlotDescription()));
-                    st.setString(++count, objectMapper.writeValueAsString(task.executingState()));
-                    st.setString(++count, task.allocatorSession());
-                    st.setString(++count, task.errorDescription());
-                    st.setString(++count, config.getInstanceId());
+                for (var task: tasks) {
+                    int idx = 0;
+                    st.setString(++idx, task.id());
+                    st.setString(++idx, task.name());
+                    st.setString(++idx, task.operationId());
+                    st.setString(++idx, task.graphId());
+                    st.setString(++idx, task.status().toString());
+                    st.setString(++idx, task.executionId());
+                    st.setString(++idx, task.workflowName());
+                    st.setString(++idx, task.userId());
+                    st.setString(++idx, objectMapper.writeValueAsString(task.taskSlotDescription()));
+                    st.setString(++idx, objectMapper.writeValueAsString(task.executingState()));
+                    st.setString(++idx, task.allocatorSessionId());
+                    st.setString(++idx, task.errorDescription());
+                    st.setString(++idx, config.getInstanceId());
 
                     st.addBatch();
                 }
@@ -123,7 +122,7 @@ public class TaskDaoImpl implements TaskDao {
             }
 
             try (PreparedStatement st = connection.prepareStatement(TASK_DEPENDENCY_INSERT_STATEMENT)) {
-                for (TaskState task: tasks) {
+                for (var task: tasks) {
                     for (String id: task.tasksDependedFrom()) {
                         st.setString(1, task.id());
                         st.setString(2, id);
@@ -137,19 +136,16 @@ public class TaskDaoImpl implements TaskDao {
 
     @Override
     public void updateTask(TaskState task, @Nullable TransactionHandle transaction) throws SQLException {
-        LOG.debug("Updating task: {}", task.id());
+        LOG.debug("Updating task: {}", task);
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (final Connection con = storage.connect();
-                 final PreparedStatement st = con.prepareStatement(TASK_UPDATE_STATEMENT))
-            {
-                int count = 0;
-                st.setString(++count, task.errorDescription());
-                st.setString(++count, task.status().name());
-                st.setString(++count, task.allocatorSession());
-                st.setString(++count, objectMapper.writeValueAsString(task.executingState()));
+            try (PreparedStatement st = connection.prepareStatement(TASK_UPDATE_STATEMENT)) {
+                int idx = 0;
+                st.setString(++idx, task.errorDescription());
+                st.setString(++idx, task.status().name());
+                st.setString(++idx, objectMapper.writeValueAsString(task.executingState()));
+                st.setString(++idx, task.id());
 
-                st.setString(++count, task.id());
                 st.executeUpdate();
             } catch (JsonProcessingException e) {
                 throw new SQLException(e);
@@ -160,56 +156,54 @@ public class TaskDaoImpl implements TaskDao {
     @Override
     @Nullable
     public TaskState getTaskById(String taskId) throws SQLException {
-        try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement(TASK_GET_BY_ID_STATEMENT);
+        try (var connection = storage.connect();
+             PreparedStatement st = connection.prepareStatement(TASK_GET_BY_ID_STATEMENT))
+        {
             st.setString(1, taskId);
-            try (ResultSet s = st.executeQuery()) {
-                if (!s.isBeforeFirst()) {
-                    return null;
-                }
-                s.next();
-                return taskFromResultSet(s);
+
+            var rs = st.executeQuery();
+            if (rs.next()) {
+                return fromResultSet(rs);
             }
+
+            return null;
         }
     }
 
     @Override
     public List<TaskState> getTasksByGraph(String graphId) throws SQLException {
-        try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement(TASK_GET_BY_GRAPH_STATEMENT);
+        try (var connection = storage.connect();
+             PreparedStatement st = connection.prepareStatement(TASK_GET_BY_GRAPH_STATEMENT))
+        {
             st.setString(1, graphId);
-            try (ResultSet s = st.executeQuery()) {
-                if (!s.isBeforeFirst()) {
-                    return new ArrayList<>();
-                }
-                List<TaskState> list = new ArrayList<>();
-                while (s.next()) {
-                    list.add(taskFromResultSet(s));
-                }
-                return list;
+
+            var rs = st.executeQuery();
+            var list = new ArrayList<TaskState>();
+            while (rs.next()) {
+                list.add(fromResultSet(rs));
             }
+            return list;
         }
     }
 
     @Override
     public List<TaskState> getTasksByInstance(String instanceId) throws SQLException {
-        try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement(TASK_GET_BY_INSTANCE_STATEMENT);
+        try (var connection = storage.connect();
+             PreparedStatement st = connection.prepareStatement(TASK_GET_BY_INSTANCE_STATEMENT))
+        {
             st.setString(1, instanceId);
-            try (ResultSet s = st.executeQuery()) {
-                if (!s.isBeforeFirst()) {
-                    return new ArrayList<>();
-                }
-                List<TaskState> list = new ArrayList<>();
-                while (s.next()) {
-                    list.add(taskFromResultSet(s));
-                }
-                return list;
+
+            var rs = st.executeQuery();
+
+            var list = new ArrayList<TaskState>();
+            while (rs.next()) {
+                list.add(fromResultSet(rs));
             }
+            return list;
         }
     }
 
-    private TaskState taskFromResultSet(ResultSet resultSet) throws SQLException {
+    private TaskState fromResultSet(ResultSet resultSet) throws SQLException {
         final String taskId = resultSet.getString("id");
         final String taskName = resultSet.getString("task_name");
         final String opId = resultSet.getString("op_id");
@@ -221,7 +215,7 @@ public class TaskDaoImpl implements TaskDao {
         final String taskDescription = resultSet.getString("task_description");
         final String taskState = resultSet.getString("task_state");
         final String errorDescription = resultSet.getString("error_description");
-        final String allocSession = resultSet.getString("alloc_session");
+        final String allocSession = resultSet.getString("allocator_session_id");
         final String dependentsFrom = resultSet.getString("dependend_from");
         final String dependentsOn = resultSet.getString("dependend_on");
         final TaskSlotDescription taskSlotDescription;
@@ -235,9 +229,8 @@ public class TaskDaoImpl implements TaskDao {
         }
 
         return new TaskState(taskId, taskName, opId, graphId, status, workflowId, workflowName,
-            userId, errorDescription, taskSlotDescription, allocSession, taskOpExecutingState,
-            parseDependents(dependentsOn), parseDependents(dependentsFrom)
-        );
+            userId, allocSession, taskSlotDescription, parseDependents(dependentsOn), parseDependents(dependentsFrom),
+            taskOpExecutingState, errorDescription);
     }
 
     private List<String> parseDependents(String str) {

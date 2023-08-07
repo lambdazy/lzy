@@ -33,6 +33,7 @@ CREATE TABLE graph
     workflow_id           TEXT                           NOT NULL,
     workflow_name         TEXT                           NOT NULL,
     user_id               TEXT                           NOT NULL,
+    allocator_session_id  TEXT                           NOT NULL,
     error_description     TEXT                           NULL,
     failed_task_id        TEXT                           NULL,
     failed_task_name      TEXT                           NULL,
@@ -55,7 +56,7 @@ CREATE TABLE task (
     task_state            TEXT                          NULL,
     error_description     TEXT                          NULL,
     owner_instance_id     TEXT                          NOT NULL,
-    alloc_session         TEXT                          NULL
+    allocator_session_id  TEXT                          NOT NULL
 );
 
 CREATE TABLE task_dependency (

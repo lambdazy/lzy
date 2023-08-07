@@ -2,7 +2,7 @@ package ai.lzy.graph.test;
 
 import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
-import ai.lzy.graph.GraphExecutorApi2;
+import ai.lzy.graph.LGE;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.db.GraphDao;
 import ai.lzy.graph.db.TaskDao;
@@ -14,11 +14,11 @@ import ai.lzy.graph.services.TaskService;
 import ai.lzy.graph.services.impl.GraphServiceImpl;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
-
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+
 import java.util.List;
 
 import static org.junit.Assert.assertEquals;
@@ -45,15 +45,15 @@ public class GraphServiceTest {
 
     @Test
     public void simpleTest() throws Exception {
-        GraphExecutorApi2.GraphExecuteRequest request = GraphExecutorApi2.GraphExecuteRequest.newBuilder()
-            .setExecutionId("1")
-            .setWorkflowName("workflow1")
+        var request = LGE.ExecuteGraphRequest.newBuilder()
             .setUserId("2")
+            .setWorkflowName("workflow1")
+            .setExecutionId("1")
+            .setAllocatorSessionId("sid1")
             .addAllTasks(List.of(
-                GraphExecutorApi2.GraphExecuteRequest.TaskDesc.newBuilder()
+                LGE.ExecuteGraphRequest.TaskDesc.newBuilder()
                     .setId("task-1")
-                    .build()
-            ))
+                    .build()))
             .build();
         var op = Operation.create(
             request.getUserId(),

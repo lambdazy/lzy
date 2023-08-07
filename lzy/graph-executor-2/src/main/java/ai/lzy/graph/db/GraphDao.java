@@ -15,6 +15,5 @@ public interface GraphDao {
     @Nullable
     GraphState getById(String graphId) throws SQLException;
 
-    @Nullable
-    List<GraphState> getByInstance(String instanceId) throws SQLException;
+    List<GraphState> getActiveByInstance(String instanceId) throws SQLException;
 }
