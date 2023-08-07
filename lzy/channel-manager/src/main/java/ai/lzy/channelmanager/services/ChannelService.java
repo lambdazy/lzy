@@ -6,6 +6,7 @@ import ai.lzy.channelmanager.db.PeerDao;
 import ai.lzy.channelmanager.model.Peer;
 import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
+import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.channel.LCMPS;
@@ -94,7 +95,8 @@ public class ChannelService extends LzyChannelManagerPrivateImplBase {
                     // Creating channel and peer
                     channel = channelDao.create(channelId, request.getUserId(), request.getExecutionId(),
                         request.getWorkflowName(), request.getScheme(), storageProducerUri, storageConsumerUri, tx);
-                    peerDao.create(channelId, peerDesc, role, PeerDao.Priority.BACKUP, false, tx);
+                    peerDao.create(channelId, peerDesc, role, PeerDao.Priority.BACKUP, false, idGenerator.generate(),
+                        IdempotencyUtils.md5(request), tx);
 
                     tx.commit();
                     return channel;

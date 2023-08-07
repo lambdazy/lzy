@@ -4,7 +4,6 @@ import ai.lzy.common.IdGenerator;
 import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 
@@ -17,8 +16,6 @@ import java.util.Objects;
 
 @Singleton
 public class TransferDaoImpl implements TransferDao {
-    private static final String FIELDS = "id, channel_id, from_id, to_id, state, error_description";
-
     @SuppressWarnings("checkstyle:LineLength")
     private static final String IDEMPOTENT_CREATE_TRANSFER = """
         WITH
@@ -30,17 +27,20 @@ public class TransferDaoImpl implements TransferDao {
                 ON CONFLICT (idempotency_key) DO NOTHING
                 RETURNING idempotency_key, request_hash
             )
-        SELECT COALESCE (atmp.request_hash, t.request_hash)
+        SELECT 
+            COALESCE (atmp.idempotency_key, t.idempotency_key) as idempotency_key,
+            COALESCE (atmp.request_hash, t.request_hash) as request_hash
         FROM row_to_insert rtp
         LEFT JOIN transfers t
         ON rtp.idempotency_key = t.idempotency_key
         LEFT JOIN attempt_to_insert atmp
-        ON t.idempotency_key = atmp.idempotency_key""";
+        ON rtp.idempotency_key = atmp.idempotency_key""";
 
     private static final String JOIN_WITH_PEERS = """
         SELECT
-          transfers.id, transfers.channel_id, transfers.state, transfers.error_description,
-          from_peer.id, from_peer.channel_id, from_peer.role, from_peer.description,
+          transfers.id, transfers.channel_id, transfers.state, transfers.error_description, 
+          transfers.state_change_idk as state_idk,  transfers.idempotency_key as idk, from_peer.id, 
+          from_peer.channel_id, from_peer.role, from_peer.description,
           to_peer.id, to_peer.channel_id, to_peer.role, to_peer.description
         FROM transfers
           JOIN peers from_peer on from_peer.id = transfers.from_id AND from_peer.channel_id = transfers.channel_id
@@ -53,13 +53,13 @@ public class TransferDaoImpl implements TransferDao {
 
     private static final String SET_STATE = """
         UPDATE transfers
-          SET state = ?
+          SET state = ?, state_change_idk = ?
           WHERE id = ? AND channel_id = ?
         """;
 
     private static final String MARK_FAILED = """
         UPDATE transfers
-          SET state = ?, error_description = ?
+          SET state = ?, error_description = ?, state_change_idk = ?
           WHERE id = ? AND channel_id = ?
         """;
 
@@ -100,7 +100,7 @@ public class TransferDaoImpl implements TransferDao {
                     if (Objects.equals(idempotencyKey, actualIdempotencyKey) &&
                         !Objects.equals(requestHash, actualRequestHash))
                     {
-                        throw new AuthUniqueViolationException("Cannot insert transfer: Idempotency key conflict");
+                        throw new RuntimeException("Cannot insert transfer: Idempotency key conflict");
                     }
                 } else {
                     throw new RuntimeException("Cannot insert transfer: Empty result set");
@@ -131,26 +131,13 @@ public class TransferDaoImpl implements TransferDao {
     }
 
     @Override
-    public void markActive(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException {
+    public void markActive(String id, String channelId, String idempotencyKey, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement(SET_STATE)) {
                 ps.setString(1, State.ACTIVE.name());
-                ps.setString(2, id);
-                ps.setString(3, channelId);
-
-                ps.execute();
-            }
-        });
-    }
-
-    @Override
-    public void markFailed(String id, String channelId, String errorDescription,
-                           @Nullable TransactionHandle tx) throws SQLException
-    {
-        DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement(MARK_FAILED)) {
-                ps.setString(1, State.FAILED.name());
-                ps.setString(2, errorDescription);
+                ps.setString(2, idempotencyKey);
                 ps.setString(3, id);
                 ps.setString(4, channelId);
 
@@ -160,12 +147,32 @@ public class TransferDaoImpl implements TransferDao {
     }
 
     @Override
-    public void markCompleted(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException {
+    public void markFailed(String id, String channelId, String errorDescription, String idempotencyKey,
+                           @Nullable TransactionHandle tx) throws SQLException
+    {
+        DbOperation.execute(tx, storage, connection -> {
+            try (PreparedStatement ps = connection.prepareStatement(MARK_FAILED)) {
+                ps.setString(1, State.FAILED.name());
+                ps.setString(2, errorDescription);
+                ps.setString(3, idempotencyKey);
+                ps.setString(4, id);
+                ps.setString(5, channelId);
+
+                ps.execute();
+            }
+        });
+    }
+
+    @Override
+    public void markCompleted(String id, String channelId, String idempotencyKey, @Nullable TransactionHandle tx)
+        throws SQLException
+    {
         DbOperation.execute(tx, storage, connection -> {
             try (PreparedStatement ps = connection.prepareStatement(SET_STATE)) {
                 ps.setString(1, State.COMPLETED.name());
-                ps.setString(2, id);
-                ps.setString(3, channelId);
+                ps.setString(2, idempotencyKey);
+                ps.setString(3, id);
+                ps.setString(4, channelId);
 
                 ps.execute();
             }
@@ -216,9 +223,12 @@ public class TransferDaoImpl implements TransferDao {
         var state = State.valueOf(rs.getString(3));
         var errorDesc = rs.getString(4);
 
-        var from = PeerDaoImpl.readPeer(rs, 4);
-        var to = PeerDaoImpl.readPeer(rs, 8);
+        var idempotencyKey = rs.getString("idk");
+        var stateChangeIdk = rs.getString("state_idk");
 
-        return new Transfer(id, from, to, channelId, state, errorDesc);
+        var from = PeerDaoImpl.readPeer(rs, 6);
+        var to = PeerDaoImpl.readPeer(rs, 10);
+
+        return new Transfer(id, from, to, channelId, state, errorDesc, idempotencyKey, stateChangeIdk);
     }
 }

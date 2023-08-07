@@ -4,7 +4,6 @@ import ai.lzy.channelmanager.model.Peer;
 import ai.lzy.channelmanager.model.Peer.Role;
 import ai.lzy.model.db.DbOperation;
 import ai.lzy.model.db.TransactionHandle;
-import ai.lzy.util.auth.exceptions.AuthUniqueViolationException;
 import ai.lzy.v1.common.LC;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
@@ -46,9 +45,15 @@ public class PeerDaoImpl implements PeerDao {
         WHERE id = ? AND channel_id = ?
         """.formatted(FIELDS);
 
+    private static final String GET_CONNECTED_CONSUMERS = """
+        SELECT %s, conn_request_hash
+        FROM peers
+        WHERE channel_id = ? AND connected = true AND conn_idempotency_key = ?
+        """.formatted(FIELDS);
+
     private static final String MARK_CONSUMERS_AS_CONNECTED = """
         UPDATE peers
-        SET connected = true
+        SET connected = true, conn_idempotency_key = ?, conn_request_hash = ?
         WHERE channel_id = ? AND connected = false AND "role" = 'CONSUMER'
         RETURNING %s
         """.formatted(FIELDS);
@@ -71,13 +76,13 @@ public class PeerDaoImpl implements PeerDao {
                 RETURNING id, channel_id, idempotency_key, request_hash
             )
         SELECT
-            COALESCE (atmp.idempotency_key, p.idempotency_key),
-            COALESCE (atmp.request_hash, p.request_hash)
+            COALESCE(atmp.idempotency_key, p.idempotency_key) as idempotency_key,
+            COALESCE(atmp.request_hash, p.request_hash) as request_hash
         FROM row_to_insert rtp
         LEFT JOIN peers p
         ON rtp.id = p.id AND rtp.channel_id = p.channel_id
         LEFT JOIN attempt_to_insert atmp
-        ON p.id = atmp.id AND p.channel_id = atmp.channel_id""";
+        ON rtp.id = atmp.id AND rtp.channel_id = atmp.channel_id""";
 
     public PeerDaoImpl(ChannelManagerDataSource storage) {
         this.storage = storage;
@@ -113,8 +118,8 @@ public class PeerDaoImpl implements PeerDao {
                     if (!Objects.equals(idempotencyKey, actualIdempotencyKey) ||
                         !Objects.equals(requestHash, actualRequestHash))
                     {
-                        throw new AuthUniqueViolationException(("Peer with id='%s' already associated with channel " +
-                            "with id=''%s").formatted(desc.getPeerId(), channelId));
+                        throw new RuntimeException(("Peer with id='%s' already associated with channel with id='%s'")
+                            .formatted(desc.getPeerId(), channelId));
                     }
 
                     return new Peer(desc.getPeerId(), channelId, role, desc);
@@ -142,12 +147,40 @@ public class PeerDaoImpl implements PeerDao {
         });
     }
 
+    @Override
+    public List<Peer> listConnectedConsumersByRequest(String channelId, String idempotencyKey, String requestHash,
+                                                      @Nullable TransactionHandle tx) throws SQLException
+    {
+        return DbOperation.execute(tx, storage, connection -> {
+            try (var ps = connection.prepareStatement(GET_CONNECTED_CONSUMERS)) {
+                ps.setString(1, channelId);
+                ps.setString(2, idempotencyKey);
+
+                var rs = ps.executeQuery();
+                var peers = new ArrayList<Peer>();
+
+                while (rs.next()) {
+                    peers.add(readPeer(rs));
+                    var actualRequestHash = rs.getString("conn_request_hash");
+                    if (!Objects.equals(requestHash, actualRequestHash)) {
+                        throw new RuntimeException("Idempotency key conflict");
+                    }
+                }
+
+                return peers;
+            }
+        });
+    }
 
     @Override
-    public List<Peer> markConsumersAsConnected(String channelId, @Nullable TransactionHandle tx) throws SQLException {
+    public List<Peer> markConsumersAsConnected(String channelId, String idempotencyKey, String requestHash,
+                                               @Nullable TransactionHandle tx) throws SQLException
+    {
         return DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement(MARK_CONSUMERS_AS_CONNECTED)) {
-                ps.setString(1, channelId);
+            try (var ps = connection.prepareStatement(MARK_CONSUMERS_AS_CONNECTED)) {
+                ps.setString(1, idempotencyKey);
+                ps.setString(2, requestHash);
+                ps.setString(3, channelId);
 
                 ResultSet rs = ps.executeQuery();
 

@@ -21,6 +21,7 @@ public interface PeerDao {
 
     List<Peer> listConnectedConsumersByRequest(String channelId, String idempotencyKey, String requestHash,
                                                @Nullable TransactionHandle tx) throws SQLException;
+
     /**
      * Atomic request to get all not connected consumers and mark them as connected
      */
@@ -29,9 +30,9 @@ public interface PeerDao {
 
     /**
      * Marks peer as less prior
+     *
      * @return new priority
      */
-    // todo make idempotent
     int decrementPriority(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException;
 
     @Nullable

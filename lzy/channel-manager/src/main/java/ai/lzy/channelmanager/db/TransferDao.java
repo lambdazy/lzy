@@ -10,6 +10,7 @@ import java.util.List;
 public interface TransferDao {
     /**
      * Create new transfer
+     *
      * @return transfer id
      */
     String create(String fromId, String toId, String channelId, State state, String idempotencyKey, String requestHash,
@@ -18,14 +19,14 @@ public interface TransferDao {
     @Nullable
     Transfer get(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException;
 
-    void markScheduled(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException;
+    void markActive(String id, String channelId, String idempotencyKey, @Nullable TransactionHandle tx)
+        throws SQLException;
 
-    void markActive(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException;
-
-    void markFailed(String id, String channelId, String errorDescription,
+    void markFailed(String id, String channelId, String errorDescription, String idempotencyKey,
                     @Nullable TransactionHandle tx) throws SQLException;
 
-    void markCompleted(String id, String channelId, @Nullable TransactionHandle tx) throws SQLException;
+    void markCompleted(String id, String channelId, String idempotencyKey, @Nullable TransactionHandle tx)
+        throws SQLException;
 
     boolean hasPendingOrActiveTransfers(String peerId, String channelId,
                                         @Nullable TransactionHandle tx) throws SQLException;
@@ -38,12 +39,13 @@ public interface TransferDao {
         Peer to,
         String channelId,
         State state,
-        @Nullable String errorDescription
-    ) { }
+        @Nullable String errorDescription,
+        @Nullable String idempotencyKey,
+        @Nullable String stateChangeIdk
+    ) {}
 
     enum State {
         PENDING,
-        SCHEDULED,
         ACTIVE,
         COMPLETED,
         FAILED
