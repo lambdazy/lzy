@@ -3,39 +3,33 @@ package ai.lzy.graph.test;
 import ai.lzy.graph.algo.Algorithms;
 import ai.lzy.graph.model.GraphState;
 import ai.lzy.graph.model.TaskSlotDescription;
+import ai.lzy.graph.model.TaskSlotDescription.Slot;
 import ai.lzy.graph.model.TaskState;
 import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
+import static ai.lzy.graph.model.TaskSlotDescription.Slot.Direction;
+import static ai.lzy.graph.model.TaskSlotDescription.Slot.Media;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 
 public class AlgorithmsTest {
-    private static final TaskSlotDescription.Slot SLOT_0 = new TaskSlotDescription.Slot("slot0", TaskSlotDescription.Slot.Media.FILE,
-        TaskSlotDescription.Slot.Direction.OUTPUT, null, null, null, null);
-    private static final TaskSlotDescription.Slot SLOT_1 = new TaskSlotDescription.Slot("slot1", TaskSlotDescription.Slot.Media.PIPE,
-        TaskSlotDescription.Slot.Direction.OUTPUT, null, null, null, null);
-    private static final TaskSlotDescription.Slot SLOT_2 = new TaskSlotDescription.Slot("slot2", TaskSlotDescription.Slot.Media.PIPE,
-        TaskSlotDescription.Slot.Direction.INPUT, null, null, null, null);
-    private static final TaskSlotDescription.Slot SLOT_3 = new TaskSlotDescription.Slot("slot3", TaskSlotDescription.Slot.Media.ARG,
-        TaskSlotDescription.Slot.Direction.OUTPUT, null, null, null, null);
-    private static final TaskSlotDescription.Slot SLOT_4 = new TaskSlotDescription.Slot("slot4", TaskSlotDescription.Slot.Media.FILE,
-        TaskSlotDescription.Slot.Direction.INPUT, null, null, null, null);
-    private static final TaskSlotDescription.Slot SLOT_5 = new TaskSlotDescription.Slot("slot5", TaskSlotDescription.Slot.Media.ARG,
-        TaskSlotDescription.Slot.Direction.INPUT, null, null, null, null);
-    private static final TaskSlotDescription.Slot SLOT_6 = new TaskSlotDescription.Slot("slot6", TaskSlotDescription.Slot.Media.FILE,
-        TaskSlotDescription.Slot.Direction.OUTPUT, null, null, null, null);
-    private static final TaskSlotDescription.Slot SLOT_7 = new TaskSlotDescription.Slot("slot6", TaskSlotDescription.Slot.Media.FILE,
-        TaskSlotDescription.Slot.Direction.INPUT, null, null, null, null);
+    private static final Slot SLOT_0 = new Slot("slot0", Media.FILE, Direction.OUTPUT, null, null, null, null);
+    private static final Slot SLOT_1 = new Slot("slot1", Media.PIPE, Direction.OUTPUT, null, null, null, null);
+    private static final Slot SLOT_2 = new Slot("slot2", Media.PIPE, Direction.INPUT, null, null, null, null);
+    private static final Slot SLOT_3 = new Slot("slot3", Media.ARG, Direction.OUTPUT, null, null, null, null);
+    private static final Slot SLOT_4 = new Slot("slot4", Media.FILE, Direction.INPUT, null, null, null, null);
+    private static final Slot SLOT_5 = new Slot("slot5", Media.ARG, Direction.INPUT, null, null, null, null);
+    private static final Slot SLOT_6 = new Slot("slot6", Media.FILE, Direction.OUTPUT, null, null, null, null);
+    private static final Slot SLOT_7 = new Slot("slot6", Media.FILE, Direction.INPUT, null, null, null, null);
 
-    private final GraphState graph = new GraphState("graph1", "op1", GraphState.Status.WAITING,
-        "exec1", "workflow1", "user1", Collections.emptyMap(),
-        null, null, null);
+    private final GraphState graph = new GraphState("graph1", "op1", GraphState.Status.WAITING, "exec1", "workflow1",
+        "user1", "sid1", new EnumMap<>(GraphState.Status.class), null, null, null);
 
     @Test
     public void simpleTest() {
@@ -94,11 +88,10 @@ public class AlgorithmsTest {
         );
     }
 
-    private TaskState buildTask(String taskId, List<TaskSlotDescription.Slot> slots, Map<String, String> slotToChannels) {
+    private TaskState buildTask(String taskId, List<Slot> slots, Map<String, String> slotToChannels) {
         final TaskSlotDescription slotDescription = new TaskSlotDescription(taskId, "descr",
             "pool", "zone", "command", slots, slotToChannels, null);
         return new TaskState(taskId, taskId, "op1", "graph", TaskState.Status.WAITING, "w1",
-            "w1", "user1", null, slotDescription, "", null,
-            new ArrayList<>(), new ArrayList<>());
+            "w1", "user1", "sid1", slotDescription, new ArrayList<>(), new ArrayList<>(), null, null);
     }
 }

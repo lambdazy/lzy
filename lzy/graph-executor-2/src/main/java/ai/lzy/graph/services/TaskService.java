@@ -1,6 +1,6 @@
 package ai.lzy.graph.services;
 
-import ai.lzy.graph.GraphExecutorApi2;
+import ai.lzy.graph.LGE;
 import ai.lzy.graph.model.TaskState;
 import jakarta.annotation.Nullable;
 
@@ -12,8 +12,6 @@ public interface TaskService {
 
     void addTasks(List<TaskState> tasks);
 
-    void completeTask(TaskState task);
-
     @Nullable
-    GraphExecutorApi2.TaskExecutionStatus getTaskStatus(String taskId);
+    LGE.TaskExecutionStatus getTaskStatus(String taskId);
 }
