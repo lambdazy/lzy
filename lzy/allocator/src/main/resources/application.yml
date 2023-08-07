@@ -100,3 +100,9 @@ allocator:
   service-cidrs:
     - cidr: "xxx"
       ports: []
+
+  mount:
+    enabled: false
+    pod-image: "alpine:3.14"
+    worker-mount-point: "/host_shared/dynamic_mount"
+    host-mount-point: "/host_shared/dynamic_mount"
