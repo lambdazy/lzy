@@ -12,21 +12,27 @@ import ai.lzy.longrunning.OperationsExecutor;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import jakarta.annotation.Nullable;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
@@ -43,17 +49,22 @@ public class TaskServiceImpl implements TaskService {
     private final OperationDao operationDao;
     private final OperationsExecutor operationsExecutor;
 
-    private final PriorityQueue<TaskState> readyTasks = new PriorityQueue<>(
-        Comparator.comparingInt(task -> task.tasksDependedFrom().size()));
-    private final Map<String, TaskState> runningTask = new ConcurrentHashMap<>();
+    private final Lock modifyReadyTasksLock = new ReentrantLock();
+    private final Condition readyTasksModified = modifyReadyTasksLock.newCondition();
+
+    private final Map<String, TaskState> readyTasks = new ConcurrentHashMap<>();
     private final Map<String, TaskState> waitingTasks = new ConcurrentHashMap<>();
+    private final Map<String, TaskState> runningTask = new ConcurrentHashMap<>();
 
-    //private final Map<String, Integer> limitByUser = new ConcurrentHashMap<>();
-    //private final Map<String, Integer> limitByWorkflow = new ConcurrentHashMap<>();
+    private final Map<String, Integer> limitByUser = new ConcurrentHashMap<>();
+    private final Map<String, Integer> limitByWorkflow = new ConcurrentHashMap<>();
 
-    private final ScheduledExecutorService workExecutor = Executors.newSingleThreadScheduledExecutor();
+    private final ScheduledExecutorService schedulerExecutor = Executors.newSingleThreadScheduledExecutor();
 
-    private volatile Consumer<TaskState> taskOnStatusChanged = __ -> LOG.error("Handler on task status not set.");
+    private volatile Consumer<TaskState> taskOnStatusChanged = ts -> LOG.error("Handler on task status not set.");
+
+    private final AtomicBoolean terminate = new AtomicBoolean(false);
+    private final AtomicBoolean terminated = new AtomicBoolean(false);
 
     @Inject
     public TaskServiceImpl(ServiceConfig config, TaskDao taskDao, GraphExecutorDataSource storage,
@@ -69,7 +80,7 @@ public class TaskServiceImpl implements TaskService {
         this.config = config;
 
         restoreTasks(config.getInstanceId());
-        workExecutor.scheduleWithFixedDelay(this::run, 1, 1, TimeUnit.SECONDS);
+        schedulerExecutor.scheduleWithFixedDelay(this::runReadyTasks, 1, 1, TimeUnit.SECONDS);
     }
 
     @Override
@@ -81,7 +92,14 @@ public class TaskServiceImpl implements TaskService {
     public void addTasks(List<TaskState> tasks) {
         tasks.forEach(task -> {
             if (task.tasksDependedOn().isEmpty()) {
-                readyTasks.add(task);
+                modifyReadyTasksLock.lock();
+                try {
+                    if (readyTasks.put(task.id(), task) == null) {
+                        readyTasksModified.signal();
+                    }
+                } finally {
+                    modifyReadyTasksLock.unlock();
+                }
             } else {
                 waitingTasks.put(task.id(), task);
             }
@@ -91,35 +109,94 @@ public class TaskServiceImpl implements TaskService {
     @Override
     @Nullable
     public LGE.TaskExecutionStatus getTaskStatus(String taskId) {
-        // TODO: keep tasks states in memory
-        try {
-            var task = withRetries(LOG, () -> taskDao.getTaskById(taskId));
-            return task != null ? task.toProtoStatus() : null;
-        } catch (Exception e) {
-            LOG.error("Cannot load task {}: {}", taskId, e.getMessage());
-            throw new RuntimeException(e);
+        var task = readyTasks.get(taskId);
+        if (task == null) {
+            task = runningTask.get(taskId);
+        }
+        if (task == null) {
+            task = waitingTasks.get(taskId);
+        }
+        return task != null ? task.toProtoStatus() : null;
+    }
+
+    @PreDestroy
+    private void shutdown() {
+        if (terminate.compareAndSet(false, true)) {
+            schedulerExecutor.shutdown();
+            while (!terminated.get()) {
+                LockSupport.parkNanos(10_000);
+            }
         }
     }
 
-    private void run() {
-        var candidate = readyTasks.peek();
-        while (candidate != null) {
-            assert candidate.status() == TaskState.Status.WAITING;
+    private void runReadyTasks() {
+        if (terminate.get()) {
+            terminated.set(true);
+            return;
+        }
 
-            /*
-            if (limitByUser.getOrDefault(task.userId(), 0) >= config.getUserLimit()) {
-                LOG.warn("Can't execute another task {} for user {}", task.id(), task.userId());
-                break;
+        modifyReadyTasksLock.lock();
+        try {
+            if (readyTasks.isEmpty()) {
+                readyTasksModified.await();
+            }
+        } catch (InterruptedException e) {
+            if (terminate.get()) {
+                terminated.set(true);
+                return;
+            }
+            LOG.error("Unexpected interrupt", e);
+            return;
+        } finally {
+            modifyReadyTasksLock.unlock();
+        }
+
+        var tasks = new ArrayList<>(readyTasks.values());
+
+        // sort by dependant tasks
+        tasks.sort(Comparator.comparingInt(task -> task.tasksDependedFrom().size()));
+
+        int fromIdx = 0;
+        var candidates = new ArrayList<TaskState>();
+
+        while (fromIdx < tasks.size()) {
+            int deps = tasks.get(fromIdx).tasksDependedFrom().size();
+
+            for (int i = fromIdx; i < tasks.size(); i++) {
+                var task = tasks.get(i);
+                if (task.tasksDependedOn().size() == deps) {
+                    candidates.add(task);
+                } else {
+                    fromIdx = i;
+                    break;
+                }
             }
 
-            if (limitByWorkflow.getOrDefault(task.executionId(), 0) >= config.getWorkflowLimit()) {
-                LOG.warn("Can't execute another task {} for workflow {}", task.id(), task.executionId());
+            candidates.removeIf(task -> {
+                var limits = config.getExecLimits();
+                var drop = (limitByUser.getOrDefault(task.userId(), 0) >= limits.getMaxUserRunningTasks()) ||
+                    (limitByWorkflow.getOrDefault(task.workflowName(), 0) >= limits.getMaxWorkflowRunningTasks());
+                if (drop) {
+                    LOG.debug("Cannot run task {}, limit exceeded", task.id());
+                }
+                return drop;
+            });
+
+            if (!candidates.isEmpty()) {
                 break;
             }
+        }
 
-            limitByUser.merge(task.userId(), 1, Integer::sum);
-            limitByWorkflow.merge(task.executionId(), 1, Integer::sum);
-             */
+        if (candidates.isEmpty()) {
+            LOG.debug("Nothing to run, limits exceeded");
+            return;
+        }
+
+        for (var candidate : candidates) {
+            if (terminate.get()) {
+                terminated.set(true);
+                return;
+            }
 
             // TODO: existing op
 
@@ -152,19 +229,17 @@ public class TaskServiceImpl implements TaskService {
 
             LOG.info("Created task operation {} for task {}", op.id(), task.id());
 
-            readyTasks.poll();
+            readyTasks.remove(task.id());
             runningTask.put(task.id(), task);
 
             taskOnStatusChanged.accept(task);
             operationsExecutor.startNew(executeTaskAction);
-
-            candidate = readyTasks.peek();
         }
     }
 
     private void completeTask(TaskState task) {
-        //limitByUser.merge(task.userId(), -1, Integer::sum);
-        //limitByWorkflow.merge(task.executionId(), -1, Integer::sum);
+        limitByUser.merge(task.userId(), -1, Integer::sum);
+        limitByWorkflow.merge(task.executionId(), -1, Integer::sum);
 
         runningTask.remove(task.id());
 
@@ -174,7 +249,7 @@ public class TaskServiceImpl implements TaskService {
 
             if (waitingTask.tasksDependedOn().isEmpty()) {
                 waitingTasks.remove(taskId);
-                readyTasks.add(waitingTask);
+                readyTasks.put(waitingTask.id(), waitingTask);
             }
         }
         taskOnStatusChanged.accept(task);
@@ -183,9 +258,9 @@ public class TaskServiceImpl implements TaskService {
     private void restoreTasks(String instanceId) {
         try {
             withRetries(LOG, () -> {
-                List<TaskState> taskList = taskDao.getTasksByInstance(instanceId);
+                var taskList = taskDao.loadActiveTasks(instanceId);
 
-                List<String> failedGraphs = taskList.stream()
+                var failedGraphs = taskList.stream()
                     .filter(task -> task.status() == TaskState.Status.FAILED)
                     .map(TaskState::graphId)
                     .distinct()
@@ -196,31 +271,31 @@ public class TaskServiceImpl implements TaskService {
                     throw new RuntimeException();
                 }
 
-                List<TaskState> completedTasks = taskList.stream()
+                var completedTasks = taskList.stream()
                     .filter(task -> task.status() == TaskState.Status.COMPLETED)
                     .toList();
-                Map<String, TaskState> tasksById = taskList.stream()
+                var waitingTasksMap = taskList.stream()
                     .filter(task -> task.status() == TaskState.Status.WAITING)
                     .collect(Collectors.toMap(TaskState::id, task -> task));
 
                 for (var task: completedTasks) {
                     for (var depTaskId: task.tasksDependedFrom()) {
-                        TaskState depTask = tasksById.get(depTaskId);
+                        var depTask = waitingTasksMap.get(depTaskId);
                         depTask.tasksDependedOn().remove(task.id());
                     }
                 }
 
-                tasksById.values().stream()
+                waitingTasksMap.values().stream()
                     .filter(task -> task.tasksDependedOn().isEmpty())
-                    .forEach(readyTasks::add);
+                    .forEach(task -> readyTasks.put(task.id(), task));
 
-                tasksById.values().stream()
+                waitingTasksMap.values().stream()
                     .filter(task -> !task.tasksDependedOn().isEmpty())
                     .forEach(task -> waitingTasks.put(task.id(), task));
 
                 var statuses = Set.of(TaskState.Status.WAITING_ALLOCATION,
                     TaskState.Status.ALLOCATING, TaskState.Status.EXECUTING);
-                List<TaskState> executingTasks = taskList.stream()
+                var executingTasks = taskList.stream()
                     .filter(task -> statuses.contains(task.status()))
                     .toList();
 

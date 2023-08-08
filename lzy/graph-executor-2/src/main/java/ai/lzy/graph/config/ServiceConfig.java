@@ -27,5 +27,14 @@ public class ServiceConfig {
 
     @ConfigurationBuilder("kafka")
     private KafkaConfig kafka = new KafkaConfig();
+
+    private ExecLimits execLimits = new ExecLimits();
+
+    @Getter
+    @Setter
+    public static class ExecLimits {
+        private int maxUserRunningTasks = 7;
+        private int maxWorkflowRunningTasks = 3;
+    }
 }
 

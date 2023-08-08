@@ -70,7 +70,7 @@ public class TaskDaoImpl implements TaskDao {
         WHERE task.graph_id = ?
         GROUP BY task.id""".formatted(TASK_SELECT_FIELDS_LIST);
 
-    private static final String TASK_GET_BY_INSTANCE_STATEMENT = """
+    private static final String QUERY_LOAD_ACTIVE_TASKS = """
         SELECT %s,
           STRING_AGG(t1.dependent_task_id, ',') as dependend_from,
           STRING_AGG(t2.task_id, ',') as dependend_on
@@ -187,9 +187,9 @@ public class TaskDaoImpl implements TaskDao {
     }
 
     @Override
-    public List<TaskState> getTasksByInstance(String instanceId) throws SQLException {
+    public List<TaskState> loadActiveTasks(String instanceId) throws SQLException {
         try (var connection = storage.connect();
-             PreparedStatement st = connection.prepareStatement(TASK_GET_BY_INSTANCE_STATEMENT))
+             PreparedStatement st = connection.prepareStatement(QUERY_LOAD_ACTIVE_TASKS))
         {
             st.setString(1, instanceId);
 

@@ -109,10 +109,21 @@ public class GraphServiceImpl implements GraphService {
                 return;
             }
 
+            LOG.debug("Graph {}, task: {}", graph.id(), task);
+
             switch (task.status()) {
-                case WAITING_ALLOCATION, ALLOCATING, EXECUTING -> graph.tryExecute(task.id());
-                case COMPLETED -> graph.tryComplete(task.id());
-                case FAILED -> graph.tryFail(task.id(), task.name(), task.errorDescription());
+                case WAITING_ALLOCATION, ALLOCATING, EXECUTING -> {
+                    LOG.debug("Graph {}, task {} changed status to {}", graph.id(), task.id(), task.status());
+                    graph.tryExecute(task.id());
+                }
+                case COMPLETED -> {
+                    LOG.info("Graph {}, task {} completed", graph.id(), task.id());
+                    graph.tryComplete(task.id());
+                }
+                case FAILED -> {
+                    LOG.warn("Graph {}, task {} failed, reason: {}", graph.id(), task.id(), task.errorDescription());
+                    graph.tryFail(task.id(), task.name(), task.errorDescription());
+                }
             }
 
             var opMeta = Any.pack(graph.toMetaProto(taskService::getTaskStatus));
