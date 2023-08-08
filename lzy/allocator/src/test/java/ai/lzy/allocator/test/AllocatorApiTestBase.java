@@ -4,6 +4,7 @@ import ai.lzy.allocator.alloc.impl.kuber.KuberClientFactory;
 import ai.lzy.allocator.alloc.impl.kuber.KuberLabels;
 import ai.lzy.allocator.alloc.impl.kuber.KuberTunnelAllocator;
 import ai.lzy.allocator.alloc.impl.kuber.KuberVmAllocator;
+import ai.lzy.allocator.model.PersistentVolumePhase;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.test.http.MockHttpDispatcher;
 import ai.lzy.allocator.vmpool.ClusterRegistry;
@@ -219,6 +220,18 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
             request -> new MockResponse().setBody(toJson(pod)).setResponseCode(HttpURLConnection.HTTP_OK));
     }
 
+    protected void mockGetPv(PersistentVolume pv) {
+        mockRequestDispatcher.addHandlerOneTime(
+            exactPath(PERSISTENT_VOLUME_PATH + "/" + getName(pv)).and(method("GET")),
+            request -> new MockResponse().setBody(toJson(pv)).setResponseCode(HttpURLConnection.HTTP_OK));
+    }
+
+    protected void mockGetPvNotFound(String pvName) {
+        mockRequestDispatcher.addHandlerOneTime(
+            exactPath(PERSISTENT_VOLUME_PATH + "/" + pvName).and(method("GET")),
+            request -> new MockResponse().setResponseCode(HttpURLConnection.HTTP_NOT_FOUND));
+    }
+
     @Nonnull
     private static Pod constructPod(String podName) {
         final Pod pod = new Pod();
@@ -276,7 +289,7 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
         return awaitResourceCreate(resourceType, resourcePath, HttpURLConnection.HTTP_CREATED);
     }
 
-    protected <T> Future<T> awaitResourceCreate(Class<T> resourceType, String resourcePath, int statusCode) {
+    protected <T> CompletableFuture<T> awaitResourceCreate(Class<T> resourceType, String resourcePath, int statusCode) {
         final var future = new CompletableFuture<T>();
         mockRequestDispatcher.addHandlerOneTime(exactPath(resourcePath).and(method("POST")),
             request -> {
@@ -305,6 +318,21 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
 
     protected CompletableFuture<Pod> mockCreatePod() {
         return mockCreatePod(null);
+    }
+
+    protected CompletableFuture<PersistentVolume> mockCreatePv() {
+        final var future = new CompletableFuture<PersistentVolume>();
+        mockRequestDispatcher.addHandlerOneTime(exactPath(PERSISTENT_VOLUME_PATH).and(method("POST")),
+            request -> {
+                var pv = fromJson(request.getBody(), PersistentVolume.class);
+                pv.setStatus(new PersistentVolumeStatusBuilder()
+                        .withMessage("Ok")
+                        .withPhase(PersistentVolumePhase.AVAILABLE.getPhase())
+                    .build());
+                future.complete(pv);
+                return new MockResponse().setBody(toJson(pv)).setResponseCode(HttpURLConnection.HTTP_CREATED);
+            });
+        return future;
     }
 
     protected void mockDeleteResource(String resourcePath, String resourceName, Runnable onDelete, int responseCode) {
