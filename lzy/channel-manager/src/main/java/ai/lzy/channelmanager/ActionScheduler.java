@@ -14,7 +14,6 @@ import org.apache.logging.log4j.Logger;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -68,9 +67,9 @@ public class ActionScheduler {
 
             var connection = connectionManager.getConnection(uri);
 
-            var client = Objects.nonNull(idempotencyKey) ?
-                withIdempotencyKey(connection.SlotsApi(), idempotencyKey) :
-                connection.SlotsApi();
+            var client = idempotencyKey != null
+                ? withIdempotencyKey(connection.SlotsApi(), idempotencyKey)
+                : connection.SlotsApi();
 
             client.startTransfer(LSA.StartTransferRequest.newBuilder()
                 .setSlotId(to.id())
@@ -80,11 +79,14 @@ public class ActionScheduler {
             withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
                     var transfer = connections.get(transferId, from.channelId(), tx);
+
                     if (transfer != null && transfer.state().equals(TransferDao.State.PENDING)) {
                         connections.markActive(transferId, from.channelId(), idempotencyKey, tx);
                     } else {
                         throw new ConcurrentModificationException("Unexpected state of transfer", null);
                     }
+
+                    tx.commit();
                 }
             });
         } catch (Exception e) {
