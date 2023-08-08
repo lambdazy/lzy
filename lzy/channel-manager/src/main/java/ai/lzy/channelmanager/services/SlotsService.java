@@ -8,12 +8,10 @@ import ai.lzy.channelmanager.db.ChannelManagerDataSource;
 import ai.lzy.channelmanager.db.PeerDao;
 import ai.lzy.channelmanager.db.TransferDao;
 import ai.lzy.channelmanager.db.TransferDao.State;
-import ai.lzy.channelmanager.db.TransferDao.Transfer;
 import ai.lzy.channelmanager.model.Channel;
 import ai.lzy.channelmanager.model.Peer;
-import ai.lzy.common.IdGenerator;
-import ai.lzy.common.RandomIdGenerator;
 import ai.lzy.iam.grpc.context.AuthenticationContext;
+import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.model.db.DbHelper;
 import ai.lzy.model.db.TransactionHandle;
 import ai.lzy.v1.channel.LCMS;
@@ -30,7 +28,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -39,6 +36,7 @@ import static ai.lzy.channelmanager.db.PeerDao.Priority.BACKUP;
 import static ai.lzy.channelmanager.model.Peer.Role.CONSUMER;
 import static ai.lzy.channelmanager.model.Peer.Role.PRODUCER;
 import static ai.lzy.iam.resources.AuthPermission.WORKFLOW_RUN;
+import static ai.lzy.util.grpc.GrpcHeaders.getIdempotencyKey;
 
 @Singleton
 public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBase {
@@ -51,8 +49,6 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
     private final ActionScheduler action;
     private final LzyServiceClient lzyServiceClient;
     private final IamAccessManager accessManager;
-
-    private final IdGenerator idGenerator = new RandomIdGenerator();
 
     public SlotsService(PeerDao peerDao, ChannelDao channelDao, ChannelManagerDataSource storage,
                         TransferDao transferDao, ActionScheduler action, LzyServiceClient lzyServiceClient,
@@ -69,8 +65,6 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
 
     @Override
     public void bind(LCMS.BindRequest request, StreamObserver<LCMS.BindResponse> responseObserver) {
-        // TODO(artolord) add idempotency
-
         var channelId = request.getChannelId();
         var peerId = request.getPeerId();
         var peerDesc = PeerDescription.newBuilder()
@@ -98,8 +92,11 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
             case PRODUCER -> PRODUCER;
         };
 
+        var idempotencyKey = getIdempotencyKey();
+        var requestHash = IdempotencyUtils.md5(request);
+
         if (role == CONSUMER) {
-            final PeerAndTransfer producerAndTransfer = createConsumer(channelId, peerId, peerDesc, logPrefix, role);
+            var producerAndTransfer = createConsumer(channelId, peerDesc, logPrefix, role, idempotencyKey, requestHash);
 
             var builder = LCMS.BindResponse.newBuilder();
             if (producerAndTransfer != null) {
@@ -114,11 +111,12 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
             return;
         }
 
-        final ProducerAndConsumerTransfers res = createProducer(channelId, peerId, peerDesc, logPrefix, role);
+        var producerAndConsumerTransfers = createProducer(channelId, peerId, peerDesc, logPrefix, role, idempotencyKey,
+            requestHash);
 
         // Finding storage consumer
         PeerAndTransfer storageConsumer = null;
-        for (var consumer: res.transfers) {
+        for (var consumer : producerAndConsumerTransfers.transfers) {
             if (consumer.peer().description().hasStoragePeer()) {
                 storageConsumer = consumer;
                 break;
@@ -134,9 +132,14 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         responseObserver.onCompleted();
 
         // Start actions after response is sent
-        for (var consumer: res.transfers) {
-            if (!consumer.peer().description().hasStoragePeer()) {
-                action.runStartTransferAction(res.producer, consumer.peer);
+        var transfers = producerAndConsumerTransfers.transfers;
+
+        for (int i = 0, n = transfers.size(); i < n; i++) {
+            var peerAndTransfer = transfers.get(i);
+
+            if (!peerAndTransfer.peer().description().hasStoragePeer()) {
+                action.runStartTransferAction(peerAndTransfer.transferId, producerAndConsumerTransfers.producer,
+                    peerAndTransfer.peer, idempotencyKey + "_" + i);
             }
         }
     }
@@ -193,36 +196,59 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
             channel.userId(), channel.workflowName(), channel.executionId()
         );
 
+        var idempotencyKey = getIdempotencyKey();
+        var requestHash = IdempotencyUtils.md5(request);
+
         final PeerAndTransfer resp;
 
         try {
             resp = DbHelper.withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
-                    Transfer transfer = getAndValidateTransfer(request.getTransferId(), channel, logPrefix, tx);
+                    var transfer = transferDao.get(request.getTransferId(), channel.id(), tx);
 
-                    LOG.error("{} Failed with description '{}', current transfer: {}",
-                        logPrefix, request.getDescription(), transfer);
-                    transferDao.markFailed(request.getTransferId(), channel.id(), request.getDescription(), tx);
-
-                    if (transfer.to().description().hasStoragePeer()) {
-                        // Failed to send data to storage peer, failing whole channel
-                        LOG.error("{} Uploading data to storage {} for channel failed", logPrefix,
-                            transfer.to().description().getStoragePeer().getStorageUri());
-
-                        lzyServiceClient.destroyChannelAndWorkflow(channel.id(),
-                            "Uploading data to storage failed", tx);
-                        tx.commit();
-
-                        throw Status.INTERNAL
-                            .withDescription("Uploading data to storage failed")
+                    if (transfer == null) {
+                        LOG.error("{} Cannot find transfer in db", logPrefix);
+                        throw Status.NOT_FOUND
+                            .withDescription("Cannot find transfer in db")
                             .asRuntimeException();
                     }
 
-                    // Trying to find other producer
-                    var newPriority = peerDao.decrementPriority(transfer.from().id(), channel.id(), tx);
-                    if (newPriority < 0) {
-                        LOG.error("{} Count of retries of connecting to peer {} is exceeded." +
-                            " It will be not used for other connections", logPrefix, transfer.from().id());
+                    if (transfer.state() != State.FAILED && transfer.state() != State.ACTIVE ||
+                        transfer.state() == State.FAILED && !Objects.equals(transfer.stateChangeIdk(), idempotencyKey))
+                    {
+                        LOG.error("{} Transfer is not active", logPrefix);
+                        throw Status.FAILED_PRECONDITION
+                            .withDescription("Transfer is not active")
+                            .asRuntimeException();
+                    }
+
+                    if (transfer.state() == State.ACTIVE) {
+                        LOG.error("{} Failed with description '{}', current transfer: {}",
+                            logPrefix, request.getDescription(), transfer);
+
+                        transferDao.markFailed(request.getTransferId(), channel.id(), request.getDescription(),
+                            idempotencyKey, tx);
+
+                        if (transfer.to().description().hasStoragePeer()) {
+                            // Failed to send data to storage peer, failing whole channel
+                            LOG.error("{} Uploading data to storage {} for channel failed", logPrefix,
+                                transfer.to().description().getStoragePeer().getStorageUri());
+
+                            lzyServiceClient.destroyChannelAndWorkflow(channel.id(), "Uploading data to storage failed",
+                                idempotencyKey, tx);
+                            tx.commit();
+
+                            throw Status.INTERNAL
+                                .withDescription("Uploading data to storage failed")
+                                .asRuntimeException();
+                        }
+
+                        // Trying to find other producer
+                        var newPriority = peerDao.decrementPriority(transfer.from().id(), channel.id(), tx);
+                        if (newPriority < 0) {
+                            LOG.error("{} Count of retries of connecting to peer {} is exceeded." +
+                                " It will be not used for other connections", logPrefix, transfer.from().id());
+                        }
                     }
 
                     // Failed to load data from producer, selecting other
@@ -231,8 +257,8 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                         // This can be only if there was only one producer and connection retries count to it exceeded
                         LOG.error("{} No more producers in channel, while there are consumers", logPrefix);
 
-                        lzyServiceClient.destroyChannelAndWorkflow(channel.id(),
-                            "No more producers in channel, while there are consumers", tx);
+                        lzyServiceClient.destroyChannelAndWorkflow(channel.id(), "No more producers in channel, " +
+                            "while there are consumers", idempotencyKey, tx);
                         tx.commit();
                         throw Status.INTERNAL
                             .withDescription("No more producers in channel, while there are consumers")
@@ -240,14 +266,13 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                     }
 
                     // Creating new transfer with found producer
-                    var newTransferId = idGenerator.generate("transfer-");
-                    transferDao.create(newTransferId, newProducer.id(), transfer.from().id(), channel.id(),
-                        State.ACTIVE, tx);
+                    var newTransferId = transferDao.create(newProducer.id(), transfer.from().id(), channel.id(),
+                        State.ACTIVE, idempotencyKey, requestHash, tx);
                     tx.commit();
                     return new PeerAndTransfer(newProducer, newTransferId);
                 }
             });
-        }  catch (StatusRuntimeException e) {
+        } catch (StatusRuntimeException e) {
             responseObserver.onError(e);
             throw e;
         } catch (Exception e) {
@@ -276,19 +301,40 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
             request.getChannelId(), channel.userId(), channel.workflowName(), channel.executionId()
         );
 
+        var idempotencyKey = getIdempotencyKey();
+        var requestHash = IdempotencyUtils.md5(request);
+
         try {
             DbHelper.withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
-                    var transfer = getAndValidateTransfer(request.getTransferId(), channel, logPrefix, tx);
+                    var transfer = transferDao.get(request.getTransferId(), channel.id(), tx);
+
+                    if (transfer == null) {
+                        LOG.error("{} Cannot find transfer in db", logPrefix);
+                        throw Status.NOT_FOUND
+                            .withDescription("Cannot find transfer in db")
+                            .asRuntimeException();
+                    }
+
+                    var actualIdempotencyKey = transfer.stateChangeIdk();
+                    if (transfer.state() != State.COMPLETED && transfer.state() != State.ACTIVE ||
+                        transfer.state() == State.COMPLETED && !Objects.equals(actualIdempotencyKey, idempotencyKey))
+                    {
+                        LOG.error("{} Transfer is not active", logPrefix);
+                        throw Status.FAILED_PRECONDITION
+                            .withDescription("Transfer is not active")
+                            .asRuntimeException();
+                    }
 
                     LOG.info("{} Succeeded", logPrefix);
-                    transferDao.markCompleted(request.getTransferId(), channel.id(), tx);
+                    transferDao.markCompleted(request.getTransferId(), channel.id(), idempotencyKey, tx);
 
                     if (transfer.to().description().hasStoragePeer()) {
                         // Data uploaded to storage, we can use it as producer
 
                         peerDao.drop(transfer.to().id(), channel.id(), tx);
-                        peerDao.create(channel.id(), transfer.to().description(), PRODUCER, BACKUP, false, tx);
+                        peerDao.create(channel.id(), transfer.to().description(), PRODUCER, BACKUP, false,
+                            idempotencyKey, requestHash, tx);
                     }
 
                     tx.commit();
@@ -344,7 +390,7 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
 
         var builder = GetChannelsStatusResponse.newBuilder();
 
-        for (var chan: channels) {
+        for (var chan : channels) {
             var channelStatus = LC.ChannelStatus.newBuilder()
                 .setChannelId(chan.channel().id())
                 .setExecutionId(chan.channel().executionId())
@@ -387,30 +433,35 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
     /**
      * Atomic operation to create producer
      * If there are not connected consumers, then this consumers will be marked as connected
-     *  and transfers will be created.
+     * and transfers will be created.
+     *
      * @return pair of producer and list of consumer transfers
      */
     private ProducerAndConsumerTransfers createProducer(String channelId, String peerId, PeerDescription peerDesc,
-                                                        String logPrefix, Peer.Role role)
+                                                        String logPrefix, Peer.Role role, String idempotencyKey,
+                                                        String requestHash)
     {
-        final ProducerAndConsumerTransfers result;
         try {
-            result = DbHelper.withRetries(LOG, () -> {
+            return DbHelper.withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
-                    var prod = peerDao.create(channelId, peerDesc, role, PeerDao.Priority.PRIMARY, false, tx);
+                    var prod = peerDao.create(channelId, peerDesc, role, PeerDao.Priority.PRIMARY, false,
+                        idempotencyKey, requestHash, tx);
 
-                    final var consumers = peerDao.markConsumersAsConnected(channelId, tx);
+                    var consumers = peerDao.listConnectedConsumersByRequest(channelId, idempotencyKey, requestHash, tx);
+                    if (consumers.isEmpty()) {
+                        consumers = peerDao.markConsumersAsConnected(channelId, idempotencyKey, requestHash, tx);
+                    }
 
                     final var transfers = new ArrayList<PeerAndTransfer>();
 
-                    for (var consumer : consumers) {
-                        var transferId = idGenerator.generate("transfer-");
-
+                    for (int i = 0, n = consumers.size(); i < n; i++) {
+                        var consumer = consumers.get(i);
                         // Setting state to ACTIVE if consumer has storage peer
                         // We will return this consumer in response to producer
                         var state = consumer.description().hasStoragePeer() ? State.ACTIVE : State.PENDING;
 
-                        transferDao.create(transferId, peerId, consumer.id(), channelId, state, tx);
+                        var transferId = transferDao.create(peerId, consumer.id(), channelId, state,
+                            idempotencyKey + "_" + i, requestHash, tx);
                         transfers.add(new PeerAndTransfer(consumer, transferId));
                     }
 
@@ -424,7 +475,6 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                 .withDescription("Cannot save peer description in db")
                 .asRuntimeException();
         }
-        return result;
     }
 
     /**
@@ -432,32 +482,32 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
      * If producer not found, mark consumer as not connected
      * Else mark it connected, create new active transfer and return producer with this transfer
      * All done in one transaction
+     *
      * @return producer with transfer id or null if producer not found
      */
     @Nullable
-    private PeerAndTransfer createConsumer(String channelId, String peerId, PeerDescription peerDesc, String logPrefix,
-                                           Peer.Role role)
+    private PeerAndTransfer createConsumer(String channelId, PeerDescription peerDesc, String logPrefix, Peer.Role role,
+                                           String idempotencyKey, String requestHash)
     {
-        final PeerAndTransfer result;
         try {
-            result = DbHelper.withRetries(LOG, () -> {
+            return DbHelper.withRetries(LOG, () -> {
                 try (var tx = TransactionHandle.create(storage)) {
+                    var peerId = peerDesc.getPeerId();
                     var producer = peerDao.findProducer(channelId, tx);
-                    peerDao.create(channelId, peerDesc, role, PeerDao.Priority.PRIMARY, producer != null, tx);
-
-                    String transferId = null;
+                    peerDao.create(channelId, peerDesc, role, PeerDao.Priority.PRIMARY, producer != null,
+                        idempotencyKey, requestHash, tx);
 
                     if (producer != null) {
-                        transferId = idGenerator.generate("transfer-");
-
                         // We are assuming call cannot fail after this transaction
                         // So we can create transfer already in active state
-                        transferDao.create(
-                            transferId, producer.id(), peerId, channelId, State.ACTIVE, tx);
+                        var transferId = transferDao.create(producer.id(), peerId, channelId, State.ACTIVE,
+                            idempotencyKey, requestHash, tx);
+                        tx.commit();
+                        return new PeerAndTransfer(producer, transferId);
                     }
 
                     tx.commit();
-                    return producer == null ? null : new PeerAndTransfer(producer, transferId);
+                    return null;
                 }
             });
         } catch (Exception e) {
@@ -466,7 +516,6 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
                 .withDescription("Cannot save peer description in db")
                 .asRuntimeException();
         }
-        return result;
     }
 
     private record PeerAndTransfer(
@@ -478,26 +527,4 @@ public class SlotsService extends LzyChannelManagerGrpc.LzyChannelManagerImplBas
         Peer producer,
         List<PeerAndTransfer> transfers
     ) {}
-
-    private Transfer getAndValidateTransfer(String id, Channel channel, String logPrefix,
-                                            @Nullable TransactionHandle tx) throws SQLException
-    {
-        var transfer = transferDao.get(id, channel.id(), tx);
-
-        if (transfer == null) {
-            LOG.error("{} Cannot find transfer in db", logPrefix);
-            throw Status.NOT_FOUND
-                .withDescription("Cannot find transfer in db")
-                .asRuntimeException();
-        }
-
-        if (transfer.state() != State.ACTIVE) {
-            LOG.error("{} Transfer is not active", logPrefix);
-            throw Status.FAILED_PRECONDITION
-                .withDescription("Transfer is not active")
-                .asRuntimeException();
-        }
-
-        return transfer;
-    }
 }

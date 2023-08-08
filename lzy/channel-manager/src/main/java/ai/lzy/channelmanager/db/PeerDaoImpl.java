@@ -17,6 +17,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Singleton
 public class PeerDaoImpl implements PeerDao {
@@ -44,9 +45,15 @@ public class PeerDaoImpl implements PeerDao {
         WHERE id = ? AND channel_id = ?
         """.formatted(FIELDS);
 
+    private static final String GET_CONNECTED_CONSUMERS = """
+        SELECT %s, conn_request_hash
+        FROM peers
+        WHERE channel_id = ? AND connected = true AND conn_idempotency_key = ?
+        """.formatted(FIELDS);
+
     private static final String MARK_CONSUMERS_AS_CONNECTED = """
         UPDATE peers
-        SET connected = true
+        SET connected = true, conn_idempotency_key = ?, conn_request_hash = ?
         WHERE channel_id = ? AND connected = false AND "role" = 'CONSUMER'
         RETURNING %s
         """.formatted(FIELDS);
@@ -57,38 +64,68 @@ public class PeerDaoImpl implements PeerDao {
         ORDER BY priority DESC, RANDOM() LIMIT 1
         """.formatted(FIELDS);
 
-    private static final String CREATE_PEER = """
-        INSERT INTO peers(%s)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """.formatted(FIELDS);
+    @SuppressWarnings("checkstyle:LineLength")
+    private static final String IDEMPOTENT_CREATE_PEER_IDK = """
+        WITH
+            row_to_insert (id, channel_id, "role", description, priority, connected, idempotency_key, request_hash)
+            AS (VALUES (?, ?, ?, ?, ?, ?, ?, ?)),
+            attempt_to_insert AS (
+                INSERT INTO peers (id, channel_id, "role", description, priority, connected, idempotency_key, request_hash)
+                SELECT * FROM row_to_insert
+                ON CONFLICT (id, channel_id) DO NOTHING
+                RETURNING id, channel_id, idempotency_key, request_hash
+            )
+        SELECT
+            COALESCE(atmp.idempotency_key, p.idempotency_key) as idempotency_key,
+            COALESCE(atmp.request_hash, p.request_hash) as request_hash
+        FROM row_to_insert rtp
+        LEFT JOIN peers p
+        ON rtp.id = p.id AND rtp.channel_id = p.channel_id
+        LEFT JOIN attempt_to_insert atmp
+        ON rtp.id = atmp.id AND rtp.channel_id = atmp.channel_id""";
 
     public PeerDaoImpl(ChannelManagerDataSource storage) {
         this.storage = storage;
     }
 
     @Override
-    public Peer create(String channelId, LC.PeerDescription desc, Role role, Priority priority,
-                       boolean connected, @Nullable TransactionHandle tx) throws SQLException
+    public Peer create(String channelId, LC.PeerDescription desc, Role role, Priority priority, boolean connected,
+                       String idempotencyKey, String requestHash, @Nullable TransactionHandle tx) throws SQLException
     {
         return DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement(CREATE_PEER)) {
-                String peerId = desc.getPeerId();
-                ps.setString(1, peerId);
-                ps.setString(2, channelId);
-                ps.setString(3, role.name());
+            try (var upsertStmt = connection.prepareStatement(IDEMPOTENT_CREATE_PEER_IDK)) {
+                upsertStmt.setString(1, desc.getPeerId());
+                upsertStmt.setString(2, channelId);
+                upsertStmt.setString(3, role.name());
 
                 try {
-                    ps.setString(4, JsonFormat.printer().print(desc));
+                    upsertStmt.setString(4, JsonFormat.printer().print(desc));
                 } catch (InvalidProtocolBufferException e) {
                     LOG.error("Cannot serialize peerDesc to json", e);
                     throw new RuntimeException(e);
                 }
-                ps.setInt(5, priority.val);
-                ps.setBoolean(6, connected);
+                upsertStmt.setInt(5, priority.val);
+                upsertStmt.setBoolean(6, connected);
+                upsertStmt.setString(7, idempotencyKey);
+                upsertStmt.setString(8, requestHash);
 
-                ps.execute();
+                var rs = upsertStmt.executeQuery();
 
-                return new Peer(peerId, channelId, role, desc);
+                if (rs.next()) {
+                    var actualIdempotencyKey = Objects.requireNonNull(rs.getString("idempotency_key"));
+                    var actualRequestHash = Objects.requireNonNull(rs.getString("request_hash"));
+
+                    if (!Objects.equals(idempotencyKey, actualIdempotencyKey) ||
+                        !Objects.equals(requestHash, actualRequestHash))
+                    {
+                        throw new RuntimeException(("Peer with id='%s' already associated with channel with id='%s'")
+                            .formatted(desc.getPeerId(), channelId));
+                    }
+
+                    return new Peer(desc.getPeerId(), channelId, role, desc);
+                } else {
+                    throw new RuntimeException("Cannot insert peer: Empty result set");
+                }
             }
         });
     }
@@ -110,12 +147,40 @@ public class PeerDaoImpl implements PeerDao {
         });
     }
 
+    @Override
+    public List<Peer> listConnectedConsumersByRequest(String channelId, String idempotencyKey, String requestHash,
+                                                      @Nullable TransactionHandle tx) throws SQLException
+    {
+        return DbOperation.execute(tx, storage, connection -> {
+            try (var ps = connection.prepareStatement(GET_CONNECTED_CONSUMERS)) {
+                ps.setString(1, channelId);
+                ps.setString(2, idempotencyKey);
+
+                var rs = ps.executeQuery();
+                var peers = new ArrayList<Peer>();
+
+                while (rs.next()) {
+                    peers.add(readPeer(rs));
+                    var actualRequestHash = rs.getString("conn_request_hash");
+                    if (!Objects.equals(requestHash, actualRequestHash)) {
+                        throw new RuntimeException("Idempotency key conflict");
+                    }
+                }
+
+                return peers;
+            }
+        });
+    }
 
     @Override
-    public List<Peer> markConsumersAsConnected(String channelId, @Nullable TransactionHandle tx) throws SQLException {
+    public List<Peer> markConsumersAsConnected(String channelId, String idempotencyKey, String requestHash,
+                                               @Nullable TransactionHandle tx) throws SQLException
+    {
         return DbOperation.execute(tx, storage, connection -> {
-            try (PreparedStatement ps = connection.prepareStatement(MARK_CONSUMERS_AS_CONNECTED)) {
-                ps.setString(1, channelId);
+            try (var ps = connection.prepareStatement(MARK_CONSUMERS_AS_CONNECTED)) {
+                ps.setString(1, idempotencyKey);
+                ps.setString(2, requestHash);
+                ps.setString(3, channelId);
 
                 ResultSet rs = ps.executeQuery();
 
