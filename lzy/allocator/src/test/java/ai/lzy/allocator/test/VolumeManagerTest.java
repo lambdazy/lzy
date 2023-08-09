@@ -6,7 +6,6 @@ import ai.lzy.allocator.disk.Disk;
 import ai.lzy.allocator.disk.DiskManager;
 import ai.lzy.allocator.disk.DiskMeta;
 import ai.lzy.allocator.disk.DiskSpec;
-import ai.lzy.allocator.disk.exceptions.NotFoundException;
 import ai.lzy.allocator.model.DiskVolumeDescription;
 import ai.lzy.allocator.model.Volume;
 import ai.lzy.allocator.model.VolumeClaim;
@@ -70,7 +69,7 @@ public class VolumeManagerTest {
     }
 
     @Test
-    public void createVolumeTest() throws NotFoundException {
+    public void createVolumeTest() throws Exception {
         final Disk disk = createDisk(createTestDiskSpec(3), new DiskMeta("user_id"));
 
         final Volume volume = volumeManager.create(clusterId, new VolumeRequest("id-1",
@@ -164,7 +163,7 @@ public class VolumeManagerTest {
 
     @Ignore
     @Test
-    public void createVolumePerfTest() throws NotFoundException {
+    public void createVolumePerfTest() throws Exception {
         final int numRounds = 100;
         final int minSizeGb = 8;
         final int maxSizeGb = 32;
