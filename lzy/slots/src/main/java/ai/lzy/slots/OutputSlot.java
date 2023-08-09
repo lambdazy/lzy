@@ -104,7 +104,8 @@ public class OutputSlot implements Slot, SlotInternal {
                     .setPeerId(slotId)
                     .build()));
         } catch (StatusRuntimeException e) {
-            LOG.error("{} Error while unbinding output slot: {}", logPrefix, e.getStatus());
+            LOG.error("{} Error while unbinding output slot: [{}] {}",
+                logPrefix, e.getStatus().getCode(), e.getStatus().getDescription());
             // Error ignored
         }
 
