@@ -16,11 +16,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.locks.LockSupport;
 
 @Singleton
 public class KuberVolumeManager implements VolumeManager {
@@ -44,7 +42,7 @@ public class KuberVolumeManager implements VolumeManager {
     }
 
     @Override
-    public Volume create(String clusterId, VolumeRequest volumeRequest) {
+    public Volume create(String clusterId, VolumeRequest volumeRequest) throws RetryLaterException {
         final String diskId;
         final int diskSize;
         final String resourceName;
@@ -131,7 +129,7 @@ public class KuberVolumeManager implements VolumeManager {
             } catch (KubernetesClientException e) {
                 if (KuberUtils.isResourceAlreadyExist(e)) {
                     LOG.warn("Volume {} already exists", result);
-                    return recreatePV(volume, result, client);
+                    return tryRecreatePV(volume, result, client);
                 }
 
                 LOG.error("Could not create volume {}: {}", result, e.getMessage(), e);
@@ -140,47 +138,42 @@ public class KuberVolumeManager implements VolumeManager {
         }
     }
 
-    private Volume recreatePV(PersistentVolume volume, Volume result, KubernetesClient client) {
-        var deadline = Instant.now().plus(Duration.ofMinutes(3));
-
-        while (Instant.now().isBefore(deadline)) {
-            PersistentVolume existingVolume;
-            try {
-                existingVolume = client.persistentVolumes().withName(result.name()).get();
-            } catch (StatusRuntimeException e) {
-                LOG.error("Could not create volume {}: {}", result, e.getMessage(), e);
-                throw e;
-            }
-
-            if (existingVolume == null) {
-                createPV(client, volume);
-                LOG.info("Successfully created persistent volume {} for disk={} ", result.name(), result.diskId());
-                return result;
-            }
-
-            var phase = PersistentVolumePhase.fromString(existingVolume.getStatus().getPhase());
-            switch (phase) {
-                case AVAILABLE, BOUND -> {
-                    LOG.info("Volume {} already exists with active status {}",
-                        result, existingVolume.getStatus().getPhase());
-                    return result;
-                }
-
-                case RELEASED -> {
-                    LOG.info("Volume {} is terminating, wait...", result);
-                    LockSupport.parkNanos(Duration.ofMillis(500).toNanos());
-                    continue;
-                }
-
-                case FAILED -> {
-                    LOG.error("Volume {} is in FAILED state {}", result, existingVolume.getStatus());
-                    throw new RuntimeException("Cannot create already failed volume %s for disk %s"
-                        .formatted(result.name(), result.diskId()));
-                }
-            }
+    private Volume tryRecreatePV(PersistentVolume volume, Volume result, KubernetesClient client)
+        throws RetryLaterException
+    {
+        PersistentVolume existingVolume;
+        try {
+            existingVolume = client.persistentVolumes().withName(result.name()).get();
+        } catch (StatusRuntimeException e) {
+            LOG.error("Could not create volume {}: {}", result, e.getMessage(), e);
+            throw e;
         }
 
-        throw new RuntimeException("Cannot recreate volume %s, timeout exceeded".formatted(result));
+        if (existingVolume == null) {
+            createPV(client, volume);
+            LOG.info("Successfully created persistent volume {} for disk={} ", result.name(), result.diskId());
+            return result;
+        }
+
+        var phase = PersistentVolumePhase.fromString(existingVolume.getStatus().getPhase());
+        return switch (phase) {
+            case AVAILABLE, BOUND -> {
+                LOG.info("Volume {} already exists with active status {}",
+                    result, existingVolume.getStatus().getPhase());
+                yield result;
+            }
+
+            case RELEASED -> {
+                LOG.info("Volume {} is terminating, wait...", result);
+                throw new RetryLaterException("Volume %s is terminating".formatted(result), Duration.ofMillis(300));
+            }
+
+            case FAILED -> {
+                LOG.error("Volume {} is in FAILED state {}", result, existingVolume.getStatus());
+                throw new RuntimeException("Cannot create already failed volume %s for disk %s"
+                    .formatted(result.name(), result.diskId()));
+            }
+        };
     }
 
     private PersistentVolume createPV(KubernetesClient client, PersistentVolume volume) {

@@ -6,7 +6,6 @@ import ai.lzy.allocator.alloc.dao.VmDao;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
 import ai.lzy.allocator.model.Vm;
-import ai.lzy.allocator.model.Volume;
 import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeMount;
 import ai.lzy.allocator.model.VolumeRequest;
@@ -211,6 +210,9 @@ public class KuberVmAllocator implements VmAllocator {
             InjectedFailures.failAllocateVm9();
 
             return Result.SUCCESS;
+        } catch (VolumeManager.RetryLaterException e) {
+            LOG.warn("Cannot allocate vm (vmId: {}) pod, try later: {}", vmSpec.vmId(), e.getMessage());
+            return Result.RETRY_LATER.withReason(e.getMessage());
         } catch (Exception e) {
             LOG.error("Failed to allocate vm (vmId: {}) pod: {}", vmSpec.vmId(), e.getMessage(), e);
             return Result.FAILED.withReason("Allocation error: " + e.getMessage());
@@ -487,7 +489,9 @@ public class KuberVmAllocator implements VmAllocator {
         return endpoints;
     }
 
-    private List<VolumeClaim> allocateVolumes(String clusterId, List<VolumeRequest> volumesRequests) {
+    private List<VolumeClaim> allocateVolumes(String clusterId, List<VolumeRequest> volumesRequests)
+        throws VolumeManager.RetryLaterException
+    {
         if (volumesRequests.isEmpty()) {
             return List.of();
         }
@@ -495,17 +499,21 @@ public class KuberVmAllocator implements VmAllocator {
         LOG.info("Allocate volume " + volumesRequests.stream().map(Objects::toString)
             .collect(Collectors.joining(", ")));
 
-        return volumesRequests.stream()
-            .map(volumeRequest -> {
-                final Volume volume;
-                try {
-                    volume = volumeManager.create(clusterId, volumeRequest);
-                } catch (Exception e) {
-                    LOG.error("Error while creating volume {}: {}", volumeRequest.volumeId(), e.getMessage());
-                    throw new RuntimeException(e);
-                }
-                return volumeManager.createClaim(clusterId, volume);
-            }).toList();
+        var result = new ArrayList<VolumeClaim>(volumesRequests.size());
+        for (var volumeRequest : volumesRequests) {
+            try {
+                var volume = volumeManager.create(clusterId, volumeRequest);
+                result.add(volumeManager.createClaim(clusterId, volume));
+            } catch (VolumeManager.RetryLaterException e) {
+                LOG.warn(e.getMessage());
+                throw e;
+            } catch (Exception e) {
+                LOG.error("Error while creating volume {}: {}", volumeRequest.volumeId(), e.getMessage());
+                throw new RuntimeException(e);
+            }
+        }
+
+        return result;
     }
 
     private void freeVolumes(String clusterId, List<VolumeClaim> volumeClaims) {
