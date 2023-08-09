@@ -5,8 +5,10 @@ import ai.lzy.allocator.model.VolumeClaim;
 import ai.lzy.allocator.model.VolumeRequest;
 import jakarta.annotation.Nullable;
 
+import java.time.Duration;
+
 public interface VolumeManager {
-    Volume create(String clusterId, VolumeRequest volumeRequest);
+    Volume create(String clusterId, VolumeRequest volumeRequest) throws RetryLaterException;
 
     VolumeClaim createClaim(String clusterId, Volume volume);
 
@@ -19,4 +21,17 @@ public interface VolumeManager {
     void delete(String clusterId, String volumeName);
 
     void deleteClaim(String clusterId, String volumeClaimName);
+
+    class RetryLaterException extends Exception {
+        private final Duration delay;
+
+        public RetryLaterException(String message, Duration delay) {
+            super(message);
+            this.delay = delay;
+        }
+
+        public Duration delay() {
+            return delay;
+        }
+    }
 }
