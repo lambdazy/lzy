@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import logging
+
 from abc import ABC
-from dataclasses import is_dataclass, fields
+from dataclasses import is_dataclass, fields, dataclass, field
 from typing import Dict, Any, TypeVar, Union
 from typing_extensions import Self, TypeGuard, final
+
+from lzy.logs.config import get_logger
 
 
 @final
@@ -85,3 +89,12 @@ class Deconstructible(ABC):
 
     def __hash__(self) -> int:
         return hash(tuple(self.deconstruct().items()))
+
+
+@dataclass
+class WithLogger:
+    log: logging.Logger = field(init=False)
+
+    def __post_init__(self):
+        kls = self.__class__
+        self.log = get_logger(f'{kls.__module__}.{kls.__name__}')

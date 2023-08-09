@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from .base import BasePythonEnv, ModulePathsList, PackagesDict
 
 
-@dataclass
+@dataclass(frozen=True)
 class ManualPythonEnv(BasePythonEnv):
     python_version: str
     local_module_paths: ModulePathsList

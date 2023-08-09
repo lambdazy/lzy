@@ -12,9 +12,10 @@ from .utils import getmembers
 
 ModulesSet = Set[ModuleType]
 ModulesFrozenSet = FrozenSet[ModuleType]
+VarsNamespace = Dict[str, Any]
 
 
-def get_transitive_namespace_dependencies(namespace: Dict[str, Any], include_parents: bool = True) -> ModulesFrozenSet:
+def get_transitive_namespace_dependencies(namespace: VarsNamespace, include_parents: bool = True) -> ModulesFrozenSet:
     """
     Calculates the transitive closure of a namespace in regards to imported modules.
 
