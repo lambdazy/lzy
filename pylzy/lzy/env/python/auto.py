@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Dict, Any
 from typing_extensions import Self
 
 from lzy.env.explorer.base import BaseExplorer
@@ -26,11 +26,18 @@ class AutoPythonEnv(BasePythonEnv):
     additional_pypi_packages: PackagesDict = field(default_factory=dict)
     env_explorer_factory: Callable[[Self], BaseExplorer] = _auto_explorer_factory
 
-    _env_explorer: BaseExplorer = field(init=False)
+    _env_explorer: Optional[BaseExplorer] = None
+    _namespace: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         # because we are frozen
-        object.__setattr__(self, '_env_explorer', self.env_explorer_factory(self))
+        if not self._env_explorer:
+            object.__setattr__(self, '_env_explorer', self.env_explorer_factory(self))
+
+    @property
+    def env_explorer(self) -> BaseExplorer:
+        assert self._env_explorer
+        return self._env_explorer
 
     def get_python_version(self) -> str:
         version_info: List[str] = [str(i) for i in sys.version_info[:3]]
@@ -38,10 +45,10 @@ class AutoPythonEnv(BasePythonEnv):
         return python_version
 
     def get_local_module_paths(self) -> ModulePathsList:
-        return self._env_explorer.get_local_module_paths(self._namespace)
+        return self.env_explorer.get_local_module_paths(self._namespace)
 
     def get_pypi_packages(self) -> PackagesDict:
-        return self._env_explorer.get_pypi_packages(self._namespace)
+        return self.env_explorer.get_pypi_packages(self._namespace)
 
     def get_pypi_index_url(self) -> str:
         return self.pypi_index_url or Pip().index_url or PYPI_INDEX_URL_DEFAULT

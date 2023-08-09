@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import List, FrozenSet, Type, TypeVar
+from typing import List, Type, TypeVar
 
 from lzy.env.python.base import PackagesDict
 
@@ -105,7 +105,7 @@ class AutoExplorer(BaseExplorer):
         self,
         namespace: VarsNamespace,
         filter_class: Type[P],
-    ) -> FrozenSet[P]:
+    ) -> List[P]:
         modules = get_transitive_namespace_dependencies(namespace)
 
         classifier = ModuleClassifier(self.pypi_index_url)
@@ -118,4 +118,4 @@ class AutoExplorer(BaseExplorer):
                 'so these moduels will be omitted: %s', broken
             )
 
-        return frozenset(p for p in packages if isinstance(p, filter_class))
+        return [p for p in packages if isinstance(p, filter_class)]

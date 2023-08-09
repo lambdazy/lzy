@@ -1,6 +1,7 @@
 import sys
 import pytest
 
+import lzy.env.explorer.classify
 from lzy.env.python.auto import AutoPythonEnv
 from lzy.env.explorer.auto import AutoExplorer
 from lzy.env.explorer.base import BaseExplorer, ModulePathsList, PackagesDict
@@ -12,10 +13,10 @@ def test_explorer_factory() -> None:
     assert isinstance(python_env._env_explorer, AutoExplorer)
 
     class MyExplorer(BaseExplorer):
-        def get_local_module_paths(self) -> ModulePathsList:
+        def get_local_module_paths(self, namespace) -> ModulePathsList:
             return ['foo']
 
-        def get_installed_pypi_packages(self) -> PackagesDict:
+        def get_pypi_packages(self, namespace) -> PackagesDict:
             return {'bar': 'baz'}
 
     def factory(python_env: AutoPythonEnv) -> MyExplorer:
@@ -24,6 +25,8 @@ def test_explorer_factory() -> None:
     python_env = AutoPythonEnv(env_explorer_factory=factory)
 
     assert isinstance(python_env._env_explorer, MyExplorer)
+    assert python_env.get_pypi_packages() == {'bar': 'baz'}
+    assert python_env.get_local_module_paths() == ['foo']
 
 
 def test_python_version() -> None:
@@ -45,11 +48,37 @@ def test_pypi_index_url() -> None:
     assert python_env.get_pypi_index_url() == 'foo'
 
 
-def test_get_local_module_paths() -> None:
-    # TBD
-    pass
+@pytest.mark.block_network
+def test_get_modules_and_paths(
+    with_test_modules,
+    get_test_data_path,
+    monkeypatch,
+) -> None:
+    # more of this test at explorer/test_classify.py, here
+    # i'm testing just interface
 
+    def mock_check_distribution_at_pypi(self, pypi_index_url: str, name: str, version: str):
+        return True
 
-def test_get_pypi_packages() -> None:
-    # TBD
-    pass
+    monkeypatch.setattr(
+        lzy.env.explorer.classify.ModuleClassifier,
+        '_check_distribution_at_pypi',
+        mock_check_distribution_at_pypi,
+    )
+
+    import empty_module
+
+    python_env = AutoPythonEnv().with_fields(_namespace={'foo': empty_module})
+
+    assert python_env.get_local_module_paths() == \
+        [str(get_test_data_path('empty_module.py'))]
+
+    # i'm not sure exactly, but explorer finds a lot of PyPI dependencies from a empty module
+    # assert python_env.get_pypi_packages() == {}
+
+    import typing_extensions
+
+    python_env = AutoPythonEnv().with_fields(_namespace={'foo': typing_extensions})
+
+    assert python_env.get_local_module_paths() == []
+    assert python_env.get_pypi_packages().get('typing_extensions')

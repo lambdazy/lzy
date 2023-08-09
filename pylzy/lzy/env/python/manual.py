@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Dict, Any
 
 from .base import BasePythonEnv, ModulePathsList, PackagesDict
 
@@ -11,6 +12,8 @@ class ManualPythonEnv(BasePythonEnv):
     local_module_paths: ModulePathsList
     pypi_packages: PackagesDict
     pypi_index_url: str
+
+    _namespace: Dict[str, Any] = field(default_factory=dict)
 
     def get_python_version(self) -> str:
         return self.python_version

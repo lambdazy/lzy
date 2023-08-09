@@ -71,6 +71,9 @@ class Deconstructible(ABC):
 
         return type(self)(**right)
 
+    def clone(self) -> Self:
+        return self.with_fields()
+
     def __eq__(self, other) -> bool:
         if type(self) is not type(other):
             return False

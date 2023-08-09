@@ -108,7 +108,11 @@ class ModuleClassifier:
         """
         result: Set[BasePackage] = set()
 
-        for distribution in distributions:
+        # sorting for tests repeatability
+        for distribution in sorted(
+            distributions,
+            key=lambda d: (d.name, d.version)
+        ):
             package: BasePackage
             # TODO: make this check parallel
             if self._check_distribution_at_pypi(
