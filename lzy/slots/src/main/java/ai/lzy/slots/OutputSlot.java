@@ -2,6 +2,7 @@ package ai.lzy.slots;
 
 import ai.lzy.slots.backends.OutputSlotBackend;
 import ai.lzy.util.grpc.ContextAwareTask;
+import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.channel.LCMS;
 import ai.lzy.v1.common.LC;
 import ai.lzy.v1.slots.LSA;
@@ -14,6 +15,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.nio.ByteBuffer;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,13 +23,15 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static ai.lzy.util.grpc.GrpcUtils.LONGENOUGH_RETRY_CONFIG;
-import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
-import static ai.lzy.util.grpc.GrpcUtils.withRetries;
+import static ai.lzy.util.grpc.GrpcUtils.*;
 
 public class OutputSlot implements Slot, SlotInternal {
-    private static final ThreadGroup OUTPUT_SLOTS_TG = new ThreadGroup("OutputSlots");
     private static final Logger LOG = LogManager.getLogger(OutputSlot.class);
+    private static final ThreadGroup OUTPUT_SLOTS_TG = new ThreadGroup("OutputSlots");
+
+    private static final GrpcUtils.RetryConfig UNBIND_RETRY_CONFIG = new GrpcUtils.RetryConfig(
+        10, e -> retryableStatusCode(e.getStatus()), Duration.ofMillis(100), Duration.ofSeconds(5), 1.3);
+
 
     private final OutputSlotBackend backend;
     private final String slotId;
@@ -94,7 +98,7 @@ public class OutputSlot implements Slot, SlotInternal {
 
         try {
             var stub = withIdempotencyKey(context.channelManager(), UUID.randomUUID().toString());
-            withRetries(LOG, LONGENOUGH_RETRY_CONFIG, () -> stub.unbind(
+            withRetries(LOG, UNBIND_RETRY_CONFIG, () -> stub.unbind(
                 LCMS.UnbindRequest.newBuilder()
                     .setChannelId(channelId)
                     .setPeerId(slotId)

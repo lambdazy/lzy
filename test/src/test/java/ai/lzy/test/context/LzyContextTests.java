@@ -19,7 +19,11 @@ import ai.lzy.service.util.ClientVersionInterceptor;
 import ai.lzy.test.KafkaContext;
 import ai.lzy.test.Utils;
 import ai.lzy.test.context.config.LzyConfig;
-import ai.lzy.util.auth.credentials.*;
+import ai.lzy.util.auth.credentials.CredentialsUtils;
+import ai.lzy.util.auth.credentials.JwtCredentials;
+import ai.lzy.util.auth.credentials.JwtUtils;
+import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.auth.credentials.RsaUtils;
 import ai.lzy.util.grpc.RequestIdInterceptor;
 import ai.lzy.v1.AllocatorGrpc;
 import ai.lzy.v1.AllocatorGrpc.AllocatorBlockingStub;
@@ -61,7 +65,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.test.GrpcUtils.rollPort;
-import static ai.lzy.util.grpc.GrpcUtils.*;
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.withIdempotencyKey;
 
 public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBeans, LzyServiceBeans {
     protected static final String CLIENT_NAME = "TestClient";
@@ -87,9 +93,12 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
 
     protected User testUser;
     private RenewableJwt internalUserCredential;
+
     private ManagedChannel channelsGrpcChannel;
     private ManagedChannel iamGrpcChannel;
     private ManagedChannel lzyServiceGrpcChannel;
+    private ManagedChannel graphsGrpcChannel;
+    private ManagedChannel allocatorGrpcChannel;
 
     protected LzyWorkflowServiceBlockingStub lzyGrpcClient;
     protected LzyWorkflowPrivateServiceBlockingStub privateLzyGrpcClient;
@@ -225,9 +234,9 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
             LzyWorkflowServiceGrpc.SERVICE_NAME, LzyWorkflowPrivateServiceGrpc.SERVICE_NAME);
         iamGrpcChannel = newGrpcChannel("localhost", ports.getIamPort(), LzySubjectServiceGrpc.SERVICE_NAME,
             LzyAccessBindingServiceGrpc.SERVICE_NAME, LzyAuthenticateServiceGrpc.SERVICE_NAME);
-        ManagedChannel graphsGrpcChannel =
+        graphsGrpcChannel =
             newGrpcChannel("localhost", ports.getGraphExecutorPort(), GraphExecutorGrpc.SERVICE_NAME);
-        ManagedChannel allocatorGrpcChannel =
+        allocatorGrpcChannel =
             newGrpcChannel("localhost", ports.getAllocatorPort(), AllocatorGrpc.SERVICE_NAME,
                 AllocatorPrivateGrpc.SERVICE_NAME);
 
@@ -249,7 +258,7 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
     }
 
     @After
-    public final void tearDown() throws InterruptedException {
+    public final void tearDown() {
         try {
             tearDownClients();
         } finally {
@@ -258,25 +267,18 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
         }
     }
 
-    private void tearDownClients() throws InterruptedException {
-        lzyServiceGrpcChannel.shutdown();
-        try {
-            lzyServiceGrpcChannel.awaitTermination(5, TimeUnit.SECONDS);
-        } finally {
-            lzyServiceGrpcChannel.shutdownNow();
-            iamGrpcChannel.shutdown();
+    private void tearDownClients() {
+        var channels = List.of(channelsGrpcChannel, iamGrpcChannel, lzyServiceGrpcChannel, graphsGrpcChannel,
+            allocatorGrpcChannel);
+
+        channels.forEach(ManagedChannel::shutdown);
+        channels.forEach(ch -> {
             try {
-                iamGrpcChannel.awaitTermination(5, TimeUnit.SECONDS);
-            } finally {
-                iamGrpcChannel.shutdownNow();
-                channelsGrpcChannel.shutdown();
-                try {
-                    channelsGrpcChannel.awaitTermination(5, TimeUnit.SECONDS);
-                } finally {
-                    channelsGrpcChannel.shutdownNow();
-                }
+                ch.awaitTermination(5, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                // ignored
             }
-        }
+        });
     }
 
     public static String startWorkflow(LzyWorkflowServiceBlockingStub authLzyGrpcClient,
