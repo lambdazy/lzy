@@ -11,14 +11,13 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 
 @Singleton
@@ -26,16 +25,16 @@ public class GraphDaoImpl implements GraphDao {
     private static final Logger LOG = LogManager.getLogger(GraphDaoImpl.class);
 
     private static final String GRAPH_INSERT_FIELDS_LIST = """
-        id, op_id, status, workflow_id, workflow_name, user_id, error_description, 
-        failed_task_id, failed_task_name, last_updated, owner_instance_id""";
+        id, op_id, status, workflow_id, workflow_name, user_id, allocator_session_id,
+        error_description, failed_task_id, failed_task_name, last_updated, owner_instance_id""";
 
     private static final String GRAPH_SELECT_FIELDS_LIST = """
-        id, op_id, status::text as status, workflow_id, workflow_name, user_id,
+        id, op_id, status::text as status, workflow_id, workflow_name, user_id, allocator_session_id,
         error_description, failed_task_id, failed_task_name, last_updated, owner_instance_id""";
 
     private static final String GRAPH_INSERT_STATEMENT = """
-        INSERT INTO graph (%s) VALUES (?, ?, ?::status, ?, ?, ?, ?, ?, ?, ?, ?)"""
-        .formatted(GRAPH_INSERT_FIELDS_LIST);
+        INSERT INTO graph (%s)
+        VALUES (?, ?, ?::status, ?, ?, ?, ?, ?, ?, ?, ?, ?)""".formatted(GRAPH_INSERT_FIELDS_LIST);
 
     private static final String GRAPH_UPDATE_STATEMENT = """
         UPDATE graph
@@ -45,6 +44,7 @@ public class GraphDaoImpl implements GraphDao {
             status = ?::status,
             last_updated = ?
         WHERE id = ?""";
+
     private static final String GRAPH_GET_BY_ID_STATEMENT = """
         SELECT %s
         FROM graph
@@ -53,8 +53,7 @@ public class GraphDaoImpl implements GraphDao {
     private static final String GRAPH_GET_BY_INSTANCE_STATEMENT = """
         SELECT %s
         FROM graph
-        WHERE owner_instance_id = ? AND status not in ('FAILED', 'COMPLETED')"""
-        .formatted(GRAPH_SELECT_FIELDS_LIST);
+        WHERE owner_instance_id = ? AND status NOT IN ('FAILED', 'COMPLETED')""".formatted(GRAPH_SELECT_FIELDS_LIST);
 
     private final GraphExecutorDataSource storage;
     private final ServiceConfig config;
@@ -71,18 +70,19 @@ public class GraphDaoImpl implements GraphDao {
 
         DbOperation.execute(transaction, storage, connection -> {
             try (PreparedStatement st = connection.prepareStatement(GRAPH_INSERT_STATEMENT)) {
-                int count = 0;
-                st.setString(++count, graph.id());
-                st.setString(++count, graph.operationId());
-                st.setString(++count, graph.status().toString());
-                st.setString(++count, graph.executionId());
-                st.setString(++count, graph.workflowName());
-                st.setString(++count, graph.userId());
-                st.setString(++count, graph.errorDescription());
-                st.setString(++count, graph.failedTaskId());
-                st.setString(++count, graph.failedTaskName());
-                st.setTimestamp(++count, Timestamp.valueOf(LocalDateTime.now()));
-                st.setString(++count, config.getInstanceId());
+                int idx = 0;
+                st.setString(++idx, graph.id());
+                st.setString(++idx, graph.operationId());
+                st.setString(++idx, graph.status().toString());
+                st.setString(++idx, graph.executionId());
+                st.setString(++idx, graph.workflowName());
+                st.setString(++idx, graph.userId());
+                st.setString(++idx, graph.allocatorSessionId());
+                st.setString(++idx, graph.errorDescription());
+                st.setString(++idx, graph.failedTaskId());
+                st.setString(++idx, graph.failedTaskName());
+                st.setTimestamp(++idx, Timestamp.from(Instant.now()));
+                st.setString(++idx, config.getInstanceId());
 
                 st.execute();
             }
@@ -94,17 +94,15 @@ public class GraphDaoImpl implements GraphDao {
         LOG.debug("Updating graph: {}", graph.id());
 
         DbOperation.execute(transaction, storage, connection -> {
-            try (final Connection con = storage.connect();
-                 final PreparedStatement st = con.prepareStatement(GRAPH_UPDATE_STATEMENT))
-            {
-                int count = 0;
-                st.setString(++count, graph.errorDescription());
-                st.setString(++count, graph.failedTaskId());
-                st.setString(++count, graph.failedTaskName());
-                st.setString(++count, graph.status().name());
-                st.setTimestamp(++count, Timestamp.valueOf(LocalDateTime.now()));
+            try (final PreparedStatement st = connection.prepareStatement(GRAPH_UPDATE_STATEMENT)) {
+                int idx = 0;
+                st.setString(++idx, graph.errorDescription());
+                st.setString(++idx, graph.failedTaskId());
+                st.setString(++idx, graph.failedTaskName());
+                st.setString(++idx, graph.status().name());
+                st.setTimestamp(++idx, Timestamp.from(Instant.now()));
+                st.setString(++idx, graph.id());
 
-                st.setString(++count, graph.id());
                 st.executeUpdate();
             }
         });
@@ -113,35 +111,33 @@ public class GraphDaoImpl implements GraphDao {
     @Override
     @Nullable
     public GraphState getById(String graphId) throws SQLException {
-        try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement(GRAPH_GET_BY_ID_STATEMENT);
+        try (var connection = storage.connect();
+             PreparedStatement st = connection.prepareStatement(GRAPH_GET_BY_ID_STATEMENT))
+        {
             st.setString(1, graphId);
-            try (ResultSet s = st.executeQuery()) {
-                if (!s.isBeforeFirst()) {
-                    return null;
-                }
-                s.next();
-                return fromResultSet(s);
+
+            var rs = st.executeQuery();
+            if (rs.next()) {
+                return fromResultSet(rs);
             }
+
+            return null;
         }
     }
 
     @Override
-    @Nullable
-    public List<GraphState> getByInstance(String instanceId) throws SQLException {
-        try (final Connection con = storage.connect()) {
-            final PreparedStatement st = con.prepareStatement(GRAPH_GET_BY_INSTANCE_STATEMENT);
+    public List<GraphState> getActiveByInstance(String instanceId) throws SQLException {
+        try (var connection = storage.connect();
+             PreparedStatement st = connection.prepareStatement(GRAPH_GET_BY_INSTANCE_STATEMENT))
+        {
             st.setString(1, instanceId);
-            try (ResultSet s = st.executeQuery()) {
-                if (!s.isBeforeFirst()) {
-                    return new ArrayList<>();
-                }
-                List<GraphState> list = new ArrayList<>();
-                while (s.next()) {
-                    list.add(fromResultSet(s));
-                }
-                return list;
+
+            var rs = st.executeQuery();
+            var list = new ArrayList<GraphState>();
+            while (rs.next()) {
+                list.add(fromResultSet(rs));
             }
+            return list;
         }
     }
 
@@ -152,13 +148,12 @@ public class GraphDaoImpl implements GraphDao {
         final String workflowId = resultSet.getString("workflow_id");
         final String workflowName = resultSet.getString("workflow_name");
         final String userId = resultSet.getString("user_id");
+        final String allocatorSessionId = resultSet.getString("allocator_session_id");
         final String errorDescription = resultSet.getString("error_description");
         final String failedTaskId = resultSet.getString("failed_task_id");
         final String failedTaskName = resultSet.getString("failed_task_name");
 
-        return new GraphState(graphId, operationId, status,
-            workflowId, workflowName, userId, Collections.emptyMap(),
-            errorDescription, failedTaskId, failedTaskName
-        );
+        return new GraphState(graphId, operationId, status, workflowId, workflowName, userId, allocatorSessionId,
+            new EnumMap<>(GraphState.Status.class), errorDescription, failedTaskId, failedTaskName);
     }
 }

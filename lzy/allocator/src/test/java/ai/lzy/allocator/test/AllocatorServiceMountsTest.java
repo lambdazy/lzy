@@ -14,6 +14,8 @@ import ai.lzy.v1.longrunning.LongRunning;
 import com.google.protobuf.util.Durations;
 import io.fabric8.kubernetes.api.model.PersistentVolume;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaim;
+import io.fabric8.kubernetes.api.model.PersistentVolumeStatus;
+import io.fabric8.kubernetes.api.model.PersistentVolumeStatusBuilder;
 import io.fabric8.kubernetes.api.model.PodStatusBuilder;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
@@ -24,7 +26,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.io.IOException;
-import java.net.HttpURLConnection;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.UUID;
@@ -33,6 +34,8 @@ import java.util.stream.Collectors;
 
 import static ai.lzy.allocator.test.http.RequestMatchers.containsPath;
 import static ai.lzy.allocator.test.http.RequestMatchers.method;
+import static java.net.HttpURLConnection.HTTP_CONFLICT;
+import static java.net.HttpURLConnection.HTTP_OK;
 import static java.util.Objects.requireNonNull;
 
 public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
@@ -194,7 +197,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .build());
             mockGetPod(pod);
         });
-        mockDeletePods(HttpURLConnection.HTTP_OK);
+        mockDeletePods(HTTP_OK);
         var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
 
         waitOpSuccess(mountOp);
@@ -259,7 +262,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .build());
             mockGetPod(pod);
         });
-        mockDeletePods(HttpURLConnection.HTTP_OK);
+        mockDeletePods(HTTP_OK);
         var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1,
             VolumeApi.DiskVolumeType.AccessMode.READ_ONLY_MANY, VolumeApi.DiskVolumeType.StorageClass.SSD);
 
@@ -291,10 +294,12 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var allocatedVm = allocateVm(sessionId);
         var vm = vmDao.get(allocatedVm.vmId(), null);
 
-        var pv = awaitResourceCreate(PersistentVolume.class, PERSISTENT_VOLUME_PATH,
-            HttpURLConnection.HTTP_CONFLICT);
-        var pvc = awaitResourceCreate(PersistentVolumeClaim.class, PERSISTENT_VOLUME_CLAIM_PATH,
-            HttpURLConnection.HTTP_CONFLICT);
+        awaitResourceCreate(PersistentVolume.class, PERSISTENT_VOLUME_PATH, HTTP_CONFLICT)
+            .thenAccept(pv -> {
+                pv.setStatus(new PersistentVolumeStatus("Running", PersistentVolumePhase.BOUND.getPhase(), null));
+                mockGetPv(pv);
+            });
+        awaitResourceCreate(PersistentVolumeClaim.class, PERSISTENT_VOLUME_CLAIM_PATH, HTTP_CONFLICT);
         var updatedMountPod = mockCreatePod();
         updatedMountPod.thenAccept(pod -> {
             pod.setStatus(new PodStatusBuilder()
@@ -302,7 +307,39 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .build());
             mockGetPod(pod);
         });
-        mockDeletePods(HttpURLConnection.HTTP_OK);
+        mockDeletePods(HTTP_OK);
+        var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
+        waitOpSuccess(mountOp);
+    }
+
+    @Test
+    public void mountShouldWaitTerminatingExistingVolumesAndRecreate() throws Exception {
+        var sessionId = createSession(Durations.fromDays(10));
+        var allocatedVm = allocateVm(sessionId);
+        var vm = vmDao.get(allocatedVm.vmId(), null);
+
+        awaitResourceCreate(PersistentVolume.class, PERSISTENT_VOLUME_PATH, HTTP_CONFLICT)
+            .thenAccept(pv -> {
+                pv.setStatus(new PersistentVolumeStatusBuilder()
+                    .withMessage("Terminating")
+                    .withPhase(PersistentVolumePhase.RELEASED.getPhase())
+                    .build());
+                mockGetPv(pv); // PV exists but status is RELEASED
+
+                mockGetPvNotFound(getName(pv)); // NOT_FOUND on next call
+
+                mockCreatePv(); // successfully (re)create PV
+            });
+        awaitResourceCreate(PersistentVolumeClaim.class, PERSISTENT_VOLUME_CLAIM_PATH, HTTP_CONFLICT);
+
+        var updatedMountPod = mockCreatePod();
+        updatedMountPod.thenAccept(pod -> {
+            pod.setStatus(new PodStatusBuilder()
+                .withPhase(PodPhase.RUNNING.getPhase())
+                .build());
+            mockGetPod(pod);
+        });
+        mockDeletePods(HTTP_OK);
         var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
         waitOpSuccess(mountOp);
     }
@@ -369,9 +406,9 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             .build();
         dynamicMountDao.update(dynamicMount.id(), update, null);
 
-        mockDeletePods(HttpURLConnection.HTTP_OK);
-        mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> {}, HttpURLConnection.HTTP_OK);
-        mockDeleteResource(PERSISTENT_VOLUME_PATH, volumeName, () -> {}, HttpURLConnection.HTTP_OK);
+        mockDeletePods(HTTP_OK);
+        mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> {}, HTTP_OK);
+        mockDeleteResource(PERSISTENT_VOLUME_PATH, volumeName, () -> {}, HTTP_OK);
         mockUnmountCall();
         var unmountOp = unmountDisk(dynamicMount.id());
 
@@ -417,7 +454,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .build());
             mockGetPod(pod);
         });
-        mockDeletePods(HttpURLConnection.HTTP_OK);
+        mockDeletePods(HTTP_OK);
         var volumeDeleted = new AtomicBoolean(false);
         var volumeClaimDeleted = new AtomicBoolean(false);
         mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, volumeClaimName, () -> volumeClaimDeleted.set(true), 403);
@@ -471,11 +508,11 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var volumeClaimDeleted = new AtomicBoolean(false);
         mockCreatePod(pod -> mountPodCreated.set(true));
         mockUnmountCall();
-        mockDeletePods(HttpURLConnection.HTTP_OK, () -> otherPodsDeleted.set(true));
+        mockDeletePods(HTTP_OK, () -> otherPodsDeleted.set(true));
         mockDeleteResource(PERSISTENT_VOLUME_CLAIM_PATH, dynamicMount.volumeClaimName(),
-            () -> volumeClaimDeleted.set(true), HttpURLConnection.HTTP_OK);
+            () -> volumeClaimDeleted.set(true), HTTP_OK);
         mockDeleteResource(PERSISTENT_VOLUME_PATH, dynamicMount.volumeName(), () -> volumeDeleted.set(true),
-            HttpURLConnection.HTTP_OK);
+            HTTP_OK);
 
         var operation = unmountDisk(dynamicMount.id());
         waitOpSuccess(operation);

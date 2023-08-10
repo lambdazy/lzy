@@ -113,7 +113,7 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
                     .build())
                 .build());
 
-        var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "1");
+        var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "1", "bind");
 
         Assert.assertEquals("s3://some-bucket", resp.getPeer().getStoragePeer().getStorageUri());
 
@@ -130,11 +130,11 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
         Assert.assertEquals(resp.getPeer().getPeerId(), state.getChannels(0).getProducers(0).getPeerId());
         Assert.assertEquals("1", state.getChannels(0).getConsumers(0).getPeerId());
 
-        completed(chan.getChannelId(), resp.getTransferId());
+        completed(chan.getChannelId(), resp.getTransferId(), "complete");
     }
 
-    private static void completed(String chanId, String transferId) {
-        publicClient.transferCompleted(
+    private static void completed(String chanId, String transferId, String idempotencyKey) {
+        withIdempotencyKey(publicClient, idempotencyKey).transferCompleted(
             LCMS.TransferCompletedRequest.newBuilder()
                 .setChannelId(chanId)
                 .setTransferId(transferId)
@@ -153,11 +153,11 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
                     .build())
                 .build());
 
-        var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "1");
+        var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "1", "bind-1");
 
         Assert.assertEquals("s3://some-bucket", resp.getPeer().getStoragePeer().getStorageUri());
 
-        completed(chan.getChannelId(), resp.getTransferId());
+        completed(chan.getChannelId(), resp.getTransferId(), "complete");
 
         var state = publicClient.getChannelsStatus(
             LCMS.GetChannelsStatusRequest.newBuilder()
@@ -170,7 +170,7 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
         Assert.assertEquals(2, state.getChannels(0).getProducersCount());  // storage reconnected as producer
 
         // Connecting new consumer to get slot producer
-        var resp2 = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "2");
+        var resp2 = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "2", "bind-2");
 
         Assert.assertEquals("1", resp2.getPeer().getPeerId());  // New producer is most prioritized
     }
@@ -188,10 +188,10 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
                 .build());
 
         var fut = slotService.waitForStartTransfer("1");
-        var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "1");
+        var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "1", "bind-1");
         Assert.assertFalse(resp.hasPeer());
 
-        var resp2 = bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "2");
+        var resp2 = bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "2", "bind-2");
         Assert.assertEquals("s3://some-bucket", resp2.getPeer().getStoragePeer().getStorageUri());
 
         var resp3 = fut.get();
@@ -211,15 +211,15 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
                 .build());
 
         // Creating producers
-        bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "1");
-        bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "2");
+        bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "1", "bind-1");
+        bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "2", "bind-2");
 
         // Binding consumer
-        var resp3 = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "3");
+        var resp3 = bind(chan.getChannelId(), LCMS.BindRequest.Role.CONSUMER, "3", "bind-3");
         var prodId = resp3.getPeer().getPeerId();
 
         // Failing transfer
-        var resp4 = publicClient.transferFailed(
+        var resp4 = withIdempotencyKey(publicClient, "failed").transferFailed(
             LCMS.TransferFailedRequest.newBuilder()
                 .setChannelId(chan.getChannelId())
                 .setDescription("Fail")
@@ -267,10 +267,10 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
                 .setUserId(user.id())
                 .build());
 
-        var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "1");
+        var resp = bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "1", "bind-1");
 
         try {
-            publicClient.transferFailed(
+            withIdempotencyKey(publicClient, "failed").transferFailed(
                 LCMS.TransferFailedRequest.newBuilder()
                     .setChannelId(chan.getChannelId())
                     .setDescription("Fail")
@@ -294,9 +294,9 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
                 .setUserId(user.id())
                 .build());
 
-        bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "1");
+        bind(chan.getChannelId(), LCMS.BindRequest.Role.PRODUCER, "1", "bind");
 
-        publicClient.unbind(
+        withIdempotencyKey(publicClient, "unbind").unbind(
             LCMS.UnbindRequest.newBuilder()
                 .setChannelId(chan.getChannelId())
                 .setPeerId("1")
@@ -314,8 +314,10 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
     }
 
 
-    private static LCMS.BindResponse bind(String chanId, LCMS.BindRequest.Role producer, String value) {
-        return publicClient.bind(
+    private static LCMS.BindResponse bind(String chanId, LCMS.BindRequest.Role producer, String value,
+                                          String idempotencyKey)
+    {
+        return withIdempotencyKey(publicClient, idempotencyKey).bind(
             LCMS.BindRequest.newBuilder()
                 .setChannelId(chanId)
                 .setExecutionId("execId")

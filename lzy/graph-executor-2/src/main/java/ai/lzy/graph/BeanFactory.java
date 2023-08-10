@@ -15,7 +15,6 @@ import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import io.grpc.ManagedChannel;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
-import io.micronaut.context.annotation.Requires;
 import io.prometheus.client.Counter;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
@@ -37,7 +36,6 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Requires(beans = GraphExecutorDataSource.class)
     @Named("GraphExecutorOperationDao")
     public OperationDao operationDao(GraphExecutorDataSource storage) {
         return new OperationDaoImpl(storage);

@@ -123,10 +123,10 @@ public class DbTest {
             .build();
 
         var peerProd = peerDao.create("test-channel", producer, Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false,
-            null);
+            "idk-1", "some_hash", null);
 
         var peerCons = peerDao.create("test-channel", consumer, Peer.Role.CONSUMER, PeerDao.Priority.PRIMARY, false,
-            null);
+            "idk-2", "some_hash", null);
 
         var channelStatus = channelDao.list("exec-id", null, null).get(0);
 
@@ -146,7 +146,7 @@ public class DbTest {
             .setSlotPeer(LC.PeerDescription.SlotPeer.newBuilder()
                 .setPeerUrl("peer1")
                 .build())
-            .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, null);
+            .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, "idk", "some-hash", null);
 
         var peer2 = peerDao.get("peer1", "test-channel", null);
         Assert.assertEquals(peer1, peer2);
@@ -169,14 +169,14 @@ public class DbTest {
             .setSlotPeer(LC.PeerDescription.SlotPeer.newBuilder()
                 .setPeerUrl("peer1")
                 .build())
-            .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, null);
+            .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, "idk-1", "req-hash", null);
 
         var peer2 = peerDao.create("test-channel", LC.PeerDescription.newBuilder()
             .setPeerId("peer2")
             .setSlotPeer(LC.PeerDescription.SlotPeer.newBuilder()
                 .setPeerUrl("peer2")
                 .build())
-            .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, null);
+            .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, "idk-2", "req-hash", null);
 
         peerDao.decrementPriority(peer2.id(), "test-channel", null);
         var producer = peerDao.findProducer("test-channel", null);
@@ -206,21 +206,21 @@ public class DbTest {
             .setSlotPeer(LC.PeerDescription.SlotPeer.newBuilder()
                 .setPeerUrl("peer1")
                 .build())
-            .build(), Peer.Role.CONSUMER, PeerDao.Priority.PRIMARY, true, null);
+            .build(), Peer.Role.CONSUMER, PeerDao.Priority.PRIMARY, true, "idk-1", "some-hash", null);
 
         var peer2 = peerDao.create("test-channel", LC.PeerDescription.newBuilder()
             .setPeerId("peer2")
             .setSlotPeer(LC.PeerDescription.SlotPeer.newBuilder()
                 .setPeerUrl("peer2")
                 .build())
-            .build(), Peer.Role.CONSUMER, PeerDao.Priority.PRIMARY, false, null);
+            .build(), Peer.Role.CONSUMER, PeerDao.Priority.PRIMARY, false, "idk-2", "some-hash", null);
 
-        var peers = peerDao.markConsumersAsConnected("test-channel", null);
+        var peers = peerDao.markConsumersAsConnected("test-channel", "idk-3", "some-hash", null);
 
         Assert.assertEquals(1, peers.size());
         Assert.assertEquals(peer2, peers.get(0));
 
-        var peers1 = peerDao.markConsumersAsConnected("test-channel", null);
+        var peers1 = peerDao.markConsumersAsConnected("test-channel", "idk-4", "some-hash", null);
         Assert.assertEquals(0, peers1.size());
 
         channelDao.dropAll("exec-id", null);
@@ -235,16 +235,16 @@ public class DbTest {
             .setSlotPeer(LC.PeerDescription.SlotPeer.newBuilder()
                 .setPeerUrl("peer1")
                 .build())
-            .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, null);
+            .build(), Peer.Role.PRODUCER, PeerDao.Priority.PRIMARY, false, "idk-1", "some-hash", null);
 
         var peer2 = peerDao.create("test-channel", LC.PeerDescription.newBuilder()
             .setPeerId("peer2")
             .setSlotPeer(LC.PeerDescription.SlotPeer.newBuilder()
                 .setPeerUrl("peer2")
                 .build())
-            .build(), Peer.Role.CONSUMER, PeerDao.Priority.PRIMARY, false, null);
+            .build(), Peer.Role.CONSUMER, PeerDao.Priority.PRIMARY, false, "idk-2", "some-hash", null);
 
-        transferDao.create("transfer", peer1.id(), peer2.id(), "test-channel", PENDING, null);
+        transferDao.create(peer1.id(), peer2.id(), "test-channel", PENDING, "idk-3", "some-hash", null);
 
         Assert.assertTrue(transferDao.hasPendingOrActiveTransfers(peer1.id(), "test-channel", null));
 
@@ -253,7 +253,7 @@ public class DbTest {
         Assert.assertEquals(peer1, list.get(0).from());
         Assert.assertEquals(peer2, list.get(0).to());
 
-        transferDao.markActive(list.get(0).id(), list.get(0).channelId(), null);
+        transferDao.markActive(list.get(0).id(), list.get(0).channelId(), "idk-4", null);
 
         var list1 = transferDao.listPending(null);
         Assert.assertEquals(0, list1.size());
@@ -261,11 +261,11 @@ public class DbTest {
         var transfer = transferDao.get(list.get(0).id(), "test-channel", null);
         Assert.assertEquals(TransferDao.State.ACTIVE, transfer.state());
 
-        transferDao.markCompleted(list.get(0).id(), list.get(0).channelId(), null);
+        transferDao.markCompleted(list.get(0).id(), list.get(0).channelId(), "idk-5", null);
         var transfer1 = transferDao.get(list.get(0).id(), "test-channel", null);
         Assert.assertEquals(TransferDao.State.COMPLETED, transfer1.state());
 
-        transferDao.markFailed(list.get(0).id(), list.get(0).channelId(), "FAILED", null);
+        transferDao.markFailed(list.get(0).id(), list.get(0).channelId(), "FAILED", "idk-6", null);
         var transfer2 = transferDao.get(list.get(0).id(), "test-channel", null);
         Assert.assertEquals(TransferDao.State.FAILED, transfer2.state());
         Assert.assertEquals("FAILED", transfer2.errorDescription());

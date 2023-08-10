@@ -1,23 +1,11 @@
 package ai.lzy.graph.test.mocks;
 
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
-import java.util.function.Function;
-
-import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
-import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
-
 import ai.lzy.graph.GraphExecutor;
 import ai.lzy.graph.config.ServiceConfig;
-import ai.lzy.graph.services.AllocatorService;
+import ai.lzy.graph.services.WorkerService;
+import ai.lzy.iam.resources.subjects.AuthProvider;
+import ai.lzy.iam.resources.subjects.Subject;
+import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.longrunning.LocalOperationService;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.util.grpc.ChannelBuilder;
@@ -35,71 +23,72 @@ import io.grpc.Server;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.stub.StreamObserver;
 import io.micronaut.context.annotation.Primary;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
 
+import java.io.IOException;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
+import java.util.function.Function;
+
+import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
+import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
+import static java.util.Optional.ofNullable;
+
 @Singleton
 @Primary
-public class AllocatorServiceMock implements AllocatorService {
+public class WorkerServiceMock implements WorkerService {
+
     private final ServiceConfig config;
     private final LocalOperationService opService;
-    private final Set<Server> servers = new HashSet<>();
-    private final ConcurrentHashMap<HostAndPort, LongRunningServiceGrpc.LongRunningServiceBlockingStub> clients =
-        new ConcurrentHashMap<>();
-    private final BlockingQueue<ManagedChannel> channels = new LinkedBlockingQueue<>();
+    private final Server opServer;
+
+    private record WorkerDecs(
+        Server server,
+        ManagedChannel channel,
+        WorkerApiGrpc.WorkerApiBlockingStub stub,
+        LongRunningServiceGrpc.LongRunningServiceBlockingStub opsStub
+    ) {}
+
+    private final Map<String, WorkerDecs> workers = new ConcurrentHashMap<>();
 
     public static volatile Consumer<String> onAllocate = (a) -> {};
-    public static volatile Consumer<String> onCreateSession = (a) -> {};
     public static volatile Consumer<String> onFree = (a) -> {};
-    public static volatile Consumer<String> onGetResponse = (a) -> {};
     public static volatile Consumer<String> onAddCredentials = (a) -> {};
     public static volatile Consumer<String> onCreateWorker = (a) -> {};
     public static volatile Function<LWS.ExecuteRequest, Boolean> onExecute = (a) -> true;
 
-    public AllocatorServiceMock(ServiceConfig config) {
+    public WorkerServiceMock(ServiceConfig config) {
         this.config = config;
-        opService = new LocalOperationService("name");
-        var server = GrpcUtils.newGrpcServer(HostAndPort.fromString(config.getAllocatorAddress()), GrpcUtils.NO_AUTH)
+        this.opService = new LocalOperationService("ops");
+
+        this.opServer = newGrpcServer(HostAndPort.fromString(config.getAllocatorAddress()), GrpcUtils.NO_AUTH)
             .addService(opService)
             .build();
 
         try {
-            server.start();
+            opServer.start();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
-        servers.add(server);
     }
 
     @PreDestroy
     public void close() {
-        for (var server: servers) {
-            server.shutdown();
-            try {
-                server.awaitTermination();
-            } catch (InterruptedException e) {
-                // ignored
-            }
-            server.shutdownNow();
-        }
-        for (var channel: channels) {
-            channel.shutdown();
-        }
-
-        for (var channel: channels) {
-            try {
-                channel.awaitTermination(1, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                // ignored
-            }
-        }
+        opServer.shutdown();
+        workers.values().forEach(w -> {
+            w.server.shutdown();
+            w.channel.shutdown();
+        });
     }
 
     @Override
-    public LongRunning.Operation allocate(String userId, String workflowName, String sessionId,
-                                          LMO.Requirements requirements)
-    {
+    public LongRunning.Operation allocateVm(String sessionId, LMO.Requirements requirements, String idempotencyKey) {
         onAllocate.accept(sessionId);
 
         var addr = HostAndPort.fromString("localhost:9090");
@@ -129,38 +118,28 @@ public class AllocatorServiceMock implements AllocatorService {
     }
 
     @Override
-    public String createSession(String userId, String workflowName, String idempotencyKey) {
-        onCreateSession.accept(userId);
-        return "session-id";
-    }
-
-    @Override
-    public void free(String vmId) {
+    public void freeVm(String vmId) {
         onFree.accept(vmId);
     }
 
+    @Nullable
     @Override
-    public VmAllocatorApi.AllocateResponse getResponse(String allocOperationId) {
-        onGetResponse.accept(allocOperationId);
-        LocalOperationService.OperationSnapshot snapshot = opService.get(allocOperationId);
-        try {
-            return snapshot.response().unpack(VmAllocatorApi.AllocateResponse.class);
-        } catch (Exception e) {
-            return null;
-        }
+    public LongRunning.Operation getAllocOp(String opId) {
+        return ofNullable(opService.get(opId)).map(LocalOperationService.OperationSnapshot::toProto).orElse(null);
     }
 
     @Override
-    public void addCredentials(String vmId, String publicKey, String resourceId) {
+    public Subject createWorkerSubject(String vmId, String publicKey, String resourceId) {
         onAddCredentials.accept(vmId);
+        return new Worker(vmId, AuthProvider.INTERNAL, vmId);
     }
 
     @Override
-    public WorkerApiGrpc.WorkerApiBlockingStub createWorker(HostAndPort hostAndPort) {
-        onCreateWorker.accept(hostAndPort.toString());
+    public void init(String vmId, String userId, String workflowName, String host, int port, String workerPrivateKey) {
+        onCreateWorker.accept(host + ":" + port);
 
         WorkerImpl impl = new WorkerImpl();
-        var server = NettyServerBuilder.forPort(hostAndPort.getPort())
+        var server = NettyServerBuilder.forPort(port)
             .permitKeepAliveWithoutCalls(true)
             .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
             .addService(impl)
@@ -171,28 +150,36 @@ public class AllocatorServiceMock implements AllocatorService {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        servers.add(server);
 
-        var workerChannel = newGrpcChannel(hostAndPort, WorkerApiGrpc.SERVICE_NAME);
-        var workerChannel2 = GrpcUtils.newGrpcChannel(hostAndPort, LongRunningServiceGrpc.SERVICE_NAME);
-        channels.addAll(List.of(workerChannel, workerChannel2));
+        var workerChannel = newGrpcChannel(host, port, WorkerApiGrpc.SERVICE_NAME, LongRunningServiceGrpc.SERVICE_NAME);
 
-        var client = GrpcUtils.newBlockingClient(
-            LongRunningServiceGrpc.newBlockingStub(workerChannel2),
+        var opsStub = newBlockingClient(
+            LongRunningServiceGrpc.newBlockingStub(workerChannel),
             "worker", () -> config.getIam().createRenewableToken().get().token());
-        clients.put(hostAndPort, client);
 
-        return newBlockingClient(WorkerApiGrpc.newBlockingStub(workerChannel),
+        var stub = newBlockingClient(WorkerApiGrpc.newBlockingStub(workerChannel),
             GraphExecutor.APP, () -> config.getIam().createRenewableToken().get().token());
+
+        workers.put(vmId, new WorkerDecs(server, workerChannel, stub, opsStub));
+    }
+
+    @Nullable
+    @Override
+    public LongRunning.Operation execute(String vmId, LWS.ExecuteRequest request, String idempotencyKey) {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public LongRunning.Operation getWorkerOp(String vmId, String opId) {
+        return ofNullable(opService.get(opId)).map(LocalOperationService.OperationSnapshot::toProto).orElse(null);
     }
 
     @Override
-    public LongRunningServiceGrpc.LongRunningServiceBlockingStub getWorker(HostAndPort hostAndPort) {
-        return clients.get(hostAndPort);
+    public void restoreWorker(String vmId, String host, int port) {
     }
 
     private class WorkerImpl extends WorkerApiGrpc.WorkerApiImplBase {
-
         @Override
         public void init(LWS.InitRequest request, StreamObserver<LWS.InitResponse> responseObserver) {
             responseObserver.onNext(LWS.InitResponse.getDefaultInstance());

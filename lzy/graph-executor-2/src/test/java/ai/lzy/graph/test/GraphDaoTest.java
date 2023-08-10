@@ -17,7 +17,7 @@ import org.junit.Test;
 import org.junit.rules.Timeout;
 
 import java.sql.SQLException;
-import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
 
 import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
@@ -43,10 +43,13 @@ public class GraphDaoTest {
         var opDao = context.getBean(OperationDao.class);
         operation = Operation.create("user1", "Execute graph", null, null, null);
         opDao.create(operation, null);
+
+        GraphState.disableLocking();
     }
 
     @After
     public void tearDown() {
+        GraphState.enableLocking();
         context.close();
     }
 
@@ -54,13 +57,13 @@ public class GraphDaoTest {
     public void daoCreateTest() throws SQLException {
         String graphId = "g1";
         GraphState graph = new GraphState(graphId, operation.id(), GraphState.Status.WAITING,
-            "exec1", "workflow1", "user1", Collections.emptyMap(),
-            null, null, null);
+            "exec1", "workflow1", "user1", "sid1", new EnumMap<>(GraphState.Status.class), null, null, null);
+
         dao.create(graph, null);
         GraphState byId = dao.getById(graphId);
         GraphState wrongById = dao.getById("wrong-id");
-        List<GraphState> byInstance = dao.getByInstance(config.getInstanceId());
-        List<GraphState> wrongByInstance = dao.getByInstance("wrong-instance-id");
+        List<GraphState> byInstance = dao.getActiveByInstance(config.getInstanceId());
+        List<GraphState> wrongByInstance = dao.getActiveByInstance("wrong-instance-id");
 
         Assert.assertEquals(graph, byId);
         Assert.assertEquals(1, byInstance.size());
@@ -77,27 +80,19 @@ public class GraphDaoTest {
         String errorDescr = "error";
 
         GraphState graph = new GraphState(graphId, operation.id(), GraphState.Status.WAITING,
-            "exec1", "workflow1", userId, Collections.emptyMap(),
-            null, null, null);
+            "exec1", "workflow1", userId, "sid1", new EnumMap<>(GraphState.Status.class), null, null, null);
         dao.create(graph, null);
 
-        GraphState updatedGraph = graph.toBuilder()
-            .errorDescription(errorDescr)
-            .failedTaskId("id")
-            .failedTaskName("name")
-            .status(GraphState.Status.EXECUTING)
-            .userId("new-user-id")
-            .build();
-        dao.update(updatedGraph, null);
+        graph.tryFail("id", "name", errorDescr);
+        dao.update(graph, null);
 
         GraphState byId = dao.getById(graphId);
-        List<GraphState> byInstance = dao.getByInstance(config.getInstanceId());
+        List<GraphState> active = dao.getActiveByInstance(config.getInstanceId());
 
-        Assert.assertEquals(updatedGraph, byId);
-        Assert.assertEquals(1, byInstance.size());
-        Assert.assertEquals(updatedGraph, byInstance.get(0));
+        Assert.assertEquals(graph, byId);
+        Assert.assertEquals(0, active.size());
         Assert.assertEquals(errorDescr, byId.errorDescription());
-        Assert.assertEquals(GraphState.Status.EXECUTING, byId.status());
+        Assert.assertEquals(GraphState.Status.FAILED, byId.status());
         Assert.assertEquals(userId, byId.userId());
     }
 }

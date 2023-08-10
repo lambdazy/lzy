@@ -1,56 +1,78 @@
 package ai.lzy.graph.model;
 
-import ai.lzy.graph.GraphExecutorApi2;
+import ai.lzy.graph.LGE;
 import ai.lzy.v1.common.LMD;
 import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.common.LMS;
-import com.fasterxml.jackson.annotation.JsonAutoDetect;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-import lombok.Builder;
+import jakarta.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-@Builder(toBuilder = true)
-@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY)
-@JsonSerialize
-@JsonDeserialize
-public record TaskState(
-    String id,
-    String name,
-    String operationId,
-    String graphId,
-    Status status,
-    String executionId,
-    String workflowName,
-    String userId,
-    String errorDescription,
-    TaskSlotDescription taskSlotDescription,
-    String allocatorSession,
-    ExecutingState executingState,
-    List<String> tasksDependedOn, // tasks, on which this task is depended on
-    List<String> tasksDependedFrom // tasks, that are depended from this task
-) {
-    public enum Status {
-        WAITING, WAITING_ALLOCATION, ALLOCATING, EXECUTING, COMPLETED, FAILED
+import static java.util.Objects.requireNonNull;
+
+
+public final class TaskState {
+    private final String id;
+    private final String name;
+    private final String operationId;
+    private final String graphId;
+    private Status status;
+    private final String executionId;
+    private final String workflowName;
+    private final String userId;
+    private final String allocatorSessionId;
+    private final TaskSlotDescription taskSlotDescription;
+    private final List<String> tasksDependsOn;
+    private final List<String> tasksDependsFrom;
+    @Nullable
+    private ExecutingState executingState;
+    @Nullable
+    private String errorDescription;
+
+    public TaskState(String id, String name, String operationId, String graphId, Status status, String executionId,
+                     String workflowName, String userId, String allocatorSessionId, TaskSlotDescription taskSlotDescr,
+                     List<String> tasksDependsOn, List<String> tasksDependsFrom,
+                     @Nullable ExecutingState executingState, @Nullable String errorDescription)
+    {
+        this.id = id;
+        this.name = name;
+        this.operationId = operationId;
+        this.graphId = graphId;
+        this.status = status;
+        this.executionId = executionId;
+        this.workflowName = workflowName;
+        this.userId = userId;
+        this.allocatorSessionId = allocatorSessionId;
+        this.taskSlotDescription = taskSlotDescr;
+        this.tasksDependsOn = tasksDependsOn;
+        this.tasksDependsFrom = tasksDependsFrom;
+        this.executingState = executingState;
+        this.errorDescription = errorDescription;
     }
 
-    @Builder(toBuilder = true)
+    public enum Status {
+        WAITING, WAITING_ALLOCATION, ALLOCATING, EXECUTING, COMPLETED, FAILED;
+
+        public boolean finished() {
+            return this == COMPLETED || this == FAILED;
+        }
+    }
+
     public record ExecutingState(
         String opId,
-        String allocOperationId,
-        String vmId,
-        boolean fromCache,
-        String workerHost,
+        @Nullable String allocOperationId,
+        @Nullable String vmId,
+        @Nullable Boolean fromCache,
+        @Nullable String workerHost,
         int workerPort,
-        String workerOperationId
+        @Nullable String workerOperationId
     ) {}
 
-    public static TaskState fromProto(GraphExecutorApi2.GraphExecuteRequest.TaskDesc taskDesc, GraphState graphState) {
-        var slots = taskDesc.getOperation().getSlotsList().stream()
+    public static TaskState fromProto(LGE.ExecuteGraphRequest.TaskDesc task, GraphState initialGraphState) {
+        var slots = task.getOperation().getSlotsList().stream()
             .map(slot -> new TaskSlotDescription.Slot(
                 slot.getName(),
                 TaskSlotDescription.Slot.Media.valueOf(slot.getMedia().name()),
@@ -58,43 +80,43 @@ public record TaskState(
                 slot.getContentType().getDataFormat(),
                 slot.getContentType().getSchemeFormat(),
                 slot.getContentType().getSchemeContent(),
-                slot.getContentType().getMetadataMap()
-            ))
+                slot.getContentType().getMetadataMap()))
             .toList();
-        var slotAssignments = taskDesc.getSlotAssignmentsList().stream()
-            .collect(Collectors.toMap(t -> t.getSlotName(), t -> t.getChannelId()));
+
+        var slotAssignments = task.getSlotAssignmentsList().stream()
+            .collect(Collectors.toMap(
+                LGE.ExecuteGraphRequest.TaskDesc.SlotToChannelAssignment::getSlotName,
+                LGE.ExecuteGraphRequest.TaskDesc.SlotToChannelAssignment::getChannelId));
+
         var taskSlotDescription = new TaskSlotDescription(
-            taskDesc.getOperation().getName(),
-            taskDesc.getOperation().getDescription(),
-            taskDesc.getOperation().getRequirements().getPoolLabel(),
-            taskDesc.getOperation().getRequirements().getZone(),
-            taskDesc.getOperation().getCommand(),
+            task.getOperation().getName(),
+            task.getOperation().getDescription(),
+            task.getOperation().getRequirements().getPoolLabel(),
+            task.getOperation().getRequirements().getZone(),
+            task.getOperation().getCommand(),
             slots,
             slotAssignments,
             new TaskSlotDescription.KafkaTopicDescription(
-                taskDesc.getOperation().getKafkaTopic().getBootstrapServersList(),
-                taskDesc.getOperation().getKafkaTopic().getUsername(),
-                taskDesc.getOperation().getKafkaTopic().getPassword(),
-                taskDesc.getOperation().getKafkaTopic().getTopic()
-            )
-        );
+                task.getOperation().getKafkaTopic().getBootstrapServersList(),
+                task.getOperation().getKafkaTopic().getUsername(),
+                task.getOperation().getKafkaTopic().getPassword(),
+                task.getOperation().getKafkaTopic().getTopic()));
 
         return new TaskState(
-            taskDesc.getId(),
-            taskDesc.getOperation().getName(),
-            graphState.operationId(),
-            graphState.id(),
+            task.getId(),
+            task.getOperation().getName(),
+            initialGraphState.operationId(),
+            initialGraphState.id(),
             Status.WAITING,
-            graphState.executionId(),
-            graphState.workflowName(),
-            graphState.userId(),
-            null,
+            initialGraphState.executionId(),
+            initialGraphState.workflowName(),
+            initialGraphState.userId(),
+            initialGraphState.allocatorSessionId(),
             taskSlotDescription,
-            null,
-            ExecutingState.builder().build(),
             new ArrayList<>(),
-            new ArrayList<>()
-        );
+            new ArrayList<>(),
+            null,
+            null);
     }
 
     public LMO.TaskDesc toProto() {
@@ -105,8 +127,7 @@ public record TaskState(
                         .setSlotName(e.getKey())
                         .setChannelId(e.getValue())
                         .build())
-                    .toList()
-            )
+                    .toList())
             .setOperation(
                 LMO.Operation.newBuilder()
                     .setName(taskSlotDescription.name())
@@ -135,46 +156,156 @@ public record TaskState(
                                 .build())
                             .build())
                         .toList())
-                    .build()
-            )
+                    .build())
             .build();
     }
 
-    public GraphExecutorApi2.TaskExecutionStatus toProtoStatus() {
-        GraphExecutorApi2.TaskExecutionStatus.Builder builder = GraphExecutorApi2.TaskExecutionStatus.newBuilder()
-            .setTaskDescriptionId(id)
+    public LGE.TaskExecutionStatus toProtoStatus() {
+        var builder = LGE.TaskExecutionStatus.newBuilder()
             .setTaskId(id)
-            .setOperationName(name)
-            .setWorkflowId(executionId);
+            .setTaskDescriptionId(id)
+            .setWorkflowName(workflowName)
+            .setExecutionId(executionId)
+            .setOperationName(name);
 
-        switch (status) {
-            case COMPLETED -> builder.setSuccess(GraphExecutorApi2.TaskExecutionStatus.Success.newBuilder()
-                .setRc(0)
-                .setDescription("")
-                .build());
-            case FAILED -> builder.setError(GraphExecutorApi2.TaskExecutionStatus.Error.newBuilder()
-                .setRc(0)
-                .setDescription(errorDescription)
-                .build());
-            default -> builder.setExecuting(GraphExecutorApi2.TaskExecutionStatus.Executing.newBuilder().build());
-        }
-        return builder.build();
+        return switch (status) {
+            case COMPLETED ->
+                builder.setSuccess(
+                    LGE.TaskExecutionStatus.Success.newBuilder()
+                        .setRc(0)
+                        .setDescription("")
+                        .build())
+                    .build();
+            case FAILED ->
+                builder.setError(
+                    LGE.TaskExecutionStatus.Error.newBuilder()
+                        .setRc(1)
+                        .setDescription(requireNonNull(errorDescription))
+                        .build())
+                    .build();
+            case WAITING, WAITING_ALLOCATION, ALLOCATING, EXECUTING ->
+                builder
+                    .setExecuting(
+                        LGE.TaskExecutionStatus.Executing.newBuilder()
+                            .build())
+                    .build();
+        };
+    }
+
+    public TaskState toWaitAllocation(String execTaskOpId) {
+        return new TaskState(id, name, operationId, graphId, Status.WAITING_ALLOCATION, executionId, workflowName,
+            userId, allocatorSessionId, taskSlotDescription, tasksDependsOn, tasksDependsFrom,
+            new ExecutingState(execTaskOpId, null, null, null, null, -1, null), null);
+    }
+
+    public TaskState toStartAllocation(String allocOpId, String vmId) {
+        Objects.requireNonNull(executingState);
+        return new TaskState(id, name, operationId, graphId, Status.ALLOCATING, executionId, workflowName,
+            userId, allocatorSessionId, taskSlotDescription, tasksDependsOn, tasksDependsFrom,
+            new ExecutingState(executingState.opId, allocOpId, vmId, null, null, -1, null), null);
+    }
+
+    public TaskState toExecutingState(String vmHost, int vmPort, boolean fromCache) {
+        Objects.requireNonNull(executingState);
+        return new TaskState(id, name, operationId, graphId, Status.EXECUTING, executionId, workflowName,
+            userId, allocatorSessionId, taskSlotDescription, tasksDependsOn, tasksDependsFrom,
+            new ExecutingState(executingState.opId, executingState.allocOperationId, executingState.vmId,
+                fromCache, vmHost, vmPort, null), null);
+    }
+
+    public TaskState toExecutingState(String workerOpId) {
+        Objects.requireNonNull(executingState);
+        assert status == Status.EXECUTING;
+        return new TaskState(id, name, operationId, graphId, status, executionId, workflowName,
+            userId, allocatorSessionId, taskSlotDescription, tasksDependsOn, tasksDependsFrom,
+            new ExecutingState(executingState.opId, executingState.allocOperationId, executingState.vmId,
+                executingState.fromCache, executingState.workerHost, executingState.workerPort, workerOpId), null);
+    }
+
+    public void complete() {
+        status = Status.COMPLETED;
+    }
+
+    public void fail(String errorDescription) {
+        status = Status.FAILED;
+        this.errorDescription = errorDescription;
+    }
+
+    public String id() {
+        return id;
+    }
+
+    public String name() {
+        return name;
+    }
+
+    public String operationId() {
+        return operationId;
+    }
+
+    public String graphId() {
+        return graphId;
+    }
+
+    public Status status() {
+        return status;
+    }
+
+    public String executionId() {
+        return executionId;
+    }
+
+    public String workflowName() {
+        return workflowName;
+    }
+
+    public String userId() {
+        return userId;
+    }
+
+    @Nullable
+    public String errorDescription() {
+        return errorDescription;
+    }
+
+    public TaskSlotDescription taskSlotDescription() {
+        return taskSlotDescription;
+    }
+
+    public String allocatorSessionId() {
+        return allocatorSessionId;
+    }
+
+    @Nullable
+    public ExecutingState executingState() {
+        return executingState;
+    }
+
+    public List<String> tasksDependedOn() {
+        return tasksDependsOn;
+    }
+
+    public List<String> tasksDependedFrom() {
+        return tasksDependsFrom;
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        TaskState that = (TaskState) o;
-        return id.equals(that.id);
+    public String toString() {
+        return "TaskState[" +
+            "id=" + id + ", " +
+            "name=" + name + ", " +
+            "operationId=" + operationId + ", " +
+            "graphId=" + graphId + ", " +
+            "status=" + status + ", " +
+            "executionId=" + executionId + ", " +
+            "workflowName=" + workflowName + ", " +
+            "userId=" + userId + ", " +
+            "errorDescription=" + errorDescription + ", " +
+            "taskSlotDescription=" + taskSlotDescription + ", " +
+            "allocatorSessionId=" + allocatorSessionId + ", " +
+            "executingState=" + executingState + ", " +
+            "tasksDependedOn=" + tasksDependsOn + ", " +
+            "tasksDependedFrom=" + tasksDependsFrom + ']';
     }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
 }

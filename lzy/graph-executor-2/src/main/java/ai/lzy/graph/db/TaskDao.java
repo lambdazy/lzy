@@ -17,5 +17,5 @@ public interface TaskDao {
 
     List<TaskState> getTasksByGraph(String graphId) throws SQLException;
 
-    List<TaskState> getTasksByInstance(String instanceId) throws SQLException;
+    List<TaskState> loadActiveTasks(String instanceId) throws SQLException;
 }

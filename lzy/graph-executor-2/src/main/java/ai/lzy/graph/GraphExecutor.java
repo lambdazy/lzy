@@ -46,18 +46,17 @@ public class GraphExecutor {
     public void start() throws InterruptedException, IOException {
         LOG.info("Starting GraphExecutor2 service...");
 
-        final var internalUserOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
+        var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
+        var internalUserOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
 
-        server =
-            newGrpcServer("0.0.0.0", config.getPort(),
-                new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)))
-                .addService(ServerInterceptors.intercept(graphExecutorApi, internalUserOnly))
-                .addService(ServerInterceptors.intercept(operationsService, internalUserOnly))
-                .build();
+        server = newGrpcServer("0.0.0.0", config.getPort(), auth)
+            .addService(ServerInterceptors.intercept(graphExecutorApi, internalUserOnly))
+            .addService(ServerInterceptors.intercept(operationsService, internalUserOnly))
+            .build();
 
         server.start();
 
-        LOG.info("Starting GraphExecutor2 service done");
+        LOG.info("GraphExecutor2 strated");
     }
 
     public void close() {

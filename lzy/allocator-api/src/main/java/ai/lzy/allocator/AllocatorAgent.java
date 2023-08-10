@@ -92,7 +92,8 @@ public class AllocatorAgent extends TimerTask {
                 done = true;
                 break;
             } catch (StatusRuntimeException e) {
-                LOG.error("Cannot register at allocator: {}", e.getStatus());
+                LOG.error("Cannot register at allocator: [{}] {}",
+                    e.getStatus().getCode(), e.getStatus().getDescription());
 
                 switch (e.getStatus().getCode()) {
                     case ALREADY_EXISTS ->
@@ -136,7 +137,8 @@ public class AllocatorAgent extends TimerTask {
                 .setVmId(vmId)
                 .build());
         } catch (StatusRuntimeException e) {
-            LOG.error("Cannot send heartbeat to allocator {}: {}", allocatorAddress, e.getStatus());
+            LOG.error("Cannot send heartbeat to allocator {}: [{}] {}",
+                allocatorAddress, e.getStatus().getCode(), e.getStatus().getDescription());
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
                 cancel();
             }

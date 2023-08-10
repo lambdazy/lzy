@@ -1,6 +1,5 @@
 package ai.lzy.graph;
 
-import ai.lzy.graph.GraphExecutorApi2.*;
 import ai.lzy.graph.config.ServiceConfig;
 import ai.lzy.graph.services.GraphService;
 import ai.lzy.longrunning.IdempotencyUtils;
@@ -16,13 +15,12 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.sql.SQLException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import static ai.lzy.longrunning.IdempotencyUtils.handleIdempotencyKeyConflict;
 import static ai.lzy.longrunning.IdempotencyUtils.loadExistingOp;
+import static ai.lzy.util.grpc.ProtoPrinter.safePrinter;
 
 @Singleton
 public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
@@ -33,13 +31,13 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
     @Inject
-    public GraphExecutorApi(ServiceConfig config,
-                            GraphService graphService,
+    public GraphExecutorApi(ServiceConfig config, GraphService graphService,
                             @Named("GraphExecutorOperationDao") OperationDao operationDao)
     {
         this.graphService = graphService;
         this.operationDao = operationDao;
 
+        /*
         executor.schedule(() -> {
             try {
                 operationDao.deleteOutdatedOperations(config.getGcPeriod().toHoursPart());
@@ -47,6 +45,7 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                 LOG.error("Cannot delete outdated operations");
             }
         }, config.getGcPeriod().getSeconds(), TimeUnit.SECONDS);
+        */
     }
 
     @PreDestroy
@@ -55,19 +54,19 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
     }
 
     @Override
-    public void execute(GraphExecuteRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
+    public void execute(LGE.ExecuteGraphRequest request, StreamObserver<LongRunning.Operation> responseObserver) {
         if (!validateRequest(request, responseObserver)) {
             return;
         }
 
-        Operation.IdempotencyKey idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
+        var idempotencyKey = IdempotencyUtils.getIdempotencyKey(request);
         if (idempotencyKey != null && loadExistingOp(operationDao, idempotencyKey, responseObserver, LOG)) {
             return;
         }
 
         var op = Operation.create(
             request.getUserId(),
-            "Execute graph of execution: executionId='%s'".formatted(request.getExecutionId()),
+            "Execute graph: executionId='%s'".formatted(request.getExecutionId()),
             null,
             idempotencyKey,
             /* meta */ null);
@@ -81,7 +80,8 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
                 return;
             }
 
-            LOG.error("Cannot execute graph: { request: {}, error: {} }", request, e.getMessage());
+            LOG.error("Cannot execute graph, request: {}, error: {}",
+                safePrinter().shortDebugString(request), e.getMessage());
             var errorStatus = Status.INVALID_ARGUMENT.withDescription(e.getMessage());
             responseObserver.onError(errorStatus.asException());
             return;
@@ -91,29 +91,34 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
         responseObserver.onCompleted();
     }
 
-    private static boolean validateRequest(GraphExecuteRequest request,
+    private static boolean validateRequest(LGE.ExecuteGraphRequest request,
                                            StreamObserver<LongRunning.Operation> response)
     {
-        if (request.getExecutionId().isBlank()) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("workflowId not set").asException());
-            return false;
+        if (request.getUserId().isBlank()) {
+            return invalidArgument(response, "user_id");
         }
 
         if (request.getWorkflowName().isBlank()) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("workflowName not set").asException());
-            return false;
+            return invalidArgument(response, "workflow_name");
         }
 
-        if (request.getUserId().isBlank()) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("userId not set").asException());
-            return false;
+        if (request.getExecutionId().isBlank()) {
+            return invalidArgument(response, "execution_id");
+        }
+
+        if (request.getAllocatorSessionId().isBlank()) {
+            return invalidArgument(response, "allocator_session_id");
         }
 
         if (request.getTasksCount() == 0) {
-            response.onError(Status.INVALID_ARGUMENT.withDescription("tasks not set").asException());
-            return false;
+            return invalidArgument(response, "tasks");
         }
 
         return true;
+    }
+
+    private static boolean invalidArgument(StreamObserver<LongRunning.Operation> response, String arg) {
+        response.onError(Status.INVALID_ARGUMENT.withDescription(arg + " not set").asException());
+        return false;
     }
 }
