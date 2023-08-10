@@ -12,7 +12,17 @@ import ai.lzy.util.auth.credentials.YcIamCredentials;
 import ai.lzy.util.auth.exceptions.AuthException;
 import ai.lzy.util.auth.exceptions.AuthUnauthenticatedException;
 import com.google.common.collect.ImmutableSet;
-import io.grpc.*;
+import io.grpc.Context;
+import io.grpc.Contexts;
+import io.grpc.ForwardingServerCall;
+import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
+import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.reflection.v1alpha.ServerReflectionGrpc;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,7 +48,9 @@ public class AuthServerInterceptor implements ServerInterceptor {
     public AuthServerInterceptor(Function<AuthException, StatusException> exceptionMapper,
                                  AuthenticateService authenticateService)
     {
-        this(exceptionMapper, ImmutableSet.of(), authenticateService);
+        this(exceptionMapper,
+            ImmutableSet.copyOf(ServerReflectionGrpc.getServiceDescriptor().getMethods()),
+            authenticateService);
     }
 
     AuthServerInterceptor(Function<AuthException, StatusException> exceptionMapper,

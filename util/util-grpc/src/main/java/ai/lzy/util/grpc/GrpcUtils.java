@@ -8,6 +8,7 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.NettyServerBuilder;
+import io.grpc.protobuf.services.ProtoReflectionService;
 import io.grpc.stub.AbstractBlockingStub;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.Logger;
@@ -23,7 +24,7 @@ import java.util.function.Supplier;
 
 public final class GrpcUtils {
     public static final ServerInterceptor NO_AUTH = null;
-    public static final Supplier<String>  NO_AUTH_TOKEN = null;
+    public static final Supplier<String> NO_AUTH_TOKEN = null;
 
     public static final AtomicBoolean IS_RETRIES_ENABLED = new AtomicBoolean(true);
     public static final RetryConfig INFINITY_RETRY_CONFIG = new RetryConfig(
@@ -81,7 +82,13 @@ public final class GrpcUtils {
     public static NettyServerBuilder addKeepAlive(NettyServerBuilder builder) {
         return builder
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
+            .addService(ProtoReflectionService.newInstance());
+    }
+
+    public static NettyServerBuilder addReflection(NettyServerBuilder builder) {
+        return builder
+            .addService(ProtoReflectionService.newInstance());
     }
 
     public static NettyServerBuilder intercept(NettyServerBuilder builder,
@@ -109,8 +116,9 @@ public final class GrpcUtils {
 
     public static NettyServerBuilder newGrpcServer(String host, int port, @Nullable ServerInterceptor authInterceptor) {
         return intercept(
-            addKeepAlive(
-                NettyServerBuilder.forAddress(new InetSocketAddress(host, port))),
+            addReflection(
+                addKeepAlive(
+                    NettyServerBuilder.forAddress(new InetSocketAddress(host, port)))),
             authInterceptor);
     }
 
