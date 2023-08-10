@@ -13,7 +13,11 @@ import io.micronaut.context.ApplicationContext;
 import io.zonky.test.db.postgres.junit.EmbeddedPostgresRules;
 import io.zonky.test.db.postgres.junit.PreparedDbRule;
 import jakarta.annotation.Nonnull;
-import org.junit.*;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
 
 import java.sql.SQLException;
 import java.time.Duration;
@@ -77,9 +81,8 @@ public class DynamicDaoImplTest {
     @Test
     public void createAndGet() throws Exception {
         var diskMount = dynamicMountModel(vm.vmId(), "allocator", operation.id());
-        var nfsMount = DynamicMount.createNew(vm.vmId(), "2", "nfs",
-            "nfs", new VolumeRequest("42", new NFSVolumeDescription("nfs", "nfs-42", "share", true,
-                List.of("foo", "bar"))),
+        var nfsMount = DynamicMount.createNew(vm.vmId(), "2", "nfs", "nfs1", "nfs2",
+            new VolumeRequest("42", new NFSVolumeDescription("nfs", "nfs-42", "share", true, List.of("foo", "bar"))),
             operation.id(), "allocator");
 
         dynamicMountDao.create(diskMount, null);
@@ -221,9 +224,11 @@ public class DynamicDaoImplTest {
 
     @Nonnull
     private static DynamicMount dynamicMountModel(String vmId, String workerId, String operationId, String clusterId) {
-        var random = UUID.randomUUID().toString();
-        return DynamicMount.createNew(vmId, clusterId, "disk" + random,
-            "disk" + random, new VolumeRequest("42", new DiskVolumeDescription("disk", "disk-42", 42,
+        var id = UUID.randomUUID().toString();
+        var mountPath = "/mnt/disk/" + id;
+        var bindPath = "/" + id;
+        return DynamicMount.createNew(vmId, clusterId, "disk" + id, mountPath, bindPath,
+            new VolumeRequest("42", new DiskVolumeDescription("disk", "disk-42", 42,
                 Volume.AccessMode.READ_WRITE_ONCE, DiskVolumeDescription.StorageClass.HDD)),
             operationId, workerId);
     }

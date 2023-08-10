@@ -29,6 +29,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     private boolean mountPodStarted = false;
     private boolean volumeClaimDeletionRequested = false;
     private boolean volumeDeletionRequested = false;
+    private boolean bindUnmounted = false;
     private boolean volumeUnmounted = false;
     private boolean skipVolumeDeletion = false;
     private boolean volumeDeleted = false;
@@ -77,7 +78,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
     protected List<Supplier<StepResult>> steps() {
         return List.of(this::prepareActiveMounts, this::getNextMountPodId, this::createNewMountPod,
             this::waitForMountPod, this::updateVmMountPod, this::deleteOtherMountPods,
-            this::unmountFromVM, this::countDynamicMounts, this::removeVolumeClaim, this::removeVolume,
+            this::unmountFromVm, this::countDynamicMounts, this::removeVolumeClaim, this::removeVolume,
             this::waitVolumeClaimDeletion, this::waitVolumeDeletion, this::deleteMount);
     }
 
@@ -252,7 +253,7 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
         return StepResult.CONTINUE;
     }
 
-    private StepResult unmountFromVM() {
+    private StepResult unmountFromVm() {
         if (vmIsDeleting()) {
             return StepResult.ALREADY_DONE;
         }
@@ -261,10 +262,35 @@ public final class UnmountDynamicDiskAction extends OperationRunnerBase {
             return StepResult.ALREADY_DONE;
         }
 
-        log().info("{} Unmounting mount point {}", logPrefix(), dynamicMount.mountPath());
         try {
-            allocationContext.allocator().unmountFromVm(vm, dynamicMount.mountPath());
-            volumeUnmounted = true;
+            if (!bindUnmounted) {
+                log().info("{} Unmounting bind mount point {}", logPrefix(), dynamicMount.bindPath());
+                final var result = allocationContext.allocator().unmountFromVm(vm, dynamicMount.bindPath());
+                switch (result.code()) {
+                    case SUCCESS -> bindUnmounted = true;
+                    case FAILED -> log().warn("{} Failed to unmount {}: {}. Skipping",
+                        logPrefix(), dynamicMount.bindPath(), result.message());
+                    case RETRY_LATER -> {
+                        log().warn("{} Failed to unmount {}: {}. Retry later",
+                            logPrefix(), dynamicMount.bindPath(), result.message());
+                        return StepResult.RESTART;
+                    }
+                }
+            }
+            if (!volumeUnmounted) {
+                log().info("{} Unmounting mount point {}", logPrefix(), dynamicMount.mountPath());
+                final var result = allocationContext.allocator().unmountFromVm(vm, dynamicMount.mountPath());
+                switch (result.code()) {
+                    case SUCCESS -> volumeUnmounted = true;
+                    case FAILED -> log().warn("{} Failed to unmount {}: {}. Skipping",
+                        logPrefix(), dynamicMount.mountPath(), result.message());
+                    case RETRY_LATER -> {
+                        log().warn("{} Failed to unmount {}: {}. Retry later",
+                            logPrefix(), dynamicMount.mountPath(), result.message());
+                        return StepResult.RESTART;
+                    }
+                }
+            }
         } catch (InvalidConfigurationException e) {
             log().error("{} Failed to unmount volume", logPrefix(), e);
         } catch (KubernetesClientException e) {

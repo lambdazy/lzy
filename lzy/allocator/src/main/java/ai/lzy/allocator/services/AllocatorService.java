@@ -869,6 +869,9 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             if (vmMount.mountPath().equals(dynamicMount.mountPath())) {
                 errors.add("Mount with path %s already exists".formatted(vmMount.mountPath()));
             }
+            if (vmMount.bindPath().equals(dynamicMount.bindPath())) {
+                errors.add("Mount with bind path %s already exists".formatted(vmMount.bindPath()));
+            }
             if (vmMount.mountName().equals(dynamicMount.mountName())) {
                 errors.add("Mount with name %s already exists".formatted(vmMount.mountName()));
             }
@@ -897,7 +900,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 diskVolume.getSizeGb(), accessMode, storageClass);
             var mountName = "disk-" + diskVolume.getDiskId();
             var dynamicMount = DynamicMount.createNew(vm.vmId(), clusterId, mountName,
-                mountConfig.getWorkerMountPoint() + "/" + request.getMountPath(),
+                Path.of(mountConfig.getWorkerMountPoint(), request.getMountPath()).toString(), request.getMountPath(),
                 new VolumeRequest(id, diskVolumeDescription), op.id(),
                 allocationContext.selfWorkerId());
             return new MountWithAction(dynamicMount, new MountDynamicDiskAction(vm, dynamicMount, allocationContext));

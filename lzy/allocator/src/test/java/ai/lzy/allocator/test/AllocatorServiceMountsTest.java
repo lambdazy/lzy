@@ -100,8 +100,11 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     public void mountDuplicateMount() throws Exception {
         var sessionId = createSession(Durations.ZERO);
         var vm = allocateVm(sessionId);
+
+        var mountPath = WORKER_MOUNT_POINT + "/foo";
+        var bindPath = "/foo";
         var dynamicMount = DynamicMount.createNew(vm.vmId(), "foo", "disk-disk-42",
-            WORKER_MOUNT_POINT + "/foo", new VolumeRequest(UUID.randomUUID().toString(),
+            mountPath, bindPath, new VolumeRequest(UUID.randomUUID().toString(),
                 new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
                     Volume.AccessMode.READ_WRITE_ONCE, null)), vm.allocationOpId(),
             "allocator");
@@ -126,11 +129,11 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     public void listMounts() throws Exception {
         var sessionId = createSession(Durations.ZERO);
         var vm = allocateVm(sessionId);
-        var mount1 = DynamicMount.createNew(vm.vmId(), "foo", "bar", "baz",
+        var mount1 = DynamicMount.createNew(vm.vmId(), "foo", "bar", "/baz", "/bazz",
             new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42,
                 Volume.AccessMode.READ_WRITE_ONCE, null)),
             vm.allocationOpId(), "allocator");
-        var mount2 = DynamicMount.createNew(vm.vmId(), "foo", "qux", "quux",
+        var mount2 = DynamicMount.createNew(vm.vmId(), "foo", "qux", "/quux", "/hoxo",
             new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42,
                 Volume.AccessMode.READ_ONLY_MANY, DiskVolumeDescription.StorageClass.SSD)),
             vm.allocationOpId(), "allocator");
@@ -357,8 +360,9 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         operationDao.create(operation, null);
 
         var mountPath = WORKER_MOUNT_POINT + "/foo";
+        var bindPath = "/foo";
         var dynamicMount = DynamicMount.createNew(null, "foo", "disk-42",
-            mountPath, new VolumeRequest(UUID.randomUUID().toString(),
+            mountPath, bindPath, new VolumeRequest(UUID.randomUUID().toString(),
                 new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
                     Volume.AccessMode.READ_WRITE_ONCE, null)),
             operation.id(), "allocator-0");
@@ -390,8 +394,9 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertNotNull(vm);
 
         var mountPath = WORKER_MOUNT_POINT + "/foo";
+        var bindPath = "/foo";
         var dynamicMount = DynamicMount.createNew(allocatedVm.vmId(), getClusterId(vm), "disk-42",
-            mountPath, new VolumeRequest(UUID.randomUUID().toString(),
+            mountPath, bindPath, new VolumeRequest(UUID.randomUUID().toString(),
                 new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
                     Volume.AccessMode.READ_WRITE_ONCE, null)),
             allocatedVm.allocationOpId(), "allocator-0");
@@ -428,8 +433,9 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertNotNull(vm);
 
         var mountPath = WORKER_MOUNT_POINT + "/foo";
+        var bindPath = "/foo";
         var dynamicMount = DynamicMount.createNew(allocatedVm.vmId(), getClusterId(vm), "disk-42",
-            mountPath, new VolumeRequest(UUID.randomUUID().toString(),
+            mountPath, bindPath, new VolumeRequest(UUID.randomUUID().toString(),
                 new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
                     Volume.AccessMode.READ_WRITE_ONCE, null)),
             allocatedVm.allocationOpId(), "allocator-0");
@@ -538,10 +544,11 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         throws SQLException
     {
         var id = UUID.randomUUID().toString();
-        var anotherMount = DynamicMount.createNew(vm.vmId(), getClusterId(vm), id,
-            WORKER_MOUNT_POINT + "/" + id, new VolumeRequest(id,
-                new DiskVolumeDescription(id, "disk-" + id, 42, readWriteOnce, null)), operationId,
-            "allocator");
+        var mountPath = WORKER_MOUNT_POINT + "/" + id;
+        var bindPath = "/" + id;
+        var anotherMount = DynamicMount.createNew(vm.vmId(), getClusterId(vm), id, mountPath, bindPath,
+            new VolumeRequest(id, new DiskVolumeDescription(id, "disk-" + id, 42, readWriteOnce, null)),
+            operationId, "allocator");
         dynamicMountDao.create(anotherMount, null);
         var update = DynamicMount.Update.builder()
             .state(DynamicMount.State.READY)
@@ -597,6 +604,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
     private AllocatedVm allocateVm(String sessionId) throws Exception {
         var vmPodFuture = mockCreatePod();
         vmPodFuture.thenAccept(pod -> mockGetPodByName(getName(pod)));
+        vmPodFuture.thenAccept(this::mockExecInPod);
         var operation = authorizedAllocatorBlockingStub.allocate(
             VmAllocatorApi.AllocateRequest.newBuilder()
                 .setSessionId(sessionId)
