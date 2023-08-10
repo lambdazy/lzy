@@ -22,7 +22,6 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,7 +71,7 @@ public class ImagesUpdater {
             createFictiveNamespace(kuberClient, cluster.clusterId());
 
             for (var pool : cluster.pools().entrySet()) {
-                createDaemonSetForCluster(cluster, configuration, kuberClient, pool.getKey(), pool.getValue());
+                createDaemonSetsForPool(cluster, configuration, kuberClient, pool.getKey(), pool.getValue());
             }
         } catch (Exception e) {
             LOG.error("Cannot update cluster {}: {}", cluster.clusterId(), e.getMessage());
@@ -80,19 +79,35 @@ public class ImagesUpdater {
         }
     }
 
-    private void createDaemonSetForCluster(ClusterRegistry.ClusterDescription cluster,
-                                           ActiveImages.Configuration configuration,
+    private void createDaemonSetsForPool(ClusterRegistry.ClusterDescription cluster,
+                                         ActiveImages.Configuration configuration,
+                                         KubernetesClient kuberClient,
+                                         String poolName, ClusterRegistry.PoolType poolType)
+
+        throws TemplateException, IOException
+
+    {
+        var poolConfigs = configuration.byLabels(poolType.name().toUpperCase(), poolName);
+        for (ActiveImages.PoolConfig poolConf : poolConfigs) {
+            createDaemonSetForPool(cluster, configuration.sync().image(), poolConf, kuberClient, poolName, poolType);
+        }
+    }
+
+    private void createDaemonSetForPool(ClusterRegistry.ClusterDescription cluster,
+                                           String syncImage,
+                                           ActiveImages.PoolConfig config,
                                            KubernetesClient kuberClient,
                                            String poolName, ClusterRegistry.PoolType poolType)
         throws TemplateException, IOException
     {
+
         var args = new HashMap<String, Object>();
         args.put("pool", Map.of(
             "name", poolName,
             "kind", poolType.name().toUpperCase()
             ));
 
-        var workers = configuration.workers();
+        var workers = config.images();
         args.put("workers", new ArrayList<>());
         for (int i = 0; i < workers.size(); i++) {
             var worker = workers.get(i);
@@ -102,18 +117,17 @@ public class ImagesUpdater {
             ));
         }
 
-        var jupyterLabs = configuration.jupyterLabs();
-        args.put("jls", new ArrayList<>());
-        for (int i = 0; i < jupyterLabs.size(); i++) {
-            var jl = jupyterLabs.get(i);
-            ((List<Object>) args.get("jls")).add(Map.of(
-                "name", poolName + "-" + i,
-                "main_image", jl.mainImage(),
-                "additional_images", Arrays.asList(jl.additionalImages())
-            ));
+        var dindImages = config.dindImages();
+        args.put("imgs", new ArrayList<>());
+        if (dindImages != null) {
+            ((List<Object>) args.get("imgs")).add(Map.of(
+                "name", poolName,
+                "dind_image", dindImages.dindImage(),
+                "additional_images", dindImages.additionalImages())
+            );
         }
 
-        args.put("allocator_sync_image", configuration.sync().image());
+        args.put("allocator_sync_image", syncImage);
 
         args.put("cluster_id", cluster.clusterId());
         args.put("allocator_ip", address);

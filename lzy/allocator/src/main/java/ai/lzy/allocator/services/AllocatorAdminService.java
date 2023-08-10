@@ -2,13 +2,9 @@ package ai.lzy.allocator.services;
 
 import ai.lzy.allocator.admin.ImagesUpdater;
 import ai.lzy.allocator.admin.dao.AdminDao;
-import ai.lzy.allocator.model.ActiveImages.JupyterLabImage;
-import ai.lzy.allocator.model.ActiveImages.SyncImage;
-import ai.lzy.allocator.model.ActiveImages.WorkerImage;
 import ai.lzy.v1.AllocatorAdminGrpc;
 import ai.lzy.v1.VmAllocatorAdminApi;
 import ai.lzy.v1.VmAllocatorAdminApi.ActiveImages;
-import ai.lzy.v1.VmAllocatorAdminApi.JupyterLabImages;
 import com.google.protobuf.Empty;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
@@ -18,7 +14,6 @@ import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.Arrays;
 import java.util.Optional;
 
 import static ai.lzy.model.db.DbHelper.withRetries;
@@ -38,15 +33,25 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
     }
 
     @Override
-    public void setWorkerImages(VmAllocatorAdminApi.WorkerImages request, StreamObserver<ActiveImages> response) {
-        var workers = request.getImagesList().stream()
-            .map(WorkerImage::of)
+    public void setImages(VmAllocatorAdminApi.SetImagesRequest request, StreamObserver<ActiveImages> response) {
+        var workers = request.getConfigsList().stream()
+            .map(pc ->
+                ai.lzy.allocator.model.ActiveImages.PoolConfig.of(
+                    pc.getImagesList().stream().map(ai.lzy.allocator.model.ActiveImages.Image::of).toList(),
+                    ai.lzy.allocator.model.ActiveImages.DindImages.of(
+                        pc.getDindImages().getDindImage(),
+                        pc.getDindImages().getAdditionalImagesList().stream().toList()
+                    ),
+                    pc.getPoolKind(),
+                    pc.getPoolName()
+                )
+            )
             .toList();
 
         LOG.info("About to set new worker images: {}", request);
 
         try {
-            withRetries(LOG, () -> adminDao.setWorkerImages(workers));
+            withRetries(LOG, () -> adminDao.setImages(workers));
         } catch (Exception e) {
             LOG.error("Cannot set workers images", e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
@@ -61,28 +66,10 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
         LOG.info("About to set new sync image: {}", request);
 
         try {
-            withRetries(LOG, () -> adminDao.setSyncImage(SyncImage.of(request.getImage())));
+            withRetries(LOG, () -> adminDao.setSyncImage(
+                ai.lzy.allocator.model.ActiveImages.Image.of(request.getImage())));
         } catch (Exception e) {
             LOG.error("Cannot set sync image", e);
-            response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
-            return;
-        }
-
-        reply(response);
-    }
-
-    @Override
-    public void setJupyterlabImages(JupyterLabImages request, StreamObserver<ActiveImages> response) {
-        LOG.info("About to set new jupyter lab images: {}", request);
-
-        var jls = request.getImagesList().stream()
-            .map(x -> JupyterLabImage.of(x.getMainImage(), x.getAdditionalImagesList().toArray(new String[0])))
-            .toList();
-
-        try {
-            withRetries(LOG, () -> adminDao.setJupyterLabImages(jls));
-        } catch (Exception e) {
-            LOG.error("Cannot set jupyter lab images", e);
             response.onError(Status.INTERNAL.withDescription(e.getMessage()).asException());
             return;
         }
@@ -144,27 +131,29 @@ public class AllocatorAdminService extends AllocatorAdminGrpc.AllocatorAdminImpl
     }
 
     private static ActiveImages toProto(ai.lzy.allocator.model.ActiveImages.Configuration conf) {
-        var workers = VmAllocatorAdminApi.WorkerImages.newBuilder();
-        for (var worker : conf.workers()) {
-            workers.addImages(worker.image());
+        var builder = ActiveImages.newBuilder();
+        for (var pc : conf.configs()) {
+            var poolConfig = VmAllocatorAdminApi.PoolConfig.newBuilder();
+            poolConfig.addAllImages(
+                pc.images().stream()
+                    .map(ai.lzy.allocator.model.ActiveImages.Image::image).toList());
+            if (pc.dindImages() != null) {
+                poolConfig.setDindImages(VmAllocatorAdminApi.DindImages.newBuilder()
+                    .setDindImage(pc.dindImages().dindImage())
+                    .addAllAdditionalImages(pc.dindImages().additionalImages())
+                    .build());
+            }
+            poolConfig.setPoolKind(pc.kind());
+            poolConfig.setPoolName(pc.name());
+            builder.addConfig(poolConfig.build());
         }
 
         var sync = VmAllocatorAdminApi.SyncImage.newBuilder()
             .setImage(Optional.ofNullable(conf.sync().image()).orElse(""))
             .build();
 
-        var jls = JupyterLabImages.newBuilder();
-        for (var jl : conf.jupyterLabs()) {
-            jls.addImages(JupyterLabImages.Images.newBuilder()
-                .setMainImage(jl.mainImage())
-                .addAllAdditionalImages(Arrays.asList(jl.additionalImages()))
-                .build());
-        }
-
-        return ActiveImages.newBuilder()
-            .setWorker(workers.build())
+        return builder
             .setSync(sync)
-            .setJl(jls.build())
             .build();
     }
 }

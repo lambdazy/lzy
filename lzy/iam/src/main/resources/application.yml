@@ -14,3 +14,5 @@ iam:
 #    credential-value: ""
 #    credential-private-key: ""
 #    credential-type: ""
+#    user-admin-name: ""
+#    internal-user-admin-credential-value: ""

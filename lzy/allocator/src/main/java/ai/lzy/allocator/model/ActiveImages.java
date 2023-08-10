@@ -1,33 +1,28 @@
 package ai.lzy.allocator.model;
 
-import java.util.Arrays;
+import jakarta.annotation.Nullable;
+
 import java.util.List;
 import java.util.Objects;
 
 public class ActiveImages {
 
-    public record WorkerImage(
+    public record Image(
         String image
-    ) {
-        public static WorkerImage of(String image) {
-            return new WorkerImage(image);
+    )
+    {
+        public static Image of(String image) {
+            return new Image(image);
         }
     }
 
-    public record SyncImage(
-        String image
-    ) {
-        public static SyncImage of(String image) {
-            return new SyncImage(image);
-        }
-    }
-
-    public record JupyterLabImage(
-        String mainImage,
-        String[] additionalImages
-    ) {
-        public static JupyterLabImage of(String image, String[] additional) {
-            return new JupyterLabImage(image, additional);
+    public record DindImages(
+        String dindImage,
+        List<String> additionalImages
+    )
+    {
+        public static DindImages of(String image, List<String> additional) {
+            return new DindImages(image, additional);
         }
 
         @Override
@@ -38,26 +33,43 @@ public class ActiveImages {
             if (o == null || getClass() != o.getClass()) {
                 return false;
             }
-            var that = (JupyterLabImage) o;
-            return Objects.equals(mainImage, that.mainImage) && Arrays.equals(additionalImages, that.additionalImages);
+            var that = (DindImages) o;
+            return Objects.equals(dindImage, that.dindImage) && additionalImages.equals(that.additionalImages);
         }
 
         @Override
         public String toString() {
-            return "JupyterLabImage{" +
-                "mainImage='" + mainImage + '\'' +
-                ", additionalImages=" + Arrays.toString(additionalImages) +
+            return "DinDImage{" +
+                "dindSyncImage='" + dindImage + '\'' +
+                ", additionalImages=" + additionalImages +
                 '}';
         }
     }
 
+    public record PoolConfig(
+        List<Image> images,
+        @Nullable DindImages dindImages,
+        String kind,
+        String name
+    )
+    {
+        public static PoolConfig of(List<Image> images, DindImages dindImages, String kind, String name) {
+            return new PoolConfig(images, dindImages, kind, name);
+        }
+    }
+
     public record Configuration(
-        SyncImage sync,
-        List<WorkerImage> workers,
-        List<JupyterLabImage> jupyterLabs
-    ) {
+        Image sync,
+        List<PoolConfig> configs
+    )
+    {
+        public List<PoolConfig> byLabels(String kind, String name) {
+            return configs.stream().filter(poolConfig -> poolConfig.kind.equals(kind) && poolConfig.name.equals(name))
+                .toList();
+        }
+
         public boolean isEmpty() {
-            return sync.image() == null || workers.isEmpty();
+            return sync.image() == null || configs.isEmpty();
         }
     }
 

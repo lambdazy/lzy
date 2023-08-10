@@ -8,33 +8,36 @@ option java_package = "ai.lzy.v1";
 import "google/protobuf/empty.proto";
 
 service AllocatorAdmin {
-  rpc SetWorkerImages (WorkerImages) returns (ActiveImages);
   rpc SetSyncImage (SyncImage) returns (ActiveImages);
-  rpc SetJupyterlabImages (JupyterLabImages) returns (ActiveImages);
+
+  rpc SetImages (SetImagesRequest) returns (ActiveImages);
+
   rpc GetActiveImages (google.protobuf.Empty) returns (ActiveImages);
 
   rpc UpdateImages (google.protobuf.Empty) returns (ActiveImages);
 }
 
-message WorkerImages {
+message SetImagesRequest {
+  repeated PoolConfig configs = 1;
+}
+
+message PoolConfig {
   repeated string images = 1;
+  DindImages dind_images = 2;
+  string pool_kind = 3;
+  string pool_name = 4;
 }
 
 message SyncImage {
   string image = 1;
 }
 
-message JupyterLabImages {
-  message Images {
-    string main_image = 1;
-    repeated string additional_images = 2;
-  }
-
-  repeated Images images = 1;
+message DindImages {
+  string dind_image = 1;
+  repeated string additional_images = 2;
 }
 
 message ActiveImages {
   SyncImage sync = 1;
-  WorkerImages worker = 2;
-  JupyterLabImages jl = 3;
+  repeated PoolConfig config = 2;
 }
