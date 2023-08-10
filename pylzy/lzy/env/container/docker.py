@@ -1,15 +1,19 @@
 from __future__ import annotations
 
+from enum import Enum
 from dataclasses import dataclass
-from typing import Optional, ClassVar
+from typing import Optional
 
-from .base import BaseContainer, DockerPullPolicy, ContainerTypes
+from .base import BaseContainer
+
+
+class DockerPullPolicy(Enum):
+    ALWAYS = "ALWAYS"  # Always pull the newest version of image
+    IF_NOT_EXISTS = "IF_NOT_EXISTS"  # Pull image once and cache it for next executions
 
 
 @dataclass
 class DockerContainer(BaseContainer):
-    container_type: ClassVar[ContainerTypes] = ContainerTypes.Docker
-
     image_url: str
     pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS
     username: Optional[str] = None
