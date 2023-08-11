@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: DaemonSet
 
 metadata:
-  name: worker-fictive-${pool.name}
+  name: worker-fictive-${pool.alt_name}
   namespace: fictive
 
 spec:

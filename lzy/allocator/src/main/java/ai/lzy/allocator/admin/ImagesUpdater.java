@@ -42,7 +42,7 @@ public class ImagesUpdater {
     public ImagesUpdater(ServiceConfig serviceConfig, KuberClientFactory kuberClientFactory,
                          ClusterRegistry clusterRegistry, AdminDao adminDao) throws Exception
     {
-        this.address = serviceConfig.getAddress();
+        this.address = serviceConfig.getHost();
         this.kuberClientFactory = kuberClientFactory;
         this.clusterRegistry = clusterRegistry;
 
@@ -104,7 +104,8 @@ public class ImagesUpdater {
         var args = new HashMap<String, Object>();
         args.put("pool", Map.of(
             "name", poolName,
-            "kind", poolType.name().toUpperCase()
+            "kind", poolType.name().toUpperCase(),
+            "alt_name", poolName.toLowerCase()
             ));
 
         var workers = config.images();
@@ -112,7 +113,7 @@ public class ImagesUpdater {
         for (int i = 0; i < workers.size(); i++) {
             var worker = workers.get(i);
             ((List<Object>) args.get("workers")).add(Map.of(
-                "name", poolName + "-" + i,
+                "name", poolName.toLowerCase() + "-" + i,
                 "image", worker.image()
             ));
         }
@@ -121,7 +122,7 @@ public class ImagesUpdater {
         args.put("imgs", new ArrayList<>());
         if (dindImages != null) {
             ((List<Object>) args.get("imgs")).add(Map.of(
-                "name", poolName,
+                "name", poolName.toLowerCase(),
                 "dind_image", dindImages.dindImage(),
                 "additional_images", dindImages.additionalImages())
             );
@@ -160,8 +161,8 @@ public class ImagesUpdater {
 
     private boolean hasFictiveNamespace(KubernetesClient client, String clusterId) throws UpdateDaemonSetsException {
         try {
-            client.namespaces().withName(FICTIVE_NS).get();
-            return true;
+            var namespace = client.namespaces().withName(FICTIVE_NS).get();
+            return namespace != null;
         } catch (Exception e) {
             if (KuberUtils.isResourceNotFound(e)) {
                 return false;

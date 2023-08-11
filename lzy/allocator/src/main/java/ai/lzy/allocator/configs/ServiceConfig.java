@@ -47,6 +47,20 @@ public class ServiceConfig {
         return HostAndPort.fromParts(hosts.get(0), port).toString();
     }
 
+    public String getHost() {
+        String ipv6Host = hosts.stream().filter(ValidationUtils::validateIpV6).findFirst().orElse(null);
+        String ipv4Host = hosts.stream().filter(ValidationUtils::validateIpV4).findFirst().orElse(null);
+
+        // ipv6 has a higher priority than ipv4
+        if (ipv6Host != null) {
+            return ipv6Host;
+        }
+        if (ipv4Host != null) {
+            return ipv4Host;
+        }
+        return hosts.get(0);
+    }
+
     @ConfigurationBuilder("database")
     private final DatabaseConfiguration database = new DatabaseConfiguration();
 
