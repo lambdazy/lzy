@@ -215,13 +215,21 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
 
     protected void mockGetPodByName(String podName) {
         final Pod pod = constructPod(podName);
-        mockRequestDispatcher.addHandlerUnlimited(exactPath(POD_PATH + "/" + podName).and(method("GET")),
+        mockRequestDispatcher.addHandlerOneTime(
+            exactPath(POD_PATH + "/" + podName).and(method("GET")),
             request -> new MockResponse().setBody(toJson(pod)).setResponseCode(HttpURLConnection.HTTP_OK));
     }
 
     protected void mockGetPod(Pod pod) {
-        mockRequestDispatcher.addHandlerUnlimited(exactPath(POD_PATH + "/" + getName(pod)).and(method("GET")),
+        mockRequestDispatcher.addHandlerOneTime(
+            exactPath(POD_PATH + "/" + getName(pod)).and(method("GET")),
             request -> new MockResponse().setBody(toJson(pod)).setResponseCode(HttpURLConnection.HTTP_OK));
+    }
+
+    protected void mockGetPodNotFound(String podName) {
+        mockRequestDispatcher.addHandlerOneTime(
+            exactPath(POD_PATH + "/" + podName).and(method("GET")),
+            request -> new MockResponse().setResponseCode(HttpURLConnection.HTTP_NOT_FOUND));
     }
 
     protected void mockGetPv(PersistentVolume pv) {

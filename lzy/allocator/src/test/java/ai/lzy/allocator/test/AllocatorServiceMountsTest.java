@@ -91,7 +91,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var vm = allocateVm(sessionId);
         vmDao.delete(vm.vmId(), new Vm.DeletingState(vm.allocationOpId(), "foo", "bar"), null);
         var exception = Assert.assertThrows(StatusRuntimeException.class,
-            () -> mountDisk(vm.vmId(), "foo", "disk-42", 42));
+            () -> mountDisk(vm.vmId(), "/foo", "disk-42", 42));
         Assert.assertEquals(Status.FAILED_PRECONDITION.getCode(), exception.getStatus().getCode());
         Assert.assertTrue(exception.getMessage().contains("Cannot mount volume to deleting vm"));
     }
@@ -110,9 +110,10 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
             "allocator");
         dynamicMountDao.create(dynamicMount, null);
         var exception = Assert.assertThrows(StatusRuntimeException.class,
-            () -> mountDisk(vm.vmId(), "foo", "disk-42", 42));
+            () -> mountDisk(vm.vmId(), "/foo", "disk-42", 42));
         Assert.assertEquals(Status.ALREADY_EXISTS.getCode(), exception.getStatus().getCode());
         Assert.assertTrue(exception.getMessage().contains("Mount with path /mnt/worker/foo already exists"));
+        Assert.assertTrue(exception.getMessage().contains("Mount with bind path /foo already exists"));
         Assert.assertTrue(exception.getMessage().contains("Mount with name disk-disk-42 already exists"));
         Assert.assertTrue(exception.getMessage().contains("Disk disk-42 is already mounted"));
     }
@@ -151,6 +152,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertEquals(mount1.id(), fetchedMount1.getId());
         Assert.assertEquals(mount1.vmId(), fetchedMount1.getVmId());
         Assert.assertEquals(mount1.mountPath(), fetchedMount1.getMountPath());
+        Assert.assertEquals(mount1.bindPath(), fetchedMount1.getBindPath());
         Assert.assertEquals(mount1.state().name(), fetchedMount1.getState());
         Assert.assertEquals(mount1.mountOperationId(), fetchedMount1.getMountOperationId());
         Assert.assertFalse(fetchedMount1.hasUnmountOperationId());
@@ -169,6 +171,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertEquals(mount2.id(), fetchedMount2.getId());
         Assert.assertEquals(mount2.vmId(), fetchedMount2.getVmId());
         Assert.assertEquals(mount2.mountPath(), fetchedMount2.getMountPath());
+        Assert.assertEquals(mount2.bindPath(), fetchedMount2.getBindPath());
         Assert.assertEquals(mount2.state().name(), fetchedMount2.getState());
         Assert.assertEquals(mount2.mountOperationId(), fetchedMount2.getMountOperationId());
         Assert.assertFalse(fetchedMount2.hasUnmountOperationId());
@@ -199,9 +202,10 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .withPhase(PodPhase.RUNNING.getPhase())
                 .build());
             mockGetPod(pod);
+            mockGetPodByName(allocatedVm.podName());
         });
         mockDeletePods(HTTP_OK);
-        var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
+        var mountOp = mountDisk(vm.vmId(), "/foo", "disk-42", 1);
 
         waitOpSuccess(mountOp);
         var mountMetadata = mountOp.getMetadata().unpack(VmAllocatorApi.MountMetadata.class);
@@ -209,6 +213,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var dynamicMount = mountMetadata.getMount();
         Assert.assertEquals(vm.vmId(), dynamicMount.getVmId());
         Assert.assertEquals(WORKER_MOUNT_POINT + "/foo", dynamicMount.getMountPath());
+        Assert.assertEquals("/foo", dynamicMount.getBindPath());
         Assert.assertEquals("disk-42", dynamicMount.getVolumeRequest().getDiskVolume().getDiskId());
         Assert.assertEquals(1, dynamicMount.getVolumeRequest().getDiskVolume().getSizeGb());
         Assert.assertEquals(VolumeApi.DiskVolumeType.AccessMode.READ_WRITE_ONCE,
@@ -225,6 +230,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         Assert.assertEquals(vm.vmId(), updatedMount.vmId());
         Assert.assertEquals(clusterId, updatedMount.clusterId());
         Assert.assertEquals(WORKER_MOUNT_POINT + "/foo", updatedMount.mountPath());
+        Assert.assertEquals("/foo", updatedMount.bindPath());
         Assert.assertEquals(getName(pv.get()), updatedMount.volumeName());
         Assert.assertEquals(getName(pvc.get()), updatedMount.volumeClaimName());
         var volumeDescription = updatedMount.volumeRequest().volumeDescription();
@@ -264,9 +270,10 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .withPhase(PodPhase.RUNNING.getPhase())
                 .build());
             mockGetPod(pod);
+            mockGetPodByName(allocatedVm.podName());
         });
         mockDeletePods(HTTP_OK);
-        var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1,
+        var mountOp = mountDisk(vm.vmId(), "/foo", "disk-42", 1,
             VolumeApi.DiskVolumeType.AccessMode.READ_ONLY_MANY, VolumeApi.DiskVolumeType.StorageClass.SSD);
 
         waitOpSuccess(mountOp);
@@ -309,10 +316,32 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .withPhase(PodPhase.RUNNING.getPhase())
                 .build());
             mockGetPod(pod);
+            mockGetPodByName(allocatedVm.podName());
         });
         mockDeletePods(HTTP_OK);
-        var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
+        var mountOp = mountDisk(vm.vmId(), "/foo", "disk-42", 1);
         waitOpSuccess(mountOp);
+    }
+
+    @Test
+    public void mountShouldFailOnDeletedVmPod() throws Exception {
+        var sessionId = createSession(Durations.fromDays(10));
+        var allocatedVm = allocateVm(sessionId);
+        var vm = vmDao.get(allocatedVm.vmId(), null);
+
+        awaitResourceCreate(PersistentVolume.class, PERSISTENT_VOLUME_PATH);
+        awaitResourceCreate(PersistentVolumeClaim.class, PERSISTENT_VOLUME_CLAIM_PATH);
+        var updatedMountPod = mockCreatePod();
+        updatedMountPod.thenAccept(pod -> {
+            pod.setStatus(new PodStatusBuilder()
+                .withPhase(PodPhase.RUNNING.getPhase())
+                .build());
+            mockGetPod(pod);
+            mockGetPodNotFound(allocatedVm.podName());
+        });
+        mockDeletePods(HTTP_OK);
+        var mountOp = mountDisk(vm.vmId(), "/foo", "disk-42", 1);
+        waitOpError(mountOp, Status.CANCELLED);
     }
 
     @Test
@@ -341,9 +370,10 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
                 .withPhase(PodPhase.RUNNING.getPhase())
                 .build());
             mockGetPod(pod);
+            mockGetPodByName(allocatedVm.podName());
         });
         mockDeletePods(HTTP_OK);
-        var mountOp = mountDisk(vm.vmId(), "foo", "disk-42", 1);
+        var mountOp = mountDisk(vm.vmId(), "/foo", "disk-42", 1);
         waitOpSuccess(mountOp);
     }
 
