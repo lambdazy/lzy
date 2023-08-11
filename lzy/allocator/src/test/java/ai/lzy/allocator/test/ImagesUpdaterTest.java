@@ -6,6 +6,7 @@ import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.model.ActiveImages;
 import ai.lzy.allocator.vmpool.MockMk8s;
 import ai.lzy.common.RandomIdGenerator;
+import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.apps.DaemonSet;
 import io.fabric8.kubernetes.api.model.apps.DaemonSetListBuilder;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
@@ -37,6 +38,11 @@ public class ImagesUpdaterTest {
 
         var daemonsets = Collections.synchronizedList(new ArrayList<DaemonSet>(2));
 
+        kubernetesServer.expect().post()
+            .withPath("/api/v1/namespaces")
+            .andReply(HttpURLConnection.HTTP_CREATED, req -> Serialization.unmarshal(
+                new ByteArrayInputStream(req.getBody().readByteArray()), Namespace.class, Map.of()))
+            .always();
         kubernetesServer.expect().post()
             .withPath("/apis/apps/v1/namespaces/fictive/daemonsets")
             .andReply(HttpURLConnection.HTTP_CREATED, req -> {
