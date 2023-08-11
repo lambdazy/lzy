@@ -1,5 +1,6 @@
 import sys
 import pytest
+import importlib_metadata
 
 import lzy.env.explorer.classify
 from lzy.env.python.auto import AutoPythonEnv
@@ -73,12 +74,13 @@ def test_get_modules_and_paths(
     assert python_env.get_local_module_paths() == \
         [str(get_test_data_path('empty_module.py'))]
 
-    # i'm not sure exactly, but explorer finds a lot of PyPI dependencies from a empty module
-    # assert python_env.get_pypi_packages() == {}
+    assert python_env.get_pypi_packages() == {}
 
     import typing_extensions
 
     python_env = AutoPythonEnv().with_fields(_namespace={'foo': typing_extensions})
 
     assert python_env.get_local_module_paths() == []
-    assert python_env.get_pypi_packages().get('typing_extensions')
+    assert python_env.get_pypi_packages() == {
+        'typing_extensions': importlib_metadata.distribution('typing_extensions').version
+    }

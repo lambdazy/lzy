@@ -1,13 +1,7 @@
-import builtins
-import inspect
-import typing
+import importlib
 import sys
+
 import yaml
-
-from types import ModuleType
-from typing import cast
-
-import pytest
 import typing_extensions
 
 from lzy.env.explorer.search import (
@@ -15,28 +9,14 @@ from lzy.env.explorer.search import (
     get_transitive_module_dependencies,
     get_transitive_namespace_dependencies,
     _get_vars_dependencies,
-    ModulesSet
 )
 
 
-@pytest.fixture
-def loaders() -> ModulesSet:
-    """
-    Fixture returns two standard modules, which are "dependency" of any other module
-    from __loader__ and __spec__ variables.
-    I'm not sure that this code will be working same way with every python version :(
-    """
-    importlib_bootstrap = inspect.getmodule(pytest.__spec__)
-    importlib_bootstrap_external = inspect.getmodule(pytest.__loader__)
-
-    assert importlib_bootstrap
-    assert importlib_bootstrap_external
-
-    return {importlib_bootstrap, importlib_bootstrap_external}
-
-
 def test_get_vars_dependencies(with_test_modules: None) -> None:
-    assert _get_vars_dependencies([str]) == {builtins}
+    def get_var_dependencies(value):
+        return _get_vars_dependencies([('var', value)])
+
+    assert not get_var_dependencies(str)
 
     import modules_for_tests.level1.level1 as level1
     import modules_for_tests.level1.level2.level2 as level2
@@ -44,31 +24,31 @@ def test_get_vars_dependencies(with_test_modules: None) -> None:
     import modules_for_tests.level1.level2_nb as level2_nb
 
     for mod in (level1, level2, level3, level2_nb):
-        assert _get_vars_dependencies([mod]) == {mod}
+        assert get_var_dependencies(mod) == {mod}
 
-    assert _get_vars_dependencies([level1.Level1]) == {level1}
-    assert _get_vars_dependencies([level1.Level2]) == {level2}
-    assert _get_vars_dependencies([level2_nb.Level2]) == {level2}
-    assert _get_vars_dependencies([level2.Level2]) == {level2}
-    assert _get_vars_dependencies([level2.Level3]) == {level3}
-    assert _get_vars_dependencies([level2.cast]) == {typing}
-    assert _get_vars_dependencies([level3.yaml]) == {yaml}
+    assert get_var_dependencies(level1.Level1) == {level1}
+    assert get_var_dependencies(level1.Level2) == {level2}
+    assert get_var_dependencies(level2_nb.Level2) == {level2}
+    assert get_var_dependencies(level2.Level2) == {level2}
+    assert get_var_dependencies(level2.Level3) == {level3}
+    assert get_var_dependencies(level2.cast) == frozenset()
+    assert get_var_dependencies(level3.yaml) == {yaml}
 
 
-def test_get_direct_module_dependencies(with_test_modules, loaders: ModulesSet) -> None:
+def test_get_direct_module_dependencies(with_test_modules) -> None:
     import modules_for_tests.level1.level1 as level1
     import modules_for_tests.level1.level2.level2 as level2
     import modules_for_tests.level1.level2.level3.level3 as level3
     import modules_for_tests.level1.level2_nb as level2_nb
 
     def assert_dependencies(module, etalon):
-        assert get_direct_module_dependencies(module) - loaders == etalon
+        assert get_direct_module_dependencies(module) == etalon
 
     assert_dependencies(
         level1,
-        {level2, typing_extensions if sys.version_info < (3, 10) else typing}
+        {level2} | ({typing_extensions} if sys.version_info < (3, 10) else set())
     )
-    assert_dependencies(level2,  {level3, typing})
+    assert_dependencies(level2,  {level3})
     assert_dependencies(level2_nb, {level2})
     assert_dependencies(level3, {yaml})
 
@@ -102,7 +82,6 @@ def test_get_transitive_module_dependencies(with_test_modules) -> None:
         top
     }
 
-    # on python 3.7 it have len == 388 XD
     empty_deps = get_transitive_module_dependencies(empty, include_parents=False)
 
     def assert_dependencies(module, etalon):

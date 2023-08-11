@@ -7,12 +7,14 @@ import warnings
 from typing import Dict, Any, Set, FrozenSet, List, Tuple, Optional, Iterable, Iterator
 from types import ModuleType
 
-from .utils import getmembers
-
+from lzy.logs.config import get_logger
+from .utils import getmembers, get_stdlib_module_names, get_builtin_module_names
 
 ModulesSet = Set[ModuleType]
 ModulesFrozenSet = FrozenSet[ModuleType]
 VarsNamespace = Dict[str, Any]
+
+logger = get_logger(__name__)
 
 
 def get_transitive_namespace_dependencies(namespace: VarsNamespace, include_parents: bool = True) -> ModulesFrozenSet:
@@ -23,7 +25,7 @@ def get_transitive_namespace_dependencies(namespace: VarsNamespace, include_pare
     enerally acceptable due to the caching of intermediate results during execution.
     """
 
-    first_level_dependencies = _get_vars_dependencies(namespace.values())
+    first_level_dependencies = _get_vars_dependencies(namespace.items())
 
     result: ModulesSet = set(first_level_dependencies)
 
@@ -57,25 +59,38 @@ def get_transitive_module_dependencies(module: ModuleType, include_parents: bool
     parent_dependencies = set(_get_parents(module)) if include_parents else set()
     initial_dependencies = get_direct_module_dependencies(module) | parent_dependencies
 
-    visited_modules: ModulesSet = set()
+    logger.debug(
+        'initial dependencies for module %s: %s; starting DFS',
+        module.__name__, [m.__name__ for m in initial_dependencies]
+    )
+
     stack = list(initial_dependencies)
+    seen_modules: ModulesSet = set(initial_dependencies)
 
     while stack:
-        module = stack.pop()
-        if module in visited_modules:
+        submodule = stack.pop()
+
+        parent_dependencies = set(_get_parents(submodule)) if include_parents else set()
+        dependencies = get_direct_module_dependencies(submodule) | parent_dependencies
+        new_dependencies = [dep for dep in dependencies if dep not in seen_modules]
+
+        if not new_dependencies:
             continue
 
-        visited_modules.add(module)
-
-        parent_dependencies = set(_get_parents(module)) if include_parents else set()
-        dependencies = get_direct_module_dependencies(module) | parent_dependencies
-
-        stack.extend(
-            dep for dep in dependencies
-            if dep not in visited_modules
+        logger.debug(
+            'new dependencies for module %s from module %s: %s',
+            module.__name__, submodule.__name__, [m.__name__ for m in new_dependencies]
         )
 
-    return frozenset(visited_modules)
+        stack.extend(new_dependencies)
+        seen_modules.update(new_dependencies)
+
+    logger.debug(
+        'final dependencies for module %s: %s',
+        module.__name__, [m.__name__ for m in seen_modules]
+    )
+
+    return frozenset(seen_modules)
 
 
 @functools.lru_cache(maxsize=None)
@@ -97,16 +112,14 @@ def get_direct_module_dependencies(module: ModuleType) -> ModulesFrozenSet:
         # getmembers(torch.ops), and we are catching it in our clone
         members: List[Tuple[str, Any]] = getmembers(module)
 
-    members_vars: Iterator[Any] = (var for _, var in members)
-
-    result = _get_vars_dependencies(members_vars)
+    result = _get_vars_dependencies(members)
 
     # module itself will likely be in _get_vars_dependencies result
     # due to module can contain symbols which defined inside
     return result - {module}
 
 
-def _get_vars_dependencies(vars_: Iterable[Any]) -> ModulesFrozenSet:
+def _get_vars_dependencies(vars_: Iterable[Tuple[str, Any]]) -> ModulesFrozenSet:
     """
     Return the set of modules that the given vars are defined in.
 
@@ -115,16 +128,42 @@ def _get_vars_dependencies(vars_: Iterable[Any]) -> ModulesFrozenSet:
     significant overhead.
     """
 
-    result: ModulesSet = set()
-    for var in vars_:
+    result: Dict[ModuleType, Any] = {}
+    for var_name, var in vars_:
         dependency: Optional[ModuleType] = inspect.getmodule(var)
 
-        if not dependency:
+        if not dependency or _filter_dependency(dependency):
             continue
 
-        result.add(dependency)
+        result[dependency] = var_name
 
     return frozenset(result)
+
+
+@functools.lru_cache(maxsize=None)
+def _get_search_stoplist() -> FrozenSet[str]:
+    builtins = get_builtin_module_names()
+    stdlib = get_stdlib_module_names()
+    additional = {
+        'pkg_resources'
+    }
+
+    return frozenset(builtins | stdlib | additional)
+
+
+@functools.lru_cache(maxsize=None)
+def _filter_dependency(module: ModuleType) -> bool:
+    stoplist = _get_search_stoplist()
+
+    parts = module.__name__.split('.')
+    while parts:
+        name = '.'.join(parts)
+        if name in stoplist:
+            return True
+
+        parts.pop()
+
+    return False
 
 
 def _get_parents(module: ModuleType) -> Iterator[ModuleType]:
