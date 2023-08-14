@@ -17,6 +17,7 @@ from lzy.exceptions import BadPypiIndex
 from lzy.version import __user_agent__
 
 PIP_VERSION_REQ = "10.0.0"
+PYPI_INDEX_URL_DEFAULT = PYPI_SIMPLE_ENDPOINT
 
 
 @lru_cache(maxsize=None)

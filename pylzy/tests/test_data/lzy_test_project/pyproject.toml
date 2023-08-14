@@ -1,0 +1,15 @@
+[project]
+name = "lzy_test_project"
+version = "3.0.0"
+requires-python = ">=3.7"
+license = {file = "LICENSE.txt"}
+
+[project.scripts]  # Optional
+lzy_test_project_bin = "lzy_test_project:main"
+
+[tool.setuptools]
+package-data = {"lzy_test_project" = ["*.dat"]}
+
+[build-system]
+requires = ["setuptools>=43.0.0", "wheel"]
+build-backend = "setuptools.build_meta"

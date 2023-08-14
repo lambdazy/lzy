@@ -1,8 +1,10 @@
+import sys
 import json
 import pathlib
 import pytest
 import google.protobuf.json_format
 from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
+from lzy.types import VmSpec
 
 
 @pytest.fixture(scope="module")
@@ -54,6 +56,13 @@ def get_test_data_path():
     return getter
 
 
+@pytest.fixture(scope='function')
+def with_test_modules(get_test_data_path, monkeypatch):
+    with monkeypatch.context() as m:
+        m.syspath_prepend(get_test_data_path())
+        yield
+
+
 # scope='class' because we use it via @pytest.mark.usefixtures('vm_pool_specs')
 # on TestCase classes and somewhy it doesn't work with planned scope='session'
 @pytest.fixture(scope='class')
@@ -72,6 +81,11 @@ def vm_pool_specs(request, get_test_data_path):
 
 
 @pytest.fixture(scope='class')
+def vm_specs(vm_pool_specs):
+    return tuple(VmSpec.from_proto(p) for p in vm_pool_specs)
+
+
+@pytest.fixture(scope='class')
 def vm_pool_spec_large(request, vm_pool_specs):
     result = None
     for spec in vm_pool_specs:
@@ -80,6 +94,16 @@ def vm_pool_spec_large(request, vm_pool_specs):
             break
 
     return set_unittest_fixture(request, result)
+
+
+@pytest.fixture(scope='class')
+def vm_spec_large(request, vm_pool_specs):
+    result = None
+    for spec in vm_pool_specs:
+        if spec.poolSpecName == 'large':
+            return VmSpec.from_proto(spec)
+
+    assert False, "unreachable"
 
 
 @pytest.fixture(scope='class')
@@ -93,6 +117,16 @@ def vm_pool_spec_small(request, vm_pool_specs):
     return set_unittest_fixture(request, result)
 
 
+@pytest.fixture(scope='class')
+def vm_spec_small(request, vm_pool_specs):
+    result = None
+    for spec in vm_pool_specs:
+        if spec.poolSpecName == 'small':
+            return VmSpec.from_proto(spec)
+
+    assert False, "unreachable"
+
+
 @pytest.fixture(scope='session')
 def pypi_index_url():
     from pypi_simple import PYPI_SIMPLE_ENDPOINT
@@ -103,3 +137,13 @@ def pypi_index_url():
 @pytest.fixture(scope='session')
 def pypi_index_url_testing():
     return 'https://test.pypi.org/simple'
+
+
+@pytest.fixture(scope='session')
+def env_prefix() -> pathlib.Path:
+    return pathlib.Path(sys.exec_prefix)
+
+
+@pytest.fixture(scope='session')
+def site_packages(env_prefix: pathlib.Path) -> pathlib.Path:
+    return env_prefix / "lib" / "python{}.{}".format(*sys.version_info) / "site-packages"

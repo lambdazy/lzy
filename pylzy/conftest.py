@@ -4,11 +4,14 @@ import logging
 
 
 MYPY_WHITELIST = [
-    r'lzy/'
+    r'lzy/',
+    r'tests/env/',
+    r'tests/conftest.py',
 ]
 
 DOCTEST_BLACKLIST = [
-    r'google/'
+    r'google/',
+    r'tests/test_data/'
 ]
 
 
@@ -33,7 +36,7 @@ def pytest_collection_modifyitems(config, items):
         if not mypy or not isinstance(item, mypy.MypyItem):
             continue
 
-        if not all(
+        if not any(
             re.match(pattern, path) for pattern in MYPY_WHITELIST
         ):
             items.remove(item)
@@ -55,4 +58,9 @@ def pytest_ignore_collect(path, config):
     # because of old protobuf have an bug, which doesn't allow to
     # import two identical protobufs
     if rel_path == 'google/protobuf/any_pb2.py':
+        return True
+
+    # it causes problems, because doctests during collection
+    # modifies sys.path and adding lzy_test_project/src into sys.path.
+    if rel_path.startswith('tests/test_data/'):
         return True
