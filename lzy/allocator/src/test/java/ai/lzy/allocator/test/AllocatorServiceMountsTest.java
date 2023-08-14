@@ -104,7 +104,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var mountPath = WORKER_MOUNT_POINT + "/foo";
         var bindPath = "/foo";
         var dynamicMount = DynamicMount.createNew(vm.vmId(), "foo", "disk-disk-42",
-            mountPath, bindPath, new VolumeRequest(UUID.randomUUID().toString(),
+            mountPath, bindPath, null, new VolumeRequest(UUID.randomUUID().toString(),
                 new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
                     Volume.AccessMode.READ_WRITE_ONCE, null)), vm.allocationOpId(),
             "allocator");
@@ -131,11 +131,11 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var sessionId = createSession(Durations.ZERO);
         var vm = allocateVm(sessionId);
         var mount1 = DynamicMount.createNew(vm.vmId(), "foo", "bar", "/baz", "/bazz",
-            new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42,
+            null, new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42,
                 Volume.AccessMode.READ_WRITE_ONCE, null)),
             vm.allocationOpId(), "allocator");
         var mount2 = DynamicMount.createNew(vm.vmId(), "foo", "qux", "/quux", "/hoxo",
-            new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42,
+            null, new VolumeRequest("disk-1", new DiskVolumeDescription("disk-1", "1", 42,
                 Volume.AccessMode.READ_ONLY_MANY, DiskVolumeDescription.StorageClass.SSD)),
             vm.allocationOpId(), "allocator");
         dynamicMountDao.create(mount1, null);
@@ -392,7 +392,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var mountPath = WORKER_MOUNT_POINT + "/foo";
         var bindPath = "/foo";
         var dynamicMount = DynamicMount.createNew(null, "foo", "disk-42",
-            mountPath, bindPath, new VolumeRequest(UUID.randomUUID().toString(),
+            mountPath, bindPath, null, new VolumeRequest(UUID.randomUUID().toString(),
                 new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
                     Volume.AccessMode.READ_WRITE_ONCE, null)),
             operation.id(), "allocator-0");
@@ -426,7 +426,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var mountPath = WORKER_MOUNT_POINT + "/foo";
         var bindPath = "/foo";
         var dynamicMount = DynamicMount.createNew(allocatedVm.vmId(), getClusterId(vm), "disk-42",
-            mountPath, bindPath, new VolumeRequest(UUID.randomUUID().toString(),
+            mountPath, bindPath, null, new VolumeRequest(UUID.randomUUID().toString(),
                 new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
                     Volume.AccessMode.READ_WRITE_ONCE, null)),
             allocatedVm.allocationOpId(), "allocator-0");
@@ -465,7 +465,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var mountPath = WORKER_MOUNT_POINT + "/foo";
         var bindPath = "/foo";
         var dynamicMount = DynamicMount.createNew(allocatedVm.vmId(), getClusterId(vm), "disk-42",
-            mountPath, bindPath, new VolumeRequest(UUID.randomUUID().toString(),
+            mountPath, bindPath, null, new VolumeRequest(UUID.randomUUID().toString(),
                 new DiskVolumeDescription(UUID.randomUUID().toString(), "disk-42", 42,
                     Volume.AccessMode.READ_WRITE_ONCE, null)),
             allocatedVm.allocationOpId(), "allocator-0");
@@ -577,7 +577,7 @@ public class AllocatorServiceMountsTest extends AllocatorApiTestBase {
         var mountPath = WORKER_MOUNT_POINT + "/" + id;
         var bindPath = "/" + id;
         var anotherMount = DynamicMount.createNew(vm.vmId(), getClusterId(vm), id, mountPath, bindPath,
-            new VolumeRequest(id, new DiskVolumeDescription(id, "disk-" + id, 42, readWriteOnce, null)),
+            null, new VolumeRequest(id, new DiskVolumeDescription(id, "disk-" + id, 42, readWriteOnce, null)),
             operationId, "allocator");
         dynamicMountDao.create(anotherMount, null);
         var update = DynamicMount.Update.builder()

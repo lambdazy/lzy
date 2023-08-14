@@ -23,13 +23,13 @@ import java.util.List;
 @Singleton
 public class DynamicMountDaoImpl implements DynamicMountDao {
     private static final String ALL_FIELDS = "id, vm_id, cluster_id, volume_request, mount_path, bind_path," +
-        " mount_name, worker_id, mount_op_id, volume_name, volume_claim_name," +
+        " bind_owner, mount_name, worker_id, mount_op_id, volume_name, volume_claim_name," +
         " mount_op_id, unmount_op_id, state, mounted";
 
     private static final String CREATE_DYNAMIC_MOUNT_QUERY = """
-        INSERT INTO dynamic_mount (id, vm_id, cluster_id, volume_request, mount_path, bind_path, mount_name,
+        INSERT INTO dynamic_mount (id, vm_id, cluster_id, volume_request, mount_path, bind_path, bind_owner, mount_name,
             worker_id, mount_op_id, state)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """;
 
     private static final String DELETE_DYNAMIC_MOUNT_QUERY = """
@@ -82,6 +82,7 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
                 s.setObject(++idx, jsonObject);
                 s.setString(++idx, dynamicMount.mountPath());
                 s.setString(++idx, dynamicMount.bindPath());
+                s.setString(++idx, dynamicMount.bindOwner());
                 s.setString(++idx, dynamicMount.mountName());
                 s.setString(++idx, dynamicMount.workerId());
                 s.setString(++idx, dynamicMount.mountOperationId());
@@ -280,6 +281,7 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
                 VolumeRequest.class);
             var mountPath = rs.getString("mount_path");
             var bindPath = rs.getString("bind_path");
+            var bindOwner = rs.getString("bind_owner");
             var mountName = rs.getString("mount_name");
             var workerId = rs.getString("worker_id");
             var mountOpId = rs.getString("mount_op_id");
@@ -288,7 +290,7 @@ public class DynamicMountDaoImpl implements DynamicMountDao {
             var volumeClaimName = rs.getString("volume_claim_name");
             var state = DynamicMount.State.valueOf(rs.getString("state"));
             var mounted = rs.getBoolean("mounted");
-            return new DynamicMount(id, vmId, clusterId, mountPath, bindPath, mountName,
+            return new DynamicMount(id, vmId, clusterId, mountPath, bindPath, bindOwner, mountName,
                 volumeName, volumeClaimName, volumeDesc, mountOpId, unmountOpId, state, workerId, mounted);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Cannot read volume description", e);

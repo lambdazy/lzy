@@ -893,6 +893,7 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
         var type = request.getVolumeTypeCase();
         if (type == VmAllocatorApi.MountRequest.VolumeTypeCase.DISK_VOLUME) {
             var diskVolume = request.getDiskVolume();
+            var changeOwner = diskVolume.getChangeOwner().isEmpty() ? null : diskVolume.getChangeOwner();
             var accessMode = validateAccessMode(diskVolume.getAccessMode());
             var storageClass = validateStorageClass(diskVolume.getStorageClass());
             var id = idGenerator.generate("vm-volume-");
@@ -900,7 +901,8 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                 diskVolume.getSizeGb(), accessMode, storageClass);
             var mountName = "disk-" + diskVolume.getDiskId();
             var dynamicMount = DynamicMount.createNew(vm.vmId(), clusterId, mountName,
-                Path.of(mountConfig.getWorkerMountPoint(), request.getMountPath()).toString(), request.getMountPath(),
+                Path.of(mountConfig.getWorkerMountPoint(), request.getMountPath()).toString(),
+                request.getMountPath(), changeOwner,
                 new VolumeRequest(id, diskVolumeDescription), op.id(),
                 allocationContext.selfWorkerId());
             return new MountWithAction(dynamicMount, new MountDynamicDiskAction(vm, dynamicMount, allocationContext));

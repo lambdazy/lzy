@@ -159,7 +159,7 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public Result bindMountInVm(Vm vm, String fromPath, String toPath) {
+    public Result bindMountInVm(Vm vm, String fromPath, String toPath, @Nullable String chown) {
         return Result.SUCCESS;
     }
 

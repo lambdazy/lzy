@@ -11,6 +11,7 @@ public record DynamicMount(
     String clusterId,
     String mountPath,
     String bindPath,
+    @Nullable String bindOwner,
     String mountName,
     @Nullable String volumeName,
     @Nullable String volumeClaimName,
@@ -28,12 +29,12 @@ public record DynamicMount(
     }
 
     public static DynamicMount createNew(String vmId, String clusterId, String mountName,
-                                         String mountPath, String bindPath,
+                                         String mountPath, String bindPath, @Nullable String bindOwner,
                                          VolumeRequest volumeRequest,
                                          String mountOperationId, String workerId)
     {
-        return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, bindPath, mountName,
-            null, null, volumeRequest, mountOperationId, null, State.PENDING, workerId, false);
+        return new DynamicMount(UUID.randomUUID().toString(), vmId, clusterId, mountPath, bindPath, bindOwner,
+            mountName, null, null, volumeRequest, mountOperationId, null, State.PENDING, workerId, false);
     }
 
     public VmAllocatorApi.DynamicMount toProto() {
@@ -47,6 +48,9 @@ public record DynamicMount(
             .setVolumeRequest(volumeRequest.toProto());
         if (vmId != null) {
             builder.setVmId(vmId);
+        }
+        if (bindOwner != null) {
+            builder.setBindOwner(bindOwner);
         }
         if (volumeName != null) {
             builder.setVolumeName(volumeName);

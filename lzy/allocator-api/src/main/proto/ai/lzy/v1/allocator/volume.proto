@@ -29,6 +29,7 @@ message DiskVolumeType {
   int32 size_gb = 2;
   AccessMode access_mode = 3;
   StorageClass storage_class = 4;
+  /* optional */ string change_owner = 5;
 
   enum AccessMode {
     UNSPECIFIED = 0;

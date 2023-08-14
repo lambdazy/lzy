@@ -82,7 +82,7 @@ public class DynamicDaoImplTest {
     public void createAndGet() throws Exception {
         var diskMount = dynamicMountModel(vm.vmId(), "allocator", operation.id());
         var nfsMount = DynamicMount.createNew(vm.vmId(), "2", "nfs", "nfs1", "nfs2",
-            new VolumeRequest("42", new NFSVolumeDescription("nfs", "nfs-42", "share", true, List.of("foo", "bar"))),
+            null, new VolumeRequest("42", new NFSVolumeDescription("nfs", "nfs-42", "share", true, List.of("foo", "bar"))),
             operation.id(), "allocator");
 
         dynamicMountDao.create(diskMount, null);
@@ -228,7 +228,7 @@ public class DynamicDaoImplTest {
         var mountPath = "/mnt/disk/" + id;
         var bindPath = "/" + id;
         return DynamicMount.createNew(vmId, clusterId, "disk" + id, mountPath, bindPath,
-            new VolumeRequest("42", new DiskVolumeDescription("disk", "disk-42", 42,
+            null, new VolumeRequest("42", new DiskVolumeDescription("disk", "disk-42", 42,
                 Volume.AccessMode.READ_WRITE_ONCE, DiskVolumeDescription.StorageClass.HDD)),
             operationId, workerId);
     }

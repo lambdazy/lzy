@@ -221,14 +221,20 @@ public class KuberVmAllocator implements VmAllocator {
 
     @Override
     public Result unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException {
-        var cmd = List.of("umount", mountPath);
-        return executeInsideVm(vm, cmd);
+        var cmd = String.format("umount %s;", mountPath);
+        return executeInsideVm(vm, List.of(cmd));
     }
 
     @Override
-    public Result bindMountInVm(Vm vm, String fromPath, String toPath) throws InvalidConfigurationException {
-        var cmd = List.of("mount", "--bind", fromPath, toPath);
-        return executeInsideVm(vm, cmd);
+    public Result bindMountInVm(Vm vm, String fromPath, String toPath, @Nullable String chown)
+        throws InvalidConfigurationException
+    {
+        ArrayList<String> cmds = new ArrayList<>();
+        cmds.add(String.format("mount --rbind %s %s;", fromPath, toPath));
+        if (chown != null) {
+            cmds.add(String.format("chown -Rf %s:%s %s;", chown, chown, toPath));
+        }
+        return executeInsideVm(vm, cmds);
     }
 
     private Result executeInsideVm(Vm vm, List<String> cmd) throws InvalidConfigurationException {
