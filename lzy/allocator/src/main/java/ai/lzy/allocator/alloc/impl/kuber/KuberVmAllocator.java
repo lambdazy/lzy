@@ -251,9 +251,9 @@ public class KuberVmAllocator implements VmAllocator {
         var cluster = clusterAndPod.cluster();
         var podName = clusterAndPod.pod().getMetadata().getName();
         var workloadName = workload.name();
-        var loggedCmd = String.join(" ", cmd);
+        var command = String.join(" ", cmd);
 
-        LOG.info("Executing \"{}\" inside {} in container {}", loggedCmd, podName, workloadName);
+        LOG.info("Executing \"{}\" inside {} in container {}", command, podName, workloadName);
         try (var client = k8sClientFactory.build(cluster)) {
             var out = new ByteArrayOutputStream(512);
             final var exec = client.pods()
@@ -262,12 +262,12 @@ public class KuberVmAllocator implements VmAllocator {
                 .inContainer(workloadName)
                 .writingOutput(out)
                 .writingError(out)
-                .exec(cmd.toArray(String[]::new));
+                .exec("/bin/sh", "-c", command);
             try (out) {
                 try (exec) {
-                    LOG.info("Executing \"{}\" output: {}", loggedCmd, out);
+                    LOG.info("Executing \"{}\" output: {}", command, out);
                     var returnCode = exec.exitCode().get();
-                    LOG.info("Executing \"{}\" return code: {}", loggedCmd, returnCode);
+                    LOG.info("Executing \"{}\" return code: {}", command, returnCode);
                 }
             }
             return Result.SUCCESS;
