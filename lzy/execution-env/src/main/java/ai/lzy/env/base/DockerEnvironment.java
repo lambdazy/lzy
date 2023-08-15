@@ -26,6 +26,7 @@ import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -130,7 +131,7 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp, @Nullable Path workingDirectory) {
         assert containerId != null;
 
         final int bufferSize = 4096;
@@ -150,6 +151,10 @@ public class DockerEnvironment extends BaseEnvironment {
             .withCmd(command)
             .withAttachStdout(true)
             .withAttachStderr(true);
+
+        if (workingDirectory != null) {
+            execCmd.withWorkingDir(workingDirectory.toString());
+        }
 
         if (envp != null && envp.length > 0) {
             execCmd.withEnv(List.of(envp));

@@ -7,6 +7,7 @@ import jakarta.annotation.Nullable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -30,11 +31,13 @@ public class ProcessEnvironment extends BaseEnvironment {
     public void install(LogHandle logHandle) {}
 
     @Override
-    public Environment.LzyProcess runProcess(String[] command, String[] envp) {
+    public Environment.LzyProcess runProcess(String[] command, String[] envp, @Nullable Path workingDirectory) {
         envp = inheritEnvp(envp);
 
         try {
-            final Process exec = Runtime.getRuntime().exec(command, envp);
+            var workingDir = workingDirectory != null ? workingDirectory.toFile() : null;
+
+            final Process exec = Runtime.getRuntime().exec(command, envp, workingDir);
             return new Environment.LzyProcess() {
                 @Override
                 public OutputStream in() {

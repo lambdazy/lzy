@@ -5,6 +5,7 @@ import jakarta.annotation.Nullable;
 
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.Path;
 
 public interface Environment extends AutoCloseable {
 
@@ -15,14 +16,10 @@ public interface Environment extends AutoCloseable {
     void install(LogHandle logHandle) throws EnvironmentInstallationException;
 
     default LzyProcess runProcess(String... command) {
-        return runProcess(command, null);
+        return runProcess(command, null, null);
     }
 
-    LzyProcess runProcess(String[] command, @Nullable String[] envp);
-
-    default LzyProcess runProcess(String command, @Nullable String[] envp) {
-        return runProcess(new String[]{command}, envp);
-    }
+    LzyProcess runProcess(String[] command, @Nullable String[] envp, @Nullable Path workingDirectory);
 
     interface LzyProcess {
 

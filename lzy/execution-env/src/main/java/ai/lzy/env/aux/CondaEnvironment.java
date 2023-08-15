@@ -5,6 +5,7 @@ import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogHandle;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
@@ -38,6 +39,7 @@ public class CondaEnvironment implements AuxEnvironment {
     private final String localModulesPathPrefix;
     private final Map<String, String> localModules;
 
+    @Nullable
     private Path localModulesAbsolutePath = null;
 
     @VisibleForTesting
@@ -65,12 +67,19 @@ public class CondaEnvironment implements AuxEnvironment {
         return baseEnv;
     }
 
-
-
     public void install(LogHandle logHandle) throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
         try {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
+
+            try {
+                this.localModulesAbsolutePath = installLocalModules(localModules, localModulesPathPrefix, LOG);
+            } catch (IOException e) {
+                String errorMessage = "Failed to install local modules";
+                LOG.error("Fail to install local modules. \n", e);
+                throw new EnvironmentInstallationException(errorMessage);
+            }
+
             if (RECONFIGURE_CONDA) {
                 if (condaPackageRegistry.isInstalled(condaYaml)) {
 
@@ -121,14 +130,6 @@ public class CondaEnvironment implements AuxEnvironment {
                     condaFile.delete();
                 }
             }
-
-            try {
-                this.localModulesAbsolutePath = installLocalModules(localModules, localModulesPathPrefix, LOG);
-            } catch (IOException e) {
-                String errorMessage = "Failed to install local modules";
-                LOG.error("Fail to install local modules. \n", e);
-                throw new EnvironmentInstallationException(errorMessage);
-            }
         } catch (IOException | InterruptedException | ExecutionException e) {
             throw new RuntimeException(e);
         } finally {
@@ -138,13 +139,16 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, @Nullable String[] envp) {
         LOG.info("Executing command " + command);
+        assert localModulesAbsolutePath != null;
+
         var bashCmd = new String[] {
             "bash",
             "-c",
-            "cd %s && eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
-                .formatted(localModulesAbsolutePath, envName, command)
+            "eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
+                .formatted(envName, command)
         };
-        return baseEnv.runProcess(bashCmd, envp);
+
+        return baseEnv.runProcess(bashCmd, envp, localModulesAbsolutePath);
     }
 
     private LzyProcess execInEnv(String command) {
@@ -152,7 +156,11 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp, @Nullable Path workingDirectory) {
+        if (workingDirectory != null) {
+            throw new NotImplementedException("Cannot change working directory in conda env");
+        }
+
         List<String> envList = new ArrayList<>();
         envList.add("LOCAL_MODULES=" + localModulesAbsolutePath);
         if (envp != null) {
@@ -161,4 +169,8 @@ public class CondaEnvironment implements AuxEnvironment {
         return execInEnv(String.join(" ", command), envList.toArray(String[]::new));
     }
 
+    @Override
+    public Path workingDirectory() {
+        return localModulesAbsolutePath;
+    }
 }

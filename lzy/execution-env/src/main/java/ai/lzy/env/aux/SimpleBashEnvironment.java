@@ -3,9 +3,11 @@ package ai.lzy.env.aux;
 import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogHandle;
 import jakarta.annotation.Nullable;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -16,10 +18,12 @@ public class SimpleBashEnvironment implements AuxEnvironment {
 
     private final BaseEnvironment baseEnv;
     private final List<String> envList;
+    private final Path workingDirectory;
 
-    public SimpleBashEnvironment(BaseEnvironment baseEnv, Map<String, String> envList) {
+    public SimpleBashEnvironment(BaseEnvironment baseEnv, Map<String, String> envList, Path workingDirectory) {
         this.baseEnv = baseEnv;
         this.envList = envList.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).toList();
+        this.workingDirectory = workingDirectory;
     }
 
     @Override
@@ -37,14 +41,23 @@ public class SimpleBashEnvironment implements AuxEnvironment {
             Collections.addAll(env, envp);
         }
 
-        return baseEnv.runProcess(bashCmd, env.toArray(String[]::new));
+        return baseEnv.runProcess(bashCmd, env.toArray(String[]::new), workingDirectory);
     }
 
     @Override
     public void install(LogHandle logHandle) {}
 
     @Override
-    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp, @Nullable Path workingDirectory) {
+        if (workingDirectory != null) {
+            throw new NotImplementedException("Cannot change working directory in bash env");
+        }
+
         return execInEnv(String.join(" ", command), envp);
+    }
+
+    @Override
+    public Path workingDirectory() {
+        return workingDirectory;
     }
 }

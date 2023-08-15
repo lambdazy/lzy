@@ -3,7 +3,9 @@ package ai.lzy.env.aux;
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogHandle;
+import jakarta.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -78,7 +80,11 @@ public class PlainPythonEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp) {
+    public LzyProcess runProcess(String[] command, String[] envp, @Nullable Path workingDirectory) {
+        if (workingDirectory != null) {
+            throw new NotImplementedException("Cannot change working directory in python env");
+        }
+
         var list = new ArrayList<>(List.of("cd", localModulesPath.toString(), "&&"));
         list.addAll(List.of(command));
 
@@ -88,6 +94,12 @@ public class PlainPythonEnvironment implements AuxEnvironment {
             envList.addAll(Arrays.asList(envp));
         }
 
-        return baseEnv.runProcess(new String[]{"bash", "-c", String.join(" ", list)}, envList.toArray(String[]::new));
+        return baseEnv.runProcess(new String[]{"bash", "-c", String.join(" ", list)}, envList.toArray(String[]::new),
+            localModulesPath);
+    }
+
+    @Override
+    public Path workingDirectory() {
+        return localModulesPath;
     }
 }
