@@ -3,6 +3,8 @@ package ai.lzy.env.base;
 import ai.lzy.env.Environment;
 import ai.lzy.env.logs.LogHandle;
 import jakarta.annotation.Nullable;
+import org.apache.commons.lang3.ArrayUtils;
+import org.bouncycastle.util.Arrays;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,13 +33,11 @@ public class ProcessEnvironment extends BaseEnvironment {
     public void install(LogHandle logHandle) {}
 
     @Override
-    public Environment.LzyProcess runProcess(String[] command, String[] envp, @Nullable Path workingDirectory) {
+    public Environment.LzyProcess runProcess(String[] command, String[] envp) {
         envp = inheritEnvp(envp);
 
         try {
-            var workingDir = workingDirectory != null ? workingDirectory.toFile() : null;
-
-            final Process exec = Runtime.getRuntime().exec(command, envp, workingDir);
+            final Process exec = Runtime.getRuntime().exec(command, envp);
             return new Environment.LzyProcess() {
                 @Override
                 public OutputStream in() {

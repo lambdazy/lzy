@@ -33,7 +33,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, @Nullable String[] envp) {
         LOG.info("Executing command `{}`", command);
-        String[] bashCmd = new String[]{"/bin/bash", "-c", command};
+        String[] bashCmd = new String[]{"/bin/bash", "-c", "cd %s && ".formatted(workingDirectory) + command};
 
         var env = new ArrayList<>(envList);
 
@@ -41,18 +41,14 @@ public class SimpleBashEnvironment implements AuxEnvironment {
             Collections.addAll(env, envp);
         }
 
-        return baseEnv.runProcess(bashCmd, env.toArray(String[]::new), workingDirectory);
+        return baseEnv.runProcess(bashCmd, env.toArray(String[]::new));
     }
 
     @Override
     public void install(LogHandle logHandle) {}
 
     @Override
-    public LzyProcess runProcess(String[] command, @Nullable String[] envp, @Nullable Path workingDirectory) {
-        if (workingDirectory != null) {
-            throw new NotImplementedException("Cannot change working directory in bash env");
-        }
-
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         return execInEnv(String.join(" ", command), envp);
     }
 

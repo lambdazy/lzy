@@ -144,11 +144,11 @@ public class CondaEnvironment implements AuxEnvironment {
         var bashCmd = new String[] {
             "/bin/bash",
             "-c",
-            "eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
-                .formatted(envName, command)
+            "cd %s && eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
+                .formatted(localModulesAbsolutePath, envName, command)
         };
 
-        return baseEnv.runProcess(bashCmd, envp, localModulesAbsolutePath);
+        return baseEnv.runProcess(bashCmd, envp);
     }
 
     private LzyProcess execInEnv(String command) {
@@ -156,11 +156,7 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, @Nullable String[] envp, @Nullable Path workingDirectory) {
-        if (workingDirectory != null) {
-            throw new NotImplementedException("Cannot change working directory in conda env");
-        }
-
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         List<String> envList = new ArrayList<>();
         envList.add("LOCAL_MODULES=" + localModulesAbsolutePath);
         if (envp != null) {

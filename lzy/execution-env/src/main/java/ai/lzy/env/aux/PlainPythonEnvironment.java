@@ -80,11 +80,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, String[] envp, @Nullable Path workingDirectory) {
-        if (workingDirectory != null) {
-            throw new NotImplementedException("Cannot change working directory in python env");
-        }
-
+    public LzyProcess runProcess(String[] command, String[] envp) {
         var list = new ArrayList<>(List.of("cd", localModulesPath.toString(), "&&"));
         list.addAll(List.of(command));
 
@@ -94,9 +90,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
             envList.addAll(Arrays.asList(envp));
         }
 
-        return baseEnv.runProcess(new String[]{"/bin/bash", "-c", String.join(" ", list)},
-            envList.toArray(String[]::new),
-            localModulesPath);
+        return baseEnv.runProcess(new String[]{"/bin/bash", "-c", String.join(" ", list)}, envList.toArray(String[]::new));
     }
 
     @Override

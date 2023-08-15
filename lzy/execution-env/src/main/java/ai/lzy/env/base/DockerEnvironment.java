@@ -17,6 +17,7 @@ import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import jakarta.annotation.Nullable;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -131,7 +132,7 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, @Nullable String[] envp, @Nullable Path workingDirectory) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         assert containerId != null;
 
         final int bufferSize = 4096;
@@ -151,10 +152,6 @@ public class DockerEnvironment extends BaseEnvironment {
             .withCmd(command)
             .withAttachStdout(true)
             .withAttachStderr(true);
-
-        if (workingDirectory != null) {
-            execCmd.withWorkingDir(workingDirectory.toString());
-        }
 
         if (envp != null && envp.length > 0) {
             execCmd.withEnv(List.of(envp));
