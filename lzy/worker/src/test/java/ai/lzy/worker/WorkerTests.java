@@ -218,8 +218,8 @@ public class WorkerTests extends IamOnlyWorkerTests {
         var workerId = idGenerator.generate("worker-");
 
         var ctx = Worker.startApplication(workerId,
-            allocatorAddress, "localhost:" + iamPort, Duration.ofHours(1),
-            channelManagerAddress, "localhost", "token-" + workerId, 0, KafkaConfig.of(kafkaBootstrapServer));
+            allocatorAddress, "localhost:" + iamPort, Duration.ofHours(1), channelManagerAddress, "localhost",
+            "token-" + workerId, 0, KafkaConfig.of(kafkaBootstrapServer), null, null, null);
 
         var worker = ctx.getBean(Worker.class);
         var config = ctx.getBean(ServiceConfig.class);
