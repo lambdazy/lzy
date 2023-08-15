@@ -142,7 +142,7 @@ public class CondaEnvironment implements AuxEnvironment {
         assert localModulesAbsolutePath != null;
 
         var bashCmd = new String[] {
-            "bash",
+            "/bin/bash",
             "-c",
             "eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
                 .formatted(envName, command)
