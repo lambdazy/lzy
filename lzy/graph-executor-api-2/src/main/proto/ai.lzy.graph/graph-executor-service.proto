@@ -49,7 +49,7 @@ message GraphState {
   message Waiting {}
 
   message Executing {
-    repeated TaskExecutionStatus executing_tasks = 1;
+    repeated TaskExecutionStatus tasks = 1;
   }
 
   message Completed {}

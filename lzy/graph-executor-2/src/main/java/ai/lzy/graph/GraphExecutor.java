@@ -56,7 +56,7 @@ public class GraphExecutor {
 
         server.start();
 
-        LOG.info("GraphExecutor2 strated");
+        LOG.info("GraphExecutor started");
     }
 
     public void close() {

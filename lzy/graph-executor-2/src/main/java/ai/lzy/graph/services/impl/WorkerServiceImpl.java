@@ -224,6 +224,27 @@ public class WorkerServiceImpl implements WorkerService {
         }
     }
 
+    @Nullable
+    @Override
+    public LongRunning.Operation cancelAllocOp(String opId, String reason) {
+        try {
+            return allocatorOpsStub.cancel(LongRunning.CancelOperationRequest.newBuilder()
+                .setOperationId(opId)
+                .setMessage(reason)
+                .build());
+        } catch (StatusRuntimeException e) {
+            if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+                return null;
+            }
+            if (e.getStatus().getCode() == Status.Code.INVALID_ARGUMENT) {
+                return allocatorOpsStub.get(LongRunning.GetOperationRequest.newBuilder()
+                    .setOperationId(opId)
+                    .build());
+            }
+            throw e;
+        }
+    }
+
     @Override
     public Subject createWorkerSubject(String vmId, String publicKey, String resourceId) {
         Subject subj;
@@ -310,6 +331,34 @@ public class WorkerServiceImpl implements WorkerService {
         } catch (StatusRuntimeException e) {
             if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
                 return null;
+            }
+            throw e;
+        }
+    }
+
+    @Nullable
+    @Override
+    public LongRunning.Operation cancelWorkerOp(String vmId, String opId) {
+        var worker = workers.get(vmId);
+        if (worker == null) {
+            LOG.error("Unknown VM {}", vmId);
+            return null;
+        }
+
+        worker.lastAccessTime.set(Instant.now());
+
+        try {
+            return worker.opsStub.cancel(LongRunning.CancelOperationRequest.newBuilder()
+                .setOperationId(opId)
+                .build());
+        } catch (StatusRuntimeException e) {
+            if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+                return null;
+            }
+            if (e.getStatus().getCode() == Status.Code.INVALID_ARGUMENT) {
+                return worker.opsStub.get(LongRunning.GetOperationRequest.newBuilder()
+                    .setOperationId(opId)
+                    .build());
             }
             throw e;
         }

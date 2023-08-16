@@ -62,8 +62,8 @@ public class GraphDaoTest {
         dao.create(graph, null);
         GraphState byId = dao.getById(graphId);
         GraphState wrongById = dao.getById("wrong-id");
-        List<GraphState> byInstance = dao.getActiveByInstance(config.getInstanceId());
-        List<GraphState> wrongByInstance = dao.getActiveByInstance("wrong-instance-id");
+        List<GraphState> byInstance = dao.loadActiveGraphs(config.getInstanceId());
+        List<GraphState> wrongByInstance = dao.loadActiveGraphs("wrong-instance-id");
 
         Assert.assertEquals(graph, byId);
         Assert.assertEquals(1, byInstance.size());
@@ -87,7 +87,7 @@ public class GraphDaoTest {
         dao.update(graph, null);
 
         GraphState byId = dao.getById(graphId);
-        List<GraphState> active = dao.getActiveByInstance(config.getInstanceId());
+        List<GraphState> active = dao.loadActiveGraphs(config.getInstanceId());
 
         Assert.assertEquals(graph, byId);
         Assert.assertEquals(0, active.size());

@@ -10,17 +10,19 @@ import ai.lzy.graph.db.impl.GraphExecutorDataSource;
 import ai.lzy.graph.model.GraphState;
 import ai.lzy.graph.model.TaskState;
 import ai.lzy.graph.services.GraphService;
-import ai.lzy.graph.services.TaskService;
+import ai.lzy.graph.services.TasksScheduler;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
 import ai.lzy.model.db.TransactionHandle;
 import com.google.protobuf.Any;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -33,7 +35,7 @@ import static java.util.stream.Collectors.toSet;
 public class GraphServiceImpl implements GraphService {
     private static final Logger LOG = LogManager.getLogger(GraphServiceImpl.class);
 
-    private final TaskService taskService;
+    private final TasksScheduler tasksScheduler;
     private final GraphDao graphDao;
     private final TaskDao taskDao;
     private final OperationDao operationDao;
@@ -42,20 +44,25 @@ public class GraphServiceImpl implements GraphService {
     private final Map<String, GraphState> graphs = new ConcurrentHashMap<>();
 
     @Inject
-    public GraphServiceImpl(ServiceConfig config, TaskService taskService, GraphDao graphDao,
+    public GraphServiceImpl(ServiceConfig config, TasksScheduler tasksScheduler, GraphDao graphDao,
                             @Named("GraphExecutorOperationDao") OperationDao operationDao,
                             TaskDao taskDao, GraphExecutorDataSource storage,
                             @Named("GraphExecutorIdGenerator") IdGenerator idGenerator)
     {
-        this.taskService = taskService;
+        this.tasksScheduler = tasksScheduler;
         this.graphDao = graphDao;
         this.operationDao = operationDao;
         this.taskDao = taskDao;
         this.storage = storage;
         this.idGenerator = idGenerator;
 
-        taskService.init(this::handleTaskStatusChanged);
         restoreGraphs(config.getInstanceId());
+        tasksScheduler.start(this::handleTaskFinished);
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        tasksScheduler.shutdown();
     }
 
     @Override
@@ -76,7 +83,7 @@ public class GraphServiceImpl implements GraphService {
         try (var guard = graphState.bind()) {
             graphState.initTasks(tasks.stream().map(TaskState::id).collect(toSet()));
 
-            var opMeta = graphState.toMetaProto(taskService::getTaskStatus);
+            var opMeta = graphState.toMetaProto(tasksScheduler::getTaskStatus);
             op.modifyMeta(opMeta);
 
             withRetries(LOG, () -> {
@@ -92,10 +99,10 @@ public class GraphServiceImpl implements GraphService {
         LOG.info("Register new graph: {}", graphState);
 
         graphs.put(graphId, graphState);
-        taskService.addTasks(tasks);
+        tasksScheduler.scheduleGraphTasks(graphId, tasks);
     }
 
-    private void handleTaskStatusChanged(TaskState task) {
+    private void handleTaskFinished(TaskState task) {
         var graph = graphs.get(task.graphId());
 
         if (graph == null) {
@@ -114,19 +121,26 @@ public class GraphServiceImpl implements GraphService {
             switch (task.status()) {
                 case WAITING_ALLOCATION, ALLOCATING, EXECUTING -> {
                     LOG.debug("Graph {}, task {} changed status to {}", graph.id(), task.id(), task.status());
-                    graph.tryExecute(task.id());
+                    if (graph.tryExecute(task.id())) {
+                        LOG.info("Graph {} execution started, first running task {}", graph.id(), task.id());
+                    }
                 }
                 case COMPLETED -> {
                     LOG.info("Graph {}, task {} completed", graph.id(), task.id());
-                    graph.tryComplete(task.id());
+                    if (graph.tryComplete(task.id())) {
+                        LOG.info("Graph {} completed", graph.id());
+                    }
                 }
                 case FAILED -> {
                     LOG.warn("Graph {}, task {} failed, reason: {}", graph.id(), task.id(), task.errorDescription());
-                    graph.tryFail(task.id(), task.name(), task.errorDescription());
+                    if (graph.tryFail(task.id(), task.name(), task.errorDescription())) {
+                        LOG.info("Graph {} failed with reason {}, task: {}",
+                            graph.id(), task.errorDescription(), task.id());
+                    }
                 }
             }
 
-            var opMeta = Any.pack(graph.toMetaProto(taskService::getTaskStatus));
+            var opMeta = Any.pack(graph.toMetaProto(tasksScheduler::getTaskStatus));
 
             try {
                 withRetries(LOG, () -> {
@@ -159,28 +173,39 @@ public class GraphServiceImpl implements GraphService {
 
     private void restoreGraphs(String instanceId) {
         try {
-            var graphsList = graphDao.getActiveByInstance(instanceId);
-            LOG.info("Restore {} running graphs on GraphExecutor {}", graphs.size(), instanceId);
+            var activeGraphs = graphDao.loadActiveGraphs(instanceId);
+            LOG.info("Restore {} running graphs on GraphExecutor {}", activeGraphs.size(), instanceId);
 
-            for (var graphState : graphsList) {
-                /*
-                var tasks = taskDao.getTasksByGraph(graphState.id());
+            for (var graph : activeGraphs) {
+                LOG.info("Restore graph {}...", graph);
+                var tasks = taskDao.loadGraphTasks(graph.id());
 
-                tasks.forEach(task -> {
-                    graphState.tasks()
-                        .computeIfAbsent(GraphState.Status.fromTaskStatus(task.status()), x -> new ArrayList<>())
-                        .add(task.id());
+                var waitingTasks = new HashMap<String, TaskState>();
+                var runningTasks = new HashMap<String, TaskState>();
+                var completedTasks = new HashMap<String, TaskState>();
 
-                    // TODO: dependencies
-                });
+                for (var task : tasks) {
+                    switch (task.status()) {
+                        case WAITING -> waitingTasks.put(task.id(), task);
+                        case WAITING_ALLOCATION, ALLOCATING, EXECUTING -> runningTasks.put(task.id(), task);
+                        case COMPLETED -> completedTasks.put(task.id(), task);
+                        case FAILED -> throw new RuntimeException("Active graph %s has failed task %s"
+                            .formatted(graph.id(), task.id()));
+                        default -> throw new RuntimeException("Unexpected task status " + task.status());
+                    }
+                }
 
-                var activeTasks = tasks.stream()
-                    .filter(task -> !task.status().finished())
-                    .collect(toList());
-                 */
+                for (var task: completedTasks.values()) {
+                    for (var depTaskId: task.tasksDependedFrom()) {
+                        var depTask = waitingTasks.get(depTaskId);
+                        depTask.tasksDependedOn().remove(task.id());
+                    }
+                }
 
-                graphs.put(graphState.id(), graphState);
-                //taskService.addTasks(activeTasks);
+                graph.restoreTasks(waitingTasks.keySet(), runningTasks.keySet(), completedTasks.keySet());
+
+                graphs.put(graph.id(), graph);
+                tasksScheduler.restoreGraphTasks(graph.id(), waitingTasks.values(), runningTasks.values());
             }
         } catch (Exception e) {
             LOG.error("Cannot restore graphs for instance {}", instanceId, e);
