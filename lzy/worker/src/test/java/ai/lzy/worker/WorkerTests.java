@@ -216,6 +216,7 @@ public class WorkerTests extends IamOnlyWorkerTests {
 
     private static WorkerTests.WorkerDesc startWorker(String uid, String workflowName) throws Exception {
         var workerId = idGenerator.generate("worker-");
+        Worker.selectRandomValues(true);
 
         var ctx = Worker.startApplication(workerId,
             allocatorAddress, "localhost:" + iamPort, Duration.ofHours(1), channelManagerAddress, "localhost",
