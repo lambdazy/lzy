@@ -17,7 +17,6 @@ import ai.lzy.v1.common.LME.LocalModule;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import jakarta.inject.Singleton;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
