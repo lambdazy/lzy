@@ -19,6 +19,11 @@ import java.util.UUID;
 public interface AuxEnvironment extends Environment {
     BaseEnvironment base();
 
+    /**
+     * Returns path to working directory of environment
+     */
+    Path workingDirectory();
+
     @Override
     default void close() throws Exception {
         base().close();

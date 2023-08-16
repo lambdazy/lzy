@@ -153,7 +153,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             }
         }
 
-        final var logHandle = LogHandle.builder(LOG)
+        final var logHandle = LogHandle.builder()
             .withWriters(new KafkaLogsWriter(op.getKafkaTopic(), LOG, tid, kafkaHelper))
             .build();
 

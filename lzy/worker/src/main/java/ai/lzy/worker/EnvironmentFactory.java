@@ -27,6 +27,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -58,6 +60,14 @@ public class EnvironmentFactory {
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
             return envForTests.get();
+        }
+
+        try {
+            Files.createDirectories(Path.of(RESOURCES_PATH));
+            Files.createDirectories(Path.of(LOCAL_MODULES_PATH));
+        } catch (Exception e) {
+            LOG.error("Cannot create resources directories: ", e);
+            throw new EnvironmentInstallationException(e);
         }
 
         final BaseEnvironment baseEnv;
@@ -173,7 +183,7 @@ public class EnvironmentFactory {
             }
 
         } else if (env.hasProcessEnv()) {
-            auxEnv = new SimpleBashEnvironment(baseEnv, Map.of());
+            auxEnv = new SimpleBashEnvironment(baseEnv, Map.of(), Path.of(RESOURCES_PATH));
         } else {
             LOG.error("Error while creating env: undefined env");
             throw Status.UNIMPLEMENTED.withDescription("Provided unsupported env")

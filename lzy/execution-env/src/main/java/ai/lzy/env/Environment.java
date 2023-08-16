@@ -20,10 +20,6 @@ public interface Environment extends AutoCloseable {
 
     LzyProcess runProcess(String[] command, @Nullable String[] envp);
 
-    default LzyProcess runProcess(String command, @Nullable String[] envp) {
-        return runProcess(new String[]{command}, envp);
-    }
-
     interface LzyProcess {
 
         LzyProcess EMPTY = new LzyProcess() {

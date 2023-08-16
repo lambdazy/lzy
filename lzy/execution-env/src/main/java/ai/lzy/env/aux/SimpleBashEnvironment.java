@@ -6,6 +6,7 @@ import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -16,10 +17,12 @@ public class SimpleBashEnvironment implements AuxEnvironment {
 
     private final BaseEnvironment baseEnv;
     private final List<String> envList;
+    private final Path workingDirectory;
 
-    public SimpleBashEnvironment(BaseEnvironment baseEnv, Map<String, String> envList) {
+    public SimpleBashEnvironment(BaseEnvironment baseEnv, Map<String, String> envList, Path workingDirectory) {
         this.baseEnv = baseEnv;
         this.envList = envList.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).toList();
+        this.workingDirectory = workingDirectory;
     }
 
     @Override
@@ -29,7 +32,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, @Nullable String[] envp) {
         LOG.info("Executing command `{}`", command);
-        String[] bashCmd = new String[]{"bash", "-c", command};
+        String[] bashCmd = new String[]{"bash", "-c", "cd %s && ".formatted(workingDirectory) + command};
 
         var env = new ArrayList<>(envList);
 
@@ -46,5 +49,10 @@ public class SimpleBashEnvironment implements AuxEnvironment {
     @Override
     public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         return execInEnv(String.join(" ", command), envp);
+    }
+
+    @Override
+    public Path workingDirectory() {
+        return workingDirectory;
     }
 }

@@ -90,4 +90,9 @@ public class PlainPythonEnvironment implements AuxEnvironment {
 
         return baseEnv.runProcess(new String[]{"bash", "-c", String.join(" ", list)}, envList.toArray(String[]::new));
     }
+
+    @Override
+    public Path workingDirectory() {
+        return localModulesPath;
+    }
 }

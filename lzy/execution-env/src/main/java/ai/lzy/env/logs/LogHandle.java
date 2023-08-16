@@ -10,6 +10,8 @@ import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 public interface LogHandle extends AutoCloseable {
+    Logger LOG = LogManager.getLogger(LogHandle.class);
+
     void logOut(String pattern, Object... values);
 
     CompletableFuture<Void> logOut(InputStream stream);
@@ -22,12 +24,12 @@ public interface LogHandle extends AutoCloseable {
 
     @VisibleForTesting
     static LogHandle empty() {
-        return builder(LogManager.getLogger(LogHandle.class))
+        return builder()
             .build();
     }
 
-    static Builder builder(Logger log) {
-        return new Builder(log);
+    static Builder builder() {
+        return new Builder(LOG);
     }
 
     class Builder {
