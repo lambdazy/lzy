@@ -33,7 +33,6 @@ import okhttp3.mockwebserver.MockWebServer;
 import okio.Buffer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.jetbrains.annotations.NotNull;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -249,7 +248,7 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
             startsWithPath(POD_PATH + "/" + getName(pod) + "/exec").and(method("GET")),
             request -> new MockResponse().withWebSocketUpgrade(new WebSocketListener() {
                 @Override
-                public void onOpen(@NotNull WebSocket webSocket, @NotNull Response response) {
+                public void onOpen(@Nonnull WebSocket webSocket, @Nonnull Response response) {
                     super.onOpen(webSocket, response);
                     webSocket.close(1000, "");
                 }
