@@ -52,6 +52,9 @@ public class LzyInThread {
                     lzy.awaitTermination();
                 } catch (InterruptedException e) {
                     // intentionally blank
+                } catch (Exception e) {
+                    e.printStackTrace(System.err);
+                    throw e;
                 } finally {
                     setupFlag.countDown();
                     lzy.tearDown();
