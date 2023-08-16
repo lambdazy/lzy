@@ -21,7 +21,7 @@ import static ai.lzy.model.db.DbHelper.withRetries;
 
 public final class AllocateVmAction extends OperationRunnerBase {
 
-    private static final Duration WAIT_VM_PERIOD = Duration.ofMillis(500);
+    private static final Duration WAIT_VM_PERIOD = Duration.ofMillis(1500);
     private static final Duration WAIT_VM_POLL_START = Duration.ofSeconds(3);
     private static final Duration WAIT_VM_POLL_PERIOD = Duration.ofSeconds(10);
 
