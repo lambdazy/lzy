@@ -220,23 +220,27 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException {
-        var meta = vm.allocateState().allocatorMeta();
-        if (meta == null) {
-            throw new InvalidConfigurationException("VM " + vm.vmId() + " does not have allocator meta");
-        }
+    public Result unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException {
+        var cmd = String.format("umount %s;", mountPath);
+        return executeInsideVm(vm, List.of(cmd));
+    }
 
-        final var podName = meta.get(POD_NAME_KEY);
-        final var clusterId = meta.get(CLUSTER_ID_KEY);
-        final var namespace = meta.get(NAMESPACE_KEY);
-        if (podName == null || clusterId == null || namespace == null) {
-            throw new InvalidConfigurationException("VM " + vm.vmId() +
-                " does not have pod name or cluster id or namespace");
+    @Override
+    public Result bindMountInVm(Vm vm, String fromPath, String toPath, @Nullable String chown)
+        throws InvalidConfigurationException
+    {
+        ArrayList<String> cmds = new ArrayList<>();
+        cmds.add(String.format("mount --rbind %s %s;", fromPath, toPath));
+        if (chown != null) {
+            cmds.add(String.format("chown -Rf %s:%s %s;", chown, chown, toPath));
         }
+        return executeInsideVm(vm, cmds);
+    }
 
-        var cluster = clusterRegistry.getCluster(clusterId);
-        if (cluster == null) {
-            throw new InvalidConfigurationException("Cluster " + clusterId + " does not exist");
+    private Result executeInsideVm(Vm vm, List<String> cmd) throws InvalidConfigurationException {
+        var clusterAndPod = resolveClusterAndPod(vm);
+        if (clusterAndPod.pod() == null) {
+            return Result.FAILED.withReason("Pod not found");
         }
 
         var workload = vm.workloads().stream().findFirst().orElse(null);
@@ -244,56 +248,39 @@ public class KuberVmAllocator implements VmAllocator {
             throw new InvalidConfigurationException("VM " + vm.vmId() + " does not have workloads");
         }
 
-        LOG.info("Unmounting {} from {} and container {}", mountPath, podName, workload.name());
+        var cluster = clusterAndPod.cluster();
+        var podName = clusterAndPod.pod().getMetadata().getName();
+        var workloadName = workload.name();
+        var command = String.join(" ", cmd);
+
+        LOG.info("Executing \"{}\" inside {} in container {}", command, podName, workloadName);
         try (var client = k8sClientFactory.build(cluster)) {
             var out = new ByteArrayOutputStream(512);
             final var exec = client.pods()
                 .inNamespace(NAMESPACE_VALUE)
                 .withName(podName)
-                .inContainer(workload.name())
+                .inContainer(workloadName)
                 .writingOutput(out)
                 .writingError(out)
-                .exec("umount", mountPath);
+                .exec("/bin/sh", "-c", command);
             try (out) {
                 try (exec) {
-                    LOG.info("Unmount output: {}", out);
+                    LOG.info("Executing \"{}\" output: {}", command, out);
                     var returnCode = exec.exitCode().get();
-                    LOG.info("Unmount return code: {}", returnCode);
+                    LOG.info("Executing \"{}\" return code: {}", command, returnCode);
                 }
             }
+            return Result.SUCCESS;
         } catch (ExecutionException | InterruptedException | IOException e) {
-            LOG.warn("Failed to unmount {} from {}", mountPath, podName, e);
+            LOG.warn("Executing \"{}\" inside {} in container {} failed: {}",
+                String.join(" ", cmd), podName, workloadName, e.getMessage(), e);
+            return Result.RETRY_LATER.withReason(e.getMessage());
         }
     }
 
     @Nullable
     public Result getVmAllocationStatus(Vm vm) throws InvalidConfigurationException {
-        var meta = vm.allocateState().allocatorMeta();
-        if (meta == null) {
-            throw new InvalidConfigurationException("VM " + vm.vmId() + " does not have allocator meta");
-        }
-
-        final var podName = meta.get(POD_NAME_KEY);
-        final var clusterId = meta.get(CLUSTER_ID_KEY);
-        final var namespace = meta.get(NAMESPACE_KEY);
-        if (podName == null || clusterId == null || namespace == null) {
-            throw new InvalidConfigurationException("VM " + vm.vmId() +
-                " does not have pod name or cluster id or namespace");
-        }
-
-        var cluster = clusterRegistry.getCluster(clusterId);
-        if (cluster == null) {
-            throw new InvalidConfigurationException("Cluster " + clusterId + " does not exist");
-        }
-
-        final Pod pod;
-        try (var client = k8sClientFactory.build(cluster)) {
-            pod = client.pods()
-                .inNamespace(namespace)
-                .withName(podName)
-                .get();
-        }
-
+        var pod = resolveClusterAndPod(vm).pod();
         if (pod == null) {
             return Result.FAILED.withReason("Pod not found");
         }
@@ -470,6 +457,36 @@ public class KuberVmAllocator implements VmAllocator {
         return vm;
     }
 
+    private ClusterAndPod resolveClusterAndPod(Vm vm) throws InvalidConfigurationException {
+        var meta = vm.allocateState().allocatorMeta();
+        if (meta == null) {
+            throw new InvalidConfigurationException("VM " + vm.vmId() + " does not have allocator meta");
+        }
+
+        final var podName = meta.get(POD_NAME_KEY);
+        final var clusterId = meta.get(CLUSTER_ID_KEY);
+        final var namespace = meta.get(NAMESPACE_KEY);
+        if (podName == null || clusterId == null || namespace == null) {
+            throw new InvalidConfigurationException("VM " + vm.vmId() +
+                " does not have pod name or cluster id or namespace");
+        }
+
+        var cluster = clusterRegistry.getCluster(clusterId);
+        if (cluster == null) {
+            throw new InvalidConfigurationException("Cluster " + clusterId + " does not exist");
+        }
+
+        final Pod pod;
+        try (var client = k8sClientFactory.build(cluster)) {
+            pod = client.pods()
+                .inNamespace(namespace)
+                .withName(podName)
+                .get();
+        }
+
+        return new ClusterAndPod(cluster, pod);
+    }
+
     private List<Vm.Endpoint> getPodEndpoints(Pod pod, KubernetesClient client) {
         final var nodeName = pod.getSpec().getNodeName();
         final var node = requireNonNull(client.nodes().withName(nodeName).get());
@@ -528,5 +545,10 @@ public class KuberVmAllocator implements VmAllocator {
             }
         });
     }
+
+    private record ClusterAndPod(
+        ClusterRegistry.ClusterDescription cluster,
+        @Nullable Pod pod
+    ) {}
 
 }

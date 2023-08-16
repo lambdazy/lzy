@@ -154,6 +154,13 @@ public class ThreadVmAllocator implements VmAllocator {
     }
 
     @Override
-    public void unmountFromVm(Vm vm, String mountPath) {
+    public Result unmountFromVm(Vm vm, String mountPath) {
+        return Result.SUCCESS;
     }
+
+    @Override
+    public Result bindMountInVm(Vm vm, String fromPath, String toPath, @Nullable String chown) {
+        return Result.SUCCESS;
+    }
+
 }

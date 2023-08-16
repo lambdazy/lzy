@@ -219,6 +219,8 @@ message DynamicMount {
   optional string vm_id = 2;
   string mount_name = 3;
   string mount_path = 4;
+  string bind_path = 41;
+  optional string bind_owner = 42;
   optional string volume_name = 5;
   optional string volume_claim_name = 6;
   VolumeRequest volume_request = 7;
