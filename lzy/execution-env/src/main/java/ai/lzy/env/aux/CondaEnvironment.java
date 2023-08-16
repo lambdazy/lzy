@@ -5,7 +5,6 @@ import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogHandle;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
@@ -142,7 +141,7 @@ public class CondaEnvironment implements AuxEnvironment {
         assert localModulesAbsolutePath != null;
 
         var bashCmd = new String[] {
-            "/bin/bash",
+            "bash",
             "-c",
             "cd %s && eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
                 .formatted(localModulesAbsolutePath, envName, command)

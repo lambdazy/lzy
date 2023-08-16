@@ -17,6 +17,7 @@ import ai.lzy.v1.common.LME.LocalModule;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
 import jakarta.inject.Singleton;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -27,7 +28,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -59,6 +62,14 @@ public class EnvironmentFactory {
         if (envForTests != null) {
             LOG.info("EnvironmentFactory: using mocked environment");
             return envForTests.get();
+        }
+
+        try {
+            Files.createDirectories(Path.of(RESOURCES_PATH));
+            Files.createDirectories(Path.of(LOCAL_MODULES_PATH));
+        } catch (Exception e) {
+            LOG.error("Cannot create resources directories: ", e);
+            throw new EnvironmentInstallationException(e);
         }
 
         final BaseEnvironment baseEnv;

@@ -3,9 +3,7 @@ package ai.lzy.env.aux;
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogHandle;
-import jakarta.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -90,7 +88,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
             envList.addAll(Arrays.asList(envp));
         }
 
-        return baseEnv.runProcess(new String[]{"/bin/bash", "-c", String.join(" ", list)}, envList.toArray(String[]::new));
+        return baseEnv.runProcess(new String[]{"bash", "-c", String.join(" ", list)}, envList.toArray(String[]::new));
     }
 
     @Override

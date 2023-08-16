@@ -5,7 +5,6 @@ import jakarta.annotation.Nullable;
 
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Path;
 
 public interface Environment extends AutoCloseable {
 

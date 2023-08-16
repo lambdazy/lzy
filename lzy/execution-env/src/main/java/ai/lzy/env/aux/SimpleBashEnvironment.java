@@ -3,7 +3,6 @@ package ai.lzy.env.aux;
 import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogHandle;
 import jakarta.annotation.Nullable;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -33,7 +32,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, @Nullable String[] envp) {
         LOG.info("Executing command `{}`", command);
-        String[] bashCmd = new String[]{"/bin/bash", "-c", "cd %s && ".formatted(workingDirectory) + command};
+        String[] bashCmd = new String[]{"bash", "-c", "cd %s && ".formatted(workingDirectory) + command};
 
         var env = new ArrayList<>(envList);
 
