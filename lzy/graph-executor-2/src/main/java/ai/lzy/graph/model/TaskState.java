@@ -59,6 +59,10 @@ public final class TaskState {
         public boolean finished() {
             return this == COMPLETED || this == FAILED;
         }
+
+        public boolean running() {
+            return this == WAITING_ALLOCATION || this == ALLOCATING || this == EXECUTING;
+        }
     }
 
     public record ExecutingState(
@@ -69,7 +73,20 @@ public final class TaskState {
         @Nullable String workerHost,
         int workerPort,
         @Nullable String workerOperationId
-    ) {}
+    ) {
+        public ExecutingState withWorkerOperationId(String workerOperationId) {
+            return new ExecutingState(opId, allocOperationId, vmId, fromCache, workerHost, workerPort,
+                workerOperationId);
+        }
+
+        public ExecutingState clearWorker() {
+            return new ExecutingState(opId, allocOperationId, vmId, null, null, -1, null);
+        }
+
+        public ExecutingState clearVm() {
+            return new ExecutingState(opId, allocOperationId, null, null, null, -1, null);
+        }
+    }
 
     public static TaskState fromProto(LGE.ExecuteGraphRequest.TaskDesc task, GraphState initialGraphState) {
         var slots = task.getOperation().getSlotsList().stream()
@@ -222,13 +239,34 @@ public final class TaskState {
                 executingState.fromCache, executingState.workerHost, executingState.workerPort, workerOpId), null);
     }
 
-    public void complete() {
-        status = Status.COMPLETED;
+    public TaskState toCompleteExecutionState() {
+        Objects.requireNonNull(executingState);
+        assert status == Status.EXECUTING;
+        return new TaskState(id, name, operationId, graphId, Status.COMPLETED, executionId, workflowName,
+            userId, allocatorSessionId, taskSlotDescription, tasksDependsOn, tasksDependsFrom,
+            new ExecutingState(executingState.opId, executingState.allocOperationId, executingState.vmId,
+                executingState.fromCache, executingState.workerHost, executingState.workerPort, null), null);
     }
 
-    public void fail(String errorDescription) {
-        status = Status.FAILED;
-        this.errorDescription = errorDescription;
+    public TaskState complete() {
+        Objects.requireNonNull(executingState);
+        return new TaskState(id, name, operationId, graphId, Status.COMPLETED, executionId, workflowName,
+            userId, allocatorSessionId, taskSlotDescription, tasksDependsOn, tasksDependsFrom,
+            new ExecutingState(executingState.opId, executingState.allocOperationId, executingState.vmId,
+                executingState.fromCache, executingState.workerHost, executingState.workerPort, null), null);
+    }
+
+    public TaskState fail(String error) {
+        Objects.requireNonNull(executingState);
+        return new TaskState(id, name, operationId, graphId, Status.FAILED, executionId, workflowName,
+            userId, allocatorSessionId, taskSlotDescription, tasksDependsOn, tasksDependsFrom,
+            new ExecutingState(executingState.opId, executingState.allocOperationId, executingState.vmId,
+                executingState.fromCache, executingState.workerHost, executingState.workerPort, null), error);
+    }
+
+    public TaskState withExecutingState(ExecutingState execState) {
+        return new TaskState(id, name, operationId, graphId, status, executionId, workflowName, userId,
+            allocatorSessionId, taskSlotDescription, tasksDependsOn, tasksDependsFrom, execState, errorDescription);
     }
 
     public String id() {

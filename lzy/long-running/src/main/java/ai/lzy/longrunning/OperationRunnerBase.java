@@ -105,6 +105,10 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
         return ctx;
     }
 
+    protected OperationsExecutor executor() {
+        return executor;
+    }
+
     private boolean loadOperation() {
         try {
             op = withRetries(log, () -> operationsDao.get(id, null));

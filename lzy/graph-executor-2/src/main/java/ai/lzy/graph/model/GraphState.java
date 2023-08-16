@@ -4,11 +4,7 @@ import ai.lzy.common.SafeCloseable;
 import ai.lzy.graph.LGE;
 import jakarta.annotation.Nullable;
 
-import java.util.EnumMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
@@ -68,20 +64,19 @@ public final class GraphState {
         this.failedTaskName = failedTaskName;
     }
 
+    public void restoreTasks(Collection<String> waitingTasks, Collection<String> runningTasks,
+                             Collection<String> completedTasks)
+    {
+        tasks.get(Status.WAITING).addAll(waitingTasks);
+        tasks.get(Status.EXECUTING).addAll(runningTasks);
+        tasks.get(Status.COMPLETED).addAll(completedTasks);
+    }
+
     public enum Status {
         WAITING, EXECUTING, COMPLETED, FAILED;
 
         public boolean finished() {
             return this == COMPLETED || this == FAILED;
-        }
-
-        public static Status fromTaskStatus(TaskState.Status status) {
-            return switch (status) {
-                case WAITING -> Status.WAITING;
-                case WAITING_ALLOCATION, ALLOCATING, EXECUTING -> Status.EXECUTING;
-                case COMPLETED -> Status.COMPLETED;
-                case FAILED -> Status.FAILED;
-            };
         }
     }
 
@@ -124,9 +119,10 @@ public final class GraphState {
                     .build());
             case EXECUTING -> builder.setExecuting(
                 LGE.GraphState.Executing.newBuilder()
-                    .addAllExecutingTasks(
-                        tasks.get(Status.EXECUTING).stream()
-                            .map(taskStatusProvider)
+                    .addAllTasks(
+                        tasks.values().stream()
+                            .flatMap(tasks -> tasks.stream()
+                                .map(taskStatusProvider))
                             .toList())
                     .build());
             case COMPLETED -> builder.setCompleted(
@@ -179,11 +175,11 @@ public final class GraphState {
         assert prev == null || prev.isEmpty();
     }
 
-    public void tryComplete(String completedTaskId) {
+    public boolean tryComplete(String completedTaskId) {
         assertHasLock();
 
         if (status.finished()) {
-            return;
+            return false;
         }
 
         assert tasks.get(Status.FAILED).isEmpty();
@@ -193,14 +189,17 @@ public final class GraphState {
 
         if (tasks.get(Status.WAITING).isEmpty() || tasks.get(Status.EXECUTING).isEmpty()) {
             status = Status.COMPLETED;
+            return true;
         }
+
+        return false;
     }
 
-    public void tryFail(String failedTaskId, String failedTaskName, @Nullable String errorDescription) {
+    public boolean tryFail(String failedTaskId, String failedTaskName, @Nullable String errorDescription) {
         assertHasLock();
 
         if (status.finished()) {
-            return;
+            return false;
         }
 
         tasks.get(Status.WAITING).clear();
@@ -211,13 +210,15 @@ public final class GraphState {
         this.failedTaskId = failedTaskId;
         this.failedTaskName = failedTaskName;
         this.errorDescription = errorDescription;
+
+        return true;
     }
 
-    public void tryExecute(String runningTaskId) {
+    public boolean tryExecute(String runningTaskId) {
         assertHasLock();
 
         if (status.finished()) {
-            return;
+            return false;
         }
 
         tasks.get(GraphState.Status.WAITING).remove(runningTaskId);
@@ -225,7 +226,10 @@ public final class GraphState {
 
         if (status == Status.WAITING) {
             status = Status.EXECUTING;
+            return true;
         }
+
+        return false;
     }
 
     public SafeCloseable bind() {
