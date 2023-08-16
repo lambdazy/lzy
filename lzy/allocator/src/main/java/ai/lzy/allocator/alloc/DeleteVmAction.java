@@ -61,10 +61,6 @@ public final class DeleteVmAction extends OperationRunnerBase {
     }
 
     private StepResult start() {
-        if (vm != null) {
-            return StepResult.ALREADY_DONE;
-        }
-
         try {
             vm = withRetries(log(), () -> allocationContext.vmDao().get(vmId, null));
             if (vm == null) {
