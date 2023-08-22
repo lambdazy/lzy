@@ -3,8 +3,8 @@ from __future__ import annotations
 import logging
 
 from abc import ABC
-from dataclasses import is_dataclass, fields, dataclass, field
-from typing import Dict, Any, TypeVar, Union
+from dataclasses import is_dataclass, fields, dataclass
+from typing import Dict, Any, TypeVar, Union, Optional, ClassVar
 from typing_extensions import Self, TypeGuard, final
 
 from lzy.logs.config import get_logger
@@ -52,7 +52,11 @@ class Deconstructible(ABC):
     def deconstruct(self) -> Dict[str, Any]:
         if is_dataclass(self):
             # we need a shallow copy here, but dataclasses.asdict performing deep copy
-            return dict((field.name, getattr(self, field.name)) for field in fields(self))
+            return dict(
+                (field.name, getattr(self, field.name))
+                for field in fields(self)
+                if field.init
+            )
 
         # if a descendant is not a dataclass, it have to implement deconstruct
         raise NotImplementedError
@@ -96,8 +100,9 @@ class Deconstructible(ABC):
 
 @dataclass
 class WithLogger:
-    log: logging.Logger = field(init=False)
+    log: ClassVar[Optional[logging.Logger]] = None
 
     def __post_init__(self):
-        kls = self.__class__
-        self.log = get_logger(f'{kls.__module__}.{kls.__name__}')
+        if not self.log:
+            kls = self.__class__
+            self.log = get_logger(f'{kls.__module__}.{kls.__name__}')

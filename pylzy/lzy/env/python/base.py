@@ -9,10 +9,10 @@ from lzy.env.explorer.base import ModulePathsList, PackagesDict
 if TYPE_CHECKING:
     from lzy.env.mixin import WithEnvironmentType
 
+NamespaceType = Dict[str, Any]
+
 
 class BasePythonEnv(Deconstructible):
-    _namespace: Dict[str, Any]
-
     def __call__(self, subject: WithEnvironmentType) -> WithEnvironmentType:
         return subject.with_python_env(self)
 
@@ -21,11 +21,11 @@ class BasePythonEnv(Deconstructible):
         raise NotImplementedError
 
     @abstractmethod
-    def get_local_module_paths(self) -> ModulePathsList:
+    def get_local_module_paths(self, namespace: NamespaceType) -> ModulePathsList:
         raise NotImplementedError
 
     @abstractmethod
-    def get_pypi_packages(self) -> PackagesDict:
+    def get_pypi_packages(self, namespace: NamespaceType) -> PackagesDict:
         raise NotImplementedError
 
     @abstractmethod

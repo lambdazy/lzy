@@ -11,7 +11,7 @@ from .container.base import BaseContainer
 from .container.no_container import NoContainer
 from .provisioning.provisioning import Provisioning
 from .python.auto import AutoPythonEnv
-from .python.base import BasePythonEnv
+from .python.base import BasePythonEnv, NamespaceType
 
 if TYPE_CHECKING:
     from .mixin import WithEnvironmentType
@@ -28,6 +28,7 @@ class LzyEnvironment(Deconstructible):
     provisioning: EnvironmentField[Provisioning] = NotSpecified
     python_env: EnvironmentField[BasePythonEnv] = NotSpecified
     container: EnvironmentField[BaseContainer] = NotSpecified
+    namespace: EnvironmentField[NamespaceType] = NotSpecified
 
     def __call__(self, subject: WithEnvironmentType) -> WithEnvironmentType:
         return subject.with_env(self)
@@ -76,3 +77,8 @@ class LzyEnvironment(Deconstructible):
         if is_specified(self.container):
             return self.container
         return NoContainer()
+
+    def get_namespace(self) -> NamespaceType:
+        if is_specified(self.namespace):
+            return self.namespace
+        return {}

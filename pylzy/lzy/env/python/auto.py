@@ -10,7 +10,7 @@ from lzy.env.explorer.auto import AutoExplorer
 from lzy.utils.pip import Pip
 from lzy.utils.pypi import PYPI_INDEX_URL_DEFAULT
 
-from .base import BasePythonEnv, ModulePathsList, PackagesDict
+from .base import BasePythonEnv, ModulePathsList, PackagesDict, NamespaceType
 
 
 def _auto_explorer_factory(auto_py_env: AutoPythonEnv) -> AutoExplorer:
@@ -27,7 +27,6 @@ class AutoPythonEnv(BasePythonEnv):
     env_explorer_factory: Callable[[Self], BaseExplorer] = _auto_explorer_factory
 
     _env_explorer: Optional[BaseExplorer] = None
-    _namespace: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         # because we are frozen
@@ -44,11 +43,11 @@ class AutoPythonEnv(BasePythonEnv):
         python_version = '.'.join(version_info)
         return python_version
 
-    def get_local_module_paths(self) -> ModulePathsList:
-        return self.env_explorer.get_local_module_paths(self._namespace)
+    def get_local_module_paths(self, namespace: NamespaceType) -> ModulePathsList:
+        return self.env_explorer.get_local_module_paths(namespace)
 
-    def get_pypi_packages(self) -> PackagesDict:
-        return self.env_explorer.get_pypi_packages(self._namespace)
+    def get_pypi_packages(self, namespace: NamespaceType) -> PackagesDict:
+        return self.env_explorer.get_pypi_packages(namespace)
 
     def get_pypi_index_url(self) -> str:
         return self.pypi_index_url or Pip().index_url or PYPI_INDEX_URL_DEFAULT

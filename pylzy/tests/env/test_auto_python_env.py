@@ -26,8 +26,8 @@ def test_explorer_factory() -> None:
     python_env = AutoPythonEnv(env_explorer_factory=factory)
 
     assert isinstance(python_env._env_explorer, MyExplorer)
-    assert python_env.get_pypi_packages() == {'bar': 'baz'}
-    assert python_env.get_local_module_paths() == ['foo']
+    assert python_env.get_pypi_packages({}) == {'bar': 'baz'}
+    assert python_env.get_local_module_paths({}) == ['foo']
 
 
 def test_python_version() -> None:
@@ -69,18 +69,19 @@ def test_get_modules_and_paths(
 
     import empty_module
 
-    python_env = AutoPythonEnv().with_fields(_namespace={'foo': empty_module})
+    python_env = AutoPythonEnv()
+    namespace = {'foo': empty_module}
 
-    assert python_env.get_local_module_paths() == \
+    assert python_env.get_local_module_paths(namespace) == \
         [str(get_test_data_path('empty_module.py'))]
 
-    assert python_env.get_pypi_packages() == {}
+    assert python_env.get_pypi_packages(namespace) == {}
 
     import typing_extensions
 
-    python_env = AutoPythonEnv().with_fields(_namespace={'foo': typing_extensions})
+    namespace = {'foo': typing_extensions}
 
-    assert python_env.get_local_module_paths() == []
-    assert python_env.get_pypi_packages() == {
+    assert python_env.get_local_module_paths(namespace) == []
+    assert python_env.get_pypi_packages(namespace) == {
         'typing_extensions': importlib_metadata.distribution('typing_extensions').version
     }

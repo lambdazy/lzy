@@ -20,9 +20,6 @@ from typing import (
     cast,
 )
 
-from lzy.api.v1.snapshot import SnapshotEntry
-from lzy.proxy.result import Result
-
 from ai.lzy.v1.common.data_scheme_pb2 import DataScheme
 from ai.lzy.v1.workflow.workflow_pb2 import (
     DataDescription,
@@ -30,7 +27,12 @@ from ai.lzy.v1.workflow.workflow_pb2 import (
     Operation,
     VmPoolSpec,
 )
-from lzy.api.v1 import DockerPullPolicy
+
+from lzy.types import NamedVmSpec
+from lzy.proxy.result import Result
+from lzy.env.container.docker import DockerPullPolicy, DockerContainer
+from lzy.env.container.no_container import NoContainer
+from lzy.api.v1.snapshot import SnapshotEntry
 from lzy.api.v1.call import LzyCall
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.remote.lzy_service_client import (
@@ -51,7 +53,6 @@ from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS
 from lzy.storage.api import Storage, FSCredentials
 from lzy.utils.grpc import retry, RetryConfig
 from lzy.utils.files import fileobj_hash_str, zip_path
-from lzy.utils.format import pretty_protobuf
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
 
@@ -147,7 +148,7 @@ class RemoteRuntime(Runtime):
         modules: Set[str] = set()
 
         for call in calls:
-            modules.update(cast(Sequence[str], call.env.local_modules_path))
+            modules.update(call.get_local_module_paths())
 
         urls = await self.__load_local_modules(modules)
 
@@ -301,7 +302,7 @@ class RemoteRuntime(Runtime):
 
         operations: List[Operation] = []
         data_descriptions: Dict[str, DataDescription] = {}
-        pool_to_call: List[Tuple[VmPoolSpec, LzyCall]] = []
+        pool_to_call: List[Tuple[NamedVmSpec, LzyCall]] = []
 
         for call in calls:
             input_slots: List[Operation.SlotDescription] = []
@@ -310,7 +311,7 @@ class RemoteRuntime(Runtime):
             kwarg_descriptions: Dict[str, Tuple[Type, str]] = {}
             ret_descriptions: List[Tuple[Type, str]] = []
 
-            for i, eid in enumerate(call.arg_entry_ids):
+            for eid in call.arg_entry_ids:
                 entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/{entry.id}"
                 input_slots.append(Operation.SlotDescription(path=slot_path, storageUri=entry.storage_uri))
@@ -326,7 +327,7 @@ class RemoteRuntime(Runtime):
 
                 data_descriptions[entry.storage_uri] = data_description_by_entry(entry)
 
-            for i, eid in enumerate(call.entry_ids):
+            for eid in call.entry_ids:
                 entry = self.__workflow.snapshot.get(eid)
                 slot_path = f"/{call.id}/{entry.id}"
                 output_slots.append(Operation.SlotDescription(path=slot_path, storageUri=entry.storage_uri))
@@ -340,10 +341,11 @@ class RemoteRuntime(Runtime):
             data_descriptions[exc_entry.storage_uri] = data_description_by_entry(exc_entry)
             exc_description: Tuple[Type, str] = (exc_entry.typ, exc_slot_path)
 
-            pool = call.provisioning.resolve_pool(pools)
+            vm_spec_pools = [NamedVmSpec.from_proto(proto) for proto in pools]
+            pool = call.get_provisioning().resolve_pool(vm_spec_pools)
             pool_to_call.append((pool, call))
 
-            conda_yaml = call.env.get_conda_yaml()
+            conda_yaml = call.get_conda_yaml()
 
             python_env = Operation.PythonEnvSpec(
                 yaml=conda_yaml,
@@ -371,18 +373,25 @@ class RemoteRuntime(Runtime):
                 pickled_request,
             ])
 
-            docker_credentials: Optional[Operation.DockerCredentials] = None
-            if call.env.docker_credentials:
-                raw = call.env.docker_credentials
-                docker_credentials = Operation.DockerCredentials(
-                    registryName=raw.registry,
-                    username=raw.username,
-                    password=raw.password,
-                )
+            container = call.get_container()
 
             docker_image: Optional[str] = None
-            if call.env.docker_image:
-                docker_image = call.env.docker_image
+            docker_credentials: Optional[Operation.DockerCredentials] = None
+            docker_pull_policy = Operation.ALWAYS
+            if isinstance(container, DockerContainer):
+                docker_credentials = Operation.DockerCredentials(
+                    registryName=container.get_registry(),
+                    username=container.get_username(),
+                    password=container.get_password(),
+                )
+                docker_image = container.get_image()
+                docker_pull_policy = (
+                    Operation.ALWAYS
+                    if container.get_pull_policy() == DockerPullPolicy.ALWAYS else
+                    Operation.IF_NOT_EXISTS
+                )
+            elif not isinstance(container, NoContainer):
+                raise TypeError(f'unknown type of container {container!r}')
 
             operations.append(
                 Operation(
@@ -391,23 +400,21 @@ class RemoteRuntime(Runtime):
                     inputSlots=input_slots,
                     outputSlots=output_slots,
                     command=command,
-                    env=call.env.env_variables,
+                    env=call.get_env_vars(),
                     dockerImage=docker_image or "",
                     dockerCredentials=docker_credentials,
-                    dockerPullPolicy=(
-                        Operation.ALWAYS
-                        if call.env.docker_pull_policy == DockerPullPolicy.ALWAYS else
-                        Operation.IF_NOT_EXISTS
-                    ),
+                    dockerPullPolicy=docker_pull_policy,
                     python=python_env,
-                    poolSpecName=pool.poolSpecName,
+                    poolSpecName=pool.name,
                 )
             )
 
-        if self.__workflow.is_interactive:  # TODO(artolord) add costs
+            _LOG.debug('final env for op {call.callable_name}: {call.final_env}')
+
+        if self.__workflow.interactive:  # TODO(artolord) add costs
             s = ""
             for pool, call in pool_to_call:
-                s += f"Call to op {call.signature.func.name} mapped to pool {pretty_protobuf(pool)}\n"
+                s += f"Call to op {call.callable_name} mapped to pool {pool}\n"
 
             s += "Are you sure you want to run the graph with this configuration?"
 
