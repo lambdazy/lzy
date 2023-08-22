@@ -6,6 +6,7 @@ import ai.lzy.util.kafka.KafkaConfig;
 import io.grpc.Server;
 import io.micronaut.context.ApplicationContext;
 import io.micronaut.runtime.Micronaut;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.commons.cli.CommandLine;
@@ -30,9 +31,6 @@ import java.util.stream.Collectors;
 @Singleton
 public class Worker {
     private static final Logger LOG = LogManager.getLogger(Worker.class);
-    private static final int DEFAULT_FS_PORT = 9876;
-    private static final int DEFAULT_API_PORT = 9877;
-    private static final int DEFAULT_HTTP_PORT = 9878;
     private static final AtomicBoolean SELECT_RANDOM_VALUES = new AtomicBoolean(false);
 
     private static final Options options = new Options();
@@ -47,6 +45,9 @@ public class Worker {
         options.addOption(null, "kafka-bootstrap", true, "Kafka bootstrap servers");
         options.addOption(null, "truststore-base64", true, "base64 encoded truststore file for kafka logs");
         options.addOption(null, "truststore-password", true, "Truststore password for kafka logs");
+        options.addOption(null, "fs-port", true, "Worker fs port");
+        options.addOption(null, "api-port", true, "Worker api port");
+        options.addOption(null, "http-port", true, "Worker http port");
 
         // for tests only
         options.addOption(null, "allocator-token", true, "OTT token for allocator");
@@ -151,8 +152,12 @@ public class Worker {
                 kafkaConf.setTlsTruststorePassword(parse.getOptionValue("truststore-password"));
             }
 
+            var fsPort = parse.getOptionValue("fs-port");
+            var apiPort = parse.getOptionValue("api-port");
+            var httpPort = parse.getOptionValue("http-port");
+
             var ctx = startApplication(vmId, allocatorAddress, iamAddress, allocHeartbeatDur,
-                channelManagerAddress, host, allocatorToken, gpuCount, kafkaConf);
+                channelManagerAddress, host, allocatorToken, gpuCount, kafkaConf, fsPort, apiPort, httpPort);
             var worker = ctx.getBean(Worker.class);
 
             try {
@@ -180,22 +185,20 @@ public class Worker {
     public static ApplicationContext startApplication(String vmId, String allocatorAddress, String iamAddress,
                                                       Duration allocatorHeartbeatPeriod,
                                                       String channelManagerAddress, String host, String allocatorToken,
-                                                      int gpuCount, KafkaConfig kafka)
+                                                      int gpuCount, KafkaConfig kafka, @Nullable String fsPort,
+                                                      @Nullable String apiPort, @Nullable String httpPort)
     {
-        final int fsPort;
         final String fsRoot;
-        final int apiPort;
-        final int httpPort;
 
         if (SELECT_RANDOM_VALUES.get()) {
-            fsPort = FreePortFinder.find(10000, 20000);
-            apiPort = FreePortFinder.find(20000, 30000);
-            httpPort = FreePortFinder.find(30000, 40000);
+            fsPort = String.valueOf(FreePortFinder.find(10000, 20000));
+            apiPort = String.valueOf(FreePortFinder.find(20000, 30000));
+            httpPort = String.valueOf(FreePortFinder.find(30000, 40000));
             fsRoot = "/tmp/lzy" + UUID.randomUUID();
         } else {
-            fsPort = DEFAULT_FS_PORT;
-            apiPort = DEFAULT_API_PORT;
-            httpPort = DEFAULT_HTTP_PORT;
+            if (fsPort == null || apiPort == null || httpPort == null) {
+                throw new IllegalArgumentException("Some ports are null");
+            }
             fsRoot = "/tmp/lzy";
         }
 

@@ -20,4 +20,4 @@ spec:
                   - vm
           topologyKey: "kubernetes.io/hostname"
   dnsPolicy: ClusterFirstWithHostNet
-  hostNetwork: true
+  hostNetwork: false

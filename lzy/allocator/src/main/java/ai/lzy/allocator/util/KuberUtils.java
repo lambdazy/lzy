@@ -34,4 +34,8 @@ public final class KuberUtils {
         }
         return code >= 400 && code < 500;
     }
+
+    public static boolean isRetryable(KubernetesClientException e) {
+        return !isNotRetryable(e);
+    }
 }

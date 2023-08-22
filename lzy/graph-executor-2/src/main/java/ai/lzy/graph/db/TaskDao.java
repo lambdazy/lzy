@@ -12,10 +12,13 @@ public interface TaskDao {
 
     void updateTask(TaskState task, @Nullable TransactionHandle transaction) throws SQLException;
 
+    boolean updateTask(TaskState newState, TaskState.Status expectedStatus, @Nullable TransactionHandle transaction)
+        throws SQLException;
+
     @Nullable
     TaskState getTaskById(String taskId) throws SQLException;
 
-    List<TaskState> getTasksByGraph(String graphId) throws SQLException;
+    List<TaskState> loadGraphTasks(String graphId) throws SQLException;
 
     List<TaskState> loadActiveTasks(String instanceId) throws SQLException;
 }

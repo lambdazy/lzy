@@ -7,6 +7,7 @@ import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.iam.resources.subjects.Subject;
 import ai.lzy.iam.resources.subjects.Worker;
 import ai.lzy.longrunning.LocalOperationService;
+import ai.lzy.longrunning.LocalOperationService.OperationSnapshot;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.util.grpc.ChannelBuilder;
 import ai.lzy.util.grpc.GrpcUtils;
@@ -125,7 +126,13 @@ public class WorkerServiceMock implements WorkerService {
     @Nullable
     @Override
     public LongRunning.Operation getAllocOp(String opId) {
-        return ofNullable(opService.get(opId)).map(LocalOperationService.OperationSnapshot::toProto).orElse(null);
+        return ofNullable(opService.get(opId)).map(OperationSnapshot::toProto).orElse(null);
+    }
+
+    @Nullable
+    @Override
+    public LongRunning.Operation cancelAllocOp(String opId, String reason) {
+        return ofNullable(opService.cancel(opId, reason)).map(OperationSnapshot::toProto).orElse(null);
     }
 
     @Override
@@ -172,7 +179,13 @@ public class WorkerServiceMock implements WorkerService {
     @Nullable
     @Override
     public LongRunning.Operation getWorkerOp(String vmId, String opId) {
-        return ofNullable(opService.get(opId)).map(LocalOperationService.OperationSnapshot::toProto).orElse(null);
+        return ofNullable(opService.get(opId)).map(OperationSnapshot::toProto).orElse(null);
+    }
+
+    @Nullable
+    @Override
+    public LongRunning.Operation cancelWorkerOp(String vmId, String opId) {
+        return null;
     }
 
     @Override

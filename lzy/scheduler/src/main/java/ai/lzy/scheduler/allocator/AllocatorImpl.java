@@ -11,6 +11,7 @@ import ai.lzy.v1.common.LMO;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import ai.lzy.v1.longrunning.LongRunning;
 import ai.lzy.v1.longrunning.LongRunningServiceGrpc;
+import ai.lzy.worker.DefaultPorts;
 import io.grpc.ManagedChannel;
 import jakarta.annotation.PreDestroy;
 import jakarta.inject.Singleton;
@@ -21,6 +22,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
@@ -61,7 +63,10 @@ public class AllocatorImpl implements WorkersAllocator {
     {
         final var args = new java.util.ArrayList<>(List.of(
             "--channel-manager", config.getChannelManagerAddress(),
-            "-i", config.getIam().getAddress()
+            "-i", config.getIam().getAddress(),
+            "--fs-port", String.valueOf(DefaultPorts.FS_PORT),
+            "--api-port", String.valueOf(DefaultPorts.API_PORT),
+            "--http-port", String.valueOf(DefaultPorts.HTTP_PORT)
         ));
 
         args.add("--kafka-bootstrap");
@@ -85,6 +90,10 @@ public class AllocatorImpl implements WorkersAllocator {
         final var workload = Workload.newBuilder()
             .setName("worker")
             .setImage(config.getWorkerImage())
+            .putAllPortBindings(Map.of(
+                DefaultPorts.FS_PORT, DefaultPorts.FS_PORT,
+                DefaultPorts.API_PORT, DefaultPorts.API_PORT,
+                DefaultPorts.HTTP_PORT, DefaultPorts.HTTP_PORT))
             .addAllArgs(args)
             .build();
 

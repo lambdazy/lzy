@@ -50,6 +50,13 @@ public class TaskDaoImpl implements TaskDao {
             task_state = ?
         WHERE id = ?""";
 
+    private static final String TASK_UPDATE_COND_STATEMENT = """
+        UPDATE task
+        SET error_description = ?,
+            status = ?::task_status,
+            task_state = ?
+        WHERE id = ? AND status = ?::task_status""";
+
     private static final String TASK_GET_BY_ID_STATEMENT = """
         SELECT %s,
           STRING_AGG(t1.dependent_task_id, ',') as dependend_from,
@@ -60,7 +67,7 @@ public class TaskDaoImpl implements TaskDao {
         WHERE task.id = ?
         GROUP BY task.id""".formatted(TASK_SELECT_FIELDS_LIST);
 
-    private static final String TASK_GET_BY_GRAPH_STATEMENT = """
+    private static final String QUERY_LOAD_GRAPH_TASKS = """
         SELECT %s,
           STRING_AGG(t1.dependent_task_id, ',') as dependend_from,
           STRING_AGG(t2.task_id, ',') as dependend_on
@@ -154,6 +161,28 @@ public class TaskDaoImpl implements TaskDao {
     }
 
     @Override
+    public boolean updateTask(TaskState task, TaskState.Status expectedStatus, @Nullable TransactionHandle transaction)
+        throws SQLException
+    {
+        LOG.debug("Updating task: {}", task);
+
+        return DbOperation.execute(transaction, storage, connection -> {
+            try (PreparedStatement st = connection.prepareStatement(TASK_UPDATE_COND_STATEMENT)) {
+                int idx = 0;
+                st.setString(++idx, task.errorDescription());
+                st.setString(++idx, task.status().name());
+                st.setString(++idx, objectMapper.writeValueAsString(task.executingState()));
+                st.setString(++idx, task.id());
+                st.setString(++idx, expectedStatus.name());
+
+                return st.executeUpdate() > 0;
+            } catch (JsonProcessingException e) {
+                throw new SQLException(e);
+            }
+        });
+    }
+
+    @Override
     @Nullable
     public TaskState getTaskById(String taskId) throws SQLException {
         try (var connection = storage.connect();
@@ -171,9 +200,9 @@ public class TaskDaoImpl implements TaskDao {
     }
 
     @Override
-    public List<TaskState> getTasksByGraph(String graphId) throws SQLException {
+    public List<TaskState> loadGraphTasks(String graphId) throws SQLException {
         try (var connection = storage.connect();
-             PreparedStatement st = connection.prepareStatement(TASK_GET_BY_GRAPH_STATEMENT))
+             PreparedStatement st = connection.prepareStatement(QUERY_LOAD_GRAPH_TASKS))
         {
             st.setString(1, graphId);
 

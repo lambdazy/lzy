@@ -1,7 +1,0 @@
-disk-service:
-  database:
-    url: ''
-    username: ''
-    password: ''
-  local-provider:
-    disksLocation: '/tmp/lzy-disk/'

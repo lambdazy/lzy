@@ -43,7 +43,7 @@ spec:
         - name: node-allocator-sync
           image: ${allocator_sync_image}
           imagePullPolicy: Always
-          command: ["sh", "-c", "rm /host_shared/docker/started.flag; /entrypoint.sh ${allocator_ip}; tail -f /dev/null"]
+          command: ["sh", "-c", "rm /host_shared/docker/image-supplier-started.flag; /entrypoint.sh ${allocator_ip}; tail -f /dev/null"]
           env:
             - name: CLUSTER_ID
               value: ${cluster_id}

@@ -10,7 +10,7 @@ import ai.lzy.graph.db.impl.GraphExecutorDataSource;
 import ai.lzy.graph.model.GraphState;
 import ai.lzy.graph.model.TaskState;
 import ai.lzy.graph.services.GraphService;
-import ai.lzy.graph.services.TaskService;
+import ai.lzy.graph.services.TasksScheduler;
 import ai.lzy.graph.services.impl.GraphServiceImpl;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -23,11 +23,12 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 
 public class GraphServiceTest {
 
     private final ServiceConfig config = Mockito.mock(ServiceConfig.class);
-    private final TaskService taskService = Mockito.mock(TaskService.class);
+    private final TasksScheduler tasksScheduler = Mockito.mock(TasksScheduler.class);
     private final GraphDao graphDao = Mockito.mock(GraphDao.class);
     private final OperationDao operationDao = Mockito.mock(OperationDao.class);
     private final TaskDao taskDao = Mockito.mock(TaskDao.class);
@@ -40,7 +41,7 @@ public class GraphServiceTest {
 
     @Before
     public void setUp() {
-        graphService = new GraphServiceImpl(config, taskService, graphDao, operationDao, taskDao, storage, idGenerator);
+        graphService = new GraphServiceImpl(config, tasksScheduler, graphDao, operationDao, taskDao, storage, idGenerator);
     }
 
     @Test
@@ -70,7 +71,7 @@ public class GraphServiceTest {
         assertEquals("workflow1", graph.workflowName());
 
         Mockito.verify(taskDao).createTasks(any(), any());
-        Mockito.verify(taskService).addTasks(tasksCaptor.capture());
+        Mockito.verify(tasksScheduler).scheduleGraphTasks(eq(graph.id()), tasksCaptor.capture());
         List<TaskState> tasks = tasksCaptor.getValue();
         assertEquals(1, tasks.size());
         assertEquals("task-1", tasks.get(0).id());

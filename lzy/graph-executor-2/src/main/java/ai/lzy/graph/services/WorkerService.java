@@ -17,6 +17,9 @@ public interface WorkerService {
     @Nullable
     LongRunning.Operation getAllocOp(String opId);
 
+    @Nullable
+    LongRunning.Operation cancelAllocOp(String opId, String reason);
+
 
     // IAM proxy
 
@@ -33,6 +36,8 @@ public interface WorkerService {
     @Nullable
     LongRunning.Operation getWorkerOp(String vmId, String opId);
 
+    @Nullable
+    LongRunning.Operation cancelWorkerOp(String vmId, String opId);
 
     // Restore
     void restoreWorker(String vmId, String host, int port);

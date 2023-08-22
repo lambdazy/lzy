@@ -25,6 +25,9 @@ import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
+import okhttp3.Response;
+import okhttp3.WebSocket;
+import okhttp3.WebSocketListener;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okio.Buffer;
@@ -211,13 +214,21 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
 
     protected void mockGetPodByName(String podName) {
         final Pod pod = constructPod(podName);
-        mockRequestDispatcher.addHandlerOneTime(exactPath(POD_PATH + "/" + podName).and(method("GET")),
+        mockRequestDispatcher.addHandlerOneTime(
+            exactPath(POD_PATH + "/" + podName).and(method("GET")),
             request -> new MockResponse().setBody(toJson(pod)).setResponseCode(HttpURLConnection.HTTP_OK));
     }
 
     protected void mockGetPod(Pod pod) {
-        mockRequestDispatcher.addHandlerOneTime(exactPath(POD_PATH + "/" + getName(pod)).and(method("GET")),
+        mockRequestDispatcher.addHandlerOneTime(
+            exactPath(POD_PATH + "/" + getName(pod)).and(method("GET")),
             request -> new MockResponse().setBody(toJson(pod)).setResponseCode(HttpURLConnection.HTTP_OK));
+    }
+
+    protected void mockGetPodNotFound(String podName) {
+        mockRequestDispatcher.addHandlerOneTime(
+            exactPath(POD_PATH + "/" + podName).and(method("GET")),
+            request -> new MockResponse().setResponseCode(HttpURLConnection.HTTP_NOT_FOUND));
     }
 
     protected void mockGetPv(PersistentVolume pv) {
@@ -230,6 +241,18 @@ public abstract class AllocatorApiTestBase extends IamOnlyAllocatorContextTests 
         mockRequestDispatcher.addHandlerOneTime(
             exactPath(PERSISTENT_VOLUME_PATH + "/" + pvName).and(method("GET")),
             request -> new MockResponse().setResponseCode(HttpURLConnection.HTTP_NOT_FOUND));
+    }
+
+    protected void mockExecInPod(Pod pod) {
+        mockRequestDispatcher.addHandlerUnlimited(
+            startsWithPath(POD_PATH + "/" + getName(pod) + "/exec").and(method("GET")),
+            request -> new MockResponse().withWebSocketUpgrade(new WebSocketListener() {
+                @Override
+                public void onOpen(@Nonnull WebSocket webSocket, @Nonnull Response response) {
+                    super.onOpen(webSocket, response);
+                    webSocket.close(1000, "");
+                }
+            }));
     }
 
     @Nonnull

@@ -35,7 +35,8 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     private Volume volume;
     private VolumeClaim volumeClaim;
     private ClusterPod mountPod;
-    private boolean podStarted;
+    private boolean podStarted = false;
+    private boolean bindMounted = false;
     @Nullable
     private UnmountDynamicDiskAction unmountAction;
     private List<DynamicMount> activeMounts;
@@ -58,7 +59,7 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
     protected List<Supplier<StepResult>> steps() {
         return List.of(this::createVolumeIfNotExists, this::createVolumeClaimIfNotExists, this::setVolumeInfo,
             this::prepareActiveMounts, this::getNextMountPodId, this::createNewMountPod, this::waitForPod,
-            this::updateVmMountPod, this::deleteOldMountPods, this::checkIfVmStillExists,
+            this::updateVmMountPod, this::bindMountInsideVm, this::deleteOldMountPods, this::checkIfVmStillExists,
             this::setDynamicMountReady);
     }
 
@@ -298,6 +299,44 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         } catch (Exception e) {
             log().error("{} Failed to update vm with new mount pod {}", logPrefix(), mountPod.podName(), e);
             fail(Status.CANCELLED.withDescription("Failed to update vm with new mount pod"));
+        }
+        return StepResult.CONTINUE;
+    }
+
+    private StepResult bindMountInsideVm() {
+        if (bindMounted) {
+            return StepResult.ALREADY_DONE;
+        }
+
+        var fromPath = dynamicMount.mountPath();
+        var toPath = dynamicMount.bindPath();
+        var chown = dynamicMount.bindOwner();
+        log().info("{} Mounting bind mount {} to {}", logPrefix(), fromPath, toPath);
+
+        try {
+            final var result = allocationContext.allocator().bindMountInVm(vm, fromPath, toPath, chown);
+            switch (result.code()) {
+                case SUCCESS -> bindMounted = true;
+                case FAILED -> {
+                    log().error("{} Failed to bind mount from {} to {}: {}",
+                        logPrefix(), fromPath, toPath, result.message());
+                    fail(Status.CANCELLED
+                        .withDescription("Failed to bind mount " + fromPath + " to " + toPath + " inside vm"));
+                    return StepResult.FINISH;
+                }
+                case RETRY_LATER -> {
+                    log().warn("{} Failed to bind mount {} to {}: {}. Retry later",
+                        logPrefix(), fromPath, toPath, result.message());
+                    return StepResult.RESTART;
+                }
+            }
+        } catch (Exception e) {
+            if (e instanceof KubernetesClientException ke && KuberUtils.isRetryable(ke)) {
+                return StepResult.RESTART;
+            }
+            log().error("{} Failed to bind mount from {} to {}", logPrefix(), fromPath, toPath, e);
+            fail(Status.CANCELLED.withDescription("Failed to bind mount " + fromPath + " to " + toPath + " inside vm"));
+            return StepResult.FINISH;
         }
         return StepResult.CONTINUE;
     }

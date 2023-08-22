@@ -179,7 +179,6 @@ public abstract class LzyContextTests implements AllocatorBeans, GraphExecutorBe
 
         var allocatorConfigOverrides = Map.<String, Object>of(
             "allocator.instance-id", "xxx",
-            "allocator.nfs-client-image", "xxx",
             "allocator.kuber-allocator.enabled", false,
             "allocator.thread-allocator.enabled", true,
             "allocator.thread-allocator.vm-jar-file", "../lzy/worker/target/worker.jar",

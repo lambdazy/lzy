@@ -68,7 +68,10 @@ public interface VmAllocator {
 
     Result getVmAllocationStatus(Vm vm) throws InvalidConfigurationException;
 
-    void unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException;
+    Result unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException;
+
+    Result bindMountInVm(Vm vm, String fromPath, String toPath, @Nullable String chown)
+        throws InvalidConfigurationException;
 
     /**
      * Idempotent operation to destroy vm

@@ -53,7 +53,8 @@ public class GraphDaoImpl implements GraphDao {
     private static final String GRAPH_GET_BY_INSTANCE_STATEMENT = """
         SELECT %s
         FROM graph
-        WHERE owner_instance_id = ? AND status NOT IN ('FAILED', 'COMPLETED')""".formatted(GRAPH_SELECT_FIELDS_LIST);
+        WHERE owner_instance_id = ?
+          AND status NOT IN ('FAILED', 'COMPLETED')""".formatted(GRAPH_SELECT_FIELDS_LIST);
 
     private final GraphExecutorDataSource storage;
     private final ServiceConfig config;
@@ -126,7 +127,7 @@ public class GraphDaoImpl implements GraphDao {
     }
 
     @Override
-    public List<GraphState> getActiveByInstance(String instanceId) throws SQLException {
+    public List<GraphState> loadActiveGraphs(String instanceId) throws SQLException {
         try (var connection = storage.connect();
              PreparedStatement st = connection.prepareStatement(GRAPH_GET_BY_INSTANCE_STATEMENT))
         {

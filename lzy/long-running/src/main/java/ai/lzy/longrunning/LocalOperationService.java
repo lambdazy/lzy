@@ -218,6 +218,27 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         response.onCompleted();
     }
 
+    @Nullable
+    public OperationSnapshot cancel(String opId, String reason) {
+        var op = operations.get(opId);
+        if (op != null) {
+            LOG.debug("[{}] Got operation: { opId: {} }", name, opId);
+
+            synchronized (op.operation.id()) {
+                op.operation.completeWith(Status.CANCELLED.withDescription(reason));
+                op.operation.id().notifyAll();
+
+                if (op.thread != null) {
+                    op.thread.interrupt();
+                }
+
+                return OperationSnapshot.of(op.operation);
+            }
+        }
+        LOG.error("[{}] Operation not found: { opId: {} }", name, opId);
+        return null;
+    }
+
     @Override
     public void cancel(CancelOperationRequest request, StreamObserver<LongRunning.Operation> response) {
         LOG.info("Cancelling operation {} with message {}", request.getOperationId(), request.getMessage());
@@ -231,7 +252,6 @@ public class LocalOperationService extends LongRunningServiceGrpc.LongRunningSer
         }
 
         synchronized (op.operation.id()) {
-
             op.operation.completeWith(Status.CANCELLED.withDescription(request.getMessage()));
             op.operation.id().notifyAll();
 
