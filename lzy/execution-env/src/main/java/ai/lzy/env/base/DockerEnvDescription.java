@@ -30,7 +30,7 @@ public record DockerEnvDescription(
             '}';
     }
 
-    public record MountDescription(String source, String target, boolean isRshared) { }
+    public record MountDescription(String source, String target, boolean isRshared, boolean isReadOnly) { }
 
     public static class Builder {
 
@@ -50,13 +50,23 @@ public record DockerEnvDescription(
             return this;
         }
 
+        public Builder addMount(String source, String target, boolean readOnly) {
+            mounts.add(new MountDescription(source, target, false, readOnly));
+            return this;
+        }
+
         public Builder addMount(String source, String target) {
-            mounts.add(new MountDescription(source, target, false));
+            mounts.add(new MountDescription(source, target, false, false));
+            return this;
+        }
+
+        public Builder addRsharedMount(String source, String target, boolean readOnly) {
+            mounts.add(new MountDescription(source, target, true, readOnly));
             return this;
         }
 
         public Builder addRsharedMount(String source, String target) {
-            mounts.add(new MountDescription(source, target, true));
+            mounts.add(new MountDescription(source, target, true, false));
             return this;
         }
 

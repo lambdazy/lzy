@@ -78,7 +78,12 @@ public class DockerEnvironment extends BaseEnvironment {
 
         final List<Mount> dockerMounts = new ArrayList<>();
         config.mounts().forEach(m -> {
-            var mount = new Mount().withType(MountType.BIND).withSource(m.source()).withTarget(m.target());
+            var mount = new Mount()
+                .withType(MountType.BIND)
+                .withReadOnly(m.isReadOnly())
+                .withSource(m.source())
+                .withTarget(m.target());
+
             if (m.isRshared()) {
                 mount.withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED));
             }
