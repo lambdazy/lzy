@@ -1,9 +1,12 @@
 package ai.lzy.graph;
 
 import ai.lzy.graph.config.ServiceConfig;
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.longrunning.OperationsService;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -47,7 +50,9 @@ public class GraphExecutor {
         LOG.info("Starting GraphExecutor2 service...");
 
         var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
-        var internalUserOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
+        var internalUserOnly = new AccessServerInterceptor(
+            new AccessServiceGrpcClient(APP, iamChannel),
+            config.getIam().createRenewableToken()::get, Root.INSTANCE, AuthPermission.INTERNAL_AUTHORIZE);
 
         server = newGrpcServer("0.0.0.0", config.getPort(), auth)
             .addService(ServerInterceptors.intercept(graphExecutorApi, internalUserOnly))
