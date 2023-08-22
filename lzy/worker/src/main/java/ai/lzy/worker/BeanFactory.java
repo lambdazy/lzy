@@ -50,7 +50,7 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Named("InternalOnly")
+    @Named("WorkerInternalOnlyInterceptor")
     public AccessServerInterceptor internalOnlyInterceptor(ServiceConfig config,
                                                           @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel)
     {
@@ -66,7 +66,7 @@ public class BeanFactory {
     public Server server(ServiceConfig config,
                          @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel,
                          @Named("WorkerOperationService") LocalOperationService localOperationService,
-                         @Named("InternalOnly") AccessServerInterceptor internalOnly,
+                         @Named("WorkerInternalOnlyInterceptor") AccessServerInterceptor internalOnly,
                          WorkerApiImpl workerApi)
     {
         var app = "Worker-" + config.getVmId();

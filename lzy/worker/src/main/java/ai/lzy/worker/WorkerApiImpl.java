@@ -71,7 +71,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     public WorkerApiImpl(ServiceConfig config, EnvironmentFactory environmentFactory,
                          @Named("WorkerOperationService") LocalOperationService localOperationService,
                          @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel,
-                         @Named("InternalOnly") AccessServerInterceptor internalOnly,
+                         @Named("WorkerInternalOnlyInterceptor") AccessServerInterceptor internalOnly,
                          @Named("WorkerKafkaHelper") KafkaHelper helper)
     {
         this.config = config;
