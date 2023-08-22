@@ -1,14 +1,19 @@
 package ai.lzy.worker;
 
 import ai.lzy.allocator.AllocatorAgent;
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.longrunning.LocalOperationService;
+import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.util.kafka.KafkaHelper;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
+import ai.lzy.v1.worker.WorkerApiGrpc;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -16,6 +21,8 @@ import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
+
+import java.util.Set;
 
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcServer;
 
@@ -42,17 +49,28 @@ public class BeanFactory {
         return GrpcUtils.newGrpcChannel(config.getChannelManagerAddress(), LzyChannelManagerGrpc.SERVICE_NAME);
     }
 
+    @Singleton
+    @Named("WorkerInternalOnlyInterceptor")
+    public AccessServerInterceptor internalOnlyInterceptor(ServiceConfig config,
+                                                          @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel)
+    {
+        var app = "Worker-" + config.getVmId();
+        return new AccessServerInterceptor(
+            new AccessServiceGrpcClient(app, iamChannel), () -> new JwtCredentials("empty"),
+            Set.of(WorkerApiGrpc.getInitMethod()), Root.INSTANCE, AuthPermission.INTERNAL_AUTHORIZE);
+    }
+
     @Bean(preDestroy = "shutdown")
     @Singleton
     @Named("WorkerServer")
     public Server server(ServiceConfig config,
                          @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel,
                          @Named("WorkerOperationService") LocalOperationService localOperationService,
+                         @Named("WorkerInternalOnlyInterceptor") AccessServerInterceptor internalOnly,
                          WorkerApiImpl workerApi)
     {
         var app = "Worker-" + config.getVmId();
         var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(app, iamChannel));
-        var internalOnly = new AllowInternalUserOnlyInterceptor(app, iamChannel);
 
         return newGrpcServer("0.0.0.0", config.getApiPort(), auth)
             .addService(ServerInterceptors.intercept(workerApi, internalOnly))

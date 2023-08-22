@@ -31,6 +31,7 @@ public enum Role {
         AuthPermission.WORKFLOW_STOP,
         AuthPermission.WORKFLOW_RUN,
         AuthPermission.WORKFLOW_DELETE,
+        AuthPermission.WORKFLOW_MANAGE,
         AuthPermission.INTERNAL_AUTHORIZE
     )),
     LZY_WORKER("lzy.internal.worker", Set.of(

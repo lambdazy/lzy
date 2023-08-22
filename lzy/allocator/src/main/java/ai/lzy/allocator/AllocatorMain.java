@@ -12,13 +12,13 @@ import ai.lzy.allocator.services.VmPoolService;
 import ai.lzy.iam.clients.AccessClient;
 import ai.lzy.iam.clients.AuthenticateService;
 import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.longrunning.OperationsService;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
+import ai.lzy.util.auth.credentials.RenewableJwt;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
@@ -63,6 +63,7 @@ public class AllocatorMain {
                          GarbageCollector gc,
                          VmPoolService vmPool,
                          VmDao vmDao,
+                         @Named("AllocatorIamToken") RenewableJwt token,
                          @Named("AllocatorOperationsService") OperationsService operationsService,
                          @Named("AllocatorAuthClient") AuthenticateService authClient,
                          @Named("AllocatorAccessClient") AccessClient accessClient,
@@ -94,9 +95,11 @@ public class AllocatorMain {
         var builder = newGrpcServer("0.0.0.0", address.getPort(), auth)
             .intercept(MetricsGrpcInterceptor.server(APP));
 
-        var internalOnly = new AllowInternalUserOnlyInterceptor(accessClient);
+        var internalOnly =
+            new AccessServerInterceptor(accessClient, token::get, Root.INSTANCE, AuthPermission.INTERNAL_AUTHORIZE);
         var vmOttAuth = new VmOttAuthInterceptor(vmDao, AllocatorPrivateGrpc.getRegisterMethod());
-        var adminAuth = new AccessServerInterceptor(accessClient, Root.INSTANCE, AuthPermission.INTERNAL_UPDATE_IMAGES);
+        var adminAuth =
+            new AccessServerInterceptor(accessClient, token::get, Root.INSTANCE, AuthPermission.INTERNAL_UPDATE_IMAGES);
 
         builder.addService(ServerInterceptors.intercept(allocator, internalOnly));
         builder.addService(ServerInterceptors.intercept(allocatorPrivate, vmOttAuth));

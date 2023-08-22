@@ -7,9 +7,12 @@ import ai.lzy.graph.db.GraphExecutionDao;
 import ai.lzy.graph.model.GraphDescription;
 import ai.lzy.graph.model.GraphExecutionState;
 import ai.lzy.graph.queue.QueueManager;
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.longrunning.IdempotencyUtils;
 import ai.lzy.longrunning.Operation;
 import ai.lzy.longrunning.dao.OperationDao;
@@ -268,7 +271,9 @@ public class GraphExecutorApi extends GraphExecutorGrpc.GraphExecutorImplBase {
 
         queueManager.start();
 
-        final var internalUserOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
+        final var internalUserOnly = new AccessServerInterceptor(
+            new AccessServiceGrpcClient(APP, iamChannel),
+            config.getIam().createRenewableToken()::get, Root.INSTANCE, AuthPermission.INTERNAL_AUTHORIZE);
 
         server =
             newGrpcServer("0.0.0.0", config.getPort(),

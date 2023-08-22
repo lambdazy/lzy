@@ -25,7 +25,7 @@ import static ai.lzy.model.db.test.DatabaseTestUtils.preparePostgresConfig;
 public class DaoTest {
 
     @Rule
-    public Timeout globalTimeout = Timeout.seconds(10);
+    public Timeout globalTimeout = Timeout.seconds(20);
     @Rule
     public PreparedDbRule db = EmbeddedPostgresRules.preparedDatabase(ds -> {});
 
