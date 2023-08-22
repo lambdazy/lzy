@@ -3,8 +3,11 @@ package ai.lzy.test;
 import ai.lzy.env.aux.CondaEnvironment;
 import ai.lzy.slots.transfers.SlotInputTransfer;
 import ai.lzy.test.context.PythonContextTests;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.List;
 
 public class PyApiTest extends PythonContextTests {
@@ -12,6 +15,18 @@ public class PyApiTest extends PythonContextTests {
         CondaEnvironment.reconfigureConda(false);  // To optimize conda configuration
 
         SlotInputTransfer.setMaxRetryAttempts(2);
+    }
+
+    @Before
+    public void before() throws IOException, InterruptedException {
+        super.before();
+        CondaEnvironment.reconfigureConda(false);
+    }
+
+    @After
+    public void after() {
+        CondaEnvironment.reconfigureConda(false);
+        super.after();
     }
 
     @Test
@@ -52,17 +67,12 @@ public class PyApiTest extends PythonContextTests {
     public void testEnvFail() {
         CondaEnvironment.reconfigureConda(true);
         evalAndAssertScenarioResult("env_fail");
-        CondaEnvironment.reconfigureConda(false);
     }
 
     @Test
     public void testCustomCondaAndSerializer() {
         CondaEnvironment.reconfigureConda(true);
-        try {
-            evalAndAssertScenarioResult("custom_conda_and_serializer");
-        } finally {
-            CondaEnvironment.reconfigureConda(false);
-        }
+        evalAndAssertScenarioResult("custom_conda_and_serializer");
     }
 
     @Test
@@ -72,7 +82,6 @@ public class PyApiTest extends PythonContextTests {
          */
         CondaEnvironment.reconfigureConda(true);
         evalAndAssertScenarioResult("import");
-        CondaEnvironment.reconfigureConda(false);
     }
 
     @Test
@@ -82,7 +91,6 @@ public class PyApiTest extends PythonContextTests {
          */
         CondaEnvironment.reconfigureConda(true);
         evalAndAssertScenarioResult("nested_workflows");
-        CondaEnvironment.reconfigureConda(false);
     }
 
     @Test

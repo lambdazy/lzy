@@ -25,3 +25,6 @@ Configuration:
 
       - name: "ai.lzy.allocator.gc"
         level: warn
+
+      - name: "ai.lzy.env.aux.CondaEnvironment"
+        level: debug

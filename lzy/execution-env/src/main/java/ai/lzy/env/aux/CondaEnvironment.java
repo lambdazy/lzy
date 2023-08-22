@@ -80,6 +80,9 @@ public class CondaEnvironment implements AuxEnvironment {
             }
 
             if (RECONFIGURE_CONDA) {
+                LOG.debug("Installed packages: {}", condaPackageRegistry.envs());
+                LOG.debug("New packages: {}", condaYaml);
+
                 if (condaPackageRegistry.isInstalled(condaYaml)) {
 
                     LOG.info("Conda env {} already configured, skipping", envName);

@@ -87,7 +87,7 @@ public abstract class PythonContextTests extends LzyContextTests {
     }
 
     @After
-    public final void after() {
+    public void after() {
         try {
             Files.delete(file);
         } catch (IOException e) {

@@ -6,6 +6,7 @@ import org.apache.logging.log4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,6 +33,10 @@ public class CondaPackageRegistry {
                 }
             }
         }
+    }
+
+    public Map<String, Map<String, Package>> envs() {
+        return Collections.unmodifiableMap(envs);
     }
 
     private record Package(String name, String version) {
