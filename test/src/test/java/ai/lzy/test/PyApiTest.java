@@ -90,6 +90,7 @@ public class PyApiTest extends PythonContextTests {
                 1. Workflow that is run from another workflow
          */
         CondaEnvironment.reconfigureConda(true);
+        CondaEnvironment.DELETE_CONDA.set(true);
         evalAndAssertScenarioResult("nested_workflows");
     }
 

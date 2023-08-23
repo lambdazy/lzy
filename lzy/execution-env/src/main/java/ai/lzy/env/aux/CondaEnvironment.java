@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -27,6 +28,7 @@ import static ai.lzy.env.aux.AuxEnvironment.installLocalModules;
 
 public class CondaEnvironment implements AuxEnvironment {
     private static volatile boolean RECONFIGURE_CONDA = true;  // Only for tests
+    public static final AtomicBoolean DELETE_CONDA = new AtomicBoolean(false);
 
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
     private static final Lock lockForMultithreadingTests = new ReentrantLock();
@@ -82,6 +84,33 @@ public class CondaEnvironment implements AuxEnvironment {
             if (RECONFIGURE_CONDA) {
                 LOG.debug("Installed packages: {}", condaPackageRegistry.envs());
                 LOG.debug("New packages: {}", condaYaml);
+
+                if (DELETE_CONDA.compareAndSet(true, false)) {
+                    LOG.debug("Remove conda...");
+
+                    var proc = new ProcessBuilder()
+                        .command(
+                            "bash",
+                            "-c",
+                            "eval \"$(conda shell.bash hook)\" && conda env remove -n " + envName)
+                        .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+                        .redirectError(ProcessBuilder.Redirect.INHERIT)
+                        .start();
+
+                    final int rc;
+                    try {
+                        rc = proc.waitFor();
+                    } catch (InterruptedException e) {
+                        LOG.error("Cannot delete conda", e);
+                        throw new EnvironmentInstallationException("Environment installation cancelled");
+                    }
+                    if (rc != 0) {
+                        String errorMessage = "Failed to delete conda env\n"
+                            + "  ReturnCode: " + rc + "\n"
+                            + "See your stdout/stderr to see more info";
+                        LOG.error(errorMessage);
+                    }
+                }
 
                 if (condaPackageRegistry.isInstalled(condaYaml)) {
 
