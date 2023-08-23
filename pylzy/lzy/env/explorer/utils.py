@@ -109,7 +109,7 @@ def get_files_to_distributions() -> Dict[str, Distribution]:
     with TemporaryDirectory() as tmp:
         with change_working_directory(tmp):
             for distribution in importlib_metadata.distributions():
-                for filename in distribution.files:
+                for filename in distribution.files or ():
                     fullpath = distribution.locate_file(filename)
                     result[str(fullpath)] = distribution
 

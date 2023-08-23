@@ -245,7 +245,7 @@ class ModuleClassifier:
 
         base_path = distribution.locate_file('')
 
-        for path in distribution.files:
+        for path in distribution.files or ():
             abs_path = distribution.locate_file(path).resolve()
             if base_path not in abs_path.parents:
                 bad_paths.add(str(abs_path))
@@ -253,8 +253,8 @@ class ModuleClassifier:
 
             rel_path = abs_path.relative_to(base_path)
             first_part = rel_path.parts[0]
-            path = base_path / first_part
-            paths.add(str(path))
+            result_path = base_path / first_part
+            paths.add(str(result_path))
 
         return frozenset(paths), frozenset(bad_paths)
 
