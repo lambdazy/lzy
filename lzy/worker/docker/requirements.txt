@@ -1,2 +1,2 @@
-catboost==1.0.3
+catboost>=1.0.3
 pure-protobuf>=2.1.1
