@@ -139,7 +139,7 @@ class AutomaticPyEnvProvider(PyEnvProvider):
                         # a really unused
                         remote_packages[package_name] = package_version
 
-                        files = [str(distribution.locate_file(f)) for f in distribution.files]
+                        files = [str(distribution.locate_file(f)) for f in distribution.files or ()]
                         remote_packages_files.update(files)
                     else:
                         local_packages.add(package_name)
