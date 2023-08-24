@@ -28,6 +28,9 @@ allocator:
   mock-mk8s:
     enabled: true
 
+  credentials:
+    type: 'jwt'
+
   iam:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"

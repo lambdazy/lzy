@@ -8,7 +8,7 @@ import java.util.Date;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-public class RenewableJwt {
+public class RenewableJwt implements RenewableToken {
     private static final long LIFETIME_GAP_SEC = Duration.ofMinutes(5).toSeconds();
 
     private final String issuer;
@@ -32,7 +32,8 @@ public class RenewableJwt {
         current.set(createNewToken());
     }
 
-    public JwtCredentials get() {
+    @Override
+    public Credentials get() {
         var ts = now().getEpochSecond();
         var candidate = current.get();
         if (candidate.deadline.getEpochSecond() - ts > LIFETIME_GAP_SEC) {
