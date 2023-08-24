@@ -37,15 +37,15 @@ public class YcKafkaAdminClient implements KafkaAdminClient {
     private final TopicServiceBlockingStub topicStub;
     private final OperationServiceBlockingStub operationStub;
 
-    public YcKafkaAdminClient(KafkaConfig config) {
+    public YcKafkaAdminClient(String endpoint, String clusterId, String serviceAccountFile, String iamEndpoint) {
         var provider = Auth.apiKeyBuilder()
-            .fromFile(Path.of(/*config.getYcKafka().getServiceAccountFile()*/ "service_account_file"))
-            .cloudIAMEndpoint(/*config.getYcKafka().getIamEndpoint()*/ "iam_endpoint")
+            .fromFile(Path.of(serviceAccountFile))
+            .cloudIAMEndpoint(iamEndpoint)
             .build();
 
         var factory = ServiceFactory.builder()
             .credentialProvider(provider)
-            .endpoint(/*config.getYcKafka().getEndpoint()*/ "endpoint")
+            .endpoint(endpoint)
             .requestTimeout(YC_CALL_TIMEOUT)
             .build();
 
@@ -53,7 +53,7 @@ public class YcKafkaAdminClient implements KafkaAdminClient {
         operationStub = factory.create(OperationServiceBlockingStub.class, OperationServiceGrpc::newBlockingStub);
         topicStub = factory.create(TopicServiceBlockingStub.class, TopicServiceGrpc::newBlockingStub);
 
-        clusterId = /*config.getYcKafka().getClusterId()*/ "42";
+        this.clusterId = clusterId;
     }
 
     @Override
@@ -109,7 +109,6 @@ public class YcKafkaAdminClient implements KafkaAdminClient {
 
     @Override
     public void grantPermission(String username, String topicName) {
-
         final OperationOuterClass.Operation op = stub.grantPermission(GrantUserPermissionRequest.newBuilder()
             .setClusterId(clusterId)
             .setUserName(username)
