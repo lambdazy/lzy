@@ -113,21 +113,21 @@ public class BeanFactory {
 
     @Singleton
     @Requires(property = "allocator.credentials.type", value = "jwt")
-    @Named("RenewableToken")
+    @Named("AllocatorRenewableToken")
     public RenewableToken renewableJwtToken(ServiceConfig config) {
         return config.getIam().createRenewableToken();
     }
 
     @Singleton
     @Requires(property = "allocator.credentials.type", value = "yc")
-    @Named("RenewableToken")
+    @Named("AllocatorRenewableToken")
     public RenewableToken renewableIamToken(CredentialProvider credentialProvider) {
         return new RenewableYCToken(() -> credentialProvider.get().getToken());
     }
 
     @Singleton
     @Named("AllocatorIamToken")
-    public RenewableToken renewableIamToken(@Named("RenewableToken") RenewableToken token) {
+    public RenewableToken renewableIamToken(@Named("AllocatorRenewableToken") RenewableToken token) {
         return token;
     }
 
