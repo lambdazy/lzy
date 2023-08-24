@@ -119,6 +119,7 @@ jobs:
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh /tmp/gen-rsa-keys*
           sudo rm -rf /tmp/kafka-logs* /tmp/zookeeper-logs* /tmp/s3mockFileStore* /tmp/Log4j2Plugins*
+          rm -rf pylzy/ai
 
       - name: 'install python test env'
         run: |
@@ -129,7 +130,7 @@ jobs:
         run: |
           cd pylzy/
           eval "$(conda shell.bash hook)" && ./scripts/build.sh
-          eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
+          eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall --upgrade --no-cache
           cd ..
 
       - name: 'java compile'
