@@ -18,7 +18,7 @@ import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.longrunning.OperationsService;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.MetricsGrpcInterceptor;
-import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.auth.credentials.RenewableToken;
 import ai.lzy.v1.AllocatorPrivateGrpc;
 import com.google.common.net.HostAndPort;
 import io.grpc.Server;
@@ -63,7 +63,7 @@ public class AllocatorMain {
                          GarbageCollector gc,
                          VmPoolService vmPool,
                          VmDao vmDao,
-                         @Named("AllocatorIamToken") RenewableJwt token,
+                         @Named("AllocatorIamToken") RenewableToken token,
                          @Named("AllocatorOperationsService") OperationsService operationsService,
                          @Named("AllocatorAuthClient") AuthenticateService authClient,
                          @Named("AllocatorAccessClient") AccessClient accessClient,

@@ -211,7 +211,7 @@ public class WorkerTests extends IamOnlyWorkerTests {
 
         var workerJwt = new RenewableJwt(workerId, "INTERNAL", Duration.ofDays(1),
             CredentialsUtils.readPrivateKey(workerKeys.privateKey()));
-        return workerJwt.get();
+        return (JwtCredentials) workerJwt.get();
     }
 
     private static WorkerTests.WorkerDesc startWorker(String uid, String workflowName) throws Exception {

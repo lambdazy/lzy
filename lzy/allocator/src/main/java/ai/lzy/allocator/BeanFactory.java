@@ -22,7 +22,8 @@ import ai.lzy.metrics.LogMetricReporter;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.metrics.PrometheusMetricReporter;
 import ai.lzy.util.auth.credentials.JwtCredentials;
-import ai.lzy.util.auth.credentials.RenewableJwt;
+import ai.lzy.util.auth.credentials.RenewableToken;
+import ai.lzy.util.auth.credentials.RenewableYCToken;
 import ai.lzy.util.grpc.GrpcUtils;
 import ai.lzy.v1.iam.LzyAuthenticateServiceGrpc;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -111,15 +112,29 @@ public class BeanFactory {
     }
 
     @Singleton
-    @Named("AllocatorIamToken")
-    public RenewableJwt renewableIamToken(ServiceConfig config) {
+    @Requires(property = "allocator.credentials.type", value = "jwt")
+    @Named("RenewableToken")
+    public RenewableToken renewableJwtToken(ServiceConfig config) {
         return config.getIam().createRenewableToken();
+    }
+
+    @Singleton
+    @Requires(property = "allocator.credentials.type", value = "yc")
+    @Named("RenewableToken")
+    public RenewableToken renewableIamToken(CredentialProvider credentialProvider) {
+        return new RenewableYCToken(() -> credentialProvider.get().getToken());
+    }
+
+    @Singleton
+    @Named("AllocatorIamToken")
+    public RenewableToken renewableIamToken(@Named("RenewableToken") RenewableToken token) {
+        return token;
     }
 
     @Singleton
     @Named("AllocatorSubjectServiceClient")
     public SubjectServiceGrpcClient subjectServiceClient(@Named("AllocatorIamGrpcChannel") ManagedChannel iamChannel,
-                                                         @Named("AllocatorIamToken") RenewableJwt iamToken)
+                                                         @Named("AllocatorIamToken") RenewableToken iamToken)
     {
         return new SubjectServiceGrpcClient(AllocatorMain.APP, iamChannel, iamToken::get);
     }
