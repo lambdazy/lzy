@@ -1,5 +1,6 @@
-protobuf==3.19.4
-grpcio-status==1.43.0
-grpcio-tools==1.43.0
-grpcio==1.43.0
-mypy-protobuf==3.3.0
+googleapis-common-protos>=1.56.3
+grpcio-status>=1.46.0
+grpcio-tools>=1.46.0
+grpcio>=1.46.0
+mypy-protobuf>=3.3.0
+protobuf>=4.21.1
