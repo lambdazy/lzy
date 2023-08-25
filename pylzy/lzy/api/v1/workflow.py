@@ -11,6 +11,8 @@ from typing import (
     TypeVar, cast, Set, )
 
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
+from grpc.aio import AioRpcError
+
 from lzy.api.v1.env import Env
 from lzy.api.v1.provisioning import Provisioning
 from lzy.api.v1.snapshot import Snapshot, DefaultSnapshot
@@ -41,15 +43,15 @@ class LzyWorkflow:
         return cls.instance
 
     def __init__(
-        self,
-        name: str,
-        owner: "Lzy",
-        env: Env,
-        provisioning: Provisioning,
-        auto_py_env: PyEnv,
-        *,
-        eager: bool = False,
-        interactive: bool = True
+            self,
+            name: str,
+            owner: "Lzy",
+            env: Env,
+            provisioning: Provisioning,
+            auto_py_env: PyEnv,
+            *,
+            eager: bool = False,
+            interactive: bool = True
     ):
         if not is_name_valid(name):
             raise ValueError(f"Invalid workflow name. Name can contain only {NAME_VALID_SYMBOLS}")
@@ -145,6 +147,8 @@ class LzyWorkflow:
             self.__snapshot = DefaultSnapshot(self.owner.serializer_registry, storage_uri, self.owner.storage_client,
                                               self.owner.storage_name)
             return self
+        except AioRpcError as e:
+            raise e
         except Exception as e:
             try:
                 self.__abort()
@@ -167,6 +171,8 @@ class LzyWorkflow:
         finally:
             if exc_type is None:
                 self.__destroy()
+            elif exc_type is AioRpcError:
+                raise exc_val
             else:
                 try:
                     self.__abort()
