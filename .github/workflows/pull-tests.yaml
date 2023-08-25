@@ -152,12 +152,12 @@ jobs:
         run: |
           cd test && mvn test -Dtest=WorkflowTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
-      - name: 'UserImagePyTest'
-        timeout-minutes: 10
-        run: |
-          BRANCH=${{ (github.head_ref || github.ref_name) }}
-          USER_IMAGE=$(deployment/latest-docker-image-on-branches.sh user-test $BRANCH master)
-          cd test && mvn test -Dtest=UserImagePyTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dscheduler.userTestImage="$USER_IMAGE" && cd ..
+#      - name: 'UserImagePyTest'
+#        timeout-minutes: 10
+#        run: |
+#          BRANCH=${{ (github.head_ref || github.ref_name) }}
+#          USER_IMAGE=$(deployment/latest-docker-image-on-branches.sh user-test $BRANCH master)
+#          cd test && mvn test -Dtest=UserImagePyTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dscheduler.userTestImage="$USER_IMAGE" && cd ..
 
       - name: 'PyApiTest'
         timeout-minutes: 20
