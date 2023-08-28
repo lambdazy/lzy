@@ -1,8 +1,11 @@
 package ai.lzy.service;
 
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.grpc.interceptors.AllowSubjectOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.metrics.MetricReporter;
 import ai.lzy.service.config.LzyServiceConfig;
 import ai.lzy.service.gc.GarbageCollector;
@@ -49,7 +52,9 @@ public class App {
         this.config = config;
         this.metricReporter = metricReporter;
         this.garbageCollector = garbageCollector;
-        final var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
+        final var internalOnly = new AccessServerInterceptor(
+            new AccessServiceGrpcClient(APP, iamChannel),
+            config.getIam().createRenewableToken()::get, Root.INSTANCE, AuthPermission.INTERNAL_AUTHORIZE);
         this.grpcServer = createServer(
             HostAndPort.fromString(config.getAddress()),
             clientVersionInterceptor,

@@ -1,8 +1,11 @@
 package ai.lzy.kafka.s3sink;
 
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.util.grpc.GrpcUtils;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
@@ -20,6 +23,7 @@ import java.io.IOException;
 @Singleton
 public class Main {
     private static final Logger LOG = LogManager.getLogger(Main.class);
+    private static final String APP = "S3Sink";
 
     private final Server server;
 
@@ -27,8 +31,10 @@ public class Main {
                 ServiceConfig config)
     {
 
-        var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient("S3Sink", iamChannel));
-        var internalOnly = new AllowInternalUserOnlyInterceptor("S3Sink", iamChannel);
+        var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel));
+        var internalOnly = new AccessServerInterceptor(
+            new AccessServiceGrpcClient(APP, iamChannel),
+            config.getIam().createRenewableToken()::get, Root.INSTANCE, AuthPermission.INTERNAL_AUTHORIZE);
 
         server = GrpcUtils.newGrpcServer(HostAndPort.fromString(config.getAddress()), auth)
             .addService(ServerInterceptors.intercept(sinkService, internalOnly))

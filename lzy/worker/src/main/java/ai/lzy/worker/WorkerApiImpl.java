@@ -4,6 +4,9 @@ import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.Execution;
 import ai.lzy.env.aux.AuxEnvironment;
 import ai.lzy.env.logs.LogHandle;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Workflow;
 import ai.lzy.iam.resources.subjects.AuthProvider;
 import ai.lzy.logs.LogContextKey;
 import ai.lzy.longrunning.IdempotencyUtils;
@@ -50,6 +53,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     private final EnvironmentFactory envFactory;
     private final ServiceConfig config;
     private final ManagedChannel iamChannel;
+    private final AccessServerInterceptor internalOnly;
     private final KafkaHelper kafkaHelper;
 
     private record Owner(
@@ -67,10 +71,12 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
     public WorkerApiImpl(ServiceConfig config, EnvironmentFactory environmentFactory,
                          @Named("WorkerOperationService") LocalOperationService localOperationService,
                          @Named("WorkerIamGrpcChannel") ManagedChannel iamChannel,
+                         @Named("WorkerInternalOnlyInterceptor") AccessServerInterceptor internalOnly,
                          @Named("WorkerKafkaHelper") KafkaHelper helper)
     {
         this.config = config;
         this.iamChannel = iamChannel;
+        this.internalOnly = internalOnly;
         this.kafkaHelper = helper;
         this.operationService = localOperationService;
         this.envFactory = environmentFactory;
@@ -241,6 +247,10 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             }
 
             try {
+                internalOnly.configureToken(token::get);
+                internalOnly.configure(
+                    new Workflow(requester.userId() + "/" + request.getWorkflowName()), AuthPermission.WORKFLOW_MANAGE
+                );
                 slots = new Slots(
                     Path.of(config.getMountPoint()),
                     () -> token.get().token(),

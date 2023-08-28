@@ -3,10 +3,11 @@ package ai.lzy.slots;
 import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
 import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
+import ai.lzy.util.auth.credentials.Credentials;
+import ai.lzy.util.auth.credentials.JwtCredentials;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc;
 import ai.lzy.v1.channel.LzyChannelManagerGrpc.LzyChannelManagerBlockingStub;
 import ai.lzy.v1.channel.LzyChannelManagerPrivateGrpc;
@@ -58,15 +59,21 @@ public class Slots {
             LzyChannelManagerGrpc.newBlockingStub(channelManagerChannel), serviceName, token);
 
         slotsService = new SlotsService();
+        Supplier<Credentials> tokenSupplier = () -> new JwtCredentials(token.get());
 
         final var auth = new AuthServerInterceptor(new AuthenticateServiceGrpcClient(serviceName, iamChannel));
 
         var accessClient = new AccessServiceGrpcClient(serviceName, iamChannel);
-        var internalOnlyAccess = new AllowInternalUserOnlyInterceptor(
-            accessClient, Set.of(LzySlotsApiGrpc.getReadMethod()));
+        var workflowResource = new Workflow(ownerId + "/" + workflowName);
+        var internalOnlyAccess =
+            new AccessServerInterceptor(
+                accessClient, tokenSupplier, Set.of(LzySlotsApiGrpc.getReadMethod()),
+                workflowResource, AuthPermission.WORKFLOW_MANAGE
+            );
+
         var workflowAccess = new AccessServerInterceptor(
-            accessClient, Set.of(LzySlotsApiGrpc.getStartTransferMethod()),
-            new Workflow(ownerId + "/" + workflowName), AuthPermission.WORKFLOW_RUN);
+            accessClient, tokenSupplier, Set.of(LzySlotsApiGrpc.getStartTransferMethod()),
+            workflowResource, AuthPermission.WORKFLOW_RUN);
 
         server = newGrpcServer(slotsApiAddress, auth)
             .addService(ServerInterceptors.intercept(

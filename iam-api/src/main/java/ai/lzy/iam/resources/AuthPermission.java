@@ -6,6 +6,7 @@ public enum AuthPermission {
     WORKFLOW_RUN("lzy.workflow.run"),
     WORKFLOW_STOP("lzy.workflow.stop"),
     WORKFLOW_DELETE("lzy.workflow.delete"),
+    WORKFLOW_MANAGE("lzy.workflow.manage"),
 
     // Whiteboard permissions
     WHITEBOARD_GET("lzy.whiteboard.get"),

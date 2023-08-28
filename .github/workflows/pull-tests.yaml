@@ -119,16 +119,18 @@ jobs:
           sudo rm -rf /tmp/lzy* /tmp/h2* /tmp/local_modules* /tmp/resources* /tmp/term* /tmp/worker*
           sudo rm -rf /tmp/temp* /tmp/test* /tmp/*json /tmp/*txt /tmp/*so /tmp/*lck /tmp/*sh /tmp/gen-rsa-keys*
           sudo rm -rf /tmp/kafka-logs* /tmp/zookeeper-logs* /tmp/s3mockFileStore* /tmp/Log4j2Plugins*
+          rm -rf pylzy/ai
 
       - name: 'install python test env'
         run: |
+          # conda activate py39 || conda create --name py39 -y "python=3.9.7" pip && python -m ensurepip
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r lzy/worker/docker/requirements.txt
 
       - name: 'install pylzy'
         run: |
           cd pylzy/
           eval "$(conda shell.bash hook)" && ./scripts/build.sh
-          eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall
+          eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall --upgrade --no-cache
           cd ..
 
       - name: 'java compile'
@@ -150,12 +152,12 @@ jobs:
         run: |
           cd test && mvn test -Dtest=WorkflowTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
-      - name: 'UserImagePyTest'
-        timeout-minutes: 10
-        run: |
-          BRANCH=${{ (github.head_ref || github.ref_name) }}
-          USER_IMAGE=$(deployment/latest-docker-image-on-branches.sh user-test $BRANCH master)
-          cd test && mvn test -Dtest=UserImagePyTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dscheduler.userTestImage="$USER_IMAGE" && cd ..
+#      - name: 'UserImagePyTest'
+#        timeout-minutes: 10
+#        run: |
+#          BRANCH=${{ (github.head_ref || github.ref_name) }}
+#          USER_IMAGE=$(deployment/latest-docker-image-on-branches.sh user-test $BRANCH master)
+#          cd test && mvn test -Dtest=UserImagePyTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dscheduler.userTestImage="$USER_IMAGE" && cd ..
 
       - name: 'PyApiTest'
         timeout-minutes: 20

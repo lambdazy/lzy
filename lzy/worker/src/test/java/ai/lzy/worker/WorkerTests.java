@@ -211,7 +211,7 @@ public class WorkerTests extends IamOnlyWorkerTests {
 
         var workerJwt = new RenewableJwt(workerId, "INTERNAL", Duration.ofDays(1),
             CredentialsUtils.readPrivateKey(workerKeys.privateKey()));
-        return workerJwt.get();
+        return (JwtCredentials) workerJwt.get();
     }
 
     private static WorkerTests.WorkerDesc startWorker(String uid, String workflowName) throws Exception {
@@ -277,11 +277,11 @@ public class WorkerTests extends IamOnlyWorkerTests {
                     .get(LongRunning.GetOperationRequest.newBuilder().setOperationId("1").build()));
             Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
 
-            // WorkerApi Ops available for internal user
+            // WorkerApi Ops unavailable for internal user
             e = assertThrows(StatusRuntimeException.class, () ->
                 worker.workerApiOpStub(internalUser).get(
                     LongRunning.GetOperationRequest.newBuilder().setOperationId("1").build()));
-            Assert.assertEquals(e.toString(), Status.Code.NOT_FOUND, e.getStatus().getCode());
+            Assert.assertEquals(e.toString(), Status.Code.PERMISSION_DENIED, e.getStatus().getCode());
 
             // WorkerApi unavailable for any worker
             e = assertThrows(StatusRuntimeException.class, () ->

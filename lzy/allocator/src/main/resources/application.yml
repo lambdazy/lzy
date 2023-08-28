@@ -45,6 +45,9 @@ allocator:
     max-pool-size: 5
     enabled: false
 
+  credentials:
+    type: 'jwt'
+
   iam:
     address: 'localhost:8443'
     internal-user-name: "lzy-internal-user"
@@ -78,7 +81,6 @@ allocator:
       -----END RSA PRIVATE KEY-----
 
   yc-credentials:
-    service-account-file: '/tmp/sa-key.json'
     enabled: true
 
   disk-manager:

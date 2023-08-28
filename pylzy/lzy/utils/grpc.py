@@ -100,6 +100,8 @@ def build_channel(
     if not tls:
         return aio.insecure_channel(address, options=options, interceptors=interceptors)
 
+    raise NotImplementedError('tls are not supported yet')
+
 
 InterceptorFunction = Callable[
     [ClientCallDetails, AsyncIterable[RequestType]],
@@ -205,8 +207,12 @@ def add_headers_interceptor(headers: Mapping[str, str]) -> List[ClientIntercepto
 
         return new_details, request_iter, None
 
-    return [_GenericUnaryUnaryInterceptor(intercept), _GenericUnaryStreamInterceptor(intercept),
-            _GenericStreamUnaryInterceptor(intercept), _GenericStreamStreamInterceptor(intercept)]
+    return [
+        _GenericUnaryUnaryInterceptor(intercept),  # type: ignore
+        _GenericUnaryStreamInterceptor(intercept),  # type: ignore
+        _GenericStreamUnaryInterceptor(intercept),  # type: ignore
+        _GenericStreamStreamInterceptor(intercept)  # type: ignore
+    ]
 
 
 def metadata_with(idempotency_key: str) -> List[Tuple[str, str]]:

@@ -98,7 +98,7 @@ public class CondaEnvironment implements AuxEnvironment {
 
                     // Conda env create or update: https://github.com/conda/conda/issues/7819
                     final LzyProcess lzyProcess = execInEnv(
-                        String.format("conda env create --file %s  || conda env update --file %s",
+                        String.format("conda env create --file %s || conda env update --file %s",
                             condaFile.getAbsolutePath(),
                             condaFile.getAbsolutePath())
                     );

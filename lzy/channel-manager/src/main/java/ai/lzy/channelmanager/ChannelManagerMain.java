@@ -3,9 +3,12 @@ package ai.lzy.channelmanager;
 import ai.lzy.channelmanager.config.ChannelManagerConfig;
 import ai.lzy.channelmanager.services.ChannelService;
 import ai.lzy.channelmanager.services.SlotsService;
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Root;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -44,7 +47,9 @@ public class ChannelManagerMain {
 
         final var channelManagerAddress = HostAndPort.fromString(config.getAddress());
 
-        final var internalOnly = new AllowInternalUserOnlyInterceptor(SERVICE_NAME, iamChannel);
+        final var internalOnly = new AccessServerInterceptor(
+            new AccessServiceGrpcClient(SERVICE_NAME, iamChannel),
+            config.getIam().createRenewableToken()::get, Root.INSTANCE, AuthPermission.INTERNAL_AUTHORIZE);
 
         this.server = newGrpcServer(channelManagerAddress, authInterceptor)
             .addService(slotsService)

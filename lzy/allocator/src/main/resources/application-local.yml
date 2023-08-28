@@ -70,7 +70,6 @@ allocator:
       -----END RSA PRIVATE KEY-----
 
   yc-credentials:
-    service-account-file: '/tmp/sa-key.json'
     enabled: false
 
   disk-manager:

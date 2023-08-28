@@ -1,8 +1,11 @@
 package ai.lzy.scheduler;
 
+import ai.lzy.iam.grpc.client.AccessServiceGrpcClient;
 import ai.lzy.iam.grpc.client.AuthenticateServiceGrpcClient;
-import ai.lzy.iam.grpc.interceptors.AllowInternalUserOnlyInterceptor;
+import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.grpc.interceptors.AuthServerInterceptor;
+import ai.lzy.iam.resources.AuthPermission;
+import ai.lzy.iam.resources.impl.Root;
 import ai.lzy.scheduler.configs.ServiceConfig;
 import ai.lzy.v1.scheduler.SchedulerGrpc;
 import io.grpc.ManagedChannel;
@@ -36,7 +39,9 @@ public class SchedulerApi {
         var builder = newGrpcServer("0.0.0.0", config.getPort(),
             new AuthServerInterceptor(new AuthenticateServiceGrpcClient(APP, iamChannel)));
 
-        var internalOnly = new AllowInternalUserOnlyInterceptor(APP, iamChannel);
+        var internalOnly = new AccessServerInterceptor(
+            new AccessServiceGrpcClient(APP, iamChannel),
+            config.getIam().createRenewableToken()::get, Root.INSTANCE, AuthPermission.INTERNAL_AUTHORIZE);
 
         builder.addService(ServerInterceptors.intercept(impl, internalOnly));
         server = builder.build();

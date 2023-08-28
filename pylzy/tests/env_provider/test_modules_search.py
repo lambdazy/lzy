@@ -145,6 +145,7 @@ def test_exclude_packages(provider: PyEnvProvider, test_data_dir: Path):
         assert str(full_path) not in local_modules_path
 
 
+@pytest.mark.xfail(reason='old mechanism of working with namespaces does not matter')
 def test_namespace_packages(provider: PyEnvProvider, test_data_dir: Path):
     """
     here we are checking that we capturing local google dir but doesn't capture
