@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Optional
 
 from .base import BasePythonEnv, ModulePathsList, PackagesDict, NamespaceType
 
@@ -10,7 +11,7 @@ class ManualPythonEnv(BasePythonEnv):
     python_version: str
     local_module_paths: ModulePathsList
     pypi_packages: PackagesDict
-    pypi_index_url: str
+    pypi_index_url: Optional[str] = None
 
     def get_python_version(self) -> str:
         return self.python_version
@@ -20,6 +21,3 @@ class ManualPythonEnv(BasePythonEnv):
 
     def get_pypi_packages(self, namespace: NamespaceType) -> PackagesDict:
         return self.pypi_packages
-
-    def get_pypi_index_url(self) -> str:
-        return self.pypi_index_url

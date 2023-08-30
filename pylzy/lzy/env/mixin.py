@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypeVar
+from typing import TypeVar, Optional
 from typing_extensions import Self
 
 from lzy.utils.functools import kwargsdispatchmethod
@@ -8,7 +8,8 @@ from .base import Deconstructible, NotSpecified
 from .environment import LzyEnvironment, EnvVarsType
 from .container.base import BaseContainer
 from .provisioning.provisioning import Provisioning, ProvisioningRequirement
-from .python.base import BasePythonEnv
+from .python.base import BasePythonEnv, ModulePathsList, PackagesDict
+from .python.manual import ManualPythonEnv
 
 
 class WithEnvironmentMixin(Deconstructible):
@@ -64,6 +65,23 @@ class WithEnvironmentMixin(Deconstructible):
     def with_python_env(self, python_env: BasePythonEnv) -> Self:
         return self.with_env(
             self.env.with_fields(python_env=python_env)
+        )
+
+    def with_manual_python_env(
+        self,
+        *,
+        python_version: str,
+        local_module_paths: ModulePathsList,
+        pypi_packages: PackagesDict,
+        pypi_index_url: Optional[str] = None,
+    ):
+        return self.with_python_env(
+            ManualPythonEnv(
+                python_version=python_version,
+                local_module_paths=local_module_paths,
+                pypi_packages=pypi_packages,
+                pypi_index_url=pypi_index_url
+            )
         )
 
 

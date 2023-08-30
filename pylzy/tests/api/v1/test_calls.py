@@ -1,3 +1,5 @@
+import logging
+
 from dataclasses import dataclass
 from typing import Optional, List, Tuple, Union
 
@@ -385,3 +387,57 @@ def test_docs():
 
     doc = op_with_doc.__doc__
     assert "None is great" in doc
+
+
+def test_conda_generate_in_cache(lzy):
+    @op
+    def foo() -> None:
+        pass
+
+    foo = foo.with_manual_python_env(
+        python_version="3.7.11",
+        local_module_paths=[],
+        pypi_packages={"pylzy": "0.0.0"}
+    )
+
+    with lzy.workflow("test") as wf:
+        foo()
+
+    call = wf.owner.runtime.calls[0]
+    yaml = call.get_conda_yaml()
+
+    assert "name: py37" in yaml
+    assert "pylzy==0.0.0" in yaml
+
+
+def test_conda_generate_not_in_cache(caplog, lzy):
+    version = "3.7.9999"
+
+    @op
+    def foo() -> None:
+        pass
+
+    foo = foo.with_manual_python_env(
+        python_version=version,
+        local_module_paths=[],
+        pypi_packages={"pylzy": "0.0.0"}
+    )
+
+    with lzy.workflow("test") as wf:
+        foo()
+
+    call = wf.owner.runtime.calls[0]
+
+    with caplog.at_level(logging.WARNING, logger='lzy.api.v1.env'):
+        yaml = call.get_conda_yaml()
+
+    assert any(
+        (
+            f"Installed python version ({version})" in record.message and
+            record.levelno == logging.WARNING
+        )
+        for record in caplog.records
+    )
+
+    assert "name: default" in yaml
+    assert "pylzy==0.0.0" in yaml

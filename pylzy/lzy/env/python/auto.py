@@ -7,9 +7,6 @@ from typing_extensions import Self
 
 from lzy.env.explorer.base import BaseExplorer
 from lzy.env.explorer.auto import AutoExplorer
-from lzy.utils.pip import Pip
-from lzy.utils.pypi import PYPI_INDEX_URL_DEFAULT
-
 from .base import BasePythonEnv, ModulePathsList, PackagesDict, NamespaceType
 
 
@@ -48,6 +45,3 @@ class AutoPythonEnv(BasePythonEnv):
 
     def get_pypi_packages(self, namespace: NamespaceType) -> PackagesDict:
         return self.env_explorer.get_pypi_packages(namespace)
-
-    def get_pypi_index_url(self) -> str:
-        return self.pypi_index_url or Pip().index_url or PYPI_INDEX_URL_DEFAULT
