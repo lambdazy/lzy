@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Dict, Any
 
+from lzy.utils.pypi import validate_pypi_index_url
 from lzy.env.base import Deconstructible
 from lzy.env.explorer.base import ModulePathsList, PackagesDict
 
@@ -31,3 +32,7 @@ class BasePythonEnv(Deconstructible):
     @abstractmethod
     def get_pypi_index_url(self) -> str:
         raise NotImplementedError
+
+    def validate(self) -> None:
+        pypi_index_url = self.get_pypi_index_url()
+        validate_pypi_index_url(pypi_index_url)

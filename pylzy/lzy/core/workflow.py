@@ -34,7 +34,7 @@ T = TypeVar("T")
 
 if TYPE_CHECKING:
     from lzy.api.v1 import Lzy
-    from lzy.api.v1.call import LzyCall
+    from lzy.core.call import LzyCall
 
 
 @dataclass

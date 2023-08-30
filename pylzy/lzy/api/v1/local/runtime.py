@@ -19,7 +19,7 @@ from lzy.storage.api import AsyncStorageClient, Storage
 if TYPE_CHECKING:
     from lzy.api.v1 import LzyWorkflow
 
-from lzy.api.v1.call import LzyCall
+from lzy.core.call import LzyCall
 from lzy.api.v1.runtime import (
     ProgressStep,
     Runtime,

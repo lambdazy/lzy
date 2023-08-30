@@ -23,7 +23,7 @@ from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize, is_lzy_proxy, get_proxy_entry_id, materialized
 from lzy.api.v1.utils.types import infer_real_types, get_default_args, check_types_serialization_compatible, is_subtype
-from lzy.api.v1.workflow import LzyWorkflow
+from lzy.core.workflow import LzyWorkflow
 from lzy.logs.config import get_logger
 from lzy.utils.functools import update_wrapper
 from lzy.utils.event_loop import LzyEventLoop

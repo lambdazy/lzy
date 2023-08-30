@@ -1,10 +1,8 @@
-# noinspection PyPackageRequirements
-import json
+from __future__ import annotations
 
-import grpc
+import json
 import sys
 import uuid
-from serialzy.serializers.primitive import PrimitiveSerializer
 from typing import (
     List,
     Callable,
@@ -16,25 +14,49 @@ from typing import (
     Dict,
     Tuple,
 )
+
+import grpc
+from serialzy.serializers.primitive import PrimitiveSerializer
 from pypi_simple import PYPI_SIMPLE_ENDPOINT
+from google.protobuf.any_pb2 import Any
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
 from ai.lzy.v1.long_running.operation_pb2 import Operation, GetOperationRequest
 from ai.lzy.v1.long_running.operation_pb2_grpc import LongRunningServiceServicer
 from ai.lzy.v1.whiteboard.whiteboard_pb2 import Whiteboard
-from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import RegisterWhiteboardRequest, RegisterWhiteboardResponse, \
-    UpdateWhiteboardRequest, UpdateWhiteboardResponse, GetRequest, GetResponse, ListRequest, ListResponse
+from ai.lzy.v1.whiteboard.whiteboard_service_pb2 import (
+    RegisterWhiteboardRequest,
+    RegisterWhiteboardResponse,
+    UpdateWhiteboardRequest,
+    UpdateWhiteboardResponse,
+    GetRequest,
+    GetResponse,
+    ListRequest,
+    ListResponse
+)
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import LzyWhiteboardServiceServicer
 from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
-from ai.lzy.v1.workflow.workflow_service_pb2 import StartWorkflowRequest, StartWorkflowResponse, \
-    FinishWorkflowRequest, FinishWorkflowResponse, ReadStdSlotsRequest, ReadStdSlotsResponse, \
-    AbortWorkflowRequest, AbortWorkflowResponse, GetOrCreateDefaultStorageResponse, GetOrCreateDefaultStorageRequest, \
-    ExecuteGraphRequest, ExecuteGraphResponse, GetAvailablePoolsRequest, GetAvailablePoolsResponse
+from ai.lzy.v1.workflow.workflow_service_pb2 import (
+    StartWorkflowRequest,
+    StartWorkflowResponse,
+    FinishWorkflowRequest,
+    FinishWorkflowResponse,
+    ReadStdSlotsRequest,
+    ReadStdSlotsResponse,
+    AbortWorkflowRequest,
+    AbortWorkflowResponse,
+    GetOrCreateDefaultStorageResponse,
+    GetOrCreateDefaultStorageRequest,
+    ExecuteGraphRequest,
+    ExecuteGraphResponse,
+    GetAvailablePoolsRequest,
+    GetAvailablePoolsResponse
+)
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
-# noinspection PyPackageRequirements
-from google.protobuf.any_pb2 import Any
-# noinspection PyUnresolvedReferences
-from lzy.api.v1 import Runtime, LzyCall, LzyWorkflow, Provisioning
+
+from lzy.core.call import LzyCall
+from lzy.core.workflow import LzyWorkflow
+from lzy.api.v1 import Runtime, Provisioning
 from lzy.api.v1.runtime import ProgressStep
 from lzy.logs.config import get_logger
 from lzy.py_env.api import PyEnvProvider, PyEnv
@@ -53,7 +75,7 @@ class RuntimeMock(Runtime):
     async def storage(self) -> Optional[Storage]:
         return None
 
-    async def start(self, workflow: "LzyWorkflow") -> str:
+    async def start(self, workflow: LzyWorkflow) -> str:
         return str(uuid.uuid4())
 
     async def exec(self, calls: List[LzyCall], progress: Callable[[ProgressStep], None]) -> None:

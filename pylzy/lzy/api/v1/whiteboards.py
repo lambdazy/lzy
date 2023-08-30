@@ -19,7 +19,7 @@ from lzy.api.v1.utils.validation import is_name_valid, NAME_VALID_SYMBOLS
 from lzy.utils.event_loop import LzyEventLoop
 
 if TYPE_CHECKING:  # pragma: no cover
-    from lzy.api.v1.workflow import LzyWorkflow
+    from lzy.core.workflow import LzyWorkflow
 
 WB_NAME_FIELD_NAME = "__lzy_wb_name__"
 

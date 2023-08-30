@@ -7,7 +7,7 @@ from lzy.storage.api import Storage
 if TYPE_CHECKING:
     from lzy.api.v1 import LzyWorkflow
 
-from lzy.api.v1.call import LzyCall
+from lzy.core.call import LzyCall
 
 
 class ProgressStep(Enum):

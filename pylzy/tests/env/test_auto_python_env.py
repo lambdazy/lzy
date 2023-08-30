@@ -2,6 +2,7 @@ import sys
 import pytest
 import importlib_metadata
 
+import lzy.exceptions
 import lzy.env.explorer.classify
 from lzy.env.python.auto import AutoPythonEnv
 from lzy.env.explorer.auto import AutoExplorer
@@ -85,3 +86,16 @@ def test_get_modules_and_paths(
     assert python_env.get_pypi_packages(namespace) == {
         'typing_extensions': importlib_metadata.distribution('typing_extensions').version
     }
+
+
+@pytest.mark.vcr
+def test_validate_pypi_index_url(pypi_index_url_testing):
+    python_env = AutoPythonEnv()
+    python_env.validate()
+
+    python_env = python_env.with_fields(pypi_index_url=pypi_index_url_testing)
+    python_env.validate()
+
+    python_env = python_env.with_fields(pypi_index_url='https://example.com')
+    with pytest.raises(lzy.exceptions.BadPypiIndex):
+        python_env.validate()

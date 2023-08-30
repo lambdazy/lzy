@@ -19,11 +19,11 @@ from lzy.env.python.manual import ManualPythonEnv
 
 
 # This just needed for this module and not part of API and will be removed aftewards
-from lzy.api.v1.call import LazyCallWrapper
+from lzy.core.call import LazyCallWrapper
+from lzy.core.workflow import LzyWorkflow
 from lzy.api.v1.remote.lzy_service_client import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV
 from lzy.api.v1.utils.types import infer_return_type
 from lzy.api.v1.whiteboards import whiteboard_
-from lzy.api.v1.workflow import LzyWorkflow
 from lzy.logs.config import configure_logging
 from lzy.proxy.result import Absence
 from lzy.serialization.registry import LzySerializerRegistry

@@ -82,3 +82,6 @@ class LzyEnvironment(Deconstructible):
         if is_specified(self.namespace):
             return self.namespace
         return {}
+
+    def validate(self) -> None:
+        self.get_python_env().validate()

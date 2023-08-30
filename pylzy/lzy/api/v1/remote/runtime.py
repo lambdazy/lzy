@@ -33,7 +33,7 @@ from lzy.proxy.result import Result
 from lzy.env.container.docker import DockerPullPolicy, DockerContainer
 from lzy.env.container.no_container import NoContainer
 from lzy.api.v1.snapshot import SnapshotEntry
-from lzy.api.v1.call import LzyCall
+from lzy.core.call import LzyCall
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.remote.lzy_service_client import (
     Completed,
@@ -48,7 +48,7 @@ from lzy.api.v1.runtime import (
 )
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.pickle import pickle
-from lzy.api.v1.workflow import LzyWorkflow
+from lzy.core.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_syslog_color
 from lzy.storage.api import Storage, FSCredentials
 from lzy.utils.grpc import retry, RetryConfig
