@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional, List, Tuple, Union
-from unittest import TestCase
+
+import pytest
 
 from pure_protobuf.dataclasses_ import message, field
 from pure_protobuf.types import int32
@@ -8,7 +9,7 @@ from pure_protobuf.types import int32
 from lzy.api.v1 import Lzy, op
 from lzy.api.v1.signatures import FuncSignature
 from lzy.api.v1.utils.proxy_adapter import materialized
-from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
+from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock
 
 
 @op
@@ -16,31 +17,26 @@ def returns_int() -> int:
     return 1
 
 
-# noinspection PyUnusedLocal
 @op
 def one_arg(arg: int) -> str:
     pass
 
 
-# noinspection PyUnusedLocal
 @op
 def varargs(c: float, *args, **kwargs) -> None:
     pass
 
 
-# noinspection PyUnusedLocal
 @op
 def varargs_only(*args) -> str:
     pass
 
 
-# noinspection PyUnusedLocal
 @op
 def varkw_only(**kwargs) -> str:
     pass
 
 
-# noinspection PyUnusedLocal
 @op
 def call_no_arg_hint(arg) -> str:
     pass
@@ -50,351 +46,342 @@ class A:
     pass
 
 
-# noinspection PyUnusedLocal
 @op
 def call_custom_class(arg: A) -> A:
     pass
 
 
-class LzyCallsTests(TestCase):
-    def setUp(self):
-        self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock(), py_env_provider=EnvProviderMock())
+@pytest.fixture
+def lzy():
+    return Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock())
 
-    def test_no_args(self):
-        with self.assertRaisesRegex(KeyError, "is required but not provided"):
-            with self.lzy.workflow("test"):
-                one_arg()
 
-    def test_no_args_default(self):
-        # noinspection PyUnusedLocal
-        @op
-        def one_arg_default(arg: int = 1) -> str:
-            pass
+def test_no_args(lzy):
+    with pytest.raises(KeyError, match="is required but not provided"):
+        with lzy.workflow("test"):
+            one_arg()
 
-        with self.lzy.workflow("test") as wf:
-            one_arg_default()
 
-        # noinspection PyUnresolvedReferences
-        func1: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(str, func1.output_types[0])
-        self.assertEqual(0, len(func1.input_types))
+def test_no_args_default(lzy):
+    @op
+    def one_arg_default(arg: int = 1) -> str:
+        pass
 
-    def test_proxy(self):
-        with self.lzy.workflow("test") as wf:
+    with lzy.workflow("test") as wf:
+        one_arg_default()
+
+    func1: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert str == func1.output_types[0]
+    assert 0 == len(func1.input_types)
+
+
+def test_proxy(lzy):
+    with lzy.workflow("test") as wf:
+        i = returns_int()
+        assert materialized(i) is False
+        one_arg(arg=i)
+
+    func1: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert int == func1.output_types[0]
+    assert 0 == len(func1.input_types)
+
+    func2: FuncSignature = wf.owner.runtime.calls[1].signature.func
+    assert str == func2.output_types[0]
+    assert 1 == len(func2.input_types)
+    assert int == func2.input_types['arg']
+
+
+def test_default(lzy):
+    @op
+    def one_default(arg: int, b: str = "default") -> str:
+        pass
+
+    with lzy.workflow("test") as wf:
+        one_default(1)
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert str == func.output_types[0]
+    assert 1 == len(func.input_types)  # defaults are serialized with a function
+    assert int == func.input_types['arg']
+
+
+def test_too_much_args(lzy):
+    with pytest.raises(KeyError, match="Unexpected argument"):
+        with lzy.workflow("test"):
+            one_arg(1, "s", 2)
+
+
+def test_only_varargs(lzy):
+    with pytest.raises(KeyError, match="Unexpected key argument"):
+        with lzy.workflow("test"):
+            varargs_only(k=1, s="s", p=2)
+
+
+def test_invalid_kwarg(lzy):
+    with pytest.raises(KeyError, match="Unexpected key argument"):
+        with lzy.workflow("test"):
+            one_arg(invalid_arg=1)
+
+
+def test_list_inference(lzy):
+    with lzy.workflow("test") as wf:
+        call_no_arg_hint([1, 2, 3])
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert str == func.output_types[0]
+    assert 1 == len(func.input_types)
+    assert List[int] == func.input_types['arg']
+
+
+def test_tuple_inference(lzy):
+    with lzy.workflow("test") as wf:
+        call_no_arg_hint((1, 2, 3))
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert str == func.output_types[0]
+    assert 1 == len(func.input_types)
+    assert Tuple[int, int, int] == func.input_types['arg']
+
+
+def test_large_tuple_inference(lzy):
+    with lzy.workflow("test") as wf:
+        call_no_arg_hint(tuple(i for i in range(1000)))
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert str == func.output_types[0]
+    assert 1 == len(func.input_types)
+    assert Tuple[int, ...] == func.input_types['arg']
+
+
+def test_arg_hint(lzy):
+    @op
+    def call_arg_hint(arg: List[str]) -> str:
+        pass
+
+    with lzy.workflow("test") as wf:
+        call_arg_hint(["1", "2", "3"])
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert str == func.output_types[0]
+    assert 1 == len(func.input_types)
+    assert List[str] == func.input_types['arg']
+
+
+def test_arg_hint_invalid_list_arg(lzy):
+    @op
+    def call_arg_hint(arg: List[str]) -> str:
+        pass
+
+    with pytest.raises(TypeError, match="Invalid types"):
+        with lzy.workflow("test"):
+            call_arg_hint([1, 2, 3])
+
+
+def test_optional_inference(lzy):
+    @op
+    def optional(arg: Optional[str]) -> Optional[str]:
+        pass
+
+    with lzy.workflow("test") as wf:
+        optional(None)
+        optional("str")
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert Optional[str] == func.output_types[0]
+    assert 1 == len(func.input_types)
+    assert Optional[str] == func.input_types['arg']
+
+    func: FuncSignature = wf.owner.runtime.calls[1].signature.func
+    assert Optional[str] == func.output_types[0]
+    assert 1 == len(func.input_types)
+    assert Optional[str] == func.input_types['arg']
+
+
+def test_union_inference(lzy):
+    @op
+    def union(arg: Union[int, str]) -> Union[int, str]:
+        pass
+
+    with lzy.workflow("test") as wf:
+        union(1)
+        union("str")
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert Union[int, str] == func.output_types[0]
+    assert 1 == len(func.input_types)
+    assert Union[int, str] == func.input_types['arg']
+
+    func: FuncSignature = wf.owner.runtime.calls[1].signature.func
+    assert Union[int, str] == func.output_types[0]
+    assert 1 == len(func.input_types)
+    assert Union[int, str] == func.input_types['arg']
+
+
+def test_custom_class(lzy):
+    with lzy.workflow("test") as wf:
+        call_custom_class(A())
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert A == func.output_types[0]
+    assert 1 == len(func.input_types)
+    assert A == func.input_types['arg']
+
+
+def test_custom_class_invalid(lzy):
+    class B:
+        pass
+
+    with pytest.raises(TypeError, match="Invalid types"):
+        with lzy.workflow("test"):
+            call_custom_class(B())
+
+
+def test_call_argument_invalid(lzy):
+    with pytest.raises(TypeError, match="Invalid types"):
+        with lzy.workflow("test"):
             i = returns_int()
-            self.assertFalse(materialized(i))
-            one_arg(arg=i)
+            call_custom_class(i)
 
-        # noinspection PyUnresolvedReferences
-        func1: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(int, func1.output_types[0])
-        self.assertEqual(0, len(func1.input_types))
 
-        # noinspection PyUnresolvedReferences
-        func2: FuncSignature = wf.owner.runtime.calls[1].signature.func
-        self.assertEqual(str, func2.output_types[0])
-        self.assertEqual(1, len(func2.input_types))
-        self.assertEqual(int, func2.input_types['arg'])
+def test_type_from_arg(lzy):
+    @op
+    def returns_list_str() -> List[str]:
+        pass
 
-    def test_default(self):
-        # noinspection PyUnusedLocal
+    with lzy.workflow("test") as wf:
+        value = returns_list_str()
+        assert materialized(value) is False
+        call_no_arg_hint(value)
+
+    func: FuncSignature = wf.owner.runtime.calls[1].signature.func
+    assert str == func.output_types[0]
+    assert 1 == len(func.input_types)
+    assert List[str] == func.input_types['arg']
+
+
+def test_returns_none(lzy):
+    @op
+    def returns_none() -> None:
+        pass
+
+    with lzy.workflow("test"):
+        result = returns_none()
+        assert result is None
+
+
+def test_none_arguments(lzy):
+    with lzy.workflow("test") as wf:
+        call_no_arg_hint(None)
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert 1 == len(func.input_types)
+    assert func.input_types['arg'] is type(None)
+
+
+def test_varargs(lzy):
+    with lzy.workflow("test") as wf:
+        varargs(2.0, *(1, 2, 3), **{'a': "a", 'b': 2})
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert 6 == len(func.input_types)
+    assert str == func.input_types['a']
+    assert int == func.input_types['b']
+    assert float == func.input_types['c']
+    assert ('a', 'b') == func.kwarg_names
+
+
+def test_varargs_proxy(lzy):
+    with lzy.workflow("test") as wf:
+        i = returns_int()
+        varargs(2.0, *(i,), **{'a': i})
+
+    func: FuncSignature = wf.owner.runtime.calls[1].signature.func
+    assert 3 == len(func.input_types)
+    assert int == func.input_types['a']
+    assert float == func.input_types['c']
+    assert ('a',) == func.kwarg_names
+
+
+def test_multiple_return_values(lzy):
+    @op
+    def multiple_return() -> (int, str):
+        pass
+
+    with lzy.workflow("test") as wf:
+        multiple_return()
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert int == func.output_types[0]
+    assert str == func.output_types[1]
+
+
+def test_call_no_workflow(lzy):
+    result = returns_int()
+    assert 1 == result
+
+
+def test_pure_proto(lzy):
+    @message
+    @dataclass
+    class MessageClass:
+        string_field: str = field(1, default="")
+        list_field: List[int32] = field(2, default_factory=list)
+
+    @op
+    def fun1(a: MessageClass) -> MessageClass:
+        pass
+
+    @op
+    def fun2() -> MessageClass:
+        pass
+
+    with lzy.workflow("test") as wf:
+        fun1(fun2())
+
+    assert 2 == len(wf.owner.runtime.calls)
+
+
+def test_raises(lzy):
+    @op
+    def raises() -> int:
+        raise RuntimeError("Bad exception")
+
+    with lzy.workflow("test") as wf:
+        raises()
+
+    func: FuncSignature = wf.owner.runtime.calls[0].signature.func
+    assert int == func.output_types[0]
+
+
+def test_no_return_hint():
+    with pytest.raises(TypeError, match=r"Return type is not annotated for function `no_hint` at .*"):
         @op
-        def one_default(arg: int, b: str = "default") -> str:
+        def no_hint():
             pass
 
-        with self.lzy.workflow("test") as wf:
-            one_default(1)
 
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(str, func.output_types[0])
-        self.assertEqual(1, len(func.input_types))  # defaults are serialized with a function
-        self.assertEqual(int, func.input_types['arg'])
-
-    def test_too_much_args(self):
-        with self.assertRaisesRegex(KeyError, "Unexpected argument"):
-            with self.lzy.workflow("test"):
-                one_arg(1, "s", 2)
-
-    def test_only_varargs(self):
-        with self.assertRaisesRegex(KeyError, "Unexpected key argument"):
-            with self.lzy.workflow("test"):
-                varargs_only(k=1, s="s", p=2)
-
-    def test_invalid_kwarg(self):
-        with self.assertRaisesRegex(KeyError, "Unexpected key argument"):
-            with self.lzy.workflow("test"):
-                one_arg(invalid_arg=1)
-
-    def test_list_inference(self):
-        with self.lzy.workflow("test") as wf:
-            call_no_arg_hint([1, 2, 3])
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(str, func.output_types[0])
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(List[int], func.input_types['arg'])
-
-    def test_tuple_inference(self):
-        with self.lzy.workflow("test") as wf:
-            call_no_arg_hint((1, 2, 3))
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(str, func.output_types[0])
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(Tuple[int, int, int], func.input_types['arg'])
-
-    def test_large_tuple_inference(self):
-        with self.lzy.workflow("test") as wf:
-            call_no_arg_hint(tuple(i for i in range(1000)))
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(str, func.output_types[0])
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(Tuple[int, ...], func.input_types['arg'])
-
-    def test_arg_hint(self):
-        # noinspection PyUnusedLocal
-        @op
-        def call_arg_hint(arg: List[str]) -> str:
+def test_invalid_workflow_name(lzy):
+    with pytest.raises(ValueError, match="Invalid workflow name. Name can contain only"):
+        with lzy.workflow("test test"):
             pass
 
-        with self.lzy.workflow("test") as wf:
-            # noinspection PyTypeChecker
-            call_arg_hint(["1", "2", "3"])
 
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(str, func.output_types[0])
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(List[str], func.input_types['arg'])
+def test_invalid_list_type(lzy):
+    @op
+    def accept_list(lst: List[int]) -> None:
+        pass
 
-    def test_arg_hint_invalid_list_arg(self):
-        # noinspection PyUnusedLocal
-        @op
-        def call_arg_hint(arg: List[str]) -> str:
-            pass
+    with pytest.raises(TypeError):
+        with lzy.workflow("test"):
+            accept_list(["a", "b", "c"])
 
-        with self.assertRaisesRegex(TypeError, "Invalid types"):
-            with self.lzy.workflow("test"):
-                # noinspection PyTypeChecker
-                call_arg_hint([1, 2, 3])
 
-    def test_optional_inference(self):
-        # noinspection PyUnusedLocal
-        @op
-        def optional(arg: Optional[str]) -> Optional[str]:
-            pass
+def test_docs():
+    @op
+    def op_with_doc() -> None:
+        """
+        :return: None is great
+        """
 
-        with self.lzy.workflow("test") as wf:
-            # noinspection PyTypeChecker
-            optional(None)
-            optional("str")
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(Optional[str], func.output_types[0])
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(Optional[str], func.input_types['arg'])
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[1].signature.func
-        self.assertEqual(Optional[str], func.output_types[0])
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(Optional[str], func.input_types['arg'])
-
-    def test_union_inference(self):
-        # noinspection PyUnusedLocal
-        @op
-        def union(arg: Union[int, str]) -> Union[int, str]:
-            pass
-
-        with self.lzy.workflow("test") as wf:
-            # noinspection PyTypeChecker
-            union(1)
-            union("str")
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(Union[int, str], func.output_types[0])
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(Union[int, str], func.input_types['arg'])
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[1].signature.func
-        self.assertEqual(Union[int, str], func.output_types[0])
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(Union[int, str], func.input_types['arg'])
-
-    def test_custom_class(self):
-        with self.lzy.workflow("test") as wf:
-            # noinspection PyTypeChecker
-            call_custom_class(A())
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(A, func.output_types[0])
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(A, func.input_types['arg'])
-
-    def test_custom_class_invalid(self):
-        class B:
-            pass
-
-        with self.assertRaisesRegex(TypeError, "Invalid types"):
-            with self.lzy.workflow("test"):
-                # noinspection PyTypeChecker
-                call_custom_class(B())
-
-    def test_call_argument_invalid(self):
-        with self.assertRaisesRegex(TypeError, "Invalid types"):
-            with self.lzy.workflow("test"):
-                i = returns_int()
-                # noinspection PyTypeChecker
-                call_custom_class(i)
-
-    def test_type_from_arg(self):
-        @op
-        def returns_list_str() -> List[str]:
-            pass
-
-        with self.lzy.workflow("test") as wf:
-            value = returns_list_str()
-            self.assertFalse(materialized(value))
-            call_no_arg_hint(value)
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[1].signature.func
-        self.assertEqual(str, func.output_types[0])
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(List[str], func.input_types['arg'])
-
-    def test_returns_none(self):
-        @op
-        def returns_none() -> None:
-            pass
-
-        with self.lzy.workflow("test"):
-            # noinspection PyNoneFunctionAssignment
-            result = returns_none()
-            self.assertIsNone(result)
-
-    def test_none_arguments(self):
-        with self.lzy.workflow("test") as wf:
-            call_no_arg_hint(None)
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(1, len(func.input_types))
-        self.assertEqual(type(None), func.input_types['arg'])
-
-    def test_varargs(self):
-        with self.lzy.workflow("test") as wf:
-            varargs(2.0, *(1, 2, 3), **{'a': "a", 'b': 2})
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(6, len(func.input_types))
-        self.assertEqual(str, func.input_types['a'])
-        self.assertEqual(int, func.input_types['b'])
-        self.assertEqual(float, func.input_types['c'])
-        self.assertEqual(('a', 'b'), func.kwarg_names)
-
-    def test_varargs_proxy(self):
-        with self.lzy.workflow("test") as wf:
-            i = returns_int()
-            varargs(2.0, *(i,), **{'a': i})
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[1].signature.func
-        self.assertEqual(3, len(func.input_types))
-        self.assertEqual(int, func.input_types['a'])
-        self.assertEqual(float, func.input_types['c'])
-        self.assertEqual(('a',), func.kwarg_names)
-
-    def test_multiple_return_values(self):
-        # noinspection PyUnusedLocal
-        @op
-        def multiple_return() -> (int, str):
-            pass
-
-        with self.lzy.workflow("test") as wf:
-            multiple_return()
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(int, func.output_types[0])
-        self.assertEqual(str, func.output_types[1])
-
-    def test_call_no_workflow(self):
-        result = returns_int()
-        self.assertEqual(1, result)
-
-    def test_pure_proto(self):
-        @message
-        @dataclass
-        class MessageClass:
-            string_field: str = field(1, default="")
-            list_field: List[int32] = field(2, default_factory=list)
-
-        # noinspection PyUnusedLocal
-        @op
-        def fun1(a: MessageClass) -> MessageClass:
-            pass
-
-        @op
-        def fun2() -> MessageClass:
-            pass
-
-        with self.lzy.workflow("test") as wf:
-            fun1(fun2())
-
-        # noinspection PyUnresolvedReferences
-        self.assertEqual(2, len(wf.owner.runtime.calls))
-
-    def test_raises(self):
-        @op
-        def raises() -> int:
-            raise RuntimeError("Bad exception")
-
-        with self.lzy.workflow("test") as wf:
-            raises()
-
-        # noinspection PyUnresolvedReferences
-        func: FuncSignature = wf.owner.runtime.calls[0].signature.func
-        self.assertEqual(int, func.output_types[0])
-
-    def test_no_return_hint(self):
-        with self.assertRaisesRegex(TypeError, r"Return type is not annotated for function `no_hint` at .*"):
-            @op
-            def no_hint():
-                pass
-
-    def test_invalid_workflow_name(self):
-        with self.assertRaisesRegex(ValueError, "Invalid workflow name. Name can contain only"):
-            with self.lzy.workflow("test test"):
-                pass
-
-    def test_invalid_list_type(self):
-        # noinspection PyUnusedLocal
-        @op
-        def accept_list(lst: List[int]) -> None:
-            pass
-
-        with self.assertRaises(TypeError):
-            with self.lzy.workflow("test"):
-                # noinspection PyTypeChecker
-                accept_list(["a", "b", "c"])
-
-    def test_docs(self):
-        @op
-        def op_with_doc() -> None:
-            """
-            :return: None is great
-            """
-
-        doc = op_with_doc.__doc__
-        self.assertIn("None is great", doc)
+    doc = op_with_doc.__doc__
+    assert "None is great" in doc

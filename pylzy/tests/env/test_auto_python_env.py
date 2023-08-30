@@ -50,7 +50,6 @@ def test_pypi_index_url() -> None:
     assert python_env.get_pypi_index_url() == 'foo'
 
 
-@pytest.mark.block_network
 def test_get_modules_and_paths(
     with_test_modules,
     get_test_data_path,

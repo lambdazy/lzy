@@ -24,7 +24,6 @@ def test_non_pypi_index_url(monkeypatch):
     lzy.utils.pypi.validate_pypi_index_url('https://example.com')
 
 
-@pytest.mark.block_network
 def test_pypi_index_url_without_a_scheme(monkeypatch, pypi_index_url_testing):
     assert not config.skip_pypi_validation
 

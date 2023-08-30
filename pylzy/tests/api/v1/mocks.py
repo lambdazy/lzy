@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import sys
 import uuid
 from typing import (
     List,
@@ -17,7 +16,6 @@ from typing import (
 
 import grpc
 from serialzy.serializers.primitive import PrimitiveSerializer
-from pypi_simple import PYPI_SIMPLE_ENDPOINT
 from google.protobuf.any_pb2 import Any
 
 from ai.lzy.v1.common.storage_pb2 import StorageConfig, S3Credentials
@@ -56,10 +54,9 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServi
 
 from lzy.core.call import LzyCall
 from lzy.core.workflow import LzyWorkflow
-from lzy.api.v1 import Runtime, Provisioning
-from lzy.api.v1.runtime import ProgressStep
+from lzy.api.v1 import Provisioning
+from lzy.api.v1.runtime import ProgressStep, Runtime
 from lzy.logs.config import get_logger
-from lzy.py_env.api import PyEnvProvider, PyEnv
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
 
@@ -343,22 +340,3 @@ class WhiteboardIndexServiceMock(LzyWhiteboardServiceServicer):
 
     def clear_all(self) -> None:
         self.__whiteboards.clear()
-
-
-class EnvProviderMock(PyEnvProvider):
-    @property
-    def pypi_index_url(self):
-        return PYPI_SIMPLE_ENDPOINT
-
-    def __init__(self, libraries: Optional[Dict[str, str]] = None, local_modules_path: Optional[Sequence[str]] = None):
-        self.__libraries = libraries if libraries else {}
-        self.__local_modules_path = local_modules_path if local_modules_path else []
-
-    def provide(self, namespace: Dict[str, Any], exclude_packages: Iterable[str] = tuple()) -> PyEnv:
-        info = sys.version_info
-        return PyEnv(
-            python_version=f"{info.major}.{info.minor}.{info.micro}",
-            libraries=self.__libraries,
-            local_modules_path=self.__local_modules_path,
-            pypi_index_url=self.pypi_index_url,
-        )
