@@ -43,12 +43,12 @@ T = TypeVar('T')
 Any = AnyRequirement()
 WithAny = Union[AnyRequirement, T]
 
-_Req = WithAny[NotSpecifiedType]
-IntegerRequirement = Union[int, _Req]
-StringRequirement = Union[str, _Req]
+ProvisioningRequirement = Union[AnyRequirement, NotSpecifiedType, T]
+IntegerRequirement = ProvisioningRequirement[int]
+StringRequirement = ProvisioningRequirement[str]
 
 
-def _coerce(value: Union[T, _Req], default: T) -> T:
+def _coerce(value: ProvisioningRequirement[T], default: T) -> T:
     if value in (Any, NotSpecified):
         return cast(T, default)
 

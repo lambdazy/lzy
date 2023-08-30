@@ -1,10 +1,13 @@
 from dataclasses import dataclass
 from typing import Union, Optional
 
-
-import lzy.api.v1.provisioning as lp
+from lzy.env.base import is_specified
+from lzy.env.provisioning.provisioning import Provisioning, NO_GPU
 from lzy.api.v1 import op, Lzy
 from lzy.injections.extensions import extend
+
+
+__all__ = ['inject_catboost']
 
 
 def inject_catboost() -> None:
@@ -19,26 +22,15 @@ def inject_catboost() -> None:
     def fit(
         self,
         *args,
-        provisioning: Optional[lp.Provisioning] = None,
-        cpu_type: lp.StringRequirement = None,
-        cpu_count: lp.IntegerRequirement = None,
-        gpu_type: lp.StringRequirement = None,
-        gpu_count: lp.IntegerRequirement = None,
-        ram_size_gb: lp.IntegerRequirement = None,
+        provisioning: Optional[Provisioning] = None,
         **kwargs
     ):
-
-        if cpu_count or cpu_type or gpu_type or gpu_count or ram_size_gb:
-            provisioning = provisioning or lp.Provisioning()
-            provisioning = provisioning.override(
-                cpu_count=cpu_count,
-                cpu_type=cpu_type,
-                gpu_type=gpu_type,
-                gpu_count=gpu_count,
-                ram_size_gb=ram_size_gb,
-            )
-
-            if provisioning.gpu_type is not None and provisioning.gpu_type != lp.GpuType.NO_GPU.value:
+        if provisioning:
+            if (
+                provisioning.gpu_type is not None and
+                is_specified(provisioning.gpu_type) and
+                provisioning.gpu_type != NO_GPU
+            ):
                 self._init_params["task_type"] = "GPU"
                 self._init_params["devices"] = "0:1"
             else:
@@ -51,7 +43,7 @@ def inject_catboost() -> None:
                 holder.model.fit(x, *fit_args, **fit_kwargs)
                 return holder.model
 
-            with Lzy().workflow("catboost", interactive=False, provisioning=provisioning):
+            with Lzy().workflow("catboost", interactive=False).with_provisioning(provisioning):
                 result = train(UnfitCatboostModel(self), args[0], *(args[1:]), **kwargs)
 
                 # update internal state is case of running `fit(...)` and not `model = fit(...)`
@@ -59,5 +51,5 @@ def inject_catboost() -> None:
                 self._object = result._object
                 self._set_trained_model_attributes()
             return self
-        else:
-            return self.original_fit(*args, **kwargs)
+
+        return self.original_fit(*args, **kwargs)

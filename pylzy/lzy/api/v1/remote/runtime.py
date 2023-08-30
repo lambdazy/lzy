@@ -92,7 +92,7 @@ def data_description_by_entry(entry: SnapshotEntry) -> DataDescription:
 
 
 class RemoteRuntime(Runtime):
-    def __init__(self):
+    def __init__(self) -> None:
         self.__lzy_client: LzyServiceClient = LzyServiceClient()
         self.__storage: Optional[Storage] = None
 
@@ -110,7 +110,7 @@ class RemoteRuntime(Runtime):
         return self.__storage
 
     @staticmethod
-    def __gen_rand_idempt_key():
+    def __gen_rand_idempt_key() -> str:
         return str(uuid.uuid4())
 
     async def start(self, workflow: LzyWorkflow) -> str:
@@ -381,8 +381,8 @@ class RemoteRuntime(Runtime):
             if isinstance(container, DockerContainer):
                 docker_credentials = Operation.DockerCredentials(
                     registryName=container.get_registry(),
-                    username=container.get_username(),
-                    password=container.get_password(),
+                    username=container.get_username() or "",
+                    password=container.get_password() or "",
                 )
                 docker_image = container.get_image()
                 docker_pull_policy = (

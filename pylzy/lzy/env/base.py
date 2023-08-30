@@ -100,9 +100,17 @@ class Deconstructible(ABC):
 
 @dataclass
 class WithLogger:
-    log: ClassVar[Optional[logging.Logger]] = None
+    logger: ClassVar[Optional[logging.Logger]] = None
 
     def __post_init__(self):
-        if not self.log:
+        if not self.logger:
             kls = self.__class__
-            self.log = get_logger(f'{kls.__module__}.{kls.__name__}')
+            self.logger = get_logger(f'{kls.__module__}.{kls.__name__}')
+
+    @property
+    def log(self) -> logging.Logger:
+        """
+        This property required only for unwrap Optional type of logger
+        """
+        assert self.logger
+        return self.logger

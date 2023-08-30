@@ -1,14 +1,19 @@
 from __future__ import annotations
 
 from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES
+from typing import Callable, Generic, TypeVar, Optional
 from typing_extensions import Literal
+
+
+T = TypeVar('T')
+CT = Callable[..., T]
 
 
 def update_wrapper(
     wrapper,
     wrapped,
-    assigned = WRAPPER_ASSIGNMENTS,
-    updated = WRAPPER_UPDATES
+    assigned=WRAPPER_ASSIGNMENTS,
+    updated=WRAPPER_UPDATES
 ):
     """
     This function is a copypaste of functools.uptade_wrapper with
@@ -30,18 +35,18 @@ def update_wrapper(
     return wrapper
 
 
-class kwargsdispatchmethod:
-    def __init__(self, func):
-        if not callable(func) and not hasattr(func, "__get__"):
+class kwargsdispatchmethod(Generic[T]):
+    def __init__(self, func: CT[T]) -> None:
+        if not callable(func) or not hasattr(func, "__get__"):
             raise TypeError(f"{func!r} is not callable or a descriptor")
 
-        self.kwargs_func = None
-        self.args_func = None
-        self.func = func
+        self.kwargs_func: Optional[CT[T]] = None
+        self.args_func: Optional[CT[T]] = None
+        self.func: CT[T] = func
 
-    def register(self, type: Literal['args', 'kwargs']):
-        def registrator(func):
-            if type == 'args':
+    def register(self, type_: Literal['args', 'kwargs']) -> Callable[[CT[T]], CT[T]]:
+        def registrator(func: CT[T]) -> CT[T]:
+            if type_ == 'args':
                 self.args_func = func
             else:
                 self.kwargs_func = func
@@ -50,21 +55,23 @@ class kwargsdispatchmethod:
 
         return registrator
 
-    def __get__(self, obj, cls):
-        def _method(*args, **kwargs):
+    def __get__(self, obj, cls) -> CT[T]:
+        def _method(*args, **kwargs) -> T:
             if args and kwargs:
                 raise RuntimeError('use positional args or keyword arguments but not both')
-            method = self.kwargs_func
+
             if args:
-                method = self.args_func
+                assert self.args_func
+                return self.args_func(*args)
 
-            return method.__get__(obj, cls)(*args, **kwargs)
+            assert self.kwargs_func
+            return self.kwargs_func(**kwargs)
 
-        _method.__isabstractmethod__ = self.__isabstractmethod__
-        _method.register = self.register
+        _method.__isabstractmethod__ = self.__isabstractmethod__  # type: ignore
+        _method.register = self.register  # type: ignore
         update_wrapper(_method, self.func)
         return _method
 
     @property
-    def __isabstractmethod__(self):
+    def __isabstractmethod__(self) -> bool:
         return getattr(self.func, "__isabstractmethod__", False)

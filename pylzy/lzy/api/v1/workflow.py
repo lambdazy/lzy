@@ -54,7 +54,7 @@ class LzyWorkflow(WithEnvironmentMixin, WithLogger):
     def set_active(cls, instance: Optional[LzyWorkflow]) -> None:
         cls.instance = instance
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__()
         if not is_name_valid(self.name):
             raise ValueError(f"Invalid workflow name. Name can contain only {NAME_VALID_SYMBOLS}")
