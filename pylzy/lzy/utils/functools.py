@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import WRAPPER_ASSIGNMENTS, WRAPPER_UPDATES
-from typing import Callable, Generic, TypeVar, Optional
+from typing import Callable, Generic, TypeVar, Optional, cast
 from typing_extensions import Literal
 
 
@@ -62,10 +62,10 @@ class kwargsdispatchmethod(Generic[T]):
 
             if args:
                 assert self.args_func
-                return self.args_func(*args)
+                return cast(T, self.args_func.__get__(obj, cls)(*args))
 
             assert self.kwargs_func
-            return self.kwargs_func(**kwargs)
+            return cast(T, self.kwargs_func.__get__(obj, cls)(**kwargs))
 
         _method.__isabstractmethod__ = self.__isabstractmethod__  # type: ignore
         _method.register = self.register  # type: ignore

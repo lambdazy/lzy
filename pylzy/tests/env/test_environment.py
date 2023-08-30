@@ -18,7 +18,7 @@ def test_defaults() -> None:
 def test_defaults_override() -> None:
     env = LzyEnvironment()
 
-    container = DockerContainer(image_url='example.com')
+    container = DockerContainer(registry='example.com', image='foo')
     python_env = ManualPythonEnv(
         python_version='3.99',
         local_module_paths=[],
@@ -47,8 +47,8 @@ def test_defaults_override() -> None:
 
 
 def test_combine_provisioning() -> None:
-    container1 = DockerContainer(image_url='example1.com')
-    container2 = DockerContainer(image_url='example2.com')
+    container1 = DockerContainer(registry='example1.com', image='foo')
+    container2 = DockerContainer(registry='example2.com', image='foo')
 
     python_env1 = ManualPythonEnv(
         python_version='3.99',
