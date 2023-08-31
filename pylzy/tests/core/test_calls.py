@@ -8,10 +8,9 @@ import pytest
 from pure_protobuf.dataclasses_ import message, field
 from pure_protobuf.types import int32
 
-from lzy.api.v1 import Lzy, op
+from lzy.api.v1 import op
 from lzy.api.v1.signatures import FuncSignature
 from lzy.api.v1.utils.proxy_adapter import materialized
-from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock
 
 
 @op
@@ -51,11 +50,6 @@ class A:
 @op
 def call_custom_class(arg: A) -> A:
     pass
-
-
-@pytest.fixture
-def lzy():
-    return Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock())
 
 
 def test_no_args(lzy):

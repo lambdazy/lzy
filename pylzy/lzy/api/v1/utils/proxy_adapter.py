@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, cast, Type, Sequence
 
 from lzy.proxy.automagic import proxy
@@ -50,7 +52,7 @@ def materialize_if_sequence_of_lzy_proxies(obj: Any) -> Any:
     return result
 
 
-def lzy_proxy(entry_id: str, types: Sequence[Type], wflow: "LzyWorkflow", value: Either = Absence()) -> Any:
+def lzy_proxy(entry_id: str, types: Sequence[Type], wflow: LzyWorkflow, value: Either = Absence()) -> Any:
     async def __materialize() -> Any:
         if isinstance(value, Result):
             return value.value
