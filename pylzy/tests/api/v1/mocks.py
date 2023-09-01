@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import uuid
 from typing import (
+    TYPE_CHECKING,
     List,
     Callable,
     Optional,
@@ -52,13 +53,16 @@ from ai.lzy.v1.workflow.workflow_service_pb2 import (
 )
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServicer
 
-from lzy.core.call import LzyCall
-from lzy.core.workflow import LzyWorkflow
 from lzy.api.v1 import Provisioning
 from lzy.api.v1.runtime import ProgressStep, Runtime
 from lzy.logs.config import get_logger
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
+
+if TYPE_CHECKING:
+    from lzy.core.call import LzyCall
+    from lzy.core.workflow import LzyWorkflow
+
 
 _LOG = get_logger(__name__)
 

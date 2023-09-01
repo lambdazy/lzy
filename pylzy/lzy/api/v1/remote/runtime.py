@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import functools
 import os
@@ -7,6 +9,7 @@ import uuid
 from asyncio import Task
 from io import BytesIO
 from typing import (
+    TYPE_CHECKING,
     BinaryIO,
     Callable,
     Dict,
@@ -33,7 +36,6 @@ from lzy.proxy.result import Result
 from lzy.env.container.docker import DockerPullPolicy, DockerContainer
 from lzy.env.container.no_container import NoContainer
 from lzy.api.v1.snapshot import SnapshotEntry
-from lzy.core.call import LzyCall
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.remote.lzy_service_client import (
     Completed,
@@ -48,11 +50,15 @@ from lzy.api.v1.runtime import (
 )
 from lzy.api.v1.startup import ProcessingRequest
 from lzy.api.v1.utils.pickle import pickle
-from lzy.core.workflow import LzyWorkflow
 from lzy.logs.config import get_logger, get_logging_config, RESET_COLOR, COLOURS, get_syslog_color
 from lzy.storage.api import Storage, FSCredentials
 from lzy.utils.grpc import retry, RetryConfig
 from lzy.utils.files import fileobj_hash_str, zip_path
+
+if TYPE_CHECKING:
+    from lzy.core.call import LzyCall
+    from lzy.core.workflow import LzyWorkflow
+
 
 FETCH_STATUS_PERIOD_SEC = float(os.getenv("FETCH_STATUS_PERIOD_SEC", "10"))
 
@@ -142,7 +148,8 @@ class RemoteRuntime(Runtime):
             raise ValueError("Runtime is not running")
 
         client = self.__lzy_client
-        workflow = cast(LzyWorkflow, self.__workflow)
+        assert self.__workflow
+        workflow = self.__workflow
         pools = await client.get_pool_specs(workflow_name=workflow.name, execution_id=self.__execution_id)
 
         modules: Set[str] = set()
@@ -186,9 +193,9 @@ class RemoteRuntime(Runtime):
             if isinstance(status, Failed):
                 progress(ProgressStep.FAILED)
                 _LOG.debug(f"Graph {graph_id} execution failed: {status.description}")
-                for call in cast(LzyWorkflow, self.__workflow).call_queue:
+                for call in self.__workflow.call_queue:
                     if call.signature.func.name == status.failed_task_name:
-                        workflow = cast(LzyWorkflow, self.__workflow)
+                        workflow = self.__workflow
                         exception = await workflow.snapshot.get_data(call.exception_id)
                         if isinstance(exception, Result):
                             exc_typ, exc_value, exc_trace = exception.value
@@ -202,7 +209,8 @@ class RemoteRuntime(Runtime):
         if not self.__running:
             return
 
-        workflow = cast(LzyWorkflow, self.__workflow)
+        assert self.__workflow
+        workflow = self.__workflow
         try:
             await client.abort_workflow(workflow_name=workflow.name, execution_id=self.__execution_id,
                                         reason="Workflow execution aborted",
@@ -222,7 +230,8 @@ class RemoteRuntime(Runtime):
         client = self.__lzy_client
         if not self.__running:
             return
-        workflow = cast(LzyWorkflow, self.__workflow)
+        assert self.__workflow
+        workflow = self.__workflow
         try:
             await client.finish_workflow(workflow_name=workflow.name, execution_id=self.__execution_id,
                                          reason="Workflow completed", idempotency_key=self.__gen_rand_idempt_key())
@@ -274,7 +283,8 @@ class RemoteRuntime(Runtime):
     @retry(action_name="listening to std slots", config=RetryConfig(max_retry=12000, backoff_multiplier=1.2))
     async def __listen_to_std_slots(self, execution_id: str):
         client = self.__lzy_client
-        workflow = cast(LzyWorkflow, self.__workflow)
+        assert self.__workflow
+        workflow = self.__workflow
         async for msg in client.read_std_slots(
             workflow_name=workflow.name, execution_id=execution_id, logs_offset=self.__logs_offset
         ):

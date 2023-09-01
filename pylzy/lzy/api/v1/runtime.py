@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING, Callable, List, Optional
@@ -5,9 +7,8 @@ from typing import TYPE_CHECKING, Callable, List, Optional
 from lzy.storage.api import Storage
 
 if TYPE_CHECKING:
-    from lzy.api.v1 import LzyWorkflow
-
-from lzy.core.call import LzyCall
+    from lzy.core.workflow import LzyWorkflow
+    from lzy.core.call import LzyCall
 
 
 class ProgressStep(Enum):
@@ -19,7 +20,7 @@ class ProgressStep(Enum):
 
 class Runtime(ABC):
     @abstractmethod
-    async def start(self, workflow: "LzyWorkflow") -> str:
+    async def start(self, workflow: LzyWorkflow) -> str:
         pass
 
     @abstractmethod
