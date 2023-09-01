@@ -1,7 +1,6 @@
 import uuid
 from unittest import TestCase
 
-from tests.api.v1.mocks import EnvProviderMock
 from lzy.api.v1 import LocalRuntime, Lzy
 from lzy.storage.api import Storage
 
@@ -9,7 +8,7 @@ from lzy.storage.api import Storage
 class RegisterStorageTests(TestCase):
     def setUp(self):
         self.workflow_name = "workflow_" + str(uuid.uuid4())
-        self.lzy = Lzy(runtime=LocalRuntime(), py_env_provider=EnvProviderMock())
+        self.lzy = Lzy(runtime=LocalRuntime())
 
     def test_register_default_storage_name(self):
         self.lzy.storage_registry.register_storage("provided_default_storage",
