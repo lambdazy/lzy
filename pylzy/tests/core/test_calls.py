@@ -435,3 +435,45 @@ def test_conda_generate_not_in_cache(caplog, lzy):
 
     assert "name: default" in yaml
     assert "pylzy==0.0.0" in yaml
+
+
+def test_generate_pypi_index_config(lzy, pypi_index_url, pypi_index_url_testing):
+    def get_pip_deps(config):
+        dependencies = config.get('dependencies', [])
+        pip_deps = [item for item in dependencies if isinstance(item, dict) and 'pip' in item]
+
+        assert len(pip_deps) <= 1
+
+        return pip_deps
+
+    def get_config(func):
+        with lzy.workflow("test") as wf:
+            func()
+        call = wf.owner.runtime.calls[0]
+        config = call.generate_conda_config()
+        return config
+
+    @op
+    def foo() -> None:
+        pass
+
+    foo = foo.with_manual_python_env(
+        python_version="3.7.11",
+        local_module_paths=[],
+        pypi_packages={}
+    )
+    config = get_config(foo)
+    pip_deps = get_pip_deps(config)
+    assert len(pip_deps) == 1
+    assert pip_deps[0]['pip'] == [f'--index-url {pypi_index_url}']
+
+    foo = foo.with_manual_python_env(
+        python_version="3.7.11",
+        local_module_paths=[],
+        pypi_packages={},
+        pypi_index_url=pypi_index_url_testing
+    )
+    config = get_config(foo)
+    pip_deps = get_pip_deps(config)
+    assert len(pip_deps) == 1
+    assert pip_deps[0]['pip'] == [f'--index-url {pypi_index_url_testing}']

@@ -129,9 +129,9 @@ def vm_spec_small(request, vm_pool_specs):
 
 @pytest.fixture(scope='session')
 def pypi_index_url():
-    from pypi_simple import PYPI_SIMPLE_ENDPOINT
+    from lzy.utils.pypi import PYPI_INDEX_URL_DEFAULT
 
-    return PYPI_SIMPLE_ENDPOINT
+    return PYPI_INDEX_URL_DEFAULT
 
 
 @pytest.fixture(scope='session')
