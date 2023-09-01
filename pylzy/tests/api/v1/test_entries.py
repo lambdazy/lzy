@@ -9,7 +9,7 @@ from lzy.api.v1 import Lzy, op, LocalRuntime
 from lzy.storage.api import Storage, S3Credentials
 from lzy.storage.registry import DefaultStorageRegistry
 from lzy.types import File
-from tests.api.v1.mocks import EnvProviderMock, StorageClientMock, RuntimeMock, StorageRegistryMock
+from tests.api.v1.mocks import StorageClientMock, RuntimeMock, StorageRegistryMock
 from tests.api.v1.utils import create_bucket
 
 # Catboost requires both pandas & numpy
@@ -67,7 +67,7 @@ def accept_arr_and_modify(ints: List[int]) -> List[int]:
 
 class LzyEntriesTests(TestCase):
     def setUp(self):
-        self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock(), py_env_provider=EnvProviderMock())
+        self.lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock())
 
     def test_same_op_diff_entries(self):
         num = 42
@@ -466,7 +466,7 @@ class LzyEntriesTestsWithLocalRuntime(TestCase):
         cls.s3_service.stop()
 
     def setUp(self):
-        self.lzy = Lzy(runtime=LocalRuntime(), py_env_provider=EnvProviderMock(),
+        self.lzy = Lzy(runtime=LocalRuntime(),
                        storage_registry=DefaultStorageRegistry())
         self.storage_uri = "s3://bucket/prefix"
         storage_config = Storage(uri=self.storage_uri,

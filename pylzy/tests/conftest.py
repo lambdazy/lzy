@@ -1,6 +1,9 @@
 import sys
 import json
 import pathlib
+
+from typing import List
+
 import pytest
 import google.protobuf.json_format
 from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
@@ -147,3 +150,8 @@ def env_prefix() -> pathlib.Path:
 @pytest.fixture(scope='session')
 def site_packages(env_prefix: pathlib.Path) -> pathlib.Path:
     return env_prefix / "lib" / "python{}.{}".format(*sys.version_info) / "site-packages"
+
+
+@pytest.fixture
+def allowed_hosts() -> List[str]:
+    return ['localhost', '127.0.0.1', '::1']
