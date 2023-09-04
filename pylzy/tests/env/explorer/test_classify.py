@@ -52,10 +52,12 @@ def test_classify_local_packages(
 
 @pytest.mark.vcr
 def test_classify_pypi_packages(classifier: ModuleClassifier, pypi_index_url: str) -> None:
-    assert classifier.classify([pytest]) == frozenset({
+    import sample
+
+    assert classifier.classify([sample]) == frozenset({
         PypiDistribution(
-            name='pytest',
-            version='.'.join(str(v) for v in pytest.version_tuple),
+            name='sampleproject',
+            version='3.0.0',
             pypi_index_url=pypi_index_url,
         )
     })

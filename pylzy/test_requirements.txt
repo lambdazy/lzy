@@ -11,3 +11,4 @@ types-appdirs
 types-protobuf
 types-requests
 types-setuptools
+sampleproject==3.0.0  # needed for test_classify_pypi_packages
