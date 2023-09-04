@@ -1,10 +1,10 @@
-FROM amazoncorretto:17
+FROM cr.yandex/yc-internal/java-base:3.4.0
 
-RUN yum update -y && yum install -y nano nc iputils
+RUN apt-get update -y && apt-get install -y nano netcat
 
-COPY cacerts cacerts
-RUN export JAVA_HOME=$JDK_home_path
-RUN cp -f cacerts $JAVA_HOME/lib/security/cacerts
+#COPY cacerts cacerts
+#RUN export JAVA_HOME=$JDK_home_path
+#RUN cp -f cacerts $JAVA_HOME/lib/security/cacerts
 
 COPY target/allocator.jar app/app.jar
 
