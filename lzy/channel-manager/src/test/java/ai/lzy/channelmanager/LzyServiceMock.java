@@ -1,6 +1,5 @@
 package ai.lzy.channelmanager;
 
-import ai.lzy.v1.workflow.LWFS;
 import ai.lzy.v1.workflow.LWFS.AbortWorkflowRequest;
 import ai.lzy.v1.workflow.LWFS.AbortWorkflowResponse;
 import ai.lzy.v1.workflow.LzyWorkflowServiceGrpc;

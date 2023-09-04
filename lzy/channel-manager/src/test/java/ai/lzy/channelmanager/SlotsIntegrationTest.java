@@ -59,8 +59,6 @@ public class SlotsIntegrationTest extends IamOnlyChannelManagerContextTests {
 
     @BeforeClass
     public static void before() throws Exception {
-        setUp();
-
         GrpcUtils.setIsRetriesEnabled(false);
 
         var config = context.getBean(ChannelManagerConfig.class);
@@ -109,8 +107,6 @@ public class SlotsIntegrationTest extends IamOnlyChannelManagerContextTests {
         FileUtils.deleteDirectory(Path.of(FS_ROOT).toFile());
         server.shutdownNow();
         server.awaitTermination();
-
-        tearDown();
     }
 
     @After

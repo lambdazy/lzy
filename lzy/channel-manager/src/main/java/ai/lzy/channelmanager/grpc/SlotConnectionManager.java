@@ -7,6 +7,7 @@ import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalNotification;
 import com.google.common.net.HostAndPort;
+import jakarta.annotation.PreDestroy;
 import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import org.apache.logging.log4j.LogManager;
@@ -31,6 +32,11 @@ public class SlotConnectionManager {
             .removalListener(this::onRemove)
             .build(CacheLoader.from(this::onLoad));
         this.iamToken = iamToken;
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        connections.cleanUp();
     }
 
     public SlotGrpcConnection getConnection(URI uri) {
