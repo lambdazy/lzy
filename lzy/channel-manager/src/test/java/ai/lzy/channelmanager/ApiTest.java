@@ -29,7 +29,11 @@ import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
-import org.junit.*;
+import org.junit.After;
+import org.junit.AfterClass;
+import org.junit.Assert;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
@@ -54,8 +58,6 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
 
     @BeforeClass
     public static void before() throws Exception {
-        setUp();
-
         var config = context.getBean(ChannelManagerConfig.class);
 
         workflowName = "wfName";
@@ -90,8 +92,6 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
 
         mockedLzyServiceServer.shutdownNow();
         mockedLzyServiceServer.awaitTermination();
-
-        tearDown();
     }
 
     @After
@@ -130,10 +130,10 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
         Assert.assertEquals(resp.getPeer().getPeerId(), state.getChannels(0).getProducers(0).getPeerId());
         Assert.assertEquals("1", state.getChannels(0).getConsumers(0).getPeerId());
 
-        completed(chan.getChannelId(), resp.getTransferId(), "complete");
+        completeTransfer(chan.getChannelId(), resp.getTransferId(), "complete");
     }
 
-    private static void completed(String chanId, String transferId, String idempotencyKey) {
+    private static void completeTransfer(String chanId, String transferId, String idempotencyKey) {
         withIdempotencyKey(publicClient, idempotencyKey).transferCompleted(
             LCMS.TransferCompletedRequest.newBuilder()
                 .setChannelId(chanId)
@@ -157,7 +157,7 @@ public class ApiTest extends IamOnlyChannelManagerContextTests {
 
         Assert.assertEquals("s3://some-bucket", resp.getPeer().getStoragePeer().getStorageUri());
 
-        completed(chan.getChannelId(), resp.getTransferId(), "complete");
+        completeTransfer(chan.getChannelId(), resp.getTransferId(), "complete");
 
         var state = publicClient.getChannelsStatus(
             LCMS.GetChannelsStatusRequest.newBuilder()

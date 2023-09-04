@@ -6,14 +6,11 @@ import ai.lzy.v1.slots.LzySlotsApiGrpc;
 import ai.lzy.v1.slots.LzySlotsApiGrpc.LzySlotsApiBlockingStub;
 import com.google.common.net.HostAndPort;
 import io.grpc.ManagedChannel;
-import jakarta.inject.Singleton;
 
 import static ai.lzy.util.grpc.GrpcUtils.newBlockingClient;
 import static ai.lzy.util.grpc.GrpcUtils.newGrpcChannel;
 
-@Singleton
 public class SlotGrpcConnection {
-
     private final ManagedChannel channel;
     private final LzySlotsApiBlockingStub slotsApi;
 
@@ -31,5 +28,4 @@ public class SlotGrpcConnection {
     void shutdown() {
         channel.shutdown();
     }
-
 }
