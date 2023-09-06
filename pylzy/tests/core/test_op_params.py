@@ -1,20 +1,22 @@
-import pytest
-from unittest import TestCase
+from __future__ import annotations
 
-from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock, EnvProviderMock
-from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
-from lzy.api.v1 import Lzy, op, Env, DockerPullPolicy
-from lzy.api.v1.provisioning import (
-    CpuType,
-    GpuType,
-    Provisioning,
-    maximum_score_function,
-    minimum_score_function,
-)
-from lzy.api.v1.call import LzyCall
-from lzy.api.v1.workflow import LzyWorkflow
-from lzy.exceptions import BadProvisioning
 from platform import python_version
+
+import pytest
+
+from lzy.api.v1 import Lzy, op
+from lzy.env.base import NotSpecified
+from lzy.env.container.no_container import NoContainer
+from lzy.env.container.docker import DockerContainer, DockerPullPolicy
+from lzy.env.provisioning.provisioning import Provisioning, NO_GPU, Any
+from lzy.env.provisioning.score import minimum_score_function, maximum_score_function
+from lzy.env.python.auto import AutoPythonEnv
+from lzy.env.python.manual import ManualPythonEnv
+from lzy.core.call import LzyCall
+from lzy.core.workflow import LzyWorkflow
+from lzy.exceptions import BadProvisioning
+from lzy.types import VmSpec
+from tests.api.v1.mocks import RuntimeMock, StorageRegistryMock
 
 
 @op
@@ -22,380 +24,290 @@ def func() -> None:
     pass
 
 
-@pytest.mark.usefixtures('vm_pool_specs', 'vm_pool_spec_large', 'vm_pool_spec_small')
-class LzyOpParamsTests(TestCase):
-    vm_pool_specs = None
-    vm_pool_spec_large = None
-    vm_pool_spec_small = None
+@pytest.fixture
+def lzy(vm_specs):
+    return Lzy(
+        runtime=RuntimeMock(
+            vm_specs=vm_specs,
+        ),
+        storage_registry=StorageRegistryMock(),
+    ).with_manual_python_env(
+        python_version='3.7.11',
+        local_module_paths=["local_module_paths"],
+        pypi_packages={"pylzy": "0.0.0"}
+    )
 
-    def setUp(self):
-        assert self.vm_pool_specs
-        assert self.vm_pool_spec_large
-        assert self.vm_pool_spec_small
 
-        self.lzy = Lzy(
-            runtime=RuntimeMock(
-                vm_pool_specs=self.vm_pool_specs,
-            ),
-            storage_registry=StorageRegistryMock(),
-            py_env_provider=EnvProviderMock({"pylzy": "0.0.0"}, ["local_module_path"])
-        )
+def assert_pool_spec(wf: LzyWorkflow, etalon: VmSpec) -> None:
+    vm_pool_spec = wf.first_call.vm_spec  # type: ignore
 
-    def assert_pool_spec(self, wf: LzyWorkflow, etalon: VmPoolSpec):
-        call: LzyCall = wf.owner.runtime.calls[0]
-        vm_pool_spec = call._vm_pool_spec  # it is assigned at mock runtime
+    assert vm_pool_spec == etalon
 
-        self.assertEqual(vm_pool_spec, etalon)
 
-    def test_description(self):
-        description = "my favourite func"
+def test_description(lzy):
+    description = "my favourite func"
 
-        @op(description=description)
-        def func_description() -> None:
-            pass
+    @op(description=description)
+    def func_description() -> None:
+        pass
 
-        with self.lzy.workflow("test") as wf:
-            func_description()
+    with lzy.workflow("test") as wf:
+        func_description()
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertEqual(description, call.description)
+    assert description == wf.first_call.description
 
-    def test_invalid_workflow_provisioning(self):
-        provisioning = Provisioning(
-            gpu_type=GpuType.NO_GPU.value,
-            gpu_count=4
-        )
-        with self.assertRaisesRegex(BadProvisioning, r"gpu_type is set to NO_GPU while gpu_count"):
-            with self.lzy.workflow("test", provisioning=provisioning):
+
+def test_invalid_workflow_provisioning(lzy):
+    provisioning = Provisioning(
+        gpu_type=NO_GPU,
+        gpu_count=4
+    )
+    with pytest.raises(BadProvisioning, match=r"gpu_type is set to NO_GPU while gpu_count"):
+        with lzy.workflow("test").with_provisioning(provisioning):
+            func()
+
+
+def test_unavailable_provisioning(lzy):
+    # NB: single gpu_count is raising other error
+    for field, value in (
+        ('cpu_count', 1000),
+        ('ram_size_gb', 1002),
+        ('cpu_type', 'foo'),
+        ('gpu_type', 'bar'),
+    ):
+        kwargs = {field: value}
+
+        with pytest.raises(BadProvisioning, match=r"not a single one available spec from"):
+            with lzy.workflow("test").with_provisioning(**kwargs):
                 func()
 
-    def test_unavailable_provisioning(self):
-        for field, value in (
-            ('cpu_count', 1000),
-            ('gpu_count', 1001),
-            ('ram_size_gb', 1002),
-            ('cpu_type', 'foo'),
-            ('gpu_type', 'bar'),
-        ):
-            kwargs = {field: value}
 
-            with self.assertRaisesRegex(BadProvisioning, r"not a single one available spec from"):
-                with self.lzy.workflow("test", **kwargs):
-                    func()
+def test_default_provisioning(lzy, vm_spec_small):
+    with lzy.workflow("test") as wf:
+        func()
 
-    def test_default_provisioning(self):
-        with self.lzy.workflow("test") as wf:
-            func()
+    provisioning: Provisioning = wf.first_call.get_provisioning()
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        provisioning: Provisioning = call.provisioning
+    assert provisioning.cpu_type is NotSpecified
+    assert provisioning.gpu_type is NotSpecified
+    assert provisioning.cpu_count is NotSpecified
+    assert provisioning.ram_size_gb is NotSpecified
+    assert provisioning.gpu_count is NotSpecified
 
-        self.assertEqual(None, provisioning.cpu_type)
-        self.assertEqual(None, provisioning.gpu_type)
-        self.assertEqual(None, provisioning.cpu_count)
-        self.assertEqual(None, provisioning.ram_size_gb)
-        self.assertEqual(None, provisioning.gpu_count)
+    vm_spec: VmSpec = provisioning._as_vm_spec()
+    assert vm_spec.cpu_type == ''
+    assert vm_spec.gpu_type == NO_GPU
+    assert vm_spec.cpu_count == 0
+    assert vm_spec.ram_size_gb == 0
+    assert vm_spec.gpu_count == 0
 
-        self.assertEqual('', provisioning.cpu_type_final)
-        self.assertEqual('', provisioning.gpu_type_final)
-        self.assertEqual(0, provisioning.cpu_count_final)
-        self.assertEqual(0, provisioning.ram_size_gb_final)
-        self.assertEqual(0, provisioning.gpu_count_final)
+    assert_pool_spec(wf, vm_spec_small)
 
-        self.assert_pool_spec(wf, self.vm_pool_spec_small)
 
-    def test_workflow_provisioning(self):
-        with self.lzy.workflow("test", gpu_count=1, gpu_type=GpuType.V100.name) as wf:
-            func()
+def test_workflow_provisioning(lzy, vm_spec_large):
+    with lzy.workflow("test").with_provisioning(gpu_count=1, gpu_type='V100') as wf:
+        func()
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        provisioning = call.provisioning
+    provisioning = wf.first_call.get_provisioning()
 
-        self.assertIsNone(None, provisioning.cpu_type)
-        self.assertIsNone(None, provisioning.cpu_count)
-        self.assertIsNone(None, provisioning.ram_size_gb)
-        self.assertEqual(1, provisioning.gpu_count)
-        self.assertEqual(GpuType.V100.name, provisioning.gpu_type)
+    assert provisioning.cpu_type is NotSpecified
+    assert provisioning.cpu_count is NotSpecified
+    assert provisioning.ram_size_gb is NotSpecified
+    assert provisioning.gpu_count == 1
+    assert provisioning.gpu_type == 'V100'
 
-        self.assert_pool_spec(wf, self.vm_pool_spec_large)
+    assert_pool_spec(wf, vm_spec_large)
 
-    def test_op_provisioning(self):
-        @op(gpu_count=1, provisioning=Provisioning(gpu_count=4, cpu_count=8))
-        def func_with_provisioning() -> None:
-            pass
 
-        with self.lzy.workflow("test", gpu_type=GpuType.V100.name, cpu_count=32, gpu_count=1) as wf:
+def test_op_provisioning(lzy, vm_spec_large):
+    @Provisioning(gpu_count=1, cpu_count=8)
+    @op
+    def func_with_provisioning() -> None:
+        pass
+
+    with lzy.workflow("test") \
+            .with_provisioning(
+                Provisioning(gpu_type='V100', cpu_count=32, gpu_count=4)
+            ) as wf:
+        func_with_provisioning()
+
+    provisioning = wf.first_call.get_provisioning()
+
+    assert provisioning.cpu_type is NotSpecified
+    assert provisioning.cpu_count == 8
+    assert provisioning.ram_size_gb is NotSpecified
+    assert provisioning.gpu_count == 1
+    assert provisioning.gpu_type == 'V100'
+
+    assert_pool_spec(wf, vm_spec_large)
+
+
+def test_op_provisioning_invalid(lzy):
+    @Provisioning(gpu_count=8)
+    @op
+    def func_with_provisioning() -> None:
+        pass
+
+    with pytest.raises(BadProvisioning, match="gpu_type is set to NO_GPU while gpu_count"):
+        with lzy.workflow("test").with_provisioning(gpu_type=NO_GPU):
             func_with_provisioning()
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        provisioning = call.provisioning
 
-        self.assertEqual(None, provisioning.cpu_type)
-        self.assertEqual(8, provisioning.cpu_count)
-        self.assertEqual(None, provisioning.ram_size_gb)
-        self.assertEqual(1, provisioning.gpu_count)
-        self.assertEqual(GpuType.V100.name, provisioning.gpu_type)
+def test_provisioning_score_func(lzy, vm_spec_large, vm_spec_small):
+    with lzy.workflow("test") as wf:
+        func()
 
-        self.assert_pool_spec(wf, self.vm_pool_spec_large)
+    assert_pool_spec(wf, vm_spec_small)
 
-    def test_op_provisioning_invalid(self):
-        @op(gpu_count=8)
-        def func_with_provisioning() -> None:
-            pass
+    with lzy.workflow("test").with_provisioning(
+        Provisioning(score_function=minimum_score_function)
+    ) as wf:
+        func()
 
-        with self.assertRaisesRegex(BadProvisioning, "gpu_type is set to NO_GPU while gpu_count"):
-            with self.lzy.workflow("test", gpu_type=str(GpuType.NO_GPU.value)):
-                func_with_provisioning()
+    assert_pool_spec(wf, vm_spec_small)
 
-    def test_invalid_workflow_env(self):
-        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
-            with self.lzy.workflow("test", python_version="3.9.15", env=Env(conda_yaml_path="my_file")):
-                func()
+    with lzy.workflow("test").with_provisioning(
+        Provisioning(score_function=maximum_score_function, gpu_type=Any)
+    ) as wf:
+        func()
 
-        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
-            with self.lzy.workflow("test", libraries={"pylzy": "1.1.1"}, env=Env(conda_yaml_path="my_file")):
-                func()
+    assert_pool_spec(wf, vm_spec_large)
 
-        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
-            with self.lzy.workflow("test", env=Env(conda_yaml_path="my_file", libraries={"pylzy": "1.1.1"})):
-                func()
 
-        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
-            with self.lzy.workflow("test", env=Env(conda_yaml_path="my_file", python_version="3.9.15")):
-                func()
+def test_default_python_env():
+    # NB: lzy fixture have python_env overrided
+    lzy = Lzy(runtime=RuntimeMock(), storage_registry=StorageRegistryMock())
+    with lzy.workflow("test") as wf:
+        func()
 
-        with self.assertRaisesRegex(ValueError, "docker_image is set but docker_pull_policy is not"):
-            # noinspection PyTypeChecker
-            with self.lzy.workflow("test", docker_image="lzy", docker_pull_policy=None):
-                func()
+    call: LzyCall = wf.first_call
+    python_env = call.final_env.get_python_env()
+    assert isinstance(python_env, AutoPythonEnv)
+    assert python_version() == python_env.get_python_version()
 
-    def test_provisioning_score_func(self):
-        with self.lzy.workflow("test") as wf:
-            func()
+    with pytest.raises(RuntimeError, match="Network is disabled"):
+        call.get_pypi_packages()
 
-        self.assert_pool_spec(wf, self.vm_pool_spec_small)
+    with pytest.raises(RuntimeError, match="Network is disabled"):
+        call.get_local_module_paths()
 
-        with self.lzy.workflow(
-            "test",
-            provisioning=Provisioning(score_function=minimum_score_function)
-        ) as wf:
-            func()
 
-        self.assert_pool_spec(wf, self.vm_pool_spec_small)
+def test_workflow_env(lzy):
+    @op
+    def func_without_env() -> None:
+        pass
 
-        with self.lzy.workflow(
-            "test",
-            provisioning=Provisioning(score_function=maximum_score_function)
-        ) as wf:
-            func()
+    with lzy.workflow("test").with_python_env(
+        ManualPythonEnv(
+            python_version="3.8.6",
+            pypi_packages={"pylzy": "1.1.1"},
+            local_module_paths=['/a/b/c']
+        )
+    ) as wf:
+        func_without_env()
 
-        self.assert_pool_spec(wf, self.vm_pool_spec_large)
+    call: LzyCall = wf.first_call
+    assert call.get_python_version() == "3.8.6"
+    assert "pylzy" in call.get_pypi_packages()
+    assert "/a/b/c" in call.get_local_module_paths()
+    assert isinstance(call.final_env.get_container(), NoContainer)
 
-    def test_default_env(self):
-        with self.lzy.workflow("test") as wf:
-            func()
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertEqual(python_version(), call.env.python_version)
-        self.assertTrue("pylzy" in call.env.libraries)
-        self.assertIsNone(call.env.conda_yaml_path)
-        self.assertIsNone(call.env.docker_image)
-        self.assertTrue(len(call.env.local_modules_path) >= 1)
+def test_op_env(lzy):
+    @ManualPythonEnv(python_version="3.9.15", pypi_packages={"cloudpickle": "1.1.1"}, local_module_paths=['lol_kek'])
+    @op
+    def func_with_env() -> None:
+        pass
 
-    def test_workflow_env(self):
-        @op
-        def func_without_env() -> None:
-            pass
+    with lzy.workflow("test").with_manual_python_env(
+        python_version="3.8.6",
+        pypi_packages={"pylzy": "1.1.1"},
+        local_module_paths=[],
+    ) as wf:
+        func_with_env()
 
-        with self.lzy.workflow("test",
-                               python_version="3.8.6",
-                               libraries={"pylzy": "1.1.1"},
-                               local_modules_path=['/a/b/c']) as wf:
-            func_without_env()
+    call: LzyCall = wf.first_call
+    assert "3.9.15" == call.get_python_version()
+    assert "pylzy" not in call.get_pypi_packages()
+    assert "cloudpickle" in call.get_pypi_packages()
+    assert "lol_kek" in call.get_local_module_paths()
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertEqual("3.8.6", call.env.python_version)
-        self.assertTrue("pylzy" in call.env.libraries)
-        self.assertTrue("/a/b/c" in call.env.local_modules_path)
-        self.assertIsNone(call.env.conda_yaml_path)
-        self.assertIsNone(call.env.docker_image)
 
-    def test_op_env(self):
-        @op(python_version="3.9.15", libraries={"cloudpickle": "1.1.1"})
-        def func_with_env() -> None:
-            pass
+def test_docker_wf(lzy):
+    with lzy.workflow("test").with_docker_container(registry='foo', image='bar') as wf:
+        func()
 
-        with self.lzy.workflow("test", python_version="3.8.6", env=Env(libraries={"pylzy": "1.1.1"})) as wf:
-            func_with_env()
+    call: LzyCall = wf.first_call
+    assert call.get_python_version() is not None
+    assert isinstance(call.get_container(), DockerContainer)
+    assert call.get_container().get_registry() == 'foo'
+    assert call.get_container().get_image() == 'bar'
+    assert call.get_container().get_pull_policy() == DockerPullPolicy.IF_NOT_EXISTS
+    assert call.get_container().get_password() is None
+    assert call.get_container().get_username() is None
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertEqual("3.9.15", call.env.python_version)
-        self.assertTrue("pylzy" in call.env.libraries)
-        self.assertTrue("cloudpickle" in call.env.libraries)
-        self.assertIsNone(call.env.conda_yaml_path)
-        self.assertIsNone(call.env.docker_image)
 
-    def test_op_env_invalid(self):
-        @op(python_version="3.9.15")
-        def func_with_py() -> None:
-            pass
+def test_docker_op(lzy):
+    @DockerContainer(registry='foo1', image='bar1', pull_policy=DockerPullPolicy.ALWAYS)
+    @op
+    def func_with_docker() -> None:
+        pass
 
-        @op(libraries={"cloudpickle": "1.1.1"})
-        def func_with_libs() -> None:
-            pass
+    with lzy.workflow("test").with_docker_container(
+        registry='foo', image='bar', username='baz'
+    ) as wf:
+        func_with_docker()
 
-        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
-            with self.lzy.workflow("test", conda_yaml_path="yaml"):
-                func_with_py()
+    call: LzyCall = wf.first_call
+    assert call.get_python_version() is not None
+    assert isinstance(call.get_container(), DockerContainer)
+    assert call.get_container().get_registry() == 'foo1'
+    assert call.get_container().get_image() == 'bar1'
+    assert call.get_container().get_pull_policy() == DockerPullPolicy.ALWAYS
+    assert call.get_container().get_password() is None
+    assert call.get_container().get_username() is None
 
-        with self.assertRaisesRegex(ValueError, "Python version & libraries cannot be overriden if conda yaml is set"):
-            with self.lzy.workflow("test", conda_yaml_path="yaml"):
-                func_with_libs()
 
-    def test_op_env_yaml(self):
-        @op(conda_yaml_path="path_op")
-        def func_with_env() -> None:
-            pass
+def test_env_variables(lzy):
+    @op
+    def foo() -> None:
+        pass
 
-        with self.lzy.workflow("test", conda_yaml_path="path_wf") as wf:
-            func_with_env()
+    # TODO: change with helper
+    foo = foo.with_env_vars(a="a1", b="b1")
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertIsNone(call.env.python_version)
-        self.assertEqual({}, call.env.libraries)
-        self.assertEqual("path_op", call.env.conda_yaml_path)
-        self.assertIsNone(call.env.docker_image)
-        self.assertTrue(len(call.env.local_modules_path) > 0)
+    with lzy.workflow("test").with_env_vars({'b': 'b2', 'c': 'c2'}) as wf:
+        foo()
 
-    def test_wf_env_yaml(self):
-        with self.lzy.workflow("test", conda_yaml_path="path_wf") as wf:
-            func()
+    call: LzyCall = wf.first_call
+    assert call.get_env_vars() == {'a': 'a1', 'b': 'b1', 'c': 'c2'}
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertIsNone(call.env.python_version)
-        self.assertEqual({}, call.env.libraries)
-        self.assertEqual("path_wf", call.env.conda_yaml_path)
-        self.assertIsNone(call.env.docker_image)
-        self.assertTrue(len(call.env.local_modules_path) > 0)
 
-    def test_docker_wf(self):
-        with self.lzy.workflow("test", docker_image='image1') as wf:
-            func()
+def test_op_with_default_cache_params(lzy):
+    default_version = "0.0"
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertIsNotNone(call.env.python_version)
-        self.assertTrue(len(call.env.libraries) > 0)
-        self.assertEqual("image1", call.env.docker_image)
-        self.assertIsNone(call.env.conda_yaml_path)
-        self.assertTrue(len(call.env.local_modules_path) > 0)
-        self.assertEqual(DockerPullPolicy.IF_NOT_EXISTS, call.env.docker_pull_policy)
+    @op
+    def cached_op(a: int) -> str:
+        return f"Value: {a}"
 
-    def test_docker_op(self):
-        @op(docker_image="image2", docker_pull_policy=DockerPullPolicy.ALWAYS)
-        def func_with_docker() -> None:
-            pass
+    with lzy.workflow("test") as wf:
+        cached_op(42)
 
-        with self.lzy.workflow("test", docker_image='image1') as wf:
-            func_with_docker()
+    call: LzyCall = wf.first_call
+    assert call.cache is False
+    assert default_version == call.version
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertIsNotNone(call.env.python_version)
-        self.assertTrue(len(call.env.libraries) > 0)
-        self.assertEqual("image2", call.env.docker_image)
-        self.assertIsNone(call.env.conda_yaml_path)
-        self.assertTrue(len(call.env.local_modules_path) > 0)
-        self.assertEqual(DockerPullPolicy.ALWAYS, call.env.docker_pull_policy)
 
-    def test_docker_with_conda(self):
-        @op(docker_image="image2", conda_yaml_path="path1")
-        def func_with_docker() -> None:
-            pass
+def test_cached_op(lzy):
+    version = "1.0"
 
-        with self.lzy.workflow("test", docker_image='image1') as wf:
-            func_with_docker()
+    @op(cache=True, version=version)
+    def cached_op(a: int) -> str:
+        return f"Value: {a}"
 
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertIsNone(call.env.python_version)
-        self.assertEqual({}, call.env.libraries)
-        self.assertEqual("image2", call.env.docker_image)
-        self.assertEqual("path1", call.env.conda_yaml_path)
-        self.assertTrue(len(call.env.local_modules_path) > 0)
+    with lzy.workflow("test") as wf:
+        cached_op(42)
 
-    def test_env_variables(self):
-
-        @op(env_variables={"a": "a1", "b": "b"})
-        def foo() -> None:
-            pass
-
-        with self.lzy.workflow("test", env_variables={"a": "a2", "c": "c"}) as wf:
-            foo()
-
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertEqual(call.env.env_variables, {"a": "a1", "b": "b", "c": "c"})
-
-    def test_local_modules(self):
-        @op
-        def func_with_env() -> None:
-            pass
-
-        with self.lzy.workflow("test", local_modules_path=["lol_kek"]) as wf:
-            func_with_env()
-
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertTrue("lol_kek" in call.env.local_modules_path)
-
-    def test_local_modules_op(self):
-        @op(local_modules_path=["lol_kek"])
-        def func_with_env() -> None:
-            pass
-
-        with self.lzy.workflow("test") as wf:
-            func_with_env()
-
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertTrue("lol_kek" in call.env.local_modules_path)
-
-    def test_op_with_default_cache_params(self):
-        default_version = "0.0"
-
-        @op
-        def cached_op(a: int) -> str:
-            return f"Value: {a}"
-
-        with self.lzy.workflow("test") as wf:
-            cached_op(42)
-
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertFalse(call.cache)
-        self.assertEqual(default_version, call.version)
-
-    def test_cached_op(self):
-        version = "1.0"
-
-        @op(cache=True, version=version)
-        def cached_op(a: int) -> str:
-            return f"Value: {a}"
-
-        with self.lzy.workflow("test") as wf:
-            cached_op(42)
-
-        # noinspection PyUnresolvedReferences
-        call: LzyCall = wf.owner.runtime.calls[0]
-        self.assertTrue(call.cache)
-        self.assertEqual(version, call.version)
+    call: LzyCall = wf.first_call
+    assert call.cache is True
+    assert version == call.version

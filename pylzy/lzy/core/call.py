@@ -5,7 +5,7 @@ import uuid
 from inspect import getfullargspec
 from dataclasses import dataclass
 from itertools import chain, zip_longest
-from typing import Any, Callable, Dict, Mapping, Sequence, Tuple,  Optional, List
+from typing import Any, Callable, Dict, Mapping, Sequence, Tuple,  Optional, List, TYPE_CHECKING
 
 import yaml
 
@@ -23,10 +23,13 @@ from lzy.api.v1.signatures import CallSignature, FuncSignature
 from lzy.api.v1.snapshot import Snapshot
 from lzy.api.v1.utils.proxy_adapter import lzy_proxy, materialize, is_lzy_proxy, get_proxy_entry_id, materialized
 from lzy.api.v1.utils.types import infer_real_types, get_default_args, check_types_serialization_compatible, is_subtype
-from lzy.core.workflow import LzyWorkflow
 from lzy.logs.config import get_logger
 from lzy.utils.functools import update_wrapper
+from lzy.utils.inspect import get_annotations
 from lzy.utils.event_loop import LzyEventLoop
+
+if TYPE_CHECKING:
+    from lzy.core.workflow import LzyWorkflow
 
 
 _LOG = get_logger(__name__)
@@ -37,7 +40,7 @@ _INSTALLED_VERSIONS = {"3.7.11": "py37", "3.8.12": "py38", "3.9.7": "py39"}
 class LzyCall:
     workflow: LzyWorkflow
     signature: CallSignature
-    env: LzyEnvironment
+    call_env: LzyEnvironment
     description: str
     version: str
     cache: bool
@@ -47,10 +50,11 @@ class LzyCall:
         self.id: str = str(uuid.uuid4())
 
         lzy_env = self.workflow.owner.env
-        self.workflow_env = self.workflow.env
+        wf_env = self.workflow.env
         # NB: we must calculate combined env right after LazyCallWrapper calling
         # to prevent changing of lzy_env/workflow_env beetween calls affecting this call
-        self.final_env: LzyEnvironment = lzy_env.combine(self.workflow_env).combine(self.env)
+        self.final_env: LzyEnvironment = lzy_env.combine(wf_env).combine(self.call_env)
+        self.final_env.validate()
 
         sign = self.signature
         workflow = self.workflow
@@ -123,14 +127,17 @@ class LzyCall:
     def exception_id(self) -> str:
         return self.__exception_id
 
+    def get_python_version(self) -> str:
+        return self.final_env.get_python_env().get_python_version()
+
     def get_local_module_paths(self) -> ModulePathsList:
         return self.final_env.get_python_env().get_local_module_paths(
-            self.workflow_env.get_namespace()
+            self.workflow.env.get_namespace()
         )
 
     def get_pypi_packages(self) -> PackagesDict:
         return self.final_env.get_python_env().get_pypi_packages(
-            self.workflow_env.get_namespace()
+            self.workflow.env.get_namespace()
         )
 
     def get_provisioning(self) -> Provisioning:
@@ -195,6 +202,8 @@ class LazyCallWrapper(WithEnvironmentMixin):
         update_wrapper(self, self.function)
 
     def __call__(self, *args, **kwargs) -> Any:
+        from lzy.core.workflow import LzyWorkflow
+
         active_workflow: Optional[LzyWorkflow] = LzyWorkflow.get_active()
         if active_workflow is None:
             return self.function(*args, **kwargs)
@@ -211,7 +220,7 @@ class LazyCallWrapper(WithEnvironmentMixin):
         lzy_call = LzyCall(
             workflow=active_workflow,
             signature=signature,
-            env=self.env,
+            call_env=self.env,
             description=self.description,
             version=self.version,
             cache=self.cache,
@@ -269,10 +278,11 @@ def infer_and_validate_call_signature(
 ) -> CallSignature:
     types_mapping = {}
     argspec = getfullargspec(f)
+    annotations = get_annotations(f, eval_str=True)
 
     if argspec.varkw is None:
         for kwarg in kwargs:
-            if kwarg not in argspec.annotations:
+            if kwarg not in annotations:
                 raise KeyError(f"Unexpected key argument {kwarg}")
 
     defaults = get_default_args(f)
@@ -292,13 +302,13 @@ def infer_and_validate_call_signature(
         if from_varargs:
             inferred_type = __infer_type(snapshot, name, arg)
         else:
-            inferred_type = __infer_type(snapshot, name, arg, argspec.annotations)
-            if name in argspec.annotations:
+            inferred_type = __infer_type(snapshot, name, arg, annotations)
+            if name in annotations:
                 typ = inferred_type if is_lzy_proxy(arg) else get_type(arg)
-                compatible = check_types_serialization_compatible(argspec.annotations[name], typ, serializer_registry)
-                if not compatible or not is_subtype(typ, argspec.annotations[name]):
+                compatible = check_types_serialization_compatible(annotations[name], typ, serializer_registry)
+                if not compatible or not is_subtype(typ, annotations[name]):
                     raise TypeError(
-                        f"Invalid types: argument {name} has type {argspec.annotations[name]} "
+                        f"Invalid types: argument {name} has type {annotations[name]} "
                         f"but passed type {typ}")
 
         types_mapping[name] = inferred_type

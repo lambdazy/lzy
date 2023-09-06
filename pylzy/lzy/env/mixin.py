@@ -6,6 +6,7 @@ from typing_extensions import Self
 from lzy.utils.functools import kwargsdispatchmethod
 from .base import Deconstructible, NotSpecified
 from .environment import LzyEnvironment, EnvVarsType
+from .container.docker import DockerContainer, DockerPullPolicy
 from .container.base import BaseContainer
 from .provisioning.provisioning import Provisioning, ProvisioningRequirement
 from .python.base import BasePythonEnv, ModulePathsList, PackagesDict
@@ -18,10 +19,19 @@ class WithEnvironmentMixin(Deconstructible):
     def with_env(self, env: LzyEnvironment) -> Self:
         return self.with_fields(env=env)
 
-    def with_env_vars(self, env_vars: EnvVarsType) -> Self:
+    @kwargsdispatchmethod
+    def with_env_vars(self, *args, **kwargs) -> Self:
+        raise NotImplementedError('wrong argument types')
+
+    @with_env_vars.register('args')
+    def _(self, env_vars: EnvVarsType) -> Self:
         return self.with_env(
             self.env.with_fields(env_vars=env_vars)
         )
+
+    @with_env_vars.register('kwargs')
+    def _(self, **kwargs: EnvVarsType) -> Self:
+        return self.with_env_vars(kwargs)
 
     @kwargsdispatchmethod
     def with_provisioning(self, *args, **kwargs) -> Self:
@@ -60,6 +70,25 @@ class WithEnvironmentMixin(Deconstructible):
     def with_container(self, container: BaseContainer) -> Self:
         return self.with_env(
             self.env.with_fields(container=container)
+        )
+
+    def with_docker_container(
+        self,
+        *,
+        registry: str,
+        image: str,
+        pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+    ) -> Self:
+        return self.with_container(
+            DockerContainer(
+                registry=registry,
+                image=image,
+                pull_policy=pull_policy,
+                username=username,
+                password=password,
+            )
         )
 
     def with_python_env(self, python_env: BasePythonEnv) -> Self:

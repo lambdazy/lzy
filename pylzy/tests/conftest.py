@@ -1,13 +1,30 @@
+from __future__ import annotations
+
 import sys
 import json
 import pathlib
 
-from typing import List, Tulpe
+from typing import List, Tuple
 
 import pytest
 import google.protobuf.json_format
+
 from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec
+
+import lzy.api.v1  # noqa
+import lzy.config
 from lzy.types import VmSpec
+from tests.test_utils.workflow import TestLzyWorkflow
+
+
+@pytest.fixture(autouse=True)
+def skip_pypi_validation(monkeypatch):
+    monkeypatch.setattr(lzy.config, 'skip_pypi_validation', True)
+
+
+@pytest.fixture(autouse=True)
+def test_lzy_workflow(monkeypatch):
+    monkeypatch.setattr(lzy.api.v1.Lzy, '_workflow_class', TestLzyWorkflow)
 
 
 @pytest.fixture(scope="module")
@@ -30,23 +47,9 @@ def vcr_cassette_dir(request, get_test_data_path) -> str:
     return str(get_test_data_path("cassettes", cassete_dir))
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="session")
 def vcr_config():
     return {"decode_compressed_response": True}
-
-
-def set_unittest_fixture(request, value):
-    assert value
-
-    name = request.fixturename
-
-    # if there no cls member or it is None,
-    # it means that it is normal usage of fixture,
-    # not with unittest
-    if getattr(request, 'cls', None):
-        setattr(request.cls, name, value)
-
-    return value
 
 
 @pytest.fixture(scope='session')

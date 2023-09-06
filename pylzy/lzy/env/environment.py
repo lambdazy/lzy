@@ -48,8 +48,14 @@ class LzyEnvironment(Deconstructible):
         else:
             new_provisioning = provisioning or self.provisioning
 
+        new_env_vars: EnvVarsType
+        if is_specified(self.env_vars) and is_specified(env_vars):
+            new_env_vars = {**self.env_vars, **env_vars}
+        else:
+            new_env_vars = env_vars or self.env_vars
+
         return super().with_fields(
-            env_vars=env_vars or self.env_vars,
+            env_vars=new_env_vars,
             provisioning=new_provisioning,
             python_env=python_env or self.python_env,
             container=container or self.container,
@@ -85,3 +91,4 @@ class LzyEnvironment(Deconstructible):
 
     def validate(self) -> None:
         self.get_python_env().validate()
+        self.get_provisioning().validate()

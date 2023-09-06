@@ -56,6 +56,7 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import LzyWorkflowServiceServi
 from lzy.api.v1 import Provisioning
 from lzy.api.v1.runtime import ProgressStep, Runtime
 from lzy.logs.config import get_logger
+from lzy.types import VmSpec
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, Storage, AsyncStorageClient
 
@@ -68,10 +69,10 @@ _LOG = get_logger(__name__)
 
 
 class RuntimeMock(Runtime):
-    def __init__(self, *, vm_pool_specs: Optional[Sequence[VmPoolSpec]] = None):
+    def __init__(self, *, vm_specs: Optional[Sequence[VmSpec]] = None):
         self.calls: List[LzyCall] = []
-        self.vm_pool_specs = vm_pool_specs
-        self.pool_to_call: List[Tuple[LzyCall, VmPoolSpec]] = []
+        self.vm_specs = vm_specs
+        self.pool_to_call: List[Tuple[LzyCall, VmSpec]] = []
 
     async def storage(self) -> Optional[Storage]:
         return None
@@ -82,13 +83,14 @@ class RuntimeMock(Runtime):
     async def exec(self, calls: List[LzyCall], progress: Callable[[ProgressStep], None]) -> None:
         self.calls = calls
 
-        if not self.vm_pool_specs:
+        if not self.vm_specs:
             return
 
         for call in self.calls:
-            pool = call.provisioning.resolve_pool(self.vm_pool_specs)
+            pool = call.get_provisioning().resolve_pool(self.vm_specs)
+            self.pool_to_call.append((pool, call))
 
-            call._vm_pool_spec = pool
+            setattr(call, 'vm_spec', pool)
 
     async def abort(self) -> None:
         pass

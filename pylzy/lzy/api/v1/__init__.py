@@ -2,7 +2,7 @@ import datetime
 import inspect
 import os
 from dataclasses import dataclass, field
-from typing import Any, Callable, Optional, Sequence, TypeVar, Iterable, ClassVar
+from typing import Any, Callable, Optional, Sequence, TypeVar, Iterable, ClassVar, Type
 from typing_extensions import Self
 
 # This i'm considering as a part of API
@@ -141,6 +141,8 @@ class Lzy(WithEnvironmentMixin):
 
     _registered_runtime_storage: bool = field(init=False)
 
+    _workflow_class: ClassVar[Type[LzyWorkflow]] = LzyWorkflow
+
     def __post_init__(self):
         object.__setattr__(self, '_registered_runtime_storage', False)
 
@@ -215,7 +217,7 @@ class Lzy(WithEnvironmentMixin):
             namespace={**namespace, **env.get_namespace()}
         )
 
-        return LzyWorkflow(
+        return self._workflow_class(
             name=name,
             owner=self,
             env=env,

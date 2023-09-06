@@ -52,7 +52,12 @@ class LzyWorkflow(WithEnvironmentMixin, WithLogger):
 
     @classmethod
     def set_active(cls, instance: Optional[LzyWorkflow]) -> None:
-        cls.instance = instance
+        # To support LzyWorkflow inheritance and Lzy._workflow_class override
+        # from the one hand and to support LzyWorkflow.get_active() return
+        # active descendant to the other hand.
+        for klass in cls.__mro__:
+            if issubclass(klass, LzyWorkflow):
+                klass.instance = instance
 
     def __post_init__(self) -> None:
         super().__post_init__()
