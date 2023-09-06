@@ -1,4 +1,5 @@
-FROM amazoncorretto:17
+ARG BASE_IMAGE="amazoncorretto:17"
+FROM ${BASE_IMAGE}
 
 COPY target/allocator.jar app/app.jar
 
