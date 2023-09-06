@@ -70,7 +70,7 @@ public interface VmAllocator {
 
     Result unmountFromVm(Vm vm, String mountPath) throws InvalidConfigurationException;
 
-    Result bindMountInVm(Vm vm, String fromPath, String toPath, @Nullable String chown)
+    Result bindMountInVm(Vm vm, String fromPath, String toPath, @Nullable String chown, boolean readOnly)
         throws InvalidConfigurationException;
 
     /**

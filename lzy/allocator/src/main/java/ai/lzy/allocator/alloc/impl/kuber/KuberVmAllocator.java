@@ -30,6 +30,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -226,13 +227,16 @@ public class KuberVmAllocator implements VmAllocator {
     }
 
     @Override
-    public Result bindMountInVm(Vm vm, String fromPath, String toPath, @Nullable String chown)
+    public Result bindMountInVm(Vm vm, String fromPath, String toPath, @Nullable String chown, boolean readOnly)
         throws InvalidConfigurationException
     {
         ArrayList<String> cmds = new ArrayList<>();
         cmds.add(String.format("mount --rbind %s %s;", fromPath, toPath));
         if (chown != null) {
             cmds.add(String.format("chown -Rf %s:%s %s;", chown, chown, toPath));
+        }
+        if (!readOnly) {
+            cmds.add(String.format("rm -r %s;", Path.of(toPath, "lost+found")));
         }
         return executeInsideVm(vm, cmds);
     }
