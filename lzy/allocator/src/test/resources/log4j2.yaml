@@ -29,3 +29,6 @@ Configuration:
 
       - name: ai.lzy.iam
         level: error
+
+      - name: ai.lzy.allocator
+        level: info

@@ -311,10 +311,12 @@ public final class MountDynamicDiskAction extends OperationRunnerBase {
         var fromPath = dynamicMount.mountPath();
         var toPath = dynamicMount.bindPath();
         var chown = dynamicMount.bindOwner();
+        var readOnly = Volume.AccessMode.READ_ONLY_MANY.equals(
+            ((DiskVolumeDescription) dynamicMount.volumeRequest().volumeDescription()).accessMode());
         log().info("{} Mounting bind mount {} to {}", logPrefix(), fromPath, toPath);
 
         try {
-            final var result = allocationContext.allocator().bindMountInVm(vm, fromPath, toPath, chown);
+            final var result = allocationContext.allocator().bindMountInVm(vm, fromPath, toPath, chown, readOnly);
             switch (result.code()) {
                 case SUCCESS -> bindMounted = true;
                 case FAILED -> {

@@ -82,8 +82,7 @@ public final class GrpcUtils {
     public static NettyServerBuilder addKeepAlive(NettyServerBuilder builder) {
         return builder
             .permitKeepAliveWithoutCalls(true)
-            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES)
-            .addService(ProtoReflectionService.newInstance());
+            .permitKeepAliveTime(ChannelBuilder.KEEP_ALIVE_TIME_MINS_ALLOWED, TimeUnit.MINUTES);
     }
 
     public static NettyServerBuilder addReflection(NettyServerBuilder builder) {
