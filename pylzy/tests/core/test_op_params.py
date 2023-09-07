@@ -4,7 +4,7 @@ from platform import python_version
 
 import pytest
 
-from lzy.api.v1 import Lzy, op
+from lzy.api.v1 import Lzy, op, provisioning, manual_python_env, docker_container
 from lzy.env.base import NotSpecified
 from lzy.env.container.no_container import NoContainer
 from lzy.env.container.docker import DockerContainer, DockerPullPolicy
@@ -120,7 +120,7 @@ def test_workflow_provisioning(lzy, vm_spec_large):
 
 
 def test_op_provisioning(lzy, vm_spec_large):
-    @Provisioning(gpu_count=1, cpu_count=8)
+    @provisioning(gpu_count=1, cpu_count=8)
     @op
     def func_with_provisioning() -> None:
         pass
@@ -131,19 +131,19 @@ def test_op_provisioning(lzy, vm_spec_large):
             ) as wf:
         func_with_provisioning()
 
-    provisioning = wf.first_call.get_provisioning()
+    prov = wf.first_call.get_provisioning()
 
-    assert provisioning.cpu_type is NotSpecified
-    assert provisioning.cpu_count == 8
-    assert provisioning.ram_size_gb is NotSpecified
-    assert provisioning.gpu_count == 1
-    assert provisioning.gpu_type == 'V100'
+    assert prov.cpu_type is NotSpecified
+    assert prov.cpu_count == 8
+    assert prov.ram_size_gb is NotSpecified
+    assert prov.gpu_count == 1
+    assert prov.gpu_type == 'V100'
 
     assert_pool_spec(wf, vm_spec_large)
 
 
 def test_op_provisioning_invalid(lzy):
-    @Provisioning(gpu_count=8)
+    @provisioning(gpu_count=8)
     @op
     def func_with_provisioning() -> None:
         pass
@@ -214,7 +214,7 @@ def test_workflow_env(lzy):
 
 
 def test_op_env(lzy):
-    @ManualPythonEnv(python_version="3.9.15", pypi_packages={"cloudpickle": "1.1.1"}, local_module_paths=['lol_kek'])
+    @manual_python_env(python_version="3.9.15", pypi_packages={"cloudpickle": "1.1.1"}, local_module_paths=['lol_kek'])
     @op
     def func_with_env() -> None:
         pass
@@ -248,7 +248,7 @@ def test_docker_wf(lzy):
 
 
 def test_docker_op(lzy):
-    @DockerContainer(registry='foo1', image='bar1', pull_policy=DockerPullPolicy.ALWAYS)
+    @docker_container(registry='foo1', image='bar1', pull_policy=DockerPullPolicy.ALWAYS)
     @op
     def func_with_docker() -> None:
         pass

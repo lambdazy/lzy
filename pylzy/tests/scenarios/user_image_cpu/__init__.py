@@ -1,6 +1,6 @@
 import os
 
-from lzy.api.v1 import Lzy, op, DockerContainer
+from lzy.api.v1 import Lzy, op, docker_container
 from localq import two
 
 
@@ -8,7 +8,7 @@ def is_inside_container() -> bool:
     return os.environ.get("LZY_INNER_CONTAINER") == "true"
 
 
-@DockerContainer(registry='docker.io', image='lzydock/user-test:1.3.1')
+@docker_container(registry='docker.io', image='lzydock/user-test:1.3.1')
 @op
 def check_env_var_custom_image() -> bool:
     print("op1: " + str(two()))

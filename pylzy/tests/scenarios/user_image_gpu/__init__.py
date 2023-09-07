@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from lzy.api.v1 import op, Lzy, Provisioning, DockerContainer
+from lzy.api.v1 import op, Lzy, provisioning
 import tensorflow as tf
 from tensorflow.python.client import device_lib
 
@@ -15,7 +15,7 @@ def is_inside_container() -> bool:
     return os.environ.get("LZY_INNER_CONTAINER") == "true"
 
 
-@Provisioning(gpu_type='V100', gpu_count=1)
+@provisioning(gpu_type='V100', gpu_count=1)
 @op
 def matrix_mult(a: List[List[float]], b: List[List[float]]) -> List[List[float]]:
     print(get_available_gpus())
