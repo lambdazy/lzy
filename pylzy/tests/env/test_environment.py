@@ -75,8 +75,8 @@ def test_combine_provisioning() -> None:
         provisioning=provisioning1
     )
 
+    assert env.with_fields(env_vars=env_vars2).env_vars == {**env_vars2, **env_vars1}
     # no merging:
-    assert env.with_fields(env_vars=env_vars2).env_vars == env_vars2
     assert env.with_fields(container=container2).container == container2
     assert env.with_fields(python_env=python_env2).python_env == python_env2
 

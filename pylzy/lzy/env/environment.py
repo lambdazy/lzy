@@ -48,7 +48,7 @@ class LzyEnvironment(Deconstructible):
         else:
             new_provisioning = provisioning or self.provisioning
 
-        new_env_vars: EnvVarsType
+        new_env_vars: EnvironmentField[EnvVarsType]
         if is_specified(self.env_vars) and is_specified(env_vars):
             new_env_vars = {**self.env_vars, **env_vars}
         else:

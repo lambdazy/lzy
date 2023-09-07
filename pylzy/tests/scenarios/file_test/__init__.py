@@ -9,8 +9,7 @@ class CustomFileField:
     file: File
 
 
-# noinspection PyShadowingNames
-@op(gpu_type="NO_GPU")
+@op
 def a(f1: CustomFileField) -> (File, File, File):
     with f1.file.open("a") as fl:
         fl.write("buzz")
@@ -24,7 +23,7 @@ def a(f1: CustomFileField) -> (File, File, File):
     return f1.file, File("/tmp/b.txt"), File("/tmp/c.txt")
 
 
-@op(gpu_type="NO_GPU")
+@op
 def b() -> (int, str):
     return 42, "42"
 

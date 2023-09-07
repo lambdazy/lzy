@@ -50,18 +50,10 @@ public class PyApiTest extends PythonContextTests {
     }
 
     @Test
-    public void testEnvFail() {
-        CondaEnvironment.reconfigureConda(true);
-        evalAndAssertScenarioResult("env_fail");
-        CondaEnvironment.reconfigureConda(false);
-    }
-
-    @Test
-    @Ignore
-    public void testCustomCondaAndSerializer() {
+    public void testCustomSerializer() {
         CondaEnvironment.reconfigureConda(true);
         try {
-            evalAndAssertScenarioResult("custom_conda_and_serializer");
+            evalAndAssertScenarioResult("custom_serializer");
         } finally {
             CondaEnvironment.reconfigureConda(false);
         }

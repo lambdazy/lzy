@@ -17,7 +17,7 @@ def just_return_none(a: int, b: int) -> None:
 
 
 if __name__ == '__main__':
-    with Lzy().workflow(name="wf", interactive=False, env=Env(env_variables={"LOL": "kek"})):
+    with Lzy().workflow(name="wf", interactive=False).with_env_vars({"LOL": "kek"}):
         a = 39
         for i in range(3):
             a = repeatable_op(a)

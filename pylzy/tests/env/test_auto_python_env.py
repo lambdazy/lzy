@@ -2,6 +2,7 @@ import sys
 import pytest
 import importlib_metadata
 
+import lzy.config
 import lzy.exceptions
 import lzy.env.explorer.classify
 from lzy.env.python.auto import AutoPythonEnv
@@ -88,7 +89,9 @@ def test_get_modules_and_paths(
 
 
 @pytest.mark.vcr
-def test_validate_pypi_index_url(pypi_index_url_testing):
+def test_validate_pypi_index_url(pypi_index_url_testing, monkeypatch):
+    monkeypatch.setattr(lzy.config, 'skip_pypi_validation', False)
+
     python_env = AutoPythonEnv()
     python_env.validate()
 
