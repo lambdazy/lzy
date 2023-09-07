@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypeVar, Optional
+from typing import TypeVar, Optional, Callable
 from typing_extensions import Self
 
 from lzy.utils.functools import kwargsdispatchmethod
@@ -8,8 +8,10 @@ from .base import Deconstructible, NotSpecified
 from .environment import LzyEnvironment, EnvVarsType
 from .container.docker import DockerContainer, DockerPullPolicy
 from .container.base import BaseContainer
+from .container.no_container import NoContainer
 from .provisioning.provisioning import Provisioning, ProvisioningRequirement
 from .python.base import BasePythonEnv, ModulePathsList, PackagesDict
+from .python.auto import AutoPythonEnv
 from .python.manual import ManualPythonEnv
 
 
@@ -91,9 +93,27 @@ class WithEnvironmentMixin(Deconstructible):
             )
         )
 
+    def with_no_container(self) -> Self:
+        return self.with_container(NoContainer())
+
     def with_python_env(self, python_env: BasePythonEnv) -> Self:
         return self.with_env(
             self.env.with_fields(python_env=python_env)
+        )
+
+    def with_auto_python_env(
+        self,
+        *,
+        pypi_index_url: Optional[str] = None,
+        additional_pypi_packages: Optional[PackagesDict] = None,
+    ) -> Self:
+        additional_pypi_packages = additional_pypi_packages or {}
+
+        return self.with_python_env(
+            AutoPythonEnv(
+                pypi_index_url=pypi_index_url,
+                additional_pypi_packages=additional_pypi_packages,
+            )
         )
 
     def with_manual_python_env(
@@ -115,3 +135,4 @@ class WithEnvironmentMixin(Deconstructible):
 
 
 WithEnvironmentType = TypeVar('WithEnvironmentType', bound=WithEnvironmentMixin)
+EnvironmentApplierType = Callable[[WithEnvironmentType], WithEnvironmentType]

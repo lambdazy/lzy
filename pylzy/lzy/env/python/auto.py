@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from dataclasses import dataclass, field
-from typing import Callable, List, Optional, Dict, Any
+from typing import Callable, List, Optional
 from typing_extensions import Self
 
 from lzy.env.explorer.base import BaseExplorer

@@ -15,6 +15,14 @@ from lzy.env.container.no_container import NoContainer
 from lzy.env.provisioning.provisioning import Provisioning
 from lzy.env.python.auto import AutoPythonEnv
 from lzy.env.python.manual import ManualPythonEnv
+from lzy.env.shortcuts import (
+    docker_container,
+    no_container,
+    provisioning,
+    auto_python_env,
+    manual_python_env,
+    env_vars,
+)
 
 from lzy.logs.config import configure_logging as _configure_logging
 
