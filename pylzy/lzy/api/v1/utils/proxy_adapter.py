@@ -7,7 +7,7 @@ from lzy.proxy.result import Either, Absence, Result
 from lzy.utils.event_loop import LzyEventLoop
 
 if TYPE_CHECKING:
-    from lzy.api.v1 import LzyWorkflow
+    from lzy.core.workflow import LzyWorkflow
 
 __lzy_proxied = "__lzy_proxied__"
 __entry_id = "__lzy_entry_id__"

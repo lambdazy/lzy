@@ -43,8 +43,8 @@ if __name__ == '__main__':
             "lzy": ["version/version", "logs/logging.yml"],
         },
         install_requires=read_requirements(),
-        packages=setuptools.find_packages(include=('ai*', 'lzy*')),
         python_requires=">=3.8",
+        packages=setuptools.find_packages(include=('ai*', 'lzy*')),
         long_description_content_type='text/markdown',
         long_description=read_readme()
     )
