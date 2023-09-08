@@ -271,7 +271,7 @@ def test_none_arguments(lzy):
 
     func: FuncSignature = wf.owner.runtime.calls[0].signature.func
     assert 1 == len(func.input_types)
-    assert func.input_types['arg'] is type(None)
+    assert issubclass(func.input_types['arg'], type(None))
 
 
 def test_varargs(lzy):
