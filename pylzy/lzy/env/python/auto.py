@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, List, Optional
 from typing_extensions import Self
 
@@ -13,14 +13,14 @@ from .base import BasePythonEnv, ModulePathsList, PackagesDict, NamespaceType
 def _auto_explorer_factory(auto_py_env: AutoPythonEnv) -> AutoExplorer:
     return AutoExplorer(
         pypi_index_url=auto_py_env.get_pypi_index_url(),
-        additional_pypi_packages=auto_py_env.additional_pypi_packages
+        additional_pypi_packages=auto_py_env.additional_pypi_packages or {}
     )
 
 
 @dataclass(frozen=True)
 class AutoPythonEnv(BasePythonEnv):
     pypi_index_url: Optional[str] = None
-    additional_pypi_packages: PackagesDict = field(default_factory=dict)
+    additional_pypi_packages: Optional[PackagesDict] = None
     env_explorer_factory: Callable[[Self], BaseExplorer] = _auto_explorer_factory
 
     _env_explorer: Optional[BaseExplorer] = None
@@ -29,6 +29,9 @@ class AutoPythonEnv(BasePythonEnv):
         # because we are frozen
         if not self._env_explorer:
             object.__setattr__(self, '_env_explorer', self.env_explorer_factory(self))
+
+        if self.additional_pypi_packages is None:
+            object.__setattr__(self, 'additional_pypi_packages', {})
 
     @property
     def env_explorer(self) -> BaseExplorer:
