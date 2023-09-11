@@ -204,3 +204,6 @@ test/slot.json
 worker/docker/tmp-for-context
 
 lzy-test-cert.pem
+
+# tmp while tox working
+.coverage.*

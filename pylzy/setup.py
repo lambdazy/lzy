@@ -27,10 +27,10 @@ if __name__ == '__main__':
         version=read_version(),
         license="Apache-2.0",
         classifiers=[
-            "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8",
             "Programming Language :: Python :: 3.9",
             "Programming Language :: Python :: 3.10",
+            "Programming Language :: Python :: 3.11",
             "License :: OSI Approved :: Apache Software License",
         ],
         author="ʎzy developers",
@@ -44,7 +44,7 @@ if __name__ == '__main__':
         },
         install_requires=read_requirements(),
         packages=setuptools.find_namespace_packages(include=('ai*', 'google*', 'lzy*')),
-        python_requires=">=3.7",
+        python_requires=">=3.8",
         long_description_content_type='text/markdown',
         long_description=read_readme()
     )

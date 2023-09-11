@@ -13,8 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ '3.7', '3.8', '3.9', '3.10' ]
-    timeout-minutes: 15
+        python-version: [ '3.8', '3.9', '3.10', '3.11' ]
+    timeout-minutes: 35
 
     steps:
       - name: "Checkout"

@@ -4,11 +4,12 @@ flask==2.2.2
 googleapis-common-protos-stubs
 grpc-stubs
 moto==4.1.0
-numpy==1.21.6
+numpy==1.21.6; python_version < '3.11'
+numpy==1.25.1; python_version >= '3.11'
 pandas==1.3.5
 pure-protobuf==2.1.1
+sampleproject==3.0.0  # needed for test_classify_pypi_packages
 types-appdirs
 types-protobuf
 types-requests
 types-setuptools
-sampleproject==3.0.0  # needed for test_classify_pypi_packages
