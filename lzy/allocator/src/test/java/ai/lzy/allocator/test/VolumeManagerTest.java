@@ -73,7 +73,7 @@ public class VolumeManagerTest {
         final Disk disk = createDisk(createTestDiskSpec(3), new DiskMeta("user_id"));
 
         final Volume volume = volumeManager.create(clusterId, new VolumeRequest("id-1",
-            new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb(), null, null)
+            new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb(), null, null, null)
         ));
         final VolumeClaim volumeClaim = volumeManager.createClaim(clusterId, volume);
         Assert.assertNull(volumeManager.get(clusterId, volume.name()));
@@ -179,7 +179,7 @@ public class VolumeManagerTest {
 
             final Instant volumeCreation = Instant.now();
             final Volume volume = volumeManager.create(clusterId, new VolumeRequest("id-1",
-                new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb(), null, null)
+                new DiskVolumeDescription("some-volume-name", disk.id(), disk.spec().sizeGb(), null, null, null)
             ));
 
             final Instant volumeClaimCreation = Instant.now();
