@@ -132,7 +132,7 @@ jobs:
       - name: 'install pylzy'
         run: |
           cd pylzy/
-          eval "$(conda shell.bash hook)" && ./scripts/build.sh
+          eval "$(conda shell.bash hook)" && pip install -r proto_requirements.txt -I --no-cache && ./scripts/build.sh
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall --upgrade --no-cache
           cd ..
 
