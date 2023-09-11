@@ -81,6 +81,10 @@ public class VolumeRequest {
             if (storageClass != null) {
                 diskVolumeBuilder.setStorageClass(storageClass.toProto());
             }
+            var fsType = diskVolumeDescription.fsType();
+            if (fsType != null) {
+                diskVolumeBuilder.setFsType(fsType.toProto());
+            }
             builder.setDiskVolume(diskVolumeBuilder.build());
         } else if (volumeDescription instanceof HostPathVolumeDescription hostPathVolumeDescription) {
             builder.setHostPathVolume(VolumeApi.HostPathVolumeType.newBuilder()
