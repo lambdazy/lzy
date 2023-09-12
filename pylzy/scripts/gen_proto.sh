@@ -75,6 +75,6 @@ print_green "Generated next proto stubs:"
 println "$proto_out"
 find "$proto_out" -type f \( -iname "*.py" -o -iname "*.pyi" \) -print
 
-find "$proto_out" -type d -not -name __pycache__ -not -name ai \
+find "$proto_out" -type d -not -name __pycache__ \
         -exec touch '{}/__init__.py' \;
 

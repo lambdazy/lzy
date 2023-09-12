@@ -7,6 +7,10 @@ source "$src_dir/util.sh"
 
 echo "Building pylzy package"
 
+rm -rvf "$src_dir/../build"
+rm -rvf "$src_dir/../dist"
+rm -rvf "$src_dir/../pylzy.egg-info"
+
 # Generate grpc stubs
 $src_dir/gen_proto.sh
 
@@ -16,4 +20,4 @@ $src_dir/gen_proto.sh
 #
 # build by directly executing setup.py
 # I couldn't find the better way to pass arguments to build
-python setup.py sdist "$@" bdist_wheel "$@"  # pass --dev flag if needed
+python setup.py clean --all sdist "$@" bdist_wheel "$@"  # pass --dev flag if needed
