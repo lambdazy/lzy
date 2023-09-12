@@ -180,7 +180,7 @@ public class DaoTest {
             "wl1", "im", Map.of("a", "b"), List.of("a1", "a2"), Map.of(1111, 2222),
             List.of(volume));
         final var volumeRequest = new VolumeRequest("id-1", new DiskVolumeDescription("diskVolume", "diskId", 3,
-            Volume.AccessMode.READ_WRITE_ONCE, null));
+            Volume.AccessMode.READ_WRITE_ONCE, null, null));
 
         final var vmSpec = new Vm.Spec(
             "placeholder",

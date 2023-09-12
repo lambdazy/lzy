@@ -36,4 +36,15 @@ public class YcStorageProvider implements StorageProvider {
             case SSD -> "yc-network-ssd";
         };
     }
+
+    @Override
+    public String resolveDiskFsType(@Nullable DiskVolumeDescription.FsType fsType) {
+        if (fsType == null) {
+            return "ext4";
+        }
+        return switch (fsType) {
+            case EXT4 -> "ext4";
+            case BTRFS -> "btrfs";
+        };
+    }
 }

@@ -49,6 +49,7 @@ public class KuberVolumeManager implements VolumeManager {
         final Volume.AccessMode accessMode;
         final PersistentVolume volume;
         final String storageClass;
+        final String fsType;
 
         var cluster = getClusterOrThrow(clusterId);
         String volumeName = volumeRequest.volumeId();
@@ -61,6 +62,7 @@ public class KuberVolumeManager implements VolumeManager {
                 Volume.AccessMode.READ_WRITE_ONCE);
             resourceName = diskVolumeDescription.name();
             storageClass = storageProvider.resolveDiskStorageClass(diskVolumeDescription.storageClass());
+            fsType = storageProvider.resolveDiskFsType(diskVolumeDescription.fsType());
             var readOnly = accessMode == Volume.AccessMode.READ_ONLY_MANY;
             volumeName = generateDiskVolumeName(diskId);
 
@@ -77,7 +79,7 @@ public class KuberVolumeManager implements VolumeManager {
                     .withPersistentVolumeReclaimPolicy("Retain")
                     .withCsi(new CSIPersistentVolumeSourceBuilder()
                         .withDriver(storageProvider.diskDriverName())
-                        .withFsType("ext4")
+                        .withFsType(fsType)
                         .withVolumeHandle(diskId)
                         .withReadOnly(readOnly)
                         .build())

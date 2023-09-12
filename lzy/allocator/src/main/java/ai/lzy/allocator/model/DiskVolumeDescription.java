@@ -17,19 +17,23 @@ public class DiskVolumeDescription extends VolumeRequest.ResourceVolumeDescripti
     private final Volume.AccessMode accessMode;
     @Nullable
     private final StorageClass storageClass;
+    @Nullable
+    private final FsType fsType;
 
     @JsonCreator
     public DiskVolumeDescription(@JsonProperty("name") String name,
                                  @JsonProperty("diskId") String diskId,
                                  @JsonProperty("sizeGb") int sizeGb,
                                  @JsonProperty("accessMode") @Nullable Volume.AccessMode accessMode,
-                                 @JsonProperty("storageClass") @Nullable StorageClass storageClass)
+                                 @JsonProperty("storageClass") @Nullable StorageClass storageClass,
+                                 @JsonProperty("fsType") @Nullable FsType fsType)
     {
         this.name = name;
         this.diskId = diskId;
         this.sizeGb = sizeGb;
         this.accessMode = accessMode;
         this.storageClass = storageClass;
+        this.fsType = fsType;
     }
 
     @Override
@@ -55,6 +59,11 @@ public class DiskVolumeDescription extends VolumeRequest.ResourceVolumeDescripti
         return storageClass;
     }
 
+    @Nullable
+    public FsType fsType() {
+        return fsType;
+    }
+
     @Override
     public String toString() {
         return "DiskVolumeDescription{" +
@@ -63,6 +72,7 @@ public class DiskVolumeDescription extends VolumeRequest.ResourceVolumeDescripti
             ", sizeGb=" + sizeGb +
             ", accessMode=" + accessMode +
             ", storageClass=" + storageClass +
+            ", fsType=" + fsType +
             '}';
     }
 
@@ -76,12 +86,12 @@ public class DiskVolumeDescription extends VolumeRequest.ResourceVolumeDescripti
         }
         DiskVolumeDescription that = (DiskVolumeDescription) o;
         return name.equals(that.name) && diskId.equals(that.diskId) && Objects.equals(accessMode, that.accessMode)
-            && Objects.equals(storageClass, that.storageClass);
+            && Objects.equals(storageClass, that.storageClass) && Objects.equals(fsType, that.fsType);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, diskId, accessMode, storageClass);
+        return Objects.hash(name, diskId, accessMode, storageClass, fsType);
     }
 
     public enum StorageClass {
@@ -93,6 +103,19 @@ public class DiskVolumeDescription extends VolumeRequest.ResourceVolumeDescripti
             return switch (this) {
                 case HDD -> VolumeApi.DiskVolumeType.StorageClass.HDD;
                 case SSD -> VolumeApi.DiskVolumeType.StorageClass.SSD;
+            };
+        }
+    }
+
+    public enum FsType {
+        EXT4,
+        BTRFS,
+        ;
+
+        public VolumeApi.DiskVolumeType.FsType toProto() {
+            return switch (this) {
+                case EXT4 -> VolumeApi.DiskVolumeType.FsType.EXT4;
+                case BTRFS -> VolumeApi.DiskVolumeType.FsType.BTRFS;
             };
         }
     }

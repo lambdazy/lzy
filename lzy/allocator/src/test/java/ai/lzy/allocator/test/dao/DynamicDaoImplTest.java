@@ -229,7 +229,7 @@ public class DynamicDaoImplTest {
         var bindPath = "/" + id;
         return DynamicMount.createNew(vmId, clusterId, "disk" + id, mountPath, bindPath,
             null, new VolumeRequest("42", new DiskVolumeDescription("disk", "disk-42", 42,
-                Volume.AccessMode.READ_WRITE_ONCE, DiskVolumeDescription.StorageClass.HDD)),
+                Volume.AccessMode.READ_WRITE_ONCE, DiskVolumeDescription.StorageClass.HDD, DiskVolumeDescription.FsType.EXT4)),
             operationId, workerId);
     }
 }

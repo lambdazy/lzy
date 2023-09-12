@@ -896,9 +896,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             var changeOwner = diskVolume.getChangeOwner().isEmpty() ? null : diskVolume.getChangeOwner();
             var accessMode = validateAccessMode(diskVolume.getAccessMode());
             var storageClass = validateStorageClass(diskVolume.getStorageClass());
+            var fsType = validateFsType(diskVolume.getFsType());
             var id = idGenerator.generate("vm-volume-");
             final var diskVolumeDescription = new DiskVolumeDescription(id, diskVolume.getDiskId(),
-                diskVolume.getSizeGb(), accessMode, storageClass);
+                diskVolume.getSizeGb(), accessMode, storageClass, fsType);
             var mountName = "disk-" + diskVolume.getDiskId();
             var dynamicMount = DynamicMount.createNew(vm.vmId(), clusterId, mountName,
                 Path.of(mountConfig.getWorkerMountPoint(), request.getMountPath()).toString(),
@@ -939,9 +940,10 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
                     final var diskVolume = volume.getDiskVolume();
                     var accessMode = validateAccessMode(diskVolume.getAccessMode());
                     var storageClass = validateStorageClass(diskVolume.getStorageClass());
+                    var fsType = validateFsType(diskVolume.getFsType());
                     yield new VolumeRequest(idGenerator.generate("disk-volume-").toLowerCase(Locale.ROOT),
                         new DiskVolumeDescription(volume.getName(), diskVolume.getDiskId(), diskVolume.getSizeGb(),
-                            accessMode, storageClass));
+                            accessMode, storageClass, fsType));
                 }
 
                 case HOST_PATH_VOLUME -> {
@@ -1125,6 +1127,19 @@ public class AllocatorService extends AllocatorGrpc.AllocatorImplBase {
             case HDD -> DiskVolumeDescription.StorageClass.HDD;
             case SSD -> DiskVolumeDescription.StorageClass.SSD;
             case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT.withDescription("invalid storage_class")
+                .asRuntimeException();
+        };
+    }
+
+    private DiskVolumeDescription.FsType validateFsType(
+        VolumeApi.DiskVolumeType.FsType storageClass
+    )
+    {
+        return switch (storageClass) {
+            case FS_TYPE_UNSPECIFIED -> null;
+            case EXT4 -> DiskVolumeDescription.FsType.EXT4;
+            case BTRFS -> DiskVolumeDescription.FsType.BTRFS;
+            case UNRECOGNIZED -> throw Status.INVALID_ARGUMENT.withDescription("invalid fs_type")
                 .asRuntimeException();
         };
     }
