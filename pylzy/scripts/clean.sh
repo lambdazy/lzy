@@ -1,5 +1,8 @@
 #!/bin/bash
 
+src_dir="$(dirname $0)"
+cd "$src_dir/.."
+
 echo "Clean up"
 
 # tox envs
