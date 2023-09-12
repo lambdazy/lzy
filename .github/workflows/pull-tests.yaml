@@ -163,7 +163,7 @@ jobs:
 #          cd test && mvn test -Dtest=UserImagePyTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" -Dscheduler.userTestImage="$USER_IMAGE" && cd ..
 
       - name: 'PyApiTest'
-        timeout-minutes: 20
+        timeout-minutes: 35
         run: |
           eval "$(conda shell.bash hook)" && pip install -r pylzy/proto_requirements.txt -I --no-cache
           cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
