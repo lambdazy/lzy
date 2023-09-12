@@ -1,6 +1,6 @@
 import os
 
-from lzy.api.v1 import op, Lzy, Env
+from lzy.api.v1 import op, Lzy
 
 
 @op
