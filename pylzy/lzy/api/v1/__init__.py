@@ -12,7 +12,7 @@ from lzy.core.lzy import Lzy, lzy_auth
 from lzy.env.environment import LzyEnvironment
 from lzy.env.container.docker import DockerContainer, DockerPullPolicy
 from lzy.env.container.no_container import NoContainer
-from lzy.env.provisioning.provisioning import Provisioning
+from lzy.env.provisioning.provisioning import Provisioning, Any as AnyProvisioning
 from lzy.env.python.auto import AutoPythonEnv
 from lzy.env.python.manual import ManualPythonEnv
 from lzy.env.shortcuts import (

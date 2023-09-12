@@ -2,7 +2,7 @@ from catboost import CatBoostClassifier
 from sklearn import datasets
 from sklearn.utils import Bunch
 
-from lzy.api.v1 import op, Lzy, GpuType
+from lzy.api.v1 import op, Lzy, provisioning
 
 
 @op
@@ -11,7 +11,8 @@ def dataset() -> Bunch:
     return data_set
 
 
-@op(gpu_count=1, gpu_type=GpuType.V100.name)
+@provisioning(gpu_count=1, gpu_type='V100')
+@op
 def train(data_set: Bunch) -> CatBoostClassifier:
     cb_model = CatBoostClassifier(
         iterations=1000, task_type="GPU", devices="0:1", train_dir="/tmp/catboost"
