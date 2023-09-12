@@ -5,13 +5,16 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  checks: write
+
 jobs:
   python-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ '3.7', '3.8', '3.9', '3.10' ]
-    timeout-minutes: 15
+        python-version: [ '3.8', '3.9', '3.10', '3.11' ]
+    timeout-minutes: 35
 
     steps:
       - name: "Checkout"
@@ -129,7 +132,7 @@ jobs:
       - name: 'install pylzy'
         run: |
           cd pylzy/
-          eval "$(conda shell.bash hook)" && ./scripts/build.sh
+          eval "$(conda shell.bash hook)" && pip install -r proto_requirements.txt -I --no-cache && ./scripts/build.sh
           eval "$(conda shell.bash hook)" && conda activate py39 && pip install . --force-reinstall --upgrade --no-cache
           cd ..
 
@@ -162,6 +165,7 @@ jobs:
       - name: 'PyApiTest'
         timeout-minutes: 20
         run: |
+          eval "$(conda shell.bash hook)" && pip install -r pylzy/proto_requirements.txt -I --no-cache
           cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'Clean docker files'
@@ -186,3 +190,9 @@ jobs:
           cd pylzy/
           eval "$(conda shell.bash hook)" && ./scripts/clean.sh
           cd ..
+
+      - name: 'Publish Test Report'
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: "**/surefire-reports/TEST-*.xml"
