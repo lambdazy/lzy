@@ -4,6 +4,7 @@ import os
 import inspect
 import datetime
 from dataclasses import dataclass, field
+from functools import cached_property
 
 from typing import Any, Optional, Sequence, Iterable, ClassVar, Type
 from typing_extensions import Self
@@ -17,7 +18,6 @@ from lzy.env.mixin import WithEnvironmentMixin
 from lzy.serialization.registry import LzySerializerRegistry
 from lzy.storage.api import StorageRegistry, AsyncStorageClient
 from lzy.storage.registry import DefaultStorageRegistry
-from lzy.utils.cached_property import cached_property
 from lzy.utils.event_loop import LzyEventLoop
 from lzy.whiteboards.api import WhiteboardIndexClient
 from lzy.whiteboards.index import WB_USER_ENV, WB_KEY_PATH_ENV, WB_ENDPOINT_ENV
