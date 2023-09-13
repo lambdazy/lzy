@@ -1,41 +1,43 @@
 package ai.lzy.env.logs;
 
 import jakarta.annotation.Nullable;
-import org.apache.logging.log4j.Logger;
+import org.apache.commons.io.IOUtils;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 
 import static java.util.Arrays.copyOfRange;
 
 class LogStreamQueue extends Thread {
+    private static final int MAX_LOG_CHUNK_SIZE = 1 << 20; // 1Mb
+
     private final LinkedBlockingQueue<Input> inputs = new LinkedBlockingQueue<>();
-    private final Logger logger;
     private final String streamName;
     private final AtomicBoolean stopping = new AtomicBoolean(false);
     private final List<LogWriter> writers;
 
-    public LogStreamQueue(String streamName, List<LogWriter> writers, Logger logger) {
+    public LogStreamQueue(String streamName, List<LogWriter> writers) {
         this.writers = writers;
         this.streamName = streamName;
-        this.logger = logger;
     }
 
     /**
      * Add input stream to queue
      * @return Future will be completed after writing all data from this stream
      */
-    public CompletableFuture<Void> add(InputStream stream) {
+    public CompletableFuture<Void> add(InputStream stream, @Nullable Function<String, String> formatter) {
         try {
             var future  = new CompletableFuture<Void>();
-            inputs.put(new Input(future, stream, null));
+            inputs.put(new Input(future, stream, null, formatter));
             return future;
         } catch (InterruptedException e) {
-            logger.error("Error while adding stream to queue", e);
+            LogHandle.LOG.error("Error while adding stream to queue", e);
             throw new RuntimeException("Must be unreachable");
         }
     }
@@ -46,10 +48,10 @@ class LogStreamQueue extends Thread {
     public CompletableFuture<Void> add(String s) {
         try {
             var future  = new CompletableFuture<Void>();
-            inputs.put(new Input(future, null, s));
+            inputs.put(new Input(future, null, s, null));
             return future;
         } catch (InterruptedException e) {
-            logger.error("Error while adding stream to queue", e);
+            LogHandle.LOG.error("Error while adding stream to queue", e);
             throw new RuntimeException("Must be unreachable");
         }
     }
@@ -67,14 +69,18 @@ class LogStreamQueue extends Thread {
 
             //noinspection resource
             if (inputHandle.stream() != null) {
-                writeStream(inputHandle.stream());
+                if (inputHandle.formatter() != null) {
+                    writeFormattedStream(inputHandle.stream(), inputHandle.formatter());
+                } else {
+                    writeRawStream(inputHandle.stream());
+                }
             }
 
             if (inputHandle.string() != null) {
                 try {
                     writeLines(inputHandle.string().getBytes());
                 } catch (IOException e) {
-                    logger.warn("Cannot write buffer to stream {}: ", streamName, e);
+                    LogHandle.LOG.warn("Cannot write buffer to stream {}: ", streamName, e);
                 }
             }
 
@@ -84,7 +90,26 @@ class LogStreamQueue extends Thread {
         writeEos();
     }
 
-    private void writeStream(InputStream stream) {
+    private void writeFormattedStream(InputStream stream, Function<String, String> formatter) {
+        try (stream) {
+            var iterator = IOUtils.lineIterator(stream, StandardCharsets.UTF_8);
+
+            while (iterator.hasNext()) {
+                var line = iterator.nextLine();
+                line = formatter.apply(line);
+
+                if (line.length() > MAX_LOG_CHUNK_SIZE) {
+                    line = line.substring(MAX_LOG_CHUNK_SIZE / 2) + " ... TRUNCATED ...";
+                }
+
+                writeLines(line.getBytes());
+            }
+        } catch (IOException e) {
+            LogHandle.LOG.error("Error while writing to stream {}: ", streamName, e);
+        }
+    }
+
+    private void writeRawStream(InputStream stream) {
         final int initialSize = 4096;
         final int gap = 128;
         try (final var input = stream) {
@@ -109,18 +134,18 @@ class LogStreamQueue extends Thread {
                         }
                     }
                 } else {
-                    writeLines(copyOfRange(buf, linesPos, n + 1));
+                    writeLinesWithLimits(buf, linesPos, n + 1);
                     srcPos += readLen;
                     linesPos = n + 1;
                 }
             }
 
             if (srcPos > linesPos) {
-                writeLines(copyOfRange(buf, linesPos, srcPos));
+                writeLinesWithLimits(buf, linesPos, srcPos);
             }
 
         } catch (IOException e) {
-            logger.error("Error while writing to stream {}: ", streamName, e);
+            LogHandle.LOG.error("Error while writing to stream {}: ", streamName, e);
         }
     }
 
@@ -133,16 +158,41 @@ class LogStreamQueue extends Thread {
         return -1;
     }
 
+    private void writeLinesWithLimits(byte[] buf, int from, int to) throws IOException {
+        var len = to - from;
+        if (len <= MAX_LOG_CHUNK_SIZE) {
+            writeLines(copyOfRange(buf, from, to));
+            return;
+        }
+
+        final byte[] truncatedSuffix = " ... TRUNCATED ...\n".getBytes();
+
+        int i = from;
+        for (; i < to; ++i) {
+            if (buf[i] == '\n' || i == to - 1) {
+                if (i + 1 - from <= MAX_LOG_CHUNK_SIZE) {
+                    writeLines(copyOfRange(buf, from, i + 1));
+                } else {
+                    var prefix = copyOfRange(buf, from, from + MAX_LOG_CHUNK_SIZE - truncatedSuffix.length);
+                    System.arraycopy(truncatedSuffix, 0, prefix,
+                        prefix.length - truncatedSuffix.length, truncatedSuffix.length);
+                    writeLines(prefix);
+                }
+                from = i + 1;
+            }
+        }
+    }
+
     private void writeLines(byte[] lines) throws IOException {
-        if (logger.isDebugEnabled()) {
-            logger.debug("[{}]: {}", streamName, new String(lines));
+        if (LogHandle.LOG.isDebugEnabled()) {
+            LogHandle.LOG.debug("[{}]: {}", streamName, new String(lines));
         }
 
         for (var writer: writers) {
             try {
                 writer.writeLines(streamName, lines);
             } catch (Exception e) {
-                logger.warn("Error while writing logs to logsWriter: ", e);
+                LogHandle.LOG.warn("Error while writing logs to logsWriter: ", e);
             }
         }
     }
@@ -152,7 +202,7 @@ class LogStreamQueue extends Thread {
             try {
                 writer.writeEos(streamName);
             } catch (Exception e) {
-                logger.warn("Error while writing logs to logsWriter: ", e);
+                LogHandle.LOG.warn("Error while writing logs to logsWriter: ", e);
             }
         }
     }
@@ -161,7 +211,7 @@ class LogStreamQueue extends Thread {
      * Interrupt thread and wait for all data to be written
      */
     public void close() throws InterruptedException {
-        logger.info("Closing stream {}", streamName);
+        LogHandle.LOG.info("Closing stream {}", streamName);
         this.stopping.set(true);
         this.interrupt();
         this.join();
@@ -170,7 +220,8 @@ class LogStreamQueue extends Thread {
     private record Input(
         CompletableFuture<Void> future,
         @Nullable InputStream stream,
-        @Nullable String string
+        @Nullable String string,
+        @Nullable Function<String, String> formatter
     ) {}
 
 }

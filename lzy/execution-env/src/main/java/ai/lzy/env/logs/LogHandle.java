@@ -8,36 +8,36 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 
 public interface LogHandle extends AutoCloseable {
     Logger LOG = LogManager.getLogger(LogHandle.class);
 
-    void logOut(String pattern, Object... values);
+    void logSysOut(String message);
 
-    CompletableFuture<Void> logOut(InputStream stream);
+    CompletableFuture<Void> logOut(InputStream stream, boolean system);
 
-    void logErr(String pattern, Object... values);
+    void logSysErr(String message);
 
-    CompletableFuture<Void> logErr(InputStream stream);
+    CompletableFuture<Void> logErr(InputStream stream, boolean system);
 
     void close();
 
     @VisibleForTesting
-    static LogHandle empty() {
+    static LogHandle emptyForTests() {
         return builder()
-            .build();
+            .build("out", "err");
     }
 
     static Builder builder() {
-        return new Builder(LOG);
+        return new Builder();
     }
 
     class Builder {
         private final ArrayList<LogWriter> writers = new ArrayList<>();
-        private final Logger logger;
+        private Function<String, String> systemFormatter = LogHandleImpl::formatSystemLog;
 
-        public Builder(Logger logger) {
-            this.logger = logger;
+        public Builder() {
         }
 
         public Builder withWriters(LogWriter... writersArr) {
@@ -45,14 +45,19 @@ public interface LogHandle extends AutoCloseable {
             return this;
         }
 
-        public LogHandle build() {
-            var outQueue = new LogStreamQueue("out", writers, logger);
+        public Builder withSystemLogFormatter(Function<String, String> formatter) {
+            systemFormatter = formatter;
+            return this;
+        }
+
+        public LogHandle build(String outName, String errName) {
+            var outQueue = new LogStreamQueue(outName, writers);
             outQueue.start();
 
-            var errQueue = new LogStreamQueue("err", writers, logger);
+            var errQueue = new LogStreamQueue(errName, writers);
             errQueue.start();
 
-            return new LogHandleImpl(outQueue, errQueue, logger);
+            return new LogHandleImpl(outQueue, errQueue, systemFormatter);
         }
     }
 }

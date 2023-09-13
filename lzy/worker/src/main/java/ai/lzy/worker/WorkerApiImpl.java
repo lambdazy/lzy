@@ -161,7 +161,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
         final var logHandle = LogHandle.builder()
             .withWriters(new KafkaLogsWriter(op.getKafkaTopic(), LOG, tid, kafkaHelper))
-            .build();
+            .build("out", "err");
 
         try (logHandle) {
             LOG.info("Configure worker...");
@@ -197,8 +197,8 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
                 exec.start(env);
 
-                logHandle.logOut(exec.process().out());
-                logHandle.logErr(exec.process().err());
+                logHandle.logOut(exec.process().out(), /* system */ false);
+                logHandle.logErr(exec.process().err(), /* system */ false);
 
                 final int rc = exec.waitFor();
                 final String message;

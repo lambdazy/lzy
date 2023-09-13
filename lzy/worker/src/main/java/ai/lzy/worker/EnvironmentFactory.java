@@ -75,6 +75,7 @@ public class EnvironmentFactory {
         if (!Strings.isBlank(env.getDockerImage())) {
             var image = env.getDockerImage();
             LOG.info("Creating env with docker image {}", image);
+            logHandle.logSysOut("Creating env with docker image " + image);
 
             var credentials = env.hasDockerCredentials() ? env.getDockerCredentials() : null;
 
@@ -159,7 +160,7 @@ public class EnvironmentFactory {
                 for (var line : env.getPyenv().getYaml().split("\n")) {
                     sb.append("  > ").append(line).append("\n");
                 }
-                logHandle.logErr(sb.toString());
+                logHandle.logSysErr(sb.toString());
 
                 LOG.error("Cannot find conda in provided env, rc={}, env={}: {}", res, env, err);
                 auxEnv = new PlainPythonEnvironment(baseEnv, env.getPyenv().getLocalModulesList()
@@ -169,8 +170,9 @@ public class EnvironmentFactory {
                 final String out;
 
                 try {
-                    out = IOUtils.toString(proc.out(), StandardCharsets.UTF_8);
+                    out = IOUtils.toString(proc.out(), StandardCharsets.UTF_8).trim();
                     LOG.info("Using conda with version \"{}\"", out);
+                    logHandle.logSysOut("Using conda with version \"%s\"".formatted(out));
                 } catch (IOException e) {
                     LOG.error("Cannot find conda version", e);
                 }

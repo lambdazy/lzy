@@ -57,7 +57,7 @@ public class DockerEnvironment extends BaseEnvironment {
     @Override
     public void install(LogHandle handle) throws EnvironmentInstallationException {
         if (containerId != null) {
-            handle.logOut("Using already running container from cache");
+            handle.logSysOut("Using already running container from cache");
             LOG.info("Using already running container from cache; containerId: {}", containerId);
             return;
         }
@@ -66,15 +66,17 @@ public class DockerEnvironment extends BaseEnvironment {
         try {
             prepareImage(sourceImage, handle);
         } catch (InterruptedException e) {
-            handle.logErr("Image pulling was interrupted");
+            LOG.error("Image pulling was interrupted");
+            handle.logSysErr("Image pulling was interrupted");
             throw new RuntimeException(e);
         } catch (Exception e) {
-            handle.logErr("Error while pulling image: {}", e);
             LOG.error("Error while pulling image {}", sourceImage, e);
+            handle.logSysErr("Error while pulling image: " + e.getMessage());
             throw new RuntimeException(e);
         }
 
-        handle.logOut("Creating container from image {} ...", sourceImage);
+        LOG.info("Creating container from image {} ...", sourceImage);
+        handle.logSysOut("Creating container from image %s ...".formatted(sourceImage));
 
         final List<Mount> dockerMounts = new ArrayList<>();
         config.mounts().forEach(m -> {
@@ -113,17 +115,17 @@ public class DockerEnvironment extends BaseEnvironment {
         });
 
         final String containerId = container.getId();
-        handle.logOut("Creating container from image {} done", sourceImage);
+        handle.logSysOut("Creating container from image %s done".formatted(sourceImage));
         LOG.info("Creating container done; containerId: {}, image: {}", containerId, sourceImage);
 
-        handle.logOut("Environment container starting ...");
+        handle.logSysOut("Environment container starting ...");
         AtomicInteger containerStartingAttempt = new AtomicInteger(0);
         retry.executeSupplier(() -> {
             LOG.info("Starting env container... (attempt {}); containerId: {}, image: {}",
                 containerStartingAttempt.incrementAndGet(), containerId, sourceImage);
             return client.startContainerCmd(containerId).exec();
         });
-        handle.logOut("Environment container started");
+        handle.logSysOut("Environment container started");
         LOG.info("Starting env container done; containerId: {}, image: {}", containerId, sourceImage);
 
         this.containerId = containerId;
@@ -257,7 +259,9 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     private void prepareImage(String image, LogHandle handle) throws Exception {
-        handle.logOut("Pulling image {} ...", image);
+        var msg = "Pulling image %s ...".formatted(image);
+        LOG.info(msg);
+        handle.logSysOut(msg);
         AtomicInteger pullingAttempt = new AtomicInteger(0);
         retry.executeCallable(() -> {
             LOG.info("Pulling image {}, attempt {}", image, pullingAttempt.incrementAndGet());
@@ -266,7 +270,9 @@ public class DockerEnvironment extends BaseEnvironment {
                 .exec(new PullImageResultCallback());
             return pullingImage.awaitCompletion();
         });
-        handle.logOut("Pulling image {} done", image);
+        msg = "Pulling image %s done".formatted(image);
+        LOG.info(msg);
+        handle.logSysOut(msg);
     }
 
     private static DockerClient generateClient(@Nullable ContainerRegistryCredentials credentials) {
