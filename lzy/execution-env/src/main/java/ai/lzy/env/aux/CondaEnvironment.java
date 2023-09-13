@@ -98,13 +98,12 @@ public class CondaEnvironment implements AuxEnvironment {
 
                     // Conda env create or update: https://github.com/conda/conda/issues/7819
                     final LzyProcess lzyProcess = execInEnv(
-                        String.format("conda env create -vv --file %s || conda env update -vv --file %s",
+                        String.format("conda env create --file %s || conda env update --file %s",
                             condaFile.getAbsolutePath(),
-                            condaFile.getAbsolutePath())
-                    );
+                            condaFile.getAbsolutePath()));
 
-                    var futOut = logHandle.logOut(lzyProcess.out());
-                    var futErr = logHandle.logErr(lzyProcess.err());
+                    var futOut = logHandle.logOut(lzyProcess.out(), /* system */ true);
+                    var futErr = logHandle.logErr(lzyProcess.err(), /* system */ true);
 
                     final int rc;
                     try {
@@ -120,6 +119,7 @@ public class CondaEnvironment implements AuxEnvironment {
                             + "  ReturnCode: " + rc + "\n"
                             + "See your stdout/stderr to see more info";
                         LOG.error(errorMessage);
+                        logHandle.logSysErr(errorMessage);
                         throw new EnvironmentInstallationException(errorMessage);
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");

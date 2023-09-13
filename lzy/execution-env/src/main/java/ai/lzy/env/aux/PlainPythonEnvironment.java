@@ -24,7 +24,8 @@ public class PlainPythonEnvironment implements AuxEnvironment {
     private Path localModulesPath;
 
     public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules,
-                                  String localModulesPathPrefix) {
+                                  String localModulesPathPrefix)
+    {
         this.localModules = localModules;
         this.baseEnv = baseEnv;
         this.localModulesPathPrefix = localModulesPathPrefix;
@@ -55,7 +56,9 @@ public class PlainPythonEnvironment implements AuxEnvironment {
                 LOG.error("Error while getting stderr of process: ", e);
             }
 
-            logHandle.logErr("Cannot get python version. It can be not provided. STDERR: {}", err);
+            var msg = "Cannot get python version. It can be not provided. STDERR: " + err;
+            LOG.error(msg);
+            logHandle.logSysErr(msg);
             throw new EnvironmentInstallationException("Python not found. Maybe your docker not contains it");
         }
 
@@ -67,7 +70,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
             throw new EnvironmentInstallationException("Cannot get version of provided python");
         }
 
-        logHandle.logErr("Using provided python with version \"{}\"", out);
+        LOG.info("Using provided python with version \"{}\"", out);
 
         try {
             this.localModulesPath = AuxEnvironment.installLocalModules(localModules, localModulesPathPrefix, LOG);
