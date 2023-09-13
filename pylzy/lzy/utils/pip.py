@@ -4,9 +4,10 @@ import os
 import subprocess
 import sys
 
-from typing import Sequence, Optional, Dict, List
+from functools import cached_property
+
+from typing import Optional, Dict
 from packaging.version import Version
-from lzy.utils.cached_property import cached_property
 
 
 logger = logging.getLogger(__name__)
