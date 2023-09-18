@@ -161,7 +161,7 @@ public class KuberVolumeManager implements VolumeManager {
         return switch (phase) {
             case AVAILABLE, BOUND -> {
                 LOG.info("Volume {} already exists with active status {}",
-                    result, existingVolume.getStatus().getPhase());
+                    result, existingVolume.getStatus().toString());
                 yield result;
             }
 
