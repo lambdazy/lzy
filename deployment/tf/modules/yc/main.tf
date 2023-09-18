@@ -32,7 +32,6 @@ module "k8s_deployment" {
   backoffice-backend-image  = var.backoffice-backend-image
   backoffice-frontend-image = var.backoffice-frontend-image
   channel-manager-image     = var.channel-manager-image
-  portal_image              = var.portal_image
   s3-sink-image             = var.s3-sink-image
   scheduler-image           = var.scheduler-image
   unified-agent-image       = var.unified-agent-image

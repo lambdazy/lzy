@@ -33,10 +33,6 @@ variable "lzy-service-image" {
   type = string
 }
 
-variable "portal_image" {
-  type = string
-}
-
 variable "network_id" {
   type = string
 }

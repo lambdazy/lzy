@@ -50,7 +50,6 @@ module "yc" {
   servant-image             = "lzydock/worker:${var.docker_worker_image_tag}"
   graph-image               = "lzydock/graph-executor:${var.docker_graph_executor_image_tag}"
   lzy-service-image         = "lzydock/lzy-service:${var.docker_lzy_service_image_tag}"
-  portal_image              = "lzydock/portal:${var.docker_portal_image_tag}"
   storage-image             = "lzydock/storage:${var.docker_storage_image_tag}"
   whiteboard-image          = "lzydock/whiteboard:${var.docker_whiteboard_image_tag}"
   backoffice-backend-image  = "lzydock/site:${var.docker_backend_image_tag}"
@@ -86,5 +85,4 @@ module "yc" {
       }
     }
   }
-  portals_pool_size = 1
 }

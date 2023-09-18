@@ -59,11 +59,6 @@ variable "docker_worker_image_tag" {
   default     = "1.2"
 }
 
-variable "docker_portal_image_tag" {
-  type        = string
-  description = "Docker IAM portal tag"
-  default     = "1.1"
-}
 
 variable "docker_storage_image_tag" {
   type        = string

@@ -116,56 +116,6 @@ resource "kubernetes_deployment" "lzy-service" {
           }
 
           env {
-            name  = "LZY_SERVICE_PORTAL_PORTAL_API_PORT"
-            value = 9876
-          }
-
-          env {
-            name  = "LZY_SERVICE_PORTAL_SLOTS_API_PORT"
-            value = 9877
-          }
-
-          env {
-            name  = "LZY_SERVICE_PORTAL_POOL_LABEL"
-            value = "portals"
-          }
-
-          env {
-            name  = "LZY_SERVICE_PORTAL_POOL_ZONE"
-            value = "ru-central1-a"
-          }
-
-          env {
-            name  = "LZY_SERVICE_PORTAL_DOCKER_IMAGE"
-            value = var.portal_image
-          }
-
-          env {
-            name  = "LZY_SERVICE_PORTAL_STDOUT_CHANNEL_NAME"
-            value = "stdout"
-          }
-
-          env {
-            name  = "LZY_SERVICE_PORTAL_STDERR_CHANNEL_NAME"
-            value = "stderr"
-          }
-
-          env {
-            name  = "LZY_SERVICE_PORTAL_WORKERS_POOL_SIZE"
-            value = "10"
-          }
-
-          env {
-            name  = "LZY_SERVICE_PORTAL_DOWNLOADS_POOL_SIZE"
-            value = "5"
-          }
-
-          env {
-            name  = "LZY_SERVICE_PORTAL_CHUNKS_POOL_SIZE"
-            value = "5"
-          }
-
-          env {
             name = "LZY_SERVICE_DATABASE_USERNAME"
             value_from {
               secret_key_ref {

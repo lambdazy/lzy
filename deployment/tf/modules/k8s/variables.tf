@@ -79,10 +79,6 @@ variable "lzy-service-image" {
   type = string
 }
 
-variable "portal_image" {
-  type = string
-}
-
 variable "backoffice-frontend-image" {
   type = string
 }
