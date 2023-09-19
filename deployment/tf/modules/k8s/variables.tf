@@ -91,10 +91,6 @@ variable "whiteboard-image" {
   type = string
 }
 
-variable "storage-image" {
-  type = string
-}
-
 // Service config
 
 variable "oauth-github-client-id" {
