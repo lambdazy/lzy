@@ -81,7 +81,8 @@ def test_lists(lzy, workflow_name) -> None:
     with lzy.workflow(workflow_name):
         some_list = [1, 2, 3]
         result = list2list(some_list)
-        assert [str(i) for i in some_list] == result
+        etalon = [str(i) for i in some_list]
+        assert etalon == result
 
 
 def test_invalid_list_type_returns(lzy, workflow_name) -> None:
@@ -266,7 +267,6 @@ def test_return_accept_unspecified_list(lzy, workflow_name) -> None:
     # noinspection PyUnusedLocal
     @op
     def accept_list(lst: List, bst: List) -> int:
-        print(bst)
         return len(lst)
 
     with lzy.workflow(workflow_name):
@@ -482,7 +482,6 @@ def test_already_materialized_calls_when_barrier_called(lzy, workflow_name) -> N
         snapshot = workflow.snapshot()
         f = foo()
         b = bar(f)
-        print(b)
 
         o = boo(b, baz(f, 3))
 
