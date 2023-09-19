@@ -1,6 +1,5 @@
 from typing import Any, BinaryIO, Callable, Dict, Type, Union, Optional
 
-from packaging import version  # type: ignore
 from serialzy.api import VersionBoundary
 from serialzy.base import DefaultSchemaSerializerByReference
 

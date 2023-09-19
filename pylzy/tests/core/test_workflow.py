@@ -496,8 +496,8 @@ def test_already_materialized_calls_when_barrier_called(lzy, workflow_name) -> N
 @pytest.mark.skip("WIP")
 def test_simultaneous_workflows_are_not_supported(lzy, workflow_name) -> None:
     with pytest.raises(RuntimeError) as context:
-        with lzy.workflow(workflow_name, False) as workflow1:
-            with lzy.workflow(workflow_name, False) as workflow2:
+        with lzy.workflow(workflow_name, False):
+            with lzy.workflow(workflow_name, False):
                 pass
         assert "Simultaneous workflows are not supported" in str(context.exception)
 

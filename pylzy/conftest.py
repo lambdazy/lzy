@@ -1,5 +1,6 @@
 import re
 import pathlib
+import fnmatch
 import logging
 
 
@@ -11,9 +12,34 @@ MYPY_WHITELIST = [
 ]
 
 DOCTEST_BLACKLIST = [
-    r'google/',
     r'tests/test_data/'
 ]
+
+FLAKES_BLACKLIST = [
+    r'ai/',
+    r'tests/scenarios/',
+]
+
+
+def try_fix_flakes_globs():
+    try:
+        import pytest_flakes
+    except ImportError:
+        return
+
+    def __call__(self, path):
+        result = set()
+        for (glob, ignlist) in self.ignores:
+            if not glob or fnmatch.fnmatch(path, glob):
+                if ignlist is None:
+                    return None
+                result.update(set(ignlist))
+        return sorted(result)
+
+    pytest_flakes.Ignorer.__call__ = __call__
+
+
+try_fix_flakes_globs()
 
 
 def pytest_collection_modifyitems(config, items):
@@ -21,6 +47,7 @@ def pytest_collection_modifyitems(config, items):
     # options from mypy.ini because of the reasons.
     # So here we are filtering mypy items by ourselves.
     mypy = config.pluginmanager.getplugin('mypy')
+    flakes = config.pluginmanager.getplugin('flakes')
 
     pylzy = pathlib.Path(__file__).parent
 
@@ -34,11 +61,14 @@ def pytest_collection_modifyitems(config, items):
             items.remove(item)
             continue
 
-        if not mypy or not isinstance(item, mypy.MypyItem):
+        if mypy and isinstance(item, mypy.MypyItem) and not any(
+            re.match(pattern, path) for pattern in MYPY_WHITELIST
+        ):
+            items.remove(item)
             continue
 
-        if not any(
-            re.match(pattern, path) for pattern in MYPY_WHITELIST
+        if flakes and isinstance(item, flakes.FlakesItem) and any(
+            re.match(pattern, path) for pattern in FLAKES_BLACKLIST
         ):
             items.remove(item)
             continue

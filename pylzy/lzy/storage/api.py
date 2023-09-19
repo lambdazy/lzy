@@ -1,7 +1,7 @@
 import dataclasses
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import BinaryIO, Optional, Union, Iterable, Callable, Any
+from typing import BinaryIO, Optional, Iterable, Callable, Any
 
 
 class StorageCredentials(ABC):

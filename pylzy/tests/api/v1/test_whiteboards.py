@@ -240,14 +240,14 @@ class WhiteboardTests(TestCase):
         with self.assertRaisesRegex(TypeError, "Name attribute is required to be a string"):
             @whiteboard(name=1)
             @dataclass
-            class Wb:
+            class Wb:  # noqa
                 num: int
                 desc: str
 
         with self.assertRaisesRegex(ValueError, "Invalid workflow name. Name can contain only"):
             @whiteboard(name="test test")
             @dataclass
-            class Wb:
+            class Wb:  # noqa
                 num: int
                 desc: str
 

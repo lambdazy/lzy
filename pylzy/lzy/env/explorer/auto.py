@@ -3,8 +3,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Type, TypeVar
 
-from lzy.env.python.base import PackagesDict
-
 from .base import BaseExplorer, ModulePathsList, PackagesDict
 from .classify import ModuleClassifier
 from .search import VarsNamespace, get_transitive_namespace_dependencies
