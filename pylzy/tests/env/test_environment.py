@@ -18,7 +18,7 @@ def test_defaults() -> None:
 def test_defaults_override() -> None:
     env = LzyEnvironment()
 
-    container = DockerContainer(image_url='example.com')
+    container = DockerContainer(registry='example.com', image='foo')
     python_env = ManualPythonEnv(
         python_version='3.99',
         local_module_paths=[],
@@ -47,8 +47,8 @@ def test_defaults_override() -> None:
 
 
 def test_combine_provisioning() -> None:
-    container1 = DockerContainer(image_url='example1.com')
-    container2 = DockerContainer(image_url='example2.com')
+    container1 = DockerContainer(registry='example1.com', image='foo')
+    container2 = DockerContainer(registry='example2.com', image='foo')
 
     python_env1 = ManualPythonEnv(
         python_version='3.99',
@@ -75,8 +75,8 @@ def test_combine_provisioning() -> None:
         provisioning=provisioning1
     )
 
+    assert env.with_fields(env_vars=env_vars2).env_vars == {**env_vars2, **env_vars1}
     # no merging:
-    assert env.with_fields(env_vars=env_vars2).env_vars == env_vars2
     assert env.with_fields(container=container2).container == container2
     assert env.with_fields(python_env=python_env2).python_env == python_env2
 

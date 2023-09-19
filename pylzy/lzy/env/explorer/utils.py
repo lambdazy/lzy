@@ -48,7 +48,7 @@ def getmembers(object: Any, predicate=None) -> List[Tuple[str, Any]]:
             # handle the duplicate key
             if key in processed:
                 raise AttributeError
-        except (AttributeError, ModuleNotFoundError):
+        except (AttributeError, ImportError):
             for base in mro:
                 if key in base.__dict__:
                     value = base.__dict__[key]

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import os
 import subprocess
@@ -13,17 +15,16 @@ from lzy.proxy.result import Result
 from lzy.api.v1.exceptions import LzyExecutionException
 from lzy.api.v1.startup import ProcessingRequest, MAIN_PID_ENV_VAR
 from lzy.api.v1.utils.pickle import pickle
-from lzy.logs.config import get_logging_config, COLOURS, get_syslog_color, RESET_COLOR
-from lzy.storage.api import AsyncStorageClient, Storage
-
-if TYPE_CHECKING:
-    from lzy.api.v1 import LzyWorkflow
-
-from lzy.api.v1.call import LzyCall
 from lzy.api.v1.runtime import (
     ProgressStep,
     Runtime,
 )
+from lzy.logs.config import get_logging_config, COLOURS, get_syslog_color, RESET_COLOR
+from lzy.storage.api import AsyncStorageClient, Storage
+
+if TYPE_CHECKING:
+    from lzy.core.workflow import LzyWorkflow
+    from lzy.core.call import LzyCall
 
 
 class LocalRuntime(Runtime):
@@ -184,11 +185,17 @@ class LocalRuntime(Runtime):
         pass
 
     async def __from_storage_to_file(self, url: str, path: str) -> None:
+        assert self.__workflow
         with open(path, "wb+") as file:
-            await cast(AsyncStorageClient,
-                       cast("LzyWorkflow", self.__workflow).owner.storage_registry.default_client()).read(url, file)
+            await cast(
+                AsyncStorageClient,
+                self.__workflow.owner.storage_registry.default_client()
+            ).read(url, file)
 
     async def __from_file_to_storage(self, url: str, path: str) -> None:
+        assert self.__workflow
         with open(path, "rb") as file:
-            await cast(AsyncStorageClient,
-                       cast("LzyWorkflow", self.__workflow).owner.storage_registry.default_client()).write(url, file)
+            await cast(
+                AsyncStorageClient,
+                self.__workflow.owner.storage_registry.default_client()
+            ).write(url, file)

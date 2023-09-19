@@ -14,13 +14,17 @@ class DockerPullPolicy(Enum):
 
 @dataclass
 class DockerContainer(BaseContainer):
-    image_url: str
+    registry: str
+    image: str
     pull_policy: DockerPullPolicy = DockerPullPolicy.IF_NOT_EXISTS
     username: Optional[str] = None
     password: Optional[str] = None
 
-    def get_image_url(self) -> str:
-        return self.image_url
+    def get_registry(self) -> str:
+        return self.registry
+
+    def get_image(self) -> str:
+        return self.image
 
     def get_pull_policy(self) -> DockerPullPolicy:
         return self.pull_policy

@@ -2,6 +2,8 @@ import sys
 import pytest
 import importlib_metadata
 
+import lzy.config
+import lzy.exceptions
 import lzy.env.explorer.classify
 from lzy.env.python.auto import AutoPythonEnv
 from lzy.env.explorer.auto import AutoExplorer
@@ -26,8 +28,8 @@ def test_explorer_factory() -> None:
     python_env = AutoPythonEnv(env_explorer_factory=factory)
 
     assert isinstance(python_env._env_explorer, MyExplorer)
-    assert python_env.get_pypi_packages() == {'bar': 'baz'}
-    assert python_env.get_local_module_paths() == ['foo']
+    assert python_env.get_pypi_packages({}) == {'bar': 'baz'}
+    assert python_env.get_local_module_paths({}) == ['foo']
 
 
 def test_python_version() -> None:
@@ -49,7 +51,6 @@ def test_pypi_index_url() -> None:
     assert python_env.get_pypi_index_url() == 'foo'
 
 
-@pytest.mark.block_network
 def test_get_modules_and_paths(
     with_test_modules,
     get_test_data_path,
@@ -69,18 +70,34 @@ def test_get_modules_and_paths(
 
     import empty_module
 
-    python_env = AutoPythonEnv().with_fields(_namespace={'foo': empty_module})
+    python_env = AutoPythonEnv()
+    namespace = {'foo': empty_module}
 
-    assert python_env.get_local_module_paths() == \
+    assert python_env.get_local_module_paths(namespace) == \
         [str(get_test_data_path('empty_module.py'))]
 
-    assert python_env.get_pypi_packages() == {}
+    assert python_env.get_pypi_packages(namespace) == {}
 
     import typing_extensions
 
-    python_env = AutoPythonEnv().with_fields(_namespace={'foo': typing_extensions})
+    namespace = {'foo': typing_extensions}
 
-    assert python_env.get_local_module_paths() == []
-    assert python_env.get_pypi_packages() == {
+    assert python_env.get_local_module_paths(namespace) == []
+    assert python_env.get_pypi_packages(namespace) == {
         'typing_extensions': importlib_metadata.distribution('typing_extensions').version
     }
+
+
+@pytest.mark.vcr
+def test_validate_pypi_index_url(pypi_index_url_testing, monkeypatch):
+    monkeypatch.setattr(lzy.config, 'skip_pypi_validation', False)
+
+    python_env = AutoPythonEnv()
+    python_env.validate()
+
+    python_env = python_env.with_fields(pypi_index_url=pypi_index_url_testing)
+    python_env.validate()
+
+    python_env = python_env.with_fields(pypi_index_url='https://example.com')
+    with pytest.raises(lzy.exceptions.BadPypiIndex):
+        python_env.validate()

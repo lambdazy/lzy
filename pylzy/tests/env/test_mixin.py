@@ -17,7 +17,7 @@ class MyWithEnv(WithEnvironmentMixin):
 def test_with() -> None:
     subject = MyWithEnv()
 
-    container = DockerContainer(image_url='example.com')
+    container = DockerContainer(registry='example.com', image='foo')
     python_env = ManualPythonEnv(
         python_version='3.99',
         local_module_paths=[],
@@ -56,7 +56,7 @@ def test_with() -> None:
 def test_decorate() -> None:
     subject = MyWithEnv()
 
-    container = DockerContainer(image_url='example.com')
+    container = DockerContainer(registry='example.com', image='foo')
     python_env = ManualPythonEnv(
         python_version='3.99',
         local_module_paths=[],

@@ -3,8 +3,7 @@ import numpy as np
 # noinspection PyPackageRequirements
 from catboost import CatBoostClassifier
 
-from lzy.api.v1 import CpuType
-from lzy.injections.catboost import inject_catboost
+from lzy.injections.catboost import inject_catboost, Provisioning
 
 inject_catboost()
 
@@ -14,7 +13,7 @@ if __name__ == "__main__":
 
     model = CatBoostClassifier(iterations=1000, train_dir="/tmp/catboost")
     # noinspection PyArgumentList
-    model.fit(data, labels, cpu_type=str(CpuType.CASCADE_LAKE.value))
+    model.fit(data, labels, provisioning=Provisioning(cpu_type='Intel Cascade Lake'))
 
     result = model.predict(np.array([9, 1]))
     print("Prediction: " + str(result))

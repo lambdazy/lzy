@@ -5,8 +5,8 @@ from typing import Sequence, TypeVar, Union, cast, TYPE_CHECKING
 
 from typing_extensions import final
 
-from lzy.env.base import NotSpecified, NotSpecifiedType, is_specified
-from lzy.env.provisioning.base import BaseProvisioning
+from lzy.env.base import NotSpecified, NotSpecifiedType
+from lzy.env.provisioning.base import BaseProvisioning, VmSpecType_co
 from lzy.env.provisioning.score import minimum_score_function, ScoreFunctionType
 from lzy.exceptions import BadProvisioning
 from lzy.logs.config import get_logger
@@ -43,12 +43,12 @@ T = TypeVar('T')
 Any = AnyRequirement()
 WithAny = Union[AnyRequirement, T]
 
-_Req = WithAny[NotSpecifiedType]
-IntegerRequirement = Union[int, _Req]
-StringRequirement = Union[str, _Req]
+ProvisioningRequirement = Union[AnyRequirement, NotSpecifiedType, T]
+IntegerRequirement = ProvisioningRequirement[int]
+StringRequirement = ProvisioningRequirement[str]
 
 
-def _coerce(value: Union[T, _Req], default: T) -> T:
+def _coerce(value: ProvisioningRequirement[T], default: T) -> T:
     if value in (Any, NotSpecified):
         return cast(T, default)
 
@@ -123,7 +123,7 @@ class Provisioning(BaseProvisioning):
 
         return True
 
-    def resolve_pool(self, vm_specs: Sequence[VmSpec]) -> VmSpec:
+    def resolve_pool(self, vm_specs: Sequence[VmSpecType_co]) -> VmSpecType_co:
         self.validate()
 
         provisioning_spec = self._as_vm_spec()

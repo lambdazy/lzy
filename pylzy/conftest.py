@@ -6,6 +6,7 @@ import logging
 MYPY_WHITELIST = [
     r'lzy/',
     r'tests/env/',
+    r'tests/core/'
     r'tests/conftest.py',
 ]
 

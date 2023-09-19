@@ -1,9 +1,12 @@
 import os
 
-from lzy.api.v1 import Lzy, op, USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV, WB_ENDPOINT_ENV
+from lzy.api.v1 import Lzy, op
+from lzy.types import File
 from graph import run_graph
 from deps import CustomClass
-from lzy.types import File
+
+# NB: is not part of the API, in future there will be "normal" solution for nested graphs
+from lzy.core.lzy import USER_ENV, KEY_PATH_ENV, ENDPOINT_ENV, WB_ENDPOINT_ENV
 
 
 @op

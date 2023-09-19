@@ -20,13 +20,14 @@ from moto.moto_server.threaded_moto_server import ThreadedMotoServer
 # noinspection PyPackageRequirements
 from ai.lzy.v1.whiteboard import whiteboard_pb2
 from ai.lzy.v1.whiteboard.whiteboard_service_pb2_grpc import add_LzyWhiteboardServiceServicer_to_server
-from lzy.api.v1 import Lzy, whiteboard, WhiteboardStatus, MISSING_WHITEBOARD_FIELD, op
+from lzy.api.v1 import Lzy, whiteboard, op
+from lzy.whiteboards.wrapper import WhiteboardStatus, MISSING_WHITEBOARD_FIELD
 from lzy.api.v1.local.runtime import LocalRuntime
 from lzy.storage.api import Storage, S3Credentials
 from lzy.storage.registry import DefaultStorageRegistry
 from lzy.utils.event_loop import LzyEventLoop
 from tests.api.v1.mocks import SerializerRegistryMock, NotStablePrimitiveSerializer, NotAvailablePrimitiveSerializer, \
-    WhiteboardIndexServiceMock, EnvProviderMock
+    WhiteboardIndexServiceMock
 from tests.api.v1.utils import create_bucket
 
 
@@ -98,7 +99,6 @@ class WhiteboardTests(TestCase):
         )
 
         self.lzy = Lzy(runtime=LocalRuntime(),
-                       py_env_provider=EnvProviderMock(),
                        storage_registry=DefaultStorageRegistry())
 
         self.lzy.storage_registry.register_storage("default", storage_config, default=True)
@@ -287,40 +287,6 @@ class WhiteboardTests(TestCase):
                 wb = wf.create_whiteboard(WhiteboardWithDefaults)
                 print(wb.num)
                 print(wb.desc)
-
-    def test_whiteboard_serializer_not_found(self):
-        registry = self.lzy._Lzy__serializer_registry
-        self.lzy._Lzy__serializer_registry = SerializerRegistryMock()
-        try:
-            with self.assertRaisesRegex(TypeError, "Cannot find serializer for type"):
-                with self.lzy.workflow(self.workflow_name) as wf:
-                    wf.create_whiteboard(WhiteboardWithDefaults)
-        finally:
-            self.lzy._Lzy__serializer_registry = registry
-
-    def test_whiteboard_serializer_unavailable(self):
-        serializers = SerializerRegistryMock()
-        serializers.register_serializer(NotAvailablePrimitiveSerializer())
-        registry = self.lzy._Lzy__serializer_registry
-        self.lzy._Lzy__serializer_registry = serializers
-        try:
-            with self.assertRaisesRegex(TypeError, "is not available, please install"):
-                with self.lzy.workflow(self.workflow_name) as wf:
-                    wf.create_whiteboard(WhiteboardWithDefaults)
-        finally:
-            self.lzy._Lzy__serializer_registry = registry
-
-    def test_whiteboard_serializer_unstable(self):
-        serializers = SerializerRegistryMock()
-        serializers.register_serializer(NotStablePrimitiveSerializer())
-        registry = self.lzy._Lzy__serializer_registry
-        self.lzy._Lzy__serializer_registry = serializers
-        try:
-            with self.assertRaisesRegex(TypeError, "we cannot serialize them in a portable format"):
-                with self.lzy.workflow(self.workflow_name) as wf:
-                    wf.create_whiteboard(WhiteboardWithDefaults)
-        finally:
-            self.lzy._Lzy__serializer_registry = registry
 
     def test_whiteboard_list(self):
         with self.lzy.workflow(self.workflow_name) as wf:
@@ -513,3 +479,42 @@ class WhiteboardTests(TestCase):
             with self.lzy.workflow(self.workflow_name) as wf:
                 wb = wf.create_whiteboard(ListWb)
                 wb.field = ["1", "2", "3"]
+
+
+class WhiteboardSerializerTests(TestCase):
+    def setUp(self) -> None:
+        self.workflow_name = "workflow_" + str(uuid.uuid4())
+
+    def test_whiteboard_serializer_not_found(self):
+        lzy = Lzy(
+            runtime=LocalRuntime(),
+            storage_registry=DefaultStorageRegistry(),
+            serializer_registry=SerializerRegistryMock()
+        )
+        with self.assertRaisesRegex(TypeError, "Cannot find serializer for type"):
+            with lzy.workflow(self.workflow_name) as wf:
+                wf.create_whiteboard(WhiteboardWithDefaults)
+
+    def test_whiteboard_serializer_unavailable(self):
+        serializers = SerializerRegistryMock()
+        serializers.register_serializer(NotAvailablePrimitiveSerializer())
+        lzy = Lzy(
+            runtime=LocalRuntime(),
+            storage_registry=DefaultStorageRegistry(),
+            serializer_registry=serializers,
+        )
+        with self.assertRaisesRegex(TypeError, "is not available, please install"):
+            with lzy.workflow(self.workflow_name) as wf:
+                wf.create_whiteboard(WhiteboardWithDefaults)
+
+    def test_whiteboard_serializer_unstable(self):
+        serializers = SerializerRegistryMock()
+        serializers.register_serializer(NotStablePrimitiveSerializer())
+        lzy = Lzy(
+            runtime=LocalRuntime(),
+            storage_registry=DefaultStorageRegistry(),
+            serializer_registry=serializers,
+        )
+        with self.assertRaisesRegex(TypeError, "we cannot serialize them in a portable format"):
+            with lzy.workflow(self.workflow_name) as wf:
+                wf.create_whiteboard(WhiteboardWithDefaults)

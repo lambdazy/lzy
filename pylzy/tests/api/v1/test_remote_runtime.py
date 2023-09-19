@@ -10,7 +10,6 @@ import grpc.aio
 from Crypto.PublicKey import RSA
 # noinspection PyPackageRequirements
 from grpc.aio import AioRpcError
-from lzy.api.v1.workflow import LzyWorkflow
 
 from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
     add_LzyWorkflowServiceServicer_to_server,
@@ -18,8 +17,9 @@ from ai.lzy.v1.workflow.workflow_service_pb2_grpc import (
 from ai.lzy.v1.long_running.operation_pb2_grpc import (
     add_LongRunningServiceServicer_to_server,
 )
-from tests.api.v1.mocks import WorkflowServiceMock, OperationsServiceMock, EnvProviderMock
+from tests.api.v1.mocks import WorkflowServiceMock, OperationsServiceMock
 from lzy.api.v1 import Lzy, op
+from lzy.core.workflow import LzyWorkflow
 from lzy.exceptions import BadProvisioning, BadClientVersion
 from lzy.whiteboards.index import DummyWhiteboardIndexClient
 from lzy.logs.config import get_logger
@@ -50,7 +50,7 @@ class RemoteRuntimeTests(TestCase):
         with open(name, "wb") as f:
             f.write(key.export_key("PEM"))
 
-        self.lzy = Lzy(whiteboard_client=DummyWhiteboardIndexClient(), py_env_provider=EnvProviderMock())
+        self.lzy = Lzy(whiteboard_client=DummyWhiteboardIndexClient())
         self.lzy.auth(user="ArtoLord", key_path=name, endpoint="localhost:12345")
 
     def tearDown(self) -> None:
@@ -103,7 +103,13 @@ class RemoteRuntimeTests(TestCase):
     def test_empty_pools(self):
         self.mock.return_empty_pools = True
         with self.assertRaises(BadProvisioning):
-            with self.lzy.workflow("some_name", interactive=False):
+            with self.lzy \
+                    .workflow("some_name", interactive=False) \
+                    .with_manual_python_env(
+                        python_version='3.7.11',
+                        local_module_paths=[],
+                        pypi_packages={}
+                    ):
                 opa()
 
         self.assertTrue(self.mock.aborted)

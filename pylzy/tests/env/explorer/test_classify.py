@@ -12,7 +12,6 @@ def classifier(pypi_index_url) -> ModuleClassifier:
     return ModuleClassifier(pypi_index_url=pypi_index_url)
 
 
-@pytest.mark.block_network
 def test_classify_local_packages(
     with_test_modules,
     get_test_data_path,
@@ -89,7 +88,6 @@ def test_classify_local_distribution(
     assert classifier.classify([lzy_test_project.foo]) == frozenset({dataclasses.replace(etalon, is_binary=True)})
 
 
-@pytest.mark.block_network
 def test_classify_editable_distribution(classifier: ModuleClassifier, get_test_data_path) -> None:
     # NB: lzy_test_project_editable located at test_data/lzy_test_project_editable and gets installed by tox while
     # tox venv preparing

@@ -1,5 +1,7 @@
-from lzy.api.v1 import op, Lzy, GpuType
-from lzy.api.v1 import provisioning as lp
+from __future__ import annotations
+
+from lzy.api.v1 import op, Lzy, Provisioning, provisioning, AnyProvisioning
+from lzy.types import VmResources
 
 
 @op
@@ -7,12 +9,14 @@ def example1() -> int:
     return 1
 
 
-@op(cpu_count=8)
+@provisioning(cpu_count=8)
+@op
 def example2() -> int:
     return 2
 
 
-@op(gpu_count=lp.Any)
+@provisioning(gpu_count=AnyProvisioning)
+@op
 def example3() -> int:
     return 3
 
@@ -24,26 +28,23 @@ if __name__ == '__main__':
         # will auto-choose minimal available pool with default "lp.minimum_score_function"
         result1 = example1()
 
-    with lzy.workflow(
-        "example_standard_score_function",
-        provisioning=lp.Provisioning(score_function=lp.maximum_score_function, cpu_count=1)
+    with lzy.workflow("example_standard_score_function").with_provisioning(
+        Provisioning(score_function=lp.maximum_score_function, cpu_count=1)
     ):
         # you can change score function, but we do not made shortcut argument for it,
         # so you need to pass provisioning object
         result2 = example1()
 
-    def my_score_function(requested: "lp.Provisioning", spec: "lp.Provisioning") -> float:
+    def my_score_function(requested: VmResources, spec: VmResources) -> float:
         return 1.0 * requested.gpu_count_final * spec.cpu_count_final
 
-    with lzy.workflow(
-        "example_custom_score_function",
-        provisioning=lp.Provisioning(score_function=my_score_function)
+    with lzy.workflow("example_custom_score_function").with_provisioning(
+        lp.Provisioning(score_function=my_score_function)
     ):
         # or make your own score function
         result3 = example1()
 
-    with lzy.workflow(
-        "provisioning_example_merge_paramenters",
+    with lzy.workflow("provisioning_example_merge_paramenters").with_provisioning(
         cpu_count=4,
         gpu_count=1
     ):

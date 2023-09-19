@@ -1,7 +1,7 @@
 import os
 from typing import List
 
-from lzy.api.v1 import op, Lzy, GpuType
+from lzy.api.v1 import op, Lzy, provisioning
 import tensorflow as tf
 from tensorflow.python.client import device_lib
 
@@ -15,7 +15,8 @@ def is_inside_container() -> bool:
     return os.environ.get("LZY_INNER_CONTAINER") == "true"
 
 
-@op(gpu_type=GpuType.V100.name, gpu_count=1)
+@provisioning(gpu_type='V100', gpu_count=1)
+@op
 def matrix_mult(a: List[List[float]], b: List[List[float]]) -> List[List[float]]:
     print(get_available_gpus())
 
@@ -31,7 +32,7 @@ def matrix_mult(a: List[List[float]], b: List[List[float]]) -> List[List[float]]
 if __name__ == "__main__":
     lzy = Lzy()
 
-    with lzy.workflow(name="wf", docker_image="docker.io/lzydock/user-default:1.14.0", interactive=False):
+    with lzy.workflow(name="wf", interactive=False).with_docker_container(registry="docker.io", image="lzydock/user-default:1.14.0"):
         a = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
         b = [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]
         result = matrix_mult(a, b)

@@ -1,5 +1,6 @@
-from base_module.base import Base, internal_op
 from lzy.api.v1 import op, Lzy
+
+from base_module.base import Base, internal_op
 from some_imported_file_2 import foo
 
 
@@ -12,7 +13,8 @@ def just_call_imported_stuff() -> str:
     return v1 + " " + v2
 
 
-with Lzy().workflow(name="wf", interactive=False):
-    res = just_call_imported_stuff()
-    print(res)
-    internal_op()
+if __name__ == '__main__':
+    with Lzy().workflow(name="wf", interactive=False):
+        res = just_call_imported_stuff()
+        print(res)
+        internal_op()

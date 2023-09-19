@@ -4,7 +4,8 @@ import sys
 
 from dataclasses import dataclass
 
-from typing_extensions import Self, Protocol, final, runtime_checkable
+from typing import ClassVar, Dict
+from typing_extensions import Self, Protocol, runtime_checkable
 
 from ai.lzy.v1.workflow.workflow_pb2 import VmPoolSpec as VmPoolSpecProto
 
@@ -29,16 +30,6 @@ class VmResources(Protocol):
     ram_size_gb: int
 
 
-VM_SPEC_PROTO_RELATION = {
-    'cpu_type': 'cpuType',
-    'cpu_count': 'cpuCount',
-    'gpu_type': 'gpuType',
-    'gpu_count': 'gpuCount',
-    'ram_size_gb': 'ramGb'
-}
-
-
-@final
 @dataclass
 class VmSpec(VmResources):
     cpu_type: str
@@ -47,11 +38,29 @@ class VmSpec(VmResources):
     gpu_count: int
     ram_size_gb: int
 
+    proto_relation: ClassVar[Dict[str, str]] = {
+        'cpu_type': 'cpuType',
+        'cpu_count': 'cpuCount',
+        'gpu_type': 'gpuType',
+        'gpu_count': 'gpuCount',
+        'ram_size_gb': 'ramGb'
+    }
+
     @classmethod
     def from_proto(cls, spec: VmPoolSpecProto) -> Self:
         fields = {}
 
-        for provisioning_field, spec_field in VM_SPEC_PROTO_RELATION.items():
+        for provisioning_field, spec_field in cls.proto_relation.items():
             fields[provisioning_field] = getattr(spec, spec_field)
 
         return cls(**fields)
+
+
+@dataclass
+class NamedVmSpec(VmSpec):
+    name: str
+
+    proto_relation: ClassVar[Dict[str, str]] = {
+        'name': 'poolSpecName',
+        **VmSpec.proto_relation,
+    }
