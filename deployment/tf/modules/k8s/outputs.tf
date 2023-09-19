@@ -6,7 +6,6 @@ output "db_data" {
     "${local.iam-k8s-name}" = kubernetes_secret.iam_db_secret.data.password,
     "${local.lzy-service-k8s-name}" = kubernetes_secret.lzy_service_db_secret.data.password,
     "${local.scheduler-k8s-name}" = kubernetes_secret.scheduler_db_secret.data.password,
-    "${local.storage-k8s-name}" = kubernetes_secret.storage_db_secret.data.password,
     "${local.whiteboard-k8s-name}" = kubernetes_secret.whiteboard_db_secret.data.password
   })
 }

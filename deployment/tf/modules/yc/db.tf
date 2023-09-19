@@ -11,7 +11,7 @@ resource "yandex_mdb_postgresql_cluster" "lzy_postgresql_cluster" {
     resources {
       resource_preset_id = "s2.micro"
       disk_type_id       = "network-ssd"
-      disk_size          = 16
+      disk_size          = 32
     }
 
     access {

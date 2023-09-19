@@ -24,7 +24,6 @@ function build_image {
 
 mkdir -p frontend/src/docs
 cp docs/tutorials/* frontend/src/docs
-build_image site-frontend frontend
 
 build_image site lzy/site
 build_image allocator lzy/allocator
@@ -33,7 +32,6 @@ build_image graph-executor lzy/graph-executor
 build_image iam lzy/iam
 build_image lzy-service lzy/lzy-service
 build_image scheduler lzy/scheduler
-build_image storage lzy/storage
 build_image whiteboard lzy/whiteboard
 build_image s3-sink lzy/s3-sink
 

@@ -50,10 +50,6 @@ variable "zone" {
   default = "ru-central1-a"
 }
 
-variable "storage-image" {
-  type = string
-}
-
 variable "whiteboard-image" {
   type = string
 }

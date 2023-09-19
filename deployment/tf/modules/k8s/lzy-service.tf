@@ -77,7 +77,7 @@ resource "kubernetes_deployment" "lzy-service" {
           }
           env {
             name  = "LZY_SERVICE_ALLOCATOR_VM_CACHE_TIMEOUT"
-            value = "0s"
+            value = "20m"
           }
 
           env {

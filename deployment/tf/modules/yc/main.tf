@@ -37,7 +37,6 @@ module "k8s_deployment" {
   unified-agent-image       = var.unified-agent-image
   lzy-service-image         = var.lzy-service-image
   servant-image             = var.servant-image
-  storage-image             = var.storage-image
   whiteboard-image          = var.whiteboard-image
   iam-image                 = var.iam-image
   graph-image               = var.graph-image
