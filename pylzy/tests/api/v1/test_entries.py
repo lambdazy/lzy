@@ -50,7 +50,7 @@ def foo_kwargs(*args, **kwargs) -> str:
 
 @op(cache=False)
 def bar(message: str) -> str:
-    print(f"bar was called")
+    print("bar was called")
     return f"message from bar: {message}"
 
 

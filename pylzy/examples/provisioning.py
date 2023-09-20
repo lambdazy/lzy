@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from lzy.api.v1 import op, Lzy, Provisioning, provisioning, AnyProvisioning
+from lzy.api.v1 import op, Lzy, Provisioning, provisioning, AnyProvisioning, score
 from lzy.types import VmResources
 
 
@@ -25,11 +25,11 @@ if __name__ == '__main__':
     lzy = Lzy()
     with lzy.workflow("example_no_provisioning_arguments"):
         # op with no provisioning arguments at all
-        # will auto-choose minimal available pool with default "lp.minimum_score_function"
+        # will auto-choose minimal available pool with default "score.minimum_score_function"
         result1 = example1()
 
     with lzy.workflow("example_standard_score_function").with_provisioning(
-        Provisioning(score_function=lp.maximum_score_function, cpu_count=1)
+        Provisioning(score_function=score.maximum_score_function, cpu_count=1)
     ):
         # you can change score function, but we do not made shortcut argument for it,
         # so you need to pass provisioning object
@@ -39,7 +39,7 @@ if __name__ == '__main__':
         return 1.0 * requested.gpu_count_final * spec.cpu_count_final
 
     with lzy.workflow("example_custom_score_function").with_provisioning(
-        lp.Provisioning(score_function=my_score_function)
+        Provisioning(score_function=my_score_function)
     ):
         # or make your own score function
         result3 = example1()

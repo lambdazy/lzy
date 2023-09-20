@@ -219,7 +219,7 @@ class RemoteRuntime(Runtime):
                 if self.__std_slots_listener is not None:
                     await asyncio.wait_for(self.__std_slots_listener, timeout=1)
             except asyncio.TimeoutError:
-                _LOG.warning(f"Cannot wait for end of std logs of execution.")
+                _LOG.warning("Cannot wait for end of std logs of execution.")
         finally:
             self.__running = False
             self.__execution_id = None
@@ -239,7 +239,7 @@ class RemoteRuntime(Runtime):
                 if self.__std_slots_listener is not None:
                     await asyncio.wait_for(self.__std_slots_listener, timeout=1)
             except asyncio.TimeoutError:
-                _LOG.warning(f"Cannot wait for end of std logs of execution.")
+                _LOG.warning("Cannot wait for end of std logs of execution.")
         finally:
             self.__running = False
             self.__execution_id = None

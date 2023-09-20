@@ -215,7 +215,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
     def ReadStdSlots(
         self, request: ReadStdSlotsRequest, context: grpc.ServicerContext
     ) -> Iterator[ReadStdSlotsResponse]:
-        _LOG.info(f"Registered listener")
+        _LOG.info("Registered listener")
 
         if self.fail_on_read_std:
             self.fail_on_read_std = False
@@ -230,7 +230,7 @@ class WorkflowServiceMock(LzyWorkflowServiceServicer):
 
     def GetOrCreateDefaultStorage(self, request: GetOrCreateDefaultStorageRequest,
                                   context: grpc.ServicerContext) -> GetOrCreateDefaultStorageResponse:
-        _LOG.info(f"Get default storage")
+        _LOG.info("Get default storage")
 
         if self.fail_on_get_storage:
             self.fail_on_get_storage = False

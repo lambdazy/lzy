@@ -82,7 +82,7 @@ class WritableWhiteboard:
         declaration_meta = fetch_whiteboard_meta(typ)
         if declaration_meta is None:
             raise TypeError(
-                f"Whiteboard class should be annotated with both @whiteboard and @dataclass"
+                "Whiteboard class should be annotated with both @whiteboard and @dataclass"
             )
 
         whiteboard_id = str(uuid.uuid4())
