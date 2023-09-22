@@ -8,7 +8,7 @@ public abstract class BaseEnvironment implements Environment {
     private final CondaPackageRegistry registry;
 
     protected BaseEnvironment() {
-        this.registry = new CondaPackageRegistry();
+        this.registry = new CondaPackageRegistry(this);
     }
 
     public final CondaPackageRegistry getPackageRegistry() {

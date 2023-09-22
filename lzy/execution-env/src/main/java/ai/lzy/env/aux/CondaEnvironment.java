@@ -33,7 +33,7 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private final String condaYaml;
     private final BaseEnvironment baseEnv;
-    private final String envName;
+    private String envName;
     private final String resourcesPath;
     private final String localModulesPathPrefix;
     private final Map<String, String> localModules;
@@ -54,11 +54,6 @@ public class CondaEnvironment implements AuxEnvironment {
         this.condaYaml = condaYaml;
         this.baseEnv = baseEnv;
         this.localModules = localModules;
-
-        var yaml = new Yaml();
-        Map<String, Object> data = yaml.load(condaYaml);
-
-        envName = (String) data.getOrDefault("name", "default");
     }
 
     @Override
@@ -80,12 +75,15 @@ public class CondaEnvironment implements AuxEnvironment {
             }
 
             if (RECONFIGURE_CONDA) {
-                if (condaPackageRegistry.isInstalled(condaYaml)) {
+                condaPackageRegistry.init();
 
+                envName = condaPackageRegistry.resolveEnvName(condaYaml);
+                var envYaml = condaPackageRegistry.buildCondaYaml(condaYaml);
+
+                if (envYaml == null) {
                     LOG.info("Conda env {} already configured, skipping", envName);
 
                 } else {
-
                     LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
 
                     Path condaPath = Path.of(resourcesPath, UUID.randomUUID().toString());
@@ -93,7 +91,7 @@ public class CondaEnvironment implements AuxEnvironment {
                     final File condaFile = Files.createFile(Path.of(condaPath.toString(), "conda.yaml")).toFile();
 
                     try (FileWriter file = new FileWriter(condaFile.getAbsolutePath())) {
-                        file.write(condaYaml);
+                        file.write(envYaml);
                     }
 
                     // Conda env create or update: https://github.com/conda/conda/issues/7819
@@ -124,7 +122,7 @@ public class CondaEnvironment implements AuxEnvironment {
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
 
-                    condaPackageRegistry.notifyInstalled(condaYaml);
+                    condaPackageRegistry.notifyInstalled(envYaml);
                     //noinspection ResultOfMethodCallIgnored
                     condaFile.delete();
                 }
