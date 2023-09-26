@@ -74,7 +74,9 @@ public class CondaEnvironment implements AuxEnvironment {
                 throw new EnvironmentInstallationException(errorMessage);
             }
 
-            if (RECONFIGURE_CONDA) {
+            if (!RECONFIGURE_CONDA) {  // Only for tests
+                envName = "py39";
+            } else {
                 condaPackageRegistry.init();
 
                 envName = condaPackageRegistry.resolveEnvName(condaYaml);

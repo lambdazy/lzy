@@ -244,8 +244,9 @@ public class CondaPackageRegistry {
             "name", env.name,
             "dependencies", List.of(
                 "python="+env.pythonVersion,
+                "pip",
                 Map.of("pip", env.packages.values().stream()
-                    .map(p -> p.name + "=" + p.version)
+                    .map(p -> p.name + "==" + p.version)
                     .toList()
                 )
             )
