@@ -5,11 +5,13 @@ import io.grpc.StatusRuntimeException;
 import org.apache.kafka.clients.admin.*;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
+import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.kafka.common.acl.AclOperation.ALL;
 import static org.apache.kafka.common.acl.AclOperation.DESCRIBE;
@@ -92,6 +94,29 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
                 .all().get();
         } catch (Exception e) {
             LOG.error("Cannot grant permission: ", e);
+            throw Status.fromThrowable(e).asRuntimeException();
+        }
+    }
+
+    @Override
+    public boolean isTopicExists(String name) throws StatusRuntimeException {
+        var future = adminClient.describeTopics(List.of(name))
+            .topicNameValues()
+            .get(name);
+
+        try {
+            var descr = future.get();
+            LOG.debug("Topic {}: {}", name, descr.toString());
+            return true;
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof UnknownTopicOrPartitionException) {
+                LOG.debug("Topic {} doesnt exist", name);
+                return false;
+            }
+            LOG.error("Cannot describe topic {}: ", name, e);
+            throw Status.fromThrowable(e).asRuntimeException();
+        } catch (Exception e) {
+            LOG.error("Cannot describe topic {}: ", name, e);
             throw Status.fromThrowable(e).asRuntimeException();
         }
     }
