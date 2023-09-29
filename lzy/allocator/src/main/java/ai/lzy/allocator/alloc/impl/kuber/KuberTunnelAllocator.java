@@ -4,6 +4,7 @@ import ai.lzy.allocator.AllocatorAgent;
 import ai.lzy.allocator.alloc.VmAllocator;
 import ai.lzy.allocator.configs.ServiceConfig;
 import ai.lzy.allocator.exceptions.InvalidConfigurationException;
+import ai.lzy.allocator.model.PodPhase;
 import ai.lzy.allocator.model.Vm;
 import ai.lzy.allocator.model.Workload;
 import ai.lzy.allocator.util.KuberUtils;
@@ -120,6 +121,10 @@ public class KuberTunnelAllocator implements TunnelAllocator {
                 .inNamespace(NAMESPACE)
                 .withName(podName)
                 .get();
+            if (pod == null) {
+                LOG.warn("Pod {} not found", podName);
+                return VmAllocator.Result.SUCCESS;
+            }
             var channel = GrpcUtils.newGrpcChannel(pod.getStatus().getPodIP(),
                 tunnelConfig.getAgentPort(), LzyTunnelAgentGrpc.SERVICE_NAME);
             try {
