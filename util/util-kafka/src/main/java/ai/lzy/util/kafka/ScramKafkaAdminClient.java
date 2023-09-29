@@ -99,7 +99,7 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
     }
 
     @Override
-    public boolean isTopicExists(String name) throws StatusRuntimeException {
+    public boolean isTopicExist(String name) throws StatusRuntimeException {
         var future = adminClient.describeTopics(List.of(name))
             .topicNameValues()
             .get(name);

@@ -12,7 +12,7 @@ public interface KafkaAdminClient {
 
     void grantPermission(String username, String topicName) throws StatusRuntimeException;
 
-    boolean isTopicExists(String name) throws StatusRuntimeException;
+    boolean isTopicExist(String name) throws StatusRuntimeException;
 
     void shutdown();
 }

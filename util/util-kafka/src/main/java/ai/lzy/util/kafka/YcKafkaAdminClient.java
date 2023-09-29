@@ -120,7 +120,7 @@ public class YcKafkaAdminClient implements KafkaAdminClient {
     }
 
     @Override
-    public boolean isTopicExists(String name) throws StatusRuntimeException {
+    public boolean isTopicExist(String name) throws StatusRuntimeException {
         try {
             var topic = topicStub.get(TopicServiceOuterClass.GetTopicRequest.newBuilder()
                 .setClusterId(clusterId)
