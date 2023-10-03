@@ -1,6 +1,6 @@
 botocore-stubs
 flask-cors==3.0.10
-flask==2.2.2
+flask==3.0.0
 googleapis-common-protos-stubs
 grpc-stubs
 moto==4.1.0
