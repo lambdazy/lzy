@@ -1,18 +1,16 @@
 package ai.lzy.util.kafka;
 
 import com.google.protobuf.Int64Value;
+import com.google.protobuf.TextFormat;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import yandex.cloud.api.mdb.kafka.v1.TopicOuterClass;
-import yandex.cloud.api.mdb.kafka.v1.TopicServiceGrpc;
+import yandex.cloud.api.mdb.kafka.v1.*;
 import yandex.cloud.api.mdb.kafka.v1.TopicServiceGrpc.TopicServiceBlockingStub;
 import yandex.cloud.api.mdb.kafka.v1.TopicServiceOuterClass.CreateTopicRequest;
 import yandex.cloud.api.mdb.kafka.v1.TopicServiceOuterClass.DeleteTopicRequest;
-import yandex.cloud.api.mdb.kafka.v1.UserOuterClass;
-import yandex.cloud.api.mdb.kafka.v1.UserServiceGrpc;
 import yandex.cloud.api.mdb.kafka.v1.UserServiceGrpc.UserServiceBlockingStub;
-import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass;
 import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass.CreateUserRequest;
 import yandex.cloud.api.mdb.kafka.v1.UserServiceOuterClass.GrantUserPermissionRequest;
 import yandex.cloud.api.operation.OperationOuterClass;
@@ -119,6 +117,23 @@ public class YcKafkaAdminClient implements KafkaAdminClient {
             .build());
 
         awaitOperation(op);
+    }
+
+    @Override
+    public boolean isTopicExist(String name) throws StatusRuntimeException {
+        try {
+            var topic = topicStub.get(TopicServiceOuterClass.GetTopicRequest.newBuilder()
+                .setClusterId(clusterId)
+                .setTopicName(name)
+                .build());
+            LOG.debug("Topic {}: {}", name, TextFormat.printer().shortDebugString(topic));
+            return true;
+        } catch (StatusRuntimeException e) {
+            if (e.getStatus().getCode() == Status.Code.NOT_FOUND) {
+                return false;
+            }
+            throw e;
+        }
     }
 
     private void awaitOperation(OperationOuterClass.Operation op) {

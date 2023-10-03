@@ -120,6 +120,10 @@ public class KuberTunnelAllocator implements TunnelAllocator {
                 .inNamespace(NAMESPACE)
                 .withName(podName)
                 .get();
+            if (pod == null) {
+                LOG.warn("Pod {} not found", podName);
+                return VmAllocator.Result.SUCCESS;
+            }
             var channel = GrpcUtils.newGrpcChannel(pod.getStatus().getPodIP(),
                 tunnelConfig.getAgentPort(), LzyTunnelAgentGrpc.SERVICE_NAME);
             try {

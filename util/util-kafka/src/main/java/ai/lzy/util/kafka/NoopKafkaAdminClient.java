@@ -17,5 +17,10 @@ public class NoopKafkaAdminClient implements KafkaAdminClient {
     public void grantPermission(String username, String topicName) {}
 
     @Override
+    public boolean isTopicExist(String name) {
+        return false;
+    }
+
+    @Override
     public void shutdown() {}
 }
