@@ -11,6 +11,8 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,7 @@ public class CondaPackageRegistry {
     private static final String DEFAULT_ENV_NAME = "base";
     private static final String DEFAULT_PYTHON_VERSION = "3.10";
     private static final String DEFAULT_PYPI_INDEX = "https://pypi.org/simple";
+    private static final String CONDA_YAML_FILE = "conda-desc.yaml";
 
     // TODO(artolord) remove this ugly hack after removing conda.yaml
     private static final Map<String, String> NAME_TO_PYTHON_VERSION = Map.of(
@@ -46,8 +49,7 @@ public class CondaPackageRegistry {
         }
 
         inited = true;
-
-        final List<String> list;
+        final List<String> envs;
 
         try {
             var envListJson = execInConda("conda env list --json");
@@ -55,16 +57,24 @@ public class CondaPackageRegistry {
             var mapper = new ObjectMapper();
 
             Map<String, List<String>> envList = mapper.readValue(envListJson, new TypeReference<>() {});
-            list = envList.get("envs");
+            envs = envList.get("envs");
         } catch (Exception e) {
             LOG.warn("Cannot resolve conda envs in this environments", e);
             return;
         }
 
-        if (list != null) {
-            for (var env : list) {
+        if (envs != null) {
+            for (var env : envs) {
                 try {
-                    var condaYaml = execInConda("conda activate %s && conda env export".formatted(env));
+                    String condaYaml;
+                    var envPath = Path.of(env, CONDA_YAML_FILE);
+
+                    if (Files.exists(envPath)) {
+                        condaYaml = Files.readString(envPath);
+                    } else {
+                        condaYaml = execInConda("conda activate %s && conda env export".formatted(env));
+                    }
+
                     notifyInstalled(condaYaml);
                 } catch (Exception e) {
                     LOG.error("Error while getting conda env spec of env {}: ", env, e);
@@ -73,8 +83,10 @@ public class CondaPackageRegistry {
         }
     }
 
-    private record Package(String name, @Nullable String version) {
-    }
+    private record Package(
+        String name,
+        @Nullable String version
+    ) {}
 
     private record CondaEnv(
         String name,

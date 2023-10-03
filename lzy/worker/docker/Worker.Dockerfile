@@ -9,6 +9,12 @@ RUN mkdir -p /tmp/lzy-log/worker \
 COPY docker/tmp-for-context/pylzy/ pylzy
 RUN ./conda_prepare.sh pylzy_install 'pylzy'
 
+# Creating conda decriptions for every env
+RUN eval "$(conda shell.bash hook)" \
+    && conda env list --json  \
+    | jq '.envs|.[]'  \
+    | xargs -I'@' bash -c 'eval "$(conda shell.bash hook)" && conda activate @ && conda env export > @/conda-desc.yaml'
+
 COPY target/worker.jar app/app.jar
 COPY src/main/resources/ app/resources
 RUN chmod -R 700 app/resources
@@ -18,7 +24,5 @@ RUN chmod a+rx /entrypoint.sh
 
 COPY docker/test_entrypoint.sh /
 RUN chmod a+rx /test_entrypoint.sh
-
-ENV LZY_CONDA_ENVS_LIST="py37,py38,py39"
 
 ENTRYPOINT ["/entrypoint.sh"]
