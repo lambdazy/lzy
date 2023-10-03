@@ -165,7 +165,7 @@ jobs:
       - name: 'PyApiTest'
         timeout-minutes: 35
         run: |
-          eval "$(conda shell.bash hook)" && pip install -r pylzy/proto_requirements.txt -I --no-cache
+          eval "$(conda shell.bash hook)" && conda activate py39 && pip install -r pylzy/proto_requirements.txt -I --no-cache
           cd test && mvn test -Dtest=PyApiTest -DargLine="-Djava.util.concurrent.ForkJoinPool.common.parallelism=64" && cd ..
 
       - name: 'Clean docker files'
