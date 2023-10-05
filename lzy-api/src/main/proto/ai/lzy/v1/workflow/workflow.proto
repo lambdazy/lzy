@@ -35,12 +35,14 @@ message Operation {
   }
 
   message PythonEnvSpec {
-    string yaml = 2;  // Conda yaml to install before execution
-    repeated LocalModule localModules = 3;
+    string python_version = 1;  // 3.8, 3.9, ..., without patch
+    /* optional */ string pypi_index_url = 2;  // Url of pypi index. If not set, using https://pypi.org/simple
+    repeated PythonPackage requirements = 3;  // Requirements to install
+    repeated string local_modules_urls = 4;  // Urls in storage to get local modules from
 
-    message LocalModule {
-      string name = 1;  // Name of module
-      string url = 2;  // Url in storage to get module from
+    message PythonPackage {
+      string name = 1;
+      string version = 2;
     }
   }
 
