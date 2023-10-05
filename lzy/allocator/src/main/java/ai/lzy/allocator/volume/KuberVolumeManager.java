@@ -79,7 +79,7 @@ public class KuberVolumeManager implements VolumeManager {
                     .withPersistentVolumeReclaimPolicy("Retain")
                     .withCsi(new CSIPersistentVolumeSourceBuilder()
                         .withDriver(storageProvider.diskDriverName())
-                        .withFsType("ext4")
+                        .withFsType(fsType)
                         .withVolumeHandle(diskId)
                         .withReadOnly(readOnly)
                         .build())
