@@ -60,13 +60,14 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: 'Setup fuse'
-        run: |
-          sudo apt-get update && sudo apt-get install fuse
-          echo "user_allow_other" | sudo tee -a /etc/fuse.conf
+      - name: Cache local Maven repository
+        uses: actions/cache@v3
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
 
       - name: Tests
-        run: mvn clean install
+        run: mvn install
 
       - name: 'generate java coverage badge'
         uses: cicirello/jacoco-badge-generator@v2
@@ -141,12 +142,10 @@ jobs:
         with:
           path: ~/.m2/repository
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven-
 
       - name: 'java compile'
         timeout-minutes: 10
-        run: mvn -T 8 clean install -DskipTests -Dmaven.test.skip -Dmaven.javadoc.skip=true
+        run: mvn -T 8 install -DskipTests -Dmaven.test.skip -Dmaven.javadoc.skip=true
 
       - name: 'SchedulerTest'
         timeout-minutes: 5
