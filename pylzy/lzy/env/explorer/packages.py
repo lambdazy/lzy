@@ -27,6 +27,7 @@ class LocalDistribution(LocalPackage):
 class PypiDistribution(BasePackage):
     version: str
     pypi_index_url: str
+    platform_present: bool
 
 
 @dataclass(frozen=True)

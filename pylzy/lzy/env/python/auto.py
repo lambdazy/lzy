@@ -11,9 +11,15 @@ from .base import BasePythonEnv, ModulePathsList, PackagesDict, NamespaceType
 
 
 def _auto_explorer_factory(auto_py_env: AutoPythonEnv) -> AutoExplorer:
+    target_python = tuple(
+        int(v) for v in
+        auto_py_env.get_python_version().split('.')[:2]
+    )
+
     return AutoExplorer(
         pypi_index_url=auto_py_env.get_pypi_index_url(),
-        additional_pypi_packages=auto_py_env.additional_pypi_packages or {}
+        additional_pypi_packages=auto_py_env.additional_pypi_packages or {},
+        target_python=target_python
     )
 
 

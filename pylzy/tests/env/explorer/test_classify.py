@@ -1,3 +1,4 @@
+import sys
 import dataclasses
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from lzy.env.explorer.packages import LocalPackage, PypiDistribution, LocalDistr
 
 @pytest.fixture(scope='function')
 def classifier(pypi_index_url) -> ModuleClassifier:
-    return ModuleClassifier(pypi_index_url=pypi_index_url)
+    return ModuleClassifier(pypi_index_url=pypi_index_url, target_python=sys.version_info[:2])
 
 
 def test_classify_local_packages(
@@ -58,8 +59,36 @@ def test_classify_pypi_packages(classifier: ModuleClassifier, pypi_index_url: st
             name='sampleproject',
             version='3.0.0',
             pypi_index_url=pypi_index_url,
+            platform_present=True,
         )
     })
+
+    @dataclasses.dataclass
+    class MyDistribution:
+        name: str
+        version: str
+
+    assert classifier._classify_distributions([
+        MyDistribution('tensorflow', '2.13.0')
+    ], set()) == frozenset([
+        PypiDistribution(
+            name='tensorflow',
+            version='2.13.0',
+            pypi_index_url=pypi_index_url,
+            platform_present=True
+        )
+    ])
+
+    assert classifier._classify_distributions([
+        MyDistribution('tensorflow-intel', '2.13.0')
+    ], set()) == frozenset([
+        PypiDistribution(
+            name='tensorflow-intel',
+            version='2.13.0',
+            pypi_index_url=pypi_index_url,
+            platform_present=False
+        )
+    ])
 
 
 @pytest.mark.vcr

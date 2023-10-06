@@ -1,5 +1,7 @@
 import pytest
 
+from packaging.tags import mac_platforms
+
 import lzy.config
 import lzy.exceptions
 import lzy.utils.pypi
@@ -69,4 +71,36 @@ def test_check_package_version_exists(pypi_index_url_testing):
         pypi_index_url=pypi_index_url_testing,
         name='my-awesome-non-existing-package',
         version='10.0.0',
+    )
+
+
+@pytest.mark.vcr
+def test_check_package_version_exists_on_target_platform(pypi_index_url):
+    assert lzy.utils.pypi.check_package_version_exists_on_target_platform(
+        pypi_index_url=pypi_index_url,
+        name='tensorflow',
+        version='2.14.0',
+        target_python=(3, 9),
+    )
+
+    assert not lzy.utils.pypi.check_package_version_exists_on_target_platform(
+        pypi_index_url=pypi_index_url,
+        name='tensorflow',
+        version='2.14.0',
+        target_python=(3, 7),
+    )
+
+    assert not lzy.utils.pypi.check_package_version_exists_on_target_platform(
+        pypi_index_url=pypi_index_url,
+        name='tensorflow-intel',
+        version='2.14.0',
+        target_python=(3, 9),
+    )
+
+    assert lzy.utils.pypi.check_package_version_exists_on_target_platform(
+        pypi_index_url=pypi_index_url,
+        name='tensorflow-macos',
+        version='2.14.0',
+        target_python=(3, 9),
+        target_platforms=tuple(mac_platforms((12, 0), 'arm64'))
     )

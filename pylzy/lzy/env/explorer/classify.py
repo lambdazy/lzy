@@ -9,7 +9,12 @@ from types import ModuleType
 from importlib.machinery import ExtensionFileLoader
 from importlib_metadata import Distribution
 
-from lzy.utils.pypi import check_package_version_exists
+from packaging.tags import PythonVersion
+
+from lzy.utils.pypi import (
+    check_package_version_exists,
+    check_package_version_exists_on_target_platform,
+)
 
 from .search import ModulesSet
 from .packages import (
@@ -31,8 +36,9 @@ DistributionSet = Set[Distribution]
 
 
 class ModuleClassifier:
-    def __init__(self, pypi_index_url: str):
+    def __init__(self, pypi_index_url: str, target_python: PythonVersion):
         self.pypi_index_url = pypi_index_url
+        self.target_python = target_python
 
         self.stdlib_module_names = get_stdlib_module_names()
         self.builtin_module_names = get_builtin_module_names()
@@ -120,10 +126,18 @@ class ModuleClassifier:
                 name=distribution.name,
                 version=distribution.version,
             ):
+                platform_present = self._check_distribution_platform_at_pypi(
+                    pypi_index_url=self.pypi_index_url,
+                    name=distribution.name,
+                    version=distribution.version,
+                    target_python=self.target_python
+                )
+
                 package = PypiDistribution(
                     name=distribution.name,
                     version=distribution.version,
                     pypi_index_url=self.pypi_index_url,
+                    platform_present=platform_present,
                 )
             else:
                 paths, bad_paths = self._get_distribution_paths(distribution)
@@ -222,7 +236,7 @@ class ModuleClassifier:
     @lru_cache(maxsize=None)
     def _check_distribution_at_pypi(pypi_index_url: str, name: str, version: str) -> bool:
         """
-        Just cached versioni of `check_package_version_exists`, but it can be (and would be)
+        Just cached version of `check_package_version_exists`, but it can be (and would be)
         overrided in descendant classes.
         """
 
@@ -230,6 +244,21 @@ class ModuleClassifier:
             pypi_index_url=pypi_index_url,
             name=name,
             version=version,
+        )
+
+    @staticmethod
+    @lru_cache(maxsize=None)
+    def _check_distribution_platform_at_pypi(
+        pypi_index_url: str,
+        name: str,
+        version: str,
+        target_python: PythonVersion
+    ) -> bool:
+        return check_package_version_exists_on_target_platform(
+            pypi_index_url=pypi_index_url,
+            name=name,
+            version=version,
+            target_python=target_python,
         )
 
     def _get_distribution_paths(
