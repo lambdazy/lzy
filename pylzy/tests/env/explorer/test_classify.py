@@ -68,7 +68,7 @@ def test_classify_pypi_packages(classifier: ModuleClassifier, pypi_index_url: st
         name: str
         version: str
 
-    assert classifier._classify_distributions([
+    assert classifier._classify_distributions([  # type: ignore
         MyDistribution('tensorflow', '2.13.0')
     ], set()) == frozenset([
         PypiDistribution(
@@ -79,7 +79,7 @@ def test_classify_pypi_packages(classifier: ModuleClassifier, pypi_index_url: st
         )
     ])
 
-    assert classifier._classify_distributions([
+    assert classifier._classify_distributions([  # type: ignore
         MyDistribution('tensorflow-intel', '2.13.0')
     ], set()) == frozenset([
         PypiDistribution(
