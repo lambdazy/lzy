@@ -96,9 +96,13 @@ def check_version_exists_on_target_platform(
 
             if tags & get_compatible_tags(target_python, target_platforms):
                 return True
-        else:
+
+        elif p.filename.endswith('.zip') or p.filename.endswith('.gz'):
             # probably it is sdist, here may be problems
             return True
+        else:
+            # .exe, for example
+            continue
 
     return False
 
