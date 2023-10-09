@@ -59,7 +59,7 @@ def test_classify_pypi_packages(classifier: ModuleClassifier, pypi_index_url: st
             name='sampleproject',
             version='3.0.0',
             pypi_index_url=pypi_index_url,
-            platform_present=True,
+            have_server_supported_tags=True,
         )
     })
 
@@ -75,7 +75,7 @@ def test_classify_pypi_packages(classifier: ModuleClassifier, pypi_index_url: st
             name='tensorflow',
             version='2.13.0',
             pypi_index_url=pypi_index_url,
-            platform_present=True
+            have_server_supported_tags=True
         )
     ])
 
@@ -86,7 +86,7 @@ def test_classify_pypi_packages(classifier: ModuleClassifier, pypi_index_url: st
             name='tensorflow-intel',
             version='2.13.0',
             pypi_index_url=pypi_index_url,
-            platform_present=False
+            have_server_supported_tags=False
         )
     ])
 

@@ -126,7 +126,7 @@ class ModuleClassifier:
                 name=distribution.name,
                 version=distribution.version,
             ):
-                platform_present = self._check_distribution_platform_at_pypi(
+                have_server_supported_tags = self._check_distribution_platform_at_pypi(
                     pypi_index_url=self.pypi_index_url,
                     name=distribution.name,
                     version=distribution.version,
@@ -137,7 +137,7 @@ class ModuleClassifier:
                     name=distribution.name,
                     version=distribution.version,
                     pypi_index_url=self.pypi_index_url,
-                    platform_present=platform_present,
+                    have_server_supported_tags=have_server_supported_tags,
                 )
             else:
                 paths, bad_paths = self._get_distribution_paths(distribution)

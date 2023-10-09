@@ -27,7 +27,7 @@ class LocalDistribution(LocalPackage):
 class PypiDistribution(BasePackage):
     version: str
     pypi_index_url: str
-    platform_present: bool
+    have_server_supported_tags: bool
 
 
 @dataclass(frozen=True)

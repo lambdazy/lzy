@@ -92,7 +92,7 @@ class AutoExplorer(BaseExplorer):
         for package in packages:
             if package.name in self.additional_pypi_packages:
                 array = overrided
-            elif not package.platform_present:
+            elif not package.have_server_supported_tags:
                 array = bad_platform
             else:
                 array = good
@@ -109,8 +109,8 @@ class AutoExplorer(BaseExplorer):
         if bad_platform:
             self.log.warning(
                 "Next dependency packages were classified as pypi packages "
-                "but doesn't exists for Lzy server platform linux_x86_64 and requested "
-                "python version %s"
+                "but doesn't exist for Lzy server platform linux_x86_64 and requested "
+                "python version %s "
                 "and will be skipped: %s; if you will experience problems caused "
                 "by absense of this packages on server, you should use manual python "
                 "environment",
