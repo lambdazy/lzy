@@ -2,6 +2,8 @@ import sys
 import pytest
 import importlib_metadata
 
+from packaging.tags import PythonVersion
+
 import lzy.config
 import lzy.exceptions
 import lzy.env.explorer.classify
@@ -62,10 +64,21 @@ def test_get_modules_and_paths(
     def mock_check_distribution_at_pypi(self, pypi_index_url: str, name: str, version: str):
         return True
 
+    def mock_check_distribution_platform_at_pypi(
+        self, pypi_index_url: str, name: str, version: str, target_python: PythonVersion
+    ):
+        return True
+
     monkeypatch.setattr(
         lzy.env.explorer.classify.ModuleClassifier,
         '_check_distribution_at_pypi',
         mock_check_distribution_at_pypi,
+    )
+
+    monkeypatch.setattr(
+        lzy.env.explorer.classify.ModuleClassifier,
+        '_check_distribution_platform_at_pypi',
+        mock_check_distribution_platform_at_pypi,
     )
 
     import empty_module

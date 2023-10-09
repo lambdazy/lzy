@@ -9,98 +9,6 @@ interactions:
       User-Agent:
       - pylzy 1.15.0 (https://lzy.ai)
     method: GET
-    uri: https://pypi.org/simple/sampleproject/
-  response:
-    body:
-      string: "<!DOCTYPE html>\n<html>\n  <head>\n    <meta name=\"pypi:repository-version\"
-        content=\"1.1\">\n    <title>Links for sampleproject</title>\n  </head>\n
-        \ <body>\n    <h1>Links for sampleproject</h1>\n    <a href=\"https://files.pythonhosted.org/packages/30/52/547eb3719d0e872bdd6fe3ab60cef92596f95262e925e1943f68f840df88/sampleproject-1.2.0-py2.py3-none-any.whl#sha256=7a7a8b91086deccc54cac8d631e33f6a0e232ce5775c6be3dc44f86c2154019d\"
-        >sampleproject-1.2.0-py2.py3-none-any.whl</a><br />\n    <a href=\"https://files.pythonhosted.org/packages/eb/45/79be82bdeafcecb9dca474cad4003e32ef8e4a0dec6abbd4145ccb02abe1/sampleproject-1.2.0.tar.gz#sha256=3427a8a5dd0c1e176da48a44efb410875b3973bd9843403a0997e4187c408dc1\"
-        >sampleproject-1.2.0.tar.gz</a><br />\n    <a href=\"https://files.pythonhosted.org/packages/a1/fd/3564a5176430eac106c27eff4de50b58fc916f5083782062cea3141acfaa/sampleproject-1.3.0-py2.py3-none-any.whl#sha256=ab855ea282734dd216e8be4a42899a6fa8d2ce8f65b41c6379b69c1f804d6b1c\"
-        data-requires-python=\"&gt;=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, &lt;4\"
-        >sampleproject-1.3.0-py2.py3-none-any.whl</a><br />\n    <a href=\"https://files.pythonhosted.org/packages/a6/aa/0090d487d204f5de30035c00f6c71b53ec7f613138d8653eebac50f47f45/sampleproject-1.3.0.tar.gz#sha256=ee67ab9c8b445767203e7d9523d029287f737c60524a3c0e0c36cc504e0f24d7\"
-        data-requires-python=\"&gt;=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, &lt;4\"
-        >sampleproject-1.3.0.tar.gz</a><br />\n    <a href=\"https://files.pythonhosted.org/packages/a4/95/7398f8a08a0e83dc39dd4cbada9d22c65bcbb41c36626b2c54a1db83c710/sampleproject-1.3.1-py2.py3-none-any.whl#sha256=26c9172e08244873b0e09c574a229bf2c251c67723a05e08fd3ec0c5ee423796\"
-        data-requires-python=\"&gt;=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*,
-        &lt;4\" >sampleproject-1.3.1-py2.py3-none-any.whl</a><br />\n    <a href=\"https://files.pythonhosted.org/packages/17/b4/8aac28f6f9d5c97c74f077567e9d418adab96fb31aa9a0f398145635f8d0/sampleproject-1.3.1-py3-none-any.whl#sha256=75bb5bb4e74a1b77dc0cff25ebbacb54fe1318aaf99a86a036cefc86ed885ced\"
-        data-requires-python=\"&gt;=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*,
-        &lt;4\" >sampleproject-1.3.1-py3-none-any.whl</a><br />\n    <a href=\"https://files.pythonhosted.org/packages/6f/5b/2f3fe94e1c02816fe23c7ceee5292fb186912929e1972eee7fb729fa27af/sampleproject-1.3.1.tar.gz#sha256=3593ca2f1e057279d70d6144b14472fb28035b1da213dde60906b703d6f82c55\"
-        data-requires-python=\"&gt;=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*,
-        &lt;4\" >sampleproject-1.3.1.tar.gz</a><br />\n    <a href=\"https://files.pythonhosted.org/packages/b8/f7/dd9223b39f683690c30f759c876df0944815e47b588cb517e4b9e652bcf7/sampleproject-2.0.0-py3-none-any.whl#sha256=2b0c55537193b792098977fdb62f0acbaeb2c3cfc56d0e24ccab775201462e04\"
-        data-requires-python=\"&gt;=3.5, &lt;4\" >sampleproject-2.0.0-py3-none-any.whl</a><br
-        />\n    <a href=\"https://files.pythonhosted.org/packages/8d/c7/bf2d01f14bc647c4ef2299dec830560a9b55a582ecf9e0e43af740c79ccd/sampleproject-2.0.0.tar.gz#sha256=d99de34ffae5515db43916ec47380d3c603e9dead526f96581b48c070cc816d3\"
-        data-requires-python=\"&gt;=3.5, &lt;4\" >sampleproject-2.0.0.tar.gz</a><br
-        />\n    <a href=\"https://files.pythonhosted.org/packages/ec/a8/5ec62d18adde798d33a170e7f72930357aa69a60839194c93eb0fb05e59c/sampleproject-3.0.0-py3-none-any.whl#sha256=2e52702990c22cf1ce50206606b769fe0dbd5646a32873916144bd5aec5473b3\"
-        data-requires-python=\"&gt;=3.7\" >sampleproject-3.0.0-py3-none-any.whl</a><br
-        />\n    <a href=\"https://files.pythonhosted.org/packages/67/2a/9f056e5fa36e43ef1037ff85581a2963cde420457de0ef29c779d41058ca/sampleproject-3.0.0.tar.gz#sha256=117ed88e5db073bb92969a7545745fd977ee85b7019706dd256a64058f70963d\"
-        data-requires-python=\"&gt;=3.7\" >sampleproject-3.0.0.tar.gz</a><br />\n
-        \   </body>\n</html>\n<!--SERIAL 17870111-->"
-    headers:
-      Accept-Ranges:
-      - bytes
-      Access-Control-Allow-Headers:
-      - Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since
-      Access-Control-Allow-Methods:
-      - GET
-      Access-Control-Allow-Origin:
-      - '*'
-      Access-Control-Expose-Headers:
-      - X-PyPI-Last-Serial
-      Access-Control-Max-Age:
-      - '86400'
-      Cache-Control:
-      - max-age=600, public
-      Connection:
-      - keep-alive
-      Content-Security-Policy:
-      - default-src 'none'; sandbox allow-top-navigation
-      Content-Type:
-      - text/html
-      Date:
-      - Fri, 06 Oct 2023 17:03:53 GMT
-      ETag:
-      - '"biLJM/3C/G76yDpmaMQ2MQ"'
-      Permissions-Policy:
-      - publickey-credentials-create=(self),publickey-credentials-get=(self),accelerometer=(),ambient-light-sensor=(),autoplay=(),battery=(),camera=(),display-capture=(),document-domain=(),encrypted-media=(),execution-while-not-rendered=(),execution-while-out-of-viewport=(),fullscreen=(),gamepad=(),geolocation=(),gyroscope=(),hid=(),identity-credentials-get=(),idle-detection=(),local-fonts=(),magnetometer=(),microphone=(),midi=(),otp-credentials=(),payment=(),picture-in-picture=(),screen-wake-lock=(),serial=(),speaker-selection=(),storage-access=(),usb=(),web-share=(),xr-spatial-tracking=()
-      Referrer-Policy:
-      - origin-when-cross-origin
-      Strict-Transport-Security:
-      - max-age=31536000; includeSubDomains; preload
-      Vary:
-      - Accept-Encoding, Accept
-      X-Cache:
-      - HIT, HIT
-      X-Cache-Hits:
-      - 266, 1
-      X-Content-Type-Options:
-      - nosniff
-      X-Frame-Options:
-      - deny
-      X-Permitted-Cross-Domain-Policies:
-      - none
-      X-PyPI-Last-Serial:
-      - '17870111'
-      X-Served-By:
-      - cache-iad-kcgs7200176-IAD, cache-cpt13820-CPT
-      X-Timer:
-      - S1696611834.523621,VS0,VE1
-      X-XSS-Protection:
-      - 1; mode=block
-      content-length:
-      - '3755'
-    status:
-      code: 200
-      message: OK
-- request:
-    body: null
-    headers:
-      Accept-Encoding:
-      - gzip, deflate
-      Connection:
-      - keep-alive
-      User-Agent:
-      - pylzy 1.15.0 (https://lzy.ai)
-    method: GET
     uri: https://pypi.org/simple/tensorflow/
   response:
     body:
@@ -2096,7 +2004,7 @@ interactions:
       Content-Type:
       - text/html
       Date:
-      - Fri, 06 Oct 2023 17:03:53 GMT
+      - Fri, 06 Oct 2023 16:54:10 GMT
       ETag:
       - '"1Eg60ggNW2KerKCZBsxg7A"'
       Permissions-Policy:
@@ -2110,7 +2018,7 @@ interactions:
       X-Cache:
       - HIT, HIT
       X-Cache-Hits:
-      - 37969, 1
+      - 37969, 139
       X-Content-Type-Options:
       - nosniff
       X-Frame-Options:
@@ -2120,9 +2028,9 @@ interactions:
       X-PyPI-Last-Serial:
       - '19912452'
       X-Served-By:
-      - cache-iad-kcgs7200024-IAD, cache-cpt13820-CPT
+      - cache-iad-kcgs7200024-IAD, cache-cpt13829-CPT
       X-Timer:
-      - S1696611834.739371,VS0,VE1
+      - S1696611251.801672,VS0,VE0
       X-XSS-Protection:
       - 1; mode=block
       content-length:
@@ -2384,7 +2292,7 @@ interactions:
       Content-Type:
       - text/html
       Date:
-      - Fri, 06 Oct 2023 17:03:54 GMT
+      - Fri, 06 Oct 2023 16:54:11 GMT
       ETag:
       - '"JgIBUq+T3LrkIA9lOpc2AQ"'
       Permissions-Policy:
@@ -2408,13 +2316,267 @@ interactions:
       X-PyPI-Last-Serial:
       - '19925657'
       X-Served-By:
-      - cache-iad-kcgs7200178-IAD, cache-cpt13820-CPT
+      - cache-iad-kcgs7200178-IAD, cache-cpt13829-CPT
       X-Timer:
-      - S1696611835.521750,VS0,VE1
+      - S1696611252.618008,VS0,VE1
       X-XSS-Protection:
       - 1; mode=block
       content-length:
       - '37299'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: null
+    headers:
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - pylzy 1.15.0 (https://lzy.ai)
+    method: GET
+    uri: https://pypi.org/simple/tensorflow-macos/
+  response:
+    body:
+      string: "<!DOCTYPE html>\n<html>\n  <head>\n    <meta name=\"pypi:repository-version\"
+        content=\"1.1\">\n    <title>Links for tensorflow-macos</title>\n  </head>\n
+        \ <body>\n    <h1>Links for tensorflow-macos</h1>\n    <a href=\"https://files.pythonhosted.org/packages/b9/0c/d76e302164d6ca62c2bb4c7882f4727a0135fc18050be3018c71ddf294f8/tensorflow_macos-2.5.0-cp38-cp38-macosx_11_0_arm64.whl#sha256=b3049da572fbc636e1bfdde36de1d569ba424af6618debeeb1440e64a98f2b7c\"
+        >tensorflow_macos-2.5.0-cp38-cp38-macosx_11_0_arm64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/94/12/0080fdce5165b145b45cf909a2f82546155995b2644ccd05a6a441b96c6a/tensorflow_macos-2.5.0-cp38-cp38-macosx_11_0_x86_64.whl#sha256=005dce89192f29c088ec835dffe0e08f0239a16383d5033b81ea52eaa961962b\"
+        >tensorflow_macos-2.5.0-cp38-cp38-macosx_11_0_x86_64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/d2/f1/145c0e6d0df5ea6db0592b2cf5d92be6486384a882622a694152c3f70194/tensorflow_macos-2.5.0-cp39-cp39-macosx_11_0_arm64.whl#sha256=6391419f54a6935e7f8a215d8eaa1828e74494e0255646401aa79f01213a4a62\"
+        >tensorflow_macos-2.5.0-cp39-cp39-macosx_11_0_arm64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/12/ee/6f882b0f7579042b87741eab4d0a80d3e2e13851c942534060063ec84899/tensorflow_macos-2.6.0-cp38-cp38-macosx_11_0_arm64.whl#sha256=b05e38ea6c4751e78d863e4bf3abb84ca8c4f5e6965592b2004db8f89b2067a0\"
+        >tensorflow_macos-2.6.0-cp38-cp38-macosx_11_0_arm64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/61/77/b09dcfceb4c81893bcf842c7fb001d08ad51d9291927e7324b02e33612d9/tensorflow_macos-2.6.0-cp38-cp38-macosx_11_0_x86_64.whl#sha256=447ed714b2305df7f26e2dcbef85f405a0461f860a4289e1e39069c660e9eded\"
+        >tensorflow_macos-2.6.0-cp38-cp38-macosx_11_0_x86_64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/15/f4/5c4f7fbe04a6a25e0feaf8e0803fd5afbfe221e28b54b79302bd1f2b57f3/tensorflow_macos-2.6.0-cp39-cp39-macosx_11_0_arm64.whl#sha256=5e0994f049443a65ade6e465b79f954a9dc23256d805d8adf6be602bf2181cff\"
+        >tensorflow_macos-2.6.0-cp39-cp39-macosx_11_0_arm64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/bd/57/88cea9e14dacaea82ca86fac2bf6ecb8b7fd99622d776e4131786ce5b65e/tensorflow_macos-2.7.0-cp38-cp38-macosx_11_0_arm64.whl#sha256=ed68ba169724c24633b2ff866270855247037b52d20bbe79b6832d0a8a1edefe\"
+        >tensorflow_macos-2.7.0-cp38-cp38-macosx_11_0_arm64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/1e/32/80390a67dd896c69a2e00eda42878670f4684e9930c98335e5025d2016a0/tensorflow_macos-2.7.0-cp38-cp38-macosx_11_0_x86_64.whl#sha256=26d6b99da03056022988bf88b1aa3717b411337a5a1eeff5fb2dc0d171926909\"
+        >tensorflow_macos-2.7.0-cp38-cp38-macosx_11_0_x86_64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/ba/7c/aaf13a1a562fe0378b9fcc27becb7640690e95d5b3d04d63b39831ebe2fb/tensorflow_macos-2.7.0-cp39-cp39-macosx_11_0_arm64.whl#sha256=409290765add4ca70ae8f49e0e8721f25c2d196459887ba0f2db056056bd0428\"
+        >tensorflow_macos-2.7.0-cp39-cp39-macosx_11_0_arm64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/17/2b/2de70a35a54395be7db8f902283ecfbf3aa5d0ec711c499ba5aeb825d4f3/tensorflow_macos-2.8.0-cp38-cp38-macosx_11_0_arm64.whl#sha256=10c53c1331844bf9eba4dbf6de6c1fd94f7787df00582fb32f8f3f17f7b4c024\"
+        >tensorflow_macos-2.8.0-cp38-cp38-macosx_11_0_arm64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/e5/6c/05e158fd3a729c3d11720468b170bfa18db140e0091452e5bec2976e0f3d/tensorflow_macos-2.8.0-cp38-cp38-macosx_11_0_x86_64.whl#sha256=53834b7d08e2e07f3e8b5821abfe87fdd693e54d97281f5fa8a626394bd6cd49\"
+        >tensorflow_macos-2.8.0-cp38-cp38-macosx_11_0_x86_64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/4d/74/47440202d9a26c442b19fb8a15ec36d443f25e5ef9cf7bfdeee444981513/tensorflow_macos-2.8.0-cp39-cp39-macosx_11_0_arm64.whl#sha256=7f522e7b478f2bbd1707632edb0942e22df7878142c60316876fd0269a80d1e7\"
+        >tensorflow_macos-2.8.0-cp39-cp39-macosx_11_0_arm64.whl</a><br />\n    <a
+        href=\"https://files.pythonhosted.org/packages/4e/65/4a2a079530c541badf7654d7a282c4890193953f010d3c4f2e259cf26410/tensorflow_macos-2.9.0-cp310-cp310-macosx_11_0_arm64.whl#sha256=744533ba0ccf6edb9176b6b9694a10b77e241da3441643a322cc47ba78060653\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.0-cp310-cp310-macosx_11_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/0b/a0/c4e2d22758a56b035cc25d2589ecab52f89f0736b46f48843abf47c1794e/tensorflow_macos-2.9.0-cp310-cp310-macosx_11_0_x86_64.whl#sha256=5a08aaa79e1696950f7dca7bafadde653e7dff471fee5e4fa49c88c7085748bd\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.0-cp310-cp310-macosx_11_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/49/e4/051c993df1c2aa4890697fdb9b251879e265703c80298fadcdf25bf99497/tensorflow_macos-2.9.0-cp38-cp38-macosx_11_0_arm64.whl#sha256=4dd571e8d95eb47c39306a271a2f4abc56e5a671e2ac94176f18320bddf20f0c\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.0-cp38-cp38-macosx_11_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/1d/62/2588b662c90c3b7c765f48b2bda9bf1d91feecb2ce16957fb886b734624a/tensorflow_macos-2.9.0-cp38-cp38-macosx_11_0_x86_64.whl#sha256=1d9fb99c1b510e5024ddd088d8898863c794ae38fb9dbd1cb53168111b4289ea\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.0-cp38-cp38-macosx_11_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/95/af/14e5082066ba820ebc5e4162306357f47d06c527efd1fd2794edbefd9f16/tensorflow_macos-2.9.0-cp39-cp39-macosx_11_0_arm64.whl#sha256=dd1eb944fea34265a7878486f1525bcdc825ecd04f669faa05165f5b8f967523\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.0-cp39-cp39-macosx_11_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/c3/a1/2561eba6025e153869f6f2fab262eebd55df6b7aadbb721f43060225ed11/tensorflow_macos-2.9.0-cp39-cp39-macosx_11_0_x86_64.whl#sha256=7e7d4ae094076968c5fc1dcf66992d03358272b41e22ec2497dbc8d8bf97f870\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.0-cp39-cp39-macosx_11_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/e4/84/45714d6497ced8de8c3f6105d071147f8f20de18114685de40c5cb9d6069/tensorflow_macos-2.9.1-cp310-cp310-macosx_11_0_arm64.whl#sha256=cfb7d7be38a65a1112a2bd1f635f38408625afa6d41922100e64ad46383bc8f7\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.1-cp310-cp310-macosx_11_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/87/e5/4a0b507b88202da7421c6321a5bc1f92ee13eb4298cfb520ac182751303c/tensorflow_macos-2.9.1-cp310-cp310-macosx_11_0_x86_64.whl#sha256=1355a365a53fb300bbbcb152544752a6ce641816d18b51af5341f2a69522e120\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.1-cp310-cp310-macosx_11_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/5e/87/1c81905cbae192764595b7d1d09da15bee9aeb8c0bf37197724160ab98be/tensorflow_macos-2.9.1-cp38-cp38-macosx_11_0_arm64.whl#sha256=69ad6735374d311a723fb9d1fd1747a46f18d8ec318c1ecabdebd046e2db849a\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.1-cp38-cp38-macosx_11_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/9c/04/21d13a3fdaf9ec28cab6844e8a2b8c1993b04350d95f0edc6c17ea6d7588/tensorflow_macos-2.9.1-cp38-cp38-macosx_11_0_x86_64.whl#sha256=d3cbc0874c1a39c311408e92f2be1aabfcf0a0bf2c3d97bd9da0c7370fd4844f\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.1-cp38-cp38-macosx_11_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/3a/ae/b8eda20c9dfe04b99997cd4595599449592b6c0a4c0dc55114800768f093/tensorflow_macos-2.9.1-cp39-cp39-macosx_11_0_arm64.whl#sha256=b23a24e4bf3890231f26e20e86cca3884bdf2c2259edbd33b85cadbabe5661d9\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.1-cp39-cp39-macosx_11_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/e6/99/1a88558b12f78e17ea703384f3f34f5ac45a1acff4947491830c6add1434/tensorflow_macos-2.9.1-cp39-cp39-macosx_11_0_x86_64.whl#sha256=2f791df3f0a99e5d55bf9ccda1386f352203ebb7fa6dfc58aa25287014187696\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.1-cp39-cp39-macosx_11_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/b9/ae/309d9f387a861c2c5dd0ef1c7806bb5ac68328b246e9adabcaf07b747cca/tensorflow_macos-2.9.2-cp310-cp310-macosx_11_0_arm64.whl#sha256=d6badc2586040fedc6ef03cffa5cdabb0e0733995742bc88bee5b25522dcf0ef\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.2-cp310-cp310-macosx_11_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/da/61/e4d2c3426cfc5d2999ed0b16e2cae916936270f6cb35538200e36c6a8ec5/tensorflow_macos-2.9.2-cp310-cp310-macosx_11_0_x86_64.whl#sha256=4dbd5ffd3eafa0ba007d16da94a52cb604327e7622e7d1a51a70519b6cad6254\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.2-cp310-cp310-macosx_11_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/ac/5c/238ba5a24f8186ef1bccada9f5cd82eee39d901a2b0773cd6ddaf7ffb432/tensorflow_macos-2.9.2-cp38-cp38-macosx_11_0_arm64.whl#sha256=abc1f9cd95eb1541c548faab1e2fc6b82d769294069f918eb01b721c9a15515a\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.2-cp38-cp38-macosx_11_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/14/01/2791a4731b6aa6cff3af85a52998e567d9f3da2e5c16d944464a36bf4369/tensorflow_macos-2.9.2-cp38-cp38-macosx_11_0_x86_64.whl#sha256=18e80fe9d0ae46e963d1f4dfd79c0eba9447d678ea3bb3d0a98e6ab135ef16e3\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.2-cp38-cp38-macosx_11_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/43/17/ff2fca52cb3111db2a28f31aad646b326b5c79c5ca7e1f8771e20ae4c69a/tensorflow_macos-2.9.2-cp39-cp39-macosx_11_0_arm64.whl#sha256=d2450e441c27fe6f49411b1b33680814e220278d3c94a29b5ac8fd4fee0b3b88\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.2-cp39-cp39-macosx_11_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/53/a9/52d868bac322a93396e4a1aff8e1a426dfb11c41cbfea3fe940c6f37deb2/tensorflow_macos-2.9.2-cp39-cp39-macosx_11_0_x86_64.whl#sha256=72a6ba8dbb8ed5d075755a512287978f79025a843af2866d88db7bfbbf6d1696\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.9.2-cp39-cp39-macosx_11_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/32/18/d7d06e1c8bf4cafd091d62854b8e6a9e8db176c1b1a5171a586ec17d4b54/tensorflow_macos-2.10.0-cp310-cp310-macosx_12_0_arm64.whl#sha256=dfd1dd478b3ae01e8d578c38083bef68bc838ceaa05a813b6788fe9e6ec19140\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.10.0-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/6f/a1/3bd220bacb1dcd4eea526c4b5376eddfb0fbb156c9814684dc9be24b7bc8/tensorflow_macos-2.10.0-cp310-cp310-macosx_12_0_x86_64.whl#sha256=aa074b5442d3411e5416c5112531d8b78a8c469ca92fa41c0e0cf14428608bf3\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.10.0-cp310-cp310-macosx_12_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/af/8c/e9f3871a00e9c3e0b24a5236af7804d6a398ff7ab83071b92b56a9083484/tensorflow_macos-2.10.0-cp38-cp38-macosx_12_0_arm64.whl#sha256=e15ab56f39f3d2e7c07a72a5969f025e259b1d3fcb9c3f7217f17b62581c33a8\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.10.0-cp38-cp38-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/a2/f7/4f9b4a5b3f75415fd438f20037d7436a70536ab190a4bec627741e9b4623/tensorflow_macos-2.10.0-cp38-cp38-macosx_12_0_x86_64.whl#sha256=00be07ffcf8b6288fa3dd9a27a3b6dd0f6c85af5c3109451a1b7e720bb817d14\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.10.0-cp38-cp38-macosx_12_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/30/6b/0ceaa806258dd33b15a160b79eeedb37ff8cb24269b308773afb81d11517/tensorflow_macos-2.10.0-cp39-cp39-macosx_12_0_arm64.whl#sha256=f2ec603c5496c25fb1bcda8eb4166423bf023bfb7ae6cbdec0be8796ca67e866\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.10.0-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/a1/80/0fcb14b77ed8edeb86137d8c44febfee9c9d50c5db256afe51d076e839c8/tensorflow_macos-2.10.0-cp39-cp39-macosx_12_0_x86_64.whl#sha256=3177a8a97149f78748eeb20009aa3dc27ae2c112ab6380886ec8620bbcb70f19\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.10.0-cp39-cp39-macosx_12_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/47/09/13518855221f421241e973bd462e87ea806a51738c577f4ca33a26b718b8/tensorflow_macos-2.11.0-cp310-cp310-macosx_12_0_arm64.whl#sha256=0bdbd1bb564d01bd735d6d11451f0658c3dd8187369ee9dd3ed6de6bbdd6df53\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.11.0-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/95/84/bc5baffab6b5173f044ee6ddb1b6d88765dbd4a0a48c015abe6cb4bdc61f/tensorflow_macos-2.11.0-cp310-cp310-macosx_12_0_x86_64.whl#sha256=66eb67915cf418eddd3b4c158132609efd50895fa09fd55e4b2f14a3ab85bd34\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.11.0-cp310-cp310-macosx_12_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/d0/3d/ac33c51e6ebbc7dc4c2eac604b1de6e6abb76f0caff3e347a6f4bfe722c1/tensorflow_macos-2.11.0-cp38-cp38-macosx_12_0_arm64.whl#sha256=6810731e2c8353123f6c9c944d2765b58a2226e7eb9fec1e360f73977c6c6aa4\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.11.0-cp38-cp38-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/de/12/9bb639f8f41d1021bd9ee2b645c8252521598a86e9510d0eaa9865d84890/tensorflow_macos-2.11.0-cp38-cp38-macosx_12_0_x86_64.whl#sha256=881b36d97b67d24197250a091c52c31db14aecfdbf1ac20418a148ec37321978\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.11.0-cp38-cp38-macosx_12_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/7c/ea/c8f1fab1b2ba4e6d2e90e00ebd7f347d433146ee50b2cb9f06acbcf1473f/tensorflow_macos-2.11.0-cp39-cp39-macosx_12_0_arm64.whl#sha256=8d56b0d0bd140008b0cc4877804c9c310e1e2735444fa99bc7c88ffb2909153d\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.11.0-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/71/d9/43195c8900d3646005f6b236137dfcaa586afe3fa80b4bf6b1c794cfff0b/tensorflow_macos-2.11.0-cp39-cp39-macosx_12_0_x86_64.whl#sha256=db97cd91b905bd01069069f07325a2a291705222eb4914148b9574090a5815ae\"
+        data-requires-python=\"&gt;=3.7\" >tensorflow_macos-2.11.0-cp39-cp39-macosx_12_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/9a/38/47bd46d2a999e688372ec917ac601ff21bb7d9f652c67793c72c62511184/tensorflow_macos-2.12.0-cp310-cp310-macosx_12_0_arm64.whl#sha256=db464c88e10e927725997f9b872a21c9d057789d3b7e9a26e4ef1af41d0bcc8c\"
+        data-requires-python=\"&gt;=3.8\" >tensorflow_macos-2.12.0-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/b7/22/1520a91aba27dcc60951c98e18e3992ddc893c031c6e9529a0edaf3d6935/tensorflow_macos-2.12.0-cp310-cp310-macosx_12_0_x86_64.whl#sha256=172277c33cb1ae0da19f98c5bcd4946149cfa73c8ea05c6ba18365d58dd3c6f2\"
+        data-requires-python=\"&gt;=3.8\" >tensorflow_macos-2.12.0-cp310-cp310-macosx_12_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/d2/e6/94748fedae940a7095ac3acb821e613f72513cf9fa8ea0cf6fe734ef8c8f/tensorflow_macos-2.12.0-cp311-cp311-macosx_12_0_arm64.whl#sha256=9c9b14fbb73ec4cb0f209722a1489020fd8614c92ae22589f2309c48cefdf21f\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=3078f88491f696c18afd501f14040309e6acffdfe0ba3cbcfca25cd7d4282392\"
+        data-core-metadata=\"sha256=3078f88491f696c18afd501f14040309e6acffdfe0ba3cbcfca25cd7d4282392\">tensorflow_macos-2.12.0-cp311-cp311-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/67/4a/a39d10a1f2f3b13bc845a13d7f7f771fa93ee67fc36c697ade5c203727b3/tensorflow_macos-2.12.0-cp311-cp311-macosx_12_0_x86_64.whl#sha256=6a54539bd076746f69ae8bef7282f981674fe4dbf59c3a84c4af86ae6bae9d5c\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=3078f88491f696c18afd501f14040309e6acffdfe0ba3cbcfca25cd7d4282392\"
+        data-core-metadata=\"sha256=3078f88491f696c18afd501f14040309e6acffdfe0ba3cbcfca25cd7d4282392\">tensorflow_macos-2.12.0-cp311-cp311-macosx_12_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/5c/7a/2f36143d43ed691c93ef68b44f04ca4fc600798e438d276751a57952579a/tensorflow_macos-2.12.0-cp38-cp38-macosx_12_0_arm64.whl#sha256=e3fa53e63672fd71998bbd71cc5478c74dbe5a2d9291d1801c575358c28403c2\"
+        data-requires-python=\"&gt;=3.8\" >tensorflow_macos-2.12.0-cp38-cp38-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/ff/dc/597f716f99b22c1c3044c33b777d27b4b11bf0e87885944140d670edede2/tensorflow_macos-2.12.0-cp38-cp38-macosx_12_0_x86_64.whl#sha256=5499312c21ed3ed47cc6b4cf861896e9564c2c32d8d3c2ef1437c5ca31adfc73\"
+        data-requires-python=\"&gt;=3.8\" >tensorflow_macos-2.12.0-cp38-cp38-macosx_12_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/cd/e7/56ff90979f60dff755fb1f5cb970db259f065ab048ba1803b73a5d1aedde/tensorflow_macos-2.12.0-cp39-cp39-macosx_12_0_arm64.whl#sha256=84cb873c90be63efabfecca53fdc48b734a037d0750532b55cb7ce7c343b5cac\"
+        data-requires-python=\"&gt;=3.8\" >tensorflow_macos-2.12.0-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/67/da/3b3f5ab3644aba3c13534ca2338c6c6cd654b3406b9c450d1b13c5c09b27/tensorflow_macos-2.12.0-cp39-cp39-macosx_12_0_x86_64.whl#sha256=85d9451a691324490e1d644b1051972e14edc249004eef5831b3510df9e36515\"
+        data-requires-python=\"&gt;=3.8\" >tensorflow_macos-2.12.0-cp39-cp39-macosx_12_0_x86_64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/e9/f1/cddc935080a3edefcec7c9d44f62ed679366cc61bb097ce61bc48d17e324/tensorflow_macos-2.13.0rc0-cp310-cp310-macosx_12_0_arm64.whl#sha256=4720028e919a67746e0c01b1ea397ee0c09f98f4a3a106783a822385df2e5bd8\"
+        data-requires-python=\"&gt;=3.8\" >tensorflow_macos-2.13.0rc0-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/89/69/41d7088c187866425478031af47ed8811acc78f2febddb96bcf9e1444b98/tensorflow_macos-2.13.0rc0-cp311-cp311-macosx_12_0_arm64.whl#sha256=86fc993297dee74f400eac5325ad1bd39cf4aaeae7920cb0756f5c90dc38fe95\"
+        data-requires-python=\"&gt;=3.8\" >tensorflow_macos-2.13.0rc0-cp311-cp311-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/ba/b8/8f5ae089736388464d95cb70ccb25a3c0a43dda0dd92315dd40686116b11/tensorflow_macos-2.13.0rc0-cp38-cp38-macosx_12_0_arm64.whl#sha256=d366ed9add100fb8a7111e4a5bb45b71f9bcf67899f41b7c9156dd587a4842b1\"
+        data-requires-python=\"&gt;=3.8\" >tensorflow_macos-2.13.0rc0-cp38-cp38-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/4b/93/b28a83de2ef5f3d4c5580fb67f832159595f61e6068833a3796434e7b3c2/tensorflow_macos-2.13.0rc0-cp39-cp39-macosx_12_0_arm64.whl#sha256=2204163c71b76a20b17d05dbfe2d74183660c0312741c6b831bd7cf254879765\"
+        data-requires-python=\"&gt;=3.8\" >tensorflow_macos-2.13.0rc0-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/a7/a7/ff6540dd1ceb4504cd3644fc153bd486e8e7399ffc6f696398dc3c849d1e/tensorflow_macos-2.13.0rc1-cp310-cp310-macosx_12_0_arm64.whl#sha256=58fd01b70069b1465e2a423d8ca375e6520a9ad7fb70f420a3aea97f84d9eaca\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=3cd9bcb77a2808ca214510cc6762dc558425a957458d93ab1fb1006c451cd7cf\"
+        data-core-metadata=\"sha256=3cd9bcb77a2808ca214510cc6762dc558425a957458d93ab1fb1006c451cd7cf\">tensorflow_macos-2.13.0rc1-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/17/49/98575531f7b8bc41cf77d4e28f245e0ff55bf02c88e8e2be1570bd569df1/tensorflow_macos-2.13.0rc1-cp311-cp311-macosx_12_0_arm64.whl#sha256=65b2e9078755be234debc5aa37b38086ee66ea0ef65216e5be16170e202fdea8\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=9a01d32cece09ff6a733ff5c5b43abb6cf8484ed567c7caa06c11ee56209ea34\"
+        data-core-metadata=\"sha256=9a01d32cece09ff6a733ff5c5b43abb6cf8484ed567c7caa06c11ee56209ea34\">tensorflow_macos-2.13.0rc1-cp311-cp311-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/f7/23/2d43457b20e0f242bd8e3cc5cc9a283f4353d9f2bf209b250db46c2da624/tensorflow_macos-2.13.0rc1-cp38-cp38-macosx_12_0_arm64.whl#sha256=5667bc90bd46f11fc6cad13424bbcafbd7d2008e6234281d7a879c44dbf05e05\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=7523cc807cfc23c1951fa009d30197b44a3da39c1d158a8299bdaea22c1221b6\"
+        data-core-metadata=\"sha256=7523cc807cfc23c1951fa009d30197b44a3da39c1d158a8299bdaea22c1221b6\">tensorflow_macos-2.13.0rc1-cp38-cp38-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/ac/da/b3c5b53b28de916da084f901b356cca64db1f7a270ded617ba7eaa77d229/tensorflow_macos-2.13.0rc1-cp39-cp39-macosx_12_0_arm64.whl#sha256=6ae8479dc0d7d0665813c90ab5a7715b82bf4b9ff80d2663da2671b9395bbc1e\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=3cd9bcb77a2808ca214510cc6762dc558425a957458d93ab1fb1006c451cd7cf\"
+        data-core-metadata=\"sha256=3cd9bcb77a2808ca214510cc6762dc558425a957458d93ab1fb1006c451cd7cf\">tensorflow_macos-2.13.0rc1-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/21/d4/b59b9aab1b69e7cf887636e9e41fca89def4a01c72e7a4f065844cb2af41/tensorflow_macos-2.13.0rc2-cp310-cp310-macosx_12_0_arm64.whl#sha256=bf4be8101165616a90402381184325c7de5bfa38d7109df274fb326218711edf\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=5bd15a0afe3ade9bd1a53493ed5b236be67dff76e8c316e244eb1102b36d4c02\"
+        data-core-metadata=\"sha256=5bd15a0afe3ade9bd1a53493ed5b236be67dff76e8c316e244eb1102b36d4c02\">tensorflow_macos-2.13.0rc2-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/20/c9/b0ee1ad0eb4a35d69dbba07cd7dd6e3a9193af2a1d2423c04026abff8f9b/tensorflow_macos-2.13.0rc2-cp311-cp311-macosx_12_0_arm64.whl#sha256=d8aff7be64fb0f2181085f99a990a26734efb767ad9ca6af77fffa3a6f13f6a8\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=c883900828abe685123af8d8b41d20c16583128d5f7f4dfbeae88ef54b7a0650\"
+        data-core-metadata=\"sha256=c883900828abe685123af8d8b41d20c16583128d5f7f4dfbeae88ef54b7a0650\">tensorflow_macos-2.13.0rc2-cp311-cp311-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/f8/49/f8d0e8e799cc5514970c1b6a83d1fe7452030d1f966fbe5df6deb03cfe74/tensorflow_macos-2.13.0rc2-cp38-cp38-macosx_12_0_arm64.whl#sha256=34c78f1fe5335ef828230f7b42d708f7b6526e056e69cfc624e0a2c9c21ebc21\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=4e9f2122b1abfb3ea0468df8807f4bbf78dc5840594b870bbc69d197d4f8e114\"
+        data-core-metadata=\"sha256=4e9f2122b1abfb3ea0468df8807f4bbf78dc5840594b870bbc69d197d4f8e114\">tensorflow_macos-2.13.0rc2-cp38-cp38-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/ab/48/58faa9f2e6881a57b9a162c3e1dadc7fe64b5c7ed95f187183f24c9c2693/tensorflow_macos-2.13.0rc2-cp39-cp39-macosx_12_0_arm64.whl#sha256=6c1258e257d8f8d76fe9247ac7e646470fc1d8f09c1baf9ff3cd09621d3f8ed6\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=5bd15a0afe3ade9bd1a53493ed5b236be67dff76e8c316e244eb1102b36d4c02\"
+        data-core-metadata=\"sha256=5bd15a0afe3ade9bd1a53493ed5b236be67dff76e8c316e244eb1102b36d4c02\">tensorflow_macos-2.13.0rc2-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/77/29/b3a46ade07623f29d64cb43433aa1c6ba2bfe7419daee76f0cc9a6f7213a/tensorflow_macos-2.13.0-cp310-cp310-macosx_12_0_arm64.whl#sha256=331cc23682374ca5f3f92e069bd7fbb6e4d48a50278a9cd05e5b33f16d9a31e7\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=236fcf0e5d5bd492329936c7ee71d36577406f6c37dc1c2bc86fcc4cdfc7e65a\"
+        data-core-metadata=\"sha256=236fcf0e5d5bd492329936c7ee71d36577406f6c37dc1c2bc86fcc4cdfc7e65a\">tensorflow_macos-2.13.0-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/f1/cc/6c262ae6f3a23b118b1104fa5f6126067744ffa9226faade202b0a20bdd3/tensorflow_macos-2.13.0-cp311-cp311-macosx_12_0_arm64.whl#sha256=5dca8291125c0151bf426a2789689e02c623ce4540432cf66a073d361d3d6870\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=1d1fe6071047fe743c1375016992ae9e517c40890399397c45bad45f10ecccf0\"
+        data-core-metadata=\"sha256=1d1fe6071047fe743c1375016992ae9e517c40890399397c45bad45f10ecccf0\">tensorflow_macos-2.13.0-cp311-cp311-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/62/9d/82475d2553d218f8df5d1efd310e8e65e3bfb6cec429a49a3a9489f2fb62/tensorflow_macos-2.13.0-cp38-cp38-macosx_12_0_arm64.whl#sha256=b0cea604f50a032dc426d7a6a91dc53a9df001cfa94fc814972e9d4cf062d31b\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=d803d890fdcd766db780c6e7b15cdfeb6d08aebd60d383acd601e0aba2bc73c2\"
+        data-core-metadata=\"sha256=d803d890fdcd766db780c6e7b15cdfeb6d08aebd60d383acd601e0aba2bc73c2\">tensorflow_macos-2.13.0-cp38-cp38-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/c4/4d/8dcb9ddf53ad0070cccb50cbdaad29d1a226a253966d9a6b1de34bd61ec4/tensorflow_macos-2.13.0-cp39-cp39-macosx_12_0_arm64.whl#sha256=d9571357a39cc8cdecfd22e67dfdcebf840be67a88a8c7464bd3b9b3e0aad446\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=236fcf0e5d5bd492329936c7ee71d36577406f6c37dc1c2bc86fcc4cdfc7e65a\"
+        data-core-metadata=\"sha256=236fcf0e5d5bd492329936c7ee71d36577406f6c37dc1c2bc86fcc4cdfc7e65a\">tensorflow_macos-2.13.0-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/a5/60/0b2dc94820a83107f92206b897af5e725ac527d6ae60135ded6f15162470/tensorflow_macos-2.13.1-cp310-cp310-macosx_12_0_arm64.whl#sha256=7a09d250532c87083b00396b0367baa73558a50d0bd8982907297422858f6af6\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=5feb08aee40a06da4089a2ff96438df16cad164fbcc87fcf1a9ee343e53a1a7e\"
+        data-core-metadata=\"sha256=5feb08aee40a06da4089a2ff96438df16cad164fbcc87fcf1a9ee343e53a1a7e\">tensorflow_macos-2.13.1-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/c0/d1/d309dea6e67e1b8037f607872486eb67a1ff64fb91a96149086dbdc46ca4/tensorflow_macos-2.13.1-cp311-cp311-macosx_12_0_arm64.whl#sha256=8f95c332ee60a32691963adab31b6afa29a2302de05fc4cd6009cd96866a6886\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=52306291dfd2093f36b4a5751358863b4e6aafb7fce4bf69e727d24e96b8e2f5\"
+        data-core-metadata=\"sha256=52306291dfd2093f36b4a5751358863b4e6aafb7fce4bf69e727d24e96b8e2f5\">tensorflow_macos-2.13.1-cp311-cp311-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/fa/b5/a069fb7e7b352e856cb94c4fe1df88c54465f6cf711bc38ac9b36e129a41/tensorflow_macos-2.13.1-cp39-cp39-macosx_12_0_arm64.whl#sha256=f2bade2725c5a81dc0d96acd1c5b8475593bc9bdf1da0055bd72a09a501d7866\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=5feb08aee40a06da4089a2ff96438df16cad164fbcc87fcf1a9ee343e53a1a7e\"
+        data-core-metadata=\"sha256=5feb08aee40a06da4089a2ff96438df16cad164fbcc87fcf1a9ee343e53a1a7e\">tensorflow_macos-2.13.1-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/e3/11/cfc7c49c66b58061011edfe766dca666c07253209b0d0bf8e8226f7ed57e/tensorflow_macos-2.14.0rc0-cp310-cp310-macosx_12_0_arm64.whl#sha256=46c15c56387c8c72a4eac3f2aab0cd4eaa081dac12ddc061b96f2132d9284638\"
+        data-requires-python=\"&gt;=3.9\" data-dist-info-metadata=\"sha256=73c8b9ce26708bf8bb222ca5b6006caa8c1c254f31bad19b21fd22ca5197dc82\"
+        data-core-metadata=\"sha256=73c8b9ce26708bf8bb222ca5b6006caa8c1c254f31bad19b21fd22ca5197dc82\">tensorflow_macos-2.14.0rc0-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/cf/4c/c200f173b89f2860bf3de44bdc6c249b1d8cf842692d8f1a67d2a3a1f869/tensorflow_macos-2.14.0rc0-cp311-cp311-macosx_12_0_arm64.whl#sha256=261639c7f03e77c0f005d7622cb57cc5f561127420299d03f857ce28c24beb97\"
+        data-requires-python=\"&gt;=3.9\" data-dist-info-metadata=\"sha256=73c8b9ce26708bf8bb222ca5b6006caa8c1c254f31bad19b21fd22ca5197dc82\"
+        data-core-metadata=\"sha256=73c8b9ce26708bf8bb222ca5b6006caa8c1c254f31bad19b21fd22ca5197dc82\">tensorflow_macos-2.14.0rc0-cp311-cp311-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/ba/48/4b0f4c853345454011cf1424d75c970c98654eff0e71ea098876a08c8218/tensorflow_macos-2.14.0rc0-cp39-cp39-macosx_12_0_arm64.whl#sha256=6157198682d38ff3ca98276f89044a1944421599ec94c260b87ff52889dee6d8\"
+        data-requires-python=\"&gt;=3.9\" data-dist-info-metadata=\"sha256=73c8b9ce26708bf8bb222ca5b6006caa8c1c254f31bad19b21fd22ca5197dc82\"
+        data-core-metadata=\"sha256=73c8b9ce26708bf8bb222ca5b6006caa8c1c254f31bad19b21fd22ca5197dc82\">tensorflow_macos-2.14.0rc0-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/10/8e/604f1373665df7c447b37035cfc325584e14c9756d495be2038c4cd24396/tensorflow_macos-2.14.0rc1-cp310-cp310-macosx_12_0_arm64.whl#sha256=2b2e3d5f13c203aaa68793ab0aff5c21ce6c1e91dc7020a9c99314d9c50aa252\"
+        data-requires-python=\"&gt;=3.9\" data-dist-info-metadata=\"sha256=f2fac456111824f947c5a448e89951e97c1d07d4cb5cc3ddea870694b8955e9a\"
+        data-core-metadata=\"sha256=f2fac456111824f947c5a448e89951e97c1d07d4cb5cc3ddea870694b8955e9a\">tensorflow_macos-2.14.0rc1-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/8c/97/701b9f1d581f093d00bf141d7759b44a78fdd548f21bc6ea9e67ca6c811d/tensorflow_macos-2.14.0rc1-cp311-cp311-macosx_12_0_arm64.whl#sha256=c2dfa8e3d221b285dfd2b6cf2b6442b1038fbeca1d6daea6aedacb74a639980b\"
+        data-requires-python=\"&gt;=3.9\" data-dist-info-metadata=\"sha256=f2fac456111824f947c5a448e89951e97c1d07d4cb5cc3ddea870694b8955e9a\"
+        data-core-metadata=\"sha256=f2fac456111824f947c5a448e89951e97c1d07d4cb5cc3ddea870694b8955e9a\">tensorflow_macos-2.14.0rc1-cp311-cp311-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/92/ce/802deef742526d26f40a1a230f5b6643c5e9b4aeb4be3b20d8b2ab408cd1/tensorflow_macos-2.14.0rc1-cp39-cp39-macosx_12_0_arm64.whl#sha256=8fa7bfc963d1720936ea18310824af0e2062ae36ffc33a49fd0d9bcde8885fcb\"
+        data-requires-python=\"&gt;=3.9\" data-dist-info-metadata=\"sha256=f2fac456111824f947c5a448e89951e97c1d07d4cb5cc3ddea870694b8955e9a\"
+        data-core-metadata=\"sha256=f2fac456111824f947c5a448e89951e97c1d07d4cb5cc3ddea870694b8955e9a\">tensorflow_macos-2.14.0rc1-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/20/87/1d5c17426662f1da4ac38546de0fe2d2062ad6db55b33fd2d6ca7bd77196/tensorflow_macos-2.14.0-cp310-cp310-macosx_12_0_arm64.whl#sha256=31fa670b0afd2a52b3ad15bab97a0d0aae28c4ea2a96ab7f0a91e8844390bfb0\"
+        data-requires-python=\"&gt;=3.9\" data-dist-info-metadata=\"sha256=b4d229479978c5982117d576dc9d4732c214378960855c3f942e33405a2924bc\"
+        data-core-metadata=\"sha256=b4d229479978c5982117d576dc9d4732c214378960855c3f942e33405a2924bc\">tensorflow_macos-2.14.0-cp310-cp310-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/d3/4b/ae9037ea22ba94eb2cf267e991384c3444f3e6142fa49923352b4ab73e14/tensorflow_macos-2.14.0-cp311-cp311-macosx_12_0_arm64.whl#sha256=064e98b67d7a89e72c37c90254c0a322a0b8d0ce9b68f23286816210e3ef6685\"
+        data-requires-python=\"&gt;=3.9\" data-dist-info-metadata=\"sha256=b4d229479978c5982117d576dc9d4732c214378960855c3f942e33405a2924bc\"
+        data-core-metadata=\"sha256=b4d229479978c5982117d576dc9d4732c214378960855c3f942e33405a2924bc\">tensorflow_macos-2.14.0-cp311-cp311-macosx_12_0_arm64.whl</a><br
+        />\n    <a href=\"https://files.pythonhosted.org/packages/97/ab/2aff9c14f369b28758c7aa90a224ce70da6057acdf0047a4096f7b3cc9bc/tensorflow_macos-2.14.0-cp39-cp39-macosx_12_0_arm64.whl#sha256=7b3e4e01721bfc0105c99275113531a659e89fd6512340a7b8970593676e0114\"
+        data-requires-python=\"&gt;=3.9\" data-dist-info-metadata=\"sha256=b4d229479978c5982117d576dc9d4732c214378960855c3f942e33405a2924bc\"
+        data-core-metadata=\"sha256=b4d229479978c5982117d576dc9d4732c214378960855c3f942e33405a2924bc\">tensorflow_macos-2.14.0-cp39-cp39-macosx_12_0_arm64.whl</a><br
+        />\n    </body>\n</html>\n<!--SERIAL 19923219-->"
+    headers:
+      Accept-Ranges:
+      - bytes
+      Access-Control-Allow-Headers:
+      - Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since
+      Access-Control-Allow-Methods:
+      - GET
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - X-PyPI-Last-Serial
+      Access-Control-Max-Age:
+      - '86400'
+      Cache-Control:
+      - max-age=600, public
+      Connection:
+      - keep-alive
+      Content-Security-Policy:
+      - default-src 'none'; sandbox allow-top-navigation
+      Content-Type:
+      - text/html
+      Date:
+      - Fri, 06 Oct 2023 16:54:11 GMT
+      ETag:
+      - '"3qU+uDVMM0vbOBzZNHcVnA"'
+      Permissions-Policy:
+      - publickey-credentials-create=(self),publickey-credentials-get=(self),accelerometer=(),ambient-light-sensor=(),autoplay=(),battery=(),camera=(),display-capture=(),document-domain=(),encrypted-media=(),execution-while-not-rendered=(),execution-while-out-of-viewport=(),fullscreen=(),gamepad=(),geolocation=(),gyroscope=(),hid=(),identity-credentials-get=(),idle-detection=(),local-fonts=(),magnetometer=(),microphone=(),midi=(),otp-credentials=(),payment=(),picture-in-picture=(),screen-wake-lock=(),serial=(),speaker-selection=(),storage-access=(),usb=(),web-share=(),xr-spatial-tracking=()
+      Referrer-Policy:
+      - origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Vary:
+      - Accept-Encoding, Accept
+      X-Cache:
+      - HIT, HIT
+      X-Cache-Hits:
+      - 10, 1
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-Permitted-Cross-Domain-Policies:
+      - none
+      X-PyPI-Last-Serial:
+      - '19923219'
+      X-Served-By:
+      - cache-iad-kiad7000073-IAD, cache-cpt13829-CPT
+      X-Timer:
+      - S1696611252.841723,VS0,VE1
+      X-XSS-Protection:
+      - 1; mode=block
+      content-length:
+      - '32149'
     status:
       code: 200
       message: OK

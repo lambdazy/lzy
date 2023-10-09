@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import List, Type, TypeVar
+from packaging.tags import PythonVersion
 
 from .base import BaseExplorer, ModulePathsList, PackagesDict
 from .classify import ModuleClassifier
@@ -22,6 +23,7 @@ P = TypeVar('P', bound=BasePackage)
 class AutoExplorer(BaseExplorer):
     pypi_index_url: str
     additional_pypi_packages: PackagesDict
+    target_python: PythonVersion
 
     def get_local_module_paths(self, namespace: VarsNamespace) -> ModulePathsList:
         packages = self._get_packages(namespace, LocalPackage)
@@ -83,9 +85,19 @@ class AutoExplorer(BaseExplorer):
     def get_pypi_packages(self, namespace: VarsNamespace) -> PackagesDict:
         packages = self._get_packages(namespace, PypiDistribution)
 
-        overrided: List[PypiDistribution] = [
-            p for p in packages if p.name in self.additional_pypi_packages
-        ]
+        overrided: List[PypiDistribution] = []
+        bad_platform: List[PypiDistribution] = []
+        good: List[PypiDistribution] = []
+
+        for package in packages:
+            if package.name in self.additional_pypi_packages:
+                array = overrided
+            elif not package.have_server_supported_tags:
+                array = bad_platform
+            else:
+                array = good
+
+            array.append(package)
 
         if overrided:
             self.log.debug(
@@ -94,8 +106,19 @@ class AutoExplorer(BaseExplorer):
                 overrided
             )
 
+        if bad_platform:
+            self.log.warning(
+                "Next dependency packages were classified as pypi packages "
+                "but doesn't exist for Lzy server platform linux_x86_64 and requested "
+                "python version %s "
+                "and will be skipped: %s; if you will experience problems caused "
+                "by absense of this packages on server, you should use manual python "
+                "environment",
+                self.target_python, bad_platform
+            )
+
         return {
-            **{p.name: p.version for p in packages},
+            **{p.name: p.version for p in good},
             **self.additional_pypi_packages
         }
 
@@ -106,7 +129,10 @@ class AutoExplorer(BaseExplorer):
     ) -> List[P]:
         modules = get_transitive_namespace_dependencies(namespace)
 
-        classifier = ModuleClassifier(self.pypi_index_url)
+        classifier = ModuleClassifier(
+            self.pypi_index_url,
+            target_python=self.target_python
+        )
 
         packages = classifier.classify(modules)
         broken = [p for p in packages if isinstance(p, BrokenModules)]
