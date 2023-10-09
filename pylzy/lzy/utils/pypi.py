@@ -33,25 +33,9 @@ TARGET_PLATFORMS: Tuple[str, ...] = (
     'manylinux1_x86_64',
     'manylinux2010_x86_64',
     'manylinux2014_x86_64',
-    'manylinux_2_5_x86_64',
-    'manylinux_2_6_x86_64',
-    'manylinux_2_7_x86_64',
-    'manylinux_2_8_x86_64',
-    'manylinux_2_9_x86_64',
-    'manylinux_2_10_x86_64',
-    'manylinux_2_11_x86_64',
-    'manylinux_2_12_x86_64',
-    'manylinux_2_13_x86_64',
-    'manylinux_2_14_x86_64',
-    'manylinux_2_15_x86_64',
-    'manylinux_2_16_x86_64',
-    'manylinux_2_17_x86_64',
-    'manylinux_2_18_x86_64',
-    'manylinux_2_19_x86_64',
-    'manylinux_2_20_x86_64',
-    'manylinux_2_21_x86_64',
-    'manylinux_2_22_x86_64',
-    'manylinux_2_23_x86_64',
+) + tuple(
+    f'manylinux_2_{i}_x86_64'
+    for i in range(5, 32)  # 5..31; at the server ubuntu 20.04 which have glibc 2.31
 )
 
 
