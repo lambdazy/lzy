@@ -8,14 +8,16 @@ import ai.lzy.env.aux.PlainPythonEnvironment;
 import ai.lzy.env.aux.SimpleBashEnvironment;
 import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.base.DockerEnvDescription;
-import ai.lzy.env.base.DockerEnvDescription.ContainerRegistryCredentials;
 import ai.lzy.env.base.DockerEnvironment;
 import ai.lzy.env.base.ProcessEnvironment;
 import ai.lzy.env.logs.LogHandle;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LME.LocalModule;
+import com.github.dockerjava.core.DefaultDockerClientConfig;
+import com.github.dockerjava.core.DockerClientConfig;
 import com.google.common.annotations.VisibleForTesting;
 import io.grpc.Status;
+import jakarta.annotation.Nullable;
 import jakarta.inject.Singleton;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
@@ -23,6 +25,7 @@ import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.util.Strings;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -89,12 +92,8 @@ public class EnvironmentFactory {
                 .withEnvVars(Map.of(
                     "LZY_INNER_CONTAINER", "true",
                     "LZY_MOUNT", lzyMount
-                ));
-
-            if (credentials != null) {
-                configBuilder.withCredentials(new ContainerRegistryCredentials(
-                    credentials.getRegistryName(), credentials.getUsername(), credentials.getPassword()));
-            }
+                ))
+                .withDockerClientConfig(getDockerConfig(credentials));
 
             var config = configBuilder.build();
 
@@ -236,4 +235,18 @@ public class EnvironmentFactory {
         INSTALL_ENV.set(b);
     }
 
+    private static DockerClientConfig getDockerConfig(@Nullable LME.DockerCredentials credentials) {
+        var builder = DefaultDockerClientConfig.createDefaultConfigBuilder();
+        final var file = new File(System.getProperty("user.home"), ".docker");
+        if (file.exists()) {
+            LOG.debug("docker config: {}", file.getAbsolutePath());
+            builder.withDockerConfig(file.getAbsolutePath());
+        }
+        if (credentials != null) {
+            builder.withRegistryUrl(credentials.getRegistryName());
+            builder.withRegistryUsername(credentials.getUsername());
+            builder.withRegistryPassword(credentials.getPassword());
+        }
+        return builder.build();
+    }
 }

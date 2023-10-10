@@ -1,6 +1,6 @@
 package ai.lzy.env.base;
 
-import jakarta.annotation.Nullable;
+import com.github.dockerjava.core.DockerClientConfig;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +12,7 @@ public record DockerEnvDescription(
     List<MountDescription> mounts,
     boolean needGpu,
     List<String> envVars,  // In format <NAME>=<value>
-    @Nullable ContainerRegistryCredentials credentials  // Credentials to pull images with
+    DockerClientConfig dockerClientConfig
 ) {
 
     public static Builder newBuilder() {
@@ -25,20 +25,23 @@ public record DockerEnvDescription(
             "image='" + image + '\'' +
             ", needGpu=" + needGpu +
             ", mounts=[" + mounts.stream()
-            .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
-            .collect(Collectors.joining(", ")) + "]" +
+                .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
+                .collect(Collectors.joining(", ")) + "]" +
             '}';
     }
 
-    public record MountDescription(String source, String target, boolean isRshared) { }
+    public record MountDescription(
+        String source,
+        String target,
+        boolean isRshared
+    ) {}
 
     public static class Builder {
-
         String image = null;
         boolean gpu = false;
         List<MountDescription> mounts = new ArrayList<>();
         List<String> envVars = new ArrayList<>();
-        ContainerRegistryCredentials credentials = null;
+        DockerClientConfig dockerClientConfig;
 
         public Builder withImage(String name) {
             this.image = name;
@@ -65,13 +68,13 @@ public record DockerEnvDescription(
             return this;
         }
 
-        public Builder withCredentials(ContainerRegistryCredentials credentials) {
-            this.credentials = credentials;
+        public Builder withDockerClientConfig(DockerClientConfig dockerClientConfig) {
+            this.dockerClientConfig = dockerClientConfig;
             return this;
         }
 
         public DockerEnvDescription build() {
-            return new DockerEnvDescription(image, mounts, gpu, envVars, credentials);
+            return new DockerEnvDescription(image, mounts, gpu, envVars, dockerClientConfig);
         }
 
     }
