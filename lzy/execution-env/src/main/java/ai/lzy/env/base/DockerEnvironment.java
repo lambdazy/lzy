@@ -1,7 +1,6 @@
 package ai.lzy.env.base;
 
 import ai.lzy.env.EnvironmentInstallationException;
-import ai.lzy.env.base.DockerEnvDescription.ContainerRegistryCredentials;
 import ai.lzy.env.logs.LogHandle;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
@@ -11,8 +10,8 @@ import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.exception.DockerClientException;
 import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.model.*;
-import com.github.dockerjava.core.DefaultDockerClientConfig;
-import com.github.dockerjava.core.DockerClientBuilder;
+import com.github.dockerjava.core.DockerClientImpl;
+import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
@@ -45,7 +44,11 @@ public class DockerEnvironment extends BaseEnvironment {
 
     public DockerEnvironment(DockerEnvDescription config) {
         this.config = config;
-        this.client = generateClient(config.credentials());
+        this.client = DockerClientImpl.getInstance(
+            config.dockerClientConfig(),
+            new ApacheDockerHttpClient.Builder()
+                .dockerHost(config.dockerClientConfig().getDockerHost())
+                .build());
         var retryConfig = new RetryConfig.Builder<>()
             .maxAttempts(3)
             .intervalFunction(IntervalFunction.ofExponentialBackoff(1000))
@@ -273,18 +276,5 @@ public class DockerEnvironment extends BaseEnvironment {
         msg = "Pulling image %s done".formatted(image);
         LOG.info(msg);
         handle.logSysOut(msg);
-    }
-
-    private static DockerClient generateClient(@Nullable ContainerRegistryCredentials credentials) {
-        if (credentials != null) {
-            return DockerClientBuilder.getInstance(new DefaultDockerClientConfig.Builder()
-                .withRegistryUrl(credentials.url())
-                .withRegistryUsername(credentials.username())
-                .withRegistryPassword(credentials.password())
-                .build()
-            ).build();
-        } else {
-            return DockerClientBuilder.getInstance().build();
-        }
     }
 }
