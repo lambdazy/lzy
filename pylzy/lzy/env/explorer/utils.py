@@ -5,13 +5,13 @@ import types
 from functools import lru_cache
 from inspect import isclass, getmro
 from pathlib import Path
-from tempfile import TemporaryDirectory
-from typing import List, Any, Tuple, Dict, FrozenSet
+from typing import List, Any, Tuple, Dict, FrozenSet, Optional
 
 import importlib_metadata
 from importlib_metadata import Distribution
+from packaging.requirements import Requirement, InvalidRequirement
 
-from lzy.utils.paths import change_working_directory
+from lzy.utils.paths import tmp_cwd
 
 
 def getmembers(object: Any, predicate=None) -> List[Tuple[str, Any]]:
@@ -97,20 +97,82 @@ def get_builtin_module_names() -> FrozenSet[str]:
     return frozenset(sys.builtin_module_names)
 
 
-@lru_cache(maxsize=None)  # cache size is about few MB
-def get_files_to_distributions() -> Dict[str, Distribution]:
-    result = {}
-
+@lru_cache(maxsize=None)
+def get_names_to_distributions() -> Dict[str, Distribution]:
+    result: Dict[str, Distribution] = {}
     # NB: importlib_metadata.Distribution calls may return different
     # results in depends from cwd.
     # So we are moving cwd into tmp dir in name of results repeatability.
     # In case of PermissionError, location of tmp dir can be moved with
     # TMPDIR env variable.
-    with TemporaryDirectory() as tmp:
-        with change_working_directory(tmp):
-            for distribution in importlib_metadata.distributions():
-                for filename in distribution.files or ():
-                    fullpath = distribution.locate_file(filename)
-                    result[str(fullpath)] = distribution
+    with tmp_cwd():
+        for distribution in importlib_metadata.distributions():
+            result[distribution.name] = distribution
+
+    return result
+
+
+@lru_cache(maxsize=None)  # cache size is about few MB
+def get_files_to_distributions() -> Dict[str, Distribution]:
+    result = {}
+
+    for distribution in get_names_to_distributions().values():
+        # NB: TODO: distribution.files could be empty in case of
+        # dist-packages & .egg-info.
+        # Primarily it affects python packages, installed
+        # via apt-get, for example.
+        # So if user working in non-isolated environment
+        # and using packages from dist-packages, we will
+        # mistreat these packages as local in future while
+        # classification.
+        for filename in distribution.files or ():
+            fullpath = distribution.locate_file(filename)
+            result[str(fullpath)] = distribution
+
+    return result
+
+
+def check_distribution_is_meta_package(distribution: Distribution) -> bool:
+    if not distribution.files:
+        # NB: .egg-info packages and some apt-packages doensn't have
+        # a dist-info directory and importlib.metadata fails to generate
+        # files list
+        return False
+
+    for filename in distribution.files:
+        path = Path(filename)
+        directory = path.parts[0]
+        if (
+            not directory.endswith('.dist-info') and
+            not directory.endswith('.egg-info')
+        ):
+            return False
+
+    return True
+
+
+def get_name_from_requirement_string(requirement_string: str) -> Optional[str]:
+    try:
+        requirement = Requirement(requirement_string)
+    except InvalidRequirement:
+        return None
+
+    return requirement.name
+
+
+@lru_cache(maxsize=None)  # cache size is about few MB
+def get_requirements_to_meta_packages() -> Dict[str, List[Distribution]]:
+    result: Dict[str, List[Distribution]] = {}
+
+    with tmp_cwd():
+        for distribution in get_names_to_distributions().values():
+            if not check_distribution_is_meta_package(distribution):
+                continue
+
+            for requirement_string in distribution.requires or ():
+                name = get_name_from_requirement_string(requirement_string)
+                if name:
+                    result.setdefault(name, [])
+                    result[name].append(distribution)
 
     return result

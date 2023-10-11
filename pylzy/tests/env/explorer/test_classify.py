@@ -1,11 +1,13 @@
 import sys
 import dataclasses
 from pathlib import Path
+from typing import Set
 
 import pytest
+from importlib_metadata import Distribution
 
 from lzy.env.explorer.classify import ModuleClassifier
-from lzy.env.explorer.packages import LocalPackage, PypiDistribution, LocalDistribution
+from lzy.env.explorer.packages import LocalPackage, PypiDistribution, LocalDistribution, BasePackage
 
 
 @pytest.fixture(scope='function')
@@ -95,7 +97,9 @@ def test_classify_pypi_packages(classifier: ModuleClassifier, pypi_index_url: st
 def test_classify_local_distribution(
     classifier: ModuleClassifier,
     env_prefix: Path,
-    site_packages: Path
+    site_packages: Path,
+    pypi_index_url,
+    monkeypatch,
 ) -> None:
     # NB: lzy_test_project located at test_data/lzy_test_project and gets installed by tox while
     # tox venv preparing
@@ -113,8 +117,42 @@ def test_classify_local_distribution(
         bad_paths=frozenset({f'{env_prefix}/bin/lzy_test_project_bin'})
     )
 
-    assert classifier.classify([lzy_test_project]) == frozenset({etalon})
-    assert classifier.classify([lzy_test_project.foo]) == frozenset({dataclasses.replace(etalon, is_binary=True)})
+    def classify(module) -> Set[BasePackage]:
+        result = classifier.classify([module])
+
+        # NB: it is also classifies lzy-test-project-meta
+        # which have lzy-test-project in requirements, so
+        # we found lzy-test-project, found lzy-test-project meta
+        # because it requires lzy-test-project and add
+        # pylzy into result because lzy-test-project-meta
+        # is a local meta project and depends on pylzy
+        assert any(p.name == 'pylzy' for p in result)
+
+        return {p for p in result if p.name != 'pylzy'}
+
+    assert classify(lzy_test_project) == frozenset({etalon})
+    assert classify(lzy_test_project.foo) == frozenset({dataclasses.replace(etalon, is_binary=True)})
+
+    old_classify_distribution = classifier._classify_distribution
+    meta_etalon = PypiDistribution(
+        name='foo',
+        version='bar',
+        pypi_index_url='baz',
+        have_server_supported_tags=True
+    )
+
+    def new_classify_distribution(self, distribution: Distribution, *args, **kwargs) -> BasePackage:
+        if distribution.name == 'lzy-test-project-meta':
+            return meta_etalon
+
+        return old_classify_distribution(distribution, *args, **kwargs)
+
+    monkeypatch.setattr(ModuleClassifier, '_classify_distribution', new_classify_distribution)
+    patched_classifier = ModuleClassifier(pypi_index_url=pypi_index_url, target_python=sys.version_info[:2])
+
+    # Because lzy-test-project is "found" at pypi (bless monkeypatch), we add meta-package
+    # to result itself instead of adding it requirements
+    assert patched_classifier.classify([lzy_test_project]) == frozenset({etalon, meta_etalon})
 
 
 def test_classify_editable_distribution(classifier: ModuleClassifier, get_test_data_path) -> None:

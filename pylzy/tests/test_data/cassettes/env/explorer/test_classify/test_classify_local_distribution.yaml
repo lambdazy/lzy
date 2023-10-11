@@ -25,7 +25,9 @@ interactions:
       Content-Type:
       - text/plain; charset=UTF-8
       Date:
-      - Tue, 01 Aug 2023 18:32:40 GMT
+      - Wed, 11 Oct 2023 13:39:35 GMT
+      Permissions-Policy:
+      - publickey-credentials-create=(self),publickey-credentials-get=(self),accelerometer=(),ambient-light-sensor=(),autoplay=(),battery=(),camera=(),display-capture=(),document-domain=(),encrypted-media=(),execution-while-not-rendered=(),execution-while-out-of-viewport=(),fullscreen=(),gamepad=(),geolocation=(),gyroscope=(),hid=(),identity-credentials-get=(),idle-detection=(),local-fonts=(),magnetometer=(),microphone=(),midi=(),otp-credentials=(),payment=(),picture-in-picture=(),screen-wake-lock=(),serial=(),speaker-selection=(),storage-access=(),usb=(),web-share=(),xr-spatial-tracking=()
       Referrer-Policy:
       - origin-when-cross-origin
       Strict-Transport-Security:
@@ -43,12 +45,447 @@ interactions:
       X-Permitted-Cross-Domain-Policies:
       - none
       X-Served-By:
-      - cache-iad-kiad7000148-IAD, cache-jnb7023-JNB
+      - cache-iad-kiad7000148-IAD, cache-cpt13822-CPT
       X-Timer:
-      - S1690914760.914053,VS0,VE265
+      - S1697031575.051498,VS0,VE263
       X-XSS-Protection:
       - 1; mode=block
     status:
       code: 404
       message: Not Found
+- request:
+    body: null
+    headers:
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - pylzy 1.15.0 (https://lzy.ai)
+    method: GET
+    uri: https://pypi.org/simple/lzy-test-project-meta/
+  response:
+    body:
+      string: 404 Not Found
+    headers:
+      Accept-Ranges:
+      - bytes
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '13'
+      Content-Security-Policy:
+      - default-src 'none'; sandbox allow-top-navigation
+      Content-Type:
+      - text/plain; charset=UTF-8
+      Date:
+      - Wed, 11 Oct 2023 13:39:35 GMT
+      Permissions-Policy:
+      - publickey-credentials-create=(self),publickey-credentials-get=(self),accelerometer=(),ambient-light-sensor=(),autoplay=(),battery=(),camera=(),display-capture=(),document-domain=(),encrypted-media=(),execution-while-not-rendered=(),execution-while-out-of-viewport=(),fullscreen=(),gamepad=(),geolocation=(),gyroscope=(),hid=(),identity-credentials-get=(),idle-detection=(),local-fonts=(),magnetometer=(),microphone=(),midi=(),otp-credentials=(),payment=(),picture-in-picture=(),screen-wake-lock=(),serial=(),speaker-selection=(),storage-access=(),usb=(),web-share=(),xr-spatial-tracking=()
+      Referrer-Policy:
+      - origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Vary:
+      - Accept-Encoding
+      X-Cache:
+      - MISS, MISS
+      X-Cache-Hits:
+      - 0, 0
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-Permitted-Cross-Domain-Policies:
+      - none
+      X-Served-By:
+      - cache-iad-kcgs7200156-IAD, cache-cpt13822-CPT
+      X-Timer:
+      - S1697031576.515701,VS0,VE266
+      X-XSS-Protection:
+      - 1; mode=block
+    status:
+      code: 404
+      message: Not Found
+- request:
+    body: null
+    headers:
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      User-Agent:
+      - pylzy 1.15.0 (https://lzy.ai)
+    method: GET
+    uri: https://pypi.org/simple/pylzy/
+  response:
+    body:
+      string: "<!DOCTYPE html>\n<html>\n  <head>\n    <meta name=\"pypi:repository-version\"
+        content=\"1.1\">\n    <title>Links for pylzy</title>\n  </head>\n  <body>\n
+        \   <h1>Links for pylzy</h1>\n<a href=\"https://files.pythonhosted.org/packages/69/3f/d096d8ccf16efcafd622f53ee089de4ef79e560311aabe9883663efb054c/pylzy-0.0.1-py3-none-any.whl#sha256=995ec11261673bd742aa7de927dc345a728841434fc544b025d7c67658b61387\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.1-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/f8/4e/55f282ad50ddbde6d6536f00a86520f4179c76ddb8aca727b73197d86ae4/pylzy-0.0.1.tar.gz#sha256=66210067e9f8bd03786b8539247cadea9944a21872606ff942ba4c053c23b77c\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/de/a8/f3fc389ce3f67f4e18075956c272cc7a546a92cdb6f928cfd5ce2cf9328f/pylzy-0.0.2-py3-none-any.whl#sha256=89679cdfd4ddf14ab1f8391100958be56d6a5f8578bc30c0ff7100f64265fd65\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.2-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/3f/97/7f4ca805db293998a1a65fa8753274a82e17355f64adeb58b02a9f61bad6/pylzy-0.0.2.tar.gz#sha256=440783f74094f453d34a7df30e72c045a5208b251aa86d926d938de2d2051488\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.2.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/85/18/1895bf1ba79c2c13874a256ca0f9aa1531aac5d4222fd0e92a2680497ae3/pylzy-0.0.3-py3-none-any.whl#sha256=65d36f5c277120e5d5880e3bd25ef3e80aa9e5a41f7a8a190ccbbaf20d899c71\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.3-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/45/de/afdc9bbebee41f06bd71feab8a2da95503164322514cacd793e6ff74ec8b/pylzy-0.0.3.tar.gz#sha256=c648861ee8a170ce3deab9947397ad6e164ba4ffd7fb438684411038bd7f586e\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.3.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/95/1e/98d0a36204389954d5735ecfa0c1c8cb33b413155951946ac3705a9133b1/pylzy-0.0.4-py3-none-any.whl#sha256=1030abb59a1b2a7ffa8549e2576974cf48446f33a362734f2f94a5ed07691c32\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.4-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/b3/03/d6e52c02399167ab021ca2fb87653b19c34c1ff122381a6b3829f80290d8/pylzy-0.0.4.tar.gz#sha256=8b1a9907f94be5b8a0180575e3d4dccc5c64f90bf944d3b3a420677640599e5f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.4.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/f0/7e/2dd2d084a482655e696d628c8df8c385c3570511b64b2f854536cd53c957/pylzy-0.0.5-py3-none-any.whl#sha256=464b05789b8c44c9b576f2cef46b8bb6b6fe03deafc5ff2410f80c93bc61454c\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.5-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/8c/80/543bb03b24a160aa440956bf64775003f64d4e931a186a677ae631128641/pylzy-0.0.5.tar.gz#sha256=14ff92884e152a2e4b31a576e3f1807bf1a5e65f0f3588842699708853206907\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.5.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/d3/6f/bfd0323cb07ffc94a0794b44073189bdd94969473bb62683c375502a240e/pylzy-0.0.6-py3-none-any.whl#sha256=165611d68c970c3a2c42d70a8da424050b90c8e5869792806a284d8b77569397\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.6-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/75/99/bce547d6f8dba3b4a31ee677ba7ba9e59f8530c03910fb2f80f5eb065877/pylzy-0.0.6.tar.gz#sha256=d056b30107694262df4fc5c3fa1235b33914a212834b441c553f5f0aaf7d6d84\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.6.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/fc/e8/8e22d620ad8834890378b59ca6686ee0d64cb799c59a2b0b5c565334a85c/pylzy-0.0.7-py3-none-any.whl#sha256=6ca00058477efa4ff45f36f4b0b655517b800b4bd323c056eb1e6781d8b4c6ab\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.7-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/d3/15/be5c6ee04ae28e63718ed39626768f1d3ec4e680588adfb68365c73a3d9c/pylzy-0.0.7.tar.gz#sha256=6ebf94e53ad1111b73b8b4c3fa88847a4252407b7d4ae957f5b4d0b8b865765f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.7.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/e2/ed/e3a924cc156e401059a264ffa01a5df5bb5ee9b78bfd8d98582b7d9869c1/pylzy-0.0.8-py3-none-any.whl#sha256=c87ac7fefe99b5a63d8c742da09907ad8caef71b3b7321a8e24564f478bedc7f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.8-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/29/93/7798de9a592f8baa6b305a18c8c13baac988e023b34341bf2a52b89c6a5c/pylzy-0.0.8.tar.gz#sha256=127a066530c332d3b69aa1dd0a9ed2f5f3fd5625682371d4be08cf647c8108d7\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.8.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/8f/d0/3eff732ab6ed49d9d38cdd370f5c45b7dc7a4846dc958749fa3372a0ce1f/pylzy-0.0.9-py3-none-any.whl#sha256=602248cd7b7dfd24f12937d9a0e7a42d2fb3c5c444f7837e778f22823c36d952\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.9-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/d7/ae/7988626f258d63ecdfbd2d499cf9212bcaff7206509eb14adbd33306b19c/pylzy-0.0.9.tar.gz#sha256=6982272411240e791ce756368243acab86495706a7286b28aa8639a33f015d64\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.9.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/99/57/3942a3ff7b3d7fccb1fd080c868cd6f5e5abc9e9660a0145bbde633ddf5a/pylzy-0.0.10-py3-none-any.whl#sha256=4797edff000578a0566f094dd033c042e15d0116954684bdf3396c28a8692bf6\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.10-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/d8/36/7774a047a88a6168c35a081bca1831d5554fadd920a37648236be41dd95b/pylzy-0.0.10.tar.gz#sha256=7d8f57762f816a8d6ff6c3d4111904500f8e8a74897535692e134c14014b1baa\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.10.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/7e/b3/9f76a5764b68b71d3078c83ade99ccad00a6c5dc6ecf012e91c76b50e701/pylzy-0.0.11-py3-none-any.whl#sha256=b0cf2df9f5e8dbc39bcdcc9e9422561a529bb0702ea942d8995c0ec086c817de\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.11-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/f0/55/74db8cc518186e8522458314184313082593b64bbe784bd49c199e7b3946/pylzy-0.0.11.tar.gz#sha256=8ba32fb2cff0002066e288723cabfc4d91c7f15862c0aa30e9e5c57ddff5c6bd\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.11.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/ff/82/cdaa41afaf88bbdf37b5d5be9bc4ac8e73d16c1bb3cd71c89dae6f15a572/pylzy-0.0.12-py3-none-any.whl#sha256=4b43785649b3c7b1e625b5b58313c6c84cba4de7af82240f23c48d73adc08428\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.12-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/fc/d7/62fbf1876eabfe5987e6db7afb366a10ff628f046775cbf821cb9d1329b5/pylzy-0.0.12.tar.gz#sha256=663cd8e9e0f5f65aa50a5e30beaf3050ccb3bf826e84b3eaf9713b9a7e5dc6c5\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.12.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/cf/02/1a52dc77c90eb231aa2e264a3202c9e38a2dacfe4a832c96518aa512735e/pylzy-0.0.13-py3-none-any.whl#sha256=4dbdf119f05364878e7dd675ff19aa482de289c8a45df234c15eb667359a89b6\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.13-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/ab/d3/092fbb491974d0208588ea03c7a8a8ea075b6c44eba4162a8ab18847b966/pylzy-0.0.13.tar.gz#sha256=447f749057b1517b89df6a6ab32f05760c1ab410f22414356e06da703f1e4e58\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.13.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/ce/7c/597439669da2ad696d1952f346419728f0341dfaf8597d1d176ad993ac18/pylzy-0.0.14-1-py3-none-any.whl#sha256=2a5b724ea92fe3b2d99f9b562a2b522bcced918306982b93c0061e90077f771a\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.14-1-py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/9c/f6/b7e9bc0bc15464dd1cf982354d3e821ea2a8d882f12b704ddd2a3ba24487/pylzy-0.0.14-py3-none-any.whl#sha256=a3f0c5fc3b9da8afb059419ef97f46bd4cc9a1f5da798e4986f7c904c2b1b004\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.14-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/b4/ef/2564daadd282b9be88348f7b2a0fdb5c0f2674ec2e9f4f3bca226c889c1b/pylzy-0.0.14.tar.gz#sha256=944609674caffeef6bf584889bc2ffd9a6d7918d0d6d764e62872763e39b9889\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.14.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/59/69/ca3c04f2f1d1290f496cfffde1a98b85265b493d1589130cbf8981da4f22/pylzy-0.0.15-py3-none-any.whl#sha256=eebb0983fcb316c69cceb9e46cd5a4a44336bf4761ecdfac544d735acaad5887\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.15-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/c0/78/8dddb02ed1a5a02b2a969e06366934890be1574ac3f002de3a66bca77855/pylzy-0.0.15.tar.gz#sha256=5c0667b9c00ce36680f177ec30cbf4fdf0fd410f7f158713c4f1e7569d1fa78e\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.15.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/48/15/41f47270e6ece578abd7f26dfd75cea55e4a82b9e39f2e75db31ccd7c3ca/pylzy-0.0.16-py3-none-any.whl#sha256=f97bd56e183b2c46abad2251e5e7949dbad34a33481a696f1176b8685c14b9b8\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.16-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/e0/02/f7bca969d91d9fa6f99c3738ffa725a5299d94b6df4abc8f3ded10b76107/pylzy-0.0.16.tar.gz#sha256=90040396a1e5a510efaa121930523c327e7d0512debd5a4f929a67c13c37183d\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.16.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/14/ca/706242de7aa863d91c8d0c2478d122c2157bb439425d76ab6310d1ec2c31/pylzy-0.0.17-py3-none-any.whl#sha256=b1251af4364adf3b1320b5a42b089b48b221f5304067033d5b27c013c43ca568\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.17-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/b2/72/774d214d555652c5ae58a78b77ee6ef0ae47901837919de9292590bdc812/pylzy-0.0.17.tar.gz#sha256=2b9a3cd9f9bcfb98e88ad7d295b18948de8404824b611eecfe703e9d281cd817\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.17.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/40/4c/3b2dbeebb611d51eeb965496ac82beeb769a1d831254ae2efc1669c26ed7/pylzy-0.0.18-py3-none-any.whl#sha256=b3052995ca8d9b59b97197d50eac5cbcbffdcbb9e7274c30ba7c8aee7cff1712\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.18-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/03/4c/42b334a0c973d8b87cb31d87305a6e4bc536dfddfd059362e296e3538323/pylzy-0.0.18.tar.gz#sha256=b494a149a8410558c1716ae6a97c6290b42affbf9518c639f846fc7c2447363d\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.18.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/51/a1/cf4d3ac3c68a7e14963e11e69adcdc40c81b6e47222bc7b125d4c86161b2/pylzy-0.0.19-py3-none-any.whl#sha256=e9eb5ffb147dd42f6272b088e6a3df9f9805d6d7b6ed73082cacbfd91210ba32\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.19-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/6e/96/9064615e4e261432b33ceff46076375b10ac3357cf8c5e69a53f217b7345/pylzy-0.0.19.tar.gz#sha256=d7f0371061639c68f61edae4373e147a511e2b37a7345f531bdd751c2f1d3dc8\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.19.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/91/d9/e6421abab60f30883ab9f0bab2a6492096b9b5820622cf248d6bbae51472/pylzy-0.0.20-py3-none-any.whl#sha256=ade6bbc739a07550dc3b4b0e5c8a44d81fa7007e0ef8cc2142db2c2e28e70665\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.20-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/e3/bf/38785a5d07eaf21a78989c46d0fc455ed5be0ff3ceb912aec15df4a82a40/pylzy-0.0.20.tar.gz#sha256=5514d1e5b8924ecf9ec296e840cf39733d6739fea19b07d809f82ca18659b434\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.20.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/a8/6d/8fac241ceadd912e22c1ab1d04fc6cf93d6b33cdb8cc78cafaffbfd69c55/pylzy-0.0.21-py3-none-any.whl#sha256=7313654c864b4b0a517dfaebedc9cd59592f7e7a011761aa49b6f956d08913ca\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.21-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/0e/dc/9079822c3168a5f1ad4a75a922158f6123fa39071b93e857fda2629f9f57/pylzy-0.0.21.tar.gz#sha256=1c3d3186799da2b8c217e3c9bfb6b2d56ebe9d9183e3609b3f3059394498e773\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.21.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/b6/95/f6e28ef3bc7e355f3656ba00d677222efb7d52d8c306890b7b515cb961bb/pylzy-0.0.22-py3-none-any.whl#sha256=ded24e1c252c550176d83507ae1b8661a225f5cb8ea9e9bef7f9fe5cf0d66f5f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.22-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/88/09/eb14b17af8999d751fde352ca83a55ed425e4edbf3b9d918b0b0dc06f582/pylzy-0.0.22.tar.gz#sha256=8b728aef5966544a1e50f4ea2f1f738e0264d84c93ee599e986d2bcc95aadcf4\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.22.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/27/cf/80a10678e41c1711753e635dc3e4ac7fccdf44f76abe8415f9fa17f12f8b/pylzy-0.0.23-py3-none-any.whl#sha256=cc4ca967e39c2ead6d2e573e38593d3e0892b1c4874c5268c6c12d35896244ca\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.23-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/58/0b/f5f997a40e689f80b892e7de11b6052dd968bc91cb54a0aa873084ea4dd1/pylzy-0.0.23.tar.gz#sha256=7832b371826293154ee9b7f6473dcda948a4ff857aa5c6a1d21aff0e4c49b343\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.23.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/27/b7/db5fadd072e9e9095fe0ca5a338f25e8700c7a1106acc4b62e44077a6b51/pylzy-0.0.24-py3-none-any.whl#sha256=9548f5f028f21690e98bc329ecf1a99e8df8fcac2b736e87040665df6e988c51\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.24-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/ba/6e/21c7ef67491b722e67fee7d1527db4071ab231aaaafcf057d41be7dcfc30/pylzy-0.0.24.tar.gz#sha256=a96646fc88a1c6b4512e71230141a35c8fb982d7135382b77e1b9c1b47378226\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.24.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/38/4e/53b798c387effd67cedc5a3a1401f95e61010e64feef09267df7f6d01ac4/pylzy-0.0.25-py3-none-any.whl#sha256=2ab4b800cab025f55aaac302e4fd39403788147aa3cf0fd231571b5eeb8a9338\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.25-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/6c/8a/2cc11aea168b978f99da02c1eeff5d907b24bb06b857843cba1371393994/pylzy-0.0.25.tar.gz#sha256=43191f02638b26c7808703d5d12f7e86d2f844f2e70dc0b6dfe5839c03c1b4eb\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.25.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/93/62/a6b4d03a02c3e5d375d2e2dfcb9dcea5575c6182a4beabcac5333fba2208/pylzy-0.0.26-py3-none-any.whl#sha256=c0c832527b8452300f99bb35d6b0e9b67777beedf82af4b5d47357129e9f5606\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.26-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/f8/c2/134e0fb49cbc3394df31f018dadf50f43229c3df11a556e2116217491dc5/pylzy-0.0.26.tar.gz#sha256=590433c50c00059cfdf6b9a4907f97bf043f65217005fc6c7cf8559c48d74f2f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.26.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/d0/da/48658a194d45493c49db16566c0535bc6fef2992c83d3d3206ea3014a139/pylzy-0.0.27-py3-none-any.whl#sha256=caa3765c7efba76b54364348ee1387270bce246170f94c32bebb665725fe1f5b\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.27-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/09/2a/bf49b5a974b89a8b92b62c16abc133ac86a6e5378bee7f17418efffb79cf/pylzy-0.0.27.tar.gz#sha256=07632703740e00eae4612ae2e540c5d725ff6f2fa48b766504e6b8d1da3e5b75\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.27.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/59/99/10d502faf219b6f79896fc185d42603e10bc77a080d09a14711375d037c5/pylzy-0.0.28-py3-none-any.whl#sha256=03f4613e74103be71900e588d36d9cae6fa274f0b9d34e0c0e2885116a615c8f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.28-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/15/f4/3a3b6e30d317aae0f6dcdaa4e55f13bc1d2b304318b2b24d238510d1f930/pylzy-0.0.28.tar.gz#sha256=0297cf1526a0f832a25b177fd70a965435786f04623890ebe1ff341ad717cca3\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.28.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/5f/b8/a9624a22bc03290c46f52313f15adcbe61a318de314e4c6b692047855852/pylzy-0.0.29-py3-none-any.whl#sha256=5e645d56dd755b418248b43443e2d46c1c7b52841dbacd6b580349b474079e17\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.29-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/cc/4b/ef7561f80e73b890c8e6c0f4d4cfcc11303c8e26dd92039db9aabf9decc5/pylzy-0.0.29.tar.gz#sha256=a275c5321c3dd048a77b65437cffaf360307b6d8db25495daf449f74ce51c666\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.29.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/2a/01/b07dd971bd3fce90b938ea29bdffc0d37271b90da1674484a379324e00ed/pylzy-0.0.30-py3-none-any.whl#sha256=f9e5ba409ad4cd0bdc194668db9b309b24589539791f504949b254a271d5568c\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.30-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/6c/39/bb1d25779b814af0605b9f8be97df9c297a25fb8e352033452128af05349/pylzy-0.0.30.tar.gz#sha256=b385a0eeabb3b22805a7d872f9b62a8e3f03115dc96e21282c6f152cfa137092\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.30.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/05/30/c7f238cc22770e5805a6145a4e1a40b3cb2e20d9379782b39c15967fb058/pylzy-0.0.31-py3-none-any.whl#sha256=5bf9dffd3de09de403f8af7ef40a6f2b47b9a7f218a9830d96c38439bc9d4f99\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.31-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/6a/59/fa945b33cdf79f0b7701cb4ff882795f05b8439091c2565837e96c953c7d/pylzy-0.0.31.tar.gz#sha256=f8e1329a7f568edd829eced060dc5aeaacc14043eb4f5e013e84521775d61494\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.31.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/4f/2b/a7f616b17e303411268ca25aa2a4ea649dc4ad812e53c07d817bfe651c7e/pylzy-0.0.32-py3-none-any.whl#sha256=99b9cf14e2db12e954bc648ebb02087250010256376bc3e2e659cdb4a2086c03\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.32-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/a0/d4/ee3c42a5a43c145606eb78e643b6cb3a194ebc045f0470d33368a6c6561d/pylzy-0.0.32.tar.gz#sha256=5b9cba1c276267a294eba05ea7020af7f81ef452c17b97587a1265debf254dc9\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.32.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/98/ee/dfd012820bddb17425204dbbaf506712e1accf6fd62a1e104763b798bab6/pylzy-0.0.34-py3-none-any.whl#sha256=ec202246934ceff448c8d8b31fea6c9c2fd2a9c675db34595f9acb5af97e3b31\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.34-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/5b/d0/5055c964a38ff468a0a98ac2966a02a945711060c61289f3e4145b7da66c/pylzy-0.0.34.tar.gz#sha256=72207c9c65868ba119b648ede696d2f0135fb61c84344c48b3f6cb6bcb26161b\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.34.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/12/c1/9f4812b756da3596a97c990d137f1091ec157938220cc9a0936526972aaa/pylzy-0.0.35-py3-none-any.whl#sha256=c3d8aab8d4cb4a559a6d4b5413a5be336ae43b4c648ff69177fc79a0f6211e57\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.35-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/d8/65/9c6c74e5e16d8ffbe8bc08b10fa68b31f3f5ffd2d02dbc2f81fd695d9173/pylzy-0.0.35.tar.gz#sha256=527a3513ba46af8e5aee74d15c81fe8ee4715d69a95ac1f5c9fde2400fa25af8\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.35.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/c4/50/242156c3d36430fbb24fada5366361e553ad4740f0546e0ce7de18d1dde3/pylzy-0.0.36-py3-none-any.whl#sha256=3880737d4e3db054ab514f039e7f1d2831f37e04ce75f2a9c31b69e52cfaa1b8\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.36-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/4f/69/660a488ccb05ec37ebc9e2d239de8b93083d028ef4acf650863dab462567/pylzy-0.0.36.tar.gz#sha256=fd7958272d948ccf0669e1db668235f8eb5eca431076e22019f23372183d6421\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.36.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/2a/5b/7a35a0360b8eb84bd6dcd3db52dd21d0132a39ba12273ce385017262cff9/pylzy-0.0.37-py3-none-any.whl#sha256=b391e322dcd5de4daf00af9efabf5b3747f49e069bbb6f7edf5c2c2b8fa3dafd\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.37-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/f3/f4/e537e40ce6bafb0719d5fbdeffd871e7fa46e7878744bae5d8dc0699d498/pylzy-0.0.37.tar.gz#sha256=f22ee68eee847bb6cc59ca4cd0220aa33bd213c466fdca2c6e5742c1f9bdf996\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.37.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/a9/dd/3b131791abf1b34e3de07e87532b4a78ccbfedd677ee6b79f1303bfa3b03/pylzy-0.0.38-py3-none-any.whl#sha256=9bf26a0813491d04352eedf6b9559d40222ee0883b327ee83ba54759dca4c217\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.38-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/ba/0f/08a7f67b83866162bd848a4a9bbea889071a687753fa8f79be33425f59fa/pylzy-0.0.38.tar.gz#sha256=e984d35ccfc3513ddf1fcf29b269c8178dad9160a647c6937f9df405673a8e84\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.38.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/be/e5/c53d396608b610f7ff7e805a85cc2c1e87caf76d51fd9708d8651d8c0059/pylzy-0.0.39-py3-none-any.whl#sha256=5f508a1d91d42de41a578c7695518c6ca3adb916a87d289ef6aaa3c26fe7c993\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.39-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/fa/81/153c8218da8782e65596cb49b7c249c3933d14bb2d26cb8340add1f36ed6/pylzy-0.0.39.tar.gz#sha256=6b837214022fdc45eecaf37ab73ab58ebae38efc85502644792e84628182fd54\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.39.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/63/53/0c663eaf45d93a0286f1a820ee7facf096c506d365ee691477147cbf8869/pylzy-0.0.40-py3-none-any.whl#sha256=d53059300601b8f035197325efca217e192e7db209c99f0496aded73881ada1b\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.40-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/1c/3e/738691be80e7a9d69aa8d5ea7ab7bf772e3cd04eaebe67708669c7942cb7/pylzy-0.0.40.tar.gz#sha256=3abef99fd088cefe33def4c4d38587ac2b466945ce27136c1016829b2d3b41ab\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.40.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/af/0f/002cf93ea5821a2a9bab2650665f10a7713e16c8f70d1d68f14bbc562f56/pylzy-0.0.41-py3-none-any.whl#sha256=c79ecdaa6e5447abdbc65e58c23d3207de35d48ba312abf653b8d220631b4455\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.41-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/0d/c9/b4106d8aab3db700b40028af6d11530d760c218df5cafb0032ef62e75186/pylzy-0.0.41.tar.gz#sha256=c31b5f9f961c814083ba39b89b6a43e5e4cec97c26fcebda3eb782ddf7b8bf5b\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.41.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/7a/2e/040175d0311908470d792764b5cb2900d76ef36bd11ba57556c8badc21f6/pylzy-0.0.42-py3-none-any.whl#sha256=44ee9f0f3ec2936d6378fdbda0af49e7223e8cb85ffb76059f7abd90b799beea\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.42-py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/3e/5e/acbad9ba120133dd9b4cfc4779ebfdc9ac18d7d5ddca9f14aab190a6baf9/pylzy-0.0.42.tar.gz#sha256=db7de1577f08ab2d7e924f966b3d0eb36f5e9b133b46e676b550569e27e932cc\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.42.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/b0/05/ed22ce84dd44800c3393a8e24ddec4026e7e054596731878bd5db2c8a722/pylzy-0.0.43-py2.py3-none-any.whl#sha256=2a6f01814c612a5e1568e6eff5f1a764b94f7e255a09a2055c06648019c1341b\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.43-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/6f/a4/6d76a8671bf218a5645f5fd03e630d7c23ee2619603b1add0edd69ae7a1a/pylzy-0.0.43.tar.gz#sha256=a649609ac6defe2d8c042f6f27759c6fa8c450d676c615b5421afd6e97d7a271\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.43.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/2a/dd/b9bb8fa6fbb3646b27eeef4b00016a6246010aefc199bb32d72650853e35/pylzy-0.0.44-1-py2.py3-none-any.whl#sha256=9513a0ce8d13997f155f93006ba40f7373a6fb29d8baba2260ba53e49795de41\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.44-1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/89/44/5fead0599cf9e98b35dc3c06426aed07c057abb51e4655847031d4908b71/pylzy-0.0.44-1.tar.gz#sha256=fe1475bdeb17dddaa5423e81f3a87bdfe418f5c32d96fb6d8943b2337577625b\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.44-1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/81/40/91cba5b53deaeba4b893797cdcbcd7417ae47cd40f378a2df53f801aa0ff/pylzy-0.0.45-py2.py3-none-any.whl#sha256=dc983f221fd2156543e64b4c99526a73051735bced7b15d2f8c69a628e51a4e5\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.45-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/4d/19/707a4e20b7ce357f37e8b6629fbb8e6fffc003ed76996f5d45db89a17379/pylzy-0.0.45.tar.gz#sha256=7dc11f561f49f0bf0957008732b3162b74eb6f02141843afe4345560b046bacd\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.45.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/44/9d/b6bee040cbf472aab43416d7d29616d54059e058c277d60051931fcb9e7f/pylzy-0.0.46-py2.py3-none-any.whl#sha256=a445b08d5ca564e231e3cdff032d5e0c2d30e4de3253a37fc8d273af8ca8c7ab\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.46-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/c1/5d/1909a5e54257199e1deaf16090216546fde38506bb947d399db44e8347b2/pylzy-0.0.46.tar.gz#sha256=0371551809e8a0900cc86ee62df6166deee555e1e4cd82e95c13fea721ec7f62\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.46.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/00/ff/1d3b3ed94e8ff59f45ed74eb23fce526a20661e64fd04e3a08475291b54d/pylzy-0.0.47-py2.py3-none-any.whl#sha256=90314309a19ed3906de4845aff173535769cb8ae9c4e1dfd91c57b225a88ae36\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.47-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/ff/b2/d0948c8f2da1851dd26b596da4b0a733b746080951c9e968808021ad7c56/pylzy-0.0.47.tar.gz#sha256=44f27b6cac1f0eaafd9c6a2a1997c268ddfd675d796c62ae303c631e0bbe1470\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.47.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/fd/e3/5db5bbe2d0895e2f1b73bdf818594c3fd9bb43853465b757242117c15be9/pylzy-0.0.48-py2.py3-none-any.whl#sha256=0042087fe36765c7228668f2186c65c2b5cfca6113b88c67b0e301b07202c883\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.48-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/00/6a/a6176b31da5057b0b36829b6cd2c62dda10e01dd106e24c5b9116c1ce06e/pylzy-0.0.48.tar.gz#sha256=1d7a5235f653672ab2603ddf13d9d3739e4f74b3ef976e864f155b29abcefc9d\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.48.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/b7/94/ae12a64354f1619b8628fa234193a1f1946f4ff4001e6ca9c1f72d0e8111/pylzy-0.0.49-py2.py3-none-any.whl#sha256=8426a0c6cca4bb05efe901fd440da6ebf76fb9b84e908bfac908238a2e8a09c3\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.49-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/50/ba/474df3061c59782749aa379e4bf99d173051d784e90763473b4c4fc83857/pylzy-0.0.49.tar.gz#sha256=130d31beeba55625d562434cac2fce65bc769e3dce6b401e8808b7c3bedd777f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.49.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/1e/34/00ac3893bcc9b1ab331555f1fd62d4d6e68af63dfc96bf9a25e954cce16e/pylzy-0.0.50-py2.py3-none-any.whl#sha256=4337d83075f78c073aeb0d6d95054fcf1ee03e3cf8e8986db4d997242d5a9401\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.50-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/f5/e0/7645825e39658e9128a593bb52929237e12aa75634147e8385fa9b0c4ef5/pylzy-0.0.50.tar.gz#sha256=d25b9b9bcf1737f4641f944091413e4c6db7457dba279a56ce287cc885a75227\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-0.0.50.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/22/a9/662b167ef054de88ce66043b0463b0cdee7e3b979f0b685dd55ac0782bdb/pylzy-1.0.0rc0-py2.py3-none-any.whl#sha256=69e32c317e2a987beab0730960b18d671e75a8f49f1c2425077eaafef697b34a\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/85/b9/dda28924c1e46f641a6b0782914aa1303f64b830e600ca76e16f4bb1d2b7/pylzy-1.0.0rc0.tar.gz#sha256=237a27a6784007d11652b498ed4f9a7d00d7362614c2d41f8621799fae3f2e82\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/9e/7c/a2d96cc02a0793a45b33b45ecd90eeeb33393cc5357cc6d29d267c8dacfd/pylzy-1.0.0rc1-py2.py3-none-any.whl#sha256=dfdea7e6ea51bf7155689f25552f3db089c71364bd2a7a1be09cbe4d44760ce4\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/0a/70/e14805c1807e64be5e07b73d51bbfb47b6f10b40cf55852048964c93b18d/pylzy-1.0.0rc1.tar.gz#sha256=8ffe35e70847b4a0df4a88df5d0a4707d436af3c9493b3385e0303973188971e\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/cb/30/c191ec150ee2ba99bb4d2aedfae1b48f118f9b94b2fc280f1c27f59a6611/pylzy-1.0.0rc2-py2.py3-none-any.whl#sha256=d453dedc12aa678f2500f8f371e21c5cd306e95674b9c1e4a39fe2af8c139ddb\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc2-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/8a/04/b939b5457e7dd743a9f160fe46208acabc5c3803c4eb9b57d66a5f77a624/pylzy-1.0.0rc2.tar.gz#sha256=d0f4a57b1816c4ac0a0a27d9c818d211db21b6f2ffd9587d9d45c2266679360d\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc2.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/15/f1/5bd46d5ec125657942f49a1ea92a19e9fd5244d8a5363a686f6416aa54d0/pylzy-1.0.0rc3-py2.py3-none-any.whl#sha256=fe14b6456b0b1369ae61a2c7ae728f15f2d9b2ec492f75a5a57ae74eba6f1be3\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc3-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/cc/91/e2d14a61ce196571ddc2adf0daaadbf903da0a849fa952ae0059e4280184/pylzy-1.0.0rc3.tar.gz#sha256=c76b1a4233f2fc56974ed104a71cfb220533c08282a83fe8fb065cbc1a04ae44\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc3.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/cb/17/8f41051980655dbe448642b71dc9e285ae3699fc3e10a941dae7120d0f4e/pylzy-1.0.0rc4-py2.py3-none-any.whl#sha256=2ddbed0373b18269e7a725ef1e9c324a191e58ddd57fbee14f8640c2ff0ca702\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc4-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/d1/37/a41e9fc3199710653156ff207405fa0314674d260871956c18336333aa79/pylzy-1.0.0rc4.tar.gz#sha256=21093cbd9171852b7605be61c11872ea0bf1ea2016c796d5fdb3970aa67d978c\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc4.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/51/99/f496180104c7864347eae0db35f61daa53216457c12083933ff14a073a09/pylzy-1.0.0rc5-py2.py3-none-any.whl#sha256=b114c997c6c4d044db5f376898b02503e16f6bf0a6b1cfe68fb01166e6df8e12\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc5-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/78/99/20c10e51371528b8bef74698d5267c66cf41d70ce376d72d0bdce2e69fd4/pylzy-1.0.0rc5.tar.gz#sha256=78379aa02e1fd125b3a90b7bda107123d61d2070a9a9d95ba3d2324d80bbad85\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc5.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/25/11/79059ddf925a7c06fb336cfa9151d5bbf78c8858937edd79c18d23340c49/pylzy-1.0.0rc6-py2.py3-none-any.whl#sha256=ccf7bfd7e426c1abbfc0f06fd3dd220d9314fb95db4ad2381447385c7485323d\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc6-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/ca/e4/45b438b4a5bdf4ffd08470501967dc06f0acf7d36bfd928a13e40ee89835/pylzy-1.0.0rc6.tar.gz#sha256=5223de4c77d2428c59d79c092b92c279849b332dd61c0bf53fde666b9eea4628\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc6.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/3b/84/3d75f651466ceb3feda6528103250056e70c59596ab6700cd86c76105a7e/pylzy-1.0.0rc7-py2.py3-none-any.whl#sha256=b7ca9d6adf9b5f4115886b096617944478c830941b04a55e3395fd57ab757293\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc7-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/ef/8c/399604bfd1089dd3bdb964aabf807892088a73bf9a88ba122433b0276de3/pylzy-1.0.0rc7.tar.gz#sha256=70c3ebf2eef9e5ec7ff52e47d7d5a2fbeb4443fd07e360352f17e799ff91e18c\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc7.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/c1/77/fa3ace47e214433b3a1a739fce575efa00b01b5c3598fbd139ed04fa9137/pylzy-1.0.0rc8-py2.py3-none-any.whl#sha256=8cc871ab9e446e7f2cd18bc263b56b396ae975ce5e2e704652d15633f1c688dd\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc8-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/b6/8a/599583fe4b6c31414684fdae6c259a1d478be4a5eedfd26cbe983764e5ad/pylzy-1.0.0rc8.tar.gz#sha256=3dda862abfdd3a9c87b251aa7c820bb7933d3fabed95f910ab85749c66a82f71\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc8.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/d7/57/db15e8d676caea23f8a6032d5ba49e4106cb1baa2eaaa4c62a215e8bf831/pylzy-1.0.0rc9-py2.py3-none-any.whl#sha256=3017f10b9a93c5d638c16c5f79a07b0e81c85ccdadb8e600e7eea4229282c05d\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc9-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/db/d3/62c2c6cbaa0a6d3bf34b60e45db97d5b4289a4cc4fab2c83abfd2aeec0a0/pylzy-1.0.0rc9.tar.gz#sha256=a0f1c92a7d2df6d497909e2719d5612603d7b8a35a122774db554c023a7af183\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc9.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/5e/1f/e80ef805a4970b2aff0033d25c62cd17d8c081c25faf7fbf7e935abef5ef/pylzy-1.0.0rc10-py2.py3-none-any.whl#sha256=66723acd9b7ca206abab4572442cc70694610e164a1c4155755b87a48c2e3ada\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc10-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/7a/9e/5359ff7dd456425a907be7f5abc7c49971f9a8ba0d18bc4a68d01c6ceb26/pylzy-1.0.0rc10.tar.gz#sha256=5e0515e2cce709b4a613dbe43d42e5010b2101bc71e6473d9a63ad140b19fc1c\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.0rc10.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/2e/5b/c12dbb146d241b891f3ef8b9b74f5ed5567a40f77c872be6117337264f64/pylzy-1.0.1-py2.py3-none-any.whl#sha256=4e3971c05fd7c8cef41925ed5d8ab13b953e8075f1cd7e490e8cdc99694bea2e\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/59/f5/b1ed3f940665a0ed5674fa42ec8d39941c9abf4ae018ec4bf43b18f0f824/pylzy-1.0.1.tar.gz#sha256=b12ce1a481142e7b39907f89484114d94af4997f24e2756378b02225315b71d7\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/89/58/d0b9792ce7addf45423d21344aac8b9b5ffb6e1f99c24e58ede9356d8725/pylzy-1.0.2rc0-py2.py3-none-any.whl#sha256=f74f83a6fae296acbd72a4f90ec9b956a05634b9de633fe2d35dae5462ff1508\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.2rc0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/31/c3/47093906fbc0a87b1b690ead8afeee1845a8378094ea09982921c6fd135d/pylzy-1.0.2rc0.tar.gz#sha256=0dde2f076fcc907c59b5e09e0da86cc93c5caf0f40050687956acd9e9a109471\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.2rc0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/a0/87/1e9cefcc7943caefc7dc3a878560169fcf6b167818dcd13826090ead2dbc/pylzy-1.0.2-py2.py3-none-any.whl#sha256=7ee131314b4a6a8326f59f64fa6f62abc78bc8942bf75fc90e96b537647a9f47\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.2-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/52/fa/cb0c2c544d6461218d6d8c4db5be7852feae8731b025273866c845cfd1ac/pylzy-1.0.2.tar.gz#sha256=2c543ab1fe1bc8611c7bd7fb2c78f283c888c8372c5e9e67a98abe62427c698d\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.0.2.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/bd/70/60c79cd0797aa71d2ae6743a7c3442cde140a85ae79b05e34e37d93c7639/pylzy-1.1.0rc0-py2.py3-none-any.whl#sha256=cef7fe97e9683447f09a97496e7358a76ffd71cbb7285795e00f1a4565aeec4a\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.1.0rc0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/d7/55/6873314b663be6a8c22eda08a5a17a731e80a4561ff5c361fa3ed1b4ee75/pylzy-1.1.0rc0.tar.gz#sha256=89968e7ce8736c21013fbc6367eedac474550307552e4b0158ef7869df755011\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.1.0rc0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/42/0f/9a1a7a98fa67c454671b5cac7e691df6b0ea1defe0eec162c70adbce42aa/pylzy-1.1.0-py2.py3-none-any.whl#sha256=4b09029e2bb1acfb28b259d382f75db0948e59ba1cfd04e8c46fb186d88d533d\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.1.0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/05/5f/b84c6d43ddc085431c1ce8b3689986a79d950b8a0fb5dc020cc141e16aac/pylzy-1.1.0.tar.gz#sha256=cf41c9932bb5026b668981a1f4d5786ea7ad29a59ee29875cefd93831825caab\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.1.0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/f4/98/6df31bba2c71038f5445ca7afdc19e5b3b8e882aad7e23ded20281b9eea4/pylzy-1.2.0rc1-py2.py3-none-any.whl#sha256=c2fa6dfa31a12f3cbbb6497577aac4bd19bbd77fb5768881ab0614e33af72f0f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.2.0rc1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/11/30/aabea42e04877d92f056a4379d131bbe8afe15781e3895c5124af43948e0/pylzy-1.2.0rc1.tar.gz#sha256=f374bdf4d1edf94c9a77e0280cb803d9696edc00c389e474701ea542aca13cc4\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.2.0rc1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/4f/94/b96a01004e4327a5fe0fdf82be0cfccce9766dccb6a2640b4a266a41a300/pylzy-1.2-py2.py3-none-any.whl#sha256=9144d6a048e730e9220a3fff70d7fba01544e385a5b3dae654ce9d96782333df\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.2-py2.py3-none-any.whl</a><br />\n<a
+        href=\"https://files.pythonhosted.org/packages/01/f3/37bf601530fb5bf159b3791383b8d774436f62cd55b2a4699b646ecd0820/pylzy-1.2.0-py2.py3-none-any.whl#sha256=02270037b795515d88bfe2627999a38ffa2bcef14f4cf0dc15c3e2543de408c6\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.2.0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/cc/ae/134fddd6a298da922f2b9ed69c2b988e272153f6419761544fdf6018c9b5/pylzy-1.2.0.tar.gz#sha256=a326be561cf6b25b877eafaebd8a628919ad8cad1e4187dcd074256974dd54c7\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.2.0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/5f/98/ec3d567a75480ee659e32d744f37108fe76a44e8e897d74e1b6700826464/pylzy-1.3.0rc0-py2.py3-none-any.whl#sha256=01af37157ca22c91b7e31698db2d597cd1a410dce7d35d976221b18acbb715c1\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.3.0rc0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/65/f6/b70f77c5dc13127a0d5f797e6a66b7cf2bb4701fe660ecd3c2bda0ebe613/pylzy-1.3.0rc0.tar.gz#sha256=23ae293c3941fe867811747d11a927b53e72903fd8e25af65e65a2a489f015e3\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.3.0rc0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/73/a0/ec75cfcf276be0f3bcac47d0b09dedcd85a6eb76155434f7c4716d4d2f6b/pylzy-1.3.0-py2.py3-none-any.whl#sha256=75457405b29ee7e3922ec7dc0c265a2baf6c88aa29a6cfb78f51dd2c12ff2370\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.3.0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/54/66/db06852388f5f45ee46e2dea2887f31071fd7264251e0a9687abb540222e/pylzy-1.3.0.tar.gz#sha256=5b9d680bd581b1b2ba21e0b02fccf0b292c081f31ae75980eb2247bcefb990f3\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.3.0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/df/8e/86f1095871da972f85ec0c85415720ea13a5338d6d7fef805b67101b967d/pylzy-1.3.1-py2.py3-none-any.whl#sha256=e469bae13d85ad342e4e996c0a706fdb463c007667469519c04387bd0877cb88\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.3.1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/12/a7/01a0e51b1c431ac2f2c69daa89decde316c5ec1b24833a11caf71ebd0420/pylzy-1.3.1.tar.gz#sha256=5b596c3327b0178d07c8d6286a7f26332952be4da62350ad41c82f645fd9f7ba\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.3.1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/15/0d/d2d33c3ec12584aeb5124b4d9676355650da4085643db0e196d1611704c1/pylzy-1.4.0rc0-py2.py3-none-any.whl#sha256=5e962d933f2775c125a686ca82c3d1a16d8647db7cf8cfac447b535cecdc2dbc\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.0rc0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/76/23/2df866c36578968c4245c347b1c4b9f0f93ab45a3f42c84530bffeaa8ebc/pylzy-1.4.0rc0.tar.gz#sha256=15caa5f44732e8ecfee21123422aee05d4b7ef9e3798a4a141703354760a6e7e\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.0rc0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/67/a3/7e63cedde0a1b1a98c20b4c50344043bb35aac2dace59554df7bc067a231/pylzy-1.4.0rc1-py2.py3-none-any.whl#sha256=f8879f53e513db0d3f85f16621239d651491af3aeb32e5a97c55b31d0f8488dd\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.0rc1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/80/7f/c82619a32437a82d5e7c2ffc5e0fcad2d71e60229b70b710677def74b416/pylzy-1.4.0rc1.tar.gz#sha256=75bdef31c4ccc847e2065bce7ab260f06b4b565f762810d89ca50628d808ec9b\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.0rc1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/d4/c9/883b5317677a5632766738e28a671ce44033990ea0f2c15671c50da0bf22/pylzy-1.4.5-py2.py3-none-any.whl#sha256=03ecc5a09c92b667553132667bfab10fbcd6a8363c7ebd609a8eb4e6c471a93f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.5-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/5b/7e/281d7670c42b89b1db7bd014ad705dd87599257c387509927fda1a182ee6/pylzy-1.4.6-py2.py3-none-any.whl#sha256=3aa979853b8656fa4b896e0419f34e4d9a7aabd3d3746d172aabe21a9ff87603\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.6-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/88/ed/f5376d90e14104e88235c55de2fc564837468d575b9a789efccee1f6da59/pylzy-1.4.6.tar.gz#sha256=f49aad9fa7def39697eb1149e8f133ffba5308fc19e453e0812b8960f736a728\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.6.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/67/2c/d7bf07279c192537fc083a35fb296b405561ecfe41c8433806699bdcaea1/pylzy-1.4.7-py2.py3-none-any.whl#sha256=227bd04d3577ec7644f63b544fe4241389d47b4ffbb33089748a90fcb68cbec0\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.7-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/e9/b7/7827fc670eda895d647f22236801b9aa9c6d030ce1c933ef9b4a4b643fea/pylzy-1.4.7.tar.gz#sha256=052219bd549abc890343fc408b4fe5da1ad120c100d426022f43f5ebaf573bf5\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.7.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/f3/2f/73bd3eeb61839536fcbe1659aa128ff8f97ed99675e78953f7c3b2c3de40/pylzy-1.4.8-py2.py3-none-any.whl#sha256=4941ffe686261f9ab959992d1da2d956ab5b866c0c702a301422ca6c986c8912\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.8-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/66/53/e51ef1fe3dcad03c762bfffc68437f7aa9724e9f22c4dd61dc9e9e37aee8/pylzy-1.4.8.tar.gz#sha256=3be9b96c67455f60bd3c9af8f1ae29bbb43839b1953aecd9049a950912740a40\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.8.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/bc/20/f0b952b02fd65de30e813d411e37fe360a16879205ca5242873baf878eaf/pylzy-1.4.9-py2.py3-none-any.whl#sha256=9840f414c621c7cef52c1290a94bcb48ffaf0cc8f288e2c857bdd50c61f58c85\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.9-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/7e/25/a595fafef08f8d7e2e99641b4561734272e68f7b27481eedd1a5de7597b9/pylzy-1.4.9.tar.gz#sha256=8139408f7d121b02b966c2dcd85b610a187e2ea063acdae54f895eeed2044621\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.4.9.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/88/85/4aa172bda57fdccda37a6b6fa28ba36befbf5690ada1a75c6551af44346e/pylzy-1.5.1-py2.py3-none-any.whl#sha256=d3321419564d2398a40c3d8a1511129e42da859756030574f0191e7bc5e4267b\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.5.1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/8c/b3/5f911797dd1214aa0179f960255e98cbce0375f03e0b8a63888c15b6cdf5/pylzy-1.5.1.tar.gz#sha256=b91035e9b83940b35adfbb8badd93ea19153d465921b89b6b8426234808a1cc5\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.5.1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/4d/cd/eb9756557bf914939561214bba9ee8c65d58e46d0c46d9750de3ea0af70b/pylzy-1.7.0-py2.py3-none-any.whl#sha256=b2eb71220e185e46c83c3521bed3f38359cc74d6e89f8ef718930989627c0f80\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.7.0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/e0/b1/0e5a944090f20b84d7367a78c8b7e34a18e11fb29fef5a5ba505f66502cd/pylzy-1.7.0.tar.gz#sha256=93f8a4c3082fde099c9b68a38af1cb21dac72ca5e5ee579fde925d85c0fa1ce7\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.7.0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/0f/17/7bc57b8f5383ddbd6dd84fd9a76e1b7f81be78d84ab514aab8f72c09858e/pylzy-1.8.1-py2.py3-none-any.whl#sha256=c6915c8610b61c45970f040f69ed3fc4cf68c79500de2278200ba9c6bf08655f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/3f/28/ec6ba17457db3c02fdfe416c755ae6ec469849ace2ef33df070f5edd0352/pylzy-1.8.1.tar.gz#sha256=e5c239c6f38034ee04233243e633264afccffbea14dbfdb64a8d59cc847bdfb5\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/6f/b6/0b5c589e241ff19998c2206a293171b81d45b311eca9ddf739a45e53ad33/pylzy-1.8.2-py2.py3-none-any.whl#sha256=69f2cec2a34031ad980f1a89ad2e2c509300574a58a3d4ec011ac93bb3b1b090\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.2-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/c3/c1/e6d6f1b17258e77b955675f2de0e9ae6d8abf36b02089d440054ab02a2ff/pylzy-1.8.2.tar.gz#sha256=b53ded889011dd24c60848f3ae88bd07e68a1ae2daa0ba05aa782e845ab2a6b4\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.2.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/f5/83/35c581fd4ea8db00271c8ec159704f36da4c70220c08891a5fbcf3a82f86/pylzy-1.8.3-py2.py3-none-any.whl#sha256=2432bd52aa22870bb83fd71071f27cc3bde33a984ed72ff68899e38a0432ebb7\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.3-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/ac/fe/1143ec4fae769e629caab7700e0e9917786ae85f602882b528dae589bd18/pylzy-1.8.3.tar.gz#sha256=1c9fc6976e2e82f461008438351d7b7c1ea3975dc545d1a9442081eec020a54f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.3.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/a3/3e/bfaac74cd3235f45b77c9f44fcfe205e482408848196106e27b04ffad4ec/pylzy-1.8.4-py2.py3-none-any.whl#sha256=f2f3fb56961b8bf019631dfefe1903044387530e0680aa7c58775032b5e6665f\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.4-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/89/16/6e61e4e51458d8ebea50f319313750fac795c1913e728e93c9f1a422745e/pylzy-1.8.4.tar.gz#sha256=223db2afdfa28595594728b4bfb8b88252e5809af21e3648ad33d238fd23383c\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.4.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/b7/27/3d35c7833b37883276e378b2c0e53b9d8af68594b941185ce3b0f767208d/pylzy-1.8.5-py2.py3-none-any.whl#sha256=ab3521e6bf182f22b32d3ad03cae8f9239c54e96cb78b8a879b13ec85f6c0a05\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.5-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/0f/cb/5b12cb2ee40696b5fd7229391f59362907d97dc9556224fa34d384de8b6e/pylzy-1.8.5.tar.gz#sha256=c3bd45b2bc8d69ad06ec8fc5a9845da0d691fce3058af902b687e3b51bf41d72\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.5.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/49/bc/b4867daaca60895c1b3a2262822d1e2144541158cc4dd27ee065fe55e196/pylzy-1.8.6-py2.py3-none-any.whl#sha256=ccb5f851405f6fac5529c5fab97ad10ae6b574c359184b4e04249ee543e84bac\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.6-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/28/5b/77b11cbde231ceb3cdeba52302d0a746b8cdd259617a007f42244a21c81f/pylzy-1.8.6.tar.gz#sha256=16b550e569b0d15ffbf5fe3a05d2a4f99937b1f9ae7ca85b7f55e7834106663c\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.6.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/39/79/4e8c33002873e43a650f2aab3b6e7429442b35eed1bb1c2bf94e0654f631/pylzy-1.8.7-py2.py3-none-any.whl#sha256=325a1a0c9cfaf7fcd532d84705b594a30c76b853b7de765408b6f67aac6f32fd\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.7-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/85/a9/f7ae477ce387d12ae5c7171f93549cb39537b378b122f941f6e3af454f04/pylzy-1.8.7.tar.gz#sha256=a3392cca2a530ef29d307505374d7a5134cc0429e88b5e02b675b3f94bcdd2a8\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.7.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/d1/4e/d79aa1a05f7ab92088892c32b9c7624da6ad5c8427c963a0a840e3910d8d/pylzy-1.8.8-py2.py3-none-any.whl#sha256=b9c525724f7f0a99235644ea1a8efabbfe07b20f2874cd0471165c01587e3f3c\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.8-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/6a/26/099424d7eb3ceb726822ee60735b10fb154893dadba69851842ced7cbb0c/pylzy-1.8.8.tar.gz#sha256=efadd3d54eb056d4c98bb70bc74a5756372ca2f835e5dea1075260a517251a6d\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.8.8.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/84/41/0d57dff1f8e143070b3553cb9b8fac60fdae171a2284f29d3735d152a13b/pylzy-1.10.0-py2.py3-none-any.whl#sha256=245a909c4d0a560b7d6d1f279e292239fff638ccdc8485849b039b8316c865cc\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.10.0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/ac/69/b479a93dea16287dd62bcad6d622e5fa24ab7d864067e9a6199c64f90969/pylzy-1.10.0.tar.gz#sha256=37317b3ca81b98fe7aceba4f4443a4356c67f7c2bf0c1d7b2dc7aeb46e222942\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.10.0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/1e/a2/62bb2dfbd20962f35491f133b8b9895ef8f6864f1d510c00e014cedea46c/pylzy-1.10.1-py2.py3-none-any.whl#sha256=5a1dbffec0b5806a20d8802984f03e9543fac53954a2de2164eba6dfa98a6ffb\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.10.1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/85/99/bddc87114a72e886375a9a085e316c4292fe6cf9a8146a357f5ac90a4d21/pylzy-1.10.1.tar.gz#sha256=9939d1b413b67b30a0b19ebf1d7dc2381ef8124b7ce98f191cabb3cac5a160fa\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.10.1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/8a/f3/ca1f943ed6762c95b7ca142221cdab892942d4056dbb64a1cfcdc6b7b020/pylzy-1.10.2-py2.py3-none-any.whl#sha256=e593ffc62a597d3c5647eb6dd57772074283d1aab7719662c915915c3d3c222b\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.10.2-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/10/f1/7c52fa67907d9252d94e591f41c4462fa26a396c8f1521d97f14e7e42220/pylzy-1.10.2.tar.gz#sha256=8af316d7f7c57016bda33a00d8e1a7bddadb05ea20b1b19f89f186944b0017b3\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.10.2.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/be/7b/7c25a36d0a9669784ade4479c30611dede4b84d535f9cd8e98552eae2cea/pylzy-1.11.0-py2.py3-none-any.whl#sha256=f7d3a042769c7c253fc160c634b8869eb48ca1054f4b3f571bc40bd094ec1bd2\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.11.0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/80/1c/78af71c48613b24a29d11087cf6d44052e8a3aaacf75a801c7559243e1b5/pylzy-1.11.0.tar.gz#sha256=886fa3cc3cfca99f4f6d4b146e79ec96ba2ac68dd4e4196b9d3c015f1dcaaa35\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.11.0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/8b/bb/b7d89012dbafd786b3a527cbcf584049b7b4c0ea1083b6f82b223d1121bc/pylzy-1.12.1-py2.py3-none-any.whl#sha256=75c4726fb734216bc5e134f2bedf9bb64a58f603ee2351626c2c54a5b1741a17\"
+        data-requires-python=\"&gt;=3.7\" data-dist-info-metadata=\"sha256=5f2bb8411eab8c730b3a87c73d6efbf8c796ee2b7809b0c3b00c564cb4fbed02\"
+        data-core-metadata=\"sha256=5f2bb8411eab8c730b3a87c73d6efbf8c796ee2b7809b0c3b00c564cb4fbed02\">pylzy-1.12.1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/21/74/aa2e6960cd515222199f3605dcc389161f530b56f1141a7800bc552ca4b7/pylzy-1.12.1.tar.gz#sha256=c0b58ad0d95104b52f7b5fdf657150cf507e3458695dfeebe13ce68602e90925\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.12.1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/43/1c/15097d9081bbe4df3c3145d2e118fcc4a2823348b672eb44b29a98936c4e/pylzy-1.13.0-py2.py3-none-any.whl#sha256=48a0d5cbbd2f30df21d0e74ad0e906fd22db725b385ce84bfa1056f442bdc7de\"
+        data-requires-python=\"&gt;=3.7\" data-dist-info-metadata=\"sha256=3bf572894b75006b21067c91feb2d40cd3a4b0652663c51098a10e0b6f885342\"
+        data-core-metadata=\"sha256=3bf572894b75006b21067c91feb2d40cd3a4b0652663c51098a10e0b6f885342\">pylzy-1.13.0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/5c/5b/411d4756e294b24a6f9c4fb22ea463823d6a5502d3aa160e87b2172ff533/pylzy-1.13.0.tar.gz#sha256=06949159520c1a07e2f9cfb3bd55fe91aa55b72808e2553e14c20b27b4071148\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.13.0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/c0/b0/581baa09e2a7078da4378d8877b5e9afcb37fa1c103902d7f8b876c6f03a/pylzy-1.13.1-py2.py3-none-any.whl#sha256=6900411247c8e59f434b52c09eb59f6d74546216426916a96a2b9a67c6cb10c9\"
+        data-requires-python=\"&gt;=3.7\" data-dist-info-metadata=\"sha256=43bffb0d504a3b5ae426c2ba56edbc13f11fc694fee83a9ccd78423fb5f39591\"
+        data-core-metadata=\"sha256=43bffb0d504a3b5ae426c2ba56edbc13f11fc694fee83a9ccd78423fb5f39591\">pylzy-1.13.1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/3e/8f/d2fb0e569cb836e45b1eb665b6eff93b9b88a314d0a195fb212a5f61ed97/pylzy-1.13.1.tar.gz#sha256=aed1c81d389e785685bf96dd67749cf5c7949cb69014dd15179a9b2abaad6cef\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.13.1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/b7/0f/6e7e553e73063a483d757584fbac0717b8156c761e419a56871c70a87bc4/pylzy-1.13.2-py2.py3-none-any.whl#sha256=7d426713755a6bec8526e49ba89e0fb7fdb982772144a068fcdd5a0635a76e22\"
+        data-requires-python=\"&gt;=3.7\" data-dist-info-metadata=\"sha256=76e942c8b953f08a2c05f8ae2c2f339535726469f3af260da8c61e66e540449a\"
+        data-core-metadata=\"sha256=76e942c8b953f08a2c05f8ae2c2f339535726469f3af260da8c61e66e540449a\">pylzy-1.13.2-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/70/58/eebbacfb819a5d8e6617614d718eec89fe41815df367b7c58a232d46f5a7/pylzy-1.13.2.tar.gz#sha256=02bfae91308e7f8a46662c5e3010267c6afb1c666f85441c1ad2c338684fad2d\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.13.2.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/85/bd/dc0704f146f95cb3c9c80b906ebb8f0d9284ffe956ac591e591404451da8/pylzy-1.14.0-py2.py3-none-any.whl#sha256=439a17e0cc4d1fa82f8593ca1e7ed1e747f1cde12fcd88b110fe0e9dad1233da\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=ce6197560ab5e5bdb7715dd2d56e424aa19c3e16be02c0c33b087f7216bd6da4\"
+        data-core-metadata=\"sha256=ce6197560ab5e5bdb7715dd2d56e424aa19c3e16be02c0c33b087f7216bd6da4\">pylzy-1.14.0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/02/ed/073501627c6e0162217792ce86182bdb71a8493ba16e80c43c60f89e5283/pylzy-1.14.0.tar.gz#sha256=4664b08ac785c668bb68d15e612b79f343fbe23d22f36786d52229c2b023348f\"
+        data-requires-python=\"&gt;=3.8\" >pylzy-1.14.0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/b0/54/c94dc70d66f9692fedc26c7cc2a93dfe33fb5dfa41b60f991dc1a4f3b8bb/pylzy-1.15.0rc0-py2.py3-none-any.whl#sha256=7e27d04811ad1c5087f536b25c7df9fea22eb0f74f593d58a8d45e519a0babd3\"
+        data-requires-python=\"&gt;=3.7\" data-dist-info-metadata=\"sha256=7338d17be6690316ec75b63d1d2613f0436fd95343a8b41042a080cc3718250d\"
+        data-core-metadata=\"sha256=7338d17be6690316ec75b63d1d2613f0436fd95343a8b41042a080cc3718250d\">pylzy-1.15.0rc0-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/87/e2/eae6a6731959f0839d521fd77d3ebbf123896f382fa390774119f83a3441/pylzy-1.15.0rc0.tar.gz#sha256=a799f3c0b940edf9709e5472f55a440b3a00dff75b33f8f2c32bce845326a0f3\"
+        data-requires-python=\"&gt;=3.7\" >pylzy-1.15.0rc0.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/07/9a/46fff5a428858929d8190d8f82606abd6d72b861e9a4a13adbfce0f09040/pylzy-1.15.0rc1-py2.py3-none-any.whl#sha256=768bc0ecc96561456ceb087e2b3b108122b19c21fb944e1a6ea3a5feb911016d\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=bded64cb90e21a590f4966284b4b2121f9b9e155391d130606ab74e4b43aa125\"
+        data-core-metadata=\"sha256=bded64cb90e21a590f4966284b4b2121f9b9e155391d130606ab74e4b43aa125\">pylzy-1.15.0rc1-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/df/fe/97d2ce6ef5b4e3eca20bb84d1e4712a47bbcc9ca2e7dde747cb5083d4acf/pylzy-1.15.0rc1.tar.gz#sha256=ce5f68ba73cd7d195c175af79fbb86c8c54cded7116ec65f2cfe70985edc61d3\"
+        data-requires-python=\"&gt;=3.8\" >pylzy-1.15.0rc1.tar.gz</a><br />\n<a href=\"https://files.pythonhosted.org/packages/01/67/c1268ae094f1165e0845eaee508c2d14dba12162111bb2e4916d58216a56/pylzy-1.15.0rc2-py2.py3-none-any.whl#sha256=99684a3f349ce0a6001c42b702b273067387696dfc03ad75e3fcdf9e0cbea278\"
+        data-requires-python=\"&gt;=3.8\" data-dist-info-metadata=\"sha256=974cf75a3a9af0272faf1f042aa8a62005244a60d68f25fa4e7497a0c42e05e7\"
+        data-core-metadata=\"sha256=974cf75a3a9af0272faf1f042aa8a62005244a60d68f25fa4e7497a0c42e05e7\">pylzy-1.15.0rc2-py2.py3-none-any.whl</a><br
+        />\n<a href=\"https://files.pythonhosted.org/packages/e9/2c/e7987cc3c010e185f353cdab45c25ca4ebaa60db3a79f87fe522bcda1aca/pylzy-1.15.0rc2.tar.gz#sha256=40719291c5faef422c41d5eaa6769a28d521d7df1ab7ec03617e0fc8cb400337\"
+        data-requires-python=\"&gt;=3.8\" >pylzy-1.15.0rc2.tar.gz</a><br />\n</body>\n</html>\n<!--SERIAL
+        19981775-->"
+    headers:
+      Accept-Ranges:
+      - bytes
+      Access-Control-Allow-Headers:
+      - Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since
+      Access-Control-Allow-Methods:
+      - GET
+      Access-Control-Allow-Origin:
+      - '*'
+      Access-Control-Expose-Headers:
+      - X-PyPI-Last-Serial
+      Access-Control-Max-Age:
+      - '86400'
+      Cache-Control:
+      - max-age=600, public
+      Connection:
+      - keep-alive
+      Content-Security-Policy:
+      - default-src 'none'; sandbox allow-top-navigation
+      Content-Type:
+      - text/html
+      Date:
+      - Wed, 11 Oct 2023 13:39:35 GMT
+      ETag:
+      - '"unFvNszgnmjGGMtWxiDP/g"'
+      Permissions-Policy:
+      - publickey-credentials-create=(self),publickey-credentials-get=(self),accelerometer=(),ambient-light-sensor=(),autoplay=(),battery=(),camera=(),display-capture=(),document-domain=(),encrypted-media=(),execution-while-not-rendered=(),execution-while-out-of-viewport=(),fullscreen=(),gamepad=(),geolocation=(),gyroscope=(),hid=(),identity-credentials-get=(),idle-detection=(),local-fonts=(),magnetometer=(),microphone=(),midi=(),otp-credentials=(),payment=(),picture-in-picture=(),screen-wake-lock=(),serial=(),speaker-selection=(),storage-access=(),usb=(),web-share=(),xr-spatial-tracking=()
+      Referrer-Policy:
+      - origin-when-cross-origin
+      Strict-Transport-Security:
+      - max-age=31536000; includeSubDomains; preload
+      Vary:
+      - Accept, Accept-Encoding
+      X-Cache:
+      - HIT, HIT
+      X-Cache-Hits:
+      - 17, 1
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - deny
+      X-Permitted-Cross-Domain-Policies:
+      - none
+      X-PyPI-Last-Serial:
+      - '19981775'
+      X-Served-By:
+      - cache-iad-kcgs7200166-IAD, cache-cpt13822-CPT
+      X-Timer:
+      - S1697031576.992693,VS0,VE0
+      X-XSS-Protection:
+      - 1; mode=block
+      content-length:
+      - '58413'
+    status:
+      code: 200
+      message: OK
 version: 1
