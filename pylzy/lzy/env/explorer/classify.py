@@ -63,7 +63,7 @@ class ModuleClassifier:
             modules_without_distribution
         )
         packages = self._classify_distributions(distributions, binary_distributions)
-        packages |= self._classify_meta_package_distributions(packages, binary_distributions)
+        packages |= self._process_meta_package_distributions(packages, binary_distributions)
         packages |= self._classify_modules_without_distributions(modules_without_distribution)
 
         return frozenset(packages)
@@ -120,17 +120,12 @@ class ModuleClassifier:
         Here we are dividing distributions into two piles:
         those which are present on pypi and thos which is not.
         """
-        result: Set[BasePackage] = set()
 
-        # sorting for tests repeatability
-        for distribution in sorted(
-            distributions,
-            key=lambda d: (d.name, d.version)
-        ):
-            package = self._classify_distribution(distribution, binary_distributions)
-            result.add(package)
-
-        return result
+        # sorting needed for tests repeatability
+        return {
+            self._classify_distribution(distribution, binary_distributions)
+            for distribution in sorted(distributions, key=lambda d: (d.name, d.version))
+        }
 
     def _classify_distribution(
         self,
@@ -212,7 +207,7 @@ class ModuleClassifier:
 
         return result
 
-    def _classify_meta_package_distributions(
+    def _process_meta_package_distributions(
         self,
         packages: Set[BasePackage],
         binary_distributions: DistributionSet,
@@ -247,7 +242,7 @@ class ModuleClassifier:
                     meta_packages.add(meta_package)
 
         # step 1: finding all meta packages that requires any package
-        # we already found though module exploring
+        # we already found through module exploring
         for package in packages:
             add_meta_requirements(package.name)
 

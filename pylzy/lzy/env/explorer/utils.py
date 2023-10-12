@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import types
+from collections import defaultdict
 from functools import lru_cache
 from inspect import isclass, getmro
 from pathlib import Path
@@ -139,16 +140,11 @@ def check_distribution_is_meta_package(distribution: Distribution) -> bool:
         # files list
         return False
 
-    for filename in distribution.files:
-        path = Path(filename)
-        directory = path.parts[0]
-        if (
-            not directory.endswith('.dist-info') and
-            not directory.endswith('.egg-info')
-        ):
-            return False
-
-    return True
+    directories = [Path(filename).parts[0] for filename in distribution.files or ()]
+    return all(
+        directory.endswith('.dist-info') or directory.endswith('.egg-info')
+        for directory in directories
+    )
 
 
 def get_name_from_requirement_string(requirement_string: str) -> Optional[str]:
@@ -162,7 +158,7 @@ def get_name_from_requirement_string(requirement_string: str) -> Optional[str]:
 
 @lru_cache(maxsize=None)  # cache size is about few MB
 def get_requirements_to_meta_packages() -> Dict[str, List[Distribution]]:
-    result: Dict[str, List[Distribution]] = {}
+    result: Dict[str, List[Distribution]] = defaultdict(list)
 
     with tmp_cwd():
         for distribution in get_names_to_distributions().values():
@@ -172,7 +168,6 @@ def get_requirements_to_meta_packages() -> Dict[str, List[Distribution]]:
             for requirement_string in distribution.requires or ():
                 name = get_name_from_requirement_string(requirement_string)
                 if name:
-                    result.setdefault(name, [])
                     result[name].append(distribution)
 
-    return result
+    return dict(result)
