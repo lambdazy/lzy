@@ -32,7 +32,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, @Nullable String[] envp) {
         LOG.info("Executing command `{}`", command);
-        String[] bashCmd = new String[]{"bash", "-c", "cd %s && ".formatted(workingDirectory) + command};
+        String[] bashCmd = new String[]{"/bin/bash", "-c", "cd %s && ".formatted(workingDirectory) + command};
 
         var env = new ArrayList<>(envList);
 
