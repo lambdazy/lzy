@@ -264,6 +264,11 @@ class ModuleClassifier:
             if not isinstance(package, LocalDistribution):
                 assert_never()
 
+            # XXX: All code below is needed for theoretical
+            # edge cases and could be safely removed:
+            # if we have "local" meta-package (which was failed to find at pypi)
+            # and it depends on different meta-packages, for example
+
             # step 4: if metapackage is not found on pypi,
             # we must treat it as local distribution,
             # but it lacking files by defenition.
