@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 import os
 from functools import lru_cache
-from typing import FrozenSet, Set, Dict, cast, Iterable, Tuple
+from typing import FrozenSet, Set, Dict, cast, Iterable, Tuple, Union, List
 from types import ModuleType
 
 from importlib.machinery import ExtensionFileLoader
 from importlib_metadata import Distribution
 
+from typing_extensions import assert_never
 from packaging.tags import PythonVersion
 
 from lzy.utils.pypi import (
@@ -26,8 +27,12 @@ from .packages import (
 )
 from .utils import (
     get_files_to_distributions,
+    get_names_to_distributions,
     get_stdlib_module_names,
     get_builtin_module_names,
+    get_requirements_to_meta_packages,
+    get_name_from_requirement_string,
+    check_distribution_is_meta_package,
     check_url_is_local_file,
 )
 
@@ -43,6 +48,8 @@ class ModuleClassifier:
         self.stdlib_module_names = get_stdlib_module_names()
         self.builtin_module_names = get_builtin_module_names()
         self.files_to_distributions = get_files_to_distributions()
+        self.names_to_distributions = get_names_to_distributions()
+        self.requirements_to_meta_packages = get_requirements_to_meta_packages()
 
     def classify(self, modules: Iterable[ModuleType]) -> FrozenSet[BasePackage]:
         distributions: DistributionSet = set()
@@ -56,6 +63,7 @@ class ModuleClassifier:
             modules_without_distribution
         )
         packages = self._classify_distributions(distributions, binary_distributions)
+        packages |= self._process_meta_package_distributions(packages, binary_distributions)
         packages |= self._classify_modules_without_distributions(modules_without_distribution)
 
         return frozenset(packages)
@@ -112,47 +120,47 @@ class ModuleClassifier:
         Here we are dividing distributions into two piles:
         those which are present on pypi and thos which is not.
         """
-        result: Set[BasePackage] = set()
 
-        # sorting for tests repeatability
-        for distribution in sorted(
-            distributions,
-            key=lambda d: (d.name, d.version)
+        # sorting needed for tests repeatability
+        return {
+            self._classify_distribution(distribution, binary_distributions)
+            for distribution in sorted(distributions, key=lambda d: (d.name, d.version))
+        }
+
+    def _classify_distribution(
+        self,
+        distribution: Distribution,
+        binary_distributions: DistributionSet,
+    ) -> Union[PypiDistribution, LocalDistribution]:
+        # TODO: make this check parallel
+        if self._check_distribution_at_pypi(
+            pypi_index_url=self.pypi_index_url,
+            name=distribution.name,
+            version=distribution.version,
         ):
-            package: BasePackage
-            # TODO: make this check parallel
-            if self._check_distribution_at_pypi(
+            have_server_supported_tags = self._check_distribution_platform_at_pypi(
                 pypi_index_url=self.pypi_index_url,
                 name=distribution.name,
                 version=distribution.version,
-            ):
-                have_server_supported_tags = self._check_distribution_platform_at_pypi(
-                    pypi_index_url=self.pypi_index_url,
-                    name=distribution.name,
-                    version=distribution.version,
-                    target_python=self.target_python
-                )
+                target_python=self.target_python
+            )
 
-                package = PypiDistribution(
-                    name=distribution.name,
-                    version=distribution.version,
-                    pypi_index_url=self.pypi_index_url,
-                    have_server_supported_tags=have_server_supported_tags,
-                )
-            else:
-                paths, bad_paths = self._get_distribution_paths(distribution)
-                is_binary = distribution in binary_distributions
-                package = LocalDistribution(
-                    name=distribution.name,
-                    version=distribution.version,
-                    paths=paths,
-                    is_binary=is_binary,
-                    bad_paths=bad_paths,
-                )
+            return PypiDistribution(
+                name=distribution.name,
+                version=distribution.version,
+                pypi_index_url=self.pypi_index_url,
+                have_server_supported_tags=have_server_supported_tags,
+            )
 
-            result.add(package)
-
-        return result
+        paths, bad_paths = self._get_distribution_paths(distribution)
+        is_binary = distribution in binary_distributions
+        return LocalDistribution(
+            name=distribution.name,
+            version=distribution.version,
+            paths=paths,
+            is_binary=is_binary,
+            bad_paths=bad_paths,
+        )
 
     def _classify_modules_without_distributions(
         self,
@@ -196,6 +204,110 @@ class ModuleClassifier:
                 is_binary=top_level in binary_distributions
             )
             result.add(package)
+
+        return result
+
+    def _process_meta_package_distributions(
+        self,
+        packages: Set[BasePackage],
+        binary_distributions: DistributionSet,
+    ) -> Set[BasePackage]:
+        """
+        Here we are trying to find and classify meta packages.
+        We are considering as meta package any package that doesn't contain any files
+        except for its meta.
+        Problem is, these meta-packages can't be found by usual module exploring because there no
+        modules in it.
+
+        For example, meta package "tensorflow" requires usual package "tensorflow-intel".
+        We must find "tensorflow" in our exploring process to send it as requirement to server,
+        because server could have different platform from local machine and requirements
+        from meta package "tensorflow" will be compiled to another packages list.
+        (Also we will filter "tensorflow-intel" from requirements because server have
+        wrong platorm for it, look at `_check_distribution_platform_at_pypi`)
+
+        """
+
+        result: Set[BasePackage] = set()
+        meta_packages: DistributionSet = set()
+        seen_meta_packages: Set[str] = set()
+
+        def add_meta_requirements(name: str) -> None:
+            """here we check if package with 'name' are required by one or more
+            meta-packages and if it is, we adding these meta packages to our DFS"""
+
+            new_meta_packages = self.requirements_to_meta_packages.get(name, ())
+            for meta_package in new_meta_packages:
+                if meta_package.name not in seen_meta_packages:
+                    meta_packages.add(meta_package)
+
+        # step 1: finding all meta packages that requires any package
+        # we already found through module exploring
+        for package in packages:
+            add_meta_requirements(package.name)
+
+        # step 2: classify all found meta packages
+        while meta_packages:
+            meta_package = meta_packages.pop()
+            seen_meta_packages.add(meta_package.name)
+
+            package = self._classify_distribution(meta_package, set())
+
+            # step 3: if metapackage is found on pypi, just add it to result
+            # as usual PypiPackage
+            if isinstance(package, PypiDistribution):
+                result.add(package)
+                continue
+
+            # package var must include PypiDistribution | LocalDistribution
+            # so this will never assert
+            if not isinstance(package, LocalDistribution):
+                assert_never()
+
+            # XXX: All code below is needed for theoretical
+            # edge cases and could be safely removed:
+            # if we have "local" meta-package (which was failed to find at pypi)
+            # and it depends on different meta-packages, for example
+
+            # step 4: if metapackage is not found on pypi,
+            # we must treat it as local distribution,
+            # but it lacking files by defenition.
+            # also, as it lacking files, we didn't found
+            # it's requirement packages through module exporing
+            requirements: List[str] = meta_package.requires or []
+            for requirement_string in requirements:
+                requirement_name = get_name_from_requirement_string(requirement_string)
+
+                # we failed to parse this string
+                if not requirement_name:
+                    continue
+
+                distribution = self.names_to_distributions.get(requirement_name)
+
+                # it is maybe okay, if we fail to find requirement package on local machine:
+                # 1) we ignoring markers in requirement_string, for example
+                #    "package<1.0.0; python_version<'3.10'"
+                #    so this requirement may be not real for us right here.
+                # 2) we could fail to find it by another reason, for example,
+                #    we are ignoring packages, builded with
+                #    obsolete egg-info; I think it is too much stars to align.
+                if not distribution:
+                    continue
+
+                # if requirement is another meta package, we need to add it to our DFS
+                if check_distribution_is_meta_package(distribution):
+                    if distribution.name not in seen_meta_packages:
+                        meta_packages.add(distribution)
+
+                    continue
+
+                # it is non-meta package, so classify it as usual
+                package = self._classify_distribution(distribution, binary_distributions)
+                result.add(package)
+
+                # if requirement is a non-meta package, it still may be
+                # required by another meta package
+                add_meta_requirements(package.name)
 
         return result
 

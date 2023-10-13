@@ -9,6 +9,7 @@ from lzy.env.explorer.search import (
     get_transitive_namespace_dependencies,
     _get_vars_dependencies,
 )
+from lzy.env.explorer.utils import get_requirements_to_meta_packages
 
 
 def test_get_vars_dependencies(with_test_modules: None) -> None:
@@ -116,3 +117,11 @@ def test_get_transitive_namespace_dependencies(with_test_modules) -> None:
     assert_dependencies({'foo': empty, 'bar': simple_class.SimpleClass}, {empty, simple_class})
     assert_dependencies({'foo': second_import.empty}, {empty})
     assert_dependencies({'foo': second_import.two_dependencies}, {one_dependency, two_dependencies, simple_class})
+
+
+def test_get_requirements_to_meta_packages() -> None:
+    etalon = {'pylzy', 'lzy-test-project'}
+    assert set(get_requirements_to_meta_packages()) == etalon
+
+    for pkg in etalon:
+        assert get_requirements_to_meta_packages()[pkg][0].name == 'lzy-test-project-meta'
