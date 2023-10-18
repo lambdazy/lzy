@@ -231,6 +231,7 @@ public class KuberVmAllocator implements VmAllocator {
         throws InvalidConfigurationException
     {
         ArrayList<String> cmds = new ArrayList<>();
+        cmds.add(String.format("mkdir -p %s;", toPath));
         cmds.add(String.format("mount --rbind %s %s;", fromPath, toPath));
         if (chown != null) {
             cmds.add(String.format("chown -Rf %s:%s %s;", chown, chown, toPath));
