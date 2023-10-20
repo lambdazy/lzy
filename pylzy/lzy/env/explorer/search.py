@@ -8,7 +8,7 @@ from typing import Dict, Any, Set, FrozenSet, List, Tuple, Optional, Iterable, I
 from types import ModuleType
 
 from lzy.logs.config import get_logger
-from .utils import getmembers, get_stdlib_module_names, get_builtin_module_names
+from .utils import getmembers, get_stdlib_module_names, get_builtin_module_names, is_lazy_module
 
 ModulesSet = Set[ModuleType]
 ModulesFrozenSet = FrozenSet[ModuleType]
@@ -153,6 +153,9 @@ def _get_search_stoplist() -> FrozenSet[str]:
 
 @functools.lru_cache(maxsize=None)
 def _filter_dependency(module: ModuleType) -> bool:
+    if is_lazy_module(module):
+        return True
+
     stoplist = _get_search_stoplist()
 
     parts = module.__name__.split('.')

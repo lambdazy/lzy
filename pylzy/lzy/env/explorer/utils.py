@@ -21,7 +21,7 @@ def getmembers(object: Any, predicate=None) -> List[Tuple[str, Any]]:
 
     NB: this function is a copypaste from inspect.py with small addition:
     we are catching TypeError in addition to AttributeError
-    and ModuleNotFoundError in additition to other AttributeError at other tre/except.
+    and ModuleNotFoundError in addition to other AttributeError at other try/except.
     """
     if isclass(object):
         mro = (object,) + getmro(object)
@@ -58,6 +58,8 @@ def getmembers(object: Any, predicate=None) -> List[Tuple[str, Any]]:
                 # could be a (currently) missing slot member, or a buggy
                 # __dir__; discard and move on
                 continue
+        except RuntimeError:
+            continue
         if not predicate or predicate(value):
             results.append((key, value))
         processed.add(key)
@@ -178,3 +180,10 @@ def is_wellknown_fake_module(top_level_module_name: str, module_filename: str) -
         if module_filename in ['torch.ops', '_ops.py', '_classes.py']:
             return True
     return False
+
+
+def is_lazy_module(module: types.ModuleType) -> bool:
+    return (
+        getattr(module.__class__, '__module__', None) == 'tensorboard.lazy' and
+        type(module).__name__ == 'LazyModule'
+    )
