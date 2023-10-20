@@ -33,7 +33,7 @@ from .utils import (
     get_requirements_to_meta_packages,
     get_name_from_requirement_string,
     check_distribution_is_meta_package,
-    check_url_is_local_file,
+    check_url_is_local_file, is_wellknown_fake_module,
 )
 
 
@@ -78,26 +78,30 @@ class ModuleClassifier:
         """
         Here we are dividing modules into two piles:
         those which are part of some distribution and those which are not.
-        Also here we are noting distributions with binary modules.
+        Also, here we are noting distributions with binary modules.
         """
         for module in modules:
             module_name = module.__name__
             top_level: str = module_name.split('.')[0]
             filename = getattr(module, '__file__', None)
 
-            # Modules without __file__ doesn't represent specific file at the disk
-            # so we a generally doesn't interested about it.
+            # Modules without __file__ doesn't represent specific file at the disk,
+            # so we are generally not interested about it.
             # It can be namespace modules or strange virtual modules as the `six.moves.*`.
             # It's totally okay that we are skipping it and don't require any warning,
-            # because we should process such distributions by other signes.
+            # because we should process such distributions by other properties.
             if not filename:
                 continue
 
-            # We also doesn't interested in standard modules
+            # We also not interested in standard modules
             if (
                 top_level in self.stdlib_module_names or
                 top_level in self.builtin_module_names
             ):
+                continue
+
+            # ... and fake modules
+            if is_wellknown_fake_module(top_level, filename):
                 continue
 
             distribution = self.files_to_distributions.get(filename)

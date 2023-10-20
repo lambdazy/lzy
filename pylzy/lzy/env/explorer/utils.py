@@ -135,7 +135,7 @@ def get_files_to_distributions() -> Dict[str, Distribution]:
 
 def check_distribution_is_meta_package(distribution: Distribution) -> bool:
     if not distribution.files:
-        # NB: .egg-info packages and some apt-packages doensn't have
+        # NB: .egg-info packages and some apt-packages doesn't have
         # a dist-info directory and importlib.metadata fails to generate
         # files list
         return False
@@ -171,3 +171,10 @@ def get_requirements_to_meta_packages() -> Dict[str, List[Distribution]]:
                     result[name].append(distribution)
 
     return dict(result)
+
+
+def is_wellknown_fake_module(top_level_module_name: str, module_filename: str) -> bool:
+    if top_level_module_name == 'torch':
+        if module_filename in ['torch.ops', '_ops.py', '_classes.py']:
+            return True
+    return False
