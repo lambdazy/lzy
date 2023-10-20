@@ -33,7 +33,8 @@ from .utils import (
     get_requirements_to_meta_packages,
     get_name_from_requirement_string,
     check_distribution_is_meta_package,
-    check_url_is_local_file, is_wellknown_fake_module,
+    check_url_is_local_file,
+    is_wellknown_fake_module,
 )
 
 
