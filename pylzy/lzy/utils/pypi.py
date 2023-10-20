@@ -29,7 +29,7 @@ PYPI_INDEX_URL_DEFAULT = PYPI_SIMPLE_ENDPOINT
 
 # TODO: obtain this information from server
 TARGET_PLATFORMS: Tuple[str, ...] = (
-    'linux_x86_64'
+    'linux_x86_64',
     'manylinux1_x86_64',
     'manylinux2010_x86_64',
     'manylinux2014_x86_64',
