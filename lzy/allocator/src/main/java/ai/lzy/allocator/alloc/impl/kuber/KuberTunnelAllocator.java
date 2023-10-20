@@ -87,6 +87,11 @@ public class KuberTunnelAllocator implements TunnelAllocator {
                     KuberLabels.LZY_VM_ID_LABEL, vmSpec.vmId(),
                     KuberLabels.LZY_APP_LABEL, TUNNEL_POD_APP_LABEL_VALUE
                 ))
+                .withNodeSelector(Map.of(
+                    KuberLabels.NODE_POOL_LABEL, vmSpec.poolLabel(),
+                    KuberLabels.NODE_POOL_AZ_LABEL, vmSpec.zone(),
+                    KuberLabels.NODE_POOL_STATE_LABEL, "ACTIVE"
+                ))
                 .withLoggingVolume()
                 .build();
 
