@@ -10,25 +10,19 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class PlainPythonEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(PlainPythonEnvironment.class);
 
     private final BaseEnvironment baseEnv;
-    private final String localModulesPathPrefix;
     private final Map<String, String> localModules;
-    private Path localModulesPath;
+    private final Path workingDir;
 
-    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules,
-                                  String localModulesPathPrefix)
-    {
+    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules, String workingDirPrefix) {
         this.localModules = localModules;
         this.baseEnv = baseEnv;
-        this.localModulesPathPrefix = localModulesPathPrefix;
+        this.workingDir = Path.of(workingDirPrefix, UUID.randomUUID().toString());
     }
 
     @Override
@@ -73,7 +67,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
         LOG.info("Using provided python with version \"{}\"", out);
 
         try {
-            this.localModulesPath = AuxEnvironment.installLocalModules(localModules, localModulesPathPrefix, LOG);
+            AuxEnvironment.installLocalModules(localModules, workingDir, LOG);
         } catch (IOException e) {
             LOG.error("Cannot install local modules", e);
             throw new EnvironmentInstallationException("Cannot install local modules: " + e.getMessage());
@@ -82,11 +76,11 @@ public class PlainPythonEnvironment implements AuxEnvironment {
 
     @Override
     public LzyProcess runProcess(String[] command, String[] envp) {
-        var list = new ArrayList<>(List.of("cd", localModulesPath.toString(), "&&"));
+        var list = new ArrayList<>(List.of("cd", workingDir.toString(), "&&"));
         list.addAll(List.of(command));
 
         List<String> envList = new ArrayList<>();
-        envList.add("LOCAL_MODULES=" + localModulesPath);
+        envList.add("LOCAL_MODULES=" + workingDir);
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));
         }
@@ -96,6 +90,6 @@ public class PlainPythonEnvironment implements AuxEnvironment {
 
     @Override
     public Path workingDirectory() {
-        return localModulesPath;
+        return workingDir;
     }
 }
