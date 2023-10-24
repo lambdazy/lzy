@@ -31,6 +31,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -61,8 +62,10 @@ public class EnvironmentFactory {
             return envForTests.get();
         }
 
+        var resourcesDir = Path.of(RESOURCES_PATH, UUID.randomUUID().toString());
+
         try {
-            Files.createDirectories(Path.of(RESOURCES_PATH));
+            Files.createDirectories(resourcesDir);
         } catch (Exception e) {
             LOG.error("Cannot create resources directories: ", e);
             throw new EnvironmentInstallationException(e);
@@ -162,7 +165,7 @@ public class EnvironmentFactory {
                 LOG.error("Cannot find conda in provided env, rc={}, env={}: {}", res, env, err);
                 auxEnv = new PlainPythonEnvironment(baseEnv, env.getPyenv().getLocalModulesList()
                     .stream()
-                    .collect(Collectors.toMap(LocalModule::getName, LocalModule::getUri)), RESOURCES_PATH);
+                    .collect(Collectors.toMap(LocalModule::getName, LocalModule::getUri)), resourcesDir);
             } else {
                 final String out;
 
@@ -178,11 +181,11 @@ public class EnvironmentFactory {
                     env.getPyenv().getLocalModulesList()
                         .stream()
                         .collect(Collectors.toMap(LocalModule::getName, LocalModule::getUri)),
-                    RESOURCES_PATH);
+                    resourcesDir);
             }
 
         } else if (env.hasProcessEnv()) {
-            auxEnv = new SimpleBashEnvironment(baseEnv, Map.of(), Path.of(RESOURCES_PATH));
+            auxEnv = new SimpleBashEnvironment(baseEnv, Map.of(), resourcesDir);
         } else {
             LOG.error("Error while creating env: undefined env");
             throw Status.UNIMPLEMENTED.withDescription("Provided unsupported env")

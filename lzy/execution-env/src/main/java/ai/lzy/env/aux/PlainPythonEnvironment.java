@@ -19,10 +19,10 @@ public class PlainPythonEnvironment implements AuxEnvironment {
     private final Map<String, String> localModules;
     private final Path workingDir;
 
-    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules, String workingDirPrefix) {
+    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules, Path workingDir) {
         this.localModules = localModules;
         this.baseEnv = baseEnv;
-        this.workingDir = Path.of(workingDirPrefix, UUID.randomUUID().toString());
+        this.workingDir = workingDir;
     }
 
     @Override

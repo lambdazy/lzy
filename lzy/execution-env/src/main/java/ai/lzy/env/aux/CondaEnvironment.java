@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -43,12 +42,12 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     public CondaEnvironment(BaseEnvironment baseEnv, String condaYaml, Map<String, String> localModules,
-                            String workingDirPrefix)
+                            Path workingDir)
     {
         this.condaYaml = condaYaml;
         this.baseEnv = baseEnv;
         this.localModules = localModules;
-        this.workingDir = Path.of(workingDirPrefix, UUID.randomUUID().toString());  // Generating random working dir
+        this.workingDir = workingDir;
     }
 
     @Override
