@@ -7,7 +7,6 @@ import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.yaml.snakeyaml.Yaml;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -18,7 +17,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -34,12 +32,9 @@ public class CondaEnvironment implements AuxEnvironment {
     private final String condaYaml;
     private final BaseEnvironment baseEnv;
     private String envName;
-    private final String resourcesPath;
-    private final String localModulesPathPrefix;
     private final Map<String, String> localModules;
 
-    @Nullable
-    private Path localModulesAbsolutePath = null;
+    private final Path workingDir;
 
     @VisibleForTesting
     public static void reconfigureConda(boolean reconfigure) {
@@ -47,13 +42,12 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     public CondaEnvironment(BaseEnvironment baseEnv, String condaYaml, Map<String, String> localModules,
-                            String resourcesPath, String localModulesPath)
+                            Path workingDir)
     {
-        this.resourcesPath = resourcesPath;
-        this.localModulesPathPrefix = localModulesPath;
         this.condaYaml = condaYaml;
         this.baseEnv = baseEnv;
         this.localModules = localModules;
+        this.workingDir = workingDir;
     }
 
     @Override
@@ -67,7 +61,7 @@ public class CondaEnvironment implements AuxEnvironment {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
 
             try {
-                this.localModulesAbsolutePath = installLocalModules(localModules, localModulesPathPrefix, LOG);
+                installLocalModules(localModules, workingDir, LOG);
             } catch (IOException e) {
                 String errorMessage = "Failed to install local modules";
                 LOG.error("Fail to install local modules. \n", e);
@@ -88,9 +82,7 @@ public class CondaEnvironment implements AuxEnvironment {
                 } else {
                     LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
 
-                    Path condaPath = Path.of(resourcesPath, UUID.randomUUID().toString());
-                    Files.createDirectories(condaPath);
-                    final File condaFile = Files.createFile(Path.of(condaPath.toString(), "conda.yaml")).toFile();
+                    final File condaFile = Files.createFile(workingDir.resolve("conda.yaml")).toFile();
 
                     try (FileWriter file = new FileWriter(condaFile.getAbsolutePath())) {
                         file.write(envYaml);
@@ -138,13 +130,13 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, @Nullable String[] envp) {
         LOG.info("Executing command " + command);
-        assert localModulesAbsolutePath != null;
+        assert workingDir != null;
 
         var bashCmd = new String[] {
             "bash",
             "-c",
             "cd %s && eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
-                .formatted(localModulesAbsolutePath, envName, command)
+                .formatted(workingDir, envName, command)
         };
 
         return baseEnv.runProcess(bashCmd, envp);
@@ -157,7 +149,7 @@ public class CondaEnvironment implements AuxEnvironment {
     @Override
     public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         List<String> envList = new ArrayList<>();
-        envList.add("LOCAL_MODULES=" + localModulesAbsolutePath);
+        envList.add("LOCAL_MODULES=" + workingDir);
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));
         }
@@ -166,6 +158,6 @@ public class CondaEnvironment implements AuxEnvironment {
 
     @Override
     public Path workingDirectory() {
-        return localModulesAbsolutePath;
+        return workingDir;
     }
 }

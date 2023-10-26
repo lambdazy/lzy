@@ -29,10 +29,8 @@ public interface AuxEnvironment extends Environment {
         base().close();
     }
 
-    static Path installLocalModules(Map<String, String> localModules, String localModulesPathPrefix, Logger log)
-        throws EnvironmentInstallationException, IOException
-    {
-        Path localModulesPath = Path.of(localModulesPathPrefix, UUID.randomUUID().toString());
+    static void installLocalModules(Map<String, String> localModules, Path localModulesPath, Logger log)
+        throws EnvironmentInstallationException, IOException {
         try {
             Files.createDirectories(localModulesPath);
         } catch (IOException e) {
@@ -41,7 +39,6 @@ public interface AuxEnvironment extends Environment {
             log.error(errorMessage);
             throw new EnvironmentInstallationException(errorMessage);
         }
-        var localModulesAbsolutePath = localModulesPath.toAbsolutePath();
 
         log.debug("Created directory to download local modules into");
         for (var entry : localModules.entrySet()) {
@@ -56,11 +53,9 @@ public interface AuxEnvironment extends Environment {
                 Files.copy(in, tempFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
 
-            extractFiles(tempFile, localModulesAbsolutePath.toString(), log);
-            tempFile.deleteOnExit();
+            extractFiles(tempFile, localModulesPath.toString(), log);
+            tempFile.delete();
         }
-
-        return localModulesAbsolutePath;
     }
 
     private static void extractFiles(File file, String destinationDirectory, Logger log) throws IOException {
