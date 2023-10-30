@@ -32,11 +32,11 @@ import static ai.lzy.allocator.alloc.impl.kuber.PodSpecBuilder.TUNNEL_POD_TEMPLA
 @Singleton
 @Requires(property = "allocator.kuber-tunnel-allocator.enabled", value = "true")
 public class KuberTunnelAllocator implements TunnelAllocator {
-    private static final Logger LOG = LogManager.getLogger(KuberTunnelAllocator.class);
-    private static final String NAMESPACE = "default";
     public static final String TUNNEL_POD_NAME_PREFIX = "lzy-tunnel-";
     public static final String TUNNEL_POD_APP_LABEL_VALUE = "tunnel";
-
+    public static final String TUNNEL_POD_APP_ADDRESS_ENV = "TUNNEL_AGENT_ADDRESS";
+    private static final Logger LOG = LogManager.getLogger(KuberTunnelAllocator.class);
+    private static final String NAMESPACE = "default";
     private final ClusterRegistry clusterRegistry;
     private final VmPoolRegistry poolRegistry;
     private final KuberClientFactory factory;
@@ -75,8 +75,9 @@ public class KuberTunnelAllocator implements TunnelAllocator {
             var tunnelPodName = TUNNEL_POD_NAME_PREFIX + vmSpec.vmId().toLowerCase(Locale.ROOT);
             var tunnelPodBuilder = new PodSpecBuilder(tunnelPodName, TUNNEL_POD_TEMPLATE_PATH, client, config);
             Pod tunnelPod = tunnelPodBuilder.withWorkloads(
-                    List.of(new Workload("tunnel", tunnelConfig.getPodImage(), Map.of(), List.of(), Map.of(),
-                        List.of())),
+                    List.of(new Workload("tunnel", tunnelConfig.getPodImage(),
+                        Map.of(TUNNEL_POD_APP_ADDRESS_ENV, "[::]:" + tunnelConfig.getAgentPort()),
+                        List.of(), Map.of(), List.of())),
                     /* init */ false)
                 // not to be allocated with another tunnel
                 .withPodAntiAffinity(KuberLabels.LZY_APP_LABEL, "In", TUNNEL_POD_APP_LABEL_VALUE)
@@ -129,7 +130,9 @@ public class KuberTunnelAllocator implements TunnelAllocator {
                 LOG.warn("Pod {} not found", podName);
                 return VmAllocator.Result.SUCCESS;
             }
-            var channel = GrpcUtils.newGrpcChannel(pod.getStatus().getPodIP(),
+            var channel = GrpcUtils.newGrpcChannel(
+                pod.getStatus().getPodIPs().size() > 1 ? pod.getStatus().getPodIPs().get(1).getIp() :
+                    pod.getStatus().getPodIP(),
                 tunnelConfig.getAgentPort(), LzyTunnelAgentGrpc.SERVICE_NAME);
             try {
                 var tunnelAgent = LzyTunnelAgentGrpc.newBlockingStub(channel);
