@@ -3,7 +3,8 @@ package ai.lzy.worker;
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.Execution;
 import ai.lzy.env.aux.AuxEnvironment;
-import ai.lzy.env.logs.LogHandle;
+import ai.lzy.env.logs.LogStream;
+import ai.lzy.env.logs.Logs;
 import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
@@ -38,10 +39,13 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.logs.LogUtils.withLoggingContext;
+import static ai.lzy.worker.LogConstants.STDERR;
+import static ai.lzy.worker.LogConstants.STDOUT;
 import static java.util.stream.Collectors.toMap;
 
 @Singleton
@@ -159,17 +163,18 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             }
         }
 
-        final var logHandle = LogHandle.builder()
+        final var logs = Logs.builder()
             .withWriters(new KafkaLogsWriter(op.getKafkaTopic(), LOG, tid, kafkaHelper))
-            .build("out", "err");
+            .withCollections(LogConstants.LOGS)
+            .build();
 
-        try (logHandle) {
+        try (logs) {
             LOG.info("Configure worker...");
 
             final AuxEnvironment env;
 
             try {
-                env = envFactory.create(config.getMountPoint(), op.getEnv(), logHandle, config.getMountPoint());
+                env = envFactory.create(config.getMountPoint(), op.getEnv(), config.getMountPoint());
             } catch (EnvironmentInstallationException e) {
                 LOG.error("Unable to install environment", e);
 
@@ -197,8 +202,8 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
                 exec.start(env);
 
-                logHandle.logOut(exec.process().out(), /* system */ false);
-                logHandle.logErr(exec.process().err(), /* system */ false);
+                STDOUT.log(exec.process().out());
+                STDERR.log(exec.process().err());
 
                 final int rc = exec.waitFor();
                 final String message;

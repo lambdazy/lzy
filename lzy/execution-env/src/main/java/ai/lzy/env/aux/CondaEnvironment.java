@@ -2,7 +2,7 @@ package ai.lzy.env.aux;
 
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.base.BaseEnvironment;
-import ai.lzy.env.logs.LogHandle;
+import ai.lzy.env.logs.LogStream;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
@@ -55,7 +55,7 @@ public class CondaEnvironment implements AuxEnvironment {
         return baseEnv;
     }
 
-    public void install(LogHandle logHandle) throws EnvironmentInstallationException {
+    public void install(LogStream out, LogStream err) throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
         try {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
@@ -94,8 +94,8 @@ public class CondaEnvironment implements AuxEnvironment {
                             condaFile.getAbsolutePath(),
                             condaFile.getAbsolutePath()));
 
-                    var futOut = logHandle.logOut(lzyProcess.out(), /* system */ true);
-                    var futErr = logHandle.logErr(lzyProcess.err(), /* system */ true);
+                    var futOut = out.log(lzyProcess.out());
+                    var futErr = err.log(lzyProcess.err());
 
                     final int rc;
                     try {
@@ -111,7 +111,7 @@ public class CondaEnvironment implements AuxEnvironment {
                             + "  ReturnCode: " + rc + "\n"
                             + "See your stdout/stderr to see more info";
                         LOG.error(errorMessage);
-                        logHandle.logSysErr(errorMessage);
+                        err.log(errorMessage);
                         throw new EnvironmentInstallationException(errorMessage);
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");

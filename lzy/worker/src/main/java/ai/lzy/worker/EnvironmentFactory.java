@@ -10,7 +10,6 @@ import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.base.DockerEnvDescription;
 import ai.lzy.env.base.DockerEnvironment;
 import ai.lzy.env.base.ProcessEnvironment;
-import ai.lzy.env.logs.LogHandle;
 import ai.lzy.v1.common.LME;
 import ai.lzy.v1.common.LME.LocalModule;
 import com.github.dockerjava.core.DefaultDockerClientConfig;
@@ -39,6 +38,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import static ai.lzy.worker.LogConstants.STDERR;
+import static ai.lzy.worker.LogConstants.STDOUT;
+
 @Singleton
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
@@ -56,7 +58,7 @@ public class EnvironmentFactory {
         this.hasGpu = config.getGpuCount() > 0;
     }
 
-    public AuxEnvironment create(String fsRoot, LME.EnvSpec env, LogHandle logHandle, String lzyMount)
+    public AuxEnvironment create(String fsRoot, LME.EnvSpec env, String lzyMount)
         throws EnvironmentInstallationException
     {
         //to mock environment in tests
@@ -79,7 +81,8 @@ public class EnvironmentFactory {
         if (!Strings.isBlank(env.getDockerImage())) {
             var image = env.getDockerImage();
             LOG.info("Creating env with docker image {}", image);
-            logHandle.logSysOut("Creating env with docker image " + image);
+
+            STDOUT.log("Creating env with docker image " + image);
 
             var credentials = env.hasDockerCredentials() ? env.getDockerCredentials() : null;
 
@@ -122,7 +125,7 @@ public class EnvironmentFactory {
         }
 
         if (INSTALL_ENV.get()) {
-            baseEnv.install(logHandle);
+            baseEnv.install(STDOUT, STDERR);
         }
 
         final AuxEnvironment auxEnv;
@@ -159,7 +162,7 @@ public class EnvironmentFactory {
                 for (var line : env.getPyenv().getYaml().split("\n")) {
                     sb.append("  > ").append(line).append("\n");
                 }
-                logHandle.logSysErr(sb.toString());
+                STDERR.log(sb.toString());
 
                 LOG.error("Cannot find conda in provided env, rc={}, env={}: {}", res, env, err);
                 auxEnv = new PlainPythonEnvironment(baseEnv, env.getPyenv().getLocalModulesList()
@@ -171,7 +174,7 @@ public class EnvironmentFactory {
                 try {
                     out = IOUtils.toString(proc.out(), StandardCharsets.UTF_8).trim();
                     LOG.info("Using conda with version \"{}\"", out);
-                    logHandle.logSysOut("Using conda with version \"%s\"".formatted(out));
+                    STDOUT.log("Using conda with version \"%s\"".formatted(out));
                 } catch (IOException e) {
                     LOG.error("Cannot find conda version", e);
                 }
@@ -192,7 +195,7 @@ public class EnvironmentFactory {
         }
 
         if (INSTALL_ENV.get()) {
-            auxEnv.install(logHandle);
+            auxEnv.install(STDOUT, STDERR);
         }
 
         return auxEnv;
