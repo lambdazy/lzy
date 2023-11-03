@@ -31,7 +31,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public void install(LogStream out, LogStream err) throws EnvironmentInstallationException {
+    public void install(LogStream systemStream) throws EnvironmentInstallationException {
         var proc = baseEnv.runProcess("python", "--version");
         final int res;
 
@@ -52,7 +52,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
 
             var msg = "Cannot get python version. It can be not provided. STDERR: " + error;
             LOG.error(msg);
-            err.log(msg);
+            systemStream.log(msg);
             throw new EnvironmentInstallationException("Python not found. Maybe your docker not contains it");
         }
 

@@ -44,7 +44,7 @@ public class SimpleBashEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public void install(LogStream out, LogStream err) {}
+    public void install(LogStream systemStream) {}
 
     @Override
     public LzyProcess runProcess(String[] command, @Nullable String[] envp) {

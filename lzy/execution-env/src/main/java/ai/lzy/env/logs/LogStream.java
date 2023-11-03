@@ -31,12 +31,12 @@ public class LogStream {
     }
 
     void await() {
-        try {
-            for (var fut : futures) {
+        for (var fut : futures) {
+            try {
                 fut.get();
+            } catch (InterruptedException | ExecutionException e) {
+                LOG.error("Cannot await stream {}: ", streamName, e);
             }
-        } catch (InterruptedException | ExecutionException e) {
-            LOG.error("Cannot await stream {}: ", streamName, e);
         }
     }
 

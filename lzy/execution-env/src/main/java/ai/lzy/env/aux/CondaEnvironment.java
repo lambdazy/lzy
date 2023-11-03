@@ -55,7 +55,7 @@ public class CondaEnvironment implements AuxEnvironment {
         return baseEnv;
     }
 
-    public void install(LogStream out, LogStream err) throws EnvironmentInstallationException {
+    public void install(LogStream systemStream) throws EnvironmentInstallationException {
         lockForMultithreadingTests.lock();
         try {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
@@ -94,8 +94,8 @@ public class CondaEnvironment implements AuxEnvironment {
                             condaFile.getAbsolutePath(),
                             condaFile.getAbsolutePath()));
 
-                    var futOut = out.log(lzyProcess.out());
-                    var futErr = err.log(lzyProcess.err());
+                    var futOut = systemStream.log(lzyProcess.out());
+                    var futErr = systemStream.log(lzyProcess.err());
 
                     final int rc;
                     try {
@@ -111,7 +111,7 @@ public class CondaEnvironment implements AuxEnvironment {
                             + "  ReturnCode: " + rc + "\n"
                             + "See your stdout/stderr to see more info";
                         LOG.error(errorMessage);
-                        err.log(errorMessage);
+                        systemStream.log(errorMessage);
                         throw new EnvironmentInstallationException(errorMessage);
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");

@@ -58,28 +58,28 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public void install(LogStream out, LogStream err) throws EnvironmentInstallationException {
+    public void install(LogStream systemStream) throws EnvironmentInstallationException {
         if (containerId != null) {
-            out.log("Using already running container from cache");
+            systemStream.log("Using already running container from cache");
             LOG.info("Using already running container from cache; containerId: {}", containerId);
             return;
         }
 
         String sourceImage = config.image();
         try {
-            prepareImage(sourceImage, out);
+            prepareImage(sourceImage, systemStream);
         } catch (InterruptedException e) {
             LOG.error("Image pulling was interrupted");
-            err.log("Image pulling was interrupted");
+            systemStream.log("Image pulling was interrupted");
             throw new RuntimeException(e);
         } catch (Exception e) {
             LOG.error("Error while pulling image {}", sourceImage, e);
-            err.log("Error while pulling image: " + e.getMessage());
+            systemStream.log("Error while pulling image: " + e.getMessage());
             throw new RuntimeException(e);
         }
 
         LOG.info("Creating container from image {} ...", sourceImage);
-        out.log("Creating container from image %s ...".formatted(sourceImage));
+        systemStream.log("Creating container from image %s ...".formatted(sourceImage));
 
         final List<Mount> dockerMounts = new ArrayList<>();
         config.mounts().forEach(m -> {
@@ -118,17 +118,17 @@ public class DockerEnvironment extends BaseEnvironment {
         });
 
         final String containerId = container.getId();
-        out.log("Creating container from image %s done".formatted(sourceImage));
+        systemStream.log("Creating container from image %s done".formatted(sourceImage));
         LOG.info("Creating container done; containerId: {}, image: {}", containerId, sourceImage);
 
-        out.log("Environment container starting ...");
+        systemStream.log("Environment container starting ...");
         AtomicInteger containerStartingAttempt = new AtomicInteger(0);
         retry.executeSupplier(() -> {
             LOG.info("Starting env container... (attempt {}); containerId: {}, image: {}",
                 containerStartingAttempt.incrementAndGet(), containerId, sourceImage);
             return client.startContainerCmd(containerId).exec();
         });
-        out.log("Environment container started");
+        systemStream.log("Environment container started");
         LOG.info("Starting env container done; containerId: {}, image: {}", containerId, sourceImage);
 
         this.containerId = containerId;

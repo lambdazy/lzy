@@ -38,8 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static ai.lzy.worker.LogConstants.STDERR;
-import static ai.lzy.worker.LogConstants.STDOUT;
+import static ai.lzy.worker.LogConstants.*;
 
 @Singleton
 public class EnvironmentFactory {
@@ -125,7 +124,7 @@ public class EnvironmentFactory {
         }
 
         if (INSTALL_ENV.get()) {
-            baseEnv.install(STDOUT, STDERR);
+            baseEnv.install(SYSTEM);
         }
 
         final AuxEnvironment auxEnv;
@@ -195,7 +194,7 @@ public class EnvironmentFactory {
         }
 
         if (INSTALL_ENV.get()) {
-            auxEnv.install(STDOUT, STDERR);
+            auxEnv.install(SYSTEM);
         }
 
         return auxEnv;
