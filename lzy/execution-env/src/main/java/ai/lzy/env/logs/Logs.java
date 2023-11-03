@@ -11,6 +11,7 @@ public class Logs implements AutoCloseable {
         for (var collection: collections) {
             for (var stream: collection.getStreams()) {
                 var queue = new LogStreamQueue(stream.name(), writers);
+                queue.start();
                 stream.init(queue);
                 streams.add(stream);
                 queues.add(queue);

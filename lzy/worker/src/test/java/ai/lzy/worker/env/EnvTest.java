@@ -6,8 +6,10 @@ import ai.lzy.env.aux.SimpleBashEnvironment;
 import ai.lzy.env.base.DockerEnvironment;
 import ai.lzy.env.base.ProcessEnvironment;
 import ai.lzy.env.logs.LogStream;
+import ai.lzy.env.logs.Logs;
 import ai.lzy.v1.common.LME;
 import ai.lzy.worker.EnvironmentFactory;
+import ai.lzy.worker.LogConstants;
 import ai.lzy.worker.ServiceConfig;
 import org.junit.After;
 import org.junit.Assert;
@@ -19,6 +21,7 @@ import java.io.InputStreamReader;
 
 public class EnvTest {
     private EnvironmentFactory factory;
+    private Logs logs;
 
     @Before
     public void before() {
@@ -27,6 +30,9 @@ public class EnvTest {
         conf.setGpuCount(0);
 
         this.factory = new EnvironmentFactory(conf);
+        this.logs = Logs.builder()
+            .withCollections(LogConstants.LOGS)
+            .build();
     }
 
     @Test
@@ -96,5 +102,7 @@ public class EnvTest {
     @After
     public void after() {
         this.factory = null;
+        this.logs.close();
+        this.logs = null;
     }
 }
