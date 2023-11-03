@@ -3,7 +3,6 @@ package ai.lzy.worker;
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.Execution;
 import ai.lzy.env.aux.AuxEnvironment;
-import ai.lzy.env.logs.LogStream;
 import ai.lzy.env.logs.Logs;
 import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.resources.AuthPermission;
@@ -39,7 +38,6 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.LockSupport;
 
