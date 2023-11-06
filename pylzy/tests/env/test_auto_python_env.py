@@ -4,12 +4,10 @@ import importlib_metadata
 
 from packaging.tags import PythonVersion
 
-import lzy.config
-import lzy.exceptions
-import lzy.env.explorer.classify
+import envzy.classify
+from envzy import AutoExplorer, ModulePathsList, PackagesDict, BaseExplorer, BadPypiIndex
+
 from lzy.env.python.auto import AutoPythonEnv
-from lzy.env.explorer.auto import AutoExplorer
-from lzy.env.explorer.base import BaseExplorer, ModulePathsList, PackagesDict
 
 
 def test_explorer_factory() -> None:
@@ -70,13 +68,13 @@ def test_get_modules_and_paths(
         return True
 
     monkeypatch.setattr(
-        lzy.env.explorer.classify.ModuleClassifier,
+        envzy.classify.ModuleClassifier,
         '_check_distribution_at_pypi',
         mock_check_distribution_at_pypi,
     )
 
     monkeypatch.setattr(
-        lzy.env.explorer.classify.ModuleClassifier,
+        envzy.classify.ModuleClassifier,
         '_check_distribution_platform_at_pypi',
         mock_check_distribution_platform_at_pypi,
     )
@@ -103,7 +101,8 @@ def test_get_modules_and_paths(
 
 @pytest.mark.vcr
 def test_validate_pypi_index_url(pypi_index_url_testing, monkeypatch):
-    monkeypatch.setattr(lzy.config, 'skip_pypi_validation', False)
+    import envzy.pypi
+    monkeypatch.setattr(envzy.pypi, 'VALIDATE_PYPI_INDEX_URL', True)
 
     python_env = AutoPythonEnv()
     python_env.validate()
@@ -112,5 +111,5 @@ def test_validate_pypi_index_url(pypi_index_url_testing, monkeypatch):
     python_env.validate()
 
     python_env = python_env.with_fields(pypi_index_url='https://example.com')
-    with pytest.raises(lzy.exceptions.BadPypiIndex):
+    with pytest.raises(BadPypiIndex):
         python_env.validate()
