@@ -1,3 +1,4 @@
+envzy
 aioboto3>=9.6.0
 appdirs>=1.4.4,<2.0.0
 azure-storage-blob>=12.9.0,<13.0.0
