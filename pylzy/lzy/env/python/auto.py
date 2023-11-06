@@ -5,16 +5,13 @@ from dataclasses import dataclass
 from typing import Callable, List, Optional
 from typing_extensions import Self
 
-from lzy.env.explorer.base import BaseExplorer
-from lzy.env.explorer.auto import AutoExplorer
+from envzy import AutoExplorer, BaseExplorer
 from .base import BasePythonEnv, ModulePathsList, PackagesDict, NamespaceType
 
 
 def _auto_explorer_factory(auto_py_env: AutoPythonEnv) -> AutoExplorer:
-    target_python = tuple(
-        int(v) for v in
-        auto_py_env.get_python_version().split('.')[:2]
-    )
+    python_version = auto_py_env.get_python_version().split('.')[:2]
+    target_python = (int(python_version[0]), int(python_version[1]))
 
     return AutoExplorer(
         pypi_index_url=auto_py_env.get_pypi_index_url(),

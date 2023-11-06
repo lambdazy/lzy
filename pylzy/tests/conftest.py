@@ -19,7 +19,9 @@ from tests.test_utils.workflow import TestLzyWorkflow
 
 @pytest.fixture(autouse=True)
 def skip_pypi_validation(monkeypatch):
-    monkeypatch.setattr(lzy.config, 'skip_pypi_validation', True)
+    import envzy.pypi
+
+    monkeypatch.setattr(envzy.pypi, 'VALIDATE_PYPI_INDEX_URL', False)
 
 
 @pytest.fixture(autouse=True)
@@ -121,7 +123,7 @@ def vm_spec_small(vm_proto_spec_small) -> VmSpec:
 
 @pytest.fixture(scope='session')
 def pypi_index_url():
-    from lzy.utils.pypi import PYPI_INDEX_URL_DEFAULT
+    from envzy import PYPI_INDEX_URL_DEFAULT
 
     return PYPI_INDEX_URL_DEFAULT
 
