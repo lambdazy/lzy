@@ -20,5 +20,5 @@ types-protobuf
 types-requests
 types-setuptools
 types-PyJWT==1.7.1
-types-PyYAML==6.0.12.2
+types-PyYAML
 types-aiobotocore-support
