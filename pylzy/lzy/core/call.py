@@ -5,7 +5,7 @@ import uuid
 from inspect import getfullargspec
 from dataclasses import dataclass
 from itertools import chain, zip_longest
-from typing import Any, Callable, Dict, Mapping, Sequence, Tuple,  Optional, List, TYPE_CHECKING
+from typing import Any, Callable, Dict, Mapping, Sequence, Tuple,  Optional, List, TYPE_CHECKING, cast
 
 import yaml
 
@@ -185,7 +185,7 @@ class LzyCall:
     def get_conda_yaml(self) -> str:
         config = self.generate_conda_config()
         result = yaml.dump(config, sort_keys=False)
-        return result
+        return cast(str, result)
 
 
 @dataclass(frozen=True)

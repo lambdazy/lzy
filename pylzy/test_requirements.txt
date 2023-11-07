@@ -1,18 +1,24 @@
-botocore-stubs
 flask-cors==3.0.10
 flask==3.0.0
 googleapis-common-protos-stubs
 grpc-stubs
-moto==4.1.0
+moto
 numpy==1.21.6; python_version < '3.11'
 numpy==1.25.1; python_version >= '3.11'
 pandas==1.3.5
 pure-protobuf==2.1.1
 sampleproject==3.0.0  # needed for test_classify_pypi_packages
+boto3
+aioboto3
+botocore
+# And packages for types:
+boto3-stubs[s3]
+botocore-stubs
+grpc-stubs==1.24.11
 types-appdirs
 types-protobuf
 types-requests
 types-setuptools
-boto3==1.28.17
-aioboto3==11.3.0
-botocore==1.31.17
+types-PyJWT==1.7.1
+types-PyYAML==6.0.12.2
+types-aiobotocore-support
