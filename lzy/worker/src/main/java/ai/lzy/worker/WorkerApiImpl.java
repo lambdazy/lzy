@@ -42,8 +42,6 @@ import java.util.Map;
 import java.util.concurrent.locks.LockSupport;
 
 import static ai.lzy.logs.LogUtils.withLoggingContext;
-import static ai.lzy.worker.LogConstants.STDERR;
-import static ai.lzy.worker.LogConstants.STDOUT;
 import static java.util.stream.Collectors.toMap;
 
 @Singleton
@@ -161,9 +159,11 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             }
         }
 
+        var logStreams = new LogStreams();
+
         final var logs = Logs.builder()
             .withWriters(new KafkaLogsWriter(op.getKafkaTopic(), LOG, tid, kafkaHelper))
-            .withCollections(LogConstants.LOGS)
+            .withCollections(logStreams)
             .build();
 
         try (logs) {
@@ -172,7 +172,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             final AuxEnvironment env;
 
             try {
-                env = envFactory.create(config.getMountPoint(), op.getEnv(), config.getMountPoint());
+                env = envFactory.create(config.getMountPoint(), op.getEnv(), config.getMountPoint(), logStreams);
             } catch (EnvironmentInstallationException e) {
                 LOG.error("Unable to install environment", e);
 
@@ -200,8 +200,8 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
                 exec.start(env);
 
-                STDOUT.log(exec.process().out());
-                STDERR.log(exec.process().err());
+                logStreams.stdout.log(exec.process().out());
+                logStreams.stderr.log(exec.process().err());
 
                 final int rc = exec.waitFor();
                 final String message;

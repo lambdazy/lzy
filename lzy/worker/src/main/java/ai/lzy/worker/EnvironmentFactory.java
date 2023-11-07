@@ -38,8 +38,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static ai.lzy.worker.LogConstants.*;
-
 @Singleton
 public class EnvironmentFactory {
     private static final Logger LOG = LogManager.getLogger(EnvironmentFactory.class);
@@ -57,7 +55,7 @@ public class EnvironmentFactory {
         this.hasGpu = config.getGpuCount() > 0;
     }
 
-    public AuxEnvironment create(String fsRoot, LME.EnvSpec env, String lzyMount)
+    public AuxEnvironment create(String fsRoot, LME.EnvSpec env, String lzyMount, LogStreams logStreams)
         throws EnvironmentInstallationException
     {
         //to mock environment in tests
@@ -81,7 +79,7 @@ public class EnvironmentFactory {
             var image = env.getDockerImage();
             LOG.info("Creating env with docker image {}", image);
 
-            STDOUT.log("Creating env with docker image " + image);
+            logStreams.stdout.log("Creating env with docker image " + image);
 
             var credentials = env.hasDockerCredentials() ? env.getDockerCredentials() : null;
 
@@ -124,7 +122,7 @@ public class EnvironmentFactory {
         }
 
         if (INSTALL_ENV.get()) {
-            baseEnv.install(SYSTEM_INFO, SYSTEM_ERR);
+            baseEnv.install(logStreams.systemInfo, logStreams.systemErr);
         }
 
         final AuxEnvironment auxEnv;
@@ -161,7 +159,7 @@ public class EnvironmentFactory {
                 for (var line : env.getPyenv().getYaml().split("\n")) {
                     sb.append("  > ").append(line).append("\n");
                 }
-                STDERR.log(sb.toString());
+                logStreams.stderr.log(sb.toString());
 
                 LOG.error("Cannot find conda in provided env, rc={}, env={}: {}", res, env, err);
                 auxEnv = new PlainPythonEnvironment(baseEnv, env.getPyenv().getLocalModulesList()
@@ -173,7 +171,7 @@ public class EnvironmentFactory {
                 try {
                     out = IOUtils.toString(proc.out(), StandardCharsets.UTF_8).trim();
                     LOG.info("Using conda with version \"{}\"", out);
-                    STDOUT.log("Using conda with version \"%s\"".formatted(out));
+                    logStreams.stdout.log("Using conda with version \"%s\"".formatted(out));
                 } catch (IOException e) {
                     LOG.error("Cannot find conda version", e);
                 }
@@ -194,7 +192,7 @@ public class EnvironmentFactory {
         }
 
         if (INSTALL_ENV.get()) {
-            auxEnv.install(SYSTEM_INFO, SYSTEM_ERR);
+            auxEnv.install(logStreams.systemInfo, logStreams.systemErr);
         }
 
         return auxEnv;

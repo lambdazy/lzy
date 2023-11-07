@@ -7,23 +7,21 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
-public class LogConstants {
+public class LogStreams extends LogStreamCollection {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     private static final String LOG_PATTERN = "[SYS] %s %s - %s";
 
-    public static LogStreamCollection LOGS = new LogStreamCollection();
-
-    public static LogStream STDOUT = LOGS.stream("out");
-    public static LogStream STDERR = LOGS.stream("err");
+    public final LogStream stdout = this.stream("out");
+    public final LogStream stderr = this.stream("err");
 
     // TODO: support separate system stream
-    public static LogStream SYSTEM_INFO = LOGS.stream("err", /*formatter*/ s -> LOG_PATTERN.formatted(
+    public final LogStream systemInfo = this.stream("err", /*formatter*/ s -> LOG_PATTERN.formatted(
         "[INFO]",
         DATE_TIME_FORMATTER.format(LocalDateTime.now(ZoneOffset.UTC)),
         s)
     );
 
-    public static LogStream SYSTEM_ERR = LOGS.stream("err", /*formatter*/ s -> LOG_PATTERN.formatted(
+    public final LogStream systemErr = this.stream("err", /*formatter*/ s -> LOG_PATTERN.formatted(
         "[ERROR]",
         DATE_TIME_FORMATTER.format(LocalDateTime.now(ZoneOffset.UTC)),
         s)

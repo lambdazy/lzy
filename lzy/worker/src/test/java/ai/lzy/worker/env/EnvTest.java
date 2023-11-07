@@ -5,11 +5,10 @@ import ai.lzy.env.aux.CondaEnvironment;
 import ai.lzy.env.aux.SimpleBashEnvironment;
 import ai.lzy.env.base.DockerEnvironment;
 import ai.lzy.env.base.ProcessEnvironment;
-import ai.lzy.env.logs.LogStream;
 import ai.lzy.env.logs.Logs;
 import ai.lzy.v1.common.LME;
 import ai.lzy.worker.EnvironmentFactory;
-import ai.lzy.worker.LogConstants;
+import ai.lzy.worker.LogStreams;
 import ai.lzy.worker.ServiceConfig;
 import org.junit.After;
 import org.junit.Assert;
@@ -22,6 +21,7 @@ import java.io.InputStreamReader;
 public class EnvTest {
     private EnvironmentFactory factory;
     private Logs logs;
+    private LogStreams logStreams;
 
     @Before
     public void before() {
@@ -30,8 +30,9 @@ public class EnvTest {
         conf.setGpuCount(0);
 
         this.factory = new EnvironmentFactory(conf);
+        this.logStreams = new LogStreams();
         this.logs = Logs.builder()
-            .withCollections(LogConstants.LOGS)
+            .withCollections(logStreams)
             .build();
     }
 
@@ -39,7 +40,7 @@ public class EnvTest {
     public void testBashEnv() throws EnvironmentInstallationException {
         var env = factory.create("", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .build(), "");
+            .build(), "", logStreams);
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof ProcessEnvironment);
@@ -50,7 +51,7 @@ public class EnvTest {
         var env = factory.create("", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .putEnv("LOL", "kek")
-            .build(), "");
+            .build(), "", logStreams);
 
         var proc = env.runProcess("echo $LOL");
         Assert.assertEquals(0, proc.waitFor());
@@ -67,7 +68,7 @@ public class EnvTest {
         var env = factory.create("", LME.EnvSpec.newBuilder()
             .setDockerImage("ubuntu:latest")
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .build(), "");
+            .build(), "", logStreams);
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof DockerEnvironment);
@@ -92,7 +93,7 @@ public class EnvTest {
                       - pylzy==1.0.0
                       - serialzy>=1.0.0""")
                 .build())
-            .build(), "");
+            .build(), "", logStreams);
 
         EnvironmentFactory.installEnv(true);
 

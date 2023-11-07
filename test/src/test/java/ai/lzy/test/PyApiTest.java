@@ -3,6 +3,7 @@ package ai.lzy.test;
 import ai.lzy.env.aux.CondaEnvironment;
 import ai.lzy.slots.transfers.SlotInputTransfer;
 import ai.lzy.test.context.PythonContextTests;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.List;
