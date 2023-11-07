@@ -9,7 +9,7 @@ import java.time.format.DateTimeFormatter;
 
 public class LogConstants {
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
-    private static final String LOG_PATTERN = "[SYS] %s - %s";
+    private static final String LOG_PATTERN = "[SYS] %s %s - %s";
 
     public static LogStreamCollection LOGS = new LogStreamCollection();
 
@@ -17,7 +17,14 @@ public class LogConstants {
     public static LogStream STDERR = LOGS.stream("err");
 
     // TODO: support separate system stream
-    public static LogStream SYSTEM = LOGS.stream("err", /*formatter*/ s -> LOG_PATTERN.formatted(
+    public static LogStream SYSTEM_INFO = LOGS.stream("err", /*formatter*/ s -> LOG_PATTERN.formatted(
+        "[INFO]",
+        DATE_TIME_FORMATTER.format(LocalDateTime.now(ZoneOffset.UTC)),
+        s)
+    );
+
+    public static LogStream SYSTEM_ERR = LOGS.stream("err", /*formatter*/ s -> LOG_PATTERN.formatted(
+        "[ERROR]",
         DATE_TIME_FORMATTER.format(LocalDateTime.now(ZoneOffset.UTC)),
         s)
     );

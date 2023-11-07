@@ -124,7 +124,7 @@ public class EnvironmentFactory {
         }
 
         if (INSTALL_ENV.get()) {
-            baseEnv.install(SYSTEM);
+            baseEnv.install(SYSTEM_INFO, SYSTEM_ERR);
         }
 
         final AuxEnvironment auxEnv;
@@ -194,7 +194,7 @@ public class EnvironmentFactory {
         }
 
         if (INSTALL_ENV.get()) {
-            auxEnv.install(SYSTEM);
+            auxEnv.install(SYSTEM_INFO, SYSTEM_ERR);
         }
 
         return auxEnv;

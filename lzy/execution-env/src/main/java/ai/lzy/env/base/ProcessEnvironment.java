@@ -27,7 +27,7 @@ public class ProcessEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public void install(LogStream systemStream) {}
+    public void install(LogStream outStream, LogStream errStream) {}
 
     @Override
     public Environment.LzyProcess runProcess(String[] command, String[] envp) {

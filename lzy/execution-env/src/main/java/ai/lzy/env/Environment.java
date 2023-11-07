@@ -11,7 +11,7 @@ public interface Environment extends AutoCloseable {
      * Install environment. Must be called before execution
      * Consumes stream queues to add stdout and stderr to
      */
-    void install(LogStream stream) throws EnvironmentInstallationException;
+    void install(LogStream outStream, LogStream errStream) throws EnvironmentInstallationException;
 
     default LzyProcess runProcess(String... command) {
         return runProcess(command, null);

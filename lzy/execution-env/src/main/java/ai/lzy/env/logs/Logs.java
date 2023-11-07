@@ -1,27 +1,30 @@
 package ai.lzy.env.logs;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Logs implements AutoCloseable {
     private final List<LogStream> streams = new ArrayList<>();
-    private final List<LogStreamQueue> queues = new ArrayList<>();
+    private final Map<String, LogStreamQueue> queues = new HashMap<>();
 
     public Logs(List<LogWriter> writers, List<LogStreamCollection> collections) {
         for (var collection: collections) {
             for (var stream: collection.getStreams()) {
-                var queue = new LogStreamQueue(stream.name(), writers);
+                // Using one queue for streams with same names
+                var queue = queues.computeIfAbsent(stream.name(), k -> new LogStreamQueue(stream.name(), writers));
+
                 queue.start();
                 stream.init(queue);
                 streams.add(stream);
-                queues.add(queue);
             }
         }
     }
 
     @Override
     public void close() {
-        for (var queue: queues) {
+        for (var queue: queues.values()) {
             try {
                 queue.close();
             } catch (InterruptedException e) {
