@@ -14,14 +14,13 @@ public class LogStream {
     public static final Logger LOG = LogManager.getLogger(LogStream.class);
 
     @Nullable
-    private LogStreamQueue queue;
+    private volatile LogStreamQueue queue;
 
     private final String streamName;
     private final ArrayList<CompletableFuture<Void>> futures = new ArrayList<>();
     private final Function<String, String> formatter;
 
-    public LogStream(String streamName, @Nullable Function<String, String> formatter)
-    {
+    public LogStream(String streamName, @Nullable Function<String, String> formatter) {
         this.streamName = streamName;
         this.formatter = formatter != null ? formatter : s -> s;
     }
