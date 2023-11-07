@@ -1,21 +1,23 @@
 package ai.lzy.env.logs;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class Logs implements AutoCloseable {
     private final List<LogStream> streams = new ArrayList<>();
-    private final Map<String, LogStreamQueue> queues = new HashMap<>();
+    private final Map<String, LogStreamQueue> queues = new ConcurrentHashMap<>();
 
     public Logs(List<LogWriter> writers, List<LogStreamCollection> collections) {
         for (var collection: collections) {
             for (var stream: collection.getStreams()) {
                 // Using one queue for streams with same names
-                var queue = queues.computeIfAbsent(stream.name(), k -> new LogStreamQueue(stream.name(), writers));
-
-                queue.start();
+                var queue = queues.computeIfAbsent(stream.name(), k -> {
+                    var q = new LogStreamQueue(stream.name(), writers);
+                    q.start();
+                    return q;
+                });
                 stream.init(queue);
                 streams.add(stream);
             }

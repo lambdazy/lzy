@@ -13,6 +13,7 @@ types-appdirs
 types-protobuf
 types-requests
 types-setuptools
+types-PyYAML
 boto3==1.28.17
 aioboto3==11.3.0
 botocore==1.31.17
