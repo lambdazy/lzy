@@ -5,7 +5,6 @@ import ai.lzy.env.aux.CondaEnvironment;
 import ai.lzy.env.aux.SimpleBashEnvironment;
 import ai.lzy.env.base.DockerEnvironment;
 import ai.lzy.env.base.ProcessEnvironment;
-import ai.lzy.env.logs.Logs;
 import ai.lzy.v1.common.LME;
 import ai.lzy.worker.EnvironmentFactory;
 import ai.lzy.worker.LogStreams;
@@ -21,8 +20,7 @@ import java.util.List;
 
 public class EnvTest {
     private EnvironmentFactory factory;
-    private Logs logs;
-    private LogStreams logStreams;
+    private LogStreams logs;
 
     @Before
     public void before() {
@@ -31,7 +29,6 @@ public class EnvTest {
         conf.setGpuCount(0);
 
         this.factory = new EnvironmentFactory(conf);
-        this.logStreams = new LogStreams();
         this.logs = new LogStreams();
         logs.init(List.of());
     }
@@ -40,7 +37,7 @@ public class EnvTest {
     public void testBashEnv() throws EnvironmentInstallationException {
         var env = factory.create("", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .build(), "", logStreams);
+            .build(), "", logs);
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof ProcessEnvironment);
@@ -51,7 +48,7 @@ public class EnvTest {
         var env = factory.create("", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .putEnv("LOL", "kek")
-            .build(), "", logStreams);
+            .build(), "", logs);
 
         var proc = env.runProcess("echo $LOL");
         Assert.assertEquals(0, proc.waitFor());
@@ -68,7 +65,7 @@ public class EnvTest {
         var env = factory.create("", LME.EnvSpec.newBuilder()
             .setDockerImage("ubuntu:latest")
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
-            .build(), "", logStreams);
+            .build(), "", logs);
 
         Assert.assertTrue(env instanceof SimpleBashEnvironment);
         Assert.assertTrue(env.base() instanceof DockerEnvironment);
@@ -93,7 +90,7 @@ public class EnvTest {
                       - pylzy==1.0.0
                       - serialzy>=1.0.0""")
                 .build())
-            .build(), "", logStreams);
+            .build(), "", logs);
 
         EnvironmentFactory.installEnv(true);
 
