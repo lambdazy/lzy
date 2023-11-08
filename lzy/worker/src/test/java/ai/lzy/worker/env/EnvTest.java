@@ -17,6 +17,7 @@ import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.util.List;
 
 public class EnvTest {
     private EnvironmentFactory factory;
@@ -31,9 +32,8 @@ public class EnvTest {
 
         this.factory = new EnvironmentFactory(conf);
         this.logStreams = new LogStreams();
-        this.logs = Logs.builder()
-            .withCollections(logStreams)
-            .build();
+        this.logs = new LogStreams();
+        logs.init(List.of());
     }
 
     @Test
