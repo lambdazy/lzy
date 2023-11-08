@@ -29,7 +29,6 @@ public class Logs implements AutoCloseable {
                 return q;
             });
             stream.init(queue);
-            streams.add(stream);
         }
     }
 
