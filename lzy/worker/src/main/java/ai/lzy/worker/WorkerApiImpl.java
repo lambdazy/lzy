@@ -3,7 +3,6 @@ package ai.lzy.worker;
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.Execution;
 import ai.lzy.env.aux.AuxEnvironment;
-import ai.lzy.env.logs.Logs;
 import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
 import ai.lzy.iam.resources.AuthPermission;
 import ai.lzy.iam.resources.impl.Workflow;
