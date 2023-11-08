@@ -1,2 +1,0 @@
-def other():
-    print("foo")

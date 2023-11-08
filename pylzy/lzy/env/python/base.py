@@ -3,10 +3,14 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Dict, Any, Optional
 
+from envzy import (
+    ModulePathsList,
+    PackagesDict,
+    PYPI_INDEX_URL_DEFAULT,
+    validate_pypi_index_url,
+)
 from lzy.env.base import Deconstructible
-from lzy.env.explorer.base import ModulePathsList, PackagesDict
 from lzy.utils.pip import Pip
-from lzy.utils.pypi import PYPI_INDEX_URL_DEFAULT, validate_pypi_index_url
 
 
 if TYPE_CHECKING:
