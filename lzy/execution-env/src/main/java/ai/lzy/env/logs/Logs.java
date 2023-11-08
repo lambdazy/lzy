@@ -1,27 +1,46 @@
 package ai.lzy.env.logs;
 
+import jakarta.annotation.Nullable;
+
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
+/**
+ * Class to manage LogStream instances
+ * To create own LogStreams, user must extend this class and call stream functions
+ */
 public class Logs implements AutoCloseable {
     private final List<LogStream> streams = new ArrayList<>();
-    private final Map<String, LogStreamQueue> queues = new ConcurrentHashMap<>();
+    private final Map<String, LogStreamQueue> queues = new HashMap<>();
 
-    public Logs(List<LogWriter> writers, List<LogStreamCollection> collections) {
-        for (var collection: collections) {
-            for (var stream: collection.getStreams()) {
-                // Using one queue for streams with same names
-                var queue = queues.computeIfAbsent(stream.name(), k -> {
-                    var q = new LogStreamQueue(stream.name(), writers);
-                    q.start();
-                    return q;
-                });
-                stream.init(queue);
-                streams.add(stream);
-            }
+    /**
+     * Init all log streams
+     * Must be called before writing to stream
+     */
+    public void init(List<LogWriter> writers) {
+        for (var stream: streams) {
+            // Using one queue for streams with same names
+            var queue = queues.computeIfAbsent(stream.name(), k -> {
+                var q = new LogStreamQueue(stream.name(), writers);
+                q.start();
+                return q;
+            });
+            stream.init(queue);
+            streams.add(stream);
         }
+    }
+
+    protected LogStream stream(String name) {
+        return stream(name, null);
+    }
+
+    protected LogStream stream(String name, @Nullable Function<String, String> formatter) {
+        var stream =  new LogStream(name, formatter);
+        streams.add(stream);
+        return stream;
     }
 
     @Override
@@ -36,29 +55,6 @@ public class Logs implements AutoCloseable {
 
         for (var stream: streams) {
             stream.await();
-        }
-    }
-
-    public static Builder builder() {
-        return new Builder();
-    }
-
-    public static class Builder {
-        private final List<LogWriter> writers = new ArrayList<>();
-        private final List<LogStreamCollection> collections = new ArrayList<>();
-
-        public Builder withWriters(LogWriter... writers) {
-            this.writers.addAll(List.of(writers));
-            return this;
-        }
-
-        public Builder withCollections(LogStreamCollection... collections) {
-            this.collections.addAll(List.of(collections));
-            return this;
-        }
-
-        public Logs build() {
-            return new Logs(writers, collections);
         }
     }
 }

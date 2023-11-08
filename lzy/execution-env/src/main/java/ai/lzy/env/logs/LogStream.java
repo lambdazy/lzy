@@ -20,7 +20,7 @@ public class LogStream {
     private final ArrayList<CompletableFuture<Void>> futures = new ArrayList<>();
     private final Function<String, String> formatter;
 
-    public LogStream(String streamName, @Nullable Function<String, String> formatter) {
+    LogStream(String streamName, @Nullable Function<String, String> formatter) {
         this.streamName = streamName;
         this.formatter = formatter != null ? formatter : s -> s;
     }

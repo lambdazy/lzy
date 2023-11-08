@@ -38,6 +38,7 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.LockSupport;
 
@@ -158,13 +159,11 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
                     .build();
             }
         }
+        final var logs = new LogStreams();
 
-        var logStreams = new LogStreams();
-
-        final var logs = Logs.builder()
-            .withWriters(new KafkaLogsWriter(op.getKafkaTopic(), LOG, tid, kafkaHelper))
-            .withCollections(logStreams)
-            .build();
+        logs.init(
+            List.of(new KafkaLogsWriter(op.getKafkaTopic(), LOG, tid, kafkaHelper))
+        );
 
         try (logs) {
             LOG.info("Configure worker...");
@@ -172,7 +171,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
             final AuxEnvironment env;
 
             try {
-                env = envFactory.create(config.getMountPoint(), op.getEnv(), config.getMountPoint(), logStreams);
+                env = envFactory.create(config.getMountPoint(), op.getEnv(), config.getMountPoint(), logs);
             } catch (EnvironmentInstallationException e) {
                 LOG.error("Unable to install environment", e);
 
@@ -200,8 +199,8 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
                 exec.start(env);
 
-                logStreams.stdout.log(exec.process().out());
-                logStreams.stderr.log(exec.process().err());
+                logs.stdout.log(exec.process().out());
+                logs.stderr.log(exec.process().err());
 
                 final int rc = exec.waitFor();
                 final String message;
