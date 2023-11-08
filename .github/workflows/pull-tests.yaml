@@ -131,9 +131,9 @@ jobs:
         run: |
           cd pylzy/
           conda activate py39
-          pip install -r proto_requirements.txt -I --no-cache && ./scripts/build.sh
+          pip install -r proto_requirements.txt --no-cache && ./scripts/build.sh
+          pip install -r test_requirements.txt --no-cache
           pip install . --force-reinstall --upgrade --no-cache
-          pip install -r test_requirements.txt -I --no-cache
           conda env list --json  | jq '.envs|.[]'  | xargs -I'@' bash -c 'eval "$(conda shell.bash hook)" && conda activate @ && conda env export > @/conda-desc.yaml && conda env export'
           cd ..
 

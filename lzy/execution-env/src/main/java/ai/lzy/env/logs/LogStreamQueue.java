@@ -37,7 +37,7 @@ class LogStreamQueue extends Thread {
             inputs.put(new Input(future, stream, null, formatter));
             return future;
         } catch (InterruptedException e) {
-            LogHandle.LOG.error("Error while adding stream to queue", e);
+            LogStream.LOG.error("Error while adding stream to queue", e);
             throw new RuntimeException("Must be unreachable");
         }
     }
@@ -51,7 +51,7 @@ class LogStreamQueue extends Thread {
             inputs.put(new Input(future, null, s, null));
             return future;
         } catch (InterruptedException e) {
-            LogHandle.LOG.error("Error while adding stream to queue", e);
+            LogStream.LOG.error("Error while adding stream to queue", e);
             throw new RuntimeException("Must be unreachable");
         }
     }
@@ -80,7 +80,7 @@ class LogStreamQueue extends Thread {
                 try {
                     writeLines(inputHandle.string().getBytes());
                 } catch (IOException e) {
-                    LogHandle.LOG.warn("Cannot write buffer to stream {}: ", streamName, e);
+                    LogStream.LOG.warn("Cannot write buffer to stream {}: ", streamName, e);
                 }
             }
 
@@ -105,7 +105,7 @@ class LogStreamQueue extends Thread {
                 writeLines(line.getBytes());
             }
         } catch (IOException e) {
-            LogHandle.LOG.error("Error while writing to stream {}: ", streamName, e);
+            LogStream.LOG.error("Error while writing to stream {}: ", streamName, e);
         }
     }
 
@@ -145,7 +145,7 @@ class LogStreamQueue extends Thread {
             }
 
         } catch (IOException e) {
-            LogHandle.LOG.error("Error while writing to stream {}: ", streamName, e);
+            LogStream.LOG.error("Error while writing to stream {}: ", streamName, e);
         }
     }
 
@@ -184,15 +184,15 @@ class LogStreamQueue extends Thread {
     }
 
     private void writeLines(byte[] lines) throws IOException {
-        if (LogHandle.LOG.isDebugEnabled()) {
-            LogHandle.LOG.debug("[{}]: {}", streamName, new String(lines));
+        if (LogStream.LOG.isDebugEnabled()) {
+            LogStream.LOG.debug("[{}]: {}", streamName, new String(lines));
         }
 
         for (var writer: writers) {
             try {
                 writer.writeLines(streamName, lines);
             } catch (Exception e) {
-                LogHandle.LOG.warn("Error while writing logs to logsWriter: ", e);
+                LogStream.LOG.warn("Error while writing logs to logsWriter: ", e);
             }
         }
     }
@@ -202,7 +202,7 @@ class LogStreamQueue extends Thread {
             try {
                 writer.writeEos(streamName);
             } catch (Exception e) {
-                LogHandle.LOG.warn("Error while writing logs to logsWriter: ", e);
+                LogStream.LOG.warn("Error while writing logs to logsWriter: ", e);
             }
         }
     }
@@ -211,7 +211,7 @@ class LogStreamQueue extends Thread {
      * Interrupt thread and wait for all data to be written
      */
     public void close() throws InterruptedException {
-        LogHandle.LOG.info("Closing stream {}", streamName);
+        LogStream.LOG.info("Closing stream {}", streamName);
         this.stopping.set(true);
         this.interrupt();
         this.join();

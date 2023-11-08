@@ -1,7 +1,7 @@
 package ai.lzy.env.base;
 
 import ai.lzy.env.Environment;
-import ai.lzy.env.logs.LogHandle;
+import ai.lzy.env.logs.LogStream;
 import jakarta.annotation.Nullable;
 
 import java.io.IOException;
@@ -27,7 +27,7 @@ public class ProcessEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public void install(LogHandle logHandle) {}
+    public void install(LogStream outStream, LogStream errStream) {}
 
     @Override
     public Environment.LzyProcess runProcess(String[] command, String[] envp) {

@@ -2,7 +2,7 @@ package ai.lzy.env.aux;
 
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.base.BaseEnvironment;
-import ai.lzy.env.logs.LogHandle;
+import ai.lzy.env.logs.LogStream;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -31,7 +31,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public void install(LogHandle logHandle) throws EnvironmentInstallationException {
+    public void install(LogStream outStream, LogStream errStream) throws EnvironmentInstallationException {
         var proc = baseEnv.runProcess("python", "--version");
         final int res;
 
@@ -43,28 +43,28 @@ public class PlainPythonEnvironment implements AuxEnvironment {
         }
 
         if (res != 0) {
-            String err = "";
+            String error = "";
             try {
-                err = IOUtils.toString(proc.err(), StandardCharsets.UTF_8);
+                error = IOUtils.toString(proc.err(), StandardCharsets.UTF_8);
             } catch (IOException e) {
                 LOG.error("Error while getting stderr of process: ", e);
             }
 
-            var msg = "Cannot get python version. It can be not provided. STDERR: " + err;
+            var msg = "Cannot get python version. It can be not provided. STDERR: " + error;
             LOG.error(msg);
-            logHandle.logSysErr(msg);
+            errStream.log(msg);
             throw new EnvironmentInstallationException("Python not found. Maybe your docker not contains it");
         }
 
-        final String out;
+        final String output;
         try {
-            out = IOUtils.toString(proc.out(), StandardCharsets.UTF_8);
+            output = IOUtils.toString(proc.out(), StandardCharsets.UTF_8);
         } catch (IOException e) {
             LOG.error("Error while getting stdout of process: ", e);
             throw new EnvironmentInstallationException("Cannot get version of provided python");
         }
 
-        LOG.info("Using provided python with version \"{}\"", out);
+        LOG.info("Using provided python with version \"{}\"", output);
 
         try {
             AuxEnvironment.installLocalModules(localModules, workingDir, LOG);

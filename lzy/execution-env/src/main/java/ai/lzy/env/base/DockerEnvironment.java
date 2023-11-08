@@ -1,7 +1,7 @@
 package ai.lzy.env.base;
 
 import ai.lzy.env.EnvironmentInstallationException;
-import ai.lzy.env.logs.LogHandle;
+import ai.lzy.env.logs.LogStream;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.ExecCreateCmd;
@@ -58,28 +58,28 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public void install(LogHandle handle) throws EnvironmentInstallationException {
+    public void install(LogStream outStream, LogStream errStream) throws EnvironmentInstallationException {
         if (containerId != null) {
-            handle.logSysOut("Using already running container from cache");
+            outStream.log("Using already running container from cache");
             LOG.info("Using already running container from cache; containerId: {}", containerId);
             return;
         }
 
         String sourceImage = config.image();
         try {
-            prepareImage(sourceImage, handle);
+            prepareImage(sourceImage, outStream);
         } catch (InterruptedException e) {
             LOG.error("Image pulling was interrupted");
-            handle.logSysErr("Image pulling was interrupted");
+            errStream.log("Image pulling was interrupted");
             throw new RuntimeException(e);
         } catch (Exception e) {
             LOG.error("Error while pulling image {}", sourceImage, e);
-            handle.logSysErr("Error while pulling image: " + e.getMessage());
+            errStream.log("Error while pulling image: " + e.getMessage());
             throw new RuntimeException(e);
         }
 
         LOG.info("Creating container from image {} ...", sourceImage);
-        handle.logSysOut("Creating container from image %s ...".formatted(sourceImage));
+        outStream.log("Creating container from image %s ...".formatted(sourceImage));
 
         final List<Mount> dockerMounts = new ArrayList<>();
         config.mounts().forEach(m -> {
@@ -118,17 +118,17 @@ public class DockerEnvironment extends BaseEnvironment {
         });
 
         final String containerId = container.getId();
-        handle.logSysOut("Creating container from image %s done".formatted(sourceImage));
+        outStream.log("Creating container from image %s done".formatted(sourceImage));
         LOG.info("Creating container done; containerId: {}, image: {}", containerId, sourceImage);
 
-        handle.logSysOut("Environment container starting ...");
+        outStream.log("Environment container starting ...");
         AtomicInteger containerStartingAttempt = new AtomicInteger(0);
         retry.executeSupplier(() -> {
             LOG.info("Starting env container... (attempt {}); containerId: {}, image: {}",
                 containerStartingAttempt.incrementAndGet(), containerId, sourceImage);
             return client.startContainerCmd(containerId).exec();
         });
-        handle.logSysOut("Environment container started");
+        outStream.log("Environment container started");
         LOG.info("Starting env container done; containerId: {}, image: {}", containerId, sourceImage);
 
         this.containerId = containerId;
@@ -261,10 +261,10 @@ public class DockerEnvironment extends BaseEnvironment {
         }
     }
 
-    private void prepareImage(String image, LogHandle handle) throws Exception {
+    private void prepareImage(String image, LogStream out) throws Exception {
         var msg = "Pulling image %s ...".formatted(image);
         LOG.info(msg);
-        handle.logSysOut(msg);
+        out.log(msg);
         AtomicInteger pullingAttempt = new AtomicInteger(0);
         retry.executeCallable(() -> {
             LOG.info("Pulling image {}, attempt {}", image, pullingAttempt.incrementAndGet());
@@ -275,6 +275,6 @@ public class DockerEnvironment extends BaseEnvironment {
         });
         msg = "Pulling image %s done".formatted(image);
         LOG.info(msg);
-        handle.logSysOut(msg);
+        out.log(msg);
     }
 }
