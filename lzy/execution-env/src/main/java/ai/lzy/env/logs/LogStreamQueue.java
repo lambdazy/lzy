@@ -78,7 +78,16 @@ class LogStreamQueue extends Thread {
 
             if (inputHandle.string() != null) {
                 try {
-                    writeLines(inputHandle.string().getBytes());
+                    var s = inputHandle.string();
+                    var formatter = inputHandle.formatter();
+
+                    if (formatter != null) {
+                        for (var line : s.split("\n")) {
+                            writeLines(formatter.apply(line).getBytes());
+                        }
+                    } else {
+                        writeLines(inputHandle.string().getBytes());
+                    }
                 } catch (IOException e) {
                     LogStream.LOG.warn("Cannot write buffer to stream {}: ", streamName, e);
                 }
