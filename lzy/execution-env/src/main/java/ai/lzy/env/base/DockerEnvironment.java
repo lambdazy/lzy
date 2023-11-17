@@ -258,6 +258,7 @@ public class DockerEnvironment extends BaseEnvironment {
     public void close() throws Exception {
         if (containerId != null) {
             retry.executeSupplier(() -> client.killContainerCmd(containerId).exec());
+            retry.executeSupplier(() -> client.pruneCmd(PruneType.CONTAINERS).exec());
         }
     }
 
