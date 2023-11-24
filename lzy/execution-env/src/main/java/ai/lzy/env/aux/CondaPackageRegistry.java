@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,7 +93,8 @@ public class CondaPackageRegistry {
         String name,
         Map<String, Package> packages,
         String pythonVersion,
-        String pypiIndex
+        String pypiIndex,
+        boolean noDeps
     ) {}
 
     /**
@@ -108,11 +110,13 @@ public class CondaPackageRegistry {
             throw new IllegalArgumentException("Cannot build env from yaml");
         }
 
-        return buildCondaYaml(env.packages, env.pythonVersion, env.pypiIndex);
+        return buildCondaYaml(env.packages, env.pythonVersion, env.pypiIndex, env.noDeps);
     }
 
     @Nullable
-    private String buildCondaYaml(Map<String, Package> packages, String pythonVersion, String pypiIndex) {
+    private String buildCondaYaml(Map<String, Package> packages, String pythonVersion, String pypiIndex,
+                                  boolean noDeps)
+    {
         try {
             var installedEnv = envs.values().stream()
                 .filter(t -> t.pythonVersion.equals(pythonVersion))
@@ -144,14 +148,15 @@ public class CondaPackageRegistry {
                     return null;
                 }
 
-                return buildYaml(new CondaEnv(installedEnv.name, packages, installedEnv.pythonVersion, pypiIndex));
+                return buildYaml(new CondaEnv(installedEnv.name, packages, installedEnv.pythonVersion,
+                    pypiIndex, noDeps));
             }
 
         } catch (Exception e) {
             LOG.error("Error while building conda yaml for packages {}: ", packages, e);
         }
 
-        return buildYaml(new CondaEnv("py" + pythonVersion, packages, pythonVersion, pypiIndex));
+        return buildYaml(new CondaEnv("py" + pythonVersion, packages, pythonVersion, pypiIndex, noDeps));
     }
 
     public void notifyInstalled(String condaYaml) {
@@ -208,6 +213,7 @@ public class CondaPackageRegistry {
 
         String pythonVersion = null;
         String pypiIndex = null;
+        boolean noDeps = false;
 
         for (var dep : deps) {
             if (dep instanceof String) {
@@ -239,6 +245,9 @@ public class CondaPackageRegistry {
                         var parts = ((String) pipDep).split(" ");
                         pypiIndex = parts.length > 1 ? parts[1] : null;
                         continue;
+                    }
+                    if (((String) pipDep).startsWith("--no-deps")) {
+                        noDeps = true;
                     }
 
                     var dat = ((String) pipDep).split(VERSION_REGEX, SPLIT_LIMIT);
@@ -272,19 +281,27 @@ public class CondaPackageRegistry {
             }
         }
 
-        return new CondaEnv(name, pkgs, pythonVersion, pypiIndex == null ? DEFAULT_PYPI_INDEX : pypiIndex);
+        return new CondaEnv(name, pkgs, pythonVersion, pypiIndex == null ? DEFAULT_PYPI_INDEX : pypiIndex, noDeps);
     }
 
     private String buildYaml(CondaEnv env) {
+        var pkgs = new ArrayList<>();
+        pkgs.add("--index-url " + env.pypiIndex);
+
+        if (env.noDeps) {
+            pkgs.add("--no-deps");
+        }
+
+        for (var p: env.packages.values()) {
+            pkgs.add(p.version != null ? p.name + "==" + p.version : p.name);
+        }
+
         var cfg = Map.of(
             "name", env.name,
             "dependencies", List.of(
                 "python=" + env.pythonVersion,
                 "pip",
-                Map.of("pip", env.packages.values().stream()
-                    .map(p -> p.version != null ? p.name + "==" + p.version : p.name)
-                    .toList()
-                )
+                Map.of("pip", pkgs)
             )
         );
 
