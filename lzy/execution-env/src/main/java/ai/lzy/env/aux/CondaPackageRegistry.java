@@ -94,7 +94,8 @@ public class CondaPackageRegistry {
         Map<String, Package> packages,
         String pythonVersion,
         String pypiIndex,
-        boolean noDeps
+        boolean noDeps,
+        List<String> extraIndexUrls
     ) {}
 
     /**
@@ -110,12 +111,12 @@ public class CondaPackageRegistry {
             throw new IllegalArgumentException("Cannot build env from yaml");
         }
 
-        return buildCondaYaml(env.packages, env.pythonVersion, env.pypiIndex, env.noDeps);
+        return buildCondaYaml(env.packages, env.pythonVersion, env.pypiIndex, env.noDeps, env.extraIndexUrls);
     }
 
     @Nullable
     private String buildCondaYaml(Map<String, Package> packages, String pythonVersion, String pypiIndex,
-                                  boolean noDeps)
+                                  boolean noDeps, List<String> extraIndexUrls)
     {
         try {
             var installedEnv = envs.values().stream()
@@ -149,14 +150,15 @@ public class CondaPackageRegistry {
                 }
 
                 return buildYaml(new CondaEnv(installedEnv.name, packages, installedEnv.pythonVersion,
-                    pypiIndex, noDeps));
+                    pypiIndex, noDeps, extraIndexUrls));
             }
 
         } catch (Exception e) {
             LOG.error("Error while building conda yaml for packages {}: ", packages, e);
         }
 
-        return buildYaml(new CondaEnv("py" + pythonVersion, packages, pythonVersion, pypiIndex, noDeps));
+        return buildYaml(new CondaEnv("py" + pythonVersion, packages, pythonVersion, pypiIndex, noDeps,
+            extraIndexUrls));
     }
 
     public void notifyInstalled(String condaYaml) {
@@ -199,7 +201,7 @@ public class CondaPackageRegistry {
     }
 
     @Nullable
-    private CondaEnv build(String condaYaml) {
+    CondaEnv build(String condaYaml) {
         var yaml = new Yaml();
         //noinspection unchecked
         var res = (Map<String, Object>) yaml.load(condaYaml);
@@ -214,6 +216,7 @@ public class CondaPackageRegistry {
         String pythonVersion = null;
         String pypiIndex = null;
         boolean noDeps = false;
+        List<String> extraIndexUrls = new ArrayList<>();
 
         for (var dep : deps) {
             if (dep instanceof String) {
@@ -244,6 +247,12 @@ public class CondaPackageRegistry {
                     if (((String) pipDep).startsWith("--index-url")) {
                         var parts = ((String) pipDep).split(" ");
                         pypiIndex = parts.length > 1 ? parts[1] : null;
+                        continue;
+                    }
+                    if (((String) pipDep).startsWith("--extra-index-url")) {
+                        var parts = ((String) pipDep).split(" ");
+                        var extraIndex = parts.length > 1 ? parts[1] : null;
+                        extraIndexUrls.add(extraIndex);
                         continue;
                     }
                     if (((String) pipDep).startsWith("--no-deps")) {
@@ -281,7 +290,8 @@ public class CondaPackageRegistry {
             }
         }
 
-        return new CondaEnv(name, pkgs, pythonVersion, pypiIndex == null ? DEFAULT_PYPI_INDEX : pypiIndex, noDeps);
+        return new CondaEnv(name, pkgs, pythonVersion, pypiIndex == null ? DEFAULT_PYPI_INDEX : pypiIndex, noDeps,
+            extraIndexUrls);
     }
 
     private String buildYaml(CondaEnv env) {
@@ -290,6 +300,10 @@ public class CondaPackageRegistry {
 
         if (env.noDeps) {
             pkgs.add("--no-deps");
+        }
+
+        for (var extraUrl: env.extraIndexUrls) {
+            pkgs.add("--extra-index-url " + extraUrl);
         }
 
         for (var p: env.packages.values()) {
