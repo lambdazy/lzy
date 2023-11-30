@@ -9,6 +9,7 @@ import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.exception.DockerClientException;
 import com.github.dockerjava.api.exception.DockerException;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
@@ -263,6 +264,18 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     private void prepareImage(String image, LogStream out) throws Exception {
+        try {
+            client.inspectImageCmd(image).exec();
+            var msg = "Image %s exists".formatted(image);
+            LOG.info(msg);
+            out.log(msg);
+            return;
+        } catch (NotFoundException ignored) {
+            var msg = "Image %s not found in cached images".formatted(image);
+            LOG.info(msg);
+            out.log(msg);
+        }
+
         var msg = "Pulling image %s ...".formatted(image);
         LOG.info(msg);
         out.log(msg);
