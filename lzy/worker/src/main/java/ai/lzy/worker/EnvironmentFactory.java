@@ -164,7 +164,7 @@ public class EnvironmentFactory {
                 LOG.error("Cannot find conda in provided env, rc={}, env={}: {}", res, env, err);
                 auxEnv = new PlainPythonEnvironment(baseEnv, env.getPyenv().getLocalModulesList()
                     .stream()
-                    .collect(Collectors.toMap(LocalModule::getName, LocalModule::getUri)), resourcesDir);
+                    .collect(Collectors.toMap(LocalModule::getName, LocalModule::getUri)), resourcesDir, "python");
             } else {
                 final String out;
 

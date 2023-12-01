@@ -3,6 +3,7 @@ package ai.lzy.env.aux;
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogStream;
+import jakarta.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -10,7 +11,10 @@ import org.apache.logging.log4j.Logger;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 public class PlainPythonEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(PlainPythonEnvironment.class);
@@ -18,11 +22,15 @@ public class PlainPythonEnvironment implements AuxEnvironment {
     private final BaseEnvironment baseEnv;
     private final Map<String, String> localModules;
     private final Path workingDir;
+    private final String pythonBinary;
 
-    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules, Path workingDir) {
+    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules, Path workingDir,
+                                  @Nullable String pythonBinary)
+    {
         this.localModules = localModules;
         this.baseEnv = baseEnv;
         this.workingDir = workingDir;
+        this.pythonBinary = pythonBinary != null ? pythonBinary : "python";
     }
 
     @Override
@@ -32,7 +40,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
 
     @Override
     public void install(LogStream outStream, LogStream errStream) throws EnvironmentInstallationException {
-        var proc = baseEnv.runProcess("python", "--version");
+        var proc = baseEnv.runProcess(pythonBinary, "--version");
         final int res;
 
         try {
