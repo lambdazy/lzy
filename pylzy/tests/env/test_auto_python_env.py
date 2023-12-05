@@ -59,8 +59,8 @@ def test_get_modules_and_paths(
     # more of this test at explorer/test_classify.py, here
     # i'm testing just interface
 
-    def mock_check_distribution_at_pypi(self, pypi_index_url: str, name: str, version: str):
-        return True
+    def mock_find_distribution_at_pypi(self, name: str, version: str):
+        return 'foo'
 
     def mock_check_distribution_platform_at_pypi(
         self, pypi_index_url: str, name: str, version: str, target_python: PythonVersion
@@ -69,8 +69,8 @@ def test_get_modules_and_paths(
 
     monkeypatch.setattr(
         envzy.classify.ModuleClassifier,
-        '_check_distribution_at_pypi',
-        mock_check_distribution_at_pypi,
+        '_find_distribution_at_pypi',
+        mock_find_distribution_at_pypi,
     )
 
     monkeypatch.setattr(
