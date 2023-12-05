@@ -3,7 +3,6 @@ package ai.lzy.env.aux;
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogStream;
-import jakarta.annotation.Nullable;
 import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -22,15 +21,11 @@ public class PlainPythonEnvironment implements AuxEnvironment {
     private final BaseEnvironment baseEnv;
     private final Map<String, String> localModules;
     private final Path workingDir;
-    private final String pythonBinary;
 
-    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules, Path workingDir,
-                                  @Nullable String pythonBinary)
-    {
+    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules, Path workingDir) {
         this.localModules = localModules;
         this.baseEnv = baseEnv;
         this.workingDir = workingDir;
-        this.pythonBinary = pythonBinary != null ? pythonBinary : "python";
     }
 
     @Override
@@ -40,14 +35,24 @@ public class PlainPythonEnvironment implements AuxEnvironment {
 
     @Override
     public void install(LogStream outStream, LogStream errStream) throws EnvironmentInstallationException {
-        var proc = baseEnv.runProcess(pythonBinary, "--version");
-        final int res;
+        var proc = baseEnv.runProcess("python", "--version");
+        int res;
 
         try {
             res = proc.waitFor();
         } catch (InterruptedException e) {
             LOG.error("Interrupted while installing env", e);
             throw new EnvironmentInstallationException("Interrupted while installing env");
+        }
+
+        if (res == 127) {
+            proc = baseEnv.runProcess("python3", "--version");
+            try {
+                res = proc.waitFor();
+            } catch (InterruptedException e) {
+                LOG.error("Interrupted while installing env", e);
+                throw new EnvironmentInstallationException("Interrupted while installing env");
+            }
         }
 
         if (res != 0) {
@@ -61,7 +66,8 @@ public class PlainPythonEnvironment implements AuxEnvironment {
             var msg = "Cannot get python version. It can be not provided. STDERR: " + error;
             LOG.error(msg);
             errStream.log(msg);
-            throw new EnvironmentInstallationException("Python not found. Maybe your docker not contains it");
+            throw new EnvironmentInstallationException(
+                "Python (and python3) not found. Maybe your docker doesn't contain it");
         }
 
         final String output;

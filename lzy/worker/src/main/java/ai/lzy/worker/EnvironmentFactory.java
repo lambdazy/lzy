@@ -144,6 +144,9 @@ public class EnvironmentFactory {
                 throw new EnvironmentInstallationException("Installation of environment interrupted");
             }
 
+            var localModules = env.getPyenv().getLocalModulesList().stream()
+                .collect(Collectors.toMap(LocalModule::getName, LocalModule::getUri));
+
             if (res != 0) {
                 String err;
                 try {
@@ -162,9 +165,7 @@ public class EnvironmentFactory {
                 logStreams.stderr.log(sb.toString());
 
                 LOG.error("Cannot find conda in provided env, rc={}, env={}: {}", res, env, err);
-                auxEnv = new PlainPythonEnvironment(baseEnv, env.getPyenv().getLocalModulesList()
-                    .stream()
-                    .collect(Collectors.toMap(LocalModule::getName, LocalModule::getUri)), resourcesDir, "python");
+                auxEnv = new PlainPythonEnvironment(baseEnv, localModules, resourcesDir);
             } else {
                 final String out;
 
@@ -176,11 +177,7 @@ public class EnvironmentFactory {
                     LOG.error("Cannot find conda version", e);
                 }
 
-                auxEnv = new CondaEnvironment(baseEnv, env.getPyenv().getYaml(),
-                    env.getPyenv().getLocalModulesList()
-                        .stream()
-                        .collect(Collectors.toMap(LocalModule::getName, LocalModule::getUri)),
-                    resourcesDir);
+                auxEnv = new CondaEnvironment(baseEnv, env.getPyenv().getYaml(), localModules, resourcesDir);
             }
 
         } else if (env.hasProcessEnv()) {

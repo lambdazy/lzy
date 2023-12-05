@@ -1,8 +1,8 @@
 package ai.lzy.env.aux;
 
-import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.Environment;
 import ai.lzy.env.EnvironmentInstallationException;
+import ai.lzy.env.base.BaseEnvironment;
 import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.Logger;
 
@@ -14,7 +14,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Map;
-import java.util.UUID;
 
 public interface AuxEnvironment extends Environment {
     BaseEnvironment base();
@@ -30,7 +29,8 @@ public interface AuxEnvironment extends Environment {
     }
 
     static void installLocalModules(Map<String, String> localModules, Path localModulesPath, Logger log)
-        throws EnvironmentInstallationException, IOException {
+        throws EnvironmentInstallationException, IOException
+    {
         try {
             Files.createDirectories(localModulesPath);
         } catch (IOException e) {
@@ -44,8 +44,7 @@ public interface AuxEnvironment extends Environment {
         for (var entry : localModules.entrySet()) {
             String name = entry.getKey();
             String url = entry.getValue();
-            log.debug(
-                "Installing local module with name " + name + " and url " + url);
+            log.debug("Installing local module with name " + name + " and url " + url);
 
             File tempFile = File.createTempFile("tmp-file", ".zip");
 
