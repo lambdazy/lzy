@@ -45,7 +45,18 @@ public class PlainPythonEnvironment implements AuxEnvironment {
             throw new EnvironmentInstallationException("Interrupted while installing env");
         }
 
-        if (res == 127) {
+        if (res != 0) {
+            var error = "";
+            try {
+                error = IOUtils.toString(proc.err(), StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                LOG.error("Error while getting stderr of process: ", e);
+            }
+
+            error = "Cannot execute `python --version`: %s (rc=%d). Try `python3` ...".formatted(error, res);
+            LOG.error(error);
+            errStream.log(error);
+
             proc = baseEnv.runProcess("python3", "--version");
             try {
                 res = proc.waitFor();
