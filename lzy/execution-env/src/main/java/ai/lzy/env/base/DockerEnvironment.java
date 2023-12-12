@@ -299,7 +299,7 @@ public class DockerEnvironment extends BaseEnvironment {
 
         if (config != null) {
             var user = config.getUser();
-            if (user != null && !user.isEmpty()) {
+            if (user != null && !user.isEmpty() && !user.equals("root")) {
                 LOG.error("Got custom user {} in image {}", user, image);
                 throw new Exception("Cannot use docker image " + image + "with custom user " + user);
             }
