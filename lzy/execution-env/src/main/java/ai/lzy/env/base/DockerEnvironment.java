@@ -69,6 +69,7 @@ public class DockerEnvironment extends BaseEnvironment {
         String sourceImage = config.image();
         try {
             prepareImage(sourceImage, outStream);
+            validateImage(sourceImage);
         } catch (InterruptedException e) {
             LOG.error("Image pulling was interrupted");
             errStream.log("Image pulling was interrupted");
@@ -290,5 +291,18 @@ public class DockerEnvironment extends BaseEnvironment {
         msg = "Pulling image %s done".formatted(image);
         LOG.info(msg);
         out.log(msg);
+    }
+
+    private void validateImage(String image) throws Exception {
+        var inspectResp = client.inspectImageCmd(image).exec();
+        var config = inspectResp.getConfig();
+
+        if (config != null) {
+            var user = config.getUser();
+            if (user != null && !user.isEmpty()) {
+                LOG.error("Got custom user {} in image {}", user, image);
+                throw new Exception("Cannot use docker image " + image + "with custom user " + user);
+            }
+        }
     }
 }
