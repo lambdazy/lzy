@@ -11,4 +11,6 @@ message TestMessage {
   string field2 = 2 [(validation.sensitive) = true];
   int32 field3  = 3;
   int32 field4  = 4 [(validation.sensitive) = true];
+  map<string, string> secrets = 5 [(validation.sensitive) = true];
+  map<int64, string> bad_secrets = 6 [(validation.sensitive) = true];
 }

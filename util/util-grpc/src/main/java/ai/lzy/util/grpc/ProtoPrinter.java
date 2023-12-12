@@ -25,7 +25,11 @@ public class ProtoPrinter {
     }
 
     public static Printer safePrinter() {
-        return printer().usingSensitiveExtension(LV.sensitive);
+        return safePrinter(LV.sensitive);
+    }
+
+    public static Printer safePrinter(Extension<DescriptorProtos.FieldOptions, Boolean> sensitiveExtension) {
+        return printer().usingSensitiveExtension(sensitiveExtension);
     }
 
     /** Helper class for converting protobufs to text. */
@@ -436,7 +440,22 @@ public class ProtoPrinter {
                 generator.print(": ");
             }
 
-            printFieldValue(field, value, generator);
+            if (field.isMapField() && isSensitive(field)) {
+                if (field.getMessageType().getFields().get(0).getType() == Descriptors.FieldDescriptor.Type.STRING &&
+                    field.getMessageType().getFields().get(1).getType() == Descriptors.FieldDescriptor.Type.STRING)
+                {
+                    @SuppressWarnings("unchecked")
+                    var entry = (MapEntry<String, String>) value;
+                    generator.print("key: \"");
+                    generator.print(entry.getKey());
+                    generator.print("\" value: \"xxx\" ");
+                } else {
+                    logger.error("'sensitive' map should be `string` -> `string` only");
+                    generator.print("\"xxx\" ");
+                }
+            } else {
+                printFieldValue(field, value, generator);
+            }
 
             if (field.getJavaType() == Descriptors.FieldDescriptor.JavaType.MESSAGE) {
                 generator.outdent();
