@@ -31,6 +31,7 @@ public interface AuxEnvironment extends Environment {
     static void installLocalModules(Map<String, String> localModules, Path localModulesPath, Logger log)
         throws EnvironmentInstallationException, IOException
     {
+        log.info("Install python local modules to {}", localModulesPath);
         try {
             Files.createDirectories(localModulesPath);
         } catch (IOException e) {
@@ -40,11 +41,11 @@ public interface AuxEnvironment extends Environment {
             throw new EnvironmentInstallationException(errorMessage);
         }
 
-        log.debug("Created directory to download local modules into");
+        log.info("Created directory {} to download local modules into", localModulesPath);
         for (var entry : localModules.entrySet()) {
             String name = entry.getKey();
             String url = entry.getValue();
-            log.debug("Installing local module with name " + name + " and url " + url);
+            log.info("Installing local module with name " + name + " and url " + url);
 
             File tempFile = File.createTempFile("tmp-file", ".zip");
 

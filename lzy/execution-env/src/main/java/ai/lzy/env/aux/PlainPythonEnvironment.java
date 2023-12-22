@@ -20,12 +20,16 @@ public class PlainPythonEnvironment implements AuxEnvironment {
 
     private final BaseEnvironment baseEnv;
     private final Map<String, String> localModules;
-    private final Path workingDir;
+    private final Path hostWorkingDir;
+    private final Path baseEnvWorkingDir;
 
-    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules, Path workingDir) {
+    public PlainPythonEnvironment(BaseEnvironment baseEnv, Map<String, String> localModules, Path hostWorkingDir,
+                                  Path baseEnvWorkingDir)
+    {
         this.localModules = localModules;
         this.baseEnv = baseEnv;
-        this.workingDir = workingDir;
+        this.hostWorkingDir = hostWorkingDir;
+        this.baseEnvWorkingDir = baseEnvWorkingDir;
     }
 
     @Override
@@ -92,7 +96,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
         LOG.info("Using provided python with version \"{}\"", output);
 
         try {
-            AuxEnvironment.installLocalModules(localModules, workingDir, LOG);
+            AuxEnvironment.installLocalModules(localModules, hostWorkingDir, LOG);
         } catch (IOException e) {
             LOG.error("Cannot install local modules", e);
             throw new EnvironmentInstallationException("Cannot install local modules: " + e.getMessage());
@@ -101,11 +105,11 @@ public class PlainPythonEnvironment implements AuxEnvironment {
 
     @Override
     public LzyProcess runProcess(String[] command, String[] envp) {
-        var list = new ArrayList<>(List.of("cd", workingDir.toString(), "&&"));
+        var list = new ArrayList<>(List.of("cd", baseEnvWorkingDir.toString(), "&&"));
         list.addAll(List.of(command));
 
         List<String> envList = new ArrayList<>();
-        envList.add("LOCAL_MODULES=" + workingDir);
+        envList.add("LOCAL_MODULES=" + baseEnvWorkingDir);
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));
         }
@@ -115,6 +119,6 @@ public class PlainPythonEnvironment implements AuxEnvironment {
 
     @Override
     public Path workingDirectory() {
-        return workingDir;
+        return baseEnvWorkingDir;
     }
 }

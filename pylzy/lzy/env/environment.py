@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Dict, TypeVar, TYPE_CHECKING
+
 from typing_extensions import Self, final
 
 from .base import Deconstructible, NotSpecified, EnvironmentField, is_specified
@@ -46,13 +47,13 @@ class LzyEnvironment(Deconstructible):
         if is_specified(self.provisioning) and is_specified(provisioning):
             new_provisioning = self.provisioning.combine(provisioning)
         else:
-            new_provisioning = provisioning or self.provisioning
+            new_provisioning = provisioning if is_specified(provisioning) else self.provisioning
 
         new_env_vars: EnvironmentField[EnvVarsType]
         if is_specified(self.env_vars) and is_specified(env_vars):
             new_env_vars = {**self.env_vars, **env_vars}
         else:
-            new_env_vars = env_vars or self.env_vars
+            new_env_vars = env_vars if is_specified(env_vars) else self.env_vars
 
         return super().with_fields(
             env_vars=new_env_vars,
