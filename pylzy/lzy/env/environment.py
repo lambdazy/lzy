@@ -53,7 +53,7 @@ class LzyEnvironment(Deconstructible):
         if is_specified(self.env_vars) and is_specified(env_vars):
             new_env_vars = {**self.env_vars, **env_vars}
         else:
-            new_env_vars = env_vars or self.env_vars
+            new_env_vars = env_vars if is_specified(env_vars) else self.env_vars
 
         return super().with_fields(
             env_vars=new_env_vars,
