@@ -165,7 +165,7 @@ public class EnvironmentFactory {
                 logStreams.stderr.log(sb.toString());
 
                 LOG.error("Cannot find conda in provided env, rc={}, env={}: {}", res, env, err);
-                auxEnv = new PlainPythonEnvironment(baseEnv, localModules, resourcesDir);
+                auxEnv = new PlainPythonEnvironment(baseEnv, localModules, resourcesDir, resourcesDir);
             } else {
                 final String out;
 
@@ -177,9 +177,9 @@ public class EnvironmentFactory {
                     LOG.error("Cannot find conda version", e);
                 }
 
-                auxEnv = new CondaEnvironment(baseEnv, env.getPyenv().getYaml(), localModules, resourcesDir);
+                auxEnv = new CondaEnvironment(baseEnv, env.getPyenv().getYaml(), localModules, resourcesDir,
+                    resourcesDir);
             }
-
         } else if (env.hasProcessEnv()) {
             auxEnv = new SimpleBashEnvironment(baseEnv, Map.of(), resourcesDir);
         } else {

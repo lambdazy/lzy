@@ -34,7 +34,8 @@ public class CondaEnvironment implements AuxEnvironment {
     private String envName;
     private final Map<String, String> localModules;
 
-    private final Path workingDir;
+    private final Path hostWorkingDir;
+    private final Path baseEnvWorkingDir;
 
     @VisibleForTesting
     public static void reconfigureConda(boolean reconfigure) {
@@ -42,12 +43,13 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     public CondaEnvironment(BaseEnvironment baseEnv, String condaYaml, Map<String, String> localModules,
-                            Path workingDir)
+                            Path hostWorkingDir, Path baseEnvWorkingDir)
     {
         this.condaYaml = condaYaml;
         this.baseEnv = baseEnv;
         this.localModules = localModules;
-        this.workingDir = workingDir;
+        this.hostWorkingDir = hostWorkingDir;
+        this.baseEnvWorkingDir = baseEnvWorkingDir;
     }
 
     @Override
@@ -61,7 +63,7 @@ public class CondaEnvironment implements AuxEnvironment {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
 
             try {
-                installLocalModules(localModules, workingDir, LOG);
+                installLocalModules(localModules, hostWorkingDir, LOG);
             } catch (IOException e) {
                 String errorMessage = "Failed to install local modules";
                 LOG.error("Fail to install local modules. \n", e);
@@ -82,17 +84,16 @@ public class CondaEnvironment implements AuxEnvironment {
                 } else {
                     LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
 
-                    final File condaFile = Files.createFile(workingDir.resolve("conda.yaml")).toFile();
+                    final File condaFileOnHost = Files.createFile(hostWorkingDir.resolve("conda.yaml")).toFile();
 
-                    try (FileWriter file = new FileWriter(condaFile.getAbsolutePath())) {
+                    try (FileWriter file = new FileWriter(condaFileOnHost.getAbsolutePath())) {
                         file.write(envYaml);
                     }
 
+                    var condaFile = baseEnvWorkingDir.resolve("conda.yaml");
                     // Conda env create or update: https://github.com/conda/conda/issues/7819
                     final LzyProcess lzyProcess = execInEnv(
-                        String.format("conda env create --file %s || conda env update --file %s",
-                            condaFile.getAbsolutePath(),
-                            condaFile.getAbsolutePath()));
+                        "conda env create --file %s || conda env update --file %s".formatted(condaFile, condaFile));
 
                     var futOut = outStream.log(lzyProcess.out());
                     var futErr = errStream.log(lzyProcess.err());
@@ -118,7 +119,7 @@ public class CondaEnvironment implements AuxEnvironment {
 
                     condaPackageRegistry.notifyInstalled(envYaml);
                     //noinspection ResultOfMethodCallIgnored
-                    condaFile.delete();
+                    condaFileOnHost.delete();
                 }
             }
         } catch (IOException | InterruptedException | ExecutionException e) {
@@ -130,13 +131,13 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private LzyProcess execInEnv(String command, @Nullable String[] envp) {
         LOG.info("Executing command " + command);
-        assert workingDir != null;
+        assert baseEnvWorkingDir != null;
 
         var bashCmd = new String[] {
             "bash",
             "-c",
             "cd %s && eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
-                .formatted(workingDir, envName, command)
+                .formatted(baseEnvWorkingDir, envName, command)
         };
 
         return baseEnv.runProcess(bashCmd, envp);
@@ -149,7 +150,7 @@ public class CondaEnvironment implements AuxEnvironment {
     @Override
     public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
         List<String> envList = new ArrayList<>();
-        envList.add("LOCAL_MODULES=" + workingDir);
+        envList.add("LOCAL_MODULES=" + baseEnvWorkingDir);
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));
         }
@@ -158,6 +159,6 @@ public class CondaEnvironment implements AuxEnvironment {
 
     @Override
     public Path workingDirectory() {
-        return workingDir;
+        return hostWorkingDir;
     }
 }
