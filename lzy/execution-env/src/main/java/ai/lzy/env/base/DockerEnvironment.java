@@ -108,9 +108,10 @@ public class DockerEnvironment extends BaseEnvironment {
 
         AtomicInteger containerCreatingAttempt = new AtomicInteger(0);
         final var container = retry.executeSupplier(() -> {
-            LOG.info("Creating container... (attempt {}); image: {}, config: {}",
-                containerCreatingAttempt.incrementAndGet(), sourceImage, config);
+            LOG.info("Creating container {}... (attempt {}); image: {}, config: {}",
+                config.name(), containerCreatingAttempt.incrementAndGet(), sourceImage, config);
             return client.createContainerCmd(sourceImage)
+                .withName(config.name())
                 .withHostConfig(hostConfig)
                 .withAttachStdout(true)
                 .withAttachStderr(true)
@@ -120,18 +121,18 @@ public class DockerEnvironment extends BaseEnvironment {
         });
 
         final String containerId = container.getId();
-        outStream.log("Creating container from image %s done".formatted(sourceImage));
-        LOG.info("Creating container done; containerId: {}, image: {}", containerId, sourceImage);
+        outStream.log("Creating container %s from image %s done".formatted(config.name(), sourceImage));
+        LOG.info("Creating container {} done; containerId: {}, image: {}", config.name(), containerId, sourceImage);
 
-        outStream.log("Environment container starting ...");
+        outStream.log("Environment container %s starting ...".formatted(config.name()));
         AtomicInteger containerStartingAttempt = new AtomicInteger(0);
         retry.executeSupplier(() -> {
-            LOG.info("Starting env container... (attempt {}); containerId: {}, image: {}",
-                containerStartingAttempt.incrementAndGet(), containerId, sourceImage);
+            LOG.info("Starting env container {}... (attempt {}); containerId: {}, image: {}",
+                config.name(), containerStartingAttempt.incrementAndGet(), containerId, sourceImage);
             return client.startContainerCmd(containerId).exec();
         });
-        outStream.log("Environment container started");
-        LOG.info("Starting env container done; containerId: {}, image: {}", containerId, sourceImage);
+        outStream.log("Environment container %s started".formatted(config.name()));
+        LOG.info("Starting env container {} done; containerId: {}, image: {}", config.name(), containerId, sourceImage);
 
         this.containerId = containerId;
     }
