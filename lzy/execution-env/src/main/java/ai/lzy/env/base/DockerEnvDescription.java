@@ -1,6 +1,8 @@
 package ai.lzy.env.base;
 
 import com.github.dockerjava.core.DockerClientConfig;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,6 +10,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public record DockerEnvDescription(
+    String name,
     String image,
     List<MountDescription> mounts,
     boolean needGpu,
@@ -22,7 +25,8 @@ public record DockerEnvDescription(
     @Override
     public String toString() {
         return "BaseEnvConfig{" +
-            "image='" + image + '\'' +
+            "name='" + name + '\'' +
+            ", image='" + image + '\'' +
             ", needGpu=" + needGpu +
             ", mounts=[" + mounts.stream()
                 .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
@@ -37,11 +41,17 @@ public record DockerEnvDescription(
     ) {}
 
     public static class Builder {
+        String name = null;
         String image = null;
         boolean gpu = false;
         List<MountDescription> mounts = new ArrayList<>();
         List<String> envVars = new ArrayList<>();
         DockerClientConfig dockerClientConfig;
+
+        public Builder withName(String name) {
+            this.name = name;
+            return this;
+        }
 
         public Builder withImage(String name) {
             this.image = name;
@@ -74,7 +84,10 @@ public record DockerEnvDescription(
         }
 
         public DockerEnvDescription build() {
-            return new DockerEnvDescription(image, mounts, gpu, envVars, dockerClientConfig);
+            if (StringUtils.isBlank(name)) {
+                name = "job-" + RandomStringUtils.randomAlphanumeric(5);
+            }
+            return new DockerEnvDescription(name, image, mounts, gpu, envVars, dockerClientConfig);
         }
 
     }
