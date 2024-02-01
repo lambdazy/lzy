@@ -48,7 +48,7 @@ public class ProcessEnvironment extends BaseEnvironment {
             for (var env: envp) {
                 var res = env.split("=", 2);
 
-                if (res.length < 1) {  // skipping this strange env
+                if (res.length < 2) {  // skipping this strange env
                     continue;
                 }
 
