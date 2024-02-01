@@ -116,7 +116,9 @@ public class DockerEnvironment extends BaseEnvironment {
                 .withAttachStdout(true)
                 .withAttachStderr(true)
                 .withTty(true)
+                .withUser("0")
                 .withEnv(config.envVars())
+                .withCmd("bash", "-c", "sleep 9999999999")
                 .exec();
         });
 
@@ -156,6 +158,7 @@ public class DockerEnvironment extends BaseEnvironment {
         LOG.info("Creating cmd {}", String.join(" ", command));
         final ExecCreateCmd execCmd = client.execCreateCmd(containerId)
             .withCmd(command)
+            .withUser("0")
             .withAttachStdout(true)
             .withAttachStderr(true);
 
