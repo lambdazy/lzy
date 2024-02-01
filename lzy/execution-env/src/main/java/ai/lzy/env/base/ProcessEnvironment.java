@@ -3,6 +3,7 @@ package ai.lzy.env.base;
 import ai.lzy.env.Environment;
 import ai.lzy.env.logs.LogStream;
 import jakarta.annotation.Nullable;
+import org.apache.commons.io.IOExceptionList;
 
 import java.io.File;
 import java.io.IOException;
@@ -42,6 +43,8 @@ public class ProcessEnvironment extends BaseEnvironment {
                 var file = new File(workingDir);
                 if (file.isDirectory()) {
                     builder.directory(file);
+                } else {
+                    throw new IOException("Working directory " + workingDir + " not found or is not dir");
                 }
             }
 
