@@ -118,7 +118,7 @@ public class DockerEnvironment extends BaseEnvironment {
                 .withTty(true)
                 .withUser(ROOT_USER_UID)
                 .withEnv(config.envVars())
-                .withEntrypoint("/bin/sh", "-c")
+                .withEntrypoint("/bin/sh")
                 .exec();
         });
 
