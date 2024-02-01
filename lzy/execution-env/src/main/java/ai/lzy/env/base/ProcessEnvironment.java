@@ -3,7 +3,9 @@ package ai.lzy.env.base;
 import ai.lzy.env.Environment;
 import ai.lzy.env.logs.LogStream;
 import jakarta.annotation.Nullable;
+import org.apache.commons.io.IOExceptionList;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,11 +32,34 @@ public class ProcessEnvironment extends BaseEnvironment {
     public void install(LogStream outStream, LogStream errStream) {}
 
     @Override
-    public Environment.LzyProcess runProcess(String[] command, String[] envp) {
+    public Environment.LzyProcess runProcess(String[] command, String[] envp, @Nullable String workingDir) {
         envp = inheritEnvp(envp);
 
         try {
-            final Process exec = Runtime.getRuntime().exec(command, envp);
+            var builder = new ProcessBuilder()
+                .command(command);
+
+            if (workingDir != null) {
+                var file = new File(workingDir);
+                if (file.isDirectory()) {
+                    builder.directory(file);
+                } else {
+                    throw new IOException("Working directory " + workingDir + " not found or is not dir");
+                }
+            }
+
+            for (var env: envp) {
+                var res = env.split("=", 2);
+
+                if (res.length < 2) {  // skipping this strange env
+                    continue;
+                }
+
+                builder.environment().put(res[0], res[1]);
+            }
+
+            var exec = builder.start();
+
             return new Environment.LzyProcess() {
                 @Override
                 public OutputStream in() {
