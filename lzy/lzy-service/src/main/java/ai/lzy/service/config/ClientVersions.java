@@ -13,7 +13,7 @@ public class ClientVersions {
     private static final Logger LOG = LogManager.getLogger(ClientVersions.class);
     private static final Map<String, ClientVersionsDescription> versions = Map.of(
         "pylzy", new ClientVersionsDescription(
-            /* minimal version */ new SemanticVersion(1, 14, 0),
+            /* minimal version */ new SemanticVersion(1, 15, 0),
             Set.of()
         )
     );
