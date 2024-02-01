@@ -39,11 +39,19 @@ public class ProcessEnvironment extends BaseEnvironment {
                 .command(command);
 
             if (workingDir != null) {
-                builder.directory(new File(workingDir));
+                var file = new File(workingDir);
+                if (file.isDirectory()) {
+                    builder.directory(file);
+                }
             }
 
             for (var env: envp) {
-                var res = env.split("=");
+                var res = env.split("=", 2);
+
+                if (res.length < 1) {  // skipping this strange env
+                    continue;
+                }
+
                 builder.environment().put(res[0], res[1]);
             }
 
