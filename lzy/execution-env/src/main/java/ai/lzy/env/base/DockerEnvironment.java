@@ -117,7 +117,7 @@ public class DockerEnvironment extends BaseEnvironment {
                 .withTty(true)
                 .withUser("0")
                 .withEnv(config.envVars())
-                .withCmd("bash", "-c", "sleep 9999999999")
+                .withEntrypoint("/bin/sh", "-c")
                 .exec();
         });
 
@@ -139,7 +139,7 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp, @Nullable String workingDir) {
         assert containerId != null;
 
         final int bufferSize = 4096;
@@ -158,6 +158,7 @@ public class DockerEnvironment extends BaseEnvironment {
         final ExecCreateCmd execCmd = client.execCreateCmd(containerId)
             .withCmd(command)
             .withUser("0")
+            .withWorkingDir(workingDir)
             .withAttachStdout(true)
             .withAttachStderr(true);
 

@@ -15,10 +15,10 @@ public interface Environment extends AutoCloseable {
     void install(LogStream outStream, LogStream errStream) throws EnvironmentInstallationException;
 
     default LzyProcess runProcess(String... command) {
-        return runProcess(command, null);
+        return runProcess(command, null, null);
     }
 
-    LzyProcess runProcess(String[] command, @Nullable String[] envp);
+    LzyProcess runProcess(String[] command, @Nullable String[] envp, @Nullable String workingDir);
 
     interface LzyProcess {
 

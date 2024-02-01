@@ -4,6 +4,7 @@ import ai.lzy.env.Environment;
 import ai.lzy.env.logs.LogStream;
 import jakarta.annotation.Nullable;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -30,11 +31,24 @@ public class ProcessEnvironment extends BaseEnvironment {
     public void install(LogStream outStream, LogStream errStream) {}
 
     @Override
-    public Environment.LzyProcess runProcess(String[] command, String[] envp) {
+    public Environment.LzyProcess runProcess(String[] command, String[] envp, @Nullable String workingDir) {
         envp = inheritEnvp(envp);
 
         try {
-            final Process exec = Runtime.getRuntime().exec(command, envp);
+            var builder = new ProcessBuilder()
+                .command(command);
+
+            if (workingDir != null) {
+                builder.directory(new File(workingDir));
+            }
+
+            for (var env: envp) {
+                var res = env.split("=");
+                builder.environment().put(res[0], res[1]);
+            }
+
+            var exec = builder.start();
+
             return new Environment.LzyProcess() {
                 @Override
                 public OutputStream in() {

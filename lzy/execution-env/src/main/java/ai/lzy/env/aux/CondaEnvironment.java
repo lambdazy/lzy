@@ -129,32 +129,32 @@ public class CondaEnvironment implements AuxEnvironment {
         }
     }
 
-    private LzyProcess execInEnv(String command, @Nullable String[] envp) {
+    private LzyProcess execInEnv(String command, @Nullable String[] envp, @Nullable String workingDir) {
         LOG.info("Executing command " + command);
         assert baseEnvWorkingDir != null;
 
         var bashCmd = new String[] {
             "bash",
             "-c",
-            "cd %s && eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
-                .formatted(baseEnvWorkingDir, envName, command)
+            "eval \"$(conda shell.bash hook)\" && conda activate %s && %s"
+                .formatted(envName, command)
         };
 
-        return baseEnv.runProcess(bashCmd, envp);
+        return baseEnv.runProcess(bashCmd, envp, workingDir == null ? baseEnvWorkingDir.toString() : workingDir);
     }
 
     private LzyProcess execInEnv(String command) {
-        return execInEnv(command, null);
+        return execInEnv(command, null, null);
     }
 
     @Override
-    public LzyProcess runProcess(String[] command, @Nullable String[] envp) {
+    public LzyProcess runProcess(String[] command, @Nullable String[] envp, @Nullable String workingDir) {
         List<String> envList = new ArrayList<>();
         envList.add("LOCAL_MODULES=" + baseEnvWorkingDir);
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));
         }
-        return execInEnv(String.join(" ", command), envList.toArray(String[]::new));
+        return execInEnv(String.join(" ", command), envList.toArray(String[]::new), workingDir);
     }
 
     @Override
