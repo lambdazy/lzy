@@ -95,7 +95,7 @@ def test_get_modules_and_paths(
 
     assert python_env.get_local_module_paths(namespace) == []
     assert python_env.get_pypi_packages(namespace) == {
-        'typing_extensions': importlib_metadata.distribution('typing_extensions').version
+        'typing-extensions': importlib_metadata.distribution('typing_extensions').version
     }
 
 
