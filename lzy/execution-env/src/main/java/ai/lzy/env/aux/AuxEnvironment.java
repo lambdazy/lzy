@@ -3,6 +3,7 @@ package ai.lzy.env.aux;
 import ai.lzy.env.Environment;
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.base.BaseEnvironment;
+import ai.lzy.env.logs.LogStream;
 import net.lingala.zip4j.ZipFile;
 import org.apache.logging.log4j.Logger;
 
@@ -28,16 +29,20 @@ public interface AuxEnvironment extends Environment {
         base().close();
     }
 
-    static void installLocalModules(Map<String, String> localModules, Path localModulesPath, Logger log)
+    static void installLocalModules(Map<String, String> localModules, Path localModulesPath, Logger log,
+                                    LogStream userOut, LogStream userErr)
         throws EnvironmentInstallationException, IOException
     {
-        log.info("Install python local modules to {}", localModulesPath);
+        var msg = "Install python local modules to %s".formatted(localModulesPath);
+        log.info(msg);
+        userOut.log(msg);
         try {
             Files.createDirectories(localModulesPath);
         } catch (IOException e) {
             String errorMessage = "Failed to create directory to download local modules into;\n"
                 + "  Directory name: " + localModulesPath + "\n";
             log.error(errorMessage);
+            userErr.log(errorMessage);
             throw new EnvironmentInstallationException(errorMessage);
         }
 
@@ -46,6 +51,7 @@ public interface AuxEnvironment extends Environment {
             String name = entry.getKey();
             String url = entry.getValue();
             log.info("Installing local module with name " + name + " and url " + url);
+            userOut.log("Installing local module '%s'".formatted(name));
 
             File tempFile = File.createTempFile("tmp-file", ".zip");
 

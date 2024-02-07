@@ -63,10 +63,11 @@ public class CondaEnvironment implements AuxEnvironment {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
 
             try {
-                installLocalModules(localModules, hostWorkingDir, LOG);
+                installLocalModules(localModules, hostWorkingDir, LOG, outStream, errStream);
             } catch (IOException e) {
                 String errorMessage = "Failed to install local modules";
-                LOG.error("Fail to install local modules. \n", e);
+                LOG.error(errorMessage, e);
+                errStream.log(errorMessage);
                 throw new EnvironmentInstallationException(errorMessage);
             }
 
@@ -83,9 +84,9 @@ public class CondaEnvironment implements AuxEnvironment {
 
                 } else {
                     LOG.info("CondaEnvironment::installPyenv trying to install pyenv");
+                    outStream.log("Trying to install pyenv...");
 
                     final File condaFileOnHost = Files.createFile(hostWorkingDir.resolve("conda.yaml")).toFile();
-
                     try (FileWriter file = new FileWriter(condaFileOnHost.getAbsolutePath())) {
                         file.write(envYaml);
                     }
@@ -93,20 +94,10 @@ public class CondaEnvironment implements AuxEnvironment {
                     var condaFile = baseEnvWorkingDir.resolve("conda.yaml");
                     // Conda env create or update: https://github.com/conda/conda/issues/7819
                     final LzyProcess lzyProcess = execInEnv(
-                        "conda env create --file %s || conda env update --file %s".formatted(condaFile, condaFile));
+                        "conda env create --file %s || conda env update --file %s".formatted(condaFile, condaFile),
+                        outStream);
 
-                    var futOut = outStream.log(lzyProcess.out());
-                    var futErr = errStream.log(lzyProcess.err());
-
-                    final int rc;
-                    try {
-                        rc = lzyProcess.waitFor();
-                    } catch (InterruptedException e) {
-                        throw new EnvironmentInstallationException("Environment installation cancelled");
-                    }
-
-                    futOut.get();
-                    futErr.get();
+                    var rc = waitFor(lzyProcess, outStream, errStream);
                     if (rc != 0) {
                         String errorMessage = "Failed to create/update conda env\n"
                             + "  ReturnCode: " + rc + "\n"
@@ -116,6 +107,7 @@ public class CondaEnvironment implements AuxEnvironment {
                         throw new EnvironmentInstallationException(errorMessage);
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
+                    outStream.log("Pyenv successfully installed");
 
                     condaPackageRegistry.notifyInstalled(envYaml);
                     //noinspection ResultOfMethodCallIgnored
@@ -123,10 +115,30 @@ public class CondaEnvironment implements AuxEnvironment {
                 }
             }
         } catch (IOException | InterruptedException | ExecutionException e) {
+            LOG.error("CondaEnvironment setup failed", e);
             throw new RuntimeException(e);
         } finally {
             lockForMultithreadingTests.unlock();
         }
+    }
+
+    private int waitFor(LzyProcess lzyProcess, LogStream outStream, LogStream errStream)
+        throws EnvironmentInstallationException, ExecutionException, InterruptedException
+    {
+        var futOut = outStream.log(lzyProcess.out());
+        var futErr = errStream.log(lzyProcess.err());
+
+        final int rc;
+        try {
+            rc = lzyProcess.waitFor();
+        } catch (InterruptedException e) {
+            throw new EnvironmentInstallationException("Environment installation cancelled");
+        }
+
+        futOut.get();
+        futErr.get();
+
+        return rc;
     }
 
     private LzyProcess execInEnv(String command, @Nullable String[] envp, @Nullable String workingDir) {
@@ -143,7 +155,8 @@ public class CondaEnvironment implements AuxEnvironment {
         return baseEnv.runProcess(bashCmd, envp, workingDir == null ? baseEnvWorkingDir.toString() : workingDir);
     }
 
-    private LzyProcess execInEnv(String command) {
+    private LzyProcess execInEnv(String command, LogStream out) {
+        out.log("RunCmd: %s".formatted(command));
         return execInEnv(command, null, null);
     }
 
