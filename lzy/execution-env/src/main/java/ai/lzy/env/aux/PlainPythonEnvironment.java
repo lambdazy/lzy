@@ -16,6 +16,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static ai.lzy.env.aux.AuxEnvironment.installLocalModules;
+
 public class PlainPythonEnvironment implements AuxEnvironment {
     private static final Logger LOG = LogManager.getLogger(PlainPythonEnvironment.class);
 
@@ -97,7 +99,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
         LOG.info("Using provided python with version \"{}\"", output);
 
         try {
-            AuxEnvironment.installLocalModules(localModules, hostWorkingDir, LOG);
+            installLocalModules(localModules, hostWorkingDir, LOG, outStream, errStream);
         } catch (IOException e) {
             LOG.error("Cannot install local modules", e);
             throw new EnvironmentInstallationException("Cannot install local modules: " + e.getMessage());
