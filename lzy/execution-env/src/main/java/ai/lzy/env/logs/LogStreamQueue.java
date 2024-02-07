@@ -193,10 +193,6 @@ class LogStreamQueue extends Thread {
     }
 
     private void writeLines(byte[] lines) throws IOException {
-        if (LogStream.LOG.isDebugEnabled()) {
-            LogStream.LOG.debug("[{}]: {}", streamName, new String(lines));
-        }
-
         for (var writer: writers) {
             try {
                 writer.writeLines(streamName, lines);
