@@ -105,6 +105,9 @@ public class DockerEnvironment extends BaseEnvironment {
                 .withIpcMode("host")
                 .withShmSize(GB_AS_BYTES);
         }
+        if (config.networkMode() != null) {
+            hostConfig.withNetworkMode(config.networkMode());
+        }
 
         AtomicInteger containerCreatingAttempt = new AtomicInteger(0);
         final var container = retry.executeSupplier(() -> {

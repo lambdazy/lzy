@@ -1,6 +1,7 @@
 package ai.lzy.env.base;
 
 import com.github.dockerjava.core.DockerClientConfig;
+import jakarta.annotation.Nullable;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 
@@ -15,6 +16,8 @@ public record DockerEnvDescription(
     List<MountDescription> mounts,
     boolean needGpu,
     List<String> envVars,  // In format <NAME>=<value>
+    @Nullable
+    String networkMode,
     DockerClientConfig dockerClientConfig
 ) {
 
@@ -28,6 +31,7 @@ public record DockerEnvDescription(
             "name='" + name + '\'' +
             ", image='" + image + '\'' +
             ", needGpu=" + needGpu +
+            ", networkMode=" + networkMode +
             ", mounts=[" + mounts.stream()
                 .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
                 .collect(Collectors.joining(", ")) + "]" +
@@ -46,6 +50,7 @@ public record DockerEnvDescription(
         boolean gpu = false;
         List<MountDescription> mounts = new ArrayList<>();
         List<String> envVars = new ArrayList<>();
+        String networkMode = null;
         DockerClientConfig dockerClientConfig;
 
         public Builder withName(String name) {
@@ -78,6 +83,11 @@ public record DockerEnvDescription(
             return this;
         }
 
+        public Builder withNetworkMode(@Nullable String mode) {
+            networkMode = mode;
+            return this;
+        }
+
         public Builder withDockerClientConfig(DockerClientConfig dockerClientConfig) {
             this.dockerClientConfig = dockerClientConfig;
             return this;
@@ -87,7 +97,7 @@ public record DockerEnvDescription(
             if (StringUtils.isBlank(name)) {
                 name = "job-" + RandomStringUtils.randomAlphanumeric(5);
             }
-            return new DockerEnvDescription(name, image, mounts, gpu, envVars, dockerClientConfig);
+            return new DockerEnvDescription(name, image, mounts, gpu, envVars, networkMode, dockerClientConfig);
         }
 
     }
