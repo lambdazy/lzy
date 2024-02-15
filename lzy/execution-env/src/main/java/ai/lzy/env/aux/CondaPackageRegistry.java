@@ -27,6 +27,11 @@ public class CondaPackageRegistry {
     private static final String DEFAULT_PYPI_INDEX = "https://pypi.org/simple";
     private static final String CONDA_YAML_FILE = "conda-desc.yaml";
 
+    private static final String PIP_INDEX_URL_FLAG = "--index-url";
+    private static final String PIP_EXTRA_INDEX_URL_FLAG = "--extra-index-url";
+    private static final String PIP_TRUSTED_HOST_FLAG = "--trusted-host";
+    private static final String PIP_NO_DEPS_FLAG = "--no-deps";
+
     // TODO(artolord) remove this ugly hack after removing conda.yaml
     private static final Map<String, String> NAME_TO_PYTHON_VERSION = Map.of(
         "py37", "3.7",
@@ -95,7 +100,8 @@ public class CondaPackageRegistry {
         String pythonVersion,
         String pypiIndex,
         boolean noDeps,
-        List<String> extraIndexUrls
+        List<String> extraIndexUrls,
+        List<String> trustedHosts
     ) {}
 
     /**
@@ -111,12 +117,13 @@ public class CondaPackageRegistry {
             throw new IllegalArgumentException("Cannot build env from yaml");
         }
 
-        return buildCondaYaml(env.packages, env.pythonVersion, env.pypiIndex, env.noDeps, env.extraIndexUrls);
+        return buildCondaYaml(env.packages, env.pythonVersion, env.pypiIndex, env.noDeps, env.extraIndexUrls,
+                env.trustedHosts);
     }
 
     @Nullable
     private String buildCondaYaml(Map<String, Package> packages, String pythonVersion, String pypiIndex,
-                                  boolean noDeps, List<String> extraIndexUrls)
+                                  boolean noDeps, List<String> extraIndexUrls, List<String> trustedHosts)
     {
         try {
             var installedEnv = envs.values().stream()
@@ -150,7 +157,7 @@ public class CondaPackageRegistry {
                 }
 
                 return buildYaml(new CondaEnv(installedEnv.name, packages, installedEnv.pythonVersion,
-                    pypiIndex, noDeps, extraIndexUrls));
+                    pypiIndex, noDeps, extraIndexUrls, trustedHosts));
             }
 
         } catch (Exception e) {
@@ -158,7 +165,7 @@ public class CondaPackageRegistry {
         }
 
         return buildYaml(new CondaEnv("py" + pythonVersion, packages, pythonVersion, pypiIndex, noDeps,
-            extraIndexUrls));
+            extraIndexUrls, trustedHosts));
     }
 
     public void notifyInstalled(String condaYaml) {
@@ -217,6 +224,7 @@ public class CondaPackageRegistry {
         String pypiIndex = null;
         boolean noDeps = false;
         List<String> extraIndexUrls = new ArrayList<>();
+        List<String> trustedHosts = new ArrayList<>();
 
         for (var dep : deps) {
             if (dep instanceof String) {
@@ -239,27 +247,34 @@ public class CondaPackageRegistry {
                 }
 
                 //noinspection unchecked
-                for (var pipDep : (List<Object>) pipDeps) {
-                    if (!(pipDep instanceof String)) {
+                for (var rawPipDep : (List<Object>) pipDeps) {
+                    if (!(rawPipDep instanceof String pipDep)) {
                         return null;
                     }
 
-                    if (((String) pipDep).startsWith("--index-url")) {
-                        var parts = ((String) pipDep).split(" ");
-                        pypiIndex = parts.length > 1 ? parts[1] : null;
+                    if (pipDep.startsWith(PIP_INDEX_URL_FLAG)) {
+                        pypiIndex = parsePipOptionValue(PIP_INDEX_URL_FLAG, pipDep);
                         continue;
                     }
-                    if (((String) pipDep).startsWith("--extra-index-url")) {
-                        var parts = ((String) pipDep).split(" ");
-                        var extraIndex = parts.length > 1 ? parts[1] : null;
-                        extraIndexUrls.add(extraIndex);
+                    if (pipDep.startsWith(PIP_EXTRA_INDEX_URL_FLAG)) {
+                        final var extraIndex = parsePipOptionValue(PIP_EXTRA_INDEX_URL_FLAG, pipDep);
+                        if (extraIndex != null) {
+                            extraIndexUrls.add(extraIndex);
+                        }
                         continue;
                     }
-                    if (((String) pipDep).startsWith("--no-deps")) {
+                    if (pipDep.startsWith(PIP_TRUSTED_HOST_FLAG)) {
+                        final var trustedHost = parsePipOptionValue(PIP_TRUSTED_HOST_FLAG, pipDep);
+                        if (trustedHost != null) {
+                            trustedHosts.add(trustedHost);
+                        }
+                        continue;
+                    }
+                    if (pipDep.startsWith(PIP_NO_DEPS_FLAG)) {
                         noDeps = true;
                     }
 
-                    var dat = ((String) pipDep).split(VERSION_REGEX, SPLIT_LIMIT);
+                    var dat = pipDep.split(VERSION_REGEX, SPLIT_LIMIT);
 
                     var pkgName = normalizePkgName(dat[0]);
                     if (dat.length == 1) {
@@ -291,19 +306,33 @@ public class CondaPackageRegistry {
         }
 
         return new CondaEnv(name, pkgs, pythonVersion, pypiIndex == null ? DEFAULT_PYPI_INDEX : pypiIndex, noDeps,
-            extraIndexUrls);
+            extraIndexUrls, trustedHosts);
+    }
+
+    @Nullable
+    private String parsePipOptionValue(String optionName, String optionString) {
+        String[] optionParts = optionString.split("\\s+", 2);
+        if (optionParts.length == 1 || !optionParts[0].equals(optionName)) {
+            LOG.warn("Unable to parse value for option '{}' from '{}'", optionName, optionString);
+            return null;
+        }
+        return optionParts[1];
     }
 
     private String buildYaml(CondaEnv env) {
         var pkgs = new ArrayList<>();
-        pkgs.add("--index-url " + env.pypiIndex);
+        pkgs.add(PIP_INDEX_URL_FLAG + " " + env.pypiIndex);
 
         if (env.noDeps) {
-            pkgs.add("--no-deps");
+            pkgs.add(PIP_NO_DEPS_FLAG);
         }
 
         for (var extraUrl: env.extraIndexUrls) {
-            pkgs.add("--extra-index-url " + extraUrl);
+            pkgs.add(PIP_EXTRA_INDEX_URL_FLAG + " " + extraUrl);
+        }
+
+        for (var trustedHost: env.trustedHosts) {
+            pkgs.add(PIP_TRUSTED_HOST_FLAG + " " + trustedHost);
         }
 
         for (var p: env.packages.values()) {
