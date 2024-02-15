@@ -2,11 +2,12 @@ package ai.lzy.env;
 
 
 import ai.lzy.env.aux.CondaPackageRegistry;
-import ai.lzy.env.aux.SimpleBashEnvironment;
 import ai.lzy.env.base.ProcessEnvironment;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.regex.Pattern;
 
 public class CondaPackageRegistryTest {
 
@@ -242,6 +243,137 @@ public class CondaPackageRegistryTest {
               - scipy
               - pylzy==1.0.0
               - serialzy>=1.0.0"""));
+    }
+
+    @Test
+    public void testPipWithIndexUrl() {
+        String condaYaml = condaPackageRegistry.buildCondaYaml("""
+                name: default
+                dependencies:
+                - python=3.9.15
+                - pip
+                - cloudpickle=1.0.0
+                - pip:
+                  - numpy
+                  - --index-url   https://pypi.ngc.nvidia.com
+                  - scipy
+                  - pylzy==1.0.0
+                  - serialzy>=1.0.0""");
+        Assert.assertNotNull(condaYaml);
+        Assert.assertTrue(
+                "Index url is not in conda yaml",
+                condaYaml.contains("--index-url https://pypi.ngc.nvidia.com"));
+    }
+
+    @Test
+    public void testPipWithoutExplicitIndexUrl() {
+        String condaYaml = condaPackageRegistry.buildCondaYaml("""
+                name: default
+                dependencies:
+                - python=3.9.15
+                - pip
+                - cloudpickle=1.0.0
+                - pip:
+                  - numpy
+                  - scipy
+                  - pylzy==1.0.0
+                  - serialzy>=1.0.0""");
+        Assert.assertNotNull(condaYaml);
+        Assert.assertTrue(
+                "Index url is not in conda yaml",
+                condaYaml.contains("--index-url https://pypi.org/simple"));
+    }
+
+    @Test
+    public void testPipWithExtraIndexUrls() {
+        String condaYaml = condaPackageRegistry.buildCondaYaml("""
+                name: default
+                dependencies:
+                - python=3.9.15
+                - pip
+                - cloudpickle=1.0.0
+                - pip:
+                  - numpy
+                  - --extra-index-url https://pypi.ngc.nvidia.com
+                  - --extra-index-url  https://pypy.example.com
+                  - --extra-index-urlhttps://pypy.invalid-example.com
+                  - scipy
+                  - pylzy==1.0.0
+                  - serialzy>=1.0.0""");
+        Assert.assertNotNull(condaYaml);
+        Assert.assertTrue(
+                "Extra index url is not in final conda yaml",
+                condaYaml.contains("--extra-index-url https://pypi.ngc.nvidia.com"));
+        Assert.assertTrue(
+                "Extra index url is not in final conda yaml",
+                condaYaml.contains("--extra-index-url https://pypy.example.com"));
+        Assert.assertEquals(
+                "Invalid extra index url is in final conda yaml",
+                2,
+                Pattern.compile("--extra-index-url").matcher(condaYaml).results().count());
+    }
+
+    @Test
+    public void testPipWithTrustedHosts() {
+        String condaYaml = condaPackageRegistry.buildCondaYaml("""
+                name: default
+                dependencies:
+                - python=3.9.15
+                - pip
+                - cloudpickle=1.0.0
+                - pip:
+                  - numpy
+                  - --trusted-host pypi.ngc.nvidia.com
+                  - --trusted-host    example.com:1234
+                  - --trusted-hostinvalid-example.com
+                  - scipy
+                  - pylzy==1.0.0
+                  - serialzy>=1.0.0""");
+        Assert.assertNotNull(condaYaml);
+        Assert.assertTrue(
+                "Trusted host is not in final conda yaml",
+                condaYaml.contains("--trusted-host pypi.ngc.nvidia.com"));
+        Assert.assertTrue(
+                "Trusted host is not in final conda yaml",
+                condaYaml.contains("--trusted-host example.com:1234"));
+        Assert.assertEquals(
+                "Invalid trusted host is in final conda yaml",
+                2,
+                Pattern.compile("--trusted-host").matcher(condaYaml).results().count());
+    }
+    @Test
+    public void testPipWithNoDeps() {
+        String condaYaml = condaPackageRegistry.buildCondaYaml("""
+                name: default
+                dependencies:
+                - python=3.9.15
+                - pip
+                - cloudpickle=1.0.0
+                - pip:
+                  - --no-deps
+                  - numpy
+                  - scipy
+                  - pylzy==1.0.0
+                  - serialzy>=1.0.0""");
+        Assert.assertNotNull(condaYaml);
+        Assert.assertTrue("--no-deps is not in conda yaml", condaYaml.contains("--no-deps"));
+    }
+
+    @Test
+    public void testPipWithoutNoDeps() {
+        String condaYaml = condaPackageRegistry.buildCondaYaml("""
+                name: default
+                dependencies:
+                - python=3.9.15
+                - pip
+                - cloudpickle=1.0.0
+                - pip:
+                  - numpy
+                  - scipy
+                  - pylzy==1.0.0
+                  - serialzy>=1.0.0""");
+        Assert.assertNotNull(condaYaml);
+        Assert.assertFalse("--no-deps is in conda yaml", condaYaml.contains("--no-deps"));
     }
 
     @Test
