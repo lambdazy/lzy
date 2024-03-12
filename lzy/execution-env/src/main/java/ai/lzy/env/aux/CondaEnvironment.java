@@ -5,12 +5,14 @@ import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogStream;
 import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
+import org.apache.commons.io.IOUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -36,6 +38,9 @@ public class CondaEnvironment implements AuxEnvironment {
 
     private final Path hostWorkingDir;
     private final Path baseEnvWorkingDir;
+
+    @Nullable
+    private String pythonPath;
 
     @VisibleForTesting
     public static void reconfigureConda(boolean reconfigure) {
@@ -114,6 +119,25 @@ public class CondaEnvironment implements AuxEnvironment {
                     condaFileOnHost.delete();
                 }
             }
+
+            try {
+                var proc = execInEnv("echo $PYTHONPATH", null);
+                var rc = proc.waitFor();
+
+                if (rc != 0) {
+                    LOG.error("Cannot get PYTHONPATH from env");
+                    return;
+                }
+
+                var path = IOUtils.toString(proc.out(), Charset.defaultCharset()).strip();
+                if (!path.isEmpty()) {
+                    path += ":";
+                }
+                path += baseEnvWorkingDir.toAbsolutePath();
+                this.pythonPath = path;
+            } catch (Exception e) {
+                LOG.error("Cannot get PYTHONPATH from env: ", e);
+            }
         } catch (IOException | InterruptedException | ExecutionException e) {
             LOG.error("CondaEnvironment setup failed", e);
             throw new RuntimeException(e);
@@ -155,8 +179,10 @@ public class CondaEnvironment implements AuxEnvironment {
         return baseEnv.runProcess(bashCmd, envp, workingDir == null ? baseEnvWorkingDir.toString() : workingDir);
     }
 
-    private LzyProcess execInEnv(String command, LogStream out) {
-        out.log("RunCmd: %s".formatted(command));
+    private LzyProcess execInEnv(String command, @Nullable LogStream out) {
+        if (out != null) {
+            out.log("RunCmd: %s".formatted(command));
+        }
         return execInEnv(command, null, null);
     }
 
@@ -167,7 +193,15 @@ public class CondaEnvironment implements AuxEnvironment {
         if (envp != null) {
             envList.addAll(Arrays.asList(envp));
         }
-        return execInEnv(String.join(" ", command), envList.toArray(String[]::new), workingDir);
+
+        var cmd = String.join(" ", command);
+
+        if (pythonPath != null) {
+            // Adding export here to prevent conda from updating PYTHONPATH
+            cmd = "export PYTHONPATH=" + pythonPath + " && "  + cmd;
+        }
+
+        return execInEnv(cmd, envList.toArray(String[]::new), workingDir);
     }
 
     @Override
