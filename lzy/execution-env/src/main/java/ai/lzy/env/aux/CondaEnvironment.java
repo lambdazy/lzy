@@ -129,8 +129,11 @@ public class CondaEnvironment implements AuxEnvironment {
                     return;
                 }
 
-                var path = IOUtils.toString(proc.out(), Charset.defaultCharset());
-                path += ":" + hostWorkingDir.toAbsolutePath();
+                var path = IOUtils.toString(proc.out(), Charset.defaultCharset()).strip();
+                if (!path.isEmpty()) {
+                    path += ":";
+                }
+                path += baseEnvWorkingDir.toAbsolutePath();
                 this.pythonPath = path;
             } catch (Exception e) {
                 LOG.error("Cannot get PYTHONPATH from env: ", e);
