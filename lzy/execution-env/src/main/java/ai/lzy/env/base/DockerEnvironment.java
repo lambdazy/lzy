@@ -3,16 +3,27 @@ package ai.lzy.env.base;
 import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.logs.LogStream;
 import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
+import com.github.dockerjava.api.command.InspectImageResponse;
 import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.exception.DockerClientException;
 import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.exception.NotFoundException;
-import com.github.dockerjava.api.model.*;
+import com.github.dockerjava.api.model.BindOptions;
+import com.github.dockerjava.api.model.BindPropagation;
+import com.github.dockerjava.api.model.DeviceRequest;
+import com.github.dockerjava.api.model.Frame;
+import com.github.dockerjava.api.model.HostConfig;
+import com.github.dockerjava.api.model.Mount;
+import com.github.dockerjava.api.model.MountType;
+import com.github.dockerjava.api.model.PruneType;
+import com.github.dockerjava.api.model.PullResponseItem;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
+import com.google.common.annotations.VisibleForTesting;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
@@ -28,6 +39,7 @@ import java.io.PipedOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -37,6 +49,7 @@ public class DockerEnvironment extends BaseEnvironment {
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final long GB_AS_BYTES = 1073741824;
     private static final String ROOT_USER_UID = "0";
+    private static final String NO_MATCHING_MANIFEST_ERROR = "no matching manifest";
 
     @Nullable
     public String containerId = null;
@@ -275,12 +288,14 @@ public class DockerEnvironment extends BaseEnvironment {
         }
     }
 
-    private void prepareImage(String image, LogStream out) throws Exception {
+    @VisibleForTesting
+    void prepareImage(String image, LogStream out) throws Exception {
         try {
-            client.inspectImageCmd(image).exec();
+            var inspectImageResponse = client.inspectImageCmd(image).exec();
             var msg = "Image %s exists".formatted(image);
             LOG.info(msg);
             out.log(msg);
+            checkPlatform(inspectImageResponse, out);
             return;
         } catch (NotFoundException ignored) {
             var msg = "Image %s not found in cached images".formatted(image);
@@ -291,16 +306,63 @@ public class DockerEnvironment extends BaseEnvironment {
         var msg = "Pulling image %s ...".formatted(image);
         LOG.info(msg);
         out.log(msg);
+        Set<String> allowedPlatforms = config.allowedPlatforms();
         AtomicInteger pullingAttempt = new AtomicInteger(0);
-        retry.executeCallable(() -> {
+        try (var pullResponseItem = retry.executeCallable(() -> {
             LOG.info("Pulling image {}, attempt {}", image, pullingAttempt.incrementAndGet());
-            final var pullingImage = client
-                .pullImageCmd(config.image())
-                .exec(new PullImageResultCallback());
-            return pullingImage.awaitCompletion();
-        });
+            if (allowedPlatforms.isEmpty()) {
+                return pullWithPlatform(image, null);
+            } else {
+                for (String platform : config.allowedPlatforms()) {
+                    try {
+                        return pullWithPlatform(image, platform);
+                    } catch (DockerClientException e) {
+                        if (e.getMessage().contains(NO_MATCHING_MANIFEST_ERROR)) {
+                            LOG.info("Cannot find image = {} for platform = {}", image, platform);
+                        } else {
+                            throw e;
+                        }
+                    }
+                }
+            }
+            return null;
+        })
+        ) {
+            if (pullResponseItem == null) {
+                throw new RuntimeException("Cannot pull image for allowed platforms = %s".formatted(String.join(", ", allowedPlatforms)));
+            }
+        }
+
         msg = "Pulling image %s done".formatted(image);
         LOG.info(msg);
         out.log(msg);
+    }
+
+    private ResultCallback.Adapter<PullResponseItem> pullWithPlatform(String image, @Nullable String platform)
+            throws InterruptedException {
+        var pullingImage = client.pullImageCmd(image);
+        if (platform != null) {
+            pullingImage = pullingImage.withPlatform(platform);
+        }
+        return pullingImage.exec(new PullImageResultCallback()).awaitCompletion();
+    }
+
+    private void checkPlatform(InspectImageResponse inspectImageResponse, LogStream out) {
+        Set<String> allowedPlatforms = config.allowedPlatforms();
+        if (allowedPlatforms.isEmpty()) {
+            return;
+        }
+
+        String platform = inspectImageResponse.getOs() + "/" + inspectImageResponse.getArch();
+        if (!allowedPlatforms.contains(platform)) {
+            var allowedPlatformsStr = String.join(", ", allowedPlatforms);
+            var msg = "Image %s platform = %s is not in allowed platforms = %s".formatted(
+                    config.image(), platform, allowedPlatformsStr);
+            LOG.info(msg);
+            out.log(msg);
+
+            throw new RuntimeException("Cached image platform = %s is not in allowed platforms = %s".formatted(
+                    platform, allowedPlatformsStr));
+        }
     }
 }
