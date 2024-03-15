@@ -75,6 +75,12 @@ public class ScramKafkaAdminClient implements KafkaAdminClient {
     public void dropTopic(String name) throws StatusRuntimeException {
         try {
             adminClient.deleteTopics(List.of(name)).all().get();
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof UnknownTopicOrPartitionException) {
+                LOG.warn("Topic {} already dropped", name);
+                return;
+            }
+            throw Status.fromThrowable(e).asRuntimeException();
         } catch (Exception e) {
             throw Status.fromThrowable(e).asRuntimeException();
         }
