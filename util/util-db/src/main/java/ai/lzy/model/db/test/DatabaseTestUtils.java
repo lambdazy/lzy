@@ -1,5 +1,6 @@
 package ai.lzy.model.db.test;
 
+import ai.lzy.model.db.DatabaseConfiguration;
 import ai.lzy.model.db.Storage;
 
 import java.sql.SQLException;
@@ -24,6 +25,28 @@ public enum DatabaseTestUtils {
                 put(app + ".database.username", "postgres");
                 put(app + ".database.password", "");
             }};
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static DatabaseConfiguration preparePostgresConfig(Object ci) {
+        /* io.zonky.test.db.postgres.embedded.ConnectionInfo ci */
+        try {
+            var user = getFieldValue(ci, "user", String.class);
+            assert "postgres".equals(user);
+
+            var port = getFieldValue(ci, "port", Integer.class);
+            var dbName = getFieldValue(ci, "dbName", String.class);
+
+            var result = new DatabaseConfiguration();
+            result.setEnabled(true);
+            result.setUrl("jdbc:postgresql://localhost:%d/%s".formatted(port, dbName));
+            result.setUsername("postgres");
+            result.setPassword("");
+            result.setMinPoolSize(1);
+            result.setMaxPoolSize(10);
+            return result;
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

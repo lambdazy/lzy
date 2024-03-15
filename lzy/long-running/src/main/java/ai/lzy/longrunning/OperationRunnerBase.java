@@ -32,6 +32,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
     private final OperationDao operationsDao;
     private final OperationsExecutor executor;
     private Operation op;
+    private volatile boolean failed = false;
 
     protected OperationRunnerBase(String id, String descr, Storage storage, OperationDao operationsDao,
                                   OperationsExecutor executor)
@@ -55,6 +56,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
             }
 
             for (var step : steps()) {
+                beforeStep();
                 final var stepResult = step.get();
                 switch (stepResult.code()) {
                     case ALREADY_DONE -> { }
@@ -83,6 +85,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
                 }
             }
         } catch (Throwable e) {
+            setFailed();
             notifyFinished();
             if (e instanceof Error err && isInjectedError(err)) {
                 log.error("{} Terminated by InjectedFailure exception: {}", logPrefix, e.getMessage());
@@ -96,6 +99,18 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
                 throw e;
             }
         }
+    }
+
+    protected void setFailed() {
+        failed = true;
+    }
+
+    protected boolean isFailed() {
+        return failed;
+    }
+
+    protected void beforeStep() {
+
     }
 
     protected Map<String, String> prepareLogContext() {
@@ -280,6 +295,7 @@ public abstract class OperationRunnerBase extends ContextAwareTask {
     }
 
     protected final void failOperation(Status status, @Nullable TransactionHandle tx) throws SQLException {
+        setFailed();
         operationsDao.fail(id, toProto(status), tx);
     }
 
