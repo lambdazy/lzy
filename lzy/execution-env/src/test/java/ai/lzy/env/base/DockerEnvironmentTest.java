@@ -24,12 +24,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 public class DockerEnvironmentTest {
     private final DockerClient dockerClient = mock(DockerClientImpl.class);
@@ -111,8 +106,8 @@ public class DockerEnvironmentTest {
         RuntimeException exception = Assert.assertThrows(RuntimeException.class,
                 () -> environment.prepareImage(IMAGE, logStream));
         assertNotNull(exception);
-        assertEquals("Cached image platform = not_existed_os/not_existed_arch is not in allowed platforms = darwin/arm64, linux/amd64",
-                exception.getMessage());
+        assertEquals(("Image %s with platform = not_existed_os/not_existed_arch " +
+                "is not in allowed platforms = darwin/arm64, linux/amd64").formatted(IMAGE), exception.getMessage());
 
         verify(dockerClient, never()).pullImageCmd(any());
     }
@@ -144,6 +139,7 @@ public class DockerEnvironmentTest {
     private DockerEnvDescription createDockerEnvDescription(List<String> allowedPlatforms) {
         DockerClientConfig dockerClientConfig = DefaultDockerClientConfig.createDefaultConfigBuilder().build();
         return DockerEnvDescription.newBuilder()
+                .withImage(IMAGE)
                 .withDockerClientConfig(dockerClientConfig)
                 .withAllowedPlatforms(allowedPlatforms)
                 .build();

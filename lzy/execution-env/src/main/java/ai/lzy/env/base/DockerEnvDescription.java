@@ -24,7 +24,7 @@ public record DockerEnvDescription(
     String networkMode,
     DockerClientConfig dockerClientConfig,
     @Nonnull
-    Set<String> allowedPlatforms // In format os/arch like "linux/amd64". Empty means all allowed
+    Set<String> allowedPlatforms // In format os/arch like "linux/amd64". Empty means all are allowed
 ) {
 
     public static Builder newBuilder() {

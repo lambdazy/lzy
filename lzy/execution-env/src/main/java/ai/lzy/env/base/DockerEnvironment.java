@@ -12,15 +12,7 @@ import com.github.dockerjava.api.command.PullImageResultCallback;
 import com.github.dockerjava.api.exception.DockerClientException;
 import com.github.dockerjava.api.exception.DockerException;
 import com.github.dockerjava.api.exception.NotFoundException;
-import com.github.dockerjava.api.model.BindOptions;
-import com.github.dockerjava.api.model.BindPropagation;
-import com.github.dockerjava.api.model.DeviceRequest;
-import com.github.dockerjava.api.model.Frame;
-import com.github.dockerjava.api.model.HostConfig;
-import com.github.dockerjava.api.model.Mount;
-import com.github.dockerjava.api.model.MountType;
-import com.github.dockerjava.api.model.PruneType;
-import com.github.dockerjava.api.model.PullResponseItem;
+import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
 import com.google.common.annotations.VisibleForTesting;
@@ -329,7 +321,8 @@ public class DockerEnvironment extends BaseEnvironment {
         })
         ) {
             if (pullResponseItem == null) {
-                throw new RuntimeException("Cannot pull image for allowed platforms = %s".formatted(String.join(", ", allowedPlatforms)));
+                throw new RuntimeException("Cannot pull image for allowed platforms = %s".formatted(
+                        String.join(", ", allowedPlatforms)));
             }
         }
 
@@ -356,13 +349,12 @@ public class DockerEnvironment extends BaseEnvironment {
         String platform = inspectImageResponse.getOs() + "/" + inspectImageResponse.getArch();
         if (!allowedPlatforms.contains(platform)) {
             var allowedPlatformsStr = String.join(", ", allowedPlatforms);
-            var msg = "Image %s platform = %s is not in allowed platforms = %s".formatted(
+            var msg = "Image %s with platform = %s is not in allowed platforms = %s".formatted(
                     config.image(), platform, allowedPlatformsStr);
             LOG.info(msg);
             out.log(msg);
 
-            throw new RuntimeException("Cached image platform = %s is not in allowed platforms = %s".formatted(
-                    platform, allowedPlatformsStr));
+            throw new RuntimeException(msg);
         }
     }
 }
