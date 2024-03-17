@@ -42,6 +42,7 @@ public class DockerEnvironment extends BaseEnvironment {
     private static final long GB_AS_BYTES = 1073741824;
     private static final String ROOT_USER_UID = "0";
     private static final String NO_MATCHING_MANIFEST_ERROR = "no matching manifest";
+    private static final String NOT_MATCH_PLATFORM_ERROR = "was found but does not match the specified platform";
 
     @Nullable
     public String containerId = null;
@@ -309,8 +310,11 @@ public class DockerEnvironment extends BaseEnvironment {
                     try {
                         return pullWithPlatform(image, platform);
                     } catch (DockerClientException e) {
-                        if (e.getMessage().contains(NO_MATCHING_MANIFEST_ERROR)) {
-                            LOG.info("Cannot find image = {} for platform = {}", image, platform);
+                        String exceptionMessage = e.getMessage();
+                        if (exceptionMessage.contains(NO_MATCHING_MANIFEST_ERROR) ||
+                                exceptionMessage.contains(NOT_MATCH_PLATFORM_ERROR)) {
+                            LOG.info("Cannot find image = {} for platform = {}: message = {}",
+                                    image, platform, exceptionMessage);
                         } else {
                             throw e;
                         }

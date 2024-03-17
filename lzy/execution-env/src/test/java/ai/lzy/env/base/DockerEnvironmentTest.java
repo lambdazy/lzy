@@ -58,8 +58,6 @@ public class DockerEnvironmentTest {
         });
         PullImageResultCallback pullImageResultCallback = mock(PullImageResultCallback.class);
         when(pullImageCmdForRightPlatform.exec(any())).thenReturn(pullImageResultCallback);
-        when(pullImageCmd.exec(any())).thenThrow(new DockerClientException(
-                "Could not pull image: no matching manifest for %s in the manifest list entries"));
 
         when(pullImageResultCallback.awaitCompletion()).thenReturn(callbackAdapter);
     }
@@ -84,12 +82,21 @@ public class DockerEnvironmentTest {
         executeTest(this::doTestPrepareImageNodCachedImageWithoutRightPlatform);
     }
 
+    @Test
+    public void testPrepareImageNodCachedImageWithoutRightPlatform2() throws Exception {
+        executeTest(this::doTestPrepareImageNodCachedImageWithoutRightPlatform2);
+    }
+
+    @Test
+    public void testPrepareImageNodCachedImageDockerClientException() throws Exception {
+        executeTest(this::doTestPrepareImageNodCachedImageDockerClientException);
+    }
+
     private void doTestPrepareImageCachedImage() throws Exception {
         when(inspectImageResponse.getArch()).thenReturn("amd64");
         when(inspectImageResponse.getOs()).thenReturn("linux");
 
-        DockerEnvironment environment = new DockerEnvironment(createDockerEnvDescription(
-                List.of("darwin/arm64", "linux/amd64")));
+        DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/amd64");
 
         environment.prepareImage(IMAGE, logStream);
 
@@ -100,8 +107,7 @@ public class DockerEnvironmentTest {
         when(inspectImageResponse.getOs()).thenReturn("not_existed_os");
         when(inspectImageResponse.getArch()).thenReturn("not_existed_arch");
 
-        DockerEnvironment environment = new DockerEnvironment(createDockerEnvDescription(
-                List.of("darwin/arm64", "linux/amd64")));
+        DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/amd64");
 
         RuntimeException exception = Assert.assertThrows(RuntimeException.class,
                 () -> environment.prepareImage(IMAGE, logStream));
@@ -113,20 +119,18 @@ public class DockerEnvironmentTest {
     }
 
     private void doTestPrepareImageNodCachedImageWithRightPlatform() throws Exception {
-        when(inspectImageCmd.exec()).thenThrow(new NotFoundException("com.github.dockerjava.api.exception.NotFoundException:" +
-                " Status 404: {\"message\":\"No such image: %s\"}\n".formatted(IMAGE)));
-        DockerEnvironment environment = new DockerEnvironment(createDockerEnvDescription(
-                List.of("darwin/arm64", "linux/amd64")));
+        mockDockerClientException("Could not pull image: no matching manifest for %s in the manifest list entries".formatted(IMAGE));
+        mockNotFound();
+        DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/amd64");
 
         environment.prepareImage(IMAGE, logStream);
         verify(dockerClient, times(2)).pullImageCmd(IMAGE);
     }
 
-    private void doTestPrepareImageNodCachedImageWithoutRightPlatform() throws Exception {
-        when(inspectImageCmd.exec()).thenThrow(new NotFoundException("com.github.dockerjava.api.exception.NotFoundException:" +
-                " Status 404: {\"message\":\"No such image: %s\"}\n".formatted(IMAGE)));
-        DockerEnvironment environment = new DockerEnvironment(createDockerEnvDescription(
-                List.of("darwin/arm64", "linux/win32")));
+    private void doTestPrepareImageNodCachedImageWithoutRightPlatform() {
+        mockDockerClientException("Could not pull image: no matching manifest for %s in the manifest list entries".formatted(IMAGE));
+        mockNotFound();
+        DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/win32");
 
         RuntimeException exception = Assert.assertThrows(RuntimeException.class,
                 () -> environment.prepareImage(IMAGE, logStream));
@@ -134,6 +138,49 @@ public class DockerEnvironmentTest {
         assertEquals("Cannot pull image for allowed platforms = linux/win32, darwin/arm64", exception.getMessage());
 
         verify(dockerClient, times(2)).pullImageCmd(IMAGE);
+    }
+
+    private void doTestPrepareImageNodCachedImageWithoutRightPlatform2() {
+        mockDockerClientException("""
+                com.github.dockerjava.api.exception.DockerClientException: Could not pull image: image with reference %s
+                 was found but does not match the specified platform: wanted darwin/arm64,
+                 actual: linux/amd64""".formatted(IMAGE));
+        mockNotFound();
+
+        DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/win32");
+
+        RuntimeException exception = Assert.assertThrows(RuntimeException.class,
+                () -> environment.prepareImage(IMAGE, logStream));
+        assertNotNull(exception);
+        assertEquals("Cannot pull image for allowed platforms = linux/win32, darwin/arm64", exception.getMessage());
+
+        verify(dockerClient, times(2)).pullImageCmd(IMAGE);
+    }
+
+    private void doTestPrepareImageNodCachedImageDockerClientException() {
+        mockDockerClientException("another docker client exception");
+        mockNotFound();
+        DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/win32");
+
+        RuntimeException exception = Assert.assertThrows(DockerClientException.class,
+                () -> environment.prepareImage(IMAGE, logStream));
+        assertNotNull(exception);
+        assertEquals("another docker client exception", exception.getMessage());
+
+        verify(dockerClient, times(3)).pullImageCmd(IMAGE);
+    }
+
+    private void mockDockerClientException(String message) {
+        when(pullImageCmd.exec(any())).thenThrow(new DockerClientException(message));
+    }
+
+    private void mockNotFound() {
+        when(inspectImageCmd.exec()).thenThrow(new NotFoundException("com.github.dockerjava.api.exception.NotFoundException:" +
+                " Status 404: {\"message\":\"No such image: %s\"}\n".formatted(IMAGE)));
+    }
+
+    private DockerEnvironment createEnvironment(String... platforms) {
+        return new DockerEnvironment(createDockerEnvDescription(List.of(platforms)));
     }
 
     private DockerEnvDescription createDockerEnvDescription(List<String> allowedPlatforms) {
