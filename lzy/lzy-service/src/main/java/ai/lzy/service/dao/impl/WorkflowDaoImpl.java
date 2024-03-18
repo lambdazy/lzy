@@ -225,7 +225,7 @@ public class WorkflowDaoImpl implements WorkflowDao {
 
                 var rs = st.executeQuery();
                 if (!rs.next()) {
-                    throw new RuntimeException("Unknown workflow, uid=%s, wf=%s".formatted(userId, wfName));
+                    throw new RuntimeException("Unknown workflow, user=%s, wf=%s".formatted(userId, wfName));
                 }
 
                 var actualAllocatorSessionId = rs.getString(1);

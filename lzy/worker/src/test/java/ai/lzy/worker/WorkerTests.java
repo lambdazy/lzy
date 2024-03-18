@@ -256,7 +256,7 @@ public class WorkerTests extends IamOnlyWorkerTests {
 
         var hackerCreds = createWorkerCreds("hacker-worker", "hacker-user", "wf");
 
-        try (var worker = startWorker("uid", "wf")) {
+        try (var worker = startWorker("user", "wf")) {
             // SlotsApi unavailable for any worker
             var e = assertThrows(StatusRuntimeException.class, () ->
                 worker.slotsApiStub(null).startTransfer(LSA.StartTransferRequest.getDefaultInstance()));
@@ -293,7 +293,7 @@ public class WorkerTests extends IamOnlyWorkerTests {
                 var resp = worker.workerApiStub(internalUser)
                     .init(
                         LWS.InitRequest.newBuilder()
-                            .setUserId("uid")
+                            .setUserId("user")
                             .setWorkflowName("wf")
                             .setWorkerSubjectName(worker.workerId())
                             .setWorkerPrivateKey(worker.keys().privateKey())

@@ -118,7 +118,7 @@ public class DockerEnvironment extends BaseEnvironment {
                 .withAttachStdout(true)
                 .withAttachStderr(true)
                 .withTty(true)
-                .withUser(config.uid())
+                .withUser(config.user())
                 .withEnv(config.envVars())
                 .withEntrypoint("/bin/sh")
                 .exec();
@@ -160,7 +160,7 @@ public class DockerEnvironment extends BaseEnvironment {
         LOG.info("Creating cmd {}", String.join(" ", command));
         final ExecCreateCmd execCmd = client.execCreateCmd(containerId)
             .withCmd(command)
-            .withUser(config.uid())
+            .withUser(config.user())
             .withAttachStdout(true)
             .withAttachStderr(true);
 

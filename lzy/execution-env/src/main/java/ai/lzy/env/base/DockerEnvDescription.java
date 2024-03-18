@@ -19,7 +19,7 @@ public record DockerEnvDescription(
     @Nullable
     String networkMode,
     DockerClientConfig dockerClientConfig,
-    String uid
+    String user
 ) {
 
     public static Builder newBuilder() {
@@ -55,7 +55,7 @@ public record DockerEnvDescription(
         List<String> envVars = new ArrayList<>();
         String networkMode = null;
         DockerClientConfig dockerClientConfig;
-        String uid = ROOT_USER_UID;
+        String user = ROOT_USER_UID;
 
         public Builder withName(String name) {
             this.name = name;
@@ -97,8 +97,8 @@ public record DockerEnvDescription(
             return this;
         }
 
-        public Builder withUID(String uid) {
-            this.uid = uid;
+        public Builder withUser(String user) {
+            this.user = user;
             return this;
         }
 
@@ -106,7 +106,7 @@ public record DockerEnvDescription(
             if (StringUtils.isBlank(name)) {
                 name = "job-" + RandomStringUtils.randomAlphanumeric(5);
             }
-            return new DockerEnvDescription(name, image, mounts, gpu, envVars, networkMode, dockerClientConfig, uid);
+            return new DockerEnvDescription(name, image, mounts, gpu, envVars, networkMode, dockerClientConfig, user);
         }
 
     }
