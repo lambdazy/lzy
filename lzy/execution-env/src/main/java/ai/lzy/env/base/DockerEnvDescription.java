@@ -5,9 +5,7 @@ import jakarta.annotation.Nullable;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public record DockerEnvDescription(
@@ -18,7 +16,8 @@ public record DockerEnvDescription(
     List<String> envVars,  // In format <NAME>=<value>
     @Nullable
     String networkMode,
-    DockerClientConfig dockerClientConfig
+    DockerClientConfig dockerClientConfig,
+    Set<String> allowedPlatforms // In format os/arch like "linux/amd64". Empty means all are allowed
 ) {
 
     public static Builder newBuilder() {
@@ -32,6 +31,7 @@ public record DockerEnvDescription(
             ", image='" + image + '\'' +
             ", needGpu=" + needGpu +
             ", networkMode=" + networkMode +
+            ", allowedPlatforms=" + String.join(", ", allowedPlatforms) +
             ", mounts=[" + mounts.stream()
                 .map(it -> it.source() + " -> " + it.target() + (it.isRshared() ? " (R_SHARED)" : ""))
                 .collect(Collectors.joining(", ")) + "]" +
@@ -52,6 +52,7 @@ public record DockerEnvDescription(
         List<String> envVars = new ArrayList<>();
         String networkMode = null;
         DockerClientConfig dockerClientConfig;
+        Set<String> allowedPlatforms = new HashSet<>();
 
         public Builder withName(String name) {
             this.name = name;
@@ -93,13 +94,18 @@ public record DockerEnvDescription(
             return this;
         }
 
+        public Builder withAllowedPlatforms(Collection<String> allowedPlatforms) {
+            this.allowedPlatforms.addAll(allowedPlatforms);
+            return this;
+        }
+
         public DockerEnvDescription build() {
             if (StringUtils.isBlank(name)) {
                 name = "job-" + RandomStringUtils.randomAlphanumeric(5);
             }
-            return new DockerEnvDescription(name, image, mounts, gpu, envVars, networkMode, dockerClientConfig);
+            return new DockerEnvDescription(name, image, mounts, gpu, envVars, networkMode, dockerClientConfig,
+                    allowedPlatforms);
         }
-
     }
 
     public record ContainerRegistryCredentials(

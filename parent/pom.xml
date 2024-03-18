@@ -122,8 +122,8 @@
         <junit.version>4.13.2</junit.version>
         <hamcrest.version>2.2</hamcrest.version>
         <kubernetes-server-mock.version>6.0.0</kubernetes-server-mock.version>
-        <mockito-core.version>3.5.15</mockito-core.version>
-        <mockito-inline.version>3.6.28</mockito-inline.version>
+        <mockito-core.version>5.11.0</mockito-core.version>
+        <mockito-inline.version>5.2.0</mockito-inline.version>
         <mockwebserver.version>4.10.0</mockwebserver.version>
         <micronaut-test.version>3.6.2</micronaut-test.version>
         <s3mock_2.13.version>0.2.6</s3mock_2.13.version>
