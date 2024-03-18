@@ -40,7 +40,6 @@ public class DockerEnvironment extends BaseEnvironment {
 
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final long GB_AS_BYTES = 1073741824;
-    private static final String ROOT_USER_UID = "0";
     private static final String NO_MATCHING_MANIFEST_ERROR = "no matching manifest";
     private static final String NOT_MATCH_PLATFORM_ERROR = "was found but does not match the specified platform";
 
@@ -125,7 +124,7 @@ public class DockerEnvironment extends BaseEnvironment {
                 .withAttachStdout(true)
                 .withAttachStderr(true)
                 .withTty(true)
-                .withUser(ROOT_USER_UID)
+                .withUser(config.user())
                 .withEnv(config.envVars())
                 .withEntrypoint("/bin/sh")
                 .exec();
@@ -167,7 +166,7 @@ public class DockerEnvironment extends BaseEnvironment {
         LOG.info("Creating cmd {}", String.join(" ", command));
         final ExecCreateCmd execCmd = client.execCreateCmd(containerId)
             .withCmd(command)
-            .withUser(ROOT_USER_UID)
+            .withUser(config.user())
             .withAttachStdout(true)
             .withAttachStderr(true);
 

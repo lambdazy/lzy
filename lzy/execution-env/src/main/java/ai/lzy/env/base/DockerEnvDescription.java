@@ -17,6 +17,7 @@ public record DockerEnvDescription(
     @Nullable
     String networkMode,
     DockerClientConfig dockerClientConfig,
+    String user,
     Set<String> allowedPlatforms // In format os/arch like "linux/amd64". Empty means all are allowed
 ) {
 
@@ -45,6 +46,8 @@ public record DockerEnvDescription(
     ) {}
 
     public static class Builder {
+        private static final String ROOT_USER_UID = "0";
+
         String name = null;
         String image = null;
         boolean gpu = false;
@@ -52,6 +55,7 @@ public record DockerEnvDescription(
         List<String> envVars = new ArrayList<>();
         String networkMode = null;
         DockerClientConfig dockerClientConfig;
+        String user = ROOT_USER_UID;
         Set<String> allowedPlatforms = new HashSet<>();
 
         public Builder withName(String name) {
@@ -94,6 +98,11 @@ public record DockerEnvDescription(
             return this;
         }
 
+        public Builder withUser(String user) {
+            this.user = user;
+            return this;
+        }
+
         public Builder withAllowedPlatforms(Collection<String> allowedPlatforms) {
             this.allowedPlatforms.addAll(allowedPlatforms);
             return this;
@@ -103,8 +112,8 @@ public record DockerEnvDescription(
             if (StringUtils.isBlank(name)) {
                 name = "job-" + RandomStringUtils.randomAlphanumeric(5);
             }
-            return new DockerEnvDescription(name, image, mounts, gpu, envVars, networkMode, dockerClientConfig,
-                    allowedPlatforms);
+            return new DockerEnvDescription(name, image, mounts, gpu, envVars, networkMode, dockerClientConfig, user,
+                allowedPlatforms);
         }
     }
 
