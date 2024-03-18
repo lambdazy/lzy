@@ -36,7 +36,6 @@ public class DockerEnvironment extends BaseEnvironment {
 
     private static final Logger LOG = LogManager.getLogger(DockerEnvironment.class);
     private static final long GB_AS_BYTES = 1073741824;
-    private static final String ROOT_USER_UID = "0";
 
     @Nullable
     public String containerId = null;
@@ -119,7 +118,7 @@ public class DockerEnvironment extends BaseEnvironment {
                 .withAttachStdout(true)
                 .withAttachStderr(true)
                 .withTty(true)
-                .withUser(ROOT_USER_UID)
+                .withUser(config.uid())
                 .withEnv(config.envVars())
                 .withEntrypoint("/bin/sh")
                 .exec();
@@ -161,7 +160,7 @@ public class DockerEnvironment extends BaseEnvironment {
         LOG.info("Creating cmd {}", String.join(" ", command));
         final ExecCreateCmd execCmd = client.execCreateCmd(containerId)
             .withCmd(command)
-            .withUser(ROOT_USER_UID)
+            .withUser(config.uid())
             .withAttachStdout(true)
             .withAttachStderr(true);
 
