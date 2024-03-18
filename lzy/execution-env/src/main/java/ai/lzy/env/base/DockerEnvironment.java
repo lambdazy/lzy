@@ -322,8 +322,8 @@ public class DockerEnvironment extends BaseEnvironment {
                 }
             }
             return null;
-        })
-        ) {
+        }))
+        {
             if (pullResponseItem == null) {
                 throw new RuntimeException("Cannot pull image for allowed platforms = %s".formatted(
                         String.join(", ", allowedPlatforms)));
@@ -336,7 +336,8 @@ public class DockerEnvironment extends BaseEnvironment {
     }
 
     private ResultCallback.Adapter<PullResponseItem> pullWithPlatform(String image, @Nullable String platform)
-            throws InterruptedException {
+            throws InterruptedException
+    {
         var pullingImage = client.pullImageCmd(image);
         if (platform != null) {
             pullingImage = pullingImage.withPlatform(platform);

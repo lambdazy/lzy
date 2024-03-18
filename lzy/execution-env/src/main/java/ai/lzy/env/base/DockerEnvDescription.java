@@ -1,17 +1,11 @@
 package ai.lzy.env.base;
 
 import com.github.dockerjava.core.DockerClientConfig;
-import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public record DockerEnvDescription(
@@ -23,7 +17,6 @@ public record DockerEnvDescription(
     @Nullable
     String networkMode,
     DockerClientConfig dockerClientConfig,
-    @Nonnull
     Set<String> allowedPlatforms // In format os/arch like "linux/amd64". Empty means all are allowed
 ) {
 
