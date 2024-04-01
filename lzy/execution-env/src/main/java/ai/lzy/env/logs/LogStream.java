@@ -5,9 +5,13 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.InputStream;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 
 public class LogStream {
@@ -29,12 +33,15 @@ public class LogStream {
         this.queue = queue;
     }
 
-    void await() {
+    void await(Instant deadline) {
         for (var fut : futures) {
             try {
-                fut.get();
+                fut.get(Instant.now().until(deadline, ChronoUnit.MILLIS), TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOG.error("Cannot await stream {}: ", streamName, e);
+            } catch (TimeoutException e) {
+                LOG.error("Timeout while awaiting logs stream {} completion", streamName);
+                return;
             }
         }
     }
