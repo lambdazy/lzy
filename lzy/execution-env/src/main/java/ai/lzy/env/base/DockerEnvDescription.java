@@ -14,11 +14,11 @@ public record DockerEnvDescription(
     List<MountDescription> mounts,
     boolean needGpu,
     List<String> envVars,  // In format <NAME>=<value>
-    @Nullable
-    String networkMode,
+    @Nullable String networkMode,
     DockerClientConfig dockerClientConfig,
     String user,
-    Set<String> allowedPlatforms // In format os/arch like "linux/amd64". Empty means all are allowed
+    Set<String> allowedPlatforms, // In format os/arch like "linux/amd64". Empty means all are allowed
+    @Nullable Long memLimitMb
 ) {
 
     public static Builder newBuilder() {
@@ -57,6 +57,7 @@ public record DockerEnvDescription(
         DockerClientConfig dockerClientConfig;
         String user = ROOT_USER_UID;
         Set<String> allowedPlatforms = new HashSet<>();
+        Long memLimitMb = null;
 
         public Builder withName(String name) {
             this.name = name;
@@ -108,12 +109,17 @@ public record DockerEnvDescription(
             return this;
         }
 
+        public Builder withMemLimitMb(Long memLimitMb) {
+            this.memLimitMb = memLimitMb;
+            return this;
+        }
+
         public DockerEnvDescription build() {
             if (StringUtils.isBlank(name)) {
                 name = "job-" + RandomStringUtils.randomAlphanumeric(5);
             }
             return new DockerEnvDescription(name, image, mounts, gpu, envVars, networkMode, dockerClientConfig, user,
-                allowedPlatforms);
+                allowedPlatforms, memLimitMb);
         }
     }
 

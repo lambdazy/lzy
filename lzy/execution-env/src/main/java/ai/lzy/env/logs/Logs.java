@@ -1,5 +1,6 @@
 package ai.lzy.env.logs;
 
+import com.google.common.annotations.VisibleForTesting;
 import jakarta.annotation.Nullable;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -66,5 +67,10 @@ public class Logs implements AutoCloseable {
             stream.await(deadline);
             LOG.debug("Stream {} closed", stream.name());
         }
+    }
+
+    @VisibleForTesting
+    public LogStream empty() {
+        return stream("empty");
     }
 }

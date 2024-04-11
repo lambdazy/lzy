@@ -53,8 +53,15 @@ public interface Environment extends AutoCloseable {
 
         InputStream err();
 
-        int waitFor() throws InterruptedException;
+        int waitFor() throws InterruptedException, OomKilledException;
 
         void signal(int sigValue);
+    }
+
+
+    class OomKilledException extends RuntimeException {
+        public OomKilledException(String msg) {
+            super(msg);
+        }
     }
 }
