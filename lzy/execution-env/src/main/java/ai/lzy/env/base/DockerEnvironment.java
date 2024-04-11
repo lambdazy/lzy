@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -112,6 +113,10 @@ public class DockerEnvironment extends BaseEnvironment {
         }
         if (config.networkMode() != null) {
             hostConfig.withNetworkMode(config.networkMode());
+        }
+
+        if (config.memLimitMb() != null) {
+            hostConfig.withMemory(config.memLimitMb() * 1024 * 1024);
         }
 
         AtomicInteger containerCreatingAttempt = new AtomicInteger(0);
@@ -243,11 +248,21 @@ public class DockerEnvironment extends BaseEnvironment {
             }
 
             @Override
-            public int waitFor() throws InterruptedException {
+            public int waitFor() throws InterruptedException, OomKilledException {
                 try {
                     feature.get();
-                    return Math.toIntExact(retry.executeSupplier(() -> client.inspectExecCmd(exec.getId()).exec())
+                    var rc = Math.toIntExact(retry.executeSupplier(() -> client.inspectExecCmd(exec.getId()).exec())
                         .getExitCodeLong());
+
+                    if (rc == 0) {
+                        return 0;
+                    }
+
+                    if (isOomKilled()) {
+                        throw new OomKilledException("Process exited with rc %s, and it was killed by OOM killer".formatted(rc));
+                    }
+
+                    return rc;
                 } catch (InterruptedException e) {
                     try {
                         startCmd.close();
@@ -360,5 +375,21 @@ public class DockerEnvironment extends BaseEnvironment {
 
             throw new RuntimeException(msg);
         }
+    }
+
+    private boolean isOomKilled() {
+        if (containerId == null) {
+            return false;
+        }
+
+        var killed = client.inspectContainerCmd(containerId)
+            .exec()
+            .getState().getOOMKilled();
+
+        if (killed != null) {
+            return killed;
+        }
+
+        return false;
     }
 }
