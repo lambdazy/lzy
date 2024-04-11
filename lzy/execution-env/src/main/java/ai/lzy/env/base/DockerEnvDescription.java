@@ -111,7 +111,7 @@ public record DockerEnvDescription(
             return this;
         }
 
-        public Builder setMemLimitMb(Long memLimitMb) {
+        public Builder withMemLimitMb(Long memLimitMb) {
             this.memLimitMb = memLimitMb;
             return this;
         }
