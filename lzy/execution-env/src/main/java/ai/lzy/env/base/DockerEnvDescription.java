@@ -14,13 +14,11 @@ public record DockerEnvDescription(
     List<MountDescription> mounts,
     boolean needGpu,
     List<String> envVars,  // In format <NAME>=<value>
-    @Nullable
-    String networkMode,
+    @Nullable String networkMode,
     DockerClientConfig dockerClientConfig,
     String user,
     Set<String> allowedPlatforms, // In format os/arch like "linux/amd64". Empty means all are allowed
-    @Nullable
-    Long memLimitMb
+    @Nullable Long memLimitMb
 ) {
 
     public static Builder newBuilder() {

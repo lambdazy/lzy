@@ -384,7 +384,8 @@ public class DockerEnvironment extends BaseEnvironment {
 
         var killed = client.inspectContainerCmd(containerId)
             .exec()
-            .getState().getOOMKilled();
+            .getState()
+            .getOOMKilled();
 
         if (killed != null) {
             return killed;
