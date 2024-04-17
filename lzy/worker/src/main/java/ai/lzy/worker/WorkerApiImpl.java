@@ -1,6 +1,6 @@
 package ai.lzy.worker;
 
-import ai.lzy.env.EnvironmentInstallationException;
+import ai.lzy.env.Environment;
 import ai.lzy.env.Execution;
 import ai.lzy.env.aux.AuxEnvironment;
 import ai.lzy.iam.grpc.interceptors.AccessServerInterceptor;
@@ -171,7 +171,7 @@ public class WorkerApiImpl extends WorkerApiGrpc.WorkerApiImplBase {
 
             try {
                 env = envFactory.create(config.getMountPoint(), op.getEnv(), config.getMountPoint(), logs);
-            } catch (EnvironmentInstallationException e) {
+            } catch (Environment.InstallationException e) {
                 LOG.error("Unable to install environment", e);
 
                 return LWS.ExecuteResponse.newBuilder()

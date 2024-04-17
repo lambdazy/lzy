@@ -1,6 +1,5 @@
 package ai.lzy.env.aux;
 
-import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogStream;
 import com.google.common.annotations.VisibleForTesting;
@@ -62,7 +61,7 @@ public class CondaEnvironment implements AuxEnvironment {
         return baseEnv;
     }
 
-    public void install(LogStream outStream, LogStream errStream) throws EnvironmentInstallationException {
+    public void install(LogStream outStream, LogStream errStream) throws InstallationException {
         lockForMultithreadingTests.lock();
         try {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
@@ -73,7 +72,7 @@ public class CondaEnvironment implements AuxEnvironment {
                 String errorMessage = "Failed to install local modules";
                 LOG.error(errorMessage, e);
                 errStream.log(errorMessage);
-                throw new EnvironmentInstallationException(errorMessage);
+                throw new InstallationException(errorMessage);
             }
 
             if (!RECONFIGURE_CONDA) {  // Only for tests
@@ -109,7 +108,7 @@ public class CondaEnvironment implements AuxEnvironment {
                             + "See your stdout/stderr to see more info";
                         LOG.error(errorMessage);
                         errStream.log(errorMessage);
-                        throw new EnvironmentInstallationException(errorMessage);
+                        throw new InstallationException(errorMessage);
                     }
                     LOG.info("CondaEnvironment::installPyenv successfully updated conda env");
                     outStream.log("Pyenv successfully installed");
@@ -140,14 +139,14 @@ public class CondaEnvironment implements AuxEnvironment {
             }
         } catch (IOException | InterruptedException | ExecutionException e) {
             LOG.error("CondaEnvironment setup failed", e);
-            throw new RuntimeException(e);
+            throw new InstallationException("CondaEnvironment setup failed");
         } finally {
             lockForMultithreadingTests.unlock();
         }
     }
 
     private int waitFor(LzyProcess lzyProcess, LogStream outStream, LogStream errStream)
-        throws EnvironmentInstallationException, ExecutionException, InterruptedException
+        throws InstallationException, ExecutionException, InterruptedException
     {
         var futOut = outStream.log(lzyProcess.out());
         var futErr = errStream.log(lzyProcess.err());
@@ -156,7 +155,7 @@ public class CondaEnvironment implements AuxEnvironment {
         try {
             rc = lzyProcess.waitFor();
         } catch (InterruptedException e) {
-            throw new EnvironmentInstallationException("Environment installation cancelled");
+            throw new InstallationException("Environment installation cancelled");
         }
 
         futOut.get();

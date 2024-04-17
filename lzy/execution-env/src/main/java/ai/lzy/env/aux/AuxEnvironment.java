@@ -1,7 +1,6 @@
 package ai.lzy.env.aux;
 
 import ai.lzy.env.Environment;
-import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogStream;
 import net.lingala.zip4j.ZipFile;
@@ -31,7 +30,7 @@ public interface AuxEnvironment extends Environment {
 
     static void installLocalModules(Map<String, String> localModules, Path localModulesPath, Logger log,
                                     LogStream userOut, LogStream userErr)
-        throws EnvironmentInstallationException, IOException
+        throws InstallationException, IOException
     {
         var msg = "Install python local modules to %s".formatted(localModulesPath);
         log.info(msg);
@@ -43,7 +42,7 @@ public interface AuxEnvironment extends Environment {
                 + "  Directory name: " + localModulesPath + "\n";
             log.error(errorMessage);
             userErr.log(errorMessage);
-            throw new EnvironmentInstallationException(errorMessage);
+            throw new InstallationException(errorMessage);
         }
 
         log.info("Created directory {} to download local modules into", localModulesPath);

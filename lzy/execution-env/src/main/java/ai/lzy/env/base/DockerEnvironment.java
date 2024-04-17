@@ -1,10 +1,10 @@
 package ai.lzy.env.base;
 
-import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.logs.LogStream;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
 import com.github.dockerjava.api.async.ResultCallbackTemplate;
+import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.ExecCreateCmd;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectImageResponse;
@@ -15,11 +15,11 @@ import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.*;
 import com.github.dockerjava.core.DockerClientImpl;
 import com.github.dockerjava.httpclient5.ApacheDockerHttpClient;
-import com.google.common.annotations.VisibleForTesting;
 import io.github.resilience4j.core.IntervalFunction;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
 import jakarta.annotation.Nullable;
+import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -28,13 +28,13 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
-import java.lang.management.ManagementFactory;
-import java.nio.charset.StandardCharsets;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class DockerEnvironment extends BaseEnvironment {
@@ -51,103 +51,41 @@ public class DockerEnvironment extends BaseEnvironment {
     private final Retry retry;
 
     public DockerEnvironment(DockerEnvDescription config) {
+        this(
+            config,
+            RetryConfig.custom()
+                .maxAttempts(3)
+                .intervalFunction(IntervalFunction.ofExponentialBackoff(1000))
+                .retryExceptions(DockerException.class, DockerClientException.class)
+                .build()
+        );
+    }
+
+    public DockerEnvironment(DockerEnvDescription config, RetryConfig retryConfig) {
         this.config = config;
         this.client = DockerClientImpl.getInstance(
             config.dockerClientConfig(),
             new ApacheDockerHttpClient.Builder()
                 .dockerHost(config.dockerClientConfig().getDockerHost())
                 .build());
-        var retryConfig = new RetryConfig.Builder<>()
-            .maxAttempts(3)
-            .intervalFunction(IntervalFunction.ofExponentialBackoff(1000))
-            .retryExceptions(DockerException.class, DockerClientException.class)
-            .build();
         retry = Retry.of("docker-client-retry", retryConfig);
     }
 
     @Override
-    public void install(LogStream outStream, LogStream errStream) throws EnvironmentInstallationException {
+    public void install(LogStream outStream, LogStream errStream) throws InstallationException {
         if (containerId != null) {
             outStream.log("Using already running container from cache");
             LOG.info("Using already running container from cache; containerId: {}", containerId);
             return;
         }
 
-        String sourceImage = config.image();
-        try {
-            prepareImage(sourceImage, outStream);
-        } catch (InterruptedException e) {
-            LOG.error("Image pulling was interrupted");
-            errStream.log("Image pulling was interrupted");
-            throw new RuntimeException(e);
-        } catch (Exception e) {
-            LOG.error("Error while pulling image {}", sourceImage, e);
-            errStream.log("Error while pulling image: " + e.getMessage());
-            throw new RuntimeException(e);
-        }
+        var image = config.image();
 
-        LOG.info("Creating container from image {} ...", sourceImage);
-        outStream.log("Creating container from image %s ...".formatted(sourceImage));
+        pullImageIfNeeded(image, outStream, errStream);
 
-        final List<Mount> dockerMounts = new ArrayList<>();
-        config.mounts().forEach(m -> {
-            var mount = new Mount().withType(MountType.BIND).withSource(m.source()).withTarget(m.target());
-            if (m.isRshared()) {
-                mount.withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED));
-            }
-            dockerMounts.add(mount);
-        });
+        var containerId = createContainer(image, outStream, errStream).getId();
 
-        final HostConfig hostConfig = new HostConfig();
-        hostConfig.withMounts(dockerMounts);
-
-        // --gpus all --ipc=host --shm-size=1G
-        if (config.needGpu()) {
-            hostConfig.withDeviceRequests(
-                List.of(
-                    new DeviceRequest()
-                        .withDriver("nvidia")
-                        .withCapabilities(List.of(List.of("gpu")))))
-                .withIpcMode("host")
-                .withShmSize(GB_AS_BYTES);
-        }
-        if (config.networkMode() != null) {
-            hostConfig.withNetworkMode(config.networkMode());
-        }
-
-        if (config.memLimitMb() != null) {
-            hostConfig.withMemory(config.memLimitMb() * 1024 * 1024);
-        }
-
-        AtomicInteger containerCreatingAttempt = new AtomicInteger(0);
-        final var container = retry.executeSupplier(() -> {
-            LOG.info("Creating container {}... (attempt {}); image: {}, config: {}",
-                config.name(), containerCreatingAttempt.incrementAndGet(), sourceImage, config);
-            return client.createContainerCmd(sourceImage)
-                .withName(config.name())
-                .withHostConfig(hostConfig)
-                .withAttachStdout(true)
-                .withAttachStderr(true)
-                .withTty(true)
-                .withUser(config.user())
-                .withEnv(config.envVars())
-                .withEntrypoint("/bin/sh")
-                .exec();
-        });
-
-        final String containerId = container.getId();
-        outStream.log("Creating container %s from image %s done".formatted(config.name(), sourceImage));
-        LOG.info("Creating container {} done; containerId: {}, image: {}", config.name(), containerId, sourceImage);
-
-        outStream.log("Environment container %s starting ...".formatted(config.name()));
-        AtomicInteger containerStartingAttempt = new AtomicInteger(0);
-        retry.executeSupplier(() -> {
-            LOG.info("Starting env container {}... (attempt {}); containerId: {}, image: {}",
-                config.name(), containerStartingAttempt.incrementAndGet(), containerId, sourceImage);
-            return client.startContainerCmd(containerId).exec();
-        });
-        outStream.log("Environment container %s started".formatted(config.name()));
-        LOG.info("Starting env container {} done; containerId: {}, image: {}", config.name(), containerId, sourceImage);
+        startContainer(containerId, image, outStream, errStream);
 
         this.containerId = containerId;
     }
@@ -187,49 +125,48 @@ public class DockerEnvironment extends BaseEnvironment {
 
         var feature = new CompletableFuture<>();
 
-        var startCmd = retry.executeSupplier(() -> client.execStartCmd(exec.getId())
-            .exec(new ResultCallbackTemplate<>() {
-                @Override
-                public void onComplete() {
-                    LOG.info("Closing stdout, stderr of cmd {}", String.join(" ", command));
-                    try {
-                        stdout.close();
-                        stderr.close();
-                    } catch (IOException e) {
-                        LOG.error("Cannot close stderr/stdout slots", e);
-                    } catch (Exception e) {
-                        LOG.error("Error while completing docker env process: ", e);
-                    } finally {
-                        feature.complete(null);
+        var startCmd = retry.executeSupplier(() ->
+            client.execStartCmd(exec.getId())
+                .exec(new ResultCallbackTemplate<>() {
+                    @Override
+                    public void onComplete() {
+                        LOG.info("Closing stdout, stderr of cmd {}", String.join(" ", command));
+                        try {
+                            stdout.close();
+                            stderr.close();
+                        } catch (IOException e) {
+                            LOG.error("Cannot close stderr/stdout slots", e);
+                        } catch (Exception e) {
+                            LOG.error("Error while completing docker env process: ", e);
+                        } finally {
+                            feature.complete(null);
+                        }
                     }
-                }
 
-                @Override
-                public void onNext(Frame item) {
-                    switch (item.getStreamType()) {
-                        case STDOUT -> {
-                            try {
-                                stdout.write(item.getPayload());
-                                stdout.flush();
-                            } catch (IOException e) {
-                                LOG.error("Error while write into stdout log", e);
+                    @Override
+                    public void onNext(Frame item) {
+                        switch (item.getStreamType()) {
+                            case STDOUT -> {
+                                try {
+                                    stdout.write(item.getPayload());
+                                    stdout.flush();
+                                } catch (IOException e) {
+                                    LOG.error("Error while write into stdout log", e);
+                                }
                             }
-                        }
-                        case STDERR -> {
-                            try {
-                                stderr.write(item.getPayload());
-                                stderr.flush();
-                            } catch (IOException e) {
-                                LOG.error("Error while write into stderr log", e);
+                            case STDERR -> {
+                                try {
+                                    stderr.write(item.getPayload());
+                                    stderr.flush();
+                                } catch (IOException e) {
+                                    LOG.error("Error while write into stderr log", e);
+                                }
                             }
+                            default -> LOG.warn("Drop frame of {} bytes from unknown stream '{}'",
+                                item.getPayload().length, item.getStreamType());
                         }
-                        default -> LOG.info("Got frame "
-                            + new String(item.getPayload(), StandardCharsets.UTF_8)
-                            + " from unknown stream type "
-                            + item.getStreamType());
                     }
-                }
-            }));
+                }));
 
         return new LzyProcess() {
             @Override
@@ -248,18 +185,19 @@ public class DockerEnvironment extends BaseEnvironment {
             }
 
             @Override
-            public int waitFor() throws InterruptedException, OomKilledException {
+            public int waitFor() throws InterruptedException, OutOfMemoryException {
                 try {
                     feature.get();
-                    var rc = Math.toIntExact(retry.executeSupplier(() -> client.inspectExecCmd(exec.getId()).exec())
-                        .getExitCodeLong());
+                    var rc = Math.toIntExact(
+                        retry.executeSupplier(() -> client.inspectExecCmd(exec.getId()).exec())
+                            .getExitCodeLong());
 
                     if (rc == 0) {
                         return 0;
                     }
 
                     if (isOomKilled()) {
-                        throw new OomKilledException("Process exited with rc %s, and it was killed by OOM killer".formatted(rc));
+                        throw new OutOfMemoryException();
                     }
 
                     return rc;
@@ -292,65 +230,84 @@ public class DockerEnvironment extends BaseEnvironment {
         if (containerId != null) {
             retry.executeSupplier(() -> client.killContainerCmd(containerId).exec());
             retry.executeSupplier(() -> client.pruneCmd(PruneType.CONTAINERS).exec());
+            containerId = null;
         }
     }
 
-    @VisibleForTesting
-    void prepareImage(String image, LogStream out) throws Exception {
+    void pullImageIfNeeded(String image, LogStream out, LogStream err) throws InstallationException {
         try {
-            var inspectImageResponse = client.inspectImageCmd(image).exec();
-            var msg = "Image %s exists".formatted(image);
+            var resp = client.inspectImageCmd(image).exec();
+            var msg = "Image '%s' exists".formatted(image);
             LOG.info(msg);
             out.log(msg);
-            checkPlatform(inspectImageResponse, out);
+            validateImagePlatform(resp, err);
             return;
         } catch (NotFoundException ignored) {
-            var msg = "Image %s not found in cached images".formatted(image);
-            LOG.info(msg);
-            out.log(msg);
+            // ignored
         }
 
-        var msg = "Pulling image %s ...".formatted(image);
+        var msg = "Image '%s' not found in cached images, try to pull it...".formatted(image);
         LOG.info(msg);
         out.log(msg);
-        Set<String> allowedPlatforms = config.allowedPlatforms();
-        AtomicInteger pullingAttempt = new AtomicInteger(0);
-        try (var pullResponseItem = retry.executeCallable(() -> {
-            LOG.info("Pulling image {}, attempt {}", image, pullingAttempt.incrementAndGet());
-            if (allowedPlatforms.isEmpty()) {
-                return pullWithPlatform(image, null);
-            } else {
-                for (String platform : config.allowedPlatforms()) {
-                    try {
-                        return pullWithPlatform(image, platform);
-                    } catch (DockerClientException e) {
-                        String exceptionMessage = e.getMessage();
-                        if (exceptionMessage.contains(NO_MATCHING_MANIFEST_ERROR) ||
-                                exceptionMessage.contains(NOT_MATCH_PLATFORM_ERROR)) {
-                            LOG.info("Cannot find image = {} for platform = {}: message = {}",
-                                    image, platform, exceptionMessage);
-                        } else {
-                            throw e;
+
+        try (var x = withLoggerLevel(PullImageResultCallback.class, Level.INFO)) {
+            var attempt = new AtomicInteger(0);
+
+            try (var resp = retry.executeCallable(
+                () -> {
+                    LOG.info("Pull image '{}', attempt #{}", image, attempt.incrementAndGet());
+                    if (config.allowedPlatforms().isEmpty()) {
+                        return pullWithPlatform(image, null);
+                    }
+
+                    for (String platform : config.allowedPlatforms()) {
+                        try {
+                            return pullWithPlatform(image, platform);
+                        } catch (DockerClientException e) {
+                            var emsg = e.getMessage();
+                            if (emsg.contains(NO_MATCHING_MANIFEST_ERROR) || emsg.contains(NOT_MATCH_PLATFORM_ERROR)) {
+                                var str = "Image '%s' for platform '%s' not found: %s".formatted(image, platform, emsg);
+                                LOG.info(str);
+                                out.log(str);
+                            } else {
+                                throw e;
+                            }
                         }
                     }
+                    return null;
+                }))
+            {
+                if (resp == null) {
+                    var str = "Image '%s' for platforms [%s] not found"
+                        .formatted(image, String.join(", ", config.allowedPlatforms()));
+                    LOG.error(str);
+                    err.log(str);
+                    throw new InstallationException(str);
                 }
             }
-            return null;
-        }))
-        {
-            if (pullResponseItem == null) {
-                throw new RuntimeException("Cannot pull image for allowed platforms = %s".formatted(
-                        String.join(", ", allowedPlatforms)));
-            }
-        }
 
-        msg = "Pulling image %s done".formatted(image);
-        LOG.info(msg);
-        out.log(msg);
+            msg = "Image '%s' pull done".formatted(image);
+            LOG.info(msg);
+            out.log(msg);
+        } catch (InstallationException e) {
+            throw e;
+        } catch (InterruptedException e) {
+            LOG.error("Image {} pull was interrupted", image);
+            err.log("Image pull was interrupted");
+            throw new InstallationException("Image pull was interrupted");
+        } catch (DockerException e) {
+            LOG.error("Image {} pull failed: {}", image, e.getMessage(), e);
+            err.log("Image pull failed with error " + e.getMessage());
+            throw new InstallationException("Image pull failed with error " + e.getMessage());
+        } catch (Exception e) {
+            LOG.error("Image {} pull failed: {}", image, e.getMessage(), e);
+            err.log("Image pull filed");
+            throw new InstallationException("Image pull failed");
+        }
     }
 
     private ResultCallback.Adapter<PullResponseItem> pullWithPlatform(String image, @Nullable String platform)
-            throws InterruptedException
+        throws InterruptedException
     {
         var pullingImage = client.pullImageCmd(image);
         if (platform != null) {
@@ -359,21 +316,117 @@ public class DockerEnvironment extends BaseEnvironment {
         return pullingImage.exec(new PullImageResultCallback()).awaitCompletion();
     }
 
-    private void checkPlatform(InspectImageResponse inspectImageResponse, LogStream out) {
-        Set<String> allowedPlatforms = config.allowedPlatforms();
-        if (allowedPlatforms.isEmpty()) {
+    private void validateImagePlatform(InspectImageResponse inspect, LogStream err)
+        throws InstallationException
+    {
+        if (config.allowedPlatforms().isEmpty()) {
             return;
         }
 
-        String platform = inspectImageResponse.getOs() + "/" + inspectImageResponse.getArch();
-        if (!allowedPlatforms.contains(platform)) {
-            var allowedPlatformsStr = String.join(", ", allowedPlatforms);
-            var msg = "Image %s with platform = %s is not in allowed platforms = %s".formatted(
-                    config.image(), platform, allowedPlatformsStr);
-            LOG.info(msg);
-            out.log(msg);
+        var platform = inspect.getOs() + "/" + inspect.getArch();
+        if (!config.allowedPlatforms().contains(platform)) {
+            var msg = "Image '%s' with platform '%s' is not in the allowed platforms [%s]"
+                .formatted(config.image(), platform, String.join(", ", config.allowedPlatforms()));
+            LOG.error(msg);
+            err.log(msg);
 
-            throw new RuntimeException(msg);
+            throw new InstallationException(msg);
+        }
+    }
+
+    private CreateContainerResponse createContainer(String image, LogStream outStream, LogStream errStream)
+        throws InstallationException
+    {
+        LOG.info("Creating container from image {} ...", image);
+        outStream.log("Creating container from image %s ...".formatted(image));
+
+        final List<Mount> dockerMounts = new ArrayList<>();
+        config.mounts().forEach(m -> {
+            var mount = new Mount().withType(MountType.BIND).withSource(m.source()).withTarget(m.target());
+            if (m.isRshared()) {
+                mount.withBindOptions(new BindOptions().withPropagation(BindPropagation.R_SHARED));
+            }
+            dockerMounts.add(mount);
+        });
+
+        final HostConfig hostConfig = new HostConfig();
+        hostConfig.withMounts(dockerMounts);
+
+        // --gpus all --ipc=host --shm-size=1G
+        if (config.needGpu()) {
+            hostConfig.withDeviceRequests(
+                List.of(new DeviceRequest()
+                    .withDriver("nvidia")
+                    .withCapabilities(List.of(List.of("gpu")))))
+                .withIpcMode("host")
+                .withShmSize(GB_AS_BYTES);
+        }
+        if (config.networkMode() != null) {
+            hostConfig.withNetworkMode(config.networkMode());
+        }
+        if (config.memLimitMb() != null) {
+            hostConfig.withMemory(config.memLimitMb() * 1024 * 1024);
+        }
+
+        try {
+            var attempt = new AtomicInteger(0);
+
+            var container = retry.executeSupplier(() -> {
+                LOG.info("Creating container {}... (attempt {}); image: {}, config: {}",
+                    config.name(), attempt.incrementAndGet(), image, config);
+                outStream.log("Creating container... (attempt %d)".formatted(attempt.get()));
+
+                return client.createContainerCmd(image)
+                    .withName(config.name())
+                    .withHostConfig(hostConfig)
+                    .withAttachStdout(true)
+                    .withAttachStderr(true)
+                    .withTty(true)
+                    .withUser(config.user())
+                    .withEnv(config.envVars())
+                    .withEntrypoint("/bin/sh")
+                    .exec();
+            });
+
+            outStream.log("Container %s from image %s created".formatted(config.name(), image));
+            LOG.info("Container {} created; containerId: {}, image: {}", config.name(), container.getId(), image);
+
+            return container;
+        } catch (DockerException e) {
+            LOG.error("Create container failed with error: {}", e.getMessage(), e);
+            errStream.log("Container creation failed with error " + e.getMessage());
+            throw new InstallationException("Container creation failed with error " + e.getMessage());
+        } catch (Exception e) {
+            LOG.error("Create container failed with error: {}", e.getMessage(), e);
+            errStream.log("Container creation failed");
+            throw new InstallationException("Container creation failed");
+        }
+    }
+
+    private void startContainer(String containerId, String image, LogStream outStream, LogStream errStream)
+        throws InstallationException
+    {
+        outStream.log("Start environment container %s ...".formatted(config.name()));
+
+        try {
+            var attempt = new AtomicInteger(0);
+            retry.executeSupplier(() -> {
+                LOG.info("Starting env container {}... (attempt {}); containerId: {}, image: {}",
+                    config.name(), attempt.incrementAndGet(), containerId, image);
+                return client.startContainerCmd(containerId).exec();
+            });
+
+            outStream.log("Environment container %s started".formatted(config.name()));
+            LOG.info("Starting env container {} done; containerId: {}, image: {}", config.name(), containerId, image);
+        } catch (DockerException e) {
+            LOG.error("Cannot start container {}: {}", containerId, e.getMessage(), e);
+            errStream.log("Environment container start failed with error " + e.getMessage());
+            throw new InstallationException(
+                "Environment container start failed with error " + e.getMessage());
+        } catch (Exception e) {
+            LOG.error("Cannot start container {}: {}", containerId, e.getMessage(), e);
+            errStream.log("Environment container start failed");
+            throw new InstallationException("Environment container start failed");
         }
     }
 
@@ -382,15 +435,61 @@ public class DockerEnvironment extends BaseEnvironment {
             return false;
         }
 
-        var killed = client.inspectContainerCmd(containerId)
-            .exec()
-            .getState()
-            .getOOMKilled();
+        // container OOM
+        try {
+            var killed = client.inspectContainerCmd(containerId)
+                .exec()
+                .getState()
+                .getOOMKilled();
+            if (killed != null && killed) {
+                return true;
+            }
+        } catch (DockerException e) {
+            LOG.error("Inspect container {} failed: {}", containerId, e.getMessage(), e);
+        }
 
-        if (killed != null) {
-            return killed;
+        // workload OOM
+        try {
+            var killed = new boolean[]{false};
+            var latch = new CountDownLatch(1);
+
+            client.eventsCmd()
+                .withContainerFilter(containerId)
+                .withEventFilter("oom")
+                .withSince("" + Instant.now().minusSeconds(60).getEpochSecond())
+                .exec(new ResultCallback.Adapter<Event>() {
+                    @Override
+                    public void onNext(Event event) {
+                        killed[0] = true;
+                        latch.countDown();
+                    }
+
+                    @Override
+                    public void onComplete() {
+                        latch.countDown();
+                    }
+                });
+
+            latch.await(10, TimeUnit.SECONDS);
+            return killed[0];
+        } catch (DockerException e) {
+            LOG.error("Docker events for {} failed: {}", containerId, e.getMessage(), e);
+        } catch (InterruptedException ignored) {
+            return false;
         }
 
         return false;
+    }
+
+    private static AutoCloseable withLoggerLevel(Class<?> loggerClass, Level level) {
+        var logger = LogManager.getContext().getLogger(loggerClass);
+
+        if (logger instanceof org.apache.logging.log4j.core.Logger log) {
+            var prev = log.getLevel();
+            log.setLevel(level);
+            return () -> log.setLevel(prev);
+        }
+
+        return () -> {};
     }
 }

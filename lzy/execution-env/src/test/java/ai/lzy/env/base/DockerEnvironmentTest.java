@@ -1,5 +1,6 @@
 package ai.lzy.env.base;
 
+import ai.lzy.env.Environment;
 import ai.lzy.env.logs.LogStream;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.async.ResultCallback;
@@ -78,18 +79,18 @@ public class DockerEnvironmentTest {
     }
 
     @Test
-    public void testPrepareImageNodCachedImageWithoutRightPlatform() throws Exception {
+    public void testPrepareImageNotCachedImageWithoutRightPlatform() throws Exception {
         executeTest(this::doTestPrepareImageNodCachedImageWithoutRightPlatform);
     }
 
     @Test
     public void testPrepareImageNodCachedImageWithoutRightPlatform2() throws Exception {
-        executeTest(this::doTestPrepareImageNodCachedImageWithoutRightPlatform2);
+        executeTest(this::doTestPrepareImageNotCachedImageWithoutRightPlatform2);
     }
 
     @Test
     public void testPrepareImageNodCachedImageDockerClientException() throws Exception {
-        executeTest(this::doTestPrepareImageNodCachedImageDockerClientException);
+        executeTest(this::doTestPrepareImageNotCachedImageDockerClientException);
     }
 
     private void doTestPrepareImageCachedImage() throws Exception {
@@ -98,7 +99,7 @@ public class DockerEnvironmentTest {
 
         DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/amd64");
 
-        environment.prepareImage(IMAGE, logStream);
+        environment.pullImageIfNeeded(IMAGE, logStream, logStream);
 
         verify(dockerClient, never()).pullImageCmd(any());
     }
@@ -109,11 +110,12 @@ public class DockerEnvironmentTest {
 
         DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/amd64");
 
-        RuntimeException exception = Assert.assertThrows(RuntimeException.class,
-                () -> environment.prepareImage(IMAGE, logStream));
+        var exception = Assert.assertThrows(Environment.InstallationException.class,
+                () -> environment.pullImageIfNeeded(IMAGE, logStream, logStream));
         assertNotNull(exception);
-        assertEquals(("Image %s with platform = not_existed_os/not_existed_arch " +
-                "is not in allowed platforms = darwin/arm64, linux/amd64").formatted(IMAGE), exception.getMessage());
+        assertEquals(
+            ("Image '%s' with platform 'not_existed_os/not_existed_arch' is not in the allowed platforms" +
+                " [darwin/arm64, linux/amd64]").formatted(IMAGE), exception.getMessage());
 
         verify(dockerClient, never()).pullImageCmd(any());
     }
@@ -123,7 +125,7 @@ public class DockerEnvironmentTest {
         mockNotFound();
         DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/amd64");
 
-        environment.prepareImage(IMAGE, logStream);
+        environment.pullImageIfNeeded(IMAGE, logStream, logStream);
         verify(dockerClient, times(2)).pullImageCmd(IMAGE);
     }
 
@@ -132,15 +134,17 @@ public class DockerEnvironmentTest {
         mockNotFound();
         DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/win32");
 
-        RuntimeException exception = Assert.assertThrows(RuntimeException.class,
-                () -> environment.prepareImage(IMAGE, logStream));
+        var exception = Assert.assertThrows(Environment.InstallationException.class,
+                () -> environment.pullImageIfNeeded(IMAGE, logStream, logStream));
         assertNotNull(exception);
-        assertEquals("Cannot pull image for allowed platforms = linux/win32, darwin/arm64", exception.getMessage());
+        assertEquals(
+            "Image '%s' for platforms [linux/win32, darwin/arm64] not found".formatted(IMAGE),
+            exception.getMessage());
 
         verify(dockerClient, times(2)).pullImageCmd(IMAGE);
     }
 
-    private void doTestPrepareImageNodCachedImageWithoutRightPlatform2() {
+    private void doTestPrepareImageNotCachedImageWithoutRightPlatform2() {
         mockDockerClientException("""
                 com.github.dockerjava.api.exception.DockerClientException: Could not pull image: image with reference %s
                  was found but does not match the specified platform: wanted darwin/arm64,
@@ -149,23 +153,25 @@ public class DockerEnvironmentTest {
 
         DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/win32");
 
-        RuntimeException exception = Assert.assertThrows(RuntimeException.class,
-                () -> environment.prepareImage(IMAGE, logStream));
+        var exception = Assert.assertThrows(Environment.InstallationException.class,
+                () -> environment.pullImageIfNeeded(IMAGE, logStream, logStream));
         assertNotNull(exception);
-        assertEquals("Cannot pull image for allowed platforms = linux/win32, darwin/arm64", exception.getMessage());
+        assertEquals(
+            "Image '%s' for platforms [linux/win32, darwin/arm64] not found".formatted(IMAGE),
+            exception.getMessage());
 
         verify(dockerClient, times(2)).pullImageCmd(IMAGE);
     }
 
-    private void doTestPrepareImageNodCachedImageDockerClientException() {
+    private void doTestPrepareImageNotCachedImageDockerClientException() {
         mockDockerClientException("another docker client exception");
         mockNotFound();
         DockerEnvironment environment = createEnvironment("darwin/arm64", "linux/win32");
 
-        RuntimeException exception = Assert.assertThrows(DockerClientException.class,
-                () -> environment.prepareImage(IMAGE, logStream));
+        var exception = Assert.assertThrows(Environment.InstallationException.class,
+                () -> environment.pullImageIfNeeded(IMAGE, logStream, logStream));
         assertNotNull(exception);
-        assertEquals("another docker client exception", exception.getMessage());
+        assertEquals("Image pull failed", exception.getMessage());
 
         verify(dockerClient, times(3)).pullImageCmd(IMAGE);
     }

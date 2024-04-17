@@ -1,6 +1,6 @@
 package ai.lzy.worker.env;
 
-import ai.lzy.env.EnvironmentInstallationException;
+import ai.lzy.env.Environment;
 import ai.lzy.env.aux.CondaEnvironment;
 import ai.lzy.env.aux.SimpleBashEnvironment;
 import ai.lzy.env.base.DockerEnvironment;
@@ -34,7 +34,7 @@ public class EnvTest {
     }
 
     @Test
-    public void testBashEnv() throws EnvironmentInstallationException {
+    public void testBashEnv() throws Environment.InstallationException {
         var env = factory.create("", LME.EnvSpec.newBuilder()
             .setProcessEnv(LME.ProcessEnv.newBuilder().build())
             .build(), "", logs);
@@ -60,7 +60,7 @@ public class EnvTest {
     }
 
     @Test
-    public void testDocker() throws EnvironmentInstallationException {
+    public void testDocker() throws Environment.InstallationException {
         EnvironmentFactory.installEnv(false);
         var env = factory.create("", LME.EnvSpec.newBuilder()
             .setDockerImage("ubuntu:latest")
@@ -73,7 +73,7 @@ public class EnvTest {
     }
 
     @Test
-    public void testConda() throws EnvironmentInstallationException {
+    public void testConda() throws Environment.InstallationException {
         EnvironmentFactory.installEnv(false);  // Do not actually install conda
 
         var env = factory.create("", LME.EnvSpec.newBuilder()

@@ -1,6 +1,5 @@
 package ai.lzy.env.aux;
 
-import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.base.BaseEnvironment;
 import ai.lzy.env.logs.LogStream;
 import jakarta.annotation.Nullable;
@@ -41,7 +40,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
     }
 
     @Override
-    public void install(LogStream outStream, LogStream errStream) throws EnvironmentInstallationException {
+    public void install(LogStream outStream, LogStream errStream) throws InstallationException {
         var proc = baseEnv.runProcess("python", "--version");
         int res;
 
@@ -49,7 +48,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
             res = proc.waitFor();
         } catch (InterruptedException e) {
             LOG.error("Interrupted while installing env", e);
-            throw new EnvironmentInstallationException("Interrupted while installing env");
+            throw new InstallationException("Interrupted while installing env");
         }
 
         if (res != 0) {
@@ -69,7 +68,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
                 res = proc.waitFor();
             } catch (InterruptedException e) {
                 LOG.error("Interrupted while installing env", e);
-                throw new EnvironmentInstallationException("Interrupted while installing env");
+                throw new InstallationException("Interrupted while installing env");
             }
         }
 
@@ -84,7 +83,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
             var msg = "Cannot get python version. It can be not provided. STDERR: " + error;
             LOG.error(msg);
             errStream.log(msg);
-            throw new EnvironmentInstallationException(
+            throw new InstallationException(
                 "Python (and python3) not found. Maybe your docker doesn't contain it");
         }
 
@@ -93,7 +92,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
             output = IOUtils.toString(proc.out(), StandardCharsets.UTF_8);
         } catch (IOException e) {
             LOG.error("Error while getting stdout of process: ", e);
-            throw new EnvironmentInstallationException("Cannot get version of provided python");
+            throw new InstallationException("Cannot get version of provided python");
         }
 
         LOG.info("Using provided python with version \"{}\"", output);
@@ -102,7 +101,7 @@ public class PlainPythonEnvironment implements AuxEnvironment {
             installLocalModules(localModules, hostWorkingDir, LOG, outStream, errStream);
         } catch (IOException e) {
             LOG.error("Cannot install local modules", e);
-            throw new EnvironmentInstallationException("Cannot install local modules: " + e.getMessage());
+            throw new InstallationException("Cannot install local modules: " + e.getMessage());
         }
     }
 

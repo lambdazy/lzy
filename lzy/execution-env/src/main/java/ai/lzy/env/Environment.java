@@ -12,7 +12,7 @@ public interface Environment extends AutoCloseable {
      * Install environment. Must be called before execution
      * Consumes stream queues to add stdout and stderr to
      */
-    void install(LogStream outStream, LogStream errStream) throws EnvironmentInstallationException;
+    void install(LogStream outStream, LogStream errStream) throws InstallationException;
 
     default LzyProcess runProcess(String... command) {
         return runProcess(command, null, null);
@@ -53,15 +53,24 @@ public interface Environment extends AutoCloseable {
 
         InputStream err();
 
-        int waitFor() throws InterruptedException, OomKilledException;
+        int waitFor() throws InterruptedException, OutOfMemoryException;
 
         void signal(int sigValue);
     }
 
 
-    class OomKilledException extends RuntimeException {
-        public OomKilledException(String msg) {
-            super(msg);
+    class InstallationException extends Exception {
+        public InstallationException(String message) {
+            super(message);
+        }
+
+        public InstallationException(Exception e) {
+            super(e);
+        }
+    }
+
+    class OutOfMemoryException extends RuntimeException {
+        public OutOfMemoryException() {
         }
     }
 }
