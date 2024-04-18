@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public class CondaPackageRegistry {
     private static final Logger LOG = LogManager.getLogger(CondaPackageRegistry.class);
@@ -38,7 +39,9 @@ public class CondaPackageRegistry {
         "py38", "3.8",
         "py39", "3.9",
         "py310", "3.10",
-        "py311", "3.11"
+        "py311", "3.11",
+        "py312", "3.12",
+        "py313", "3.13"
     );
 
     private final Map<String, CondaEnv> envs = new HashMap<>();
@@ -146,7 +149,7 @@ public class CondaPackageRegistry {
                         continue;
                     }
 
-                    if (!installedPkg.version.equals(pkg.version)) {
+                    if (!Objects.equals(installedPkg.version, pkg.version)) {
                         failed = true;
                         break;
                     }

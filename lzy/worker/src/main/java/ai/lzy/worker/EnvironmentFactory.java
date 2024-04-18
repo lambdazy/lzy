@@ -1,7 +1,6 @@
 package ai.lzy.worker;
 
 import ai.lzy.env.Environment;
-import ai.lzy.env.EnvironmentInstallationException;
 import ai.lzy.env.aux.AuxEnvironment;
 import ai.lzy.env.aux.CondaEnvironment;
 import ai.lzy.env.aux.PlainPythonEnvironment;
@@ -56,7 +55,7 @@ public class EnvironmentFactory {
     }
 
     public AuxEnvironment create(String fsRoot, LME.EnvSpec env, String lzyMount, LogStreams logStreams)
-        throws EnvironmentInstallationException
+        throws Environment.InstallationException
     {
         //to mock environment in tests
         if (envForTests != null) {
@@ -70,7 +69,7 @@ public class EnvironmentFactory {
             Files.createDirectories(resourcesDir);
         } catch (Exception e) {
             LOG.error("Cannot create resources directories: ", e);
-            throw new EnvironmentInstallationException(e);
+            throw new Environment.InstallationException(e);
         }
 
         final BaseEnvironment baseEnv;
@@ -141,7 +140,7 @@ public class EnvironmentFactory {
                 res = proc.waitFor();
             } catch (InterruptedException e) {
                 LOG.error("Installation of environment interrupted", e);
-                throw new EnvironmentInstallationException("Installation of environment interrupted");
+                throw new Environment.InstallationException("Installation of environment interrupted");
             }
 
             var localModules = env.getPyenv().getLocalModulesList().stream()
