@@ -92,12 +92,12 @@ public class CondaPackageRegistry {
         }
     }
 
-    private record Package(
+    public record Package(
         String name,
         @Nullable String version
     ) {}
 
-    private record CondaEnv(
+    public record CondaEnv(
         String name,
         Map<String, Package> packages,
         String pythonVersion,
@@ -114,7 +114,7 @@ public class CondaPackageRegistry {
      */
     @Nullable
     public String buildCondaYaml(String condaYaml) {
-        var env = build(condaYaml);
+        var env = parseCondaYaml(condaYaml);
 
         if (env == null) {
             throw new IllegalArgumentException("Cannot build env from yaml");
@@ -173,7 +173,7 @@ public class CondaPackageRegistry {
 
     public void notifyInstalled(String condaYaml) {
         try {
-            var env = build(condaYaml);
+            var env = parseCondaYaml(condaYaml);
             if (env == null) {
                 LOG.warn("Cannot save installed env {}", condaYaml);
                 return;
@@ -187,7 +187,7 @@ public class CondaPackageRegistry {
 
     public String resolveEnvName(String condaYaml) {
         try {
-            var env = build(condaYaml);
+            var env = parseCondaYaml(condaYaml);
             if (env == null) {
                 LOG.warn("Cannot process env {}", condaYaml);
                 return DEFAULT_ENV_NAME;
@@ -211,7 +211,7 @@ public class CondaPackageRegistry {
     }
 
     @Nullable
-    CondaEnv build(String condaYaml) {
+    public static CondaEnv parseCondaYaml(String condaYaml) {
         var yaml = new Yaml();
         //noinspection unchecked
         var res = (Map<String, Object>) yaml.load(condaYaml);
@@ -313,7 +313,7 @@ public class CondaPackageRegistry {
     }
 
     @Nullable
-    private String parsePipOptionValue(String optionName, String optionString) {
+    private static String parsePipOptionValue(String optionName, String optionString) {
         String[] optionParts = optionString.split("\\s+", 2);
         if (optionParts.length == 1 || !optionParts[0].equals(optionName)) {
             LOG.warn("Unable to parse value for option '{}' from '{}'", optionName, optionString);
@@ -355,7 +355,7 @@ public class CondaPackageRegistry {
         return yaml.dump(cfg);
     }
 
-    private String normalizePkgName(String pkg) {
+    private static String normalizePkgName(String pkg) {
         return pkg.toLowerCase().replace("_", "-");
     }
 
