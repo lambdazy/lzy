@@ -22,9 +22,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static ai.lzy.env.aux.AuxEnvironment.installLocalModules;
-
-public class CondaEnvironment implements AuxEnvironment {
+public class CondaEnvironment implements PythonBaseEnvironment {
     private static volatile boolean RECONFIGURE_CONDA = true;  // Only for tests
 
     private static final Logger LOG = LogManager.getLogger(CondaEnvironment.class);
@@ -33,25 +31,30 @@ public class CondaEnvironment implements AuxEnvironment {
     private final String condaYaml;
     private final BaseEnvironment baseEnv;
     private String envName;
-    private final Map<String, String> localModules;
+    private final Map<String, String> localModulesUrls;  // name -> url
+    @Nullable
+    private final String binsUrl;
 
     private final Path hostWorkingDir;
     private final Path baseEnvWorkingDir;
 
     @Nullable
-    private String pythonPath;
+    private String pythonPath = null;
+    @Nullable
+    private String binsPath = null;
 
     @VisibleForTesting
     public static void reconfigureConda(boolean reconfigure) {
         RECONFIGURE_CONDA = reconfigure;
     }
 
-    public CondaEnvironment(BaseEnvironment baseEnv, String condaYaml, Map<String, String> localModules,
-                            Path hostWorkingDir, Path baseEnvWorkingDir)
+    public CondaEnvironment(BaseEnvironment baseEnv, String condaYaml, Map<String, String> localModulesUrls,
+                            @Nullable String binsUrl, Path hostWorkingDir, Path baseEnvWorkingDir)
     {
         this.condaYaml = condaYaml;
         this.baseEnv = baseEnv;
-        this.localModules = localModules;
+        this.localModulesUrls = localModulesUrls;
+        this.binsUrl = binsUrl;
         this.hostWorkingDir = hostWorkingDir;
         this.baseEnvWorkingDir = baseEnvWorkingDir;
     }
@@ -66,13 +69,19 @@ public class CondaEnvironment implements AuxEnvironment {
         try {
             final var condaPackageRegistry = baseEnv.getPackageRegistry();
 
-            try {
-                installLocalModules(localModules, hostWorkingDir, LOG, outStream, errStream);
-            } catch (IOException e) {
-                String errorMessage = "Failed to install local modules";
-                LOG.error(errorMessage, e);
-                errStream.log(errorMessage);
-                throw new InstallationException(errorMessage);
+            PythonBaseEnvironment.installLocalModules(localModulesUrls, hostWorkingDir, LOG, outStream, errStream);
+
+            if (binsUrl != null && !binsUrl.isBlank()) {
+                Path binsHostPath = hostWorkingDir.resolve("_bin");
+                PythonBaseEnvironment.installLocalModule("bins", binsUrl, binsHostPath, LOG, outStream, errStream);
+
+                Files.list(binsHostPath)
+                    .map(Path::toFile)
+                    .filter(File::isFile)
+                    .forEach(f -> f.setExecutable(true));
+
+                binsPath = baseEnvWorkingDir.resolve("_bin").toAbsolutePath().toString();
+                LOG.info("Bins host path={}, docker path={}", binsHostPath, binsPath);
             }
 
             if (!RECONFIGURE_CONDA) {  // Only for tests
@@ -94,6 +103,8 @@ public class CondaEnvironment implements AuxEnvironment {
                     try (FileWriter file = new FileWriter(condaFileOnHost.getAbsolutePath())) {
                         file.write(envYaml);
                     }
+
+                    LOG.debug("About to configure conda with parameters:\n{}", envYaml);
 
                     var condaFile = baseEnvWorkingDir.resolve("conda.yaml");
                     // Conda env create or update: https://github.com/conda/conda/issues/7819
@@ -165,7 +176,8 @@ public class CondaEnvironment implements AuxEnvironment {
     }
 
     private LzyProcess execInEnv(String command, @Nullable String[] envp, @Nullable String workingDir) {
-        LOG.info("Executing command " + command);
+        LOG.info("Executing command '{}' at cwd '{}' and env [{}]",
+            command, workingDir, envp != null ? String.join(", ", envp) : "<none>");
         assert baseEnvWorkingDir != null;
 
         var bashCmd = new String[] {
@@ -196,6 +208,9 @@ public class CondaEnvironment implements AuxEnvironment {
 
         var cmd = String.join(" ", command);
 
+        if (binsPath != null) {
+            cmd = "export PATH=$PATH:" + binsPath + " && " + cmd;
+        }
         if (pythonPath != null) {
             // Adding export here to prevent conda from updating PYTHONPATH
             cmd = "export PYTHONPATH=" + pythonPath + " && "  + cmd;

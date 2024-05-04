@@ -106,7 +106,7 @@ public class DockerEnvironment extends BaseEnvironment {
             throw new RuntimeException(e);
         }
 
-        LOG.info("Creating cmd {}", String.join(" ", command));
+        LOG.info("Creating cmd '{}'", String.join(" ", command));
         final ExecCreateCmd execCmd = client.execCreateCmd(containerId)
             .withCmd(command)
             .withUser(config.user())
@@ -121,7 +121,7 @@ public class DockerEnvironment extends BaseEnvironment {
             execCmd.withEnv(List.of(envp));
         }
         final ExecCreateCmdResponse exec = retry.executeSupplier(execCmd::exec);
-        LOG.info("Executing cmd {}", String.join(" ", command));
+        LOG.info("Executing cmd '{}'", String.join(" ", command));
 
         var feature = new CompletableFuture<>();
 
@@ -130,7 +130,7 @@ public class DockerEnvironment extends BaseEnvironment {
                 .exec(new ResultCallbackTemplate<>() {
                     @Override
                     public void onComplete() {
-                        LOG.info("Closing stdout, stderr of cmd {}", String.join(" ", command));
+                        LOG.info("Closing stdout, stderr of cmd '{}'", String.join(" ", command));
                         try {
                             stdout.close();
                             stderr.close();
