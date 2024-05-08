@@ -86,7 +86,7 @@ public interface PythonBaseEnvironment extends AuxEnvironment {
                     Files.createDirectories(entryTargetPath);
                 } else {
                     Files.createDirectories(entryTargetPath.getParent());
-                    Files.copy(zipStream, entryTargetPath);
+                    Files.copy(zipStream, entryTargetPath, StandardCopyOption.REPLACE_EXISTING);
                 }
                 zipEntry = zipStream.getNextEntry();
             }
