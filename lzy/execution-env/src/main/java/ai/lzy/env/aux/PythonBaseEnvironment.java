@@ -8,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -57,7 +58,10 @@ public interface PythonBaseEnvironment extends AuxEnvironment {
             extractFiles(tempFile, path);
         } catch (Exception e) {
             log.error("Failed to install local module '{}'", name, e);
-            var errorMessage = "Failed to install local module '%s': %s".formatted(name, e.getMessage());
+            var excType = e instanceof FileSystemException fse
+                ? fse.getClass().getSimpleName() + " "
+                : "";
+            var errorMessage = "Failed to install local module '%s': %s%s".formatted(name, excType, e.getMessage());
             userErr.log(errorMessage);
 
             if (tempFile != null) {
