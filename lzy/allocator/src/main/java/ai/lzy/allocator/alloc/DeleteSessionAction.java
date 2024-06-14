@@ -47,14 +47,6 @@ public class DeleteSessionAction extends OperationRunnerBase {
     }
 
     @Override
-    protected void notifyExpired() {
-    }
-
-    @Override
-    protected void notifyFinished() {
-    }
-
-    @Override
     protected void onExpired(TransactionHandle tx) {
         throw new RuntimeException("Unexpected, sessionId: '%s', op: '%s'".formatted(sessionId, id()));
     }
